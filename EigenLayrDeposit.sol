@@ -25,7 +25,10 @@ contract EigenLayrDeposit {
             );
     }
 
-    function liquidStakeAndDeposit(IERC20 liquidStakeToken) external payable {
+    function depositETHIntoLiquidStaking(IERC20 liquidStakeToken)
+        external
+        payable
+    {
         require(
             isAllowedLiquidStakedToken[liquidStakeToken],
             "Liquid staking token is not allowed"
@@ -36,7 +39,7 @@ contract EigenLayrDeposit {
         // jeffC do your magic here
     }
 
-    function proveETH2Deposit(
+    function proveConsensusLayerDeposit(
         bytes32[] calldata treeProof,
         bool[] calldata branchFlags,
         bytes32[] calldata branchProof,
@@ -142,10 +145,28 @@ contract EigenLayrDeposit {
                     )
                 )
         );
-        // jeffC, they are pointing to a deposit of "stake" amount in ETH2, with the passed pubkey, withdrawal credentials, and signature
+        // jeffC, they are pointing to a deposit of "stake" amount in Consensus Layer, with the passed pubkey, withdrawal credentials, and signature
     }
 
-    function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {
+    function depositETHIntoConsensusLayer(
+        bytes calldata pubkey,
+        bytes calldata signature,
+        bytes32 deposit_data_root
+    ) external payable {
+        depositContract.deposit{value: msg.value}(
+            pubkey,
+            abi.encodePacked(withdrawalCredentials),
+            signature,
+            deposit_data_root
+        );
+        // jeffC, they deposited msg.value ETH into Consensus Layer
+    }
+
+    function to_little_endian_64(uint64 value)
+        internal
+        pure
+        returns (bytes memory ret)
+    {
         ret = new bytes(8);
         bytes8 bytesValue = bytes8(value);
         // Byteswapping during copying to bytes.
