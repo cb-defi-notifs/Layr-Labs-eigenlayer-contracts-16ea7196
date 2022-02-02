@@ -10,10 +10,16 @@ interface IQueryManager {
 interface IFeeManager {
 	function payFee(address payee) external;
 	function onResponse(bytes32 queryHash, address operator, bytes32 reponseHash, uint256 senderWeight);
+	function voteWeighter() external view returns(IVoteWeighter);
 }
 
 interface IVoteWeighter {
-	function weightOf(address) external returns(uint256);
+	function weightOfDelegate(address) external returns(uint256);
+	function weightOfDelegator(address) external returns(uint256);
+}
+
+interface IDelegateTerms {
+
 }
 
 abstract contract QueryManager is IQueryManager {
@@ -72,7 +78,7 @@ abstract contract QueryManager is IQueryManager {
 		require(block.timestamp < _queryExpiry(queryHash), "query period over");
 		require(queries[queryHash].operatorWeights[msgSender] == 0, "duplicate response to query");
 		//find sender's weight and the hash of their response
-		uint256 weightToAssign = voteWeighter.weightOf(msgSender);
+		uint256 weightToAssign = voteWeighter.weightOfDelegate(msgSender);
 		bytes32 reponseHash = keccak256(response);
 		//update Query struct with sender's weight + response
 		queries[queryHash].operatorWeights[msgSender] = weightToAssign;
@@ -119,6 +125,9 @@ abstract contract FeeManager is IFeeManager {
 	uint256 public paymentAmount;
 	//allows splitting of payments amongst operators
 	uint256 public cumulativePaymentPerWeight;
+
+//TODO: set this somewhere
+	IQueryManager public queryManager;
 	//operator => weight
 	mapping(address => uint256) public operatorWeights;
 	//operator => paymentDebt -- see 'pendingPayment' function for logic
@@ -134,16 +143,22 @@ abstract contract FeeManager is IFeeManager {
 	}
 
 	function payFee(address payee) external {
-	//TODO: PERMISSION!!!
+//TODO: PERMISSION!!!
 		//take payment from payee
 		paymentToken.transferFrom(payee, address(this), paymentAmount);
 		//effectively split payment amongst all operators
 		cumulativePaymentPerWeight += (paymentAmount * SCALING_FACTOR) / totalWeight;
 	}
 
-	function onResponse(bytes32, address operator, bytes32 reponseHash, uint256 senderWeight) external {
-	//TODO: CHECK OPERATOR IS VALID
-		
+	function onResponse(bytes32, address operator, bytes32, uint256 senderWeight) external {
+//TODO: PERMISSION!!!
+//TODO: check if operator is valid?
+		_updateOperatorWeight(operator, senderWeight);
+	}
+
+	function forceOperatorWeightUpdate(address operator) external {
+		uint256 newWeight = queryManager.voteWeighter().weightOfDelegate(operator);
+		_updateOperatorWeight(operator, newWeight);
 	}
 
 	function _updateOperatorWeight(address operator, uint256 newWeight) internal {
@@ -160,9 +175,69 @@ abstract contract FeeManager is IFeeManager {
 		}
 		//ensure that operator is entitled to future payments, but not past payments (pendingPayment for operator should now be zero!)
 		operatorPaymentDebts = (cumulativePaymentPerWeight * newWeight) / SCALING_FACTOR);
+//TODO: update this logic to use operator's DelegateTerms instead
 		//transfer the pending tokens to the operator
 		if (toSend > 0) {
 			paymentToken.transfer(operator, toSend);			
 		}
 	}
 }
+
+abstract contract DelegateTerms is IDelegateTerms {
+	uint16 internal constant MAX_BIPS = 10000;
+	//variable to keep track of amount of earnings kept by operator (in BIPs, i.e. parts in 10,000)
+	uint256 public operatorFeeBips;
+	//sum of weights of all delegates
+	uint256 public totalWeight;
+	//token used for payments
+	IERC20 public paymentToken;
+
+//TODO: set this somewhere
+	IQueryManager public queryManager;
+	//mapping delegator => weight
+	mapping(address => uint256) delegatorWeights;
+
+	constructor(IERC20 _paymentToken) {
+		paymentToken = _paymentToken;
+	}
+
+	function updateDelegatorWeight(address delegator) external {
+		uint256 newWeight = queryManager.voteWeighter().weightOfDelegator(operator);
+		_updateDelegatorWeight(delegator, newWeight);
+	}
+
+	function _updateDelegatorWeight(address delegator, uint256 newWeight) internal {
+		uint256 oldWeight = delegatorWeights[delegator];
+		//find pending payment for delegator
+		uint256 toSend = pendingPayment(delegator);
+		//update delegator weight and total weight
+		if (newWeight > oldWeight) {
+			totalWeight += (newWeight - oldWeight);
+			delegatorWeights[delegator] = newWeight;
+		} else if (newWeight < oldWeight) {
+			totalWeight -= (oldWeight - newWeight);
+			delegatorWeights[delegator] = newWeight;
+		}
+		//ensure that delegator is entitled to future payments, but not past payments (pendingPayment for delegator should now be zero!)
+		delegatorPaymentDebts = (cumulativePaymentPerWeight * newWeight) / SCALING_FACTOR);
+		//transfer the pending tokens to the delegator
+		if (toSend > 0) {
+			paymentToken.transfer(delegator, toSend);			
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
