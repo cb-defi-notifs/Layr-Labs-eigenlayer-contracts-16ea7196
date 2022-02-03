@@ -1,5 +1,5 @@
-import "./interfaces/IERC20.sol";
-import "./interfaces/IDepositContract.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IDepositContract.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract EigenLayrDeposit {
@@ -25,6 +25,7 @@ contract EigenLayrDeposit {
             );
     }
 
+    // 
     function depositETHIntoLiquidStaking(IERC20 liquidStakeToken)
         external
         payable
@@ -39,6 +40,7 @@ contract EigenLayrDeposit {
         // jeffC do your magic here
     }
 
+    // proves the a deposit with given parameters is present in the consensus layer
     function proveConsensusLayerDeposit(
         bytes32[] calldata treeProof,
         bool[] calldata branchFlags,
