@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.11;
+
 import "../interfaces/IERC20.sol";
 import "../interfaces/IDepositContract.sol";
+import "./BLS.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract EigenLayrDeposit {
@@ -40,6 +44,10 @@ contract EigenLayrDeposit {
         // jeffC do your magic here
     }
 
+    function depositPOSProof() external {
+        
+    }
+
     // proves the a deposit with given parameters is present in the consensus layer
     function proveConsensusLayerDeposit(
         bytes32[] calldata treeProof,
@@ -50,7 +58,7 @@ contract EigenLayrDeposit {
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         uint64 stake
-    ) external {
+    ) internal {
         bytes32 depositRoot = depositContract.get_deposit_root();
         bytes32 node = treeProof[0];
         bytes memory sizeBytes = depositContract.get_deposit_count();
