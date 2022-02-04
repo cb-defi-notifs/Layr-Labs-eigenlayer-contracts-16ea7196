@@ -11,6 +11,17 @@ contract InvestmentManager is IInvestmentManager {
     address public entryExit;
     address public governer;
 
+    constructor(address _entryExit, IInvestmentStrategy[] memory strategies) {
+        entryExit = _entryExit;
+        governer = msg.sender;
+        for(uint i = 0; i < strategies.length; i++){
+            stratApproved[strategies[i]] = true;
+            if(!stratEverApproved[strategies[i]]) {
+                stratEverApproved[strategies[i]] = true;
+            }
+        }
+    }   
+
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies) external {
         require(msg.sender == governer, "Only governer can add strategies");
         for(uint i = 0; i < strategies.length; i++){
@@ -60,12 +71,13 @@ contract InvestmentManager is IInvestmentManager {
         }  
     }
 
-    function getStrategyShares(IInvestmentStrategy[] calldata strategies)
+    function getStrategyShares(address depositer, IInvestmentStrategy[] calldata strategies)
         external
-        returns (uint256[] calldata shares) {
+        returns (uint256[] memory) {
+            uint256[] memory shares = new uint256[](strategies.length);
             for(uint i = 0; i < strategies.length; i++){
-                require(stratApproved[strategies[i]], "Can only deposit from approved strategies");
-                investorStratShares[depositer][strategies[i]] -= strategies[i].withdraw(msg.sender, tokens[i], amounts[i]);
+                shares[i] = investorStratShares[depositer][strategies[i]];
             }
+            return shares;
         }
 }

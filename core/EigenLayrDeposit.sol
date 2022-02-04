@@ -118,6 +118,7 @@ contract EigenLayrDeposit {
             } else {
                 branchNode = branchProof[branchProofIndex + 1];
             }
+            branchProofIndex += 2;
         }
 
         bytes32 pubkey_root = sha256(abi.encodePacked(pubkey, bytes16(0)));

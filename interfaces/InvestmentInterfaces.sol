@@ -16,7 +16,7 @@ interface IInvestmentManager {
         IInvestmentStrategy[] calldata strategies,
         IERC20[][] calldata tokens,
         uint256[][] calldata amounts
-    ) external returns (uint256[] memory shares);
+    ) external returns (uint256[] memory);
 
     function withdrawFromStrategies(
         address depositer,
@@ -27,7 +27,7 @@ interface IInvestmentManager {
 
     function getStrategyShares(address depositer, IInvestmentStrategy[] calldata strategies)
         external
-        returns (uint256[] memory shares);
+        returns (uint256[] memory);
 }
 
 interface IInvestmentStrategy {
