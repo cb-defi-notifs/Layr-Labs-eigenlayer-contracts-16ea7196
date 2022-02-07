@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.11;
+pragma solidity ^0.8.9;
 
 import "../interfaces/InvestmentInterfaces.sol";
 import "../interfaces/IERC20.sol";
@@ -34,6 +34,26 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         lendingPool.deposit(
             address(token),
             amounts[0],
+            address(this),
+            0
+        );
+        aTokenIncrease = aToken.balanceOf(address(this)) - aTokenIncrease;
+        return aTokenIncrease;
+    }
+
+    function depositSingle(
+        address depositer,
+        IERC20 depositToken,
+        uint256 amount
+    ) external returns (uint256) {
+        require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
+        require(token == depositToken, "Can only deposit this strategy's token");
+        //deposit and the "shares" are the new aTokens minted
+        uint256 aTokenIncrease = aToken.balanceOf(address(this));
+        token.transferFrom(depositer, address(this), amount);
+        lendingPool.deposit(
+            address(token),
+            amount,
             address(this),
             0
         );

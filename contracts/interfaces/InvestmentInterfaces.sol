@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.5.0;
+pragma solidity ^0.8.9;
 
 import "./IERC20.sol";
 
@@ -11,6 +11,13 @@ interface IInvestmentManager {
         IInvestmentStrategy[] calldata strategies
     ) external;
 
+    function depositIntoStrategy(
+        address depositer,
+        IInvestmentStrategy strategies,
+        IERC20 token,
+        uint256 amount
+    ) external returns (uint256);
+
     function depositIntoStrategies(
         address depositer,
         IInvestmentStrategy[] calldata strategies,
@@ -20,6 +27,7 @@ interface IInvestmentManager {
 
     function withdrawFromStrategies(
         address depositer,
+        uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[][] calldata tokens,
         uint256[][] calldata amounts
@@ -37,6 +45,12 @@ interface IInvestmentStrategy {
         address depositer,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
+    ) external returns (uint256);
+
+    function depositSingle(
+        address depositer,
+        IERC20 token,
+        uint256 amount
     ) external returns (uint256);
 
     function withdraw(

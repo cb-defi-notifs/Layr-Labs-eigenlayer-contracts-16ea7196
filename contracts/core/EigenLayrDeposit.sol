@@ -1,23 +1,29 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.11;
+pragma solidity ^0.8.9;
 
 import "../interfaces/IERC20.sol";
 import "../interfaces/IDepositContract.sol";
+import "../interfaces/InvestmentInterfaces.sol";
 import "./BLS.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract EigenLayrDeposit {
     bytes32 public withdrawalCredentials;
-    IDepositContract depositContract;
+    IDepositContract public depositContract;
     mapping(IERC20 => bool) public isAllowedLiquidStakedToken;
     uint256 constant DEPOSIT_CONTRACT_TREE_DEPTH = 32;
     bytes32[DEPOSIT_CONTRACT_TREE_DEPTH] zero_hashes;
+    IInvestmentManager public investmentManager;
 
-    constructor(IDepositContract _depositContract) {
+    constructor(
+        IDepositContract _depositContract,
+        IInvestmentManager _investmentManager
+    ) {
         withdrawalCredentials =
             (bytes32(uint256(1)) << 62) |
             bytes32(bytes20(address(this))); //0x010000000000000000000000THISCONTRACTADDRESSHEREFORTHELAST20BYTES
         depositContract = _depositContract;
+        investmentManager = _investmentManager;
         // Compute hashes in empty sparse Merkle tree
         for (
             uint256 height = 0;
@@ -29,39 +35,50 @@ contract EigenLayrDeposit {
             );
     }
 
-    // 
-    function depositETHIntoLiquidStaking(IERC20 liquidStakeToken)
-        external
-        payable
-    {
+    // deposits eth into liquid staking and deposit stETH into strategy
+    function depositETHIntoLiquidStaking(
+        IERC20 liquidStakeToken,
+        IInvestmentStrategy strategy
+    ) external payable {
         require(
             isAllowedLiquidStakedToken[liquidStakeToken],
             "Liquid staking token is not allowed"
         );
-        uint256 deposit = liquidStakeToken.balanceOf(address(this)); // stETH balance before deposit
+        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)); // stETH balance before deposit
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
-        deposit = liquidStakeToken.balanceOf(address(this)) - deposit; // increment in stETH balance
-        // jeffC do your magic here
+        depositAmount =
+            liquidStakeToken.balanceOf(address(this)) -
+            depositAmount; // increment in stETH balance
+        investmentManager.depositIntoStrategy(
+            msg.sender,
+            strategy,
+            liquidStakeToken,
+            depositAmount
+        );
     }
 
-    function depositPOSProof() external {
-        
-    }
+    // function depositPOSProof(
+    //     bytes32[] calldata treeProof,
+    //     bool[] calldata branchFlags,
+    //     bool[] calldata leftRightFlags,
+    //     bytes calldata pubkey,
+    //     bytes calldata withdrawal_credentials,
+    //     bytes calldata signature,
+    //     uint64 stake
+    // ) external {}
 
     // proves the a deposit with given parameters is present in the consensus layer
     function proveConsensusLayerDeposit(
         bytes32[] calldata treeProof,
-        bool[] calldata branchFlags,
-        bytes32[] calldata branchProof,
-        bool[] calldata leftRightFlags,
+        bool[] calldata flags,
+        uint256 numBranchFlags,
         bytes calldata pubkey,
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         uint64 stake
-    ) internal {
+    ) internal view {
         bytes32 depositRoot = depositContract.get_deposit_root();
         bytes32 node = treeProof[0];
-        bytes memory sizeBytes = depositContract.get_deposit_count();
         require(
             sha256(
                 abi.encodePacked(
@@ -75,8 +92,8 @@ contract EigenLayrDeposit {
 
         // run root contruction backward till we get the branch we want
         uint256 treeProofIndex = 1;
-        for (uint256 index = 0; index < branchFlags.length; index++) {
-            if (branchFlags[index]) {
+        for (uint256 index = 0; index < numBranchFlags; index++) {
+            if (flags[index]) {
                 require(
                     node ==
                         sha256(
@@ -109,40 +126,33 @@ contract EigenLayrDeposit {
 
         // "binary hash search" the deposit root in question out of the branch
         bytes32 branchNode = treeProof[treeProofIndex - 1]; // get the branch from the last step of the proof (make sure that last step is branch step?)
-        uint256 branchProofIndex = 0;
-        for (uint256 index = 0; index < leftRightFlags.length; index++) {
+        for (uint256 index = numBranchFlags; index < flags.length; index++) {
             require(
                 branchNode ==
                     sha256(
                         abi.encodePacked(
-                            branchProof[branchProofIndex],
-                            branchProof[branchProofIndex + 1]
+                            treeProof[treeProofIndex],
+                            treeProof[treeProofIndex + 1]
                         )
                     ),
                 "Hash of branches is incorrect"
             );
-            if (leftRightFlags[index]) {
-                branchNode = branchProof[branchProofIndex];
+            if (flags[index]) {
+                branchNode = treeProof[treeProofIndex];
             } else {
-                branchNode = branchProof[branchProofIndex + 1];
+                branchNode = treeProof[treeProofIndex + 1];
             }
-            branchProofIndex += 2;
+            treeProofIndex += 2;
         }
 
-        bytes32 pubkey_root = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        bytes32 signature_root = sha256(
-            abi.encodePacked(
-                sha256(abi.encodePacked(signature[:64])),
-                sha256(abi.encodePacked(signature[64:], bytes32(0)))
-            )
-        );
+        // check that proven node is hashed data
         require(
             branchNode ==
                 sha256(
                     abi.encodePacked(
                         sha256(
                             abi.encodePacked(
-                                pubkey_root,
+                                sha256(abi.encodePacked(pubkey, bytes16(0))),
                                 withdrawal_credentials
                             )
                         ),
@@ -150,7 +160,19 @@ contract EigenLayrDeposit {
                             abi.encodePacked(
                                 to_little_endian_64(stake),
                                 bytes24(0),
-                                signature_root
+                                sha256(
+                                    abi.encodePacked(
+                                        sha256(
+                                            abi.encodePacked(signature[:64])
+                                        ),
+                                        sha256(
+                                            abi.encodePacked(
+                                                signature[64:],
+                                                bytes32(0)
+                                            )
+                                        )
+                                    )
+                                )
                             )
                         )
                     )
