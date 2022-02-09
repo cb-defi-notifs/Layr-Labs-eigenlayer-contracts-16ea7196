@@ -33,9 +33,22 @@ interface IInvestmentManager {
         uint256[][] calldata amounts
     ) external;
 
-    function getStrategyShares(address depositer, IInvestmentStrategy[] calldata strategies)
+    function depositConsenusLayerEth(
+        address depositer,
+        uint256 amount
+    ) external returns (uint256);
+
+    function getStrategyShares(address depositer)
         external
         returns (uint256[] memory);
+
+    function getStrategies(address depositer)
+        external
+        returns (IInvestmentStrategy[] memory);
+
+    function getConsensusLayerEth(address depositer)
+        external
+        returns (uint256);
 }
 
 interface IInvestmentStrategy {

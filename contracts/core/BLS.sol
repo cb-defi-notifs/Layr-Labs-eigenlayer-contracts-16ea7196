@@ -15,6 +15,29 @@ library BLS {
     uint256 constant ODD_NUM = 0x8000000000000000000000000000000000000000000000000000000000000000;
 
     function verifySingle(
+        bytes memory signature,
+        bytes memory pubkey,
+        uint256 message
+    ) public view returns(bool) {
+        uint256 sig1;
+        uint256 sig2;
+        uint256 pubkey1;
+        uint256 pubkey2;
+        uint256 pubkey3;
+        uint256 pubkey4;
+        assembly {
+            sig1 := mload(add(signature, 0x20))
+            sig2 := mload(add(signature, 0x40))
+            pubkey1 := mload(add(pubkey, 0x20))
+            pubkey2 := mload(add(pubkey, 0x40))
+            pubkey3 := mload(add(pubkey, 0x60))
+            pubkey4 := mload(add(pubkey, 0x80))
+
+        }
+        return _verifySingle([sig1, sig2], [pubkey1, pubkey2, pubkey3, pubkey4], [message, 0]);
+    }
+
+    function _verifySingle(
         uint256[2] memory signature,
         uint256[4] memory pubkey,
         uint256[2] memory message
