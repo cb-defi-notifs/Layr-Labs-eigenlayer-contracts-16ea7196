@@ -8,6 +8,7 @@ import "../interfaces/InvestmentInterfaces.sol";
 import "./BLS.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
+// todo: slashing functionality
 // todo: figure out token moving
 // todo: figure out deposit trie and proof of staking signature
 contract EigenLayrDeposit is IEigenLayrDeposit {

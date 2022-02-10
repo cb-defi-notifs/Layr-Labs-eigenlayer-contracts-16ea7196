@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+interface IServiceFactory {
+	function createNewQueryManager(uint256 queryDuration, IFeeManager feeManager, IVoteWeighter voteWeigher) external;
+	function queryManagerExists(IQueryManager queryManager) external view returns(bool);
+}
+
 interface IQueryManager {
 	function createNewQuery(bytes calldata queryData) external;
     function getQueryDuration() external returns(uint256);

@@ -7,17 +7,16 @@ import "../interfaces/CoreInterfaces.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
 import "./BLS.sol";
 
-// todo: undelegation fraud proofs
 // todo: task specific delegation
 contract EigenLayrDelegation {
     address public governer;
     IInvestmentManager public investmentManager;
+    IServiceFactory public serviceFactory;
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public operatorShares;
     // operator => eth on consensus layer delegated
-    mapping(address => uint256)
-        public consensusLayerEth;
+    mapping(address => uint256) public consensusLayerEth;
     // operator => delegation terms contract
     mapping(address => IDelegationTerms) public delegationTerms;
     // staker => operator
@@ -31,10 +30,12 @@ contract EigenLayrDelegation {
 
     constructor(
         IInvestmentManager _investmentManager,
+        IServiceFactory _serviceFactory,
         uint256 _undelegationFraudProofInterval
     ) {
         governer = msg.sender;
         investmentManager = _investmentManager;
+        serviceFactory = _serviceFactory;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
@@ -50,18 +51,16 @@ contract EigenLayrDelegation {
     // delegates a users stake to a certain delegate
     function delegateTo(address operator) external {
         require(
-            block.timestamp >
-                undelegationFraudProofInterval +
-                    lastUndelegationCommit[msg.sender],
-            "Last undelegation commit has not been confirmed yet"
-        );
-        require(
             address(delegationTerms[operator]) != address(0),
             "Delegate has not registered"
         );
         require(
-            delegation[msg.sender] == address(0) && !delegated[msg.sender],
-            "Delegator has existing delegation"
+            !delegated[msg.sender] &&
+                (delegation[msg.sender] == address(0) ||
+                    block.timestamp >
+                    undelegationFraudProofInterval +
+                        lastUndelegationCommit[msg.sender]),
+            "Delegator has existing delegation or pending undelegation commitment"
         );
         // retrieve list of strategies and their shares from investment manager
         IInvestmentStrategy[] memory strategies = investmentManager
@@ -109,8 +108,6 @@ contract EigenLayrDelegation {
         for (uint256 i = 0; i < strategies.length; i++) {
             operatorShares[operator][strategies[i]] -= shares[i];
         }
-        // set time of last undelegation commit
-        lastUndelegationCommit[msg.sender] = block.timestamp;
         // set that they are no longer delegated to anyone
         delegated[msg.sender] = false;
         // call into hook in delegationTerms contract
@@ -126,21 +123,19 @@ contract EigenLayrDelegation {
         // get their current operator
         address operator = delegation[msg.sender];
         require(
-            block.timestamp >
-                undelegationFraudProofInterval +
-                    lastUndelegationCommit[msg.sender],
-            "Last commit has not been confirmed yet"
-        );
-        require(
             operator != address(0) && !delegated[msg.sender],
             "Delegator is not in the post commit phase"
         );
-        // now their operator is the zero address and they are ready to delegate again
-        delegation[msg.sender] = address(0);
+        // set time of last undelegation commit
+        lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
     // contests a stakers undelegation commit
-    function contestUndelegationCommit(IQueryManager queryManager, bytes32 queryHash) external {
+    function contestUndelegationCommit(
+        address staker,
+        IQueryManager queryManager,
+        bytes32 queryHash
+    ) external {
         // get their current operator
         address operator = delegation[msg.sender];
         require(
@@ -153,6 +148,18 @@ contract EigenLayrDelegation {
             operator != address(0) && !delegated[msg.sender],
             "Delegator is not in the post commit phase"
         );
-        
+        require(
+            serviceFactory.queryManagerExists(queryManager),
+            "QueryManager was not deployed through factory"
+        );
+        require(
+            lastUndelegationCommit[staker] >
+                queryManager.getQueryCreationTime(queryHash) &&
+                lastUndelegationCommit[staker] <
+                queryManager.getQueryCreationTime(queryHash) +
+                    queryManager.getQueryDuration(),
+            "Given query is inactive"
+        );
+        //slash here
     }
 }

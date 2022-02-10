@@ -5,7 +5,7 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
 import "../interfaces/CoreInterfaces.sol";
 
-abstract contract QueryManager is IQueryManager {
+contract QueryManager is IQueryManager {
     struct Query {
 		//hash(reponse) with the greatest cumulative weight
 		bytes32 leadingResponse;
