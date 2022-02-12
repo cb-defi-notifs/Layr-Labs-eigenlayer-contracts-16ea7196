@@ -7,7 +7,7 @@ import "../interfaces/CoreInterfaces.sol";
 import "./QueryManager.sol";
 
 
-abstract contract ServiceFactory is IServiceFactory {
+contract ServiceFactory is IServiceFactory {
     mapping(IQueryManager => bool) public isQueryManager;
 
 	constructor(uint256 _queryDuration, IFeeManager _feeManager, IVoteWeighter _voteWeighter) {

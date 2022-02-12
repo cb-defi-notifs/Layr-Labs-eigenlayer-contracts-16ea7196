@@ -20,12 +20,18 @@ contract QueryManager is IQueryManager {
 		//operator => weight
 		mapping(address => uint256) operatorWeights;
 	}
+	
 	//fixed duration of all new queries
 	uint256 public queryDuration;
 	//called when new queries are created. handles payments for queries.
 	IFeeManager public feeManager;
 	//called when responses are provided by operators
 	IVoteWeighter public voteWeighter;
+	// number of registrants of this service
+	uint256 public numRegistrants;
+	//map from registrant address to whether they are active or not
+	mapping(address => bool) public isRegistrantActive;
+	address public registrationManager;
 	//hash(queryData) => Query
 	mapping(bytes32 => Query) public queries;
 	//hash(queryData) => time query created
@@ -37,10 +43,35 @@ contract QueryManager is IQueryManager {
 	event NewLeadingResponse(bytes32 indexed queryDataHash, bytes32 indexed previousLeadingResponseHash, bytes32 indexed newLeadingResponseHash);
 	event QueryFinalized(bytes32 indexed queryDataHash, bytes32 indexed outcome, uint256 totalCumulativeWeight);
 
-	constructor(uint256 _queryDuration, IFeeManager _feeManager, IVoteWeighter _voteWeighter) {
+	constructor(uint256 _queryDuration, IFeeManager _feeManager, IVoteWeighter _voteWeighter, address _registrationManager) {
 		queryDuration = _queryDuration;
 		feeManager = _feeManager;
 		voteWeighter = _voteWeighter;
+		registrationManager = _registrationManager;
+	}
+
+	// decrement number of registrants
+	// call registration contract with given data
+	//HOW DO THEY KNOW WHO IS REGISTERING
+	function deregister(bytes calldata data) external payable {
+		require(isRegistrantActive[msg.sender], "Registrant is not registered");
+		numRegistrants--;
+		isRegistrantActive[msg.sender] = false;
+		(bool success, bytes memory data) = address(registrationManager).call{value: msg.value, gas: gasleft()}(data);
+    }
+
+	// increment number of registrants
+	// call registration contract with given data
+	//HOW DO THEY KNOW WHO IS REGISTERING
+    function register(bytes calldata data) external payable {
+		require(!isRegistrantActive[msg.sender], "Registrant is already registered");
+		numRegistrants++;
+		isRegistrantActive[msg.sender] = true;
+		(bool success, bytes memory data) = address(registrationManager).call{value: msg.value, gas: gasleft()}(data);
+    }
+
+	function getIsRegistrantActive(address operator) public view returns(bool) { 
+		return isRegistrantActive[operator];
 	}
 
 	function createNewQuery(bytes calldata queryData) external {
@@ -61,7 +92,7 @@ contract QueryManager is IQueryManager {
 		require(block.timestamp < _queryExpiry(queryHash), "query period over");
 		require(queries[queryHash].operatorWeights[msgSender] == 0, "duplicate response to query");
 		//find sender's weight and the hash of their response
-		uint256 weightToAssign = voteWeighter.weightOfDelegate(msgSender);
+		uint256 weightToAssign = voteWeighter.weightOfOperator(msgSender);
 		bytes32 responseHash = keccak256(response);
 		//update Query struct with sender's weight + response
 		queries[queryHash].operatorWeights[msgSender] = weightToAssign;
@@ -92,7 +123,7 @@ contract QueryManager is IQueryManager {
 		emit QueryFinalized(queryHash, outcome, queries[queryHash].totalCumulativeWeight);
 	}
 
-    function getQueryDuration() external view returns(uint256) {
+	function getQueryDuration() external view returns(uint256) {
         return queryDuration;
     }
 
@@ -103,4 +134,49 @@ contract QueryManager is IQueryManager {
 	function _queryExpiry(bytes32 queryHash) internal view returns(uint256) {
 		return queriesCreated[queryHash] + queryDuration;
 	}
+
+	// proxy to fee payer contract
+    function _delegate(address implementation) internal virtual {
+        uint256 value = msg.value;
+		assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // Solidity scratch pad at memory position 0.
+            calldatacopy(0, 0, calldatasize())
+            // Call the implementation.
+            // out and outsize are 0 because we don't know the size yet.
+            let result := call(      
+                            gas(), //rest of gas
+                            implementation, //To addr
+                            value,    //send value
+                            0,    // Inputs are at location x
+                            calldatasize(), //send calldata
+                            0,    //Store output over input
+                            0) //Output is 32 bytes long
+
+            // Copy the returned data.
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+
+    function _fallback() internal virtual {
+        _delegate(address(feeManager));
+    }
+
+    fallback() external payable virtual {
+        _fallback();
+    }
+
+    receive() external payable virtual {
+        _fallback();
+    }
 }
