@@ -90,4 +90,9 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
     function totalShares() public view returns(uint256) {
         return aToken.balanceOf(address(this));
     }
+
+    function underlyingEthValueOf(uint256 numShares) public pure returns(uint256) {
+        return 69;
+        //jeffC help me out
+    }
 }

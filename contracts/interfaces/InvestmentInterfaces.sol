@@ -72,6 +72,8 @@ interface IInvestmentStrategy {
         uint256[] calldata amounts
     ) external returns (uint256);
 
+    function underlyingEthValueOf(uint256 numShares) external pure returns(uint256);
+
     event Deposit(address indexed from);
     event Withdraw(address indexed to);
 }

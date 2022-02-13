@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./IERC20.sol";
 import "./InvestmentInterfaces.sol";
+import "./MiddlewareInterfaces.sol";
 
 interface IEigenLayrDeposit {
     function depositETHIntoLiquidStaking(
@@ -28,12 +29,13 @@ interface IEigenLayrDeposit {
 }
 
 interface IEigenLayrDelegation {
-    function registerAsDelgate(IDelegationTerms dt) external;
-    function commitUndelegation() external;
-    
+    function registerAsDelgate(IDelegationTerms dt) external;   
+    function getDelegationTerms(address operator) external view returns(IDelegationTerms);
+    function getOperatorShares(address operator) external view returns(IInvestmentStrategy[] memory);
 }
 
 interface IDelegationTerms {
-    function onDelegationReceived(address node, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
-    function onDelegationWithdrawn(address node, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
+    function payForService(IQueryManager queryManager, IERC20[] calldata tokens, uint256[] calldata amounts) external payable;
+    function onDelegationWithdrawn(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
+    function onDelegationReceived(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
 }

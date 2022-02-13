@@ -5,6 +5,7 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
 import "../interfaces/CoreInterfaces.sol";
 
+//TODO: upgrading multisig fo fee manager and registration manager
 contract QueryManager is IQueryManager {
     struct Query {
 		//hash(reponse) with the greatest cumulative weight

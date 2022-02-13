@@ -8,13 +8,14 @@ import "../interfaces/MiddlewareInterfaces.sol";
 import "./BLS.sol";
 
 // todo: task specific delegation
-contract EigenLayrDelegation {
+contract EigenLayrDelegation is IEigenLayrDelegation {
     address public governer;
     IInvestmentManager public investmentManager;
     IServiceFactory public serviceFactory;
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public operatorShares;
+    mapping(address => IInvestmentStrategy[]) public operatorStrategies;
     // operator => eth on consensus layer delegated
     mapping(address => uint256) public consensusLayerEth;
     // operator => delegation terms contract
@@ -68,8 +69,11 @@ contract EigenLayrDelegation {
         uint256[] memory shares = investmentManager.getStrategyShares(
             msg.sender
         );
-        // add strategy shares to delegate's shares
+        // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
+            if(operatorShares[operator][strategies[i]] == 0){
+                operatorStrategies[operator].push(strategies[i]);
+            }
             operatorShares[operator][strategies[i]] += shares[i];
         }
         // store delegation relation
@@ -85,7 +89,7 @@ contract EigenLayrDelegation {
     }
 
     // commits a stakers undelegate
-    function commitUndelegation() external {
+    function commitUndelegation(uint256[] calldata strategyIndexes) external {
         // get their current operator
         address operator = delegation[msg.sender];
         require(
@@ -104,9 +108,15 @@ contract EigenLayrDelegation {
         uint256[] memory shares = investmentManager.getStrategyShares(
             msg.sender
         );
-        // subtract strategy shares to delegate's shares
+        // subtract strategy shares to delegate's shares and remove from strategy list if no shares remaining
+        uint256 strategyIndex = 0;
         for (uint256 i = 0; i < strategies.length; i++) {
             operatorShares[operator][strategies[i]] -= shares[i];
+            if(operatorShares[operator][strategies[i]] == 0) {
+                require(operatorStrategies[operator][strategyIndexes[strategyIndex]] == strategies[i], "Incorrect strategy index");
+                operatorStrategies[operator][strategyIndexes[strategyIndex]] = operatorStrategies[operator][operatorStrategies[operator].length];
+                operatorStrategies[operator].pop();
+            }
         }
         // set that they are no longer delegated to anyone
         delegated[msg.sender] = false;
@@ -152,6 +162,7 @@ contract EigenLayrDelegation {
             serviceFactory.queryManagerExists(queryManager),
             "QueryManager was not deployed through factory"
         );
+        //ongoing query exists at time of undelegation commit
         require(
             lastUndelegationCommit[staker] >
                 queryManager.getQueryCreationTime(queryHash) &&
@@ -161,5 +172,13 @@ contract EigenLayrDelegation {
             "Given query is inactive"
         );
         //slash here
+    }
+
+    function getDelegationTerms(address operator) public view returns(IDelegationTerms) {
+        return delegationTerms[operator];
+    }
+
+    function getOperatorShares(address operator) public view returns(IInvestmentStrategy[] memory) {
+        return operatorStrategies[operator];
     }
 }
