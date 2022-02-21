@@ -9,7 +9,7 @@ import "./BLS.sol";
 
 
 // TODO: Best way to divide up shares?
-contract DelegationTerms is IDelegationTerms {
+abstract contract DelegationTerms is IDelegationTerms {
     mapping(IInvestmentStrategy => uint256) public cummulativeRewardsPerStrategyShare;
     mapping(address => mapping(IInvestmentStrategy => uint256)) public stakerToStrategyToLastRewardsPerStrategyShare;
 
