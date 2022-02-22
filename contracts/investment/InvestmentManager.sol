@@ -13,12 +13,12 @@ contract InvestmentManager is IInvestmentManager {
     mapping(address => uint256) public consensusLayerEth;
     uint256 public totalConsensusLayerEth;
     address public entryExit;
-    address public governer;
+    address public governor;
 
     // adds the given strategies to the investment manager
     constructor(address _entryExit, IInvestmentStrategy[] memory strategies) {
         entryExit = _entryExit;
-        governer = msg.sender;
+        governor = msg.sender;
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -31,7 +31,7 @@ contract InvestmentManager is IInvestmentManager {
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
         external
     {
-        require(msg.sender == governer, "Only governer can add strategies");
+        require(msg.sender == governor, "Only governor can add strategies");
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -44,7 +44,7 @@ contract InvestmentManager is IInvestmentManager {
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
     ) external {
-        require(msg.sender == governer, "Only governer can add strategies");
+        require(msg.sender == governor, "Only governor can add strategies");
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = false;
         }
@@ -57,7 +57,7 @@ contract InvestmentManager is IInvestmentManager {
         IERC20 token,
         uint256 amount
     ) external returns (uint256) {
-        require(msg.sender == entryExit, "Only governer can add strategies");
+        require(msg.sender == entryExit, "Only governor can add strategies");
         require(
             stratApproved[strategy],
             "Can only deposit from approved strategies"
@@ -82,7 +82,7 @@ contract InvestmentManager is IInvestmentManager {
         IERC20[][] calldata tokens,
         uint256[][] calldata amounts
     ) external returns (uint256[] memory) {
-        require(msg.sender == entryExit, "Only governer can add strategies");
+        require(msg.sender == entryExit, "Only governor can add strategies");
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
@@ -108,7 +108,7 @@ contract InvestmentManager is IInvestmentManager {
         IERC20[][] calldata tokens,
         uint256[][] calldata amounts
     ) external {
-        require(msg.sender == entryExit, "Only governer can add strategies");
+        require(msg.sender == entryExit, "Only governor can add strategies");
         uint256 strategyIndexIndex = 0;
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
@@ -143,7 +143,7 @@ contract InvestmentManager is IInvestmentManager {
         external
         returns (uint256)
     {
-        require(msg.sender == entryExit, "Only governer can add strategies");
+        require(msg.sender == entryExit, "Only governor can add strategies");
         consensusLayerEth[depositer] = amount;
         totalConsensusLayerEth =
             totalConsensusLayerEth +

@@ -9,14 +9,14 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
     ILendingPool public lendingPool;
     IERC20 public token;
     IERC20 public aToken;
-    address governer;
+    address governor;
     address investmentManager;
 
     constructor(ILendingPool _lendingPool, IERC20 _token, IERC20 _aToken, address _investmentManager) {
         lendingPool = _lendingPool;
         token = _token;
         aToken = _aToken;
-        governer = msg.sender;
+        governor = msg.sender;
         investmentManager = _investmentManager;
     }
 
@@ -83,7 +83,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
     }
 
     function updateAToken(IERC20 _aToken) external {
-        require(governer == msg.sender, "Only governer can change the aToken");
+        require(governor == msg.sender, "Only governor can change the aToken");
         aToken = _aToken;
     }
 

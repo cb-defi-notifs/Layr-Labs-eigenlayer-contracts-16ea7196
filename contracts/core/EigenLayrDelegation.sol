@@ -9,7 +9,7 @@ import "./BLS.sol";
 
 // todo: task specific delegation
 contract EigenLayrDelegation is IEigenLayrDelegation {
-    address public governer;
+    address public governor;
     IInvestmentManager public investmentManager;
     IServiceFactory public serviceFactory;
     // operator => investment strategy => num shares delegated
@@ -34,7 +34,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         IServiceFactory _serviceFactory,
         uint256 _undelegationFraudProofInterval
     ) {
-        governer = msg.sender;
+        governor = msg.sender;
         investmentManager = _investmentManager;
         serviceFactory = _serviceFactory;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
