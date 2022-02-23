@@ -52,7 +52,7 @@ contract QueryManager is IQueryManager {
 	}
 
 	// decrement number of registrants
-	function deregister(bytes calldata data) external payable {
+	function deregister() external payable {
 		require(isRegistrantActive[msg.sender], "Registrant is not registered");
 		numRegistrants--;
 		isRegistrantActive[msg.sender] = false;

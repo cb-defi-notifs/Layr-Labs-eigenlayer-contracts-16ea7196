@@ -104,7 +104,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         aToken = _aToken;
     }
 
-    function underlyingEthValueOfShares(uint256 numShares) public returns(uint256) {
+    function underlyingEthValueOfShares(uint256 numShares) public view returns(uint256) {
         return sharesToUnderlying(numShares);
     }
 
@@ -119,7 +119,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
             return (aToken.balanceOf(address(this)) * amountShares) / totalShares;
         }
     }
-    function sharesToUnderlying(uint256 amountShares) public returns(uint256) {
+    function sharesToUnderlying(uint256 amountShares) public view returns(uint256) {
         if (totalShares == 0) {
             return 0;
         } else {
@@ -133,7 +133,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
             return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
         }
     }
-    function underlyingToShares(uint256 amountUnderlying) public returns(uint256) {
+    function underlyingToShares(uint256 amountUnderlying) public view returns(uint256) {
         if (totalShares == 0) {
             return amountUnderlying;
         } else {
