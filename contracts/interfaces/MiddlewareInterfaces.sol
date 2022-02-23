@@ -24,3 +24,7 @@ interface IFeeManager {
 interface IVoteWeighter {
 	function weightOfOperator(address) external returns(uint256);
 }
+
+interface IRegistrationManager {
+	function operatorPermitted(address operator, bytes calldata data) external returns(bool);
+}
