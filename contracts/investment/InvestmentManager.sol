@@ -138,7 +138,7 @@ contract InvestmentManager is IInvestmentManager {
         }
     }
 
-    // sets a users eth balance on the consesnsus layer
+    // sets a user's eth balance on the consesnsus layer
     function depositConsenusLayerEth(address depositer, uint256 amount)
         external
         returns (uint256)
@@ -152,7 +152,7 @@ contract InvestmentManager is IInvestmentManager {
         return amount;
     }
 
-    // gets deposters shares in the given strategies
+    // gets depositor's shares in the given strategies
     function getStrategies(address depositer)
         external
         view
@@ -161,7 +161,7 @@ contract InvestmentManager is IInvestmentManager {
         return investorStrats[depositer];
     }
 
-    // gets deposters shares in the given strategies
+    // gets depositor's shares in the given strategies
     function getStrategyShares(address depositer)
         external
         view
@@ -174,7 +174,7 @@ contract InvestmentManager is IInvestmentManager {
         return shares;
     }
 
-    // gets deposters eth deposited directly to consensus layer
+    // gets depositor's eth deposited directly to consensus layer
     function getConsensusLayerEth(address depositer)
         external
         view
