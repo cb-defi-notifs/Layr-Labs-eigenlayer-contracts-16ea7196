@@ -140,7 +140,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
             return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
         }
     }
-    function userUnderlying(address user) public returns(uint256) {
+    function userUnderlying(address user) public view returns(uint256) {
         return sharesToUnderlying(shares(user));
     }
     function userUnderlyingView(address user) public view returns(uint256) {
