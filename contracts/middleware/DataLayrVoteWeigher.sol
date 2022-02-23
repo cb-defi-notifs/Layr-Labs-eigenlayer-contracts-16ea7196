@@ -17,12 +17,22 @@ contract DataLayrVoteWeigher is IVoteWeighter {
         investmentManager = _investmentManager;
     }
 
-    function weightOfOperator(address user) external view returns(uint256) {
-        uint256 weight = (investmentManager.consensusLayerEth(user) * consensusLayerPercent) / 100;
-        IInvestmentStrategy[] memory investorStrats = investmentManager.investorStrats(user);
+    function weightOfOperator(address user) external returns(uint256) {
+        uint256 weight = (investmentManager.getConsensusLayerEth(user) * consensusLayerPercent) / 100;
+        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(user);
         uint256[] memory investorShares = investmentManager.getStrategyShares(user);
         for (uint256 i = 0; i < investorStrats.length; i++) {
-            weight += investorStrats[i].underlyingEthValueOf(investorShares[i]);
+            weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
+        }
+        return weight;
+    }
+
+    function weightOfOperatorView(address user) external view returns(uint256) {
+        uint256 weight = (investmentManager.getConsensusLayerEth(user) * consensusLayerPercent) / 100;
+        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(user);
+        uint256[] memory investorShares = investmentManager.getStrategyShares(user);
+        for (uint256 i = 0; i < investorStrats.length; i++) {
+            weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
         }
         return weight;
     }

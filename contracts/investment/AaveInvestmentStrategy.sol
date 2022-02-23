@@ -9,8 +9,9 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
     ILendingPool public lendingPool;
     IERC20 public token;
     IERC20 public aToken;
-    address governor;
-    address investmentManager;
+    address public governor;
+    address public investmentManager;
+    uint256 public totalShares;
 
     constructor(ILendingPool _lendingPool, IERC20 _token, IERC20 _aToken, address _investmentManager) {
         lendingPool = _lendingPool;
@@ -28,8 +29,8 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
         require(1 == amounts.length && tokens.length == 1, "Can only deposit 1 token to this contract");
         require(token == tokens[0], "Can only deposit this strategy's token");
-        //deposit and the "shares" are the new aTokens minted
-        uint256 aTokenIncrease = aToken.balanceOf(address(this));
+        //deposit and the "shares" are in proportion to the new aTokens minted
+        uint256 aTokensBefore = aToken.balanceOf(address(this));
         token.transferFrom(depositer, address(this), amounts[0]);
         lendingPool.deposit(
             address(token),
@@ -37,8 +38,15 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
             address(this),
             0
         );
-        aTokenIncrease = aToken.balanceOf(address(this)) - aTokenIncrease;
-        return aTokenIncrease;
+        uint256 aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
+        uint256 newShares;
+        if (totalShares == 0) {
+            newShares = aTokenIncrease;
+        } else {
+            newShares = (aTokenIncrease * totalShares) / aTokensBefore;
+        }
+        totalShares += newShares;
+        return newShares;
     }
 
     function depositSingle(
@@ -49,7 +57,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
         require(token == depositToken, "Can only deposit this strategy's token");
         //deposit and the "shares" are the new aTokens minted
-        uint256 aTokenIncrease = aToken.balanceOf(address(this));
+        uint256 aTokensBefore = aToken.balanceOf(address(this));
         token.transferFrom(depositer, address(this), amount);
         lendingPool.deposit(
             address(token),
@@ -57,8 +65,15 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
             address(this),
             0
         );
-        aTokenIncrease = aToken.balanceOf(address(this)) - aTokenIncrease;
-        return aTokenIncrease;
+        uint256 aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
+        uint256 newShares;
+        if (totalShares == 0) {
+            newShares = aTokenIncrease;
+        } else {
+            newShares = (aTokenIncrease * totalShares) / aTokensBefore;
+        }
+        totalShares += newShares;
+        return newShares;
     }
 
     function withdraw(
@@ -70,11 +85,13 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         require(1 == amounts.length && tokens.length == 1, "Can only deposit 1 token to this contract");
         require(token == tokens[0], "Can only deposit this strategy's token");
         //withdraw from lendingPool
+        uint256 toWithdraw = sharesToUnderlying(amounts[0]);
         uint256 amountWithdrawn = lendingPool.withdraw(
             address(token),
-            amounts[0],
+            toWithdraw,
             depositer
         );
+        totalShares -= amounts[0];
         return amountWithdrawn;
     }
 
@@ -87,12 +104,49 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         aToken = _aToken;
     }
 
-    function totalShares() public view returns(uint256) {
-        return aToken.balanceOf(address(this));
+    function underlyingEthValueOfShares(uint256 numShares) public returns(uint256) {
+        return sharesToUnderlying(numShares);
     }
 
-    function underlyingEthValueOf(uint256 numShares) public pure returns(uint256) {
-        return 69;
-        //jeffC help me out
+    function underlyingEthValueOfSharesView(uint256 numShares) public view returns(uint256) {
+        return sharesToUnderlyingView(numShares);
+    }
+
+    function sharesToUnderlyingView(uint256 amountShares) public view returns(uint256) {
+        if (totalShares == 0) {
+            return 0;
+        } else {
+            return (aToken.balanceOf(address(this)) * amountShares) / totalShares;
+        }
+    }
+    function sharesToUnderlying(uint256 amountShares) public returns(uint256) {
+        if (totalShares == 0) {
+            return 0;
+        } else {
+            return (aToken.balanceOf(address(this)) * amountShares) / totalShares;
+        }
+    }
+    function underlyingToSharesView(uint256 amountUnderlying) public view returns(uint256) {
+        if (totalShares == 0) {
+            return amountUnderlying;
+        } else {
+            return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
+        }
+    }
+    function underlyingToShares(uint256 amountUnderlying) public returns(uint256) {
+        if (totalShares == 0) {
+            return amountUnderlying;
+        } else {
+            return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
+        }
+    }
+    function userUnderlying(address user) public returns(uint256) {
+        return sharesToUnderlying(shares(user));
+    }
+    function userUnderlyingView(address user) public view returns(uint256) {
+        return sharesToUnderlyingView(shares(user));
+    }
+    function shares(address user) public view returns(uint256) {
+        return IInvestmentManager(investmentManager).investorStratShares(user, IInvestmentStrategy(address(this)));
     }
 }

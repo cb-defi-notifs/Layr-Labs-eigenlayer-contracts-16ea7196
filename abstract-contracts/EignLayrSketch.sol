@@ -71,7 +71,7 @@ abstract contract IInvestor {
     function userUnderlying(address tokenAddress, address user) public returns(uint256) {
         return sharesToUnderlying(shares(tokenAddress, user));
     }
-    function userUnderlyingView(address tokenAddress, address user) public returns(uint256) {
+    function userUnderlyingView(address tokenAddress, address user) public view returns(uint256) {
         return sharesToUnderlyingView(shares(tokenAddress, user));
     }
 }
