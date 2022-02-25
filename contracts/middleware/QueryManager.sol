@@ -52,23 +52,19 @@ contract QueryManager is IQueryManager {
 	}
 
 	// decrement number of registrants
-	// call registration contract with given data
-	//HOW DO THEY KNOW WHO IS REGISTERING
-	function deregister(bytes calldata data) external payable {
+	function deregister() external payable {
 		require(isRegistrantActive[msg.sender], "Registrant is not registered");
 		numRegistrants--;
 		isRegistrantActive[msg.sender] = false;
-		(bool success, bytes memory data) = address(registrationManager).call{value: msg.value, gas: gasleft()}(data);
     }
 
 	// increment number of registrants
 	// call registration contract with given data
-	//HOW DO THEY KNOW WHO IS REGISTERING
     function register(bytes calldata data) external payable {
 		require(!isRegistrantActive[msg.sender], "Registrant is already registered");
+		require(IRegistrationManager(registrationManager).operatorPermitted(msg.sender, data), "registrant not permitted");
 		numRegistrants++;
 		isRegistrantActive[msg.sender] = true;
-		(bool success, bytes memory data) = address(registrationManager).call{value: msg.value, gas: gasleft()}(data);
     }
 
 	function getIsRegistrantActive(address operator) public view returns(bool) { 

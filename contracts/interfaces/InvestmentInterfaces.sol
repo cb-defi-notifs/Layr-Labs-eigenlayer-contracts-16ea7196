@@ -39,15 +39,23 @@ interface IInvestmentManager {
     ) external returns (uint256);
 
     function getStrategyShares(address depositer)
-        external
+        external view
         returns (uint256[] memory);
 
     function getStrategies(address depositer)
-        external
+        external view
         returns (IInvestmentStrategy[] memory);
 
     function getConsensusLayerEth(address depositer)
-        external
+        external view
+        returns (uint256);
+
+    function investorStratShares(address user, IInvestmentStrategy strategy)
+        external view
+        returns (uint256 shares);
+
+    function consensusLayerEth(address user)
+        external view
         returns (uint256);
 }
 
@@ -72,7 +80,8 @@ interface IInvestmentStrategy {
         uint256[] calldata amounts
     ) external returns (uint256);
 
-    function underlyingEthValueOf(uint256 numShares) external pure returns(uint256);
+    function underlyingEthValueOfShares(uint256 numShares) external returns(uint256);
+    function underlyingEthValueOfSharesView(uint256 numShares) external view returns(uint256);
 
     event Deposit(address indexed from);
     event Withdraw(address indexed to);
