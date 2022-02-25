@@ -7,8 +7,7 @@ import "../interfaces/CoreInterfaces.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
 import "./BLS.sol";
 
-// TODO: weight updating, *dealing with pending payments to the operator at time of deposit*
-//TODO: dealing with ownership + operator cut
+// TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 abstract contract DelegationTerms is IDelegationTerms {
     struct delegatorStatus {
         //delegator weight
@@ -19,6 +18,14 @@ abstract contract DelegationTerms is IDelegationTerms {
 
     //constant scaling factor
     uint256 internal constant REWARD_SCALING = 2**64;
+    uint16 internal constant MAX_BIPS = 10000;
+    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 1000;
+    //portion of all earnings (in BIPS) retained by operator
+    uint16 public operatorFeeBips = 200;
+    //operator
+    address public operator;
+    //earnings to be withdrawn by the operator
+    uint256 public operatorPendingEarnings;
     //sum of individual delegator weights
     uint256 public totalWeight;
     //sum of earnings of this contract, over all time, per unit weight at the time of earning
@@ -26,8 +33,32 @@ abstract contract DelegationTerms is IDelegationTerms {
     //delegate => weight
     mapping(address => delegatorStatus) public delegatorInfo;
 
+    event OperatorFeeBipsSet(uint16 previousValue, uint16 newValue);
+
+    function setOperatorFeeBips(uint16 bips) external {
+        require(bips <= MAX_OPERATOR_FEE_BIPS, "setOperatorFeeBips: input too high");
+        require(msg.sender == operator, "onlyOperator");
+        emit OperatorFeeBipsSet(operatorFeeBips, bips);
+        operatorFeeBips = bips;
+    }
+
+    function operatorWithdrawal() external {
+        uint256 pending = operatorPendingEarnings;
+        operatorPendingEarnings = 0;
+        if (pending > 0) {
+            // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+            (bool success, ) = payable(operator).call{ value: uint256(int256(pending)) }("");
+            require(success, "DelegationTerms: failed to send value");
+        }
+    }
+
     function payForService(IQueryManager queryManager, IERC20[] calldata tokens, uint256[] calldata amounts) external payable {
         uint256 ethSent = msg.value;
+        if (operatorFeeBips > 0) {
+            uint256 operatorEarnings = (ethSent * operatorFeeBips) / MAX_BIPS;
+            operatorPendingEarnings += operatorEarnings;
+            ethSent -= operatorPendingEarnings;
+        }
         earnedPerWeightAllTime += (ethSent * REWARD_SCALING) / totalWeight;
     }
 
@@ -92,6 +123,8 @@ abstract contract DelegationTerms is IDelegationTerms {
     
     constructor(IInvestmentManager _investmentManager){
         investmentManager = _investmentManager;
+        //initialize operator as msg.sender
+        operator = msg.sender;
     }
 
     function weightOf(address user) public returns(uint256) {
