@@ -9,7 +9,7 @@ import "./BLS.sol";
 
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 abstract contract DelegationTerms is IDelegationTerms {
-    struct delegatorStatus {
+    struct DelegatorStatus {
         //delegator weight
         uint128 weight;
         //ensures delegates do not receive undue rewards
@@ -31,7 +31,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     //sum of earnings of this contract, over all time, per unit weight at the time of earning
     uint256 public earnedPerWeightAllTime;
     //delegate => weight
-    mapping(address => delegatorStatus) public delegatorInfo;
+    mapping(address => DelegatorStatus) public delegatorInfo;
 
     event OperatorFeeBipsSet(uint16 previousValue, uint16 newValue);
 
@@ -63,7 +63,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     function onDelegationReceived(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external {
-        delegatorStatus storage delegator = delegatorInfo[staker];
+        DelegatorStatus storage delegator = delegatorInfo[staker];
         uint256 weight = weightOf(staker);
         delegator.claimedRewards += int128(uint128((earnedPerWeightAllTime * weight) / (totalWeight * REWARD_SCALING)));
         delegator.weight += uint128(weight);
@@ -71,7 +71,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     function onDelegationWithdrawn(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external {
-        delegatorStatus storage delegator = delegatorInfo[staker];
+        DelegatorStatus storage delegator = delegatorInfo[staker];
         delegator.claimedRewards -= int128(uint128((earnedPerWeightAllTime * delegator.weight) / (totalWeight * REWARD_SCALING)));
         totalWeight -= delegator.weight;
         delegator.weight = 0;
@@ -87,7 +87,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     function _updateDelegatorWeight(address staker) internal {
-        delegatorStatus storage delegator = delegatorInfo[staker];
+        DelegatorStatus storage delegator = delegatorInfo[staker];
         uint256 newWeight = weightOf(staker);
         uint256 previousWeight = delegator.weight;
         //if weight has increased
@@ -104,7 +104,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     function _withdrawPendingRewards(address user) internal {
-        delegatorStatus storage delegator = delegatorInfo[user];
+        DelegatorStatus storage delegator = delegatorInfo[user];
         int128 proceedsAllTime = int128(uint128( (earnedPerWeightAllTime * delegator.weight) / (totalWeight * REWARD_SCALING) ));
         int128 pending = proceedsAllTime - delegator.claimedRewards;
         delegator.claimedRewards = proceedsAllTime;
