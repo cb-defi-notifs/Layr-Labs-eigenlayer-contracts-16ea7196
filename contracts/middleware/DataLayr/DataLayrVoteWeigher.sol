@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IERC20.sol";
-import "../interfaces/MiddlewareInterfaces.sol";
-import "../interfaces/CoreInterfaces.sol";
-import "../interfaces/InvestmentInterfaces.sol";
-import "./QueryManager.sol";
+import "../../interfaces/IERC20.sol";
+import "../../interfaces/MiddlewareInterfaces.sol";
+import "../../interfaces/CoreInterfaces.sol";
+import "../../interfaces/InvestmentInterfaces.sol";
+import "../QueryManager.sol";
 
 
 contract DataLayrVoteWeigher is IVoteWeighter {

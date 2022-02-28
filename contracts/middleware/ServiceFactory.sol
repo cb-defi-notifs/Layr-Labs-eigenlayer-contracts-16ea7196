@@ -14,9 +14,9 @@ contract ServiceFactory is IServiceFactory {
 		
 	}
 
-	function createNewQueryManager(uint256 queryDuration, IFeeManager feeManager, IVoteWeighter voteWeigher, address registrationManager) external {
+	function createNewQueryManager(uint256 queryDuration, IFeeManager feeManager, IVoteWeighter voteWeigher, address registrationManager, address timelock) external {
 		// register a new query manager
-		isQueryManager[new QueryManager(queryDuration, feeManager, voteWeigher, registrationManager)] = true;
+		isQueryManager[new QueryManager(queryDuration, feeManager, voteWeigher, registrationManager, timelock)] = true;
 	}
 
 	function queryManagerExists(IQueryManager queryManager) external view returns(bool) {

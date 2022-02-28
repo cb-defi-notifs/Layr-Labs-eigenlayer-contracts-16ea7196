@@ -5,7 +5,7 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
 import "../interfaces/CoreInterfaces.sol";
 
-//TODO: upgrading multisig fo fee manager and registration manager
+//TODO: upgrading multisig for fee manager and registration manager
 contract QueryManager is IQueryManager {
     struct Query {
 		//hash(reponse) with the greatest cumulative weight
@@ -27,7 +27,9 @@ contract QueryManager is IQueryManager {
 	//called when new queries are created. handles payments for queries.
 	IFeeManager public feeManager;
 	//called when responses are provided by operators
-	IVoteWeighter public voteWeighter;
+	IVoteWeighter public immutable voteWeighter;
+	//timelock address which has control over upgrades of feeManager
+	address public timelock;
 	// number of registrants of this service
 	uint256 public numRegistrants;
 	//map from registrant address to whether they are active or not
@@ -44,11 +46,12 @@ contract QueryManager is IQueryManager {
 	event NewLeadingResponse(bytes32 indexed queryDataHash, bytes32 indexed previousLeadingResponseHash, bytes32 indexed newLeadingResponseHash);
 	event QueryFinalized(bytes32 indexed queryDataHash, bytes32 indexed outcome, uint256 totalCumulativeWeight);
 
-	constructor(uint256 _queryDuration, IFeeManager _feeManager, IVoteWeighter _voteWeighter, address _registrationManager) {
+	constructor(uint256 _queryDuration, IFeeManager _feeManager, IVoteWeighter _voteWeighter, address _registrationManager, address _timelock) {
 		queryDuration = _queryDuration;
 		feeManager = _feeManager;
 		voteWeighter = _voteWeighter;
 		registrationManager = _registrationManager;
+		timelock = _timelock;
 	}
 
 	// decrement number of registrants
@@ -175,5 +178,15 @@ contract QueryManager is IQueryManager {
 
     receive() external payable virtual {
         _fallback();
+    }
+
+    function setFeeManager(IFeeManager _feeManager) external {
+    	require(msg.sender == timelock, "onlyTimelock");
+    	feeManager = _feeManager;
+    }
+
+    function setTimelock(address _timelock) external {
+    	require(msg.sender == timelock, "onlyTimelock");
+    	timelock = _timelock;
     }
 }
