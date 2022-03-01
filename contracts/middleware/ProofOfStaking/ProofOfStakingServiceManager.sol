@@ -16,6 +16,7 @@ contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceMana
     uint256 public fee;
     IQueryManager public queryManager;
     uint256 public totalFees;
+    uint256 public BIG_NUMBER = 10e50;
     mapping(address => uint256) public operatorToLastFees;
 
     constructor(
@@ -51,12 +52,12 @@ contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceMana
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
-        totalFees += fee;
+        totalFees += BIG_NUMBER * fee / posRegVW.totalEth();
         token.transferFrom(payer, address(this), fee);
     }
 
     function redeemPayment() external {
-        uint256 payment = posRegVW.getEtherForOperator(msg.sender) * (totalFees - operatorToLastFees[msg.sender]) / posRegVW.totalEth();
+        uint256 payment = posRegVW.getEtherForOperator(msg.sender) * (totalFees - operatorToLastFees[msg.sender]);
         operatorToLastFees[msg.sender] = totalFees;
         token.transfer(msg.sender, payment);
     }
