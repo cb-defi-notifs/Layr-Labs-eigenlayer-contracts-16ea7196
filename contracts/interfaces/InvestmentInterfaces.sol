@@ -57,6 +57,14 @@ interface IInvestmentManager {
     function consensusLayerEth(address user)
         external view
         returns (uint256);
+
+    function getUnderlyingEthStaked(address depositer)
+        external
+        returns (uint256);
+
+    function getUnderlyingEthStakedView(address staker)
+        external view
+        returns (uint256);
 }
 
 interface IInvestmentStrategy {

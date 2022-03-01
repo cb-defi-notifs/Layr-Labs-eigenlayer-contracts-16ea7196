@@ -27,4 +27,5 @@ interface IVoteWeighter {
 
 interface IRegistrationManager {
 	function operatorPermitted(address operator, bytes calldata data) external returns(bool);
+	function operatorPermittedToLeave(address operator, bytes calldata data) external returns(bool);
 }

@@ -182,4 +182,35 @@ contract InvestmentManager is IInvestmentManager {
     {
         return consensusLayerEth[depositer];
     }
+
+    // gets depositor's eth value staked
+    function getUnderlyingEthStaked(address depositer)
+        external
+        returns (uint256)
+    {
+        uint256 stake = consensusLayerEth[depositer];
+        uint256 numStrats = investorStrats[depositer].length;
+        // for all strats find uderlying eth value of shares
+        for (uint256 i = 0; i < numStrats; i++) {
+            IInvestmentStrategy strat = investorStrats[depositer][i];
+            stake += strat.underlyingEthValueOfShares(investorStratShares[depositer][strat]);
+        }
+        return stake;
+    }
+
+    // gets depositor's eth value staked
+    function getUnderlyingEthStakedView(address depositer)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 stake = consensusLayerEth[depositer];
+        uint256 numStrats = investorStrats[depositer].length;
+        // for all strats find uderlying eth value of shares
+        for (uint256 i = 0; i < numStrats; i++) {
+            IInvestmentStrategy strat = investorStrats[depositer][i];
+            stake += strat.underlyingEthValueOfSharesView(investorStratShares[depositer][strat]);
+        }
+        return stake;
+    }
 }

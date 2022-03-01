@@ -5,7 +5,6 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/InvestmentInterfaces.sol";
 import "../interfaces/CoreInterfaces.sol";
 import "../interfaces/MiddlewareInterfaces.sol";
-import "./BLS.sol";
 
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 abstract contract DelegationTerms is IDelegationTerms {

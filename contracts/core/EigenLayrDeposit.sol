@@ -5,7 +5,6 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/IDepositContract.sol";
 import "../interfaces/CoreInterfaces.sol";
 import "../interfaces/InvestmentInterfaces.sol";
-import "./BLS.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";

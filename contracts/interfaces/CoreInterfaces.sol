@@ -32,6 +32,13 @@ interface IEigenLayrDelegation {
     function registerAsDelgate(IDelegationTerms dt) external;   
     function getDelegationTerms(address operator) external view returns(IDelegationTerms);
     function getOperatorShares(address operator) external view returns(IInvestmentStrategy[] memory);
+    function getUnderlyingEthDelegated(address operator)
+        external
+        returns (uint256);
+    function getUnderlyingEthDelegatedView(address operator)
+        external
+        view
+        returns (uint256);
 }
 
 interface IDelegationTerms {
