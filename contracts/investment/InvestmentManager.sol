@@ -14,11 +14,13 @@ contract InvestmentManager is IInvestmentManager {
     uint256 public totalConsensusLayerEth;
     address public entryExit;
     address public governor;
+    address public slasher;
 
     // adds the given strategies to the investment manager
-    constructor(address _entryExit, IInvestmentStrategy[] memory strategies) {
+    constructor(address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher) {
         entryExit = _entryExit;
         governor = msg.sender;
+        slasher = _slasher;
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -50,9 +52,9 @@ contract InvestmentManager is IInvestmentManager {
         }
     }
 
-    // deposits given tokens and amounts into the given strategies on behalf of depositer
+    // deposits given tokens and amounts into the given strategies on behalf of depositor
     function depositIntoStrategy(
-        address depositer,
+        address depositor,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
@@ -63,21 +65,21 @@ contract InvestmentManager is IInvestmentManager {
             "Can only deposit from approved strategies"
         );
         // if they dont have existing shares of this strategy, add it to their strats
-        if (investorStratShares[depositer][strategy] == 0) {
-            investorStrats[depositer].push(strategy);
+        if (investorStratShares[depositor][strategy] == 0) {
+            investorStrats[depositor].push(strategy);
         }
         // add the returned shares to their existing shares for this strategy
-        investorStratShares[depositer][strategy] += strategy.depositSingle(
-            depositer,
+        investorStratShares[depositor][strategy] += strategy.depositSingle(
+            depositor,
             token,
             amount
         );
         return 0;
     }
 
-    // deposits given tokens and amounts into the given strategies on behalf of depositer
+    // deposits given tokens and amounts into the given strategies on behalf of depositor
     function depositIntoStrategies(
-        address depositer,
+        address depositor,
         IInvestmentStrategy[] calldata strategies,
         IERC20[][] calldata tokens,
         uint256[][] calldata amounts
@@ -90,19 +92,19 @@ contract InvestmentManager is IInvestmentManager {
                 "Can only deposit from approved strategies"
             );
             // if they dont have existing shares of this strategy, add it to their strats
-            if (investorStratShares[depositer][strategies[i]] == 0) {
-                investorStrats[depositer].push(strategies[i]);
+            if (investorStratShares[depositor][strategies[i]] == 0) {
+                investorStrats[depositor].push(strategies[i]);
             }
             // add the returned shares to their existing shares for this strategy
-            shares[i] = strategies[i].deposit(depositer, tokens[i], amounts[i]);
-            investorStratShares[depositer][strategies[i]] += shares[i];
+            shares[i] = strategies[i].deposit(depositor, tokens[i], amounts[i]);
+            investorStratShares[depositor][strategies[i]] += shares[i];
         }
         return shares;
     }
 
-    // withdraws the given tokens and amounts from the given strategies on behalf of the depositer
+    // withdraws the given tokens and amounts from the given strategies on behalf of the depositor
     function withdrawFromStrategies(
-        address depositer,
+        address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[][] calldata tokens,
@@ -116,71 +118,137 @@ contract InvestmentManager is IInvestmentManager {
                 "Can only deposit from approved strategies"
             );
             // subtract the returned shares to their existing shares for this strategy
-            investorStratShares[depositer][strategies[i]] -= strategies[i]
-                .withdraw(msg.sender, tokens[i], amounts[i]);
+            investorStratShares[depositor][strategies[i]] -= strategies[i]
+                .withdraw(depositor, tokens[i], amounts[i]);
             // if no existing shares, remove is from this investors strats
-            if (investorStratShares[depositer][strategies[i]] == 0) {
+            if (investorStratShares[depositor][strategies[i]] == 0) {
                 require(
-                    investorStrats[depositer][
+                    investorStrats[depositor][
                         strategyIndexes[strategyIndexIndex]
                     ] == strategies[i],
                     "Strategy index is incorrect"
                 );
                 // move the last element to the removed strategy's index, then shorten the array
-                investorStrats[depositer][
+                investorStrats[depositor][
                     strategyIndexes[strategyIndexIndex]
-                ] = investorStrats[depositer][
-                    investorStrats[depositer].length - 1
+                ] = investorStrats[depositor][
+                    investorStrats[depositor].length - 1
                 ];
-                investorStrats[depositer].pop();
+                investorStrats[depositor].pop();
                 strategyIndexIndex++;
             }
         }
     }
 
+/*
+    //TODO: more efficient method than effectively doing withdraw followed by deposit
+    //slash
+    function slashShares(
+        address slashed,
+        address recipient,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata strategyIndexes,
+        IERC20[][] calldata tokens,
+        uint256[][] calldata amounts,
+        uint256 maxSlashedAmount
+    ) external {
+        //copy withdrawal logic
+        require(msg.sender == slasher, "Only Slasher");
+        uint256 strategyIndexIndex = 0;
+        //extra logic -- TODO -- this is commented out since it doesn't work right now
+        //uint256 slashedAmount = 0;
+        for (uint256 i = 0; i < strategies.length; i++) {
+            require(
+                stratEverApproved[strategies[i]],
+                "Can only deposit from approved strategies"
+            );
+            // subtract the returned shares to their existing shares for this strategy
+            investorStratShares[slashed][strategies[i]] -= strategies[i].withdraw(slashed, tokens[i], amounts[i]);
+            // if no existing shares, remove is from this investors strats
+            if (investorStratShares[slashed][strategies[i]] == 0) {
+                require(
+                    investorStrats[slashed][
+                        strategyIndexes[strategyIndexIndex]
+                    ] == strategies[i],
+                    "Strategy index is incorrect"
+                );
+                // move the last element to the removed strategy's index, then shorten the array
+                investorStrats[slashed][
+                    strategyIndexes[strategyIndexIndex]
+                ] = investorStrats[slashed][
+                    investorStrats[slashed].length - 1
+                ];
+                investorStrats[slashed].pop();
+                strategyIndexIndex++;
+            }
+
+            //extra logic -- TODO -- this is commented out since it doesn't work right now
+            //slashedAmount += underlyingEthValueOfShares(amounts[i]);
+        }
+
+        //extra logic -- TODO -- this is commented out since it doesn't work right now
+        //require(slashedAmount <= maxSlashedAmount, "excessive slashing");
+
+        //copy deposit logic
+        for (uint256 i = 0; i < strategies.length; i++) {
+            require(
+                stratApproved[strategies[i]],
+                "Can only deposit from approved strategies"
+            );
+            // if they dont have existing shares of this strategy, add it to their strats
+            if (investorStratShares[recipient][strategies[i]] == 0) {
+                investorStrats[recipient].push(strategies[i]);
+            }
+            // add the returned shares to their existing shares for this strategy
+            uint256 shares = strategies[i].deposit(recipient, tokens[i], amounts[i]);
+            investorStratShares[recipient][strategies[i]] += shares;
+        }
+    }
+*/
+
     // sets a user's eth balance on the consesnsus layer
-    function depositConsenusLayerEth(address depositer, uint256 amount)
+    function depositConsenusLayerEth(address depositor, uint256 amount)
         external
         returns (uint256)
     {
         require(msg.sender == entryExit, "Only governor can add strategies");
-        consensusLayerEth[depositer] = amount;
+        consensusLayerEth[depositor] = amount;
         totalConsensusLayerEth =
             totalConsensusLayerEth +
             amount -
-            consensusLayerEth[depositer];
+            consensusLayerEth[depositor];
         return amount;
     }
 
     // gets depositor's shares in the given strategies
-    function getStrategies(address depositer)
+    function getStrategies(address depositor)
         external
         view
         returns (IInvestmentStrategy[] memory)
     {
-        return investorStrats[depositer];
+        return investorStrats[depositor];
     }
 
     // gets depositor's shares in the given strategies
-    function getStrategyShares(address depositer)
+    function getStrategyShares(address depositor)
         external
         view
         returns (uint256[] memory)
     {
-        uint256[] memory shares = new uint256[](investorStrats[depositer].length);
+        uint256[] memory shares = new uint256[](investorStrats[depositor].length);
         for (uint256 i = 0; i < shares.length; i++) {
-            shares[i] = investorStratShares[depositer][investorStrats[depositer][i]];
+            shares[i] = investorStratShares[depositor][investorStrats[depositor][i]];
         }
         return shares;
     }
 
     // gets depositor's eth deposited directly to consensus layer
-    function getConsensusLayerEth(address depositer)
+    function getConsensusLayerEth(address depositor)
         external
         view
         returns (uint256)
     {
-        return consensusLayerEth[depositer];
+        return consensusLayerEth[depositor];
     }
 
     // gets depositor's eth value staked
