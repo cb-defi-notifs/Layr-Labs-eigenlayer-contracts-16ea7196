@@ -56,10 +56,17 @@ contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceMana
         token.transferFrom(payer, address(this), fee);
     }
 
-    function redeemPayment() external {
-        uint256 payment = posRegVW.getEtherForOperator(msg.sender) * (totalFees - operatorToLastFees[msg.sender]);
-        operatorToLastFees[msg.sender] = totalFees;
-        token.transfer(msg.sender, payment);
+    function redeemPayment(address operator) external {
+        require(msg.sender == operator || msg.sender == address(posRegVW), "only operator or posRegVW can redeem fees");
+        uint256 payment = posRegVW.getEtherForOperator(operator) * (totalFees - operatorToLastFees[operator]);
+        operatorToLastFees[operator] = totalFees;
+        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(operator);
+        token.transfer(address(dt), payment);
+        IERC20[] memory tokens = new IERC20[](1);
+        tokens[0] = token;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = payment;
+        eigenLayrDelegation.getDelegationTerms(operator).payForService(queryManager, tokens, amounts);
     }
 
     function getLastFees(address operator) external view returns (uint256) {
@@ -67,7 +74,7 @@ contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceMana
     }
 
     function setLastFeesForOperator(address operator) external {
-        require(msg.sender == address(posRegVW), "POSRegVW can onlse set last fees");
+        require(msg.sender == address(posRegVW), "POSRegVW can only set last fees");
         operatorToLastFees[operator] = totalFees;
     }
 

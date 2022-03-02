@@ -123,6 +123,10 @@ contract QueryManager is IQueryManager {
 		emit QueryFinalized(queryHash, outcome, queries[queryHash].totalCumulativeWeight);
 	}
 
+	function getQueryOutcome(bytes32 queryHash) external view returns(bytes32) {
+        return queries[queryHash].outcome;
+    }
+
 	function getQueryDuration() external view returns(uint256) {
         return queryDuration;
     }

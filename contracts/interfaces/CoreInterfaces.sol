@@ -12,13 +12,11 @@ interface IEigenLayrDeposit {
     ) external payable;
 
     function depositPOSProof(
-        bytes32[] calldata treeProof,
-        bool[] calldata flags,
-        uint256 numBranchFlags,
-        bytes calldata pubkey,
-        bytes calldata withdrawal_credentials,
+        bytes32 queryHash,
+        bytes32[] calldata proof,
+        address depositer,
         bytes calldata signature,
-        uint64 stake
+        uint256 amount
     ) external;
 
     function depositEthIntoConsensusLayer(

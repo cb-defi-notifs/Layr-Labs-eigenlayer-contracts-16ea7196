@@ -9,5 +9,6 @@ interface IProofOfStakingRegVW {
 interface IProofOfStakingServiceManager {
     function getLastFees(address) external view returns (uint256);
     function setLastFeesForOperator(address) external;
+    function redeemPayment(address) external;
 }
 

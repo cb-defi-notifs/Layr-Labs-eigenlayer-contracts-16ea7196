@@ -17,8 +17,6 @@ contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfSta
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     uint256 public consensusLayerPercent = 10;
     uint256 public totalEth;
-    mapping(address => uint256[]) operatorEtherUpdateTimes;
-    mapping(address => mapping(uint256 => uint256)) etherForOperatorAtTime;
     mapping(address => uint256) etherForOperator;
     
     constructor(IInvestmentManager _investmentManager){
@@ -63,8 +61,6 @@ contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfSta
         uint256 delegatedEther = delegation.getUnderlyingEthDelegated(operator);
         // set ether and this is the first update time
         etherForOperator[operator] = delegatedEther;
-        etherForOperatorAtTime[operator][block.timestamp] = delegatedEther;
-        operatorEtherUpdateTimes[operator].push(block.timestamp);
         posServiceManager.setLastFeesForOperator(operator);
         totalEth += delegatedEther;
         return true;
@@ -73,11 +69,11 @@ contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfSta
     function updateBalance(address operator) external {
         require(etherForOperator[operator] != 0, "Operator is not registered");
         uint256 delegatedEther = delegation.getUnderlyingEthDelegated(operator);
+        // redeem payment for operator before updating
+        posServiceManager.redeemPayment(operator);
         // set ether and this is the first update time
         totalEth = totalEth - etherForOperator[operator] + delegatedEther;
         etherForOperator[operator] = delegatedEther;
-        etherForOperatorAtTime[operator][block.timestamp] = delegatedEther;
-        operatorEtherUpdateTimes[operator].push(block.timestamp);
     }
 
 	function operatorPermittedToLeave(address operator, bytes calldata data) external returns(bool) {
