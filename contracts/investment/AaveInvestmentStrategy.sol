@@ -7,91 +7,74 @@ import "./aave/ILendingPool.sol";
 
 contract AaveInvestmentStrategy is IInvestmentStrategy {
     ILendingPool public lendingPool;
-    IERC20 public token;
+    IERC20 public underlyingToken;
     IERC20 public aToken;
     address public governor;
     address public investmentManager;
     uint256 public totalShares;
 
-    constructor(ILendingPool _lendingPool, IERC20 _token, IERC20 _aToken, address _investmentManager) {
+    constructor(ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager) {
         lendingPool = _lendingPool;
-        token = _token;
+        underlyingToken = _underlyingToken;
         aToken = _aToken;
         governor = msg.sender;
         investmentManager = _investmentManager;
     }
 
     function deposit(
-        address depositer,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external returns (uint256) {
-        require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
-        require(1 == amounts.length && tokens.length == 1, "Can only deposit 1 token to this contract");
-        require(token == tokens[0], "Can only deposit this strategy's token");
-        //deposit and the "shares" are in proportion to the new aTokens minted
-        uint256 aTokensBefore = aToken.balanceOf(address(this));
-        token.transferFrom(depositer, address(this), amounts[0]);
-        lendingPool.deposit(
-            address(token),
-            amounts[0],
-            address(this),
-            0
-        );
-        uint256 aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
-        uint256 newShares;
-        if (totalShares == 0) {
-            newShares = aTokenIncrease;
-        } else {
-            newShares = (aTokenIncrease * totalShares) / aTokensBefore;
-        }
-        totalShares += newShares;
-        return newShares;
-    }
-
-    function depositSingle(
-        address depositer,
-        IERC20 depositToken,
+        IERC20 token,
         uint256 amount
-    ) external returns (uint256) {
+    ) external returns (uint256 newShares) {
         require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
-        require(token == depositToken, "Can only deposit this strategy's token");
-        //deposit and the "shares" are the new aTokens minted
-        uint256 aTokensBefore = aToken.balanceOf(address(this));
-        token.transferFrom(depositer, address(this), amount);
-        lendingPool.deposit(
-            address(token),
-            amount,
-            address(this),
-            0
-        );
-        uint256 aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
-        uint256 newShares;
+        uint256 aTokenIncrease;
+        uint256 aTokensBefore;
+        if (token == underlyingToken) {
+            //deposit and the "shares" are in proportion to the new aTokens minted
+            aTokensBefore = aToken.balanceOf(address(this));
+            //tokens have already been transferred to this contract
+            //underlyingToken.transferFrom(depositor, address(this), amounts[0]);
+            lendingPool.deposit(
+                address(underlyingToken),
+                amount,
+                address(this),
+                0
+            );
+            aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
+        } else if (token == aToken) {
+            aTokenIncrease = amount;
+            aTokensBefore = aToken.balanceOf(address(this)) - amount;
+        } else {
+            revert("can only deposit underlyingToken or aToken");
+        }
         if (totalShares == 0) {
             newShares = aTokenIncrease;
         } else {
             newShares = (aTokenIncrease * totalShares) / aTokensBefore;
         }
         totalShares += newShares;
-        return newShares;
     }
 
     function withdraw(
-        address depositer,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external returns(uint256) {
+        address depositor,
+        IERC20 token,
+        uint256 amount
+    ) external returns(uint256 amountWithdrawn) {
         require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
-        require(1 == amounts.length && tokens.length == 1, "Can only deposit 1 token to this contract");
-        require(token == tokens[0], "Can only deposit this strategy's token");
-        //withdraw from lendingPool
-        uint256 toWithdraw = sharesToUnderlying(amounts[0]);
-        uint256 amountWithdrawn = lendingPool.withdraw(
-            address(token),
-            toWithdraw,
-            depositer
-        );
-        totalShares -= amounts[0];
+        uint256 toWithdraw = sharesToUnderlying(amount);
+        if (token == underlyingToken) {
+            //withdraw from lendingPool
+            amountWithdrawn = lendingPool.withdraw(
+                address(underlyingToken),
+                toWithdraw,
+                depositor
+            );
+        } else if (token == aToken) {
+            aToken.transfer(depositor, amount);
+            amountWithdrawn = amount;
+        } else {
+            revert("can only withdraw as underlyingToken or aToken");
+        }
+        totalShares -= amount;
         return amountWithdrawn;
     }
 

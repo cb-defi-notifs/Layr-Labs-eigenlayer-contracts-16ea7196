@@ -12,41 +12,49 @@ interface IInvestmentManager {
     ) external;
 
     function depositIntoStrategy(
-        address depositer,
+        address depositor,
         IInvestmentStrategy strategies,
         IERC20 token,
         uint256 amount
-    ) external returns (uint256);
+    ) external payable returns (uint256);
 
     function depositIntoStrategies(
-        address depositer,
+        address depositor,
         IInvestmentStrategy[] calldata strategies,
-        IERC20[][] calldata tokens,
-        uint256[][] calldata amounts
-    ) external returns (uint256[] memory);
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts
+    ) external payable returns (uint256[] memory);
+
+    function withdrawFromStrategy(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 shares
+    ) external;
 
     function withdrawFromStrategies(
-        address depositer,
+        address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
-        IERC20[][] calldata tokens,
-        uint256[][] calldata amounts
+        IERC20[] calldata tokens,
+        uint256[] calldata shares
     ) external;
 
     function depositConsenusLayerEth(
-        address depositer,
+        address depositor,
         uint256 amount
     ) external returns (uint256);
 
-    function getStrategyShares(address depositer)
+    function getStrategyShares(address depositor)
         external view
         returns (uint256[] memory);
 
-    function getStrategies(address depositer)
+    function getStrategies(address depositor)
         external view
         returns (IInvestmentStrategy[] memory);
 
-    function getConsensusLayerEth(address depositer)
+    function getConsensusLayerEth(address depositor)
         external view
         returns (uint256);
 
@@ -58,7 +66,7 @@ interface IInvestmentManager {
         external view
         returns (uint256);
 
-    function getUnderlyingEthStaked(address depositer)
+    function getUnderlyingEthStaked(address depositor)
         external
         returns (uint256);
 
@@ -71,21 +79,14 @@ interface IInvestmentStrategy {
     function explanation() external returns (string memory);
 
     function deposit(
-        address depositer,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external returns (uint256);
-
-    function depositSingle(
-        address depositer,
         IERC20 token,
         uint256 amount
     ) external returns (uint256);
 
     function withdraw(
-        address depositer,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
+        address depositor,
+        IERC20 token,
+        uint256 amount
     ) external returns (uint256);
 
     function underlyingEthValueOfShares(uint256 numShares) external returns(uint256);

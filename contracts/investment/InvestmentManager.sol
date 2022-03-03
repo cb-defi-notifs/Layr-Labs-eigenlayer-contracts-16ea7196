@@ -15,6 +15,7 @@ contract InvestmentManager is IInvestmentManager {
     address public entryExit;
     address public governor;
     address public slasher;
+    address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; //placeholder address for native asset
 
     // adds the given strategies to the investment manager
     constructor(address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher) {
@@ -58,8 +59,32 @@ contract InvestmentManager is IInvestmentManager {
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external returns (uint256) {
+    ) external payable returns (uint256 shares) {
         require(msg.sender == entryExit, "Only governor can add strategies");
+        shares = _depositIntoStrategy(depositor, strategy, token, amount);
+    }
+
+    // deposits given tokens and amounts into the given strategies on behalf of depositor
+    function depositIntoStrategies(
+        address depositor,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts
+    ) external payable returns (uint256[] memory) {
+        require(msg.sender == entryExit, "Only governor can add strategies");
+        uint256[] memory shares = new uint256[](strategies.length);
+        for (uint256 i = 0; i < strategies.length; i++) {
+            shares[i] = _depositIntoStrategy(depositor, strategies[i], tokens[i], amounts[i]);
+        }
+        return shares;
+    }
+
+    function _depositIntoStrategy(
+        address depositor,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 amount
+    ) internal returns (uint256 shares) {
         require(
             stratApproved[strategy],
             "Can only deposit from approved strategies"
@@ -68,38 +93,14 @@ contract InvestmentManager is IInvestmentManager {
         if (investorStratShares[depositor][strategy] == 0) {
             investorStrats[depositor].push(strategy);
         }
-        // add the returned shares to their existing shares for this strategy
-        investorStratShares[depositor][strategy] += strategy.depositSingle(
-            depositor,
+        //transfer tokens to the strategy
+        _transferTokenOrEth(token, depositor, address(strategy), amount);
+        shares = strategy.deposit(
             token,
             amount
         );
-        return 0;
-    }
-
-    // deposits given tokens and amounts into the given strategies on behalf of depositor
-    function depositIntoStrategies(
-        address depositor,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[][] calldata tokens,
-        uint256[][] calldata amounts
-    ) external returns (uint256[] memory) {
-        require(msg.sender == entryExit, "Only governor can add strategies");
-        uint256[] memory shares = new uint256[](strategies.length);
-        for (uint256 i = 0; i < strategies.length; i++) {
-            require(
-                stratApproved[strategies[i]],
-                "Can only deposit from approved strategies"
-            );
-            // if they dont have existing shares of this strategy, add it to their strats
-            if (investorStratShares[depositor][strategies[i]] == 0) {
-                investorStrats[depositor].push(strategies[i]);
-            }
-            // add the returned shares to their existing shares for this strategy
-            shares[i] = strategies[i].deposit(depositor, tokens[i], amounts[i]);
-            investorStratShares[depositor][strategies[i]] += shares[i];
-        }
-        return shares;
+        // add the returned shares to their existing shares for this strategy
+        investorStratShares[depositor][strategy] += shares;
     }
 
     // withdraws the given tokens and amounts from the given strategies on behalf of the depositor
@@ -107,15 +108,15 @@ contract InvestmentManager is IInvestmentManager {
         address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
-        IERC20[][] calldata tokens,
-        uint256[][] calldata amounts
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts
     ) external {
         require(msg.sender == entryExit, "Only governor can add strategies");
         uint256 strategyIndexIndex = 0;
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
                 stratEverApproved[strategies[i]],
-                "Can only deposit from approved strategies"
+                "Can only withdraw from approved strategies"
             );
             // subtract the returned shares to their existing shares for this strategy
             investorStratShares[depositor][strategies[i]] -= strategies[i]
@@ -139,6 +140,55 @@ contract InvestmentManager is IInvestmentManager {
             }
         }
     }
+
+    // withdraws the given token and amount from the given strategy on behalf of the depositor
+    function withdrawFromStrategy(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 amount
+    ) external {
+        require(msg.sender == entryExit, "Only governor can add strategies");
+        require(
+            stratEverApproved[strategy],
+            "Can only withdraw from approved strategies"
+        );
+        // subtract the returned shares to their existing shares for this strategy
+        investorStratShares[depositor][strategy] -= strategy
+            .withdraw(depositor, token, amount);
+        // if no existing shares, remove is from this investors strats
+        if (investorStratShares[depositor][strategy] == 0) {
+            require(
+                investorStrats[depositor][
+                    strategyIndex
+                ] == strategy,
+                "Strategy index is incorrect"
+            );
+            // move the last element to the removed strategy's index, then shorten the array
+            investorStrats[depositor][
+                strategyIndex
+            ] = investorStrats[depositor][
+                investorStrats[depositor].length - 1
+            ];
+            investorStrats[depositor].pop();
+        }
+    }
+
+/*
+    function slashShares(
+        address slashed,
+        address recipient,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata strategyIndexes,
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts,
+        uint256 maxSlashedAmount
+    ) external {
+        //copy withdrawal logic
+        require(msg.sender == slasher, "Only Slasher");
+    }
+*/
 
 /*
     //TODO: more efficient method than effectively doing withdraw followed by deposit
@@ -280,5 +330,14 @@ contract InvestmentManager is IInvestmentManager {
             stake += strat.underlyingEthValueOfSharesView(investorStratShares[depositer][strat]);
         }
         return stake;
+    }
+
+    function _transferTokenOrEth(IERC20 token, address sender, address receiver, uint256 amount) internal {
+        if (address(token) == ETH) {
+            (bool success, ) = receiver.call{value: amount}("");
+            require(success, "failed to transfer value");
+        } else {
+            token.transferFrom(sender, receiver, amount);
+        }
     }
 }
