@@ -112,7 +112,7 @@ contract InvestmentManager is IInvestmentManager {
         uint256[] calldata amounts
     ) external {
         require(msg.sender == entryExit, "Only governor can add strategies");
-        uint256 strategyIndexIndex = 0;
+        uint256 strategyIndexIndex;
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
                 stratEverApproved[strategies[i]],
@@ -175,45 +175,25 @@ contract InvestmentManager is IInvestmentManager {
         }
     }
 
-/*
     function slashShares(
         address slashed,
         address recipient,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata strategyIndexes,
-        IERC20[] calldata tokens,
         uint256[] calldata amounts,
         uint256 maxSlashedAmount
     ) external {
-        //copy withdrawal logic
         require(msg.sender == slasher, "Only Slasher");
-    }
-*/
-
-/*
-    //TODO: more efficient method than effectively doing withdraw followed by deposit
-    //slash
-    function slashShares(
-        address slashed,
-        address recipient,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata strategyIndexes,
-        IERC20[][] calldata tokens,
-        uint256[][] calldata amounts,
-        uint256 maxSlashedAmount
-    ) external {
-        //copy withdrawal logic
-        require(msg.sender == slasher, "Only Slasher");
-        uint256 strategyIndexIndex = 0;
-        //extra logic -- TODO -- this is commented out since it doesn't work right now
-        //uint256 slashedAmount = 0;
+        uint256 strategyIndexIndex;
+        uint256 slashedAmount;
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
                 stratEverApproved[strategies[i]],
-                "Can only deposit from approved strategies"
+                "Can only withdraw from approved strategies"
             );
-            // subtract the returned shares to their existing shares for this strategy
-            investorStratShares[slashed][strategies[i]] -= strategies[i].withdraw(slashed, tokens[i], amounts[i]);
+            slashedAmount += strategies[i].underlyingEthValueOfShares(amounts[i]);
+            // subtract the shares for this strategy
+            investorStratShares[slashed][strategies[i]] -= amounts[i];
             // if no existing shares, remove is from this investors strats
             if (investorStratShares[slashed][strategies[i]] == 0) {
                 require(
@@ -231,30 +211,13 @@ contract InvestmentManager is IInvestmentManager {
                 investorStrats[slashed].pop();
                 strategyIndexIndex++;
             }
-
-            //extra logic -- TODO -- this is commented out since it doesn't work right now
-            //slashedAmount += underlyingEthValueOfShares(amounts[i]);
-        }
-
-        //extra logic -- TODO -- this is commented out since it doesn't work right now
-        //require(slashedAmount <= maxSlashedAmount, "excessive slashing");
-
-        //copy deposit logic
-        for (uint256 i = 0; i < strategies.length; i++) {
-            require(
-                stratApproved[strategies[i]],
-                "Can only deposit from approved strategies"
-            );
-            // if they dont have existing shares of this strategy, add it to their strats
             if (investorStratShares[recipient][strategies[i]] == 0) {
                 investorStrats[recipient].push(strategies[i]);
             }
-            // add the returned shares to their existing shares for this strategy
-            uint256 shares = strategies[i].deposit(recipient, tokens[i], amounts[i]);
-            investorStratShares[recipient][strategies[i]] += shares;
+            investorStratShares[recipient][strategies[i]] += amounts[i];
         }
+        require(slashedAmount <= maxSlashedAmount, "excessive slashing");
     }
-*/
 
     // sets a user's eth balance on the consesnsus layer
     function depositConsenusLayerEth(address depositor, uint256 amount)
