@@ -57,10 +57,10 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
     function withdraw(
         address depositor,
         IERC20 token,
-        uint256 amount
+        uint256 shareAmount
     ) external returns(uint256 amountWithdrawn) {
         require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
-        uint256 toWithdraw = sharesToUnderlying(amount);
+        uint256 toWithdraw = sharesToUnderlying(shareAmount);
         if (token == underlyingToken) {
             //withdraw from lendingPool
             amountWithdrawn = lendingPool.withdraw(
@@ -69,12 +69,12 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
                 depositor
             );
         } else if (token == aToken) {
-            aToken.transfer(depositor, amount);
-            amountWithdrawn = amount;
+            aToken.transfer(depositor, shareAmount);
+            amountWithdrawn = shareAmount;
         } else {
             revert("can only withdraw as underlyingToken or aToken");
         }
-        totalShares -= amount;
+        totalShares -= shareAmount;
         return amountWithdrawn;
     }
 
