@@ -30,7 +30,7 @@ interface IInvestmentManager {
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
-        uint256 shares
+        uint256 shareAmount
     ) external;
 
     function withdrawFromStrategies(
@@ -38,7 +38,7 @@ interface IInvestmentManager {
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata shares
+        uint256[] calldata shareAmounts
     ) external;
 
     function depositConsenusLayerEth(

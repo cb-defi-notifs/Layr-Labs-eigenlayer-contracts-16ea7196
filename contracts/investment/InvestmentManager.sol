@@ -103,13 +103,13 @@ contract InvestmentManager is IInvestmentManager {
         investorStratShares[depositor][strategy] += shares;
     }
 
-    // withdraws the given tokens and amounts from the given strategies on behalf of the depositor
+    // withdraws the given tokens and shareAmounts from the given strategies on behalf of the depositor
     function withdrawFromStrategies(
         address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata amounts
+        uint256[] calldata shareAmounts
     ) external {
         require(msg.sender == entryExit, "Only governor can add strategies");
         uint256 strategyIndexIndex;
@@ -120,7 +120,7 @@ contract InvestmentManager is IInvestmentManager {
             );
             // subtract the returned shares to their existing shares for this strategy
             investorStratShares[depositor][strategies[i]] -= strategies[i]
-                .withdraw(depositor, tokens[i], amounts[i]);
+                .withdraw(depositor, tokens[i], shareAmounts[i]);
             // if no existing shares, remove is from this investors strats
             if (investorStratShares[depositor][strategies[i]] == 0) {
                 require(
@@ -141,13 +141,13 @@ contract InvestmentManager is IInvestmentManager {
         }
     }
 
-    // withdraws the given token and amount from the given strategy on behalf of the depositor
+    // withdraws the given token and shareAmount from the given strategy on behalf of the depositor
     function withdrawFromStrategy(
         address depositor,
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
-        uint256 amount
+        uint256 shareAmount
     ) external {
         require(msg.sender == entryExit, "Only governor can add strategies");
         require(
@@ -156,7 +156,7 @@ contract InvestmentManager is IInvestmentManager {
         );
         // subtract the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] -= strategy
-            .withdraw(depositor, token, amount);
+            .withdraw(depositor, token, shareAmount);
         // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
@@ -180,7 +180,7 @@ contract InvestmentManager is IInvestmentManager {
         address recipient,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata strategyIndexes,
-        uint256[] calldata amounts,
+        uint256[] calldata shareAmounts,
         uint256 maxSlashedAmount
     ) external {
         require(msg.sender == slasher, "Only Slasher");
@@ -191,9 +191,9 @@ contract InvestmentManager is IInvestmentManager {
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
-            slashedAmount += strategies[i].underlyingEthValueOfShares(amounts[i]);
+            slashedAmount += strategies[i].underlyingEthValueOfShares(shareAmounts[i]);
             // subtract the shares for this strategy
-            investorStratShares[slashed][strategies[i]] -= amounts[i];
+            investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
             // if no existing shares, remove is from this investors strats
             if (investorStratShares[slashed][strategies[i]] == 0) {
                 require(
@@ -214,7 +214,7 @@ contract InvestmentManager is IInvestmentManager {
             if (investorStratShares[recipient][strategies[i]] == 0) {
                 investorStrats[recipient].push(strategies[i]);
             }
-            investorStratShares[recipient][strategies[i]] += amounts[i];
+            investorStratShares[recipient][strategies[i]] += shareAmounts[i];
         }
         require(slashedAmount <= maxSlashedAmount, "excessive slashing");
     }
