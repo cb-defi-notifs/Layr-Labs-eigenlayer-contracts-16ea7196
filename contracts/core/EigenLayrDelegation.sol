@@ -54,13 +54,14 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             address(delegationTerms[msg.sender]) == address(0),
             "Staker cannot be public operator"
         );
-        require(isNotDelegated(msg.sender),
+        require(
+            isNotDelegated(msg.sender),
             "Staker has existing delegation or pending undelegation commitment"
         );
         // store delegation relation
         delegation[msg.sender] = msg.sender;
         // store that the staker is delegated
-        delegated[msg.sender] = true;    
+        delegated[msg.sender] = true;
     }
 
     // delegates a users stake to a certain delegate
@@ -69,7 +70,10 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             address(delegationTerms[operator]) != address(0),
             "Delegate has not registered"
         );
-        require(isNotDelegated(msg.sender),"Staker has existing delegation or pending undelegation commitment");
+        require(
+            isNotDelegated(msg.sender),
+            "Staker has existing delegation or pending undelegation commitment"
+        );
         // retrieve list of strategies and their shares from investment manager
         IInvestmentStrategy[] memory strategies = investmentManager
             .getStrategies(msg.sender);
@@ -78,7 +82,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         );
         // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
-            if(operatorShares[operator][strategies[i]] == 0){
+            if (operatorShares[operator][strategies[i]] == 0) {
                 operatorStrategies[operator].push(strategies[i]);
             }
             operatorShares[operator][strategies[i]] += shares[i];
@@ -110,7 +114,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             "Last commit has not been confirmed yet"
         );
         // if not delegated to self
-        if(operator != msg.sender) {
+        if (operator != msg.sender) {
             // retrieve list of strategies and their shares from investment manager
             IInvestmentStrategy[] memory strategies = investmentManager
                 .getStrategies(msg.sender);
@@ -121,9 +125,18 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             uint256 strategyIndex = 0;
             for (uint256 i = 0; i < strategies.length; i++) {
                 operatorShares[operator][strategies[i]] -= shares[i];
-                if(operatorShares[operator][strategies[i]] == 0) {
-                    require(operatorStrategies[operator][strategyIndexes[strategyIndex]] == strategies[i], "Incorrect strategy index");
-                    operatorStrategies[operator][strategyIndexes[strategyIndex]] = operatorStrategies[operator][operatorStrategies[operator].length];
+                if (operatorShares[operator][strategies[i]] == 0) {
+                    require(
+                        operatorStrategies[operator][
+                            strategyIndexes[strategyIndex]
+                        ] == strategies[i],
+                        "Incorrect strategy index"
+                    );
+                    operatorStrategies[operator][
+                        strategyIndexes[strategyIndex]
+                    ] = operatorStrategies[operator][
+                        operatorStrategies[operator].length
+                    ];
                     operatorStrategies[operator].pop();
                 }
             }
@@ -135,10 +148,9 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
                 strategies,
                 shares
             );
-        }else {
+        } else {
             delegated[msg.sender] = false;
         }
-        
     }
 
     // finalizes a stakers undelegation commit
@@ -150,7 +162,9 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             "Staker is not in the post commit phase"
         );
         require(
-            block.timestamp > lastUndelegationCommit[msg.sender] + undelegationFraudProofInterval,
+            block.timestamp >
+                lastUndelegationCommit[msg.sender] +
+                    undelegationFraudProofInterval,
             "Staker is not in the post commit phase"
         );
         // set time of last undelegation commit
@@ -191,51 +205,93 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         //slash here
     }
 
-    function isNotDelegated(address staker) public view returns(bool) {
-        return 
+    function isNotDelegated(address staker) public view returns (bool) {
+        return
             !delegated[staker] &&
-                (delegation[staker] == address(0) ||
-                    block.timestamp >
-                    undelegationFraudProofInterval +
-                        lastUndelegationCommit[staker]);
+            (delegation[staker] == address(0) ||
+                block.timestamp >
+                undelegationFraudProofInterval +
+                    lastUndelegationCommit[staker]);
     }
 
-    function getDelegationTerms(address operator) public view returns(IDelegationTerms) {
+    function getDelegationTerms(address operator)
+        public
+        view
+        returns (IDelegationTerms)
+    {
         return delegationTerms[operator];
     }
 
-    function getOperatorShares(address operator) public view returns(IInvestmentStrategy[] memory) {
+    function getOperatorShares(address operator)
+        public
+        view
+        returns (IInvestmentStrategy[] memory)
+    {
         return operatorStrategies[operator];
     }
 
-    // gets depositor's eth value staked
     function getUnderlyingEthDelegated(address operator)
         external
         returns (uint256)
     {
-        uint256 stake = consensusLayerEth[operator];
-        uint256 numStrats = operatorStrategies[operator].length;
-        // for all strats find uderlying eth value of shares
-        for (uint256 i = 0; i < numStrats; i++) {
-            IInvestmentStrategy strat = operatorStrategies[operator][i];
-            stake += strat.underlyingEthValueOfShares(operatorShares[operator][strat]);
+        uint256 weight;
+        if (delegation[operator] == operator) {
+            IInvestmentStrategy[] memory investorStrats = investmentManager
+                .getStrategies(operator);
+            uint256[] memory investorShares = investmentManager
+                .getStrategyShares(operator);
+            for (uint256 i = 0; i < investorStrats.length; i++) {
+                weight += investorStrats[i].underlyingEthValueOfShares(
+                    investorShares[i]
+                );
+            }
+        } else {
+            IInvestmentStrategy[] memory investorStrats = operatorStrategies[
+                operator
+            ];
+            for (uint256 i = 0; i < investorStrats.length; i++) {
+                weight += investorStrats[i].underlyingEthValueOfShares(
+                    operatorShares[operator][investorStrats[i]]
+                );
+            }
         }
-        return stake;
+        return weight;
     }
 
-    // gets depositor's eth value staked
     function getUnderlyingEthDelegatedView(address operator)
         external
         view
         returns (uint256)
     {
-        uint256 stake = consensusLayerEth[operator];
-        uint256 numStrats = operatorStrategies[operator].length;
-        // for all strats find uderlying eth value of shares
-        for (uint256 i = 0; i < numStrats; i++) {
-            IInvestmentStrategy strat = operatorStrategies[operator][i];
-            stake += strat.underlyingEthValueOfSharesView(operatorShares[operator][strat]);
+        uint256 weight;
+        if (delegation[operator] == operator) {
+            IInvestmentStrategy[] memory investorStrats = investmentManager
+                .getStrategies(operator);
+            uint256[] memory investorShares = investmentManager
+                .getStrategyShares(operator);
+            for (uint256 i = 0; i < investorStrats.length; i++) {
+                weight += investorStrats[i].underlyingEthValueOfSharesView(
+                    investorShares[i]
+                );
+            }
+        } else {
+            IInvestmentStrategy[] memory investorStrats = operatorStrategies[
+                operator
+            ];
+            for (uint256 i = 0; i < investorStrats.length; i++) {
+                weight += investorStrats[i].underlyingEthValueOfSharesView(
+                    operatorShares[operator][investorStrats[i]]
+                );
+            }
         }
-        return stake;
+        return weight;
+    }
+
+    function getConsensusLayerEthDelegated(address operator)
+        external
+        view
+        returns (uint256)
+    {
+        return delegation[operator] == operator ? investmentManager.getConsensusLayerEth(operator) : consensusLayerEth[operator];
     }
 }

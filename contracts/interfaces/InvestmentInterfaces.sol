@@ -73,6 +73,7 @@ interface IInvestmentManager {
     function getUnderlyingEthStakedView(address staker)
         external view
         returns (uint256);
+    
 }
 
 interface IInvestmentStrategy {

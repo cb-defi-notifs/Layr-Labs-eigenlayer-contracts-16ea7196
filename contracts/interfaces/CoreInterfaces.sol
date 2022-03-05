@@ -27,20 +27,49 @@ interface IEigenLayrDeposit {
 }
 
 interface IEigenLayrDelegation {
-    function registerAsDelgate(IDelegationTerms dt) external;   
-    function getDelegationTerms(address operator) external view returns(IDelegationTerms);
-    function getOperatorShares(address operator) external view returns(IInvestmentStrategy[] memory);
+    function registerAsDelgate(IDelegationTerms dt) external;
+
+    function getDelegationTerms(address operator)
+        external
+        view
+        returns (IDelegationTerms);
+
+    function getOperatorShares(address operator)
+        external
+        view
+        returns (IInvestmentStrategy[] memory);
+
     function getUnderlyingEthDelegated(address operator)
         external
         returns (uint256);
+
     function getUnderlyingEthDelegatedView(address operator)
+        external
+        view
+        returns (uint256);
+
+    function getConsensusLayerEthDelegated(address operator)
         external
         view
         returns (uint256);
 }
 
 interface IDelegationTerms {
-    function payForService(IQueryManager queryManager, IERC20[] calldata tokens, uint256[] calldata amounts) external payable;
-    function onDelegationWithdrawn(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
-    function onDelegationReceived(address staker, IInvestmentStrategy[] calldata strategies, uint256[] calldata shares) external;
+    function payForService(
+        IQueryManager queryManager,
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts
+    ) external payable;
+
+    function onDelegationWithdrawn(
+        address staker,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
+
+    function onDelegationReceived(
+        address staker,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
 }

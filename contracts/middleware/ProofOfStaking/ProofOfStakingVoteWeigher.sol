@@ -19,8 +19,9 @@ contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfSta
     uint256 public totalEth;
     mapping(address => uint256) etherForOperator;
     
-    constructor(IInvestmentManager _investmentManager){
+    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation){
         investmentManager = _investmentManager;
+        delegation = _delegation;
     }
 
     function setQueryManager(IQueryManager _queryManager) public {

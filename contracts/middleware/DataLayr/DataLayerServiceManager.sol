@@ -13,7 +13,12 @@ contract DataLayrServiceManager is IFeeManager {
     uint256 public feePerBytePerTime;
     uint256 public paymentFraudProofInterval = 7 days;
     IDataLayr public dataLayr;
+    IERC20 public paymentToken;
     IQueryManager public queryManager;
+    uint256 public dumpNumber;
+    // mapping(address =>)
+    mapping(uint256 => bytes32) public dumpNumberToSignatureHash;
+    mapping(uint256 => uint256) public dumpNumberToFee;
 
     // Payment
     struct Payment {
@@ -64,123 +69,64 @@ contract DataLayrServiceManager is IFeeManager {
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
+        require(
+            storePeriodLength < 604800, "store for less than 7 days"
+        );
+        // fees as a function of bytes of data and time to store it
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
-        require(msg.value == fee, "Incorrect Fee paid");
+        dumpNumber++;
+        dumpNumberToFee[dumpNumber] = fee;
+        //get fees
+        paymentToken.transferFrom(msg.sender, address(this), fee);
+        // call DL contract
         dataLayr.initDataStore(
+            dumpNumber,
             ferkleRoot,
             totalBytes,
             storePeriodLength,
             submitter,
             quorum
         );
-    }
+    } 
 
-    // commits to a certains amount deserved since a certain time
-    function commitPayment(uint32 time, uint128 amount) public {
-        require(
-            payments[msg.sender].redeemed == 1,
-            "Last payment hasn't been settled or redeemed"
-        );
-        require(block.timestamp >= time, "Cannot redeem future payouts");
-        require(
-            time > payments[msg.sender].to,
-            "Cannot be paid from before last payment time"
-        );
-
-        payments[msg.sender] = Payment(
-            amount, // amount
-            payments[msg.sender].to, // from
-            time, // to
-            uint32(block.timestamp), // commitTime
-            0 // redeemed
-        );
-        emit CommitPayment(msg.sender, time, amount);
-    }
-
-    function verifySignature(
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
-        uint8[] calldata vs,
-        bytes32 commitHash
-    ) internal view {
-        for (uint256 i = 0; i < rs.length; i++) {
-            address addr = ecrecover(commitHash, 27 + vs[i], rs[i], ss[i]);
-            require(queryManager.getIsRegistrantActive(addr), "addr not exist");
-        }
-    }
-
-    // TODO: put up collateral to get signatures, slash afterwards
-    // posts signatures showing patment fraud occured
-    function challengePayment(
-        address adversary,
-        uint32 from,
-        uint32 to,
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
+    //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
+    function commitSignatures(
+        uint256 dumpNumberToCommit,
+        bytes32 ferkleRoot,
+        bytes32[] calldata rs, 
+        bytes32[] calldata ss, 
         uint8[] calldata vs
-    ) external {
-        require(
-            rs.length >= ceil(queryManager.numRegistrants(), 2),
-            "Insufficient sig"
-        );
-        require(
-            payments[adversary].redeemed == 0,
-            "Data store doesn't have commitHash"
-        );
-
-        verifySignature(
-            rs,
-            ss,
-            vs,
-            keccak256(abi.encodePacked(adversary, from, to))
-        );
-
-        emit PaymentChallengeSuccess(msg.sender, adversary, to);
-    }
-
-    // redeems payment after challenge period
-    function redeemPayment() public {
-        require(
-            payments[msg.sender].redeemed == 0,
-            "Payment must not be redeemed yet"
-        );
-        require(
-            payments[msg.sender].commitTime + paymentFraudProofInterval <
-                block.timestamp,
-            "Cannot redeem future payouts"
-        );
-        payments[msg.sender].redeemed = 1;
-
-        //pay the delegation terms contract
-        eigenLayrDelegation.getDelegationTerms(msg.sender).payForService{
-            value: payments[msg.sender].amount
-        }(queryManager, new IERC20[](0), new uint256[](0));
-
-        emit RedeemPayment(msg.sender);
-    }
-
-    function ceil(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b > 0);
-        return (a + b - 1) / b;
-    }
-
-    function setPaymentFraudProofInterval(uint256 _paymentFraudProofInterval)
-        public
-    {
+    ) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
-        paymentFraudProofInterval = _paymentFraudProofInterval;
-    }
+        dumpNumberToSignatureHash[dumpNumberToCommit] = keccak256(abi.encodePacked(rs, ss, vs));
+        dataLayr.commit(
+            dumpNumberToCommit,
+            ferkleRoot,
+            rs, ss, vs
+        );
+    }   
 
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) public {
+    function commitPayment(
+        uint256 dumpNumberToCommit,
+        bytes32 ferkleRoot,
+        bytes32[] calldata rs, 
+        bytes32[] calldata ss, 
+        uint8[] calldata vs
+    ) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
-        feePerBytePerTime = _feePerBytePerTime;
-    }
+        dumpNumberToSignatureHash[dumpNumberToCommit] = keccak256(abi.encodePacked(rs, ss, vs));
+        dataLayr.commit(
+            dumpNumberToCommit,
+            ferkleRoot,
+            rs, ss, vs
+        );
+    }  
 
     function payFee(address payer) external payable {}
 

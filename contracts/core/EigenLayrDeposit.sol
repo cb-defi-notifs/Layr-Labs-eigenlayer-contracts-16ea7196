@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving
-// todo: figure out deposit trie and proof of staking signature
 contract EigenLayrDeposit is IEigenLayrDeposit {
     bytes32 public withdrawalCredentials;
     bytes32 public immutable consensusLayerDepositRoot;
