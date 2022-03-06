@@ -5,6 +5,7 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/MiddlewareInterfaces.sol";
 import "../../interfaces/CoreInterfaces.sol";
 import "../../interfaces/InvestmentInterfaces.sol";
+import "../../interfaces/DataLayrInterfaces.sol";
 import "../QueryManager.sol";
 
 
@@ -19,6 +20,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         uint32 id; // id is always unique
         uint256 index; // corresponds to registrantList
         uint32 from;
+        uint48 fromDumpNumber;
         uint32 to;
         bool active; //bool
     }
@@ -62,8 +64,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
 
     function setLatestTime(uint32 _latestTime) public {
         require(
-            address(queryManager) == msg.sender,
-            "Query Manager can only call this"
+            address(queryManager.feeManager()) == msg.sender,
+            "Fee manager can only call this"
         );
         latestTime = _latestTime;
     }
@@ -83,6 +85,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             index: queryManager.numRegistrants(),
             active: true,
             from: uint32(block.timestamp),
+            fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
             to: 0
         });
         registrantList.push(operator);
@@ -102,6 +105,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     function operatorPermittedToLeave(address operator, bytes calldata socket_) public view returns(bool) {
         require(registry[operator].to != 0 || registry[operator].to < block.timestamp, "Operator is already registered");
         return true;
+    }
+
+    function getOperatorFromDumpNumber(address operator) public view returns(uint48) {
+        return registry[operator].fromDumpNumber;
     }
     
 }

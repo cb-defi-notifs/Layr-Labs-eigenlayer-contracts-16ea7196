@@ -5,7 +5,6 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/MiddlewareInterfaces.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../../interfaces/CoreInterfaces.sol";
-import "../../interfaces/IDataLayr.sol";
 import "../QueryManager.sol";
 
 contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceManager {

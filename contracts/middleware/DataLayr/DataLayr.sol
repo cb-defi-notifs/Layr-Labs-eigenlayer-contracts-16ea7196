@@ -7,7 +7,7 @@ pragma solidity ^0.8.9;
  */
 
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/IDataLayr.sol";
+import "../../interfaces/DataLayrInterfaces.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -20,7 +20,7 @@ contract DataLayr is Ownable, IDataLayr {
 
     // Data Store
     struct DataStore {
-        uint256 dumpNumber;
+        uint64 dumpNumber;
         uint32 initTime; //when the store was inited
         uint32 storePeriodLength; //when store expires
         uint24 quorum; //num signatures required for commit
@@ -90,7 +90,7 @@ contract DataLayr is Ownable, IDataLayr {
     // Precommit
 
     function initDataStore(
-        uint256 dumpNumber,
+        uint64 dumpNumber,
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,
@@ -130,8 +130,8 @@ contract DataLayr is Ownable, IDataLayr {
 
     // Commit
 
-    function commit(
-        uint256 dumpNumber,
+    function confirm(
+        uint64 dumpNumber,
         bytes32 ferkleRoot,
         bytes32[] calldata rs,
         bytes32[] calldata ss,
