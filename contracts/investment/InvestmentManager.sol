@@ -2,7 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/InvestmentInterfaces.sol";
+import "../interfaces/IERC1155.sol";
 
+//TODO: implement 'getNfgtStaked' function, plus functions for actually staking NFGTs
 contract InvestmentManager is IInvestmentManager {
     mapping(IInvestmentStrategy => bool) public stratEverApproved;
     mapping(IInvestmentStrategy => bool) public stratApproved;
@@ -16,12 +18,14 @@ contract InvestmentManager is IInvestmentManager {
     address public governor;
     address public slasher;
     address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; //placeholder address for native asset
+    IERC1155 public immutable NFGT;
 
     // adds the given strategies to the investment manager
-    constructor(address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher) {
+    constructor(address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher, IERC1155 _NFGT) {
         entryExit = _entryExit;
         governor = msg.sender;
         slasher = _slasher;
+        NFGT = _NFGT;
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -293,6 +297,14 @@ contract InvestmentManager is IInvestmentManager {
             stake += strat.underlyingEthValueOfSharesView(investorStratShares[depositer][strat]);
         }
         return stake;
+    }
+
+    function getNfgtStaked(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return 1;
     }
 
     function _transferTokenOrEth(IERC20 token, address sender, address receiver, uint256 amount) internal {
