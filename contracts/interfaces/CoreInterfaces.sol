@@ -52,6 +52,11 @@ interface IEigenLayrDelegation {
         external
         view
         returns (uint256);
+    
+    function getEigenDelegated(address operator)
+        external
+        view
+        returns (uint256)
 }
 
 interface IDelegationTerms {

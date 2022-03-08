@@ -17,6 +17,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
     mapping(address => IInvestmentStrategy[]) public operatorStrategies;
     // operator => eth on consensus layer delegated
     mapping(address => uint256) public consensusLayerEth;
+    mapping(address => uint256) public eigenDelegated;
     // operator => delegation terms contract
     mapping(address => IDelegationTerms) public delegationTerms;
     // staker => operator
@@ -75,11 +76,8 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             "Staker has existing delegation or pending undelegation commitment"
         );
         // retrieve list of strategies and their shares from investment manager
-        IInvestmentStrategy[] memory strategies = investmentManager
-            .getStrategies(msg.sender);
-        uint256[] memory shares = investmentManager.getStrategyShares(
-            msg.sender
-        );
+        (IInvestmentStrategy[] memory strategies, uint256[] memory shares, uint256 consensusLayrEthDeposited, uint256 eigenAmount) = investmentManager
+            .getDeposits(msg.sender);
         // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
             if (operatorShares[operator][strategies[i]] == 0) {
@@ -87,6 +85,8 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
             }
             operatorShares[operator][strategies[i]] += shares[i];
         }
+        consensusLayerEth[operator] += consensusLayrEthDeposited;
+        eigenDelegated[operator] += eigenAmount;
         // store delegation relation
         delegation[msg.sender] = operator;
         // store that the staker is delegated
@@ -116,11 +116,8 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         // if not delegated to self
         if (operator != msg.sender) {
             // retrieve list of strategies and their shares from investment manager
-            IInvestmentStrategy[] memory strategies = investmentManager
-                .getStrategies(msg.sender);
-            uint256[] memory shares = investmentManager.getStrategyShares(
-                msg.sender
-            );
+            (IInvestmentStrategy[] memory strategies, uint256[] memory shares, uint256 consensusLayrEthDeposited, uint256 eigenAmount) = 
+                investmentManager.getDeposits(msg.sender);
             // subtract strategy shares to delegate's shares and remove from strategy list if no shares remaining
             uint256 strategyIndex = 0;
             for (uint256 i = 0; i < strategies.length; i++) {
@@ -140,6 +137,8 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
                     operatorStrategies[operator].pop();
                 }
             }
+            consensusLayerEth[operator] -= consensusLayrEthDeposited;
+            eigenDelegated[operator] -= eigenAmount;
             // set that they are no longer delegated to anyone
             delegated[msg.sender] = false;
             // call into hook in delegationTerms contract
@@ -293,5 +292,13 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         returns (uint256)
     {
         return delegation[operator] == operator ? investmentManager.getConsensusLayerEth(operator) : consensusLayerEth[operator];
+    }
+
+    function getEigenDelegated(address operator)
+        external
+        view
+        returns (uint256)
+    {
+        return delegation[operator] == operator ? investmentManager.getEigen(operator) : eigenDelegated[operator];
     }
 }

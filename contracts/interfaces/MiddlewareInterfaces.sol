@@ -22,10 +22,13 @@ interface IFeeManager {
 }
 
 interface IVoteWeighter {
-	function weightOfOperator(address) external returns(uint256);
+	function weightOfOperatorEth(address) external returns(uint256);
+	function weightOfOperatorEigen(address) external returns(uint256);
 }
 
 interface IRegistrationManager {
 	function operatorPermitted(address, bytes calldata) external returns(bool);
 	function operatorPermittedToLeave(address, bytes calldata) external returns(bool);
+	function operatorPermittedEigen(address, bytes calldata) external returns(bool);
+	function operatorPermittedToLeaveEigen(address, bytes calldata) external returns(bool);
 }

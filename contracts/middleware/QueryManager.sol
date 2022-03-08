@@ -57,6 +57,7 @@ contract QueryManager is IQueryManager {
 	// decrement number of registrants
 	function deregister() external payable {
 		require(isRegistrantActive[msg.sender], "Registrant is not registered");
+		require(IRegistrationManager(registrationManager).operatorPermittedToLeave(msg.sender, data), "registrant not permitted");
 		numRegistrants--;
 		isRegistrantActive[msg.sender] = false;
     }

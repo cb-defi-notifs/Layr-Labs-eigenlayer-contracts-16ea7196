@@ -184,17 +184,17 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             (block.timestamp <
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPaymentChallenge[operator].challenger ==
-                    address(0) &&
+                operatorToPaymentChallenge[operator].challenger == address(0) &&
                 operatorToPayment[operator].status == 0) ||
                 (block.timestamp >
                     operatorToPayment[operator].commitTime +
                         paymentFraudProofInterval &&
                     block.timestamp <
                     operatorToPayment[operator].commitTime +
-                        2 * paymentFraudProofInterval &&
+                        2 *
+                        paymentFraudProofInterval &&
                     operatorToPaymentChallenge[operator].challenger !=
-                        address(0) &&
+                    address(0) &&
                     operatorToPayment[operator].status == 7),
             "Fraud proof interval has passed"
         );
@@ -257,7 +257,8 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
                     paymentFraudProofInterval,
             "Fraud proof interval has passed"
         );
-        uint48 challengedDumpNumber = operatorToPaymentChallenge[msg.sender].fromDumpNumber;
+        uint48 challengedDumpNumber = operatorToPaymentChallenge[msg.sender]
+            .fromDumpNumber;
         uint8 status = operatorToPayment[msg.sender].status;
         //check sigs
         dumpNumberToSignatureHash[challengedDumpNumber] = keccak256(
@@ -267,8 +268,10 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         uint120 trueAmount;
         for (uint256 i = 0; i < rs.length; i++) {
             address addr = ecrecover(ferkleRoot, 27 + vs[i], rs[i], ss[i]);
-            if(addr == msg.sender) {
-                trueAmount = uint120(dumpNumberToFee[challengedDumpNumber]/(rs.length));
+            if (addr == msg.sender) {
+                trueAmount = uint120(
+                    dumpNumberToFee[challengedDumpNumber] / (rs.length)
+                );
                 break;
             }
         }
@@ -359,13 +362,21 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             block.timestamp >
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-            block.timestamp <
+                block.timestamp <
                 operatorToPayment[operator].commitTime +
-                    2 * paymentFraudProofInterval,
+                    2 *
+                    paymentFraudProofInterval,
             "Fraud proof interval has passed"
         );
         uint8 status = operatorToPayment[operator].status;
-        require(status == 2 || status == 3 || status == 4 || status == 5 || status == 6, "Not operators turn");
+        require(
+            status == 2 ||
+                status == 3 ||
+                status == 4 ||
+                status == 5 ||
+                status == 6,
+            "Not operators turn"
+        );
         operatorToPayment[msg.sender].status = 1;
         //TODO: Resolve here
     }

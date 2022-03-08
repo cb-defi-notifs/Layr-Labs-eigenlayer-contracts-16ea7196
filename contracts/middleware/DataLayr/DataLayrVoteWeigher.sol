@@ -22,7 +22,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         uint32 from;
         uint48 fromDumpNumber;
         uint32 to;
-        bool active; //bool
+        uint8 active; //bool
     }
 
     event Registration(
@@ -39,8 +39,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     address[] public registrantList;
     uint32 public numRegistrant;
     uint32 public nextRegistrantId;
-    uint256 public dlnStake = 1 wei;
-    
+    uint256 public dlnEthStake = 1 wei;
+    uint256 public dlnEigenStake = 1 wei;
+
     constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation){
         investmentManager = _investmentManager;
         delegation = _delegation;
@@ -54,12 +55,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         queryManager = _queryManager;
     }
 
-    function setDlnStake(uint256 _dlnStake) public {
+    function setDlnStake(uint256 _dlnEthStake, uint256 _dlnEigenStake) public {
         require(
             address(queryManager) == msg.sender,
             "Query Manager can only change stake"
         );
-        dlnStake = _dlnStake;
+        dlnEthStake = _dlnEthStake;
+        dlnEigenStake = _dlnEigenStake;
     }
 
     function setLatestTime(uint32 _latestTime) public {
@@ -70,15 +72,22 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         latestTime = _latestTime;
     }
 
-    function weightOfOperator(address operator) public returns(uint256) {
+    function weightOfOperatorEigen(address operator) public returns(uint256) {
+        return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
+    }
+
+    function weightOfOperatorETH(address operator) public returns(uint256) {
         return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
     }
 
     // Registration and ETQ
 
-    function operatorPermitted(address operator, bytes calldata socket_) public returns(bool) {
+    function operatorPermitted(address operator, bytes calldata data) public returns(bool) {
         require(!registry[operator].active, "Operator is already registered");
-        require(weightOfOperator(operator) > dlnStake, "Not enough staked");
+        uint8 registerType;
+        assembly {
+            // registerType = uint8(data[data.])
+        }
         registry[operator] = Registrant({
             socket: string(socket_),
             id: nextRegistrantId,
@@ -92,6 +101,21 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
 
         emit Registration(0, registry[operator].id, 0);
         return true;
+    }
+
+    function registerOperator(address operator, string calldata socket, uint8 registerType) internal {
+        registry[operator] = Registrant({
+            socket: string(socket),
+            id: nextRegistrantId,
+            index: queryManager.numRegistrants(),
+            active: registerType,
+            from: uint32(block.timestamp),
+            fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
+            to: 0
+        });
+        registrantList.push(operator);
+
+        emit Registration(0, registry[operator].id, 0);
     }
 
     function commitDeregistration() public returns(bool) {

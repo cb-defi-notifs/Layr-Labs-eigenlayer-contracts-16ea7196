@@ -11,7 +11,9 @@ contract InvestmentManager is IInvestmentManager {
         public investorStratShares;
     mapping(address => IInvestmentStrategy[]) public investorStrats;
     mapping(address => uint256) public consensusLayerEth;
-    uint256 public totalConsensusLayerEth;
+    mapping(address => uint256) public eigenDeposited;
+    uint256 public totalConsensusLayerEthStaked;
+    uint256 public totalEigenStaked;
     address public entryExit;
     address public governor;
     address public slasher;
@@ -225,11 +227,25 @@ contract InvestmentManager is IInvestmentManager {
         returns (uint256)
     {
         require(msg.sender == entryExit, "Only governor can add strategies");
-        consensusLayerEth[depositor] = amount;
-        totalConsensusLayerEth =
-            totalConsensusLayerEth +
+        totalConsensusLayerEthStaked =
+            totalConsensusLayerEthStaked +
             amount -
             consensusLayerEth[depositor];
+        consensusLayerEth[depositor] = amount;
+        return amount;
+    }
+
+    // sets a user's eigen deposit
+    function depositEigen(address depositor, uint256 amount)
+        external
+        returns (uint256)
+    {
+        require(msg.sender == entryExit, "Only governor can add strategies");
+        totalEigenStaked =
+            totalEigenStaked +
+            amount -
+            eigenDeposited[depositor];
+        eigenDeposited[depositor] = amount;
         return amount;
     }
 
@@ -262,6 +278,28 @@ contract InvestmentManager is IInvestmentManager {
         returns (uint256)
     {
         return consensusLayerEth[depositor];
+    }
+
+    // gets depositor's eige deposited
+    function getEigen(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return eigenDeposited[depositor];
+    }
+
+    // gets depositor's shares in the given strategies
+    function getDeposits(address depositor)
+        external
+        view
+        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256)
+    {
+        uint256[] memory shares = new uint256[](investorStrats[depositor].length);
+        for (uint256 i = 0; i < shares.length; i++) {
+            shares[i] = investorStratShares[depositor][investorStrats[depositor][i]];
+        }
+        return (investorStrats[depositor], shares, consensusLayerEth[depositor], eigenDeposited[depositor]);
     }
 
     // gets depositor's eth value staked
