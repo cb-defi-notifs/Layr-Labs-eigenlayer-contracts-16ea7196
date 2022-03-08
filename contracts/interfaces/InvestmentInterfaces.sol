@@ -83,6 +83,10 @@ interface IInvestmentManager {
     function getUnderlyingEthStakedView(address staker)
         external view
         returns (uint256);
+        
+    function getNfgtStaked(address depositor)
+        external view
+        returns (uint256);
     
 }
 
