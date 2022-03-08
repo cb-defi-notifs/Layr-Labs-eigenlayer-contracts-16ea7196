@@ -25,7 +25,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 pragma solidity ^0.8.9;
 
-import "../interfaces/MiddlewareInterfaces.sol";
+import "../interfaces/IQueryManager.sol";
+import "../interfaces/IVoteWeighter.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
 contract QueryManagerGovernance {
@@ -147,7 +148,7 @@ contract QueryManagerGovernance {
     }
 
     function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint256) {
-        require(VOTE_WEIGHTER.weightOfOperator(msg.sender) > proposalThreshold(), "QueryManagerGovernance::propose: proposer votes below proposal threshold");
+        require(VOTE_WEIGHTER.weightOfOperatorEth(msg.sender) > proposalThreshold(), "QueryManagerGovernance::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "QueryManagerGovernance::propose: proposal function information arity mismatch");
         require(targets.length != 0, "QueryManagerGovernance::propose: must provide actions");
         require(targets.length <= proposalMaxOperations(), "QueryManagerGovernance::propose: too many actions");
@@ -217,7 +218,7 @@ contract QueryManagerGovernance {
         require(stateOfProposal != ProposalState.Executed, "QueryManagerGovernance::cancel: cannot cancel executed proposal");
 
         Proposal storage proposal = proposals[proposalId];
-        require(VOTE_WEIGHTER.weightOfOperator(proposal.proposer) < proposalThreshold(), "QueryManagerGovernance::cancel: proposer above threshold");
+        require(VOTE_WEIGHTER.weightOfOperatorEth(proposal.proposer) < proposalThreshold(), "QueryManagerGovernance::cancel: proposer above threshold");
 
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; i++) {
@@ -276,7 +277,7 @@ contract QueryManagerGovernance {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "QueryManagerGovernance::_castVote: voter already voted");
-        uint256 weight = VOTE_WEIGHTER.weightOfOperator(voter);
+        uint256 weight = VOTE_WEIGHTER.weightOfOperatorEth(voter);
         require(weight < 79228162514264337593543950336, "QueryManagerGovernance::weight overflow");
         uint96 votes = uint96(weight);
 

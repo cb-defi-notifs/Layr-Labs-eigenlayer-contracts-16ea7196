@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IERC20.sol";
-import "../interfaces/MiddlewareInterfaces.sol";
-import "../interfaces/CoreInterfaces.sol";
+import "../interfaces/IQueryManager.sol";
+import "../interfaces/IRegistrationManager.sol";
 
 //TODO: upgrading multisig for fee manager and registration manager
 contract QueryManager is IQueryManager {
@@ -55,7 +55,7 @@ contract QueryManager is IQueryManager {
 	}
 
 	// decrement number of registrants
-	function deregister() external payable {
+	function deregister(bytes calldata data) external payable {
 		require(isRegistrantActive[msg.sender], "Registrant is not registered");
 		require(IRegistrationManager(registrationManager).operatorPermittedToLeave(msg.sender, data), "registrant not permitted");
 		numRegistrants--;
@@ -93,7 +93,7 @@ contract QueryManager is IQueryManager {
 		require(block.timestamp < _queryExpiry(queryHash), "query period over");
 		require(queries[queryHash].operatorWeights[msgSender] == 0, "duplicate response to query");
 		//find sender's weight and the hash of their response
-		uint256 weightToAssign = voteWeighter.weightOfOperator(msgSender);
+		uint256 weightToAssign = voteWeighter.weightOfOperatorEth(msgSender);
 		bytes32 responseHash = keccak256(response);
 		//update Query struct with sender's weight + response
 		queries[queryHash].operatorWeights[msgSender] = weightToAssign;

@@ -2,9 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IERC20.sol";
-import "../interfaces/InvestmentInterfaces.sol";
-import "../interfaces/CoreInterfaces.sol";
-import "../interfaces/MiddlewareInterfaces.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationTerms.sol";
 
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 // TODO: more info on split between NFGT holder and ETH holders

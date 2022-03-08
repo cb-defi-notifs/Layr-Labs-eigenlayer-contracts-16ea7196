@@ -2,9 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/MiddlewareInterfaces.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
-import "../../interfaces/CoreInterfaces.sol";
+import "../../interfaces/IEigenLayrDelegation.sol";
 import "../QueryManager.sol";
 
 contract ProofOfStakingServiceManager is IFeeManager, IProofOfStakingServiceManager {

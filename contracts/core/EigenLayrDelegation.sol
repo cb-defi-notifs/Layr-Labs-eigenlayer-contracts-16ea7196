@@ -2,9 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IERC20.sol";
-import "../interfaces/InvestmentInterfaces.sol";
-import "../interfaces/CoreInterfaces.sol";
-import "../interfaces/MiddlewareInterfaces.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationTerms.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceFactory.sol";
 
 // todo: task specific delegation
 contract EigenLayrDelegation is IEigenLayrDelegation {

@@ -2,14 +2,16 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/MiddlewareInterfaces.sol";
-import "../../interfaces/CoreInterfaces.sol";
-import "../../interfaces/InvestmentInterfaces.sol";
+import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/DataLayrInterfaces.sol";
+import "../../interfaces/IInvestmentManager.sol";
+import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../QueryManager.sol";
 
-
-contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfStakingRegVW {
+// TODO: align this contract and IVoteWeighter interface
+// contract ProofOfStakingRegVW is IVoteWeighter, IRegistrationManager, IProofOfStakingRegVW {
+contract ProofOfStakingRegVW is IRegistrationManager, IProofOfStakingRegVW {
     IEigenLayrDelegation public delegation;
     IInvestmentManager public investmentManager;
     IQueryManager public queryManager;

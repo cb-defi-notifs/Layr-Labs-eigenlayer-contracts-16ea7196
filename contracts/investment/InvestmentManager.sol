@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/InvestmentInterfaces.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IERC1155.sol";
 
 //TODO: implement 'getNfgtStaked' function, plus functions for actually staking NFGTs

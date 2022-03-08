@@ -2,14 +2,16 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/MiddlewareInterfaces.sol";
-import "../../interfaces/CoreInterfaces.sol";
-import "../../interfaces/InvestmentInterfaces.sol";
+import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IInvestmentManager.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
+import "../../interfaces/IEigenLayrDelegation.sol";
 import "../QueryManager.sol";
 
 
-contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
+// TODO: align this contract and the IRegistrationManager interface
+// contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
+contract DataLayrVoteWeigher is IVoteWeighter {
     IInvestmentManager public investmentManager;
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     IEigenLayrDelegation public delegation;
@@ -76,13 +78,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
     }
 
-    function weightOfOperatorETH(address operator) public returns(uint256) {
+    function weightOfOperatorEth(address operator) public returns(uint256) {
         return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
     }
 
     // Registration and ETQ
 
-    function operatorPermitted(address operator, bytes calldata data) public returns(bool) {
+    function operatorPermitted(address operator, string calldata socket_, bytes calldata data) public returns(bool) {
         require(!registry[operator].active, "Operator is already registered");
         uint8 registerType;
         assembly {

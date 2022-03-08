@@ -2,10 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IERC20.sol";
-import "../interfaces/MiddlewareInterfaces.sol";
-import "../interfaces/CoreInterfaces.sol";
+import "../interfaces/IServiceFactory.sol";
 import "./QueryManager.sol";
-
 
 contract ServiceFactory is IServiceFactory {
     mapping(IQueryManager => bool) public isQueryManager;
