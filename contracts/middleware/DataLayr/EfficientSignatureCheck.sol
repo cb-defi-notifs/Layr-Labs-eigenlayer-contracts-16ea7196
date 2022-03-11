@@ -62,6 +62,9 @@ contract EfficientSignatureCheck {
 		address signatory;
 		//temporary variable used to gaurantee that binIndices are strictly increasing. prevents usage of duplicate bins
 		uint32 nextBinIndex;
+		//temp variables initiated outside of loop -- these are updated inside of each inner loop
+		uint32 operatorId;
+		uint256 mask;
         //loop for each bin of signatures. ends once all bins have been processed
         while(binsProcessed < numberOfBins) {
         	//update sigsInBin and binIndex for next bin
@@ -91,13 +94,11 @@ contract EfficientSignatureCheck {
 				signatory = ECDSA.recover(sigHash, r, vs);
 				//increase calldataPointer to account for length of signature
 	        	calldataPointer += 64;
-				uint32 index = registry[signatory].index;
-				//uint256 binIndex = index / 16777216;
-				//uint256 sigIndex = index % 256
+				operatorId = registry[signatory].id;
 				//16777216 is 2^24. this is the max bin index.
-	        	require(index / 16777216 == currentBinIndex, "invalid sig bin index - improper sig ordering?");
+	        	require(operatorId / 16777216 == currentBinIndex, "invalid sig bin index - improper sig ordering?");
 	        	//mask has a single '1' bit at sigIndex position
-	        	uint256 mask = (1 << (index % 256));
+	        	mask = (1 << (operatorId % 256));
 	        	//check that bit has not already been flipped
 	        	require(claimsMadeInBin & mask == mask, "claim already made on this bit - repeat signature?");
 	        	//flip the bit to mark that 'sigIndex' has been claimed

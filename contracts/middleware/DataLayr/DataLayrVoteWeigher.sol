@@ -85,7 +85,7 @@ contract DataLayrVoteWeigher is IVoteWeighter {
     // Registration and ETQ
 
     function operatorPermitted(address operator, string calldata socket_, bytes calldata data) public returns(bool) {
-        require(!registry[operator].active, "Operator is already registered");
+        require(registry[operator].active == 0, "Operator is already registered");
         uint8 registerType;
         assembly {
             // registerType = uint8(data[data.])
@@ -94,7 +94,7 @@ contract DataLayrVoteWeigher is IVoteWeighter {
             socket: string(socket_),
             id: nextRegistrantId,
             index: queryManager.numRegistrants(),
-            active: true,
+            active: 1,
             from: uint32(block.timestamp),
             fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
             to: 0
@@ -121,9 +121,9 @@ contract DataLayrVoteWeigher is IVoteWeighter {
     }
 
     function commitDeregistration() public returns(bool) {
-        require(registry[msg.sender].active, "Operator is already registered");
+        require(registry[msg.sender].active == 1, "Operator is already registered");
         registry[msg.sender].to = latestTime;
-        registry[msg.sender].active = true;
+        //registry[msg.sender].active = 1;
         emit Registration(1, registry[msg.sender].id, 0);
         return true;
     }
