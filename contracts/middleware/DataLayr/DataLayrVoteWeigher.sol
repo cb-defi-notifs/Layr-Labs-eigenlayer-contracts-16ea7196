@@ -3,15 +3,15 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
-import "../../interfaces/IInvestmentManager.sol";
-import "../../interfaces/DataLayrInterfaces.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IInvestmentManager.sol";
+import "../../libraries/BytesLib.sol";
+import "../../interfaces/DataLayrInterfaces.sol";
 import "../QueryManager.sol";
 
 
-// TODO: align this contract and the IRegistrationManager interface
-// contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
-contract DataLayrVoteWeigher is IVoteWeighter {
+contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
+    using BytesLib for bytes;
     IInvestmentManager public investmentManager;
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     IEigenLayrDelegation public delegation;
@@ -21,7 +21,6 @@ contract DataLayrVoteWeigher is IVoteWeighter {
         string socket; // how people can find it
         uint32 id; // id is always unique
         uint256 index; // corresponds to registrantList
-        uint32 from;
         uint48 fromDumpNumber;
         uint32 to;
         uint8 active; //bool
@@ -75,7 +74,7 @@ contract DataLayrVoteWeigher is IVoteWeighter {
     }
 
     function weightOfOperatorEigen(address operator) public returns(uint256) {
-        return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
+        return delegation.getEigenDelegated(operator);
     }
 
     function weightOfOperatorEth(address operator) public returns(uint256) {
@@ -84,57 +83,44 @@ contract DataLayrVoteWeigher is IVoteWeighter {
 
     // Registration and ETQ
 
-    function operatorPermitted(address operator, string calldata socket_, bytes calldata data) public returns(bool) {
+    function operatorPermitted(address operator, bytes calldata data) public returns(bool) {
         require(registry[operator].active == 0, "Operator is already registered");
-        uint8 registerType;
-        assembly {
-            // registerType = uint8(data[data.])
+        uint8 registerType = data.toUint8(0);
+        if(registerType == 1) {
+            require(weightOfOperatorEigen(operator) >= dlnEigenStake, "Not enough eigen staked");
+        } else if (registerType == 2) {
+            require(weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value staked");
+        } else if(registerType == 3) {
+            require(weightOfOperatorEigen(operator) >= dlnEigenStake && weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value or eigen staked");
         }
         registry[operator] = Registrant({
-            socket: string(socket_),
+            socket: string(data.slice(1, data.length - 1)),
             id: nextRegistrantId,
             index: queryManager.numRegistrants(),
-            active: 1,
-            from: uint32(block.timestamp),
+            active: registerType,
             fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
             to: 0
         });
         registrantList.push(operator);
-
+        nextRegistrantId++;
         emit Registration(0, registry[operator].id, 0);
         return true;
     }
 
-    function registerOperator(address operator, string calldata socket, uint8 registerType) internal {
-        registry[operator] = Registrant({
-            socket: string(socket),
-            id: nextRegistrantId,
-            index: queryManager.numRegistrants(),
-            active: registerType,
-            from: uint32(block.timestamp),
-            fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
-            to: 0
-        });
-        registrantList.push(operator);
-
-        emit Registration(0, registry[operator].id, 0);
-    }
-
     function commitDeregistration() public returns(bool) {
-        require(registry[msg.sender].active == 1, "Operator is already registered");
+        require(registry[msg.sender].active > 0, "Operator is already registered");
         registry[msg.sender].to = latestTime;
-        //registry[msg.sender].active = 1;
+        registry[msg.sender].active = 0;
         emit Registration(1, registry[msg.sender].id, 0);
         return true;
     }
 
-    function operatorPermittedToLeave(address operator, bytes calldata socket_) public view returns(bool) {
+    function operatorPermittedToLeave(address operator, bytes calldata) public view returns(bool) {
         require(registry[operator].to != 0 || registry[operator].to < block.timestamp, "Operator is already registered");
         return true;
     }
 
     function getOperatorFromDumpNumber(address operator) public view returns(uint48) {
         return registry[operator].fromDumpNumber;
-    }
-    
+    }  
 }
