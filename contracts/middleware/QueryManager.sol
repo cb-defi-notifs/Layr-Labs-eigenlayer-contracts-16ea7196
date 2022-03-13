@@ -6,6 +6,7 @@ import "../interfaces/IQueryManager.sol";
 import "../interfaces/IRegistrationManager.sol";
 
 //TODO: upgrading multisig for fee manager and registration manager
+//TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 contract QueryManager is IQueryManager {
     struct Query {
 		//hash(reponse) with the greatest cumulative weight
@@ -33,7 +34,7 @@ contract QueryManager is IQueryManager {
 	// number of registrants of this service
 	uint256 public numRegistrants;
 	//map from registrant address to whether they are active or not
-	mapping(address => bool) public isRegistrantActive;
+	mapping(address => uint8) public registrantType;
 	address public registrationManager;
 	//hash(queryData) => Query
 	mapping(bytes32 => Query) public queries;
@@ -56,23 +57,22 @@ contract QueryManager is IQueryManager {
 
 	// decrement number of registrants
 	function deregister(bytes calldata data) external payable {
-		require(isRegistrantActive[msg.sender], "Registrant is not registered");
-		require(IRegistrationManager(registrationManager).operatorPermittedToLeave(msg.sender, data), "registrant not permitted");
+		require(registrantType[msg.sender] != 0, "Registrant is not registered");
+		require(IRegistrationManager(registrationManager).deregisterOperator(msg.sender, data), "registrant not permitted");
 		numRegistrants--;
-		isRegistrantActive[msg.sender] = false;
+		registrantType[msg.sender] = 0;
     }
 
 	// increment number of registrants
 	// call registration contract with given data
     function register(bytes calldata data) external payable {
-		require(!isRegistrantActive[msg.sender], "Registrant is already registered");
-		require(IRegistrationManager(registrationManager).operatorPermitted(msg.sender, data), "registrant not permitted");
+		require(registrantType[msg.sender] == 0, "Registrant is already registered");
+		registrantType[msg.sender] = IRegistrationManager(registrationManager).registerOperator(msg.sender, data);
 		numRegistrants++;
-		isRegistrantActive[msg.sender] = true;
     }
 
-	function getIsRegistrantActive(address operator) public view returns(bool) { 
-		return isRegistrantActive[operator];
+	function getRegistrantType(address operator) public view returns(uint8) { 
+		return registrantType[operator];
 	}
 
 	function createNewQuery(bytes calldata queryData) external {

@@ -139,7 +139,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
     // TODO: collateral
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         require(
-            queryManager.getIsRegistrantActive(msg.sender),
+            queryManager.getRegistrantType(msg.sender) != 0,
             "Only registrants can call this function"
         );
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");

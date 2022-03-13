@@ -2,6 +2,6 @@
 pragma solidity ^0.8.9;
 
 interface IRegistrationManager {
-	function operatorPermitted(address, bytes calldata) external returns(bool);
-	function operatorPermittedToLeave(address, bytes calldata) external returns(bool);
+	function registerOperator(address, bytes calldata) external returns(uint8);
+	function deregisterOperator(address, bytes calldata) external returns(bool);
 }

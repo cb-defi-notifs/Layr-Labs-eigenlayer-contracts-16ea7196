@@ -20,7 +20,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     struct Registrant {
         string socket; // how people can find it
         uint32 id; // id is always unique
-        uint256 index; // corresponds to registrantList
+        uint64 index; // corresponds to registrantList
         uint48 fromDumpNumber;
         uint32 to;
         uint8 active; //bool
@@ -83,28 +83,30 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
 
     // Registration and ETQ
 
-    function operatorPermitted(address operator, bytes calldata data) public returns(bool) {
+    function registerOperator(address operator, bytes calldata data) public returns(uint8) {
         require(registry[operator].active == 0, "Operator is already registered");
-        uint8 registerType = data.toUint8(0);
-        if(registerType == 1) {
+        uint8 registrantType = data.toUint8(0);
+        if(registrantType == 1) {
             require(weightOfOperatorEigen(operator) >= dlnEigenStake, "Not enough eigen staked");
-        } else if (registerType == 2) {
+        } else if (registrantType == 2) {
             require(weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value staked");
-        } else if(registerType == 3) {
+        } else if(registrantType == 3) {
             require(weightOfOperatorEigen(operator) >= dlnEigenStake && weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value or eigen staked");
+        }else {
+            revert("Invalid registrant type");
         }
         registry[operator] = Registrant({
             socket: string(data.slice(1, data.length - 1)),
             id: nextRegistrantId,
-            index: queryManager.numRegistrants(),
-            active: registerType,
+            index: uint64(queryManager.numRegistrants()),
+            active: registrantType,
             fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
             to: 0
         });
         registrantList.push(operator);
         nextRegistrantId++;
         emit Registration(0, registry[operator].id, 0);
-        return true;
+        return registrantType;
     }
 
     function commitDeregistration() public returns(bool) {
@@ -115,7 +117,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return true;
     }
 
-    function operatorPermittedToLeave(address operator, bytes calldata) public view returns(bool) {
+    function deregisterOperator(address operator, bytes calldata) public view returns(bool) {
         require(registry[operator].to != 0 || registry[operator].to < block.timestamp, "Operator is already registered");
         return true;
     }
