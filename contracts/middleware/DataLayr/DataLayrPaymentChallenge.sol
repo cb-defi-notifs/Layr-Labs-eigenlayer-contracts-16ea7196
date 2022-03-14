@@ -8,8 +8,6 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../QueryManager.sol";
 
 contract DataLayrPaymentChallenge {
-    uint256 public constant paymentFraudProofInterval = 7 days;
-    uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayrServiceManager public dlsm;
     PaymentChallenge public challenge;
 
@@ -59,7 +57,7 @@ contract DataLayrPaymentChallenge {
             "Must be challenger and thier turn or operator and their turn"
         );
         require(
-            block.timestamp < challenge.commitTime + paymentFraudProofInterval,
+            block.timestamp < challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
         uint48 fromDumpNumber;
@@ -141,11 +139,12 @@ contract DataLayrPaymentChallenge {
     }
 
     function resolveChallenge() public {
+        uint256 interval = dlsm.paymentFraudProofInterval();
         require(
             block.timestamp >
-                challenge.commitTime + paymentFraudProofInterval &&
+                challenge.commitTime + interval &&
                 block.timestamp <
-                challenge.commitTime + 2 * paymentFraudProofInterval,
+                challenge.commitTime + 2 * interval,
             "Fraud proof interval has passed"
         );
         uint8 status = challenge.status;
@@ -168,7 +167,7 @@ contract DataLayrPaymentChallenge {
         uint8[] calldata vs
     ) external {
         require(
-            block.timestamp < challenge.commitTime + paymentFraudProofInterval,
+            block.timestamp < challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
         uint48 challengedDumpNumber = challenge.fromDumpNumber;
@@ -198,7 +197,6 @@ contract DataLayrPaymentChallenge {
                 //operator was correct, operator should be slashed
                 resolve(true);
             }
-            //TODO: Resolve here
         } else if (status == 5) {
             if (trueAmount == challenge.amount1) {
                 //operator was correct, challenger should be slashed

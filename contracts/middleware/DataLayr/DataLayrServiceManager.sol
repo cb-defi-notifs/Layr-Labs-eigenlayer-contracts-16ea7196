@@ -15,6 +15,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IERC20 public immutable paymentToken;
+    IERC20 public immutable collateralToken;
     IQueryManager public queryManager;
     uint48 public dumpNumber;
     mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
@@ -30,6 +31,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         uint32 commitTime; // when commited, used for fraud proof period
         uint120 amount; // max 1.3e36, keep in mind for token decimals
         uint8 status; // 0: commited, 1: redeemed
+        uint256 collateral; //account for if collateral changed TODO: As JeffC
     }
 
     struct PaymentChallenge {
@@ -130,6 +132,8 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             "Only registrants can call this function"
         );
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
+        //put up collateral
+        collateralToken.transferFrom(msg.sender, address(this), paymentFraudProofCollateral);
 
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
             //this is the first payment commited, it must be claiming payment from when the operator registered
@@ -142,7 +146,8 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
                 toDumpNumber,
                 uint32(block.timestamp),
                 amount,
-                0
+                0,
+                paymentFraudProofCollateral
             );
             return;
         }
@@ -158,7 +163,8 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             toDumpNumber,
             uint32(block.timestamp),
             amount,
-            0
+            0,
+            paymentFraudProofCollateral
         );
     }
 
@@ -166,12 +172,12 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         require(block.timestamp >
                 operatorToPayment[msg.sender].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPayment[msg.sender].status == 0 &&
-                operatorToPaymentChallenge[msg.sender] == address(0)),
+                operatorToPayment[msg.sender].status == 0
             "Still eligible for fraud proofs"
         );
-        paymentToken.transfer(msg.sender, operatorToPayment[msg.sender].amount);
         operatorToPayment[msg.sender].status = 1;
+        paymentToken.transfer(msg.sender, operatorToPayment[msg.sender].amount);
+        collateralToken.transfer(msg.sender, operatorToPayment[msg.sender].collateral);
     }
 
     //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
@@ -184,14 +190,11 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         require(block.timestamp <
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPayment[operator].status == 0 &&
-                operatorToPaymentChallenge[operator] == address(0)),
+                operatorToPayment[operator].status == 0
             "Fraud proof interval has passed"
         );
-        operatorToPayment[operator].status = 2;
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
         // deploy new challenge contract
-        operatorToPaymentChallenge[operator] = new DataLayrPaymentChallenge(
+        address challengeContract = new DataLayrPaymentChallenge(
             operator,
             msg.sender,
             operatorToPayment[operator].fromDumpNumber,
@@ -199,6 +202,13 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             amount1,
             amount2
         );
+        //move collateral over
+        uint256 collateral = operatorToPayment[operator].collateral;
+        collateralToken.transferFrom(msg.sender, address(this), collateral);
+        //update payment
+        operatorToPayment[operator].status = 2;
+        operatorToPayment[operator].commitTime = uint32(block.timestamp);
+        operatorToPaymentChallenge[operator] = challengeContract;
     }
 
     function resolvePaymentChallenge(
@@ -210,9 +220,13 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             // operator was correct, allow for another challenge
             operatorToPayment[operator].status = 0;
             operatorToPayment[operator].commitTime = block.timestamp;
+            //give them previous challengers collateral
+            collateralToken.transfer(operator, operatorToPayment[operator].collateral);
         } else {
             // challeger was correct, reset payment
             operatorToPayment[operator].status = 1;
+            //give them their collateral and the operators
+            collateralToken.transfer(operator, 2*operatorToPayment[operator].collateral);
         }
     }
 
@@ -230,6 +244,14 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         returns (bytes32)
     {
         return dumpNumberToSignatureHash[_dumpNumber];
+    }
+
+    function getPaymentCollateral(address operator)
+        public
+        view
+        returns (uint256)
+    {
+        return operatorToPayment[operator].collateral;
     }
 
     function payFee(address payer) external payable {
