@@ -5,6 +5,7 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "DataLayrPaymentChallenge.sol";
 import "../QueryManager.sol";
 
 contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
@@ -16,11 +17,10 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
     IERC20 public immutable paymentToken;
     IQueryManager public queryManager;
     uint48 public dumpNumber;
-    // mapping(address =>)
     mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
     mapping(uint64 => uint256) public dumpNumberToFee;
     mapping(address => Payment) public operatorToPayment;
-    mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
+    mapping(address => address) public operatorToPaymentChallenge;
 
     // Payment
     struct Payment {
@@ -29,10 +29,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         // payment for range [fromDumpNumber, toDumpNumber)
         uint32 commitTime; // when commited, used for fraud proof period
         uint120 amount; // max 1.3e36, keep in mind for token decimals
-        uint8 status; // 0: commited, 1: redeemed,
-        // 2: initially challenged (operator turn), 3: challenged first half (operator turn),
-        // 4: challenged second half (operator turn), 5: challenged 1 dump first half (operator turn),
-        // 6: challenged 1 dump second half (operator turn), 7: challenge (challenger turn)
+        uint8 status; // 0: commited, 1: redeemed
     }
 
     struct PaymentChallenge {
@@ -42,16 +39,6 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         uint120 amount1;
         uint120 amount2;
     }
-
-    event PaymentChallengeSuccess(
-        address challenger,
-        address adversary,
-        uint32 paymentTime
-    );
-
-    event CommitPayment(address claimer, uint32 time, uint128 amount);
-
-    event RedeemPayment(address claimer);
 
     constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _paymentToken)
     {
@@ -175,210 +162,74 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         );
     }
 
+    function redeemPayment() external { 
+        require(block.timestamp >
+                operatorToPayment[msg.sender].commitTime +
+                    paymentFraudProofInterval &&
+                operatorToPayment[msg.sender].status == 0 &&
+                operatorToPaymentChallenge[msg.sender] == address(0)),
+            "Still eligible for fraud proofs"
+        );
+        paymentToken.transfer(msg.sender, operatorToPayment[msg.sender].amount);
+        operatorToPayment[msg.sender].status = 1;
+    }
+
     //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
     //TODO: How much collateral
-    function challengePaymentInit(address operator) external {
-        //either challenged for first time in fraud proof interval or
-        //for a future time after interval but before expiry of future challenge period
-        require(
-            (block.timestamp <
+    function challengePaymentInit(
+        address operator,
+        uint120 amount1,
+        uint120 amount2
+    ) external {
+        require(block.timestamp <
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPaymentChallenge[operator].challenger == address(0) &&
-                operatorToPayment[operator].status == 0) ||
-                (block.timestamp >
-                    operatorToPayment[operator].commitTime +
-                        paymentFraudProofInterval &&
-                    block.timestamp <
-                    operatorToPayment[operator].commitTime +
-                        2 *
-                        paymentFraudProofInterval &&
-                    operatorToPaymentChallenge[operator].challenger !=
-                    address(0) &&
-                    operatorToPayment[operator].status == 7),
+                operatorToPayment[operator].status == 0 &&
+                operatorToPaymentChallenge[operator] == address(0)),
             "Fraud proof interval has passed"
         );
         operatorToPayment[operator].status = 2;
         operatorToPayment[operator].commitTime = uint32(block.timestamp);
-        operatorToPaymentChallenge[operator].challenger = msg.sender;
-    }
-
-    //an operator can respond to challenges and breakdown the amount
-    function respondToPaymentChallenge(uint120 amount1, uint120 amount2)
-        external
-    {
-        require(
-            block.timestamp <
-                operatorToPayment[msg.sender].commitTime +
-                    paymentFraudProofInterval,
-            "Fraud proof interval has passed"
+        // deploy new challenge contract
+        operatorToPaymentChallenge[operator] = new DataLayrPaymentChallenge(
+            operator,
+            msg.sender,
+            operatorToPayment[operator].fromDumpNumber,
+            operatorToPayment[operator].toDumpNumber,
+            amount1,
+            amount2
         );
-        uint8 status = operatorToPayment[msg.sender].status;
-        //if challenge is initing, break the entire payment into two halves
-        if (status == 2) {
-            require(
-                amount1 + amount2 == operatorToPayment[msg.sender].amount,
-                "Invalid amount breakdown"
-            );
-        } else if (status == 3) {
-            //if first half is challenged, break the first half of the payment into two halves
-            require(
-                amount1 + amount2 ==
-                    operatorToPaymentChallenge[msg.sender].amount1,
-                "Invalid amount breakdown"
-            );
-        } else if (status == 4) {
-            //if second half is challenged, break the second half of the payment into two halves
-            require(
-                amount1 + amount2 ==
-                    operatorToPaymentChallenge[msg.sender].amount2,
-                "Invalid amount breakdown"
-            );
-        } else {
-            revert("Not in operator challenge phase");
-        }
-        operatorToPayment[msg.sender].status = 7;
-        operatorToPayment[msg.sender].commitTime = uint32(block.timestamp);
-        operatorToPaymentChallenge[msg.sender].amount1 = amount1;
-        operatorToPaymentChallenge[msg.sender].amount2 = amount2;
     }
 
-    //an operator can respond to challenges and breakdown the amount
-    function respondToPaymentChallengeFinal(
-        bytes32 ferkleRoot,
-        uint120 amount,
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
-        uint8[] calldata vs
+    function resolvePaymentChallenge(
+        address operator,
+        bool winner
     ) external {
-        require(
-            block.timestamp <
-                operatorToPayment[msg.sender].commitTime +
-                    paymentFraudProofInterval,
-            "Fraud proof interval has passed"
-        );
-        uint48 challengedDumpNumber = operatorToPaymentChallenge[msg.sender]
-            .fromDumpNumber;
-        uint8 status = operatorToPayment[msg.sender].status;
-        //check sigs
-        dumpNumberToSignatureHash[challengedDumpNumber] = keccak256(
-            abi.encodePacked(rs, ss, vs)
-        );
-        //calculate the true amount deserved
-        uint120 trueAmount;
-        for (uint256 i = 0; i < rs.length; i++) {
-            address addr = ecrecover(ferkleRoot, 27 + vs[i], rs[i], ss[i]);
-            if (addr == msg.sender) {
-                trueAmount = uint120(
-                    dumpNumberToFee[challengedDumpNumber] / (rs.length)
-                );
-                break;
-            }
-        }
-        if (status == 5) {
-            require(
-                trueAmount == operatorToPaymentChallenge[msg.sender].amount1,
-                "Invalid amount breakdown"
-            );
-            //TODO: Resolve here
-            operatorToPayment[msg.sender].status = 0;
-        } else if (status == 6) {
-            //if first half is challenged, break the first half of the payment into two halves
-            require(
-                trueAmount == operatorToPaymentChallenge[msg.sender].amount2,
-                "Invalid amount breakdown"
-            );
-            //TODO: Resolve here
-            operatorToPayment[msg.sender].status = 0;
+        require(msg.sender == operatorToPaymentChallenge[operator], "Only the payment challenge contract can call");
+        if(winner) {
+            // operator was correct, allow for another challenge
+            operatorToPayment[operator].status = 0;
+            operatorToPayment[operator].commitTime = block.timestamp;
         } else {
-            revert("Not in operator 1 dump challenge phase");
+            // challeger was correct, reset payment
+            operatorToPayment[operator].status = 1;
         }
-        operatorToPayment[msg.sender].status = 1;
     }
 
-    //challenger challenges a particular half of the payment
-    function challengePaymentHalf(address operator, bool half) external {
-        require(
-            operatorToPaymentChallenge[operator].challenger == msg.sender,
-            "Only challenger can continue challenge"
-        );
-        require(
-            operatorToPayment[operator].status == 4,
-            "Payment is not in challenger phase"
-        );
-        require(
-            block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval,
-            "Fraud proof interval has passed"
-        );
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
-        if (fromDumpNumber == 0) {
-            fromDumpNumber = operatorToPayment[operator].fromDumpNumber;
-            toDumpNumber = operatorToPayment[operator].toDumpNumber;
-        } else {
-            fromDumpNumber = operatorToPaymentChallenge[operator]
-                .fromDumpNumber;
-            toDumpNumber = operatorToPaymentChallenge[operator].toDumpNumber;
-        }
-        uint48 diff = toDumpNumber - fromDumpNumber;
-        //change interval to the one challenger cares about
-        // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
-        // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //                                                      or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
-        if (half) {
-            operatorToPaymentChallenge[operator].fromDumpNumber =
-                fromDumpNumber +
-                diff /
-                2;
-            operatorToPaymentChallenge[operator].toDumpNumber = toDumpNumber;
-            if (diff == 1) {
-                operatorToPayment[operator].status = 5;
-            } else {
-                operatorToPayment[operator].status = 4;
-            }
-        } else {
-            if (diff % 2 == 1) {
-                diff += 1;
-            }
-            diff /= 2;
-            operatorToPaymentChallenge[operator].toDumpNumber =
-                toDumpNumber -
-                diff;
-            operatorToPaymentChallenge[operator]
-                .fromDumpNumber = fromDumpNumber;
-            if (diff == 1) {
-                operatorToPayment[operator].status = 6;
-            } else {
-                operatorToPayment[operator].status = 3;
-            }
-        }
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
+    function getDumpNumberFee(uint48 _dumpNumber)
+        public
+        view
+        returns (uint256)
+    {
+        return dumpNumberToFee[_dumpNumber];
     }
 
-    function resolveChallenge(address operator) public {
-        require(
-            block.timestamp >
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval &&
-                block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    2 *
-                    paymentFraudProofInterval,
-            "Fraud proof interval has passed"
-        );
-        uint8 status = operatorToPayment[operator].status;
-        require(
-            status == 2 ||
-                status == 3 ||
-                status == 4 ||
-                status == 5 ||
-                status == 6,
-            "Not operators turn"
-        );
-        operatorToPayment[msg.sender].status = 1;
-        //TODO: Resolve here
+    function getDumpNumberSignatureHash(uint48 _dumpNumber)
+        public
+        view
+        returns (bytes32)
+    {
+        return dumpNumberToSignatureHash[_dumpNumber];
     }
 
     function payFee(address payer) external payable {

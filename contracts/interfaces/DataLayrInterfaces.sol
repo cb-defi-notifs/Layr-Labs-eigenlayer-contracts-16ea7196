@@ -28,9 +28,16 @@ interface IDataLayr {
 
 interface IDataLayrVoteWeigher {
     function setLatestTime(uint32) external;
-    function getOperatorFromDumpNumber(address) external view returns(uint48);
+
+    function getOperatorFromDumpNumber(address) external view returns (uint48);
 }
 
 interface IDataLayrServiceManager {
-    function dumpNumber() external returns(uint48);
+    function dumpNumber() external returns (uint48);
+
+    function getDumpNumberFee(uint48) external returns (uint256);
+
+    function getDumpNumberSignatureHash(uint48) external returns (bytes32);
+
+    function resolvePaymentChallenge(address, bool) external;
 }
