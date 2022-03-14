@@ -53,7 +53,7 @@ contract DataLayrPaymentChallenge {
         uint8 status = challenge.status;
         require(
             (status == 3 && challenge.challenger == msg.sender) ||
-                (status == 2 && operator == msg.sender),
+                (status == 2 && challenge.operator == msg.sender),
             "Must be challenger and thier turn or operator and their turn"
         );
         require(
@@ -78,7 +78,7 @@ contract DataLayrPaymentChallenge {
             diff = (toDumpNumber - fromDumpNumber) / 2;
             challenge.fromDumpNumber = fromDumpNumber + diff;
             //if next step is not final
-            if (updateStatus(operator, diff)) {
+            if (updateStatus(challenge.operator, diff)) {
                 challenge.toDumpNumber = toDumpNumber;
             }
             updateChallengeAmounts(1, amount1, amount2);
@@ -89,7 +89,7 @@ contract DataLayrPaymentChallenge {
             }
             diff /= 2;
             //if next step is not final
-            if (updateStatus(operator, diff)) {
+            if (updateStatus(challenge.operator, diff)) {
                 challenge.toDumpNumber = toDumpNumber - diff;
                 challenge.fromDumpNumber = fromDumpNumber;
             }
@@ -212,7 +212,7 @@ contract DataLayrPaymentChallenge {
     }
 
     function resolve(bool winner) internal {
-        dlsm.resolvePaymentChallenge(winner, operator);
-        selfdestruct(address(0))
+        dlsm.resolvePaymentChallenge(challenge.operator, winner);
+        selfdestruct(payable(0));
     }
 }

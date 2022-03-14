@@ -5,7 +5,7 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "DataLayrPaymentChallenge.sol";
+import "./DataLayrPaymentChallenge.sol";
 import "../QueryManager.sol";
 
 contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
@@ -42,10 +42,11 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         uint120 amount2;
     }
 
-    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _paymentToken)
+    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _paymentToken, IERC20 _collateralToken)
     {
         eigenLayrDelegation = _eigenLayrDelegation;
         paymentToken = _paymentToken;
+        collateralToken = _collateralToken;
     }
 
     function setQueryManager(IQueryManager _queryManager) public {
@@ -172,7 +173,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         require(block.timestamp >
                 operatorToPayment[msg.sender].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPayment[msg.sender].status == 0
+                operatorToPayment[msg.sender].status == 0,
             "Still eligible for fraud proofs"
         );
         operatorToPayment[msg.sender].status = 1;
@@ -190,18 +191,18 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         require(block.timestamp <
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPayment[operator].status == 0
+                operatorToPayment[operator].status == 0,
             "Fraud proof interval has passed"
         );
         // deploy new challenge contract
-        address challengeContract = new DataLayrPaymentChallenge(
+        address challengeContract = address(new DataLayrPaymentChallenge(
             operator,
             msg.sender,
             operatorToPayment[operator].fromDumpNumber,
             operatorToPayment[operator].toDumpNumber,
             amount1,
             amount2
-        );
+        ));
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.transferFrom(msg.sender, address(this), collateral);
@@ -219,7 +220,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         if(winner) {
             // operator was correct, allow for another challenge
             operatorToPayment[operator].status = 0;
-            operatorToPayment[operator].commitTime = block.timestamp;
+            operatorToPayment[operator].commitTime = uint32(block.timestamp);
             //give them previous challengers collateral
             collateralToken.transfer(operator, operatorToPayment[operator].collateral);
         } else {

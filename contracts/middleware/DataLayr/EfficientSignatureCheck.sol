@@ -43,6 +43,7 @@ contract EfficientSignatureCheck {
 		bytes32 sigHash;
 		//keeps track of total number the valid signatures in this dump
 		uint256 totalValidSignatures;
+		//TODO: this gets byte 5? 
         assembly {
         	//get the 16 bits immediately after the function signature
             numberOfBins  := shr(240, calldataload(4))
@@ -76,6 +77,7 @@ contract EfficientSignatureCheck {
 	        }
 	        //increase calldataPointer to account for usage of 6 bytes
 	        calldataPointer += 6;
+			//TODO: can repeat the 0 bin many times?
 	        //verify monotonic increase of bin indices
 	        require(currentBinIndex == 0 || nextBinIndex > currentBinIndex, "bad bin ordering - repeat bins?");
 	        //update current bin index
@@ -95,11 +97,12 @@ contract EfficientSignatureCheck {
 				//increase calldataPointer to account for length of signature
 	        	calldataPointer += 64;
 				operatorId = registry[signatory].id;
+				//TODO: bitshift? save that gas boy
 				//16777216 is 2^24. this is the max bin index.
 	        	require(operatorId / 16777216 == currentBinIndex, "invalid sig bin index - improper sig ordering?");
 	        	//mask has a single '1' bit at sigIndex position
 	        	mask = (1 << (operatorId % 256));
-	        	//check that bit has not already been flipped
+	        	//check that bit has not already been flipped TODO: make sure claim & mask == 0? maybe
 	        	require(claimsMadeInBin & mask == mask, "claim already made on this bit - repeat signature?");
 	        	//flip the bit to mark that 'sigIndex' has been claimed
 	        	claimsMadeInBin = (claimsMadeInBin | mask);
