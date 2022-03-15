@@ -104,7 +104,7 @@ contract QueryManager is IQueryManager {
                 msg.sender,
                 data
             ),
-            "registrant not permitted"
+            "deregistration not permitted"
         );
 
         uint256 eigenDepositedByOperator = eigenDeposited[msg.sender];
@@ -191,15 +191,16 @@ contract QueryManager is IQueryManager {
                 strats.push(delegatedOperatorStrats[i]);
             }
             qmShares += delegatedOperatorShares[i];
-            uint256 stratsLeft = operatorStratsPrev.length;
-            for (uint j = 0; j < stratsLeft; ) {
+            uint256 stratsRemaining = operatorStratsPrev.length;
+            for (uint j = 0; j < stratsRemaining; ) {
+                //check if new strategy matches an old one
                 if (delegatedOperatorStrats[i] == operatorStratsPrev[j]) {
                     // subtract shares, modify memory (looping) array
                     qmShares -= operatorShares[operator][operatorStratsPrev[j]];
                     operatorStratsPrev[j] = operatorStratsPrev[
-                        operatorStratsPrev.length - 1
+                        (stratsRemaining - 1)
                     ];
-                    --stratsLeft;
+                    --stratsRemaining;
                     break;
                 }
                 unchecked {
@@ -215,8 +216,9 @@ contract QueryManager is IQueryManager {
                 ++i;
             }
         }
-        uint256 numStratsExited = operatorStratsPrev.length;
-        for (uint i = 0; i < numStratsExited; ) {
+
+        //set shares to zero for strategies that the operator has left
+        for (uint i = 0; i < stratsRemaining; ) {
             operatorShares[operator][operatorStratsPrev[i]] = 0;
             unchecked {
                 ++i;
