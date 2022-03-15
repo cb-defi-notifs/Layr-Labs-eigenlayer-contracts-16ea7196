@@ -169,20 +169,22 @@ contract QueryManager is IQueryManager {
     }
 
     function updateStake(address operator) public returns(uint256, uint256, uint256) {
-        //update eigen
+        //get new eigen amount and replace it
         uint256 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         totalEigen = totalEigen + newEigen - eigenDeposited[operator];
         eigenDeposited[operator] = newEigen;
-        //update eth
+        //get new delegated shares
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
             uint256 delegatedConsensusLayerEth,
 
         ) = delegation.getDelegation(operator);
+        //get current strategies
         IInvestmentStrategy[] memory operatorStratsPrev = operatorStrats[
             operator
         ];
+        uint256 stratsRemaining = operatorStratsPrev.length;
         uint256 stratsLength = delegatedOperatorStrats.length;
         for (uint i = 0; i < stratsLength; ) {
             uint256 qmShares = shares[delegatedOperatorStrats[i]];
@@ -190,16 +192,19 @@ contract QueryManager is IQueryManager {
             if (qmShares == 0) {
                 strats.push(delegatedOperatorStrats[i]);
             }
+            //add new shares
             qmShares += delegatedOperatorShares[i];
-            uint256 stratsRemaining = operatorStratsPrev.length;
+            //loop throuw all old strategies that havent matched the one's we have seen yet
             for (uint j = 0; j < stratsRemaining; ) {
                 //check if new strategy matches an old one
                 if (delegatedOperatorStrats[i] == operatorStratsPrev[j]) {
-                    // subtract shares, modify memory (looping) array
+                    //subtract old shares, modify memory (looping) array
                     qmShares -= operatorShares[operator][operatorStratsPrev[j]];
+                    //bring last unchecked strategies 
                     operatorStratsPrev[j] = operatorStratsPrev[
                         (stratsRemaining - 1)
                     ];
+                    //1 less strat remains
                     --stratsRemaining;
                     break;
                 }
@@ -207,8 +212,9 @@ contract QueryManager is IQueryManager {
                     ++i;
                 }
             }
-
+            //update shares in storage
             shares[delegatedOperatorStrats[i]] = qmShares;
+            //update operator shares in storage
             operatorShares[operator][
                 delegatedOperatorStrats[i]
             ] = delegatedOperatorShares[i];
@@ -217,20 +223,22 @@ contract QueryManager is IQueryManager {
             }
         }
 
-        //set shares to zero for strategies that the operator has left
+        //set shares to zero for old strategies that aren't still present
         for (uint i = 0; i < stratsRemaining; ) {
             operatorShares[operator][operatorStratsPrev[i]] = 0;
             unchecked {
                 ++i;
             }
         }
+        //update operator strats in storage
         operatorStrats[operator] = delegatedOperatorStrats;
-
+        //update consensusLayrEth
         totalConsensusLayerEth =
             totalConsensusLayerEth +
             delegatedConsensusLayerEth -
             consensusLayerEth[operator];
         consensusLayerEth[operator] = delegatedConsensusLayerEth;
+        //return CLE, Eth shares, Eigen
         return (
             delegatedConsensusLayerEth,
             investmentManager.getUnderlyingEthOfStrategyShares(
