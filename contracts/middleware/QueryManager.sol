@@ -106,7 +106,7 @@ contract QueryManager is IQueryManager {
             ),
             "registrant not permitted"
         );
-
+        
         uint256 eigenDepositedByOperator = eigenDeposited[msg.sender];
         if (eigenDepositedByOperator != 0) {
             totalEigen -= eigenDepositedByOperator;
