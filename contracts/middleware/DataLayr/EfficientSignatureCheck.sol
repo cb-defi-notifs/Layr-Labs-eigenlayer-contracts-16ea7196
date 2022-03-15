@@ -32,13 +32,13 @@ contract EfficientSignatureCheck {
 //TODO: write some data
 //TODO: possibly checks on bins. e.g. 1+ sig per bin for some bins, > x for some bins, etc.
 //TODO: multiple indices for different things? e.g. one for ETH, one for NFGTs?
-	function checkSignatures() external returns (uint256) {
+	function checkSignatures() external {
 		//number of different signature bins that signatures are being posted from
         uint16 numberOfBins;
         //number of signatures contained in the bin currently being processed
         uint16 sigsInCurrentBin;
-        //index of current bin of signatures being processed
-        uint32 currentBinIndex;
+        //index of current bin of signatures being processed. initially set to max value for a later check
+        uint32 currentBinIndex = type(uint32).max;
         //signed data
 		bytes32 sigHash;
 		//keeps track of total number the valid signatures in this dump
@@ -76,9 +76,8 @@ contract EfficientSignatureCheck {
 	        }
 	        //increase calldataPointer to account for usage of 6 bytes
 	        calldataPointer += 6;
-			//TODO: can repeat the 0 bin many times?
 	        //verify monotonic increase of bin indices
-	        require(currentBinIndex == 0 || nextBinIndex > currentBinIndex, "bad bin ordering - repeat bins?");
+	        require(currentBinIndex == type(uint32).max || nextBinIndex > currentBinIndex, "bad bin ordering - repeat bins?");
 	        //update current bin index
 	        currentBinIndex = nextBinIndex;
 			//256 single bit slots, initialized as zeroes

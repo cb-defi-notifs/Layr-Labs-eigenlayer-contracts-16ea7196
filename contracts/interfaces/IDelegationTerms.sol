@@ -8,8 +8,8 @@ import "./IInvestmentStrategy.sol";
 interface IDelegationTerms {
     function payForService(
         IQueryManager queryManager,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
+        IERC20 token,
+        uint256 amount
     ) external payable;
 
     function onDelegationWithdrawn(

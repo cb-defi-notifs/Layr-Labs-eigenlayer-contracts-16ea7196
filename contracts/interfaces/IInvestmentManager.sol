@@ -90,8 +90,6 @@ interface IInvestmentManager {
         view
         returns (uint256);
 
-    function getNfgtStaked(address depositor) external view returns (uint256);
-
     function getUnderlyingEthOfStrategyShares(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
