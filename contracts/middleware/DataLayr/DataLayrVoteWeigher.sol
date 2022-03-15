@@ -98,18 +98,21 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             registry[operator].active == 0,
             "Operator is already registered"
         );
+        //get the first byte of data
         uint8 registrantType = data.toUint8(0);
         uint256 eigenAmount;
-
         if (registrantType == 1) {
+            // if they want to be an "eigen" validator, check that they meet the eigen requirements
             eigenAmount = weightOfOperatorEigen(operator);
             require(eigenAmount >= dlnEigenStake, "Not enough eigen staked");
         } else if (registrantType == 2) {
+            // if they want to be an "eth" validator, check that they meet the eth requirements
             require(
                 weightOfOperatorEth(operator) >= dlnEthStake,
                 "Not enough eth value staked"
             );
         } else if (registrantType == 3) {
+            // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
             require(
                 eigenAmount >= dlnEigenStake &&
@@ -119,7 +122,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         } else {
             revert("Invalid registrant type");
         }
-
+        // everything but the first byte of data is their socket
+        // get current dump number from fee manager
         registry[operator] = Registrant({
             socket: string(data.slice(1, data.length - 1)),
             id: nextRegistrantId,
@@ -142,7 +146,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             registry[msg.sender].active > 0,
             "Operator is already registered"
         );
+        // they must store till the latest time a dump expires
         registry[msg.sender].to = latestTime;
+        // but they will not sign off on any more dumps
         registry[msg.sender].active = 0;
         emit Registration(1, registry[msg.sender].id, 0);
         return true;
