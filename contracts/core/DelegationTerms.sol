@@ -7,9 +7,7 @@ import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
-// TODO: more info on split between EIGEN holder and ETH holders
-// TODO: make 'payForService' make sense.
-// TODO: add ability to manage (especially add!) payment tokens
+// TODO: more info on split between EIGEN holder and ETH holders -- right now this just uses 'EIGEN_HOLDER_BIPS' which seems bad
 abstract contract DelegationTerms is IDelegationTerms {
     //defines statuses for payment tokens
     enum Status {
@@ -44,11 +42,15 @@ abstract contract DelegationTerms is IDelegationTerms {
     uint16 internal constant MAX_OPERATOR_FEE_BIPS = 1000;
     //portion of earnings going to EIGEN delegators, *after* operator fees -- TODO: handle this better
     uint16 internal constant EIGEN_HOLDER_BIPS = 5000;
+    //max number of payment tokens, for sanity's sake
+    uint16 internal constant MAX_PAYMENT_TOKENS = 256;
     //portion of all earnings (in BIPS) retained by operator
     uint16 public operatorFeeBips = 200;
     //operator
     address public operator;
+    //important contracts -- used for access control
     IServiceFactory immutable serviceFactory;
+    address immutable eigenLayrDelegation;
     //sum of individual delegator weights
     uint128 public totalWeightEth;
     uint128 public totalWeightEigen;
@@ -69,18 +71,30 @@ abstract contract DelegationTerms is IDelegationTerms {
         _;
     }
 
-    constructor(IInvestmentManager _investmentManager, address[] memory _paymentTokens, IServiceFactory _serviceFactory){
+    constructor(
+        IInvestmentManager _investmentManager,
+        address[] memory _paymentTokens,
+        IServiceFactory _serviceFactory,
+        address _eigenLayrDelegation
+    ){
         investmentManager = _investmentManager;
         //initialize operator as msg.sender
         operator = msg.sender;
         paymentTokens = _paymentTokens;
         serviceFactory = _serviceFactory;
+        eigenLayrDelegation = _eigenLayrDelegation;
     }
 
     function setOperatorFeeBips(uint16 bips) external onlyOperator {
         require(bips <= MAX_OPERATOR_FEE_BIPS, "setOperatorFeeBips: input too high");
         emit OperatorFeeBipsSet(operatorFeeBips, bips);
         operatorFeeBips = bips;
+    }
+
+    //NOTE: currently there is no way to remove payment tokens
+    function addPaymentToken(address token) external onlyOperator {
+        require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
+        paymentTokens.push(token);
     }
 
     function operatorWithdrawal() external {
@@ -102,7 +116,6 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
     }
 
-//TODO: change this function's signature?
     function payForService(IERC20 token, uint256 amount) external payable {
         IQueryManager _queryManager = IFeeManager(msg.sender).queryManager();
         require(msg.sender == address(_queryManager.feeManager()), "only feeManagers");
@@ -132,24 +145,17 @@ abstract contract DelegationTerms is IDelegationTerms {
         totalWeightEigen += delegatorUpdate.weightEigen;
     }
 
-//TODO: ACCESS CONTROL
 //TODO: forward additional data in this call? right now loop is commented out so contract cannot be bricked by adding tons of paymentTokens
 //NOTE: currently this causes the delegator to lose any pending rewards
     function onDelegationWithdrawn(address staker) external {
-        // uint256 length = paymentTokens.length;
-        // for (uint256 i; i < length;) {
-        //     _withdrawPendingRewardsEth(paymentTokens[i]);
-        //     _withdrawPendingRewardsEigen(paymentTokens[i]);
-        //     unchecked {
-        //         ++i;
-        //     }
-        // }
-        //TODO: can this be better optimized?
-        DelegatorStatus storage delegator = delegatorStatus[staker];
+        require(msg.sender == eigenLayrDelegation, "only eigenLayrDelegation");
+        DelegatorStatus memory delegator = delegatorStatus[staker];
         totalWeightEth -= delegator.weightEth;
         totalWeightEigen -= delegator.weightEigen;
         delegator.weightEth = 0;
         delegator.weightEigen = 0;
+        //update storage at end
+        delegatorStatus[staker];
     }
 
     //withdraw pending rewards for all tokens. indices are the locations in paymentsHistory to claim from
@@ -234,41 +240,7 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
     }
 
-/*
-    function _withdrawPendingRewardsEth(address token, uint32 index) internal {
-        DelegatorStatus storage delegator = delegatorStatus[msg.sender];
-        TokenPayment memory earnings;
-        if (paymentsHistory[address(token)].length > 0) {
-            earnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
-        }
-        TokenPayment memory pastEarnings = paymentsHistory[address(token)][index];
-        //check that delegator is only claiming rewards they deserve
-        require(delegator.lastClaimedRewards <= pastEarnings.paymentTimestamp, "attempt to claim rewards too far in past");
-        uint256 earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEth - pastEarnings.earnedPerWeightAllTimeEth;
-        uint256 pending = (earningsPerWeightDelta * delegator.weightEth) / (totalWeightEth * REWARD_SCALING);
-        if (pending > 0) {
-            token.transfer(msg.sender, pending);
-        }
-    }
-
-    function _withdrawPendingRewardsEigen(address token, uint32 index) internal {
-        DelegatorStatus storage delegator = delegatorStatus[msg.sender];
-        TokenPayment memory earnings;
-        if (paymentsHistory[address(token)].length > 0) {
-            earnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
-        }
-        TokenPayment memory pastEarnings = paymentsHistory[address(token)][index];
-        //check that delegator is only claiming rewards they deserve
-        require(delegator.lastClaimedRewards <= pastEarnings.paymentTimestamp, "attempt to claim rewards too far in past");
-        uint256 earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEigen - pastEarnings.earnedPerWeightAllTimeEigen;
-        uint256 pending = (earningsPerWeightDelta * delegator.weightEth) / (totalWeightEth * REWARD_SCALING);
-        if (pending > 0) {
-            token.transfer(msg.sender, pending);
-        }
-    }
-*/
-
-    //TODO: move code copied from DataLayrVoteWeigher to its own file
+    //TODO: move code copied from DataLayrVoteWeigher to its own file?
     //BEGIN COPIED CODE
     IInvestmentManager public investmentManager;
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
