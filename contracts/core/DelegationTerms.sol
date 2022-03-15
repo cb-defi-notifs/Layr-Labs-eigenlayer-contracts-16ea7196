@@ -103,7 +103,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
 //TODO: change this function's signature?
-    function payForService(IQueryManager queryManager, IERC20 token, uint256 amount) external payable {
+    function payForService(IERC20 token, uint256 amount) external payable {
         IQueryManager _queryManager = IFeeManager(msg.sender).queryManager();
         require(msg.sender == address(_queryManager.feeManager()), "only feeManagers");
         require(serviceFactory.queryManagerExists(_queryManager), "illegitimate queryManager");

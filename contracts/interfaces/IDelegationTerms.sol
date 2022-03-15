@@ -7,7 +7,6 @@ import "./IInvestmentStrategy.sol";
 
 interface IDelegationTerms {
     function payForService(
-        IQueryManager queryManager,
         IERC20 token,
         uint256 amount
     ) external payable;
