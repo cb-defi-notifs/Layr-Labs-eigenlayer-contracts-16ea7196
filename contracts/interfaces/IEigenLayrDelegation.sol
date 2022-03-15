@@ -34,4 +34,9 @@ interface IEigenLayrDelegation {
         external
         view
         returns (uint256);
+
+    function getDelegation(address operator)
+        external
+        view
+        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256);
 }

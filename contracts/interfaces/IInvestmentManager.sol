@@ -41,39 +41,44 @@ interface IInvestmentManager {
         uint256[] calldata shareAmounts
     ) external;
 
-    function depositConsenusLayerEth(
-        address depositor,
-        uint256 amount
-    ) external returns (uint256);
+    function depositConsenusLayerEth(address depositor, uint256 amount)
+        external
+        returns (uint256);
 
-    function depositEigen(
-        address depositor,
-        uint256 amount
-    ) external returns (uint256);
+    function depositEigen(address depositor, uint256 amount)
+        external
+        returns (uint256);
 
     function getStrategyShares(address depositor)
-        external view
+        external
+        view
         returns (uint256[] memory);
 
     function getStrategies(address depositor)
-        external view
+        external
+        view
         returns (IInvestmentStrategy[] memory);
 
     function getConsensusLayerEth(address depositor)
-        external view
+        external
+        view
         returns (uint256);
-    
-    function getEigen(address depositor)
-        external view
-        returns (uint256);
-    
+
+    function getEigen(address depositor) external view returns (uint256);
+
     function getDeposits(address depositor)
         external
         view
-        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256);
+        returns (
+            IInvestmentStrategy[] memory,
+            uint256[] memory,
+            uint256,
+            uint256
+        );
 
     function investorStratShares(address user, IInvestmentStrategy strategy)
-        external view
+        external
+        view
         returns (uint256 shares);
 
     function getUnderlyingEthStaked(address depositor)
@@ -81,11 +86,19 @@ interface IInvestmentManager {
         returns (uint256);
 
     function getUnderlyingEthStakedView(address staker)
-        external view
+        external
+        view
         returns (uint256);
-        
-    function getNfgtStaked(address depositor)
-        external view
-        returns (uint256);
-    
+
+    function getNfgtStaked(address depositor) external view returns (uint256);
+
+    function getUnderlyingEthOfStrategyShares(
+        IInvestmentStrategy[] calldata strats,
+        uint256[] calldata shares
+    ) external returns (uint256);
+
+    function getUnderlyingEthOfStrategySharesView(
+        IInvestmentStrategy[] calldata strats,
+        uint256[] calldata shares
+    ) external returns (uint256);
 }

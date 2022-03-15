@@ -15,7 +15,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public operatorShares;
-    mapping(address => IInvestmentStrategy[]) public operatorStrategies;
+    mapping(address => IInvestmentStrategy[]) public operatorStrats;
     // operator => eth on consensus layer delegated
     mapping(address => uint256) public consensusLayerEth;
     mapping(address => uint256) public eigenDelegated;
@@ -86,7 +86,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
             if (operatorShares[operator][strategies[i]] == 0) {
-                operatorStrategies[operator].push(strategies[i]);
+                operatorStrats[operator].push(strategies[i]);
             }
             operatorShares[operator][strategies[i]] += shares[i];
         }
@@ -133,17 +133,17 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
                 operatorShares[operator][strategies[i]] -= shares[i];
                 if (operatorShares[operator][strategies[i]] == 0) {
                     require(
-                        operatorStrategies[operator][
+                        operatorStrats[operator][
                             strategyIndexes[strategyIndex]
                         ] == strategies[i],
                         "Incorrect strategy index"
                     );
-                    operatorStrategies[operator][
+                    operatorStrats[operator][
                         strategyIndexes[strategyIndex]
-                    ] = operatorStrategies[operator][
-                        operatorStrategies[operator].length
+                    ] = operatorStrats[operator][
+                        operatorStrats[operator].length
                     ];
-                    operatorStrategies[operator].pop();
+                    operatorStrats[operator].pop();
                 }
             }
             consensusLayerEth[operator] -= consensusLayrEthDeposited;
@@ -235,7 +235,23 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
         view
         returns (IInvestmentStrategy[] memory)
     {
-        return operatorStrategies[operator];
+        return operatorStrats[operator];
+    }
+
+    function getDelegation(address operator)
+        external
+        view
+        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256)
+    {
+        if(delegation[operator] == operator) {
+            return investmentManager.getDeposits(operator);
+        } else {
+            uint256[] memory shares = new uint256[](operatorStrats[operator].length);
+            for (uint256 i = 0; i < shares.length; i++) {
+                shares[i] = operatorShares[operator][operatorStrats[operator][i]];
+            }
+            return (operatorStrats[operator], shares, consensusLayerEth[operator], eigenDelegated[operator]);
+        }
     }
 
     function getUnderlyingEthDelegated(address operator)
@@ -254,7 +270,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
                 );
             }
         } else {
-            IInvestmentStrategy[] memory investorStrats = operatorStrategies[
+            IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
             for (uint256 i = 0; i < investorStrats.length; i++) {
@@ -283,7 +299,7 @@ contract EigenLayrDelegation is IEigenLayrDelegation {
                 );
             }
         } else {
-            IInvestmentStrategy[] memory investorStrats = operatorStrategies[
+            IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
             for (uint256 i = 0; i < investorStrats.length; i++) {

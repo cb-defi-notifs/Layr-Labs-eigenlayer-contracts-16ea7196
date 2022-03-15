@@ -9,7 +9,6 @@ import "../../libraries/BytesLib.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
 import "../QueryManager.sol";
 
-
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     using BytesLib for bytes;
     IInvestmentManager public investmentManager;
@@ -43,7 +42,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     uint256 public dlnEthStake = 1 wei;
     uint256 public dlnEigenStake = 1 wei;
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation){
+    constructor(
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _delegation
+    ) {
         investmentManager = _investmentManager;
         delegation = _delegation;
     }
@@ -73,56 +75,97 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         latestTime = _latestTime;
     }
 
-    function weightOfOperatorEigen(address operator) public returns(uint256) {
-        return delegation.getEigenDelegated(operator);
+    function weightOfOperatorEigen(address operator) public returns (uint256) {
+        uint256 eigenAmount = delegation.getEigenDelegated(operator);
+        return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }
 
-    function weightOfOperatorEth(address operator) public returns(uint256) {
-        return delegation.getConsensusLayerEthDelegated(operator) * consensusLayerPercent / 100 + delegation.getUnderlyingEthDelegated(operator);
+    function weightOfOperatorEth(address operator) public returns (uint256) {
+        uint256 amount = (delegation.getConsensusLayerEthDelegated(operator) *
+            consensusLayerPercent) /
+            100 +
+            delegation.getUnderlyingEthDelegated(operator);
+        return amount < dlnEthStake ? 0 : amount;
     }
 
     // Registration and ETQ
 
-    function registerOperator(address operator, bytes calldata data) public returns(uint8) {
-        require(registry[operator].active == 0, "Operator is already registered");
+    function registerOperator(address operator, bytes calldata data)
+        public
+        returns (uint8, uint256)
+    {
+        require(
+            registry[operator].active == 0,
+            "Operator is already registered"
+        );
         uint8 registrantType = data.toUint8(0);
-        if(registrantType == 1) {
-            require(weightOfOperatorEigen(operator) >= dlnEigenStake, "Not enough eigen staked");
+        uint256 eigenAmount;
+
+        if (registrantType == 1) {
+            eigenAmount = weightOfOperatorEigen(operator);
+            require(eigenAmount >= dlnEigenStake, "Not enough eigen staked");
         } else if (registrantType == 2) {
-            require(weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value staked");
-        } else if(registrantType == 3) {
-            require(weightOfOperatorEigen(operator) >= dlnEigenStake && weightOfOperatorEth(operator) >= dlnEthStake, "Not enough eth value or eigen staked");
-        }else {
+            require(
+                weightOfOperatorEth(operator) >= dlnEthStake,
+                "Not enough eth value staked"
+            );
+        } else if (registrantType == 3) {
+            eigenAmount = weightOfOperatorEigen(operator);
+            require(
+                eigenAmount >= dlnEigenStake &&
+                    weightOfOperatorEth(operator) >= dlnEthStake,
+                "Not enough eth value or eigen staked"
+            );
+        } else {
             revert("Invalid registrant type");
         }
+
         registry[operator] = Registrant({
             socket: string(data.slice(1, data.length - 1)),
             id: nextRegistrantId,
             index: uint64(queryManager.numRegistrants()),
             active: registrantType,
-            fromDumpNumber: IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber(),
+            fromDumpNumber: IDataLayrServiceManager(
+                address(queryManager.feeManager())
+            ).dumpNumber(),
             to: 0
         });
+
         registrantList.push(operator);
         nextRegistrantId++;
         emit Registration(0, registry[operator].id, 0);
-        return registrantType;
+        return (registrantType, eigenAmount);
     }
 
-    function commitDeregistration() public returns(bool) {
-        require(registry[msg.sender].active > 0, "Operator is already registered");
+    function commitDeregistration() public returns (bool) {
+        require(
+            registry[msg.sender].active > 0,
+            "Operator is already registered"
+        );
         registry[msg.sender].to = latestTime;
         registry[msg.sender].active = 0;
         emit Registration(1, registry[msg.sender].id, 0);
         return true;
     }
 
-    function deregisterOperator(address operator, bytes calldata) public view returns(bool) {
-        require(registry[operator].to != 0 || registry[operator].to < block.timestamp, "Operator is already registered");
+    function deregisterOperator(address operator, bytes calldata)
+        public
+        view
+        returns (bool)
+    {
+        require(
+            registry[operator].to != 0 ||
+                registry[operator].to < block.timestamp,
+            "Operator is already registered"
+        );
         return true;
     }
 
-    function getOperatorFromDumpNumber(address operator) public view returns(uint48) {
+    function getOperatorFromDumpNumber(address operator)
+        public
+        view
+        returns (uint48)
+    {
         return registry[operator].fromDumpNumber;
-    }  
+    }
 }

@@ -321,6 +321,34 @@ contract InvestmentManager is IInvestmentManager {
         return stake;
     }
 
+    function getUnderlyingEthOfStrategyShares(IInvestmentStrategy[] calldata strats, uint256[] calldata shares)
+        external
+        returns (uint256)
+    {
+        uint256 stake;
+        uint256 numStrats = strats.length;
+        require(numStrats == shares.length, "shares and strats must be same length");
+        // for all strats find uderlying eth value of shares
+        for (uint256 i = 0; i < numStrats; i++) {
+            stake += strats[i].underlyingEthValueOfShares(shares[i]);
+        }
+        return stake;
+    }
+
+    function getUnderlyingEthOfStrategySharesView(IInvestmentStrategy[] calldata strats, uint256[] calldata shares)
+        external
+        returns (uint256)
+    {
+        uint256 stake;
+        uint256 numStrats = strats.length;
+        require(numStrats == shares.length, "shares and strats must be same length");
+        // for all strats find uderlying eth value of shares
+        for (uint256 i = 0; i < numStrats; i++) {
+            stake += strats[i].underlyingEthValueOfSharesView(shares[i]);
+        }
+        return stake;
+    }
+
     // gets depositor's eth value staked
     function getUnderlyingEthStakedView(address depositer)
         external
