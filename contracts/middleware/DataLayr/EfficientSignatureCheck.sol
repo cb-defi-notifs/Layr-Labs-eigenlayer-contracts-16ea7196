@@ -32,7 +32,7 @@ contract EfficientSignatureCheck {
 //TODO: write some data
 //TODO: possibly checks on bins. e.g. 1+ sig per bin for some bins, > x for some bins, etc.
 //TODO: multiple indices for different things? e.g. one for ETH, one for NFGTs?
-	function checkSignatures() external returns (uint256) {
+	function checkSignatures() external {
 		//number of different signature bins that signatures are being posted from
         uint16 numberOfBins;
         //number of signatures contained in the bin currently being processed
