@@ -3,31 +3,24 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IERC1155.sol";
+import "../utils/Governed.sol";
+import "../utils/Initializable.sol";
+import "./storage/InvestmentManagerStorage.sol";
 
-//TODO: implement 'getNfgtStaked' function, plus functions for actually staking NFGTs
-contract InvestmentManager is IInvestmentManager {
-    mapping(IInvestmentStrategy => bool) public stratEverApproved;
-    mapping(IInvestmentStrategy => bool) public stratApproved;
-    // staker => InvestmentStrategy => num shares
-    mapping(address => mapping(IInvestmentStrategy => uint256))
-        public investorStratShares;
-    mapping(address => IInvestmentStrategy[]) public investorStrats;
-    mapping(address => uint256) public consensusLayerEth;
-    mapping(address => uint256) public eigenDeposited;
-    uint256 public totalConsensusLayerEthStaked;
-    uint256 public totalEigenStaked;
-    address public entryExit;
-    address public governor;
-    address public slasher;
-    address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; //placeholder address for native asset
-    IERC1155 public immutable NFGT;
+//TODO: implement 'getEigenStaked' function, plus functions for actually staking EIGENs
+contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage {
+    IERC1155 public immutable EIGEN;
+
+    constructor(IERC1155 _EIGEN) {
+        EIGEN = _EIGEN;
+    }
 
     // adds the given strategies to the investment manager
-    constructor(address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher, IERC1155 _NFGT) {
+    function initialize (address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher
+    ) initializer external {
+        _transferGovernor(msg.sender);
         entryExit = _entryExit;
-        governor = msg.sender;
         slasher = _slasher;
-        NFGT = _NFGT;
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -38,9 +31,8 @@ contract InvestmentManager is IInvestmentManager {
 
     // adds the given strategies to the investment manager
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
-        external
+        external onlyGovernor
     {
-        require(msg.sender == governor, "Only governor can add strategies");
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -52,8 +44,8 @@ contract InvestmentManager is IInvestmentManager {
     // removes the given strategies from the investment manager
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
-    ) external {
-        require(msg.sender == governor, "Only governor can add strategies");
+    ) external onlyGovernor 
+    {
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = false;
         }
@@ -65,8 +57,7 @@ contract InvestmentManager is IInvestmentManager {
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external payable returns (uint256 shares) {
-        require(msg.sender == entryExit, "Only governor can add strategies");
+    ) external payable onlyGovernor returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -76,8 +67,7 @@ contract InvestmentManager is IInvestmentManager {
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external payable returns (uint256[] memory) {
-        require(msg.sender == entryExit, "Only governor can add strategies");
+    ) external payable onlyGovernor returns (uint256[] memory) {
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
             shares[i] = _depositIntoStrategy(depositor, strategies[i], tokens[i], amounts[i]);
@@ -365,7 +355,7 @@ contract InvestmentManager is IInvestmentManager {
         return stake;
     }
 
-    function getNfgtStaked(address depositor)
+    function getEigenStaked(address depositor)
         external
         view
         returns (uint256)

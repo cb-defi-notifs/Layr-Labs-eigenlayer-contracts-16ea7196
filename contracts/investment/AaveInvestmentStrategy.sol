@@ -3,20 +3,17 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "./aave/ILendingPool.sol";
+import "./storage/AaveInvestmentStrategyStorage.sol";
+import "../utils/Initializable.sol";
+import "../utils/Governed.sol";
 
-contract AaveInvestmentStrategy is IInvestmentStrategy {
-    ILendingPool public lendingPool;
-    IERC20 public underlyingToken;
-    IERC20 public aToken;
-    address public governor;
-    address public investmentManager;
-    uint256 public totalShares;
-
-    constructor(ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager) {
+contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrategyStorage, IInvestmentStrategy {
+    function initialize (ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager
+    ) initializer external {
+        _transferGovernor(msg.sender);
         lendingPool = _lendingPool;
         underlyingToken = _underlyingToken;
         aToken = _aToken;
-        governor = msg.sender;
         investmentManager = _investmentManager;
     }
 
@@ -81,8 +78,7 @@ contract AaveInvestmentStrategy is IInvestmentStrategy {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    function updateAToken(IERC20 _aToken) external {
-        require(governor == msg.sender, "Only governor can change the aToken");
+    function updateAToken(IERC20 _aToken) external onlyGovernor {
         aToken = _aToken;
     }
 

@@ -10,35 +10,32 @@ import "../middleware/QueryManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../utils/Initializable.sol";
+import "./storage/EigenLayrDepositStorage.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving
-contract EigenLayrDeposit is IEigenLayrDeposit {
-    bytes32 public withdrawalCredentials;
+contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrDeposit {
     bytes32 public immutable consensusLayerDepositRoot;
-    bytes32 public constant legacyDepositPermissionMessage =
-        0x656967656e4c61797252657374616b696e67596f754b6e6f7749744261626179;
-    IDepositContract public depositContract;
-    QueryManager public posMiddleware;
-    mapping(IERC20 => bool) public isAllowedLiquidStakedToken;
-    mapping(bytes32 => mapping(address => bool)) public depositProven;
-    IInvestmentManager public investmentManager;
     Eigen public immutable eigen;
-    uint256 constant eigenTokenId = 0;
 
     constructor(
-        IDepositContract _depositContract,
-        IInvestmentManager _investmentManager,
         bytes32 _consensusLayerDepositRoot,
         Eigen _eigen
     ) {
+        consensusLayerDepositRoot = _consensusLayerDepositRoot;
+        eigen = _eigen;
+    }
+
+    function initialize (
+        IDepositContract _depositContract,
+        IInvestmentManager _investmentManager
+    ) initializer external {
         withdrawalCredentials =
             (bytes32(uint256(1)) << 62) |
             bytes32(bytes20(address(this))); //0x010000000000000000000000THISCONTRACTADDRESSHEREFORTHELAST20BYTES
         depositContract = _depositContract;
         investmentManager = _investmentManager;
-        consensusLayerDepositRoot = _consensusLayerDepositRoot;
-        eigen = _eigen;
     }
 
     // deposits eth into liquid staking and deposit stETH into strategy
