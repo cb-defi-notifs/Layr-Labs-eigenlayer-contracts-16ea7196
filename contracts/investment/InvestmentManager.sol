@@ -7,7 +7,6 @@ import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 
-//TODO: implement 'getEigenStaked' function, plus functions for actually staking EIGENs
 contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage {
     IERC1155 public immutable EIGEN;
 
@@ -327,6 +326,7 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     function getUnderlyingEthOfStrategySharesView(IInvestmentStrategy[] calldata strats, uint256[] calldata shares)
         external
+        view
         returns (uint256)
     {
         uint256 stake;
@@ -353,14 +353,6 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
             stake += strat.underlyingEthValueOfSharesView(investorStratShares[depositer][strat]);
         }
         return stake;
-    }
-
-    function getEigenStaked(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return 1;
     }
 
     function _transferTokenOrEth(IERC20 token, address sender, address receiver, uint256 amount) internal {

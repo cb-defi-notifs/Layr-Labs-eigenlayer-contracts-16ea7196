@@ -75,7 +75,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         latestTime = _latestTime;
     }
 
-    function weightOfOperatorEigen(address operator) public returns (uint256) {
+    function weightOfOperatorEigen(address operator) public view returns (uint256) {
         uint256 eigenAmount = delegation.getEigenDelegated(operator);
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }

@@ -136,9 +136,10 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         //put up collateral
         collateralToken.transferFrom(msg.sender, address(this), paymentFraudProofCollateral);
 
+        uint48 fromDumpNumber;
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
             //this is the first payment commited, it must be claiming payment from when the operator registered
-            uint48 fromDumpNumber = IDataLayrVoteWeigher(
+            fromDumpNumber = IDataLayrVoteWeigher(
                 address(queryManager.voteWeighter())
             ).getOperatorFromDumpNumber(msg.sender);
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
@@ -157,7 +158,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             "Require last payment is redeemed"
         );
         //you have to redeem starting from the last time redeemed up to
-        uint48 fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
+        fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
         require(fromDumpNumber < toDumpNumber, "invalid payment range");
         operatorToPayment[msg.sender] = Payment(
             fromDumpNumber,
