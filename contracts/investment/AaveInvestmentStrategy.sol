@@ -64,9 +64,10 @@ contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrate
                 toWithdraw,
                 depositor
             );
+            underlyingToken.transfer(depositor, amountWithdrawn);
         } else if (token == aToken) {
-            aToken.transfer(depositor, shareAmount);
-            amountWithdrawn = shareAmount;
+            aToken.transfer(depositor, toWithdraw);
+            amountWithdrawn = toWithdraw;
         } else {
             revert("can only withdraw as underlyingToken or aToken");
         }
