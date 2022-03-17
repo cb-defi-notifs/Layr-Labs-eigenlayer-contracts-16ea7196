@@ -2,23 +2,31 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 
+// TODO: withdrawals of Eigen (and consensus layer ETH?)
 contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage {
     IERC1155 public immutable EIGEN;
+    IEigenLayrDelegation public immutable delegation;
 
-    constructor(IERC1155 _EIGEN) {
+    modifier onlyNotDelegated() {
+        require(delegation.isNotDelegated(msg.sender), "cannot withdraw while delegated");
+        _;
+    }
+
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
         EIGEN = _EIGEN;
+        delegation = _delegation;
     }
 
     // adds the given strategies to the investment manager
-    function initialize (address _entryExit, IInvestmentStrategy[] memory strategies, address _slasher
+    function initialize (IInvestmentStrategy[] memory strategies, address _slasher
     ) initializer external {
         _transferGovernor(msg.sender);
-        entryExit = _entryExit;
         slasher = _slasher;
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
@@ -100,14 +108,13 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // withdraws the given tokens and shareAmounts from the given strategies on behalf of the depositor
     function withdrawFromStrategies(
-        address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
-    ) external {
-        require(msg.sender == entryExit, "Only governor can add strategies");
+    ) external onlyNotDelegated {
         uint256 strategyIndexIndex;
+        address depositor = msg.sender;
         for (uint256 i = 0; i < strategies.length; i++) {
             require(
                 stratEverApproved[strategies[i]],
@@ -138,13 +145,12 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // withdraws the given token and shareAmount from the given strategy on behalf of the depositor
     function withdrawFromStrategy(
-        address depositor,
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external {
-        require(msg.sender == entryExit, "Only governor can add strategies");
+    ) external onlyNotDelegated {
+        address depositor = msg.sender;
         require(
             stratEverApproved[strategy],
             "Can only withdraw from approved strategies"
@@ -216,10 +222,9 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // sets a user's eth balance on the consesnsus layer
     function depositConsenusLayerEth(address depositor, uint256 amount)
-        external
+        external onlyGovernor
         returns (uint256)
     {
-        require(msg.sender == entryExit, "Only governor can add strategies");
         totalConsensusLayerEthStaked =
             totalConsensusLayerEthStaked +
             amount -
@@ -230,10 +235,9 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // sets a user's eigen deposit
     function depositEigen(address depositor, uint256 amount)
-        external
+        external onlyGovernor
         returns (uint256)
     {
-        require(msg.sender == entryExit, "Only governor can add strategies");
         totalEigenStaked =
             totalEigenStaked +
             amount -

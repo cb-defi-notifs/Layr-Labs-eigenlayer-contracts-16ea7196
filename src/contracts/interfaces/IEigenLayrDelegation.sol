@@ -39,4 +39,9 @@ interface IEigenLayrDelegation {
         external
         view
         returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256);
+
+    function isNotDelegated(address staker)
+        external
+        view
+        returns (bool);
 }
