@@ -26,7 +26,6 @@ interface IInvestmentManager {
     ) external payable returns (uint256[] memory);
 
     function withdrawFromStrategy(
-        address depositor,
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
@@ -34,7 +33,6 @@ interface IInvestmentManager {
     ) external;
 
     function withdrawFromStrategies(
-        address depositor,
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,

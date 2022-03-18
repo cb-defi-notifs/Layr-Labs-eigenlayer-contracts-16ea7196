@@ -14,7 +14,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => uint256) public eigenDeposited;
     uint256 public totalConsensusLayerEthStaked;
     uint256 public totalEigenStaked;
-    address public entryExit;
     address public slasher;
     address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; //placeholder address for native asset
 }
