@@ -5,6 +5,7 @@ import "./IFeeManager.sol";
 import "./IVoteWeighter.sol";
 
 interface IQueryManager {
+	function timelock() external view returns(address);
 	function consensusLayerEthToEth() external view returns(uint256);
 	function totalEigen() external view returns(uint256);
 	function totalConsensusLayerEth() external returns(uint256);

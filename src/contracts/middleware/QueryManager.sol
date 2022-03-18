@@ -9,6 +9,7 @@ import "../interfaces/IQueryManager.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
 import "./storage/QueryManagerStorage.sol";
+import ".//QueryManagerGovernance.sol";
 
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
@@ -39,6 +40,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     ) {
         voteWeighter = _voteWeighter;
+        timelock = 
     }
 
     function initialize (
