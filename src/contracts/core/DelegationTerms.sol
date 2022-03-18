@@ -9,19 +9,6 @@ import "../interfaces/IServiceFactory.sol";
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 // TODO: more info on split between EIGEN holder and ETH holders -- right now this just uses 'EIGEN_HOLDER_BIPS' which seems bad
 abstract contract DelegationTerms is IDelegationTerms {
-    //defines statuses for payment tokens
-    enum Status {
-        //token has never been added as a payment method
-        NeverAdded,
-        //token is an active payment method
-        Active,
-        //token was previously added as a payment method but is now inactive
-        Inactive
-    }
-    struct TokenStatus {
-        IERC20 token;
-        uint8 status;
-    }
     //stored for each delegator to this contract
     struct DelegatorStatus {
         //delegator weights
