@@ -30,6 +30,7 @@ abstract contract QueryManagerStorage is IQueryManager {
     mapping(address => IInvestmentStrategy[]) public operatorStrats;
     mapping(address => uint256) public eigenDeposited;
     IInvestmentStrategy[] public strats;
+    uint256 public consensusLayerEthToEth;
     mapping(address => uint256) public consensusLayerEth;
     uint256 public totalConsensusLayerEth;
     uint256 public totalEigen;

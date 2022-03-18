@@ -30,14 +30,26 @@ import "../interfaces/IVoteWeighter.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
 contract QueryManagerGovernance {
-    /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public pure returns (uint256) {
-    	return 1000e18; //1000 ETH, if voteWeighter uses ETH value for weight
+    /// @notice The percentage of eth needed in support of a proposal required in order for a quorum 
+    /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
+    function quorumEthPercentage() public pure returns (uint256) {
+    	return 90;
     }
 
-    /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public pure returns (uint256) {
-    	return 100e18; //100 ETH, if voteWeighter uses ETH value for weight
+    /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum 
+    /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
+    function quorumEigenPercentage() public pure returns (uint256) {
+    	return 90; 
+    }
+
+    /// @notice The amount of eth required in order for a voter to become a proposer
+    function proposalThresholdEthPercentage() public pure returns (uint256) {
+    	return 1; 
+    }
+
+    /// @notice The number of eigen required in order for a voter to become a proposer
+    function proposalThresholdEigenPercentage() public pure returns (uint256) {
+    	return 1;
     }
 
 	IQueryManager public immutable QUERY_MANAGER;
@@ -51,6 +63,7 @@ contract QueryManagerGovernance {
     	return 7 days;
     }
 
+    //TODO: change this to timestamp? for quicker/slower chains
     /// @notice The duration of voting on a proposal, in blocks
     function votingPeriod() public pure returns (uint256) { return 17280; } // ~3 days in blocks (assuming 15s blocks)
 
@@ -79,10 +92,14 @@ contract QueryManagerGovernance {
         uint256 startTime;
         /// @notice The UTC timestamp at which voting ends: votes must be cast prior to this UTC timestamp
         uint256 endTime;
-        /// @notice Current number of votes in favor of this proposal
-        uint256 forVotes;
-        /// @notice Current number of votes in opposition to this proposal
-        uint256 againstVotes;
+        /// @notice Current number of eth votes in favor of this proposal
+        uint256 forEthVotes;
+        /// @notice Current number of eth votes in opposition to this proposal
+        uint256 againstEthVotes;
+        /// @notice Current number of eigen votes in favor of this proposal
+        uint256 forEigenVotes;
+        /// @notice Current number of eigen votes in opposition to this proposal
+        uint256 againstEigenVotes;
         /// @notice Flag marking whether the proposal has been canceled
         bool canceled;
         /// @notice Flag marking whether the proposal has been executed
@@ -147,8 +164,12 @@ contract QueryManagerGovernance {
         timelock = TimelockInterface(timelock_);
     }
 
-    function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint256) {
-        require(VOTE_WEIGHTER.weightOfOperatorEth(msg.sender) > proposalThreshold(), "QueryManagerGovernance::propose: proposer votes below proposal threshold");
+    function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description, bool update) public returns (uint256) {
+        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(update);
+        // check percentage
+        require(ethStaked*100/QUERY_MANAGER.totalEthStaked() >= proposalThresholdEthPercentage ||
+                eigenStaked*100/QUERY_MANAGER.totalEigen() >= proposalThresholdEigenPercentage, 
+                "QueryManagerGovernance::propose: proposer votes below proposal threshold");
         require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "QueryManagerGovernance::propose: proposal function information arity mismatch");
         require(targets.length != 0, "QueryManagerGovernance::propose: must provide actions");
         require(targets.length <= proposalMaxOperations(), "QueryManagerGovernance::propose: too many actions");
@@ -174,8 +195,10 @@ contract QueryManagerGovernance {
             calldatas: calldatas,
             startTime: startTime,
             endTime: endTime,
-            forVotes: 0,
-            againstVotes: 0,
+            forEthVotes: 0,
+            againstEthVotes: 0,
+            forEigenVotes: 0,
+            againstEigenVotes: 0,
             canceled: false,
             executed: false
         });
@@ -277,14 +300,18 @@ contract QueryManagerGovernance {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(receipt.hasVoted == false, "QueryManagerGovernance::_castVote: voter already voted");
-        uint256 weight = VOTE_WEIGHTER.weightOfOperatorEth(voter);
-        require(weight < 79228162514264337593543950336, "QueryManagerGovernance::weight overflow");
-        uint96 votes = uint96(weight);
+        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(update);
+        //TODO: wtf is this
+        require(ethStaked < 79228162514264337593543950336 && eigenStaked < 79228162514264337593543950336, "QueryManagerGovernance::weight overflow");
+        uint96 ethVotes = uint96(ethStaked);
+        uint96 eigenVotes = uint96(eigenStaked);
 
         if (support) {
-            proposal.forVotes = proposal.forVotes + votes;
+            proposal.forEthVotes = proposal.forEthVotes + ethVotes;
+            proposal.forEigenVotes = proposal.forEigenVotes + eigenVotes;
         } else {
-            proposal.againstVotes = proposal.againstVotes + votes;
+            proposal.againstEthVotes = proposal.againstEthVotes + ethVotes;
+            proposal.againstEigenVotes = proposal.againstEigenVotes + eigenVotes;
         }
 
         receipt.hasVoted = true;
@@ -302,6 +329,25 @@ contract QueryManagerGovernance {
         uint256 chainId;
         assembly { chainId := chainid() }
         return chainId;
+    }
+
+    function _getEthAndEigenStaked(bool update) internal returns(uint256, uint256) {
+        uint256 ethStaked;
+        uint256 eigenStaked;
+        //if proposer wants to update their shares before proposing, calculate stake based on result of update
+        //TODO: Call to only update eigen/eth. Isnt everyone gonna be eth and eigen staked
+        if(update) {
+            (uint256 delegatedConsensusLayerEth,
+            uint256 ethValueOfShares,
+            uint256 newEigenStaked) = QUERY_MANAGER.updateStake(msg.sender);
+            // weight the consensusLayrEth however desired
+            ethStaked = ethValueOfShares + delegatedConsensusLayerEth/QUERY_MANAGER.consensusLayerEthToEth();
+            eigenStaked = newEigenStaked;
+        } else {
+            ethStaked = QUERY_MANAGER.totalEthValueStakedForOperator(msg.sender);
+            eigenStaked = QUERY_MANAGER.eigenDepositedByOperator(msg.sender);
+        }
+        return (ethStaked, eigenStaked);
     }
 }
 

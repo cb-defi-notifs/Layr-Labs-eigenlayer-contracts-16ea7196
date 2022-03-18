@@ -35,7 +35,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
     );
 
     constructor(
-        IVoteWeighter _voteWeighter
+        IVoteWeighter _voteWeighter,
+
     ) {
         voteWeighter = _voteWeighter;
     }
@@ -43,13 +44,15 @@ contract QueryManager is Initializable, QueryManagerStorage {
     function initialize (
         uint256 _queryDuration,
         IFeeManager _feeManager,
+        uint256 _consensusLayerEthToEth,
         address _registrationManager,
         address _timelock,
         IEigenLayrDelegation _delegation,
-        IInvestmentManager _investmentManager
+        IInvestmentManager _investmentManager,
     ) initializer external {
         queryDuration = _queryDuration;
         feeManager = _feeManager;
+        consensusLayerEthToEth = _consensusLayerEthToEth;
         registrationManager = _registrationManager;
         timelock = _timelock;
         delegation = _delegation;
@@ -69,13 +72,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
             ),
             "deregistration not permitted"
         );
-        
+        // subtract the eigen that the middleware has marked that the operator has staked
         uint256 eigenDepositedByOperator = eigenDeposited[msg.sender];
         if (eigenDepositedByOperator != 0) {
             totalEigen -= eigenDepositedByOperator;
         }
         eigenDeposited[msg.sender] = 0;
-
+        // subtract the shares that the middleware has marked that the operator has staked
+        // loop through all stratgies and subtract operator specific shares and from total shares
         uint256 stratsLength = operatorStrats[msg.sender].length;
         for (uint i = 0; i < stratsLength; ) {
             shares[operatorStrats[msg.sender][i]] -= operatorShares[msg.sender][
@@ -86,7 +90,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 ++i;
             }
         }
+        //no strats
         operatorStrats[msg.sender] = new IInvestmentStrategy[](0);
+        //subtract CLE
         totalConsensusLayerEth -= consensusLayerEth[msg.sender];
         consensusLayerEth[msg.sender] = 0;
         numRegistrants--;
@@ -105,27 +111,33 @@ contract QueryManager is Initializable, QueryManagerStorage {
         ).registerOperator(msg.sender, data);
 
         registrantType[msg.sender] = regType;
+        // add the amount of eigen staked 
+        // TODO: JeffC, the assumption here is that eigen will only stake on a middleware that returns this truthfully
         eigenDeposited[msg.sender] = eigenAmount;
         totalEigen += eigenAmount;
+        //fetch their current controlled stake
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
             uint256 delegatedConsensusLayerEth,
 
-        ) = delegation.getDelegation(msg.sender);
-
+        ) = delegation.getControlledStake(msg.sender);
+        // loop through all of their strategies
         uint256 stratsLength = delegatedOperatorStrats.length;
         for (uint i = 0; i < stratsLength; ) {
+            // add the strat to the overall list if it is new
             if (shares[delegatedOperatorStrats[i]] == 0) {
                 strats.push(delegatedOperatorStrats[i]);
             }
+            // add the the total shares of that strategy
             shares[delegatedOperatorStrats[i]] += delegatedOperatorShares[i];
             unchecked {
                 ++i;
             }
         }
+        // set the operator's strats
         operatorStrats[msg.sender] = delegatedOperatorStrats;
-
+        // add CLE
         totalConsensusLayerEth += delegatedConsensusLayerEth;
         consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
         numRegistrants++;
@@ -142,7 +154,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
             uint256[] memory delegatedOperatorShares,
             uint256 delegatedConsensusLayerEth,
 
-        ) = delegation.getDelegation(operator);
+        ) = delegation.getControlledStake(operator);
         //get current strategies
         IInvestmentStrategy[] memory operatorStratsPrev = operatorStrats[
             operator
@@ -212,15 +224,32 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
-    //TODO: eliminate this function from the interface?
-    function totalEthValueOfShares() external pure returns (uint256) {
-        return 1;
+    function totalEthValueOfShares() external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares);
     }
-    // function totalEthValueOfShares() external returns (uint256) {
-    //     uint256 memory stratShares
-    //     return
-    //         investmentManager.getUnderlyingEthOfStrategyShares(strats, shares);
-    // }
+
+    function totalEthValueOfSharesForOperator(address operator) external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]);
+    }
+
+    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+    function totalEthStaked() external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares) + totalConsensusLayerEth / consensusLayerEthToEth;
+    }
+
+    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+    function totalEthValueStakedForOperator(address operator) external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]) + consensusLayerEth / consensusLayerEthToEth;
+    }
+
+    function eigenDepositedByOperator(address operator) external returns (uint256) {
+        return eigenDeposited[operator];
+    }
+
+    function consensusLayrEthOfOperator(address operator) external returns (uint256) {
+        return consensusLayerEth[operator];
+    }
+
 
     function getRegistrantType(address operator) public view override returns (uint8) {
         return registrantType[operator];

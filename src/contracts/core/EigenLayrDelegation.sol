@@ -221,7 +221,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return operatorStrats[operator];
     }
 
-    function getDelegation(address operator)
+    function getControlledStake(address operator)
         external
         view
         returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256)
