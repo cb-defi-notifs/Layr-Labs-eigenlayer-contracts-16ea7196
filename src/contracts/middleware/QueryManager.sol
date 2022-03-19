@@ -59,7 +59,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // decrement number of registrants
     function deregister(bytes calldata data) external payable {
         require(
-            registrantType[msg.sender] != 0,
+            operatorType[msg.sender] != 0,
             "Registrant is not registered"
         );
         require(
@@ -90,21 +90,21 @@ contract QueryManager is Initializable, QueryManagerStorage {
         totalConsensusLayerEth -= consensusLayerEth[msg.sender];
         consensusLayerEth[msg.sender] = 0;
         numRegistrants--;
-        registrantType[msg.sender] = 0;
+        operatorType[msg.sender] = 0;
     }
 
     // increment number of registrants
     // call registration contract with given data
     function register(bytes calldata data) external payable {
         require(
-            registrantType[msg.sender] == 0,
+            operatorType[msg.sender] == 0,
             "Registrant is already registered"
         );
-        (uint8 regType, uint256 eigenAmount) = IRegistrationManager(
+        (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
 
-        registrantType[msg.sender] = regType;
+        operatorType[msg.sender] = opType;
         eigenDeposited[msg.sender] = eigenAmount;
         totalEigen += eigenAmount;
         (
@@ -223,7 +223,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // }
 
     function getRegistrantType(address operator) public view override returns (uint8) {
-        return registrantType[operator];
+        return operatorType[operator];
     }
 
     function createNewQuery(bytes calldata queryData) external override {
