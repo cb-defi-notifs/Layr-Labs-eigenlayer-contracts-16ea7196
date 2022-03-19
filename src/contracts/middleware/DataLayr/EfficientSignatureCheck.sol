@@ -4,18 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract EfficientSignatureCheck {
-    // Data Layr Nodes
-    struct Registrant {
-        string socket; // how people can find it
-        uint32 id; // id is always unique
-        uint256 index; // corresponds to registrantList
-        uint32 from;
-        uint32 to;
-        bool active; //bool
-        uint256 stake;
-    }
-    // Register, everyone is active in the list
-    mapping(address => Registrant) public registry;
 
 /*
 	//mapping from valid signatories to positions in a bitmap. a position of '0' (the default) indicates an invalid signatory
@@ -23,7 +11,6 @@ contract EfficientSignatureCheck {
 	mapping(address => uint256) internal signatoryIndices;
 */
 	
-
 //NOTE: this assumes length 64 signatures
 //TODO: sanity check on calldata length?
 //TODO: do math instead of updating calldataPointer variable?
@@ -32,7 +19,7 @@ contract EfficientSignatureCheck {
 //TODO: write some data
 //TODO: possibly checks on bins. e.g. 1+ sig per bin for some bins, > x for some bins, etc.
 //TODO: multiple indices for different things? e.g. one for ETH, one for NFGTs?
-	function checkSignatures() external {
+	function checkSignatures(function (address) view returns (uint) getId) public {
 		//number of different signature bins that signatures are being posted from
         uint16 numberOfBins;
         //number of signatures contained in the bin currently being processed
@@ -94,8 +81,7 @@ contract EfficientSignatureCheck {
 				signatory = ECDSA.recover(sigHash, r, vs);
 				//increase calldataPointer to account for length of signature
 	        	calldataPointer += 64;
-				operatorId = registry[signatory].id;
-				//TODO: bitshift? save that gas boy
+				operatorId = getId(signatory);
 				//16777216 is 2^24. this is the max bin index.
 	        	require(operatorId >> 24 == currentBinIndex, "invalid sig bin index - improper sig ordering?");
 	        	//mask has a single '1' bit at sigIndex position

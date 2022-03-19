@@ -76,6 +76,8 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
+        require(totalBytes > 32, "Can't store less than 33 bytes");
+        require(storePeriodLength > 60, "store for more than a minute");
         require(storePeriodLength < 604800, "store for less than 7 days");
         // fees as a function of bytes of data and time to store it
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;

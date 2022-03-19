@@ -11,12 +11,13 @@ import "../../interfaces/DataLayrInterfaces.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./EfficientSignatureCheck.sol";
 
-contract DataLayr is Ownable, IDataLayr {
+contract DataLayr is Ownable, IDataLayr, EfficientSignatureCheck {
     using ECDSA for bytes32;
 
     address public currDisperser;
-    IERC20 paymentToken;
+    IDataLayrVoteWeigher public dlRegVW;
 
     // Data Store
     struct DataStore {
@@ -42,17 +43,6 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 ferkleRoot
     );
 
-    // Data Layr Nodes
-    struct Registrant {
-        string socket; // how people can find it
-        uint32 id; // id is always unique
-        uint256 index; // corresponds to registrantList
-        uint32 from;
-        uint32 to;
-        bool active; //bool
-        uint256 stake;
-    }
-
     event Registration(
         uint8 typeEvent, // 0: addedMember, 1: leftMember
         uint32 initiator, // who started
@@ -61,12 +51,6 @@ contract DataLayr is Ownable, IDataLayr {
     );
 
     //uint public churnRatio; //unit of 100 over 1 days
-
-    // Register, everyone is active in the list
-    mapping(address => Registrant) public registry;
-    address[] public registrantList;
-    uint32 public numRegistrant;
-    uint32 public nextRegistrantId;
 
     // Challenges
 
@@ -82,9 +66,9 @@ contract DataLayr is Ownable, IDataLayr {
 
     // Constructor
 
-    constructor(address currDisperser_) {
+    constructor(address currDisperser_, IDataLayrVoteWeigher _dlRegVW) {
         currDisperser = currDisperser_;
-        nextRegistrantId = 1;
+        dlRegVW = _dlRegVW;
     }
 
     // Precommit
@@ -98,11 +82,6 @@ contract DataLayr is Ownable, IDataLayr {
         uint24 quorum
     ) external payable {
         require(msg.sender == currDisperser, "Only current disperser can init");
-        require(totalBytes > 32, "Can't store less than 33 bytes");
-        require(
-            storePeriodLength > 1 * 60,
-            "Expiry must be at least 1 minute after initialization"
-        );
         require(
             dataStores[ferkleRoot].initTime == 0,
             "Data store has already been inited"
@@ -138,6 +117,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint8[] calldata vs
     ) external payable {
         DataStore storage dataStore = dataStores[ferkleRoot];
+        //TODO: change this
         require(
             msg.sender == dataStore.submitter,
             "Not authorized to submit signatures for this datastore"
@@ -150,25 +130,13 @@ contract DataLayr is Ownable, IDataLayr {
             !dataStores[ferkleRoot].commited,
             "Data store already has already been committed"
         );
-        verifySignature(rs, ss, vs, ferkleRoot);
+        // verifySignature(rs, ss, vs, ferkleRoot);
+        //TODO: JeffC call signature check here, how to do with calldata?
         dataStores[ferkleRoot].commited = true;
         emit Commit(
             msg.sender,
             ferkleRoot
         );
     }
-
-    function verifySignature(
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
-        uint8[] calldata vs,
-        bytes32 ferkleRoot
-    ) internal view {
-        for (uint256 i = 0; i < rs.length; i++) {
-            address addr = ecrecover(ferkleRoot, 27 + vs[i], rs[i], ss[i]);
-            require(registry[addr].active, "addr not exist");
-        }
-    }
-
     // Setters and Getters
 }
