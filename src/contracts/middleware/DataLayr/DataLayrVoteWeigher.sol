@@ -50,29 +50,19 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         delegation = _delegation;
     }
 
+    modifier onlyQMGovernance() {
+        require(
+            queryManager.timelock() == msg.sender,
+            "Query Manager governance can only call this function"
+        );
+    }
+
     function setQueryManager(IQueryManager _queryManager) public {
         require(
             address(queryManager) == address(0),
             "Query Manager already set"
         );
         queryManager = _queryManager;
-    }
-
-    function setDlnStake(uint256 _dlnEthStake, uint256 _dlnEigenStake) public {
-        require(
-            address(queryManager) == msg.sender,
-            "Query Manager can only change stake"
-        );
-        dlnEthStake = _dlnEthStake;
-        dlnEigenStake = _dlnEigenStake;
-    }
-
-    function setLatestTime(uint32 _latestTime) public {
-        require(
-            address(queryManager.feeManager()) == msg.sender,
-            "Fee manager can only call this"
-        );
-        latestTime = _latestTime;
     }
 
     function weightOfOperatorEigen(address operator) public view returns (uint256) {
@@ -173,5 +163,22 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         returns (uint48)
     {
         return registry[operator].fromDumpNumber;
+    }
+
+    function setDlnStake(uint256 _dlnEthStake, uint256 _dlnEigenStake) public {
+        require(
+            queryManager.timelock() == msg.sender,
+            "Query Manager can only change stake"
+        );
+        dlnEthStake = _dlnEthStake;
+        dlnEigenStake = _dlnEigenStake;
+    }
+
+    function setLatestTime(uint32 _latestTime) public {
+        require(
+            address(queryManager.feeManager()) == msg.sender,
+            "Fee manager can only call this"
+        );
+        latestTime = _latestTime;
     }
 }

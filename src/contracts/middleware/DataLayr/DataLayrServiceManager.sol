@@ -49,30 +49,19 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         collateralToken = _collateralToken;
     }
 
+    modifier onlyQMGovernance() {
+        require(
+            queryManager.timelock() == msg.sender,
+            "Query Manager governance can only call this function"
+        );
+    }
+
     function setQueryManager(IQueryManager _queryManager) public {
         require(
             address(queryManager) == address(0),
             "Query Manager already set"
         );
         queryManager = _queryManager;
-    }
-
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) public {
-        require(
-            address(queryManager) == msg.sender,
-            "Query Manager can only change stake"
-        );
-        feePerBytePerTime = _feePerBytePerTime;
-    }
-
-    function setPaymentFraudProofCollateral(
-        uint256 _paymentFraudProofCollateral
-    ) public {
-        require(
-            address(queryManager) == msg.sender,
-            "Query Manager can only change stake"
-        );
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
     }
 
     //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
@@ -266,4 +255,26 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         bytes32 reponseHash,
         uint256 senderWeight
     ) external {}
+
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime) public onlyQMGovernance {
+        feePerBytePerTime = _feePerBytePerTime;
+    }
+
+    function setPaymentFraudProofCollateral(
+        uint256 _paymentFraudProofCollateral
+    ) public onlyQMGovernance {
+        paymentFraudProofCollateral = _paymentFraudProofCollateral;
+    }
+
+    function setDataLayr(
+        IDataLayr _dataLayr
+    ) public onlyQMGovernance {
+        dataLayr = _dataLayr;
+    }
+
+    function setPaymentToken(
+        IERC20 _paymentToken
+    ) public onlyQMGovernance {
+        paymentToken = _paymentToken;
+    }
 }

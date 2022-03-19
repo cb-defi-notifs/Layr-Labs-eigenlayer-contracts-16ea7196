@@ -27,32 +27,50 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IQueryManager.sol";
 import "../interfaces/IVoteWeighter.sol";
+import "../governance/Timelock.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
 contract QueryManagerGovernance {
-    /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public pure returns (uint256) {
-    	return 1000e18; //1000 ETH, if voteWeighter uses ETH value for weight
+    /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
+    /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
+    function quorumEthPercentage() public pure returns (uint256) {
+        return 90;
     }
 
-    /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public pure returns (uint256) {
-    	return 100e18; //100 ETH, if voteWeighter uses ETH value for weight
+    /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
+    /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
+    function quorumEigenPercentage() public pure returns (uint256) {
+        return 90;
     }
 
-	IQueryManager public immutable QUERY_MANAGER;
-	IVoteWeighter public immutable VOTE_WEIGHTER;
+    /// @notice The amount of eth required in order for a voter to become a proposer
+    function proposalThresholdEthPercentage() public pure returns (uint256) {
+        return 1;
+    }
+
+    /// @notice The number of eigen required in order for a voter to become a proposer
+    function proposalThresholdEigenPercentage() public pure returns (uint256) {
+        return 1;
+    }
+
+    IQueryManager public immutable QUERY_MANAGER;
+    IVoteWeighter public immutable VOTE_WEIGHTER;
 
     /// @notice The maximum number of actions that can be included in a proposal
-    function proposalMaxOperations() public pure returns (uint256) { return 10; } // 10 actions
+    function proposalMaxOperations() public pure returns (uint256) {
+        return 10;
+    } // 10 actions
 
     /// @notice The delay before voting on a proposal may take place, once proposed. stored as uint256 in number of seconds
     function votingDelay() public pure returns (uint256) {
-    	return 7 days;
+        return 7 days;
     }
 
+    //TODO: change this to timestamp? for quicker/slower chains
     /// @notice The duration of voting on a proposal, in blocks
-    function votingPeriod() public pure returns (uint256) { return 17280; } // ~3 days in blocks (assuming 15s blocks)
+    function votingPeriod() public pure returns (uint256) {
+        return 17280;
+    } // ~3 days in blocks (assuming 15s blocks)
 
     /// @notice The address of the Protocol Timelock
     TimelockInterface public timelock;
@@ -79,10 +97,14 @@ contract QueryManagerGovernance {
         uint256 startTime;
         /// @notice The UTC timestamp at which voting ends: votes must be cast prior to this UTC timestamp
         uint256 endTime;
-        /// @notice Current number of votes in favor of this proposal
-        uint256 forVotes;
-        /// @notice Current number of votes in opposition to this proposal
-        uint256 againstVotes;
+        /// @notice Current number of eth votes in favor of this proposal
+        uint256 forEthVotes;
+        /// @notice Current number of eth votes in opposition to this proposal
+        uint256 againstEthVotes;
+        /// @notice Current number of eigen votes in favor of this proposal
+        uint256 forEigenVotes;
+        /// @notice Current number of eigen votes in opposition to this proposal
+        uint256 againstEigenVotes;
         /// @notice Flag marking whether the proposal has been canceled
         bool canceled;
         /// @notice Flag marking whether the proposal has been executed
@@ -112,25 +134,44 @@ contract QueryManagerGovernance {
     }
 
     /// @notice Receipts of ballots for the entire set of voters
-    mapping (uint256 => mapping(address => Receipt)) receipts;
+    mapping(uint256 => mapping(address => Receipt)) receipts;
 
     /// @notice The official record of all proposals ever proposed
-    mapping (uint256 => Proposal) public proposals;
+    mapping(uint256 => Proposal) public proposals;
 
     /// @notice The latest proposal for each proposer
-    mapping (address => uint) public latestProposalIds;
+    mapping(address => uint) public latestProposalIds;
 
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256(
+            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
+        );
 
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
-    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,bool support)");
+    bytes32 public constant BALLOT_TYPEHASH =
+        keccak256("Ballot(uint256 proposalId,bool support)");
 
     /// @notice An event emitted when a new proposal is created
-    event ProposalCreated(uint256 id, address proposer, address[] targets, uint[] values, string[] signatures, bytes[] calldatas, uint256 startTime, uint256 endTime, string description);
+    event ProposalCreated(
+        uint256 id,
+        address proposer,
+        address[] targets,
+        uint[] values,
+        string[] signatures,
+        bytes[] calldatas,
+        uint256 startTime,
+        uint256 endTime,
+        string description
+    );
 
     /// @notice An event emitted when a vote has been cast on a proposal
-    event VoteCast(address voter, uint256 proposalId, bool support, uint256 votes);
+    event VoteCast(
+        address voter,
+        uint256 proposalId,
+        bool support,
+        uint256 votes
+    );
 
     /// @notice An event emitted when a proposal has been canceled
     event ProposalCanceled(uint256 id);
@@ -141,23 +182,59 @@ contract QueryManagerGovernance {
     /// @notice An event emitted when a proposal has been executed in the Timelock
     event ProposalExecuted(uint256 id);
 
-    constructor(IQueryManager _QUERY_MANAGER, address timelock_) {
-		QUERY_MANAGER = _QUERY_MANAGER;
-		VOTE_WEIGHTER = _QUERY_MANAGER.voteWeighter();
-        timelock = TimelockInterface(timelock_);
+    constructor(IQueryManager _QUERY_MANAGER) {
+        QUERY_MANAGER = _QUERY_MANAGER;
+        //TODO: figure the time out
+        timelock = new Timelock(address(this), 10 days);
     }
 
-    function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint256) {
-        require(VOTE_WEIGHTER.weightOfOperatorEth(msg.sender) > proposalThreshold(), "QueryManagerGovernance::propose: proposer votes below proposal threshold");
-        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "QueryManagerGovernance::propose: proposal function information arity mismatch");
-        require(targets.length != 0, "QueryManagerGovernance::propose: must provide actions");
-        require(targets.length <= proposalMaxOperations(), "QueryManagerGovernance::propose: too many actions");
+    function propose(
+        address[] memory targets,
+        uint[] memory values,
+        string[] memory signatures,
+        bytes[] memory calldatas,
+        string memory description,
+        bool update
+    ) public returns (uint256) {
+        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            update
+        );
+        // check percentage
+        require(
+            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
+                proposalThresholdEthPercentage ||
+                (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
+                proposalThresholdEigenPercentage,
+            "QueryManagerGovernance::propose: proposer votes below proposal threshold"
+        );
+        require(
+            targets.length == values.length &&
+                targets.length == signatures.length &&
+                targets.length == calldatas.length,
+            "QueryManagerGovernance::propose: proposal function information arity mismatch"
+        );
+        require(
+            targets.length != 0,
+            "QueryManagerGovernance::propose: must provide actions"
+        );
+        require(
+            targets.length <= proposalMaxOperations(),
+            "QueryManagerGovernance::propose: too many actions"
+        );
 
         uint256 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
-          ProposalState proposersLatestProposalState = state(latestProposalId);
-          require(proposersLatestProposalState != ProposalState.Active, "QueryManagerGovernance::propose: one live proposal per proposer, found an already active proposal");
-          require(proposersLatestProposalState != ProposalState.Pending, "QueryManagerGovernance::propose: one live proposal per proposer, found an already pending proposal");
+            ProposalState proposersLatestProposalState = state(
+                latestProposalId
+            );
+            require(
+                proposersLatestProposalState != ProposalState.Active,
+                "QueryManagerGovernance::propose: one live proposal per proposer, found an already active proposal"
+            );
+            require(
+                proposersLatestProposalState != ProposalState.Pending,
+                "QueryManagerGovernance::propose: one live proposal per proposer, found an already pending proposal"
+            );
         }
 
         uint256 startTime = block.timestamp + votingDelay();
@@ -174,8 +251,10 @@ contract QueryManagerGovernance {
             calldatas: calldatas,
             startTime: startTime,
             endTime: endTime,
-            forVotes: 0,
-            againstVotes: 0,
+            forEthVotes: 0,
+            againstEthVotes: 0,
+            forEigenVotes: 0,
+            againstEigenVotes: 0,
             canceled: false,
             executed: false
         });
@@ -183,62 +262,131 @@ contract QueryManagerGovernance {
         proposals[newProposal.id] = newProposal;
         latestProposalIds[newProposal.proposer] = newProposal.id;
 
-        emit ProposalCreated(newProposal.id, msg.sender, targets, values, signatures, calldatas, startTime, endTime, description);
+        emit ProposalCreated(
+            newProposal.id,
+            msg.sender,
+            targets,
+            values,
+            signatures,
+            calldatas,
+            startTime,
+            endTime,
+            description
+        );
         return newProposal.id;
     }
 
     function queue(uint256 proposalId) public {
-        require(state(proposalId) == ProposalState.Succeeded, "QueryManagerGovernance::queue: proposal can only be queued if it is succeeded");
+        require(
+            state(proposalId) == ProposalState.Succeeded,
+            "QueryManagerGovernance::queue: proposal can only be queued if it is succeeded"
+        );
         Proposal storage proposal = proposals[proposalId];
         uint256 eta = block.timestamp + timelock.delay();
         for (uint256 i = 0; i < proposal.targets.length; i++) {
-            _queueOrRevert(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
+            _queueOrRevert(
+                proposal.targets[i],
+                proposal.values[i],
+                proposal.signatures[i],
+                proposal.calldatas[i],
+                eta
+            );
         }
         proposal.eta = eta;
         emit ProposalQueued(proposalId, eta);
     }
 
-    function _queueOrRevert(address target, uint256 value, string memory signature, bytes memory data, uint256 eta) internal {
-        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))), "QueryManagerGovernance::_queueOrRevert: proposal action already queued at eta");
+    function _queueOrRevert(
+        address target,
+        uint256 value,
+        string memory signature,
+        bytes memory data,
+        uint256 eta
+    ) internal {
+        require(
+            !timelock.queuedTransactions(
+                keccak256(abi.encode(target, value, signature, data, eta))
+            ),
+            "QueryManagerGovernance::_queueOrRevert: proposal action already queued at eta"
+        );
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
     function execute(uint256 proposalId) public payable {
-        require(state(proposalId) == ProposalState.Queued, "QueryManagerGovernance::execute: proposal can only be executed if it is queued");
+        require(
+            state(proposalId) == ProposalState.Queued,
+            "QueryManagerGovernance::execute: proposal can only be executed if it is queued"
+        );
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint256 i = 0; i < proposal.targets.length; i++) {
-            timelock.executeTransaction{value: proposal.values[i]}(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+            timelock.executeTransaction{value: proposal.values[i]}(
+                proposal.targets[i],
+                proposal.values[i],
+                proposal.signatures[i],
+                proposal.calldatas[i],
+                proposal.eta
+            );
         }
         emit ProposalExecuted(proposalId);
     }
 
     function cancel(uint256 proposalId) public {
         ProposalState stateOfProposal = state(proposalId);
-        require(stateOfProposal != ProposalState.Executed, "QueryManagerGovernance::cancel: cannot cancel executed proposal");
+        require(
+            stateOfProposal != ProposalState.Executed,
+            "QueryManagerGovernance::cancel: cannot cancel executed proposal"
+        );
 
         Proposal storage proposal = proposals[proposalId];
-        require(VOTE_WEIGHTER.weightOfOperatorEth(proposal.proposer) < proposalThreshold(), "QueryManagerGovernance::cancel: proposer above threshold");
+        require(
+            VOTE_WEIGHTER.weightOfOperatorEth(proposal.proposer) <
+                proposalThreshold(),
+            "QueryManagerGovernance::cancel: proposer above threshold"
+        );
 
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; i++) {
-            timelock.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+            timelock.cancelTransaction(
+                proposal.targets[i],
+                proposal.values[i],
+                proposal.signatures[i],
+                proposal.calldatas[i],
+                proposal.eta
+            );
         }
 
         emit ProposalCanceled(proposalId);
     }
 
-    function getActions(uint256 proposalId) public view returns (address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas) {
+    function getActions(uint256 proposalId)
+        public
+        view
+        returns (
+            address[] memory targets,
+            uint[] memory values,
+            string[] memory signatures,
+            bytes[] memory calldatas
+        )
+    {
         Proposal storage p = proposals[proposalId];
         return (p.targets, p.values, p.signatures, p.calldatas);
     }
 
-    function getReceipt(uint256 proposalId, address voter) public view returns (Receipt memory) {
+    function getReceipt(uint256 proposalId, address voter)
+        public
+        view
+        returns (Receipt memory)
+    {
         return receipts[proposalId][voter];
     }
 
     function state(uint256 proposalId) public view returns (ProposalState) {
-        require(proposalCount >= proposalId && proposalId > 0, "QueryManagerGovernance::state: invalid proposal id");
+        //TODO: update this
+        require(
+            proposalCount >= proposalId && proposalId > 0,
+            "QueryManagerGovernance::state: invalid proposal id"
+        );
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
             return ProposalState.Canceled;
@@ -246,7 +394,14 @@ contract QueryManagerGovernance {
             return ProposalState.Pending;
         } else if (block.timestamp <= proposal.endTime) {
             return ProposalState.Active;
-        } else if (proposal.forVotes <= proposal.againstVotes || proposal.forVotes < quorumVotes()) {
+        } else if (
+            proposal.forEthVotes <= proposal.againstEthVotes ||
+            proposal.forEigenVotes <= proposal.againstEigenVotes ||
+            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() <
+            quorumEthPercentage ||
+            (eigenStaked * 100) / QUERY_MANAGER.totalEigen() <
+            quorumEigenPercentage
+        ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
             return ProposalState.Succeeded;
@@ -263,28 +418,65 @@ contract QueryManagerGovernance {
         return _castVote(msg.sender, proposalId, support);
     }
 
-    function castVoteBySig(uint256 proposalId, bool support, uint8 v, bytes32 r, bytes32 s) public {
-        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this)));
-        bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    function castVoteBySig(
+        uint256 proposalId,
+        bool support,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(BALLOT_TYPEHASH, proposalId, support)
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, structHash)
+        );
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "QueryManagerGovernance::castVoteBySig: invalid signature");
+        require(
+            signatory != address(0),
+            "QueryManagerGovernance::castVoteBySig: invalid signature"
+        );
         return _castVote(signatory, proposalId, support);
     }
 
-    function _castVote(address voter, uint256 proposalId, bool support) internal {
-        require(state(proposalId) == ProposalState.Active, "QueryManagerGovernance::_castVote: voting is closed");
+    function _castVote(
+        address voter,
+        uint256 proposalId,
+        bool support
+    ) internal {
+        require(
+            state(proposalId) == ProposalState.Active,
+            "QueryManagerGovernance::_castVote: voting is closed"
+        );
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
-        require(receipt.hasVoted == false, "QueryManagerGovernance::_castVote: voter already voted");
-        uint256 weight = VOTE_WEIGHTER.weightOfOperatorEth(voter);
-        require(weight < 79228162514264337593543950336, "QueryManagerGovernance::weight overflow");
-        uint96 votes = uint96(weight);
+        require(
+            receipt.hasVoted == false,
+            "QueryManagerGovernance::_castVote: voter already voted"
+        );
+        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            update
+        );
+        //TODO: wtf is this
+        require(
+            ethStaked < 79228162514264337593543950336 &&
+                eigenStaked < 79228162514264337593543950336,
+            "QueryManagerGovernance::weight overflow"
+        );
+        uint96 ethVotes = uint96(ethStaked);
+        uint96 eigenVotes = uint96(eigenStaked);
 
         if (support) {
-            proposal.forVotes = proposal.forVotes + votes;
+            proposal.forEthVotes = proposal.forEthVotes + ethVotes;
+            proposal.forEigenVotes = proposal.forEigenVotes + eigenVotes;
         } else {
-            proposal.againstVotes = proposal.againstVotes + votes;
+            proposal.againstEthVotes = proposal.againstEthVotes + ethVotes;
+            proposal.againstEigenVotes =
+                proposal.againstEigenVotes +
+                eigenVotes;
         }
 
         receipt.hasVoted = true;
@@ -300,17 +492,72 @@ contract QueryManagerGovernance {
 
     function getChainId() internal view returns (uint256) {
         uint256 chainId;
-        assembly { chainId := chainid() }
+        assembly {
+            chainId := chainid()
+        }
         return chainId;
+    }
+
+    function _getEthAndEigenStaked(bool update)
+        internal
+        returns (uint256, uint256)
+    {
+        uint256 ethStaked;
+        uint256 eigenStaked;
+        //if proposer wants to update their shares before proposing, calculate stake based on result of update
+        //TODO: Call to only update eigen/eth. Isnt everyone gonna be eth and eigen staked
+        if (update) {
+            (
+                uint256 delegatedConsensusLayerEth,
+                uint256 ethValueOfShares,
+                uint256 newEigenStaked
+            ) = QUERY_MANAGER.updateStake(msg.sender);
+            // weight the consensusLayrEth however desired
+            ethStaked =
+                ethValueOfShares +
+                delegatedConsensusLayerEth /
+                QUERY_MANAGER.consensusLayerEthToEth();
+            eigenStaked = newEigenStaked;
+        } else {
+            ethStaked = QUERY_MANAGER.totalEthValueStakedForOperator(
+                msg.sender
+            );
+            eigenStaked = QUERY_MANAGER.eigenDepositedByOperator(msg.sender);
+        }
+        return (ethStaked, eigenStaked);
     }
 }
 
 interface TimelockInterface {
     function delay() external view returns (uint256);
+
     function GRACE_PERIOD() external view returns (uint256);
+
     function acceptAdmin() external;
+
     function queuedTransactions(bytes32 hash) external view returns (bool);
-    function queueTransaction(address target, uint256 value, string calldata signature, bytes calldata data, uint256 eta) external returns (bytes32);
-    function cancelTransaction(address target, uint256 value, string calldata signature, bytes calldata data, uint256 eta) external;
-    function executeTransaction(address target, uint256 value, string calldata signature, bytes calldata data, uint256 eta) external payable returns (bytes memory);
+
+    function queueTransaction(
+        address target,
+        uint256 value,
+        string calldata signature,
+        bytes calldata data,
+        uint256 eta
+    ) external returns (bytes32);
+
+    function cancelTransaction(
+        address target,
+        uint256 value,
+        string calldata signature,
+        bytes calldata data,
+        uint256 eta
+    ) external;
+
+    function executeTransaction(
+        address target,
+        uint256 value,
+        string calldata signature,
+        bytes calldata data,
+        uint256 eta
+    ) external payable returns (bytes memory);
 }

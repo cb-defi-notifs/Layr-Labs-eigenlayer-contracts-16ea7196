@@ -9,25 +9,36 @@ contract ServiceFactory is IServiceFactory {
     mapping(IQueryManager => bool) public isQueryManager;
     IInvestmentManager immutable investmentManager;
 
-	constructor(IInvestmentManager _investmentManager) {
-		investmentManager = _investmentManager;
-	}
+    constructor(IInvestmentManager _investmentManager) {
+        investmentManager = _investmentManager;
+    }
 
-	function createNewQueryManager(
-	uint256 queryDuration,
-	IFeeManager feeManager,
-	IVoteWeighter voteWeigher,
-	address registrationManager,
-	address timelock,
-	IEigenLayrDelegation delegation
-	) external {
-		// register a new query manager
-		IQueryManager newQueryManager = new QueryManager(voteWeigher);
-		QueryManager(payable(address(newQueryManager))).initialize(queryDuration, feeManager, registrationManager, timelock, delegation, investmentManager);
-		isQueryManager[newQueryManager] = true;
-	}
+    function createNewQueryManager(
+        uint256 queryDuration,
+        IFeeManager feeManager,
+        IVoteWeighter voteWeigher,
+        address registrationManager,
+        address timelock,
+        IEigenLayrDelegation delegation
+    ) external {
+        // register a new query manager
+        IQueryManager newQueryManager = new QueryManager(voteWeigher);
+        QueryManager(payable(address(newQueryManager))).initialize(
+            queryDuration,
+            feeManager,
+            registrationManager,
+            timelock,
+            delegation,
+            investmentManager
+        );
+        isQueryManager[newQueryManager] = true;
+    }
 
-	function queryManagerExists(IQueryManager queryManager) external view returns(bool) {
-		return isQueryManager[queryManager];
-	}
+    function queryManagerExists(IQueryManager queryManager)
+        external
+        view
+        returns (bool)
+    {
+        return isQueryManager[queryManager];
+    }
 }
