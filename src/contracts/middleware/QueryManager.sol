@@ -59,6 +59,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // decrement number of registrants
     function deregister(bytes calldata data) external payable {
         require(
+            // QUESTION: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] != 0,
             "Registrant is not registered"
         );
