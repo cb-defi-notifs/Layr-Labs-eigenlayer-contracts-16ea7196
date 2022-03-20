@@ -24,7 +24,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
-    // registers a an address as a delegate along with their delegation terms contract
+
     /// @notice This will be called by a staker to register itself as a delegate with respect 
     ///         to a certain operator. 
     /// @param dt is the delegation terms contract that staker has agreed to with the operator.   
@@ -37,7 +37,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         delegationTerms[msg.sender] = dt;
     }
 
-    // staker acts as own operator
+
     /// @notice This will be called by a staker if it wants to act as its own operator. 
     function delegateToSelf() external {
         require(
@@ -54,7 +54,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         delegated[msg.sender] = true;
     }
 
-    // delegates a users stake to a certain delegate
+
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
     /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets 
     function delegateTo(address operator) external {
@@ -93,13 +93,14 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         // update the total EIGEN deposited with the operator 
         eigenDelegated[operator] += eigenAmount;
 
-        // record delegation relation between the delegator and operator
+        // record delegation relation between the delegator (msg.sender) and operator
         delegation[msg.sender] = operator;
 
         // record that the staker is delegated
         delegated[msg.sender] = true;
-        
+
         // call into hook in delegationTerms contract
+        // CRITIC: parameter list doesn't matches with the function in DelegationTerms.sol
         delegationTerms[operator].onDelegationReceived(
             msg.sender,
             strategies,
@@ -108,10 +109,24 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
     }
 
     // commits a stakers undelegate
+    /// @notice This function is used to notify the system that a delegator wants to stop 
+    ///         participating in the functioning of EigenLayr.   
+    /// @param strategyIndexes is the array of indices whose corresponding strategies in
+    ///        the array "operatorStrats[operator]" has their shares go to zero 
+    ///        because of undelegation by the delegator.  
+    /// @dev Here is a formal explanation in how this function has been implemented: 
+    ///      Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
+    ///      Consider that, as a consequence of undelegation by delegator,
+    ///         for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have 
+    ///             operatorShares[operator][s] = 0.
+    ///      Here, i1, i2, ..., ik are the indices of the corresponding strategies 
+    ///      in operatorStrats[operator].      
+    ///      Then, strategyIndexes = [i1, i2, ..., ik].          
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
         // CRITIC: If a staker is giving the data for strategyIndexes, then 
         // there is a potential concurrency problem. 
-        // get their current operator
+
+        // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];
         require(
             operator != address(0) && delegated[msg.sender],
@@ -157,6 +172,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             eigenDelegated[operator] -= eigenAmount;
             // set that they are no longer delegated to anyone
             delegated[msg.sender] = false;
+
+            // CRITIC: why is also delegation[msg.sender] not being set to address(0)?
+
             // call into hook in delegationTerms contract
             delegationTerms[operator].onDelegationWithdrawn(
                 msg.sender,
