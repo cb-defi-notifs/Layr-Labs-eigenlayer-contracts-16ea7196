@@ -115,6 +115,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             for (uint256 i = 0; i < strategies.length; i++) {
                 operatorShares[operator][strategies[i]] -= shares[i];
                 if (operatorShares[operator][strategies[i]] == 0) {
+                    // CRITIC: strategyindex is always 0. This doesn't look right.
                     require(
                         operatorStrats[operator][
                             strategyIndexes[strategyIndex]

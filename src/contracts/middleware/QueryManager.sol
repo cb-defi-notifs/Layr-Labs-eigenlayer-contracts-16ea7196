@@ -98,11 +98,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // call registration contract with given data
     function register(bytes calldata data) external payable {
         require(
-            // @devs: what is this operatorType and where is it defined? Can't find its declaration.
+            // CRITIC: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] == 0,
             "Registrant is already registered"
         );
-        // @devs: what is this opType?
+        // CRITIC: what is this opType?
         (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
