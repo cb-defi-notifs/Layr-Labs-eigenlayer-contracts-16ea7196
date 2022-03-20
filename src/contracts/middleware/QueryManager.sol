@@ -98,9 +98,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // call registration contract with given data
     function register(bytes calldata data) external payable {
         require(
+            // @devs: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] == 0,
             "Registrant is already registered"
         );
+        // @devs: what is this opType?
         (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
@@ -108,6 +110,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorType[msg.sender] = opType;
         eigenDeposited[msg.sender] = eigenAmount;
         totalEigen += eigenAmount;
+
+        // @devs: can't find getDelegation in EigenLayrDelegation.sol or in its interface
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
