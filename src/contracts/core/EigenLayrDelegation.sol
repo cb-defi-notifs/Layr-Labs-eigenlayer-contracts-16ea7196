@@ -108,20 +108,23 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         );
     }
 
-    // commits a stakers undelegate
+
     /// @notice This function is used to notify the system that a delegator wants to stop 
     ///         participating in the functioning of EigenLayr.   
     /// @param strategyIndexes is the array of indices whose corresponding strategies in
     ///        the array "operatorStrats[operator]" has their shares go to zero 
     ///        because of undelegation by the delegator.  
-    /// @dev Here is a formal explanation in how this function has been implemented: 
-    ///      Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
-    ///      Consider that, as a consequence of undelegation by delegator,
-    ///         for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have 
-    ///             operatorShares[operator][s] = 0.
-    ///      Here, i1, i2, ..., ik are the indices of the corresponding strategies 
-    ///      in operatorStrats[operator].      
-    ///      Then, strategyIndexes = [i1, i2, ..., ik].          
+    /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes: 
+    ///          Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
+    ///          Consider that, as a consequence of undelegation by delegator,
+    ///             for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have 
+    ///                 operatorShares[operator][s] = 0.
+    ///          Here, i1, i2, ..., ik are the indices of the corresponding strategies 
+    ///          in operatorStrats[operator].      
+    ///          Then, strategyIndexes = [i1, i2, ..., ik].      
+    ///      (2) In order to notify the system that delegator wants to undelegate,
+    ///          it is necessary to make sure that delegator is not within fraudproof 
+    ///          period for a previous undelegation.  
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
         // CRITIC: If a staker is giving the data for strategyIndexes, then 
         // there is a potential concurrency problem. 
@@ -132,12 +135,15 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             operator != address(0) && delegated[msg.sender],
             "Staker does not have existing delegation"
         );
+
+        // checks that delegator is not within fraudproof period for a previous undelegation 
         require(
             block.timestamp >
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[msg.sender],
             "Last commit has not been confirmed yet"
         );
+
         // if not delegated to self
         if (operator != msg.sender) {
             // retrieve list of strategies and their shares from investment manager
@@ -147,6 +153,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                 uint256 consensusLayrEthDeposited,
                 uint256 eigenAmount
             ) = investmentManager.getDeposits(msg.sender);
+
             // subtract strategy shares to delegate's shares and remove from strategy list if no shares remaining
             uint256 strategyIndex = 0;
             for (uint256 i = 0; i < strategies.length; i++) {
@@ -168,8 +175,13 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                     operatorStrats[operator].pop();
                 }
             }
+
+            // update the ETH delegated to the operator
             consensusLayerEth[operator] -= consensusLayrEthDeposited;
+
+            // update the Eigen delegated to the operator
             eigenDelegated[operator] -= eigenAmount;
+
             // set that they are no longer delegated to anyone
             delegated[msg.sender] = false;
 
@@ -187,6 +199,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
     }
 
     // finalizes a stakers undelegation commit
+    /// @notice This function must be called by a delegator to notify that its stake is 
+    ///         no longer active on any queries, which in turn launches the fraudproof
+    ///         period. 
     function finalizeUndelegation() external {
         // get their current operator
         address operator = delegation[msg.sender];
@@ -194,13 +209,17 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             operator != address(0) && !delegated[msg.sender],
             "Staker is not in the post commit phase"
         );
+
+        // checks that delegator is not within fraudproof period for a previous undelegation 
         require(
             block.timestamp >
                 lastUndelegationCommit[msg.sender] +
                     undelegationFraudProofInterval,
             "Staker is not in the post commit phase"
         );
-        // set time of last undelegation commit
+
+        // set time of last undelegation commit which is the beginning of the corresponding 
+        // fraudproof period.
         lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
