@@ -23,6 +23,10 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
     mapping(address => Payment) public operatorToPayment;
     mapping(address => address) public operatorToPaymentChallenge;
 
+    //a deposit root is posted every depositRootInterval dumps
+    uint48 public depositRootInterval;
+    mapping(uint256 => bytes32) public depositRoots;
+
     // Payment
     struct Payment {
         uint48 fromDumpNumber; // dumpNumber payment being claimed from
@@ -54,6 +58,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
             queryManager.timelock() == msg.sender,
             "Query Manager governance can only call this function"
         );
+        _;
     }
 
     function setQueryManager(IQueryManager _queryManager) public {

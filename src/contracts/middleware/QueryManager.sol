@@ -212,15 +212,31 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
-    //TODO: eliminate this function from the interface?
-    function totalEthValueOfShares() external pure returns (uint256) {
-        return 1;
+    function totalEthValueOfShares() external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares);
     }
-    // function totalEthValueOfShares() external returns (uint256) {
-    //     uint256 memory stratShares
-    //     return
-    //         investmentManager.getUnderlyingEthOfStrategyShares(strats, shares);
-    // }
+
+    function totalEthValueOfSharesForOperator(address operator) external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]);
+    }
+
+    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+    function totalEthStaked() external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares) + totalConsensusLayerEth / consensusLayerEthToEth;
+    }
+
+    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+    function totalEthValueStakedForOperator(address operator) external returns (uint256) {
+        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]) + consensusLayerEth / consensusLayerEthToEth;
+    }
+
+    function eigenDepositedByOperator(address operator) external returns (uint256) {
+        return eigenDeposited[operator];
+    }
+
+    function consensusLayrEthOfOperator(address operator) external returns (uint256) {
+        return consensusLayerEth[operator];
+    }
 
     function getRegistrantType(address operator) public view override returns (uint8) {
         return operatorType[operator];

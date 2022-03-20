@@ -118,7 +118,8 @@ contract QueryManagerGovernance {
         /// @notice Whether or not the voter supports the proposal
         bool support;
         /// @notice The number of votes the voter had, which were cast
-        uint96 votes;
+        uint96 eigenVotes;
+        uint96 ethVotes;
     }
 
     /// @notice Possible states that a proposal may be in
@@ -170,7 +171,8 @@ contract QueryManagerGovernance {
         address voter,
         uint256 proposalId,
         bool support,
-        uint256 votes
+        uint256 eiegnVotes,
+        uint256 ethVotes
     );
 
     /// @notice An event emitted when a proposal has been canceled
@@ -185,7 +187,7 @@ contract QueryManagerGovernance {
     constructor(IQueryManager _QUERY_MANAGER) {
         QUERY_MANAGER = _QUERY_MANAGER;
         //TODO: figure the time out
-        timelock = new Timelock(address(this), 10 days);
+        timelock = TimelockInterface(new Timelock(address(this), 10 days));
     }
 
     function propose(
@@ -331,7 +333,7 @@ contract QueryManagerGovernance {
         emit ProposalExecuted(proposalId);
     }
 
-    function cancel(uint256 proposalId) public {
+    function cancel(uint256 proposalId, bool update) public {
         ProposalState stateOfProposal = state(proposalId);
         require(
             stateOfProposal != ProposalState.Executed,
@@ -339,9 +341,15 @@ contract QueryManagerGovernance {
         );
 
         Proposal storage proposal = proposals[proposalId];
+        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            update
+        );
+        // check percentage
         require(
-            VOTE_WEIGHTER.weightOfOperatorEth(proposal.proposer) <
-                proposalThreshold(),
+            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
+                proposalThresholdEthPercentage ||
+                (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
+                proposalThresholdEigenPercentage,
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
 
@@ -397,9 +405,9 @@ contract QueryManagerGovernance {
         } else if (
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
-            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() <
+            (proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
             quorumEthPercentage ||
-            (eigenStaked * 100) / QUERY_MANAGER.totalEigen() <
+            (proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigen() <
             quorumEigenPercentage
         ) {
             return ProposalState.Defeated;
@@ -414,8 +422,8 @@ contract QueryManagerGovernance {
         }
     }
 
-    function castVote(uint256 proposalId, bool support) public {
-        return _castVote(msg.sender, proposalId, support);
+    function castVote(uint256 proposalId, bool support, bool update) public {
+        return _castVote(msg.sender, proposalId, support, update);
     }
 
     function castVoteBySig(
@@ -423,7 +431,8 @@ contract QueryManagerGovernance {
         bool support,
         uint8 v,
         bytes32 r,
-        bytes32 s
+        bytes32 s,
+        bool update
     ) public {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
@@ -445,7 +454,8 @@ contract QueryManagerGovernance {
     function _castVote(
         address voter,
         uint256 proposalId,
-        bool support
+        bool support,
+        bool update
     ) internal {
         require(
             state(proposalId) == ProposalState.Active,
@@ -481,9 +491,10 @@ contract QueryManagerGovernance {
 
         receipt.hasVoted = true;
         receipt.support = support;
-        receipt.votes = votes;
+        receipt.eigenVotes = eigenVotes;
+        receipt.ethVotes = ethVotes;
 
-        emit VoteCast(voter, proposalId, support, votes);
+        emit VoteCast(voter, proposalId, support, eigenVotes, ethVotes);
     }
 
     function __acceptAdmin() public {

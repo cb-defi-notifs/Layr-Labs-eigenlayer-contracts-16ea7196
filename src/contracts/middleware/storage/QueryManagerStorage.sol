@@ -43,7 +43,7 @@ abstract contract QueryManagerStorage is IQueryManager {
     // number of registrants of this service
     uint256 public numRegistrants;
     //map from registrant address to whether they are active or not
-    mapping(address => uint8) public registrantType;
+    mapping(address => uint8) public operatorType;
     address public registrationManager;
     //hash(queryData) => Query
     mapping(bytes32 => Query) public queries;

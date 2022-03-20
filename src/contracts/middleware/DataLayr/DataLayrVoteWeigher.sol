@@ -55,6 +55,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             queryManager.timelock() == msg.sender,
             "Query Manager governance can only call this function"
         );
+        _;
     }
 
     function setQueryManager(IQueryManager _queryManager) public {
