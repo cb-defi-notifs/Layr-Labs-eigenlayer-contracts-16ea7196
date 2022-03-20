@@ -89,6 +89,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
 
     // commits a stakers undelegate
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
+        // CRITIC: If a staker is giving the data for strategyIndexes, then 
+        // there is a potential concurrency problem. 
         // get their current operator
         address operator = delegation[msg.sender];
         require(
@@ -115,7 +117,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             for (uint256 i = 0; i < strategies.length; i++) {
                 operatorShares[operator][strategies[i]] -= shares[i];
                 if (operatorShares[operator][strategies[i]] == 0) {
-                    // CRITIC: strategyindex is always 0. This doesn't look right.
+                    // CRITIC: strategyindex is always 0. This doesn't look right. Should increment 
+                    // whenever the above condition is satisfied
                     require(
                         operatorStrats[operator][
                             strategyIndexes[strategyIndex]
