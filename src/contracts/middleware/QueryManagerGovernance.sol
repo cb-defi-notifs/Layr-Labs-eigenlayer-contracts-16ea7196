@@ -187,7 +187,7 @@ contract QueryManagerGovernance {
     constructor(IQueryManager _QUERY_MANAGER) {
         QUERY_MANAGER = _QUERY_MANAGER;
         //TODO: figure the time out
-        timelock = TimelockInterface(new Timelock(address(this), 10 days));
+        timelock = TimelockInterface(address(new Timelock(address(this), 10 days)));
     }
 
     function propose(
@@ -204,9 +204,9 @@ contract QueryManagerGovernance {
         // check percentage
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
-                proposalThresholdEthPercentage ||
+                proposalThresholdEthPercentage() ||
                 (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
-                proposalThresholdEigenPercentage,
+                proposalThresholdEigenPercentage(),
             "QueryManagerGovernance::propose: proposer votes below proposal threshold"
         );
         require(
@@ -347,9 +347,9 @@ contract QueryManagerGovernance {
         // check percentage
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
-                proposalThresholdEthPercentage ||
+                proposalThresholdEthPercentage() ||
                 (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
-                proposalThresholdEigenPercentage,
+                proposalThresholdEigenPercentage(),
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
 
@@ -406,9 +406,9 @@ contract QueryManagerGovernance {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
-            quorumEthPercentage ||
+            quorumEthPercentage() ||
             (proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigen() <
-            quorumEigenPercentage
+            quorumEigenPercentage()
         ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
@@ -448,7 +448,7 @@ contract QueryManagerGovernance {
             signatory != address(0),
             "QueryManagerGovernance::castVoteBySig: invalid signature"
         );
-        return _castVote(signatory, proposalId, support);
+        return _castVote(signatory, proposalId, support, update);
     }
 
     function _castVote(

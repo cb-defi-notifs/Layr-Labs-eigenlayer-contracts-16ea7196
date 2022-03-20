@@ -34,20 +34,18 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 totalCumulativeWeight
     );
 
-    constructor(
-        IVoteWeighter _voteWeighter
-    ) {
+    constructor(IVoteWeighter _voteWeighter) {
         voteWeighter = _voteWeighter;
     }
 
-    function initialize (
+    function initialize(
         uint256 _queryDuration,
         IFeeManager _feeManager,
         address _registrationManager,
         address _timelock,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager
-    ) initializer external {
+    ) external initializer {
         queryDuration = _queryDuration;
         feeManager = _feeManager;
         registrationManager = _registrationManager;
@@ -70,7 +68,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
             ),
             "deregistration not permitted"
         );
-        
+
         uint256 eigenDepositedByOperator = eigenDeposited[msg.sender];
         if (eigenDepositedByOperator != 0) {
             totalEigen -= eigenDepositedByOperator;
@@ -111,13 +109,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
         eigenDeposited[msg.sender] = eigenAmount;
         totalEigen += eigenAmount;
 
-        // @devs: can't find getDelegation in EigenLayrDelegation.sol or in its interface
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
-            uint256 delegatedConsensusLayerEth,
-
-        ) = delegation.getDelegation(msg.sender);
+            uint256 delegatedConsensusLayerEth
+        ) = delegation.getControlledEthStake(msg.sender);
 
         uint256 stratsLength = delegatedOperatorStrats.length;
         for (uint i = 0; i < stratsLength; ) {
@@ -136,7 +132,15 @@ contract QueryManager is Initializable, QueryManagerStorage {
         numRegistrants++;
     }
 
-    function updateStake(address operator) public override returns(uint256, uint256, uint256) {
+    function updateStake(address operator)
+        public
+        override
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         //get new eigen amount and replace it
         uint256 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         totalEigen = totalEigen + newEigen - eigenDeposited[operator];
@@ -145,9 +149,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
-            uint256 delegatedConsensusLayerEth,
-
-        ) = delegation.getDelegation(operator);
+            uint256 delegatedConsensusLayerEth
+        ) = delegation.getControlledEthStake(operator);
         //get current strategies
         IInvestmentStrategy[] memory operatorStratsPrev = operatorStrats[
             operator
@@ -168,7 +171,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 if (delegatedOperatorStrats[i] == operatorStratsPrev[j]) {
                     //subtract old shares, modify memory (looping) array
                     qmShares -= operatorShares[operator][operatorStratsPrev[j]];
-                    //bring last unchecked strategies 
+                    //bring last unchecked strategies
                     operatorStratsPrev[j] = operatorStratsPrev[
                         (stratsRemaining - 1)
                     ];
@@ -217,33 +220,76 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
-    function totalEthValueOfShares() external returns (uint256) {
-        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares);
+    function totalEthValueOfShares() public returns (uint256) {
+        uint256[] memory sharesList = new uint256[](strats.length);
+        for (uint256 i = 0; i < sharesList.length; i++) {
+            sharesList[i] = shares[strats[i]];
+        }
+        return
+            investmentManager.getUnderlyingEthOfStrategyShares(
+                strats,
+                sharesList
+            );
     }
 
-    function totalEthValueOfSharesForOperator(address operator) external returns (uint256) {
-        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]);
+    function totalEthValueOfSharesForOperator(address operator)
+        public
+        returns (uint256)
+    {
+        uint256[] memory operatorSharesList = new uint256[](
+            operatorStrats[operator].length
+        );
+        for (uint256 i = 0; i < operatorSharesList.length; i++) {
+            operatorSharesList[i] = operatorShares[operator][
+                operatorStrats[operator][i]
+            ];
+        }
+        return
+            investmentManager.getUnderlyingEthOfStrategyShares(
+                operatorStrats[operator],
+                operatorSharesList
+            );
     }
 
     //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
-    function totalEthStaked() external returns (uint256) {
-        return investmentManager.getUnderlyingEthOfStrategyShares(strats, shares) + totalConsensusLayerEth / consensusLayerEthToEth;
+    function totalEthStaked() public returns (uint256) {
+        return
+            totalEthValueOfShares() +
+            totalConsensusLayerEth /
+            consensusLayerEthToEth;
     }
 
     //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
-    function totalEthValueStakedForOperator(address operator) external returns (uint256) {
-        return investmentManager.getUnderlyingEthOfStrategyShares(operatorStrats[operator], operatorShares[operator]) + consensusLayerEth / consensusLayerEthToEth;
+    function totalEthValueStakedForOperator(address operator)
+        public
+        returns (uint256)
+    {
+        return
+            totalEthValueOfSharesForOperator(operator) +
+            totalConsensusLayerEth /
+            consensusLayerEthToEth;
     }
 
-    function eigenDepositedByOperator(address operator) external returns (uint256) {
+    function eigenDepositedByOperator(address operator)
+        public
+        returns (uint256)
+    {
         return eigenDeposited[operator];
     }
 
-    function consensusLayrEthOfOperator(address operator) external returns (uint256) {
+    function consensusLayrEthOfOperator(address operator)
+        public
+        returns (uint256)
+    {
         return consensusLayerEth[operator];
     }
 
-    function getRegistrantType(address operator) public view override returns (uint8) {
+    function getRegistrantType(address operator)
+        public
+        view
+        override
+        returns (uint8)
+    {
         return operatorType[operator];
     }
 

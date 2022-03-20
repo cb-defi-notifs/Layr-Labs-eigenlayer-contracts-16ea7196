@@ -19,7 +19,7 @@ contract EfficientSignatureCheck {
 //TODO: write some data
 //TODO: possibly checks on bins. e.g. 1+ sig per bin for some bins, > x for some bins, etc.
 //TODO: multiple indices for different things? e.g. one for ETH, one for NFGTs?
-	function checkSignatures(function (address) view returns (uint) getId) public {
+	function checkSignatures() public {
 		//number of different signature bins that signatures are being posted from
         uint16 numberOfBins;
         //number of signatures contained in the bin currently being processed
@@ -81,7 +81,7 @@ contract EfficientSignatureCheck {
 				signatory = ECDSA.recover(sigHash, r, vs);
 				//increase calldataPointer to account for length of signature
 	        	calldataPointer += 64;
-				operatorId = getId(signatory);
+				operatorId = 0; // TODO: GET SIGNATORY ID HERE //getId(signatory);
 				//16777216 is 2^24. this is the max bin index.
 	        	require(operatorId >> 24 == currentBinIndex, "invalid sig bin index - improper sig ordering?");
 	        	//mask has a single '1' bit at sigIndex position

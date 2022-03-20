@@ -18,7 +18,6 @@ interface IQueryManager {
 	function voteWeighter() external view returns(IVoteWeighter);
 	function feeManager() external view returns(IFeeManager);
 	function updateStake(address) external returns(uint256, uint256, uint256);
-	function totalEthValueOfShares() external returns (uint256);
     function totalEthValueOfSharesForOperator(address) external returns (uint256);
 	function eigenDepositedByOperator(address) external returns (uint256);
 	function consensusLayrEthOfOperator(address) external returns (uint256);

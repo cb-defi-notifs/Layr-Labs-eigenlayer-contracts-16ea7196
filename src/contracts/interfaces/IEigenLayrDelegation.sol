@@ -35,10 +35,10 @@ interface IEigenLayrDelegation {
         view
         returns (uint256);
 
-    function getControlledStake(address operator)
+    function getControlledEthStake(address operator)
         external
         view
-        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256);
+        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256);
 
     function isNotDelegated(address staker)
         external

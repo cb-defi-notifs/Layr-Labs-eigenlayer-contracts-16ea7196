@@ -225,19 +225,20 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return operatorStrats[operator];
     }
 
-    function getControlledStake(address operator)
+    function getControlledEthStake(address operator)
         external
         view
-        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256)
+        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256)
     {
         if(delegation[operator] == operator) {
-            return investmentManager.getDeposits(operator);
+            (IInvestmentStrategy[] memory strats, uint256[] memory shares, uint256 consensusLayerEthForOperator,) = investmentManager.getDeposits(operator);
+            return (strats, shares, consensusLayerEthForOperator);
         } else {
             uint256[] memory shares = new uint256[](operatorStrats[operator].length);
             for (uint256 i = 0; i < shares.length; i++) {
                 shares[i] = operatorShares[operator][operatorStrats[operator][i]];
             }
-            return (operatorStrats[operator], shares, consensusLayerEth[operator], eigenDelegated[operator]);
+            return (operatorStrats[operator], shares, consensusLayerEth[operator]);
         }
     }
 
