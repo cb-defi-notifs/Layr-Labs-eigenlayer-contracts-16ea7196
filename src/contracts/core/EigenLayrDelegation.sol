@@ -56,7 +56,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
 
     // delegates a users stake to a certain delegate
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
-    /// @param operator is the operator with whom delegator (msg.sender) is delegating its assets 
+    /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets 
     function delegateTo(address operator) external {
         // CRITIC: should there be a check that operator != msg.sender?
         require(
@@ -74,19 +74,31 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             uint256 consensusLayrEthDeposited,
             uint256 eigenAmount
         ) = investmentManager.getDeposits(msg.sender);
+
+
         // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
             if (operatorShares[operator][strategies[i]] == 0) {
+                // if no asset has been delegated yet to this strategy in the operator's portfolio,
+                // then add it to the portfolio of strategies of the operator
                 operatorStrats[operator].push(strategies[i]);
             }
+            // update the total share deposited in favor of the startegy in the operator's portfolio
             operatorShares[operator][strategies[i]] += shares[i];
         }
+
+        // update the total ETH delegated to the operator 
         consensusLayerEth[operator] += consensusLayrEthDeposited;
+
+        // update the total EIGEN deposited with the operator 
         eigenDelegated[operator] += eigenAmount;
-        // store delegation relation
+
+        // record delegation relation between the delegator and operator
         delegation[msg.sender] = operator;
-        // store that the staker is delegated
+
+        // record that the staker is delegated
         delegated[msg.sender] = true;
+        
         // call into hook in delegationTerms contract
         delegationTerms[operator].onDelegationReceived(
             msg.sender,
