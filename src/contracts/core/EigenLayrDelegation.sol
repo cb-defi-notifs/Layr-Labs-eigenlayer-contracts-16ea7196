@@ -25,35 +25,43 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
     }
 
     // registers a an address as a delegate along with their delegation terms contract
+    /// @notice This will be called by a staker to register itself as a delegate with respect 
+    ///         to a certain operator. 
+    /// @param dt is the delegation terms contract that staker has agreed to with the operator.   
     function registerAsDelgate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
             "Delegate has already registered"
         );
+        // store the address of the delegation contract that staker has agreed to.
         delegationTerms[msg.sender] = dt;
     }
 
     // staker acts as own operator
+    /// @notice This will be called by a staker if it wants to act as its own operator. 
     function delegateToSelf() external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "Staker cannot be public operator"
+            "Staker has already agreed to delegate its assets to some other operator and so cannot be public operator"
         );
         require(
             isNotDelegated(msg.sender),
             "Staker has existing delegation or pending undelegation commitment"
         );
-        // store delegation relation
+        // store delegation relation that the staker (msg.sender) is its own operator (msg.sender)
         delegation[msg.sender] = msg.sender;
-        // store that the staker is delegated
+        // store the flag that the staker is delegated
         delegated[msg.sender] = true;
     }
 
     // delegates a users stake to a certain delegate
+    /// @notice This will be called by a registered delegator to delegate its assets to some operator
+    /// @param operator is the operator with whom delegator (msg.sender) is delegating its assets 
     function delegateTo(address operator) external {
+        // CRITIC: should there be a check that operator != msg.sender?
         require(
             address(delegationTerms[operator]) != address(0),
-            "Delegate has not registered"
+            "Staker has not registered as a delegate yet. Please call registerAsDelgate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(msg.sender),
