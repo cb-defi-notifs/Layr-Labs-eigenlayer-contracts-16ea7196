@@ -268,11 +268,16 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                     queryManager.getQueryDuration(),
             "Given query is inactive"
         );
-        
+
         //slash here
     }
 
+
+    /// @notice checks whether a staker is currently undelegated and not 
+    ///         within challenge period from its last undelegation.       
     function isNotDelegated(address staker) public view returns (bool) {
+        // CRITIC: if delegation[staker] is set to address(0) during commitUndelegation,
+        //         we can probably remove "(delegation[staker] == address(0)" 
         return
             !delegated[staker] &&
             (delegation[staker] == address(0) ||
@@ -281,6 +286,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                     lastUndelegationCommit[staker]);
     }
 
+    /// @notice returns the delegationTerms for the input operator 
     function getDelegationTerms(address operator)
         public
         view
@@ -289,6 +295,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return delegationTerms[operator];
     }
 
+    /// @notice returns the strategies that are being used by the delegators of this operator
+    // CRITIC: change the name to "getOperatorStrats"? 
     function getOperatorShares(address operator)
         public
         view
@@ -297,6 +305,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return operatorStrats[operator];
     }
 
+
+    /// @notice Returns the investment startegies, corresponding shares and the total ETH
+    ///         deposited with the operator.
     function getControlledEthStake(address operator)
         external
         view
@@ -306,6 +317,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             (IInvestmentStrategy[] memory strats, uint256[] memory shares, uint256 consensusLayerEthForOperator,) = investmentManager.getDeposits(operator);
             return (strats, shares, consensusLayerEthForOperator);
         } else {
+            // CRITIC: we are assuming here that delegation[operator] != operator which would 
+            // imply that operator is not actually an operator and would probably have no entry 
+            // in operatorStrats. So, it is not making sense to call operatorStrats[operator].
             uint256[] memory shares = new uint256[](operatorStrats[operator].length);
             for (uint256 i = 0; i < shares.length; i++) {
                 shares[i] = operatorShares[operator][operatorStrats[operator][i]];
@@ -314,6 +328,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         }
     }
 
+
+    /// @notice Returns the total ETH value of the shares that have been deposited by the operator
+    // CRITIC: isn't this a view function too?
     function getUnderlyingEthDelegated(address operator)
         external
         returns (uint256)
@@ -330,6 +347,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                 );
             }
         } else {
+            // CRITIC: same problem as in getControlledEthStake, with calling 
+            // operatorStrats[operator] for the case "delegation[operator] != operator"
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
@@ -342,6 +361,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return weight;
     }
 
+    // CRITIC: same function as above
     function getUnderlyingEthDelegatedView(address operator)
         external
         view
@@ -359,6 +379,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                 );
             }
         } else {
+            // CRITIC: same problem as in getControlledEthStake, with calling 
+            // operatorStrats[operator] for the case "delegation[operator] != operator"
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
@@ -371,11 +393,14 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return weight;
     }
 
+
     function getConsensusLayerEthDelegated(address operator)
         external
         view
         returns (uint256)
     {
+        // CRITIC: same problem as in getControlledEthStake, with calling 
+        // operatorStrats[operator] for the case "delegation[operator] != operator"
         return
             delegation[operator] == operator
                 ? investmentManager.getConsensusLayerEth(operator)
@@ -387,6 +412,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         view
         returns (uint256)
     {
+        // CRITIC: same problem as in getControlledEthStake, with calling 
+        // operatorStrats[operator] for the case "delegation[operator] != operator
         return
             delegation[operator] == operator
                 ? investmentManager.getEigen(operator)
