@@ -15,7 +15,7 @@ contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrate
         underlyingToken = _underlyingToken;
         aToken = _aToken;
         investmentManager = _investmentManager;
-        _underlyingToken.approve(_lendingPool, type(uint256).max);
+        _underlyingToken.approve(address(_lendingPool), type(uint256).max);
     }
 
     function deposit(
