@@ -54,7 +54,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         investmentManager = _investmentManager;
     }
 
-    // decrement number of registrants
+    // decrement number of operators
     function deregister(bytes calldata data) external payable {
         require(
             // QUESTION: what is this operatorType and where is it defined? Can't find its declaration.
@@ -92,7 +92,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorType[msg.sender] = 0;
     }
 
-    // increment number of registrants
+    // increment number of operators
     // call registration contract with given data
     function register(bytes calldata data) external payable {
         require(
