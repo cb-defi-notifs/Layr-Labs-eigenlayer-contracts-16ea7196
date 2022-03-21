@@ -200,7 +200,7 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         );
         bytes32 leaf = keccak256(abi.encodePacked(depositer, amount));
         require(
-            MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
+            MerkleProof.verify(proof, depositRoot, leaf),
             "Invalid merkle proof"
         );
         depositProven[depositRoot][depositer] = true;
