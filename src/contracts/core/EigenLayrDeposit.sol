@@ -38,21 +38,37 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         investmentManager = _investmentManager;
     }
 
-    // deposits eth into liquid staking and deposit stETH into strategy
+    /**
+      * @notice converts the deposited ETH into the specified liquidStakeToken which is 
+      * then invested into some specified strategy 
+    */
+    /// @param liquidStakeToken specifies the preference for liquid staking,
+    /// @param strategy specifies the strategy in which the above liquidStakeToken is to be invested in.  
     function depositETHIntoLiquidStaking(
         IERC20 liquidStakeToken,
         IInvestmentStrategy strategy
     ) external payable {
         require(
             isAllowedLiquidStakedToken[liquidStakeToken],
-            "Liquid staking token is not allowed"
+            "This liquid staking token is not permitted in EigenLayr"
         );
-        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)); // stETH balance before deposit
+
+        // balance of liquidStakeToken before deposit
+        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)); 
+
+        // send the ETH deposited to the ERC20 contract for liquidStakeToken
+        // this liquidStakeToken is credited to EigenLayrDeposit contract (address(this))
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
+
+        // increment in balance of liquidStakeToken
         depositAmount =
             liquidStakeToken.balanceOf(address(this)) -
-            depositAmount; // increment in stETH balance
+            depositAmount; 
+        
+        // approve investmentManager contract to be able to take out liquidStakeToken
         liquidStakeToken.approve(address(investmentManager), depositAmount);
+
+        
         investmentManager.depositIntoStrategy(
             msg.sender,
             strategy,
@@ -61,7 +77,11 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         );
     }
 
+
     // proves deposit against legacy deposit root
+    /** 
+    *   @notice    
+    */
     function proveLegacyConsensusLayerDeposit(
         bytes32[] calldata proof,
         address depositer,
