@@ -240,9 +240,6 @@ contract QueryManagerGovernance {
             );
         }
 
-        uint256 startTime = block.timestamp + votingDelay();
-        uint256 endTime = startTime + votingPeriod();
-
         proposalCount++;
         Proposal memory newProposal = Proposal({
             id: proposalCount,
@@ -252,8 +249,8 @@ contract QueryManagerGovernance {
             values: values,
             signatures: signatures,
             calldatas: calldatas,
-            startTime: startTime,
-            endTime: endTime,
+            startTime: block.timestamp + votingDelay(),
+            endTime: block.timestamp + votingDelay() + votingPeriod(),
             forEthVotes: 0,
             againstEthVotes: 0,
             forEigenVotes: 0,
@@ -272,8 +269,8 @@ contract QueryManagerGovernance {
             values,
             signatures,
             calldatas,
-            startTime,
-            endTime,
+            newProposal.startTime,
+            newProposal.endTime,
             description
         );
         return newProposal.id;
@@ -390,7 +387,8 @@ contract QueryManagerGovernance {
         return receipts[proposalId][voter];
     }
 
-    function state(uint256 proposalId) public view returns (ProposalState) {
+//TODO: add a version of this that is 'view', i.e. doesn't modify state?
+    function state(uint256 proposalId) public returns (ProposalState) {
         //TODO: update this
         require(
             proposalCount >= proposalId && proposalId > 0,
@@ -471,10 +469,10 @@ contract QueryManagerGovernance {
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
             update
         );
-        //TODO: wtf is this
+        //sanity check against overflow, since we convert from uint256 => uint96 below
         require(
-            ethStaked < 79228162514264337593543950336 &&
-                eigenStaked < 79228162514264337593543950336,
+            ethStaked < type(uint96).max &&
+                eigenStaked < type(uint96).max,
             "QueryManagerGovernance::weight overflow"
         );
         uint96 ethVotes = uint96(ethStaked);

@@ -279,9 +279,11 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         dataLayr = _dataLayr;
     }
 
+/* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(
         IERC20 _paymentToken
     ) public onlyQMGovernance {
         paymentToken = _paymentToken;
     }
+*/
 }
