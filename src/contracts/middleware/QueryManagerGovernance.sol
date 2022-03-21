@@ -184,8 +184,9 @@ contract QueryManagerGovernance {
     /// @notice An event emitted when a proposal has been executed in the Timelock
     event ProposalExecuted(uint256 id);
 
-    constructor(IQueryManager _QUERY_MANAGER) {
+    constructor(IQueryManager _QUERY_MANAGER, IVoteWeighter _VOTE_WEIGHTER) {
         QUERY_MANAGER = _QUERY_MANAGER;
+        VOTE_WEIGHTER = _VOTE_WEIGHTER;
         //TODO: figure the time out
         timelock = TimelockInterface(address(new Timelock(address(this), 10 days)));
     }
