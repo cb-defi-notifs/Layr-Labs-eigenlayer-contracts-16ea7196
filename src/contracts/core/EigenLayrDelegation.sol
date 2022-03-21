@@ -198,9 +198,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         }
     }
 
-    // finalizes a stakers undelegation commit
     /// @notice This function must be called by a delegator to notify that its stake is 
-    ///         no longer active on any queries, which in turn launches the fraudproof
+    ///         no longer active on any queries, which in turn launches the challenge
     ///         period. 
     function finalizeUndelegation() external {
         // get their current operator
@@ -210,7 +209,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "Staker is not in the post commit phase"
         );
 
-        // checks that delegator is not within fraudproof period for a previous undelegation 
+        // checks that delegator is not within challenger period for a previous undelegation 
         require(
             block.timestamp >
                 lastUndelegationCommit[msg.sender] +
@@ -219,33 +218,48 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         );
 
         // set time of last undelegation commit which is the beginning of the corresponding 
-        // fraudproof period.
+        // challenge period.
         lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
     // contests a stakers undelegation commit
+    /// @notice This function can be called by anyone to challenger whether a staker has 
+    ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
+    /// @param staker is the delegator against whom challenge is being raised,
+    /// @param queryManager is the contract with whom the query for which staker hasn't finished 
+    ///        its obligation yet was deployed,
+    /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations    
     function contestUndelegationCommit(
         address staker,
         IQueryManager queryManager,
         bytes32 queryHash
     ) external {
+    
+        // CRITIC: need to determine the operator for staker, not msg.sender
         // get their current operator
         address operator = delegation[msg.sender];
+
+        // CRITIC: need to determine the lastUndelegationCommit for staker, not msg.sender
         require(
             block.timestamp <
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[msg.sender],
-            "Last commit has not been confirmed yet"
+            "Challenge was raised after the end of challenge period"
         );
+
+        
         require(
             operator != address(0) && !delegated[msg.sender],
-            "Staker is not in the post commit phase"
+            "Challenge period hasn't yet started"
         );
+
         require(
             serviceFactory.queryManagerExists(queryManager),
             "QueryManager was not deployed through factory"
         );
-        //ongoing query exists at time of undelegation commit
+
+        // ongoing query is still active at time when staker was finalizing undelegation 
+        // and, therefore, hasn't served its obligation. 
         require(
             lastUndelegationCommit[staker] >
                 queryManager.getQueryCreationTime(queryHash) &&
@@ -254,6 +268,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                     queryManager.getQueryDuration(),
             "Given query is inactive"
         );
+        
         //slash here
     }
 
