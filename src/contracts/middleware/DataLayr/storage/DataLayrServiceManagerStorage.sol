@@ -19,8 +19,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
     mapping(address => address) public operatorToPaymentChallenge;
 
     //a deposit root is posted every depositRootInterval dumps
-    uint48 public depositRootInterval;
-    mapping(uint256 => bytes32) public depositRoots;
+    uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins
+    mapping(uint256 => bytes32) public depositRoots; // blockNumber => depositRoot
 
     // Payment
     struct Payment {

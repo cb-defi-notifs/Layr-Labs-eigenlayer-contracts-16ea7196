@@ -5,21 +5,21 @@ import "./IInvestmentStrategy.sol";
 
 interface IEigenLayrDeposit {
     function depositETHIntoLiquidStaking(
-        IERC20 liquidStakeToken,
-        IInvestmentStrategy strategy
+        IERC20 ,
+        IInvestmentStrategy
     ) external payable;
 
     function depositPOSProof(
-        bytes32 queryHash,
-        bytes32[] calldata proof,
-        address depositer,
-        bytes calldata signature,
-        uint256 amount
+        uint256,
+        bytes32[] calldata,
+        address,
+        bytes calldata,
+        uint256
     ) external;
 
     function depositEthIntoConsensusLayer(
-        bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
+        bytes calldata,
+        bytes calldata,
+        bytes32
     ) external payable;
 }

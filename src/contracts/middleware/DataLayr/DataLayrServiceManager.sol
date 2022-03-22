@@ -5,13 +5,15 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "./DataLayrPaymentChallenge.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../QueryManager.sol";
 
 contract DataLayrServiceManager is
-    DataLayrSignatureChecker
+    DataLayrSignatureChecker,
+    IProofOfStakingOracle
 {
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     IERC20 public immutable paymentToken;
@@ -74,7 +76,7 @@ contract DataLayrServiceManager is
         );
     }
 
-    //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
+    //checks signatures and hands off to DL
     function confirmDump(bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
@@ -87,8 +89,46 @@ contract DataLayrServiceManager is
             uint256 totalEigenSigned,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
+        //make sure they shouldn't be posting a deposit root
+        require(dumpNumberToConfirm % depositRootInterval != 0, "Must post a deposit root now");
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
-        
+        dataLayr.confirm(
+            dumpNumberToConfirm,
+            ferkleRoot,
+            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
+            totalEthSigned,
+            totalEigenSigned
+        );
+    }
+
+    //checks signatures, stores POSt hash, and hands off to DL
+    function confirmDumpWithPOSt(bytes32 depositRoot, bytes32 ferkleRoot, bytes calldata data) external payable {
+        require(
+            msg.sender == address(queryManager),
+            "Only the query manager can call this function"
+        );
+        (
+            uint64 dumpNumberToConfirm,
+            bytes32 depositFerkleHash,
+            uint256 totalEthSigned,
+            uint256 totalEigenSigned,
+            bytes32 signatoryRecordHash
+        ) = checkSignatures(data);
+        //make sure they should be posting a deposit root
+        require(dumpNumberToConfirm % depositRootInterval == 0, "Shouldn't post a deposit root now");
+        dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+        //when posting a deposit root, DLNs will sign hash(depositRoot || ferkleRoot) instead of the usual ferkleRoot, 
+        //so the submitter must specify the preimage
+        require(keccak256(abi.encodePacked(depositRoot, ferkleRoot)) == depositFerkleHash, "Ferkle or deposit root is incorrect");
+        //store the depost root
+        depositRoots[block.number] = depositRoot;
+        dataLayr.confirm(
+            dumpNumberToConfirm,
+            ferkleRoot,
+            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
+            totalEthSigned,
+            totalEigenSigned
+        );
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
@@ -237,6 +277,10 @@ contract DataLayrServiceManager is
         returns (uint256)
     {
         return operatorToPayment[operator].collateral;
+    }
+
+    function getDepositRoot(uint256 blockNumber) public view returns(bytes32) {
+        return depositRoots[blockNumber];
     }
 
     function payFee(address) external payable {

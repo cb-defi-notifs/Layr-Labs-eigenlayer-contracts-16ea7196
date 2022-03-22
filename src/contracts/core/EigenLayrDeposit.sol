@@ -6,7 +6,7 @@ import "./Eigen.sol";
 import "../interfaces/IDepositContract.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDeposit.sol";
-import "../middleware/QueryManager.sol";
+import "../interfaces/ProofOfStakingInterfaces.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -18,6 +18,8 @@ import "./storage/EigenLayrDepositStorage.sol";
 contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrDeposit {
     bytes32 public immutable consensusLayerDepositRoot;
     Eigen public immutable eigen;
+    IProofOfStakingOracle postOracle;
+    address postOracleSetter;
 
     constructor(
         bytes32 _consensusLayerDepositRoot,
@@ -29,13 +31,23 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
 
     function initialize (
         IDepositContract _depositContract,
-        IInvestmentManager _investmentManager
+        IInvestmentManager _investmentManager,
+        address _postOracleSetter
     ) initializer external {
         withdrawalCredentials =
             (bytes32(uint256(1)) << 62) |
             bytes32(bytes20(address(this))); //0x010000000000000000000000THISCONTRACTADDRESSHEREFORTHELAST20BYTES
         depositContract = _depositContract;
         investmentManager = _investmentManager;
+        postOracleSetter = _postOracleSetter;
+    }
+
+    //set this to the DL query manager
+    function setPOStOracle(IProofOfStakingOracle _postOracle) public {
+        require(msg.sender == postOracleSetter, "Only POSt setter can set the POSt oracle");
+        //make setter 0, no one can set again
+        postOracleSetter = address(0);
+        postOracle = _postOracle;
     }
 
     /**
@@ -177,7 +189,7 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
     *        EigenLayr has to prove their stake against this commitment.          
     */
     function depositPOSProof(
-        bytes32 queryHash,
+        uint256 blockNumber,
         bytes32[] calldata proof,
         address depositer,
         bytes calldata signature,
@@ -185,7 +197,7 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
     ) external {
         // get the most recent commitment of trie in settlement layer (beacon chain) that 
         // describes the which depositer staked how much ETH. 
-        bytes32 depositRoot = posMiddleware.getQueryOutcome(queryHash);
+        bytes32 depositRoot = postOracle.getDepositRoot(blockNumber);
 
         require(
             !depositProven[depositRoot][depositer],
