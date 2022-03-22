@@ -8,16 +8,42 @@ import "../interfaces/IServiceFactory.sol";
 
 // TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
 // TODO: more info on split between EIGEN holder and ETH holders -- right now this just uses 'EIGEN_HOLDER_BIPS' which seems bad
+/**
+ * @dev The Delegation Terms contract of an operator maintains a record of how much fraction
+ *      of reward does each delegator of that operator is owed whenever the operator is 
+ *      querying a fee manager to pay the rewards for the service that was offered to that fee manager's
+ *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
+ *      middleware, we have the following description:    
+ *
+ *          Let there be n delegators. Assume that operator is maintaining an array 
+ *          [r_{1,k}, r_{2,k}, ..., r_{n,k}] where r_i is fraction of total rewards that the i^th 
+ *          delegator is eligible for until the k^th instance where the fee manager is paying out 
+ *          rewards to the delegators in this delegator terms contract.
+ *
+ *          Suppose that "amount" is the sum total reward that is being allocated to all the 
+ *          delegators in (k+1)^th instance. Also let totalWeightEth_{k+1} and totalWeightEigen_{k+1}
+ *          are the total ETH and Eigen that been staked by the  delegators under this delegation terms,
+ *          respectively. Let gammaEth and gammaEigen be the weights assigned by the middleware for 
+ *          splitting the rewards between the ETH stakers and Eigen stakers, respectively. 
+ *                 
+ */
 abstract contract DelegationTerms is IDelegationTerms {
-    //stored for each delegator to this contract
+    /// @notice stored for each delegator that have accepted this delegation terms from the operator
     struct DelegatorStatus {
-        //delegator weights
+        // value of delegator's shares in different strategies in ETH
         uint112 weightEth;
+        // EIGEN delegator possesses
         uint112 weightEigen;
-        //ensures delegators do not receive undue rewards
+        // ensures delegators do not receive undue rewards
         uint32 lastClaimedRewards;
     }
+
+    /**
+     *  @notice Used for recording the aggregate payment that has been made till now
+     *          to an operator.
+     */
     struct TokenPayment {
+        // ETH value of total tokens that has been 
         uint112 earnedPerWeightAllTimeEth;
         uint112 earnedPerWeightAllTimeEigen;        
         uint32 paymentTimestamp;
@@ -103,19 +129,43 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
     }
 
+    /** 
+     * @notice  Fee manager of a middleware calls this function in order to update the rewards that 
+     *          this operator and the delegators associated with it are eligible for because of their  
+     *          service to that middleware.     
+     */ 
+    /**
+     * @dev Suppose 
+     */ 
+    /** 
+     * @param token is the ERC20 token in which the middlewares are paying its rewards for the service,
+     * @param amount is the amount of ERC20 tokens that is being paid as rewards. 
+     */
     function payForService(IERC20 token, uint256 amount) external payable {
+        // determine the query manager associated with the fee manager
         IQueryManager _queryManager = IFeeManager(msg.sender).queryManager();
+
+        // only the fee manager can call this function
         require(msg.sender == address(_queryManager.feeManager()), "only feeManagers");
+
+        // check if the query manager exists
         require(serviceFactory.queryManagerExists(_queryManager), "illegitimate queryManager");
+
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {
+            // get the most recent payment made to the operator in this token
             updatedEarnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
         }
+
+        // obtain the earning that the operator is eligible for out of the total rewards
         if (operatorFeeBips > 0) {
             uint256 operatorEarnings = (amount * operatorFeeBips) / MAX_BIPS;
             operatorPendingEarnings[address(token)] += operatorEarnings;
+            // obtain the remaining reward after deducting the operator's part
             amount -= operatorEarnings;
         }
+
+        // 
         updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount * REWARD_SCALING) / totalWeightEth) * (MAX_BIPS - EIGEN_HOLDER_BIPS) / MAX_BIPS);
         updatedEarnings.earnedPerWeightAllTimeEigen += uint112(((amount * REWARD_SCALING) / totalWeightEigen) * (EIGEN_HOLDER_BIPS) / MAX_BIPS);
         updatedEarnings.paymentTimestamp = uint32(block.timestamp);
@@ -233,11 +283,30 @@ abstract contract DelegationTerms is IDelegationTerms {
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     uint256 public consensusLayerPercent = 10;
 
-    function weightOfEth(address user) public returns(uint256) {
-        uint256 weight = (investmentManager.getConsensusLayerEth(user) * consensusLayerPercent) / 100;
-        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(user);
-        uint256[] memory investorShares = investmentManager.getStrategyShares(user);
+
+
+    /**
+     *  @notice returns the total ETH value of staked assets of the given staker in EigenLayr
+     *          via this delegation term's operator.    
+     */
+    /**
+     *  @dev for each investment strategy where the delegator has staked its asset,
+     *       it needs to call that investment strategy's "underlyingEthValueOfShares" function
+     *       to determine the value of delegator's shares in that investment strategy in ETH.        
+     */ 
+    function weightOfEth(address delegator) public returns(uint256) {
+        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
+        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
+        
+        // get the strategies where delegator's assets has been staked
+        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
+
+        // get the shares in the strategies where delegator's assets has been staked
+        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+
         for (uint256 i = 0; i < investorStrats.length; i++) {
+            // get the underlying ETH value of the shares
+            // each investment strategy have their own description of ETH value per share.
             weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
         }
         return weight;
