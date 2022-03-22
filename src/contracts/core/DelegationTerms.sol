@@ -243,7 +243,6 @@ abstract contract DelegationTerms is IDelegationTerms {
         return weight;
     }
     //END COPIED CODE
-
     function weightOfEigen(address user) public view returns(uint256) {
         return investmentManager.getEigen(user);
     } 

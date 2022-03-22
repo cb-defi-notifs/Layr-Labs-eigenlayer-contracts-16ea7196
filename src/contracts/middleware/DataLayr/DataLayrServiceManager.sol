@@ -35,7 +35,7 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
         uint32 commitTime; // when commited, used for fraud proof period
         uint120 amount; // max 1.3e36, keep in mind for token decimals
         uint8 status; // 0: commited, 1: redeemed
-        uint256 collateral; //account for if collateral changed TODO: As JeffC
+        uint256 collateral; //account for if collateral changed
     }
 
     struct PaymentChallenge {

@@ -155,7 +155,6 @@ contract DataLayrPaymentChallenge {
             // challenger did not respond
             resolve(true);
         }
-        //TODO: Resolve here
     }
 
     //an operator can respond to challenges and breakdown the amount
@@ -190,29 +189,17 @@ contract DataLayrPaymentChallenge {
             }
         }
         if (status == 4) {
-            if (trueAmount == challenge.amount1) {
-                //challenger was correct, challenger should be slashed
-                resolve(false);
-            } else {
-                //operator was correct, operator should be slashed
-                resolve(true);
-            }
+            resolve(trueAmount != challenge.amount1);
         } else if (status == 5) {
-            if (trueAmount == challenge.amount1) {
-                //operator was correct, challenger should be slashed
-                resolve(true);
-            } else {
-                //challenger was correct, operator should be slashed
-                resolve(false);
-            }
+            resolve(trueAmount == challenge.amount1);
         } else {
             revert("Not in one step challenge phase");
         }
         challenge.status = 1;
     }
 
-    function resolve(bool winner) internal {
-        dlsm.resolvePaymentChallenge(challenge.operator, winner);
-        selfdestruct(payable(0));
+    function resolve(bool challengeSuccessful) internal {
+        dlsm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
+        selfdestruct();
     }
 }

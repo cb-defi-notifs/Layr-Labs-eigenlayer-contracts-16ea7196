@@ -390,7 +390,6 @@ contract QueryManagerGovernance {
     }
 
     function state(uint256 proposalId) public view returns (ProposalState) {
-        //TODO: update this
         require(
             proposalCount >= proposalId && proposalId > 0,
             "QueryManagerGovernance::state: invalid proposal id"
