@@ -9,68 +9,80 @@ import "../interfaces/IServiceFactory.sol";
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 // TODO: dynamic splitting of earnings between EIGEN and ETH delegators rather than the crappy, static implemenation of 'EIGEN_HOLDER_BIPS'
 /**
- * @dev The Delegation Terms contract of an operator maintains a record of how much fraction
- *      of reward does each delegator of that operator is owed whenever the operator is 
- *      querying a fee manager to pay the rewards for the service that was offered to that fee manager's
+ * @dev The Delegation Terms contract of an operator maintains a record of what fraction
+ *      of the total reward each delegator of that operator is owed whenever the operator triggers
+ *      a fee manager to pay the rewards for the service that was offered to that fee manager's
  *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
  *      middleware, we have the following description:    
  *
+ *          We define a round to be the instant where fee manager pays out the rewards to the delegators of this delegation term contract.
  *          Let there be n delegators with weightEth_{j,i} and weightEigen_{j,i} being the total ETH and Eigen that 
- *          has been staked by j^th delegator at any instant i. Suppose that at the instant i, amount_i be the 
- *          cumulative reward that is being allocated to all the n delegators since instant (i-1). Also let totalWeightEth_i 
- *          and totalWeightEigen_i are the total ETH and Eigen that been staked by the  delegators 
- *          under this delegation terms, respectively. Let gammaEth and gammaEigen be the weights assigned 
+ *          has been delegated by j^th delegator at any round i. Suppose that at the round i, amount_i be the 
+ *          cumulative reward that is being allocated to all the n delegators since round (i-1). Also let totalWeightEth_i 
+ *          and totalWeightEigen_i are the total ETH and Eigen that been delegated by the  delegators 
+ *          under this delegation term at round i, respectively. Let gammaEth and gammaEigen be the weights assigned 
  *          by the middleware for splitting the rewards between the ETH stakers and Eigen stakers, respectively. 
  *
- *          Then the reward that any j^th delegator is eligible for its ETH stake at instant i is
+ *          Then the reward that any j^th delegator is eligible for its ETH stake at round i is
  *                          
  *                                    (weightEth_{j,i} / totalWeightEth_i) *  amount_i *  gammaEth           
  *
- *          Then the reward that any j^th delegator is eligible for its Eigen stake at instant i is
+ *          Then the reward that any j^th delegator is eligible for its Eigen stake at round i is
  *                          
  *                                    (weightEigen_{j,i} / totalWeightEigen_i) *  amount_i *  gammaEigen                                      
  *
  *          The operator maintains arrays  [r_{ETH,1}, r_{ETH,2}, ...] and 
  *          [r_{Eigen,1}, r_{Eigen,2}, ...] where 
  *
- *                                  r_{ETH,i} = r_{ETH,i} + (gammaEth / totalWeightEth_i),
+ *                                  r_{ETH,i} = r_{ETH,i} + (gammaEth *  amount_i/ totalWeightEth_i),
  *
- *                                  r_{Eigen,i} = r_{Eigen,i} + (gammaEigen / totalWeightEigen_i).
+ *                                  r_{Eigen,i} = r_{Eigen,i} + (gammaEigen *  amount_i/ totalWeightEigen_i).
  *
- *          If j^th delegator hasn't updated its stake in ETH or Eigen for the instants i in [k_1,k_2], that is,
+ *          If j^th delegator hasn't updated its stake in ETH or Eigen for the rounds i in [k_1,k_2], that is,
  *
- *                                  weightEth_{j,k_1} = weightEth_{j,k_1+1} = ... = weightEth_{j,k_2} = const,
- *                                  weightEigen_{j,k_1} = weightEigen_{j,k_1+1} = ... = weightEigen_{j,k_2} = const,
+ *                                  weightEth_{j,k_1} = weightEth_{j,k_1+1} = ... = weightEth_{j,k_2} = constEth,
+ *                                  weightEigen_{j,k_1} = weightEigen_{j,k_1+1} = ... = weightEigen_{j,k_2} = constEigen,
  *
- *          then, total reward j^th delegator is eligible for its                                     
+ *          then, total reward j^th delegator is eligible for the rounds in [k_1,k_2] is given by                                    
  *                 
+ *                    [(r_{ETH,k_2} - r_{ETH,k_1} + 1) *  constETH] +  [(r_{Eigen,k_2} - r_{Eigen,k_1} + 1) *  constEigen]     
+ *
+ *          However, if the j^th delegator updates its ETH or Eigen delegated stake at any round i, then, the above     
+ *          formula for j^th delegator's reward is not true as totalWeightEth_i or totalWeightEigen_i  
+ *          also gets updated along with weightEth_{j,i} and weightEigen_{j,i}. So, before the delegator updates 
+ *          its ETH or Eigen stake, it has to retrieve its reward. However, other delegators whose delegated ETH or 
+ *          Eigen hasn't updated, they can continue to use the above formula.          
  */
 abstract contract DelegationTerms is IDelegationTerms {
-    /// @notice stored for each delegator that have accepted this delegation terms from the operator
+    /// @notice Stored for each delegator that have accepted this delegation terms from the operator
     struct DelegatorStatus {
         // value of delegator's shares in different strategies in ETH
         uint112 weightEth;
-        // EIGEN delegator possesses
+        // total Eigen that delegator has delegated to the operator of this delegation contract
         uint112 weightEigen;
-        // ensures delegators do not receive undue rewards
+        // UTC timestamp at which the delegator last claimed their earnings. ensures delegators do not receive undue rewards
         uint32 lastClaimedRewards;
     }
 
     /**
-     *  @notice Used for recording the aggregate payment that has been made till now
-     *          to an operator.
+     *  @notice Used for recording the multiplying factor that has to be multiplied with 
+     *          delegator's 
      */
+    /** 
+    */ 
     struct TokenPayment {
-        // ETH value of total tokens that has been 
+        //cumulative earnings of the token, per delegated ETH, scaled up by REWARD_SCALING
         uint112 earnedPerWeightAllTimeEth;
+        //cumulative earnings of the token, per delegated EIGEN, scaled up by REWARD_SCALING
         uint112 earnedPerWeightAllTimeEigen;        
+        //UTC timestamp at which the payment was received
         uint32 paymentTimestamp;
     }
 
-    //constant scaling factors
+    //constants. scaling factor and max operator fee are somewhat arbitrary within sane values
     uint256 internal constant REWARD_SCALING = 2**64;
     uint16 internal constant MAX_BIPS = 10000;
-    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 1000;
+    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 500;
     //portion of earnings going to EIGEN delegators, *after* operator fees -- TODO: handle this better
     uint16 internal constant EIGEN_HOLDER_BIPS = 5000;
     //max number of payment tokens, for sanity's sake
