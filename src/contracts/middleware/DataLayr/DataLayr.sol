@@ -79,7 +79,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 storePeriodLength,
         address submitter,
         uint24 quorum
-    ) external payable {
+    ) external {
         require(msg.sender == currDisperser, "Only current disperser can init");
         require(
             dataStores[ferkleRoot].initTime == 0,

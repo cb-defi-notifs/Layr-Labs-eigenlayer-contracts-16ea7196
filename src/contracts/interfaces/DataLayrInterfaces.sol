@@ -15,15 +15,9 @@ interface IDataLayr {
         uint32 storePeriodLength,
         address submitter,
         uint24 quorum
-    ) external payable;
+    ) external;
 
-    function confirm(
-        uint64 dumpNumber,
-        bytes32 ferkleRoot,
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
-        uint8[] calldata vs
-    ) external payable;
+    function confirm() external;
 }
 
 interface IDataLayrVoteWeigher {

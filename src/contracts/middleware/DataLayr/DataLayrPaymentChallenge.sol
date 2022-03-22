@@ -200,6 +200,6 @@ contract DataLayrPaymentChallenge {
 
     function resolve(bool challengeSuccessful) internal {
         dlsm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
-        selfdestruct();
+        selfdestruct(payable(0));
     }
 }
