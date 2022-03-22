@@ -387,7 +387,7 @@ contract QueryManagerGovernance {
         return receipts[proposalId][voter];
     }
 
-//TODO: add a version of this that is 'view', i.e. doesn't modify state?
+    //TODO: add a version of this that is 'view', i.e. doesn't modify state?
     function state(uint256 proposalId) public returns (ProposalState) {
         //TODO: update this
         require(
