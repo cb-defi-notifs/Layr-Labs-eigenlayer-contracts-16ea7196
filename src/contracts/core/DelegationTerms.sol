@@ -6,8 +6,8 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 
-// TODO: weight updating, *dealing with pending payments to the contract at time of deposit / delegation*
-// TODO: more info on split between EIGEN holder and ETH holders -- right now this just uses 'EIGEN_HOLDER_BIPS' which seems bad
+// TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
+// TODO: dynamic splitting of earnings between EIGEN and ETH delegators rather than the crappy, static implemenation of 'EIGEN_HOLDER_BIPS'
 /**
  * @dev The Delegation Terms contract of an operator maintains a record of how much fraction
  *      of reward does each delegator of that operator is owed whenever the operator is 
@@ -102,6 +102,11 @@ abstract contract DelegationTerms is IDelegationTerms {
         _;
     }
 
+    modifier onlyDelegation() {
+        require(msg.sender == eigenLayrDelegation, "only eigenLayrDelegation");
+        _;
+    }
+
     constructor(
         IInvestmentManager _investmentManager,
         address[] memory _paymentTokens,
@@ -190,8 +195,7 @@ abstract contract DelegationTerms is IDelegationTerms {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
-//TODO: ACCESS CONTROL
-    function onDelegationReceived(address staker) external {
+    function onDelegationReceived(address staker) external onlyDelegation {
         DelegatorStatus memory delegatorUpdate;
         delegatorUpdate.weightEth = uint112(weightOfEth(staker));
         delegatorUpdate.weightEigen = uint112(weightOfEigen(staker));
@@ -200,10 +204,8 @@ abstract contract DelegationTerms is IDelegationTerms {
         totalWeightEigen += delegatorUpdate.weightEigen;
     }
 
-//TODO: forward additional data in this call? right now loop is commented out so contract cannot be bricked by adding tons of paymentTokens
 //NOTE: currently this causes the delegator to lose any pending rewards
-    function onDelegationWithdrawn(address staker) external {
-        require(msg.sender == eigenLayrDelegation, "only eigenLayrDelegation");
+    function onDelegationWithdrawn(address staker) external onlyDelegation {
         DelegatorStatus memory delegator = delegatorStatus[staker];
         totalWeightEth -= delegator.weightEth;
         totalWeightEigen -= delegator.weightEigen;
