@@ -9,9 +9,9 @@ import "../interfaces/IServiceFactory.sol";
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 // TODO: dynamic splitting of earnings between EIGEN and ETH delegators rather than the crappy, static implemenation of 'EIGEN_HOLDER_BIPS'
 /**
- * @dev The Delegation Terms contract of an operator maintains a record of how much fraction
- *      of reward does each delegator of that operator is owed whenever the operator is 
- *      querying a fee manager to pay the rewards for the service that was offered to that fee manager's
+ * @dev The Delegation Terms contract of an operator maintains a record of what fraction
+ *      of the total reward each delegator of that operator is owed whenever the operator triggers
+ *      a fee manager to pay the rewards for the service that was offered to that fee manager's
  *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
  *      middleware, we have the following description:    
  *
@@ -34,25 +34,27 @@ abstract contract DelegationTerms is IDelegationTerms {
         uint112 weightEth;
         // EIGEN delegator possesses
         uint112 weightEigen;
-        // ensures delegators do not receive undue rewards
+        // UTC timestamp at which the delegator last claimed their earnings. ensures delegators do not receive undue rewards
         uint32 lastClaimedRewards;
     }
 
     /**
-     *  @notice Used for recording the aggregate payment that has been made till now
-     *          to an operator.
+     *  @notice Used for recording the aggregate payment of a token that has been made till now
+     *          to the operator.
      */
     struct TokenPayment {
-        // ETH value of total tokens that has been 
+        //cumulative earnings of the token, per delegated ETH, scaled up by REWARD_SCALING
         uint112 earnedPerWeightAllTimeEth;
+        //cumulative earnings of the token, per delegated EIGEN, scaled up by REWARD_SCALING
         uint112 earnedPerWeightAllTimeEigen;        
+        //UTC timestamp at which the payment was received
         uint32 paymentTimestamp;
     }
 
-    //constant scaling factors
+    //constants. scaling factor and max operator fee are somewhat arbitrary within sane values
     uint256 internal constant REWARD_SCALING = 2**64;
     uint16 internal constant MAX_BIPS = 10000;
-    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 1000;
+    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 500;
     //portion of earnings going to EIGEN delegators, *after* operator fees -- TODO: handle this better
     uint16 internal constant EIGEN_HOLDER_BIPS = 5000;
     //max number of payment tokens, for sanity's sake
