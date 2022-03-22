@@ -8,6 +8,7 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
+import "../../interfaces/IQueryManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -16,14 +17,18 @@ contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
     address public currDisperser;
-    IDataLayrVoteWeigher public dlRegVW;
+    //the DL query manager
+    IQueryManager public queryManager;
+    //percentage of eigen that signers need to hold for a quorum
+    uint32 eigenSignatureThreshold;
+    //percentage of eth that signers need to hold for a quorum
+    uint32 ethSignatureThreshold;
 
     // Data Store
     struct DataStore {
         uint64 dumpNumber;
         uint32 initTime; //when the store was inited
         uint32 storePeriodLength; //when store expires
-        uint24 quorum; //num signatures required for commit
         address submitter; //address approved to submit signatures for this datastore
         bool commited; //whether the data has been certified available
     }
@@ -31,8 +36,7 @@ contract DataLayr is Ownable, IDataLayr {
     event DataStoreInit(
         address initializer, //person initing store
         bytes32 ferkleRoot, //counter-esque id
-        uint256 totalBytes, //number of bytes in store including redundant chunks, basicall the total number of bytes in all frames of the FRS Merkle Tree
-        uint24 quorum //percentage of nodes needed to certify receipt
+        uint256 totalBytes //number of bytes in store including redundant chunks, basicall the total number of bytes in all frames of the FRS Merkle Tree
     );
 
     mapping(bytes32 => DataStore) public dataStores;
@@ -42,32 +46,13 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 ferkleRoot
     );
 
-    event Registration(
-        uint8 typeEvent, // 0: addedMember, 1: leftMember
-        uint32 initiator, // who started
-        uint32 numRegistrant,
-        string initiatorSocket
-    );
-
-    //uint public churnRatio; //unit of 100 over 1 days
-
-    // Challenges
-
-    event ChallengeSuccess(
-        address challenger,
-        address adversary,
-        bytes32 ferkleRoot,
-        uint16 challengeType // ChallengeType: 0 - Signature, 1 - Coding
-    );
-
     // Misc
     mapping(bytes32 => mapping(address => bool)) public isCodingProofDLNActive;
 
     // Constructor
 
-    constructor(address currDisperser_, IDataLayrVoteWeigher _dlRegVW) {
+    constructor(address currDisperser_) {
         currDisperser = currDisperser_;
-        dlRegVW = _dlRegVW;
     }
 
     // Precommit
@@ -77,8 +62,7 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,
-        address submitter,
-        uint24 quorum
+        address submitter
     ) external {
         require(msg.sender == currDisperser, "Only current disperser can init");
         require(
@@ -93,7 +77,6 @@ contract DataLayr is Ownable, IDataLayr {
             dumpNumber,
             uint32(block.timestamp),
             storePeriodLength,
-            quorum,
             submitter,
             false
         );
@@ -101,8 +84,7 @@ contract DataLayr is Ownable, IDataLayr {
         emit DataStoreInit(
             msg.sender,
             ferkleRoot,
-            totalBytes,
-            quorum
+            totalBytes
         );
     }
 
@@ -134,6 +116,10 @@ contract DataLayr is Ownable, IDataLayr {
             !dataStores[ferkleRoot].commited,
             "Data store already has already been committed"
         );
+        //require that signatories own at least a threshold percentage of eth and eigen
+        require(totalEthSigned*100/queryManager.totalEthStaked() >= ethSignatureThreshold 
+                && totalEigenSigned*100/queryManager.totalEigen() >= eigenSignatureThreshold, 
+                "signatories do not own at least a threshold percentage of eth and eigen");
         dataStores[ferkleRoot].commited = true;
         emit Commit(
             msg.sender,
@@ -141,4 +127,12 @@ contract DataLayr is Ownable, IDataLayr {
         );
     }
     // Setters and Getters
+
+    function setEigenSignatureThreshold(uint32 _eigenSignatureThreshold) public onlyOwner {
+        eigenSignatureThreshold = _eigenSignatureThreshold;
+    }
+
+    function setEthSignatureThreshold(uint32 _ethSignatureThreshold) public onlyOwner {
+        ethSignatureThreshold = _ethSignatureThreshold;
+    }
 }

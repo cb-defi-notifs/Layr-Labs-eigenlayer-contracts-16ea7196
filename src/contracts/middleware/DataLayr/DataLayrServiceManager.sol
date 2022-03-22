@@ -47,8 +47,7 @@ contract DataLayrServiceManager is
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,
-        address submitter,
-        uint24 quorum
+        address submitter
     ) external payable {
         require(
             msg.sender == address(queryManager),
@@ -71,8 +70,7 @@ contract DataLayrServiceManager is
             ferkleRoot,
             totalBytes,
             storePeriodLength,
-            submitter,
-            quorum
+            submitter
         );
     }
 
@@ -241,7 +239,7 @@ contract DataLayrServiceManager is
         return operatorToPayment[operator].collateral;
     }
 
-    function payFee(address payer) external payable {
+    function payFee(address) external payable {
         revert();
     }
 

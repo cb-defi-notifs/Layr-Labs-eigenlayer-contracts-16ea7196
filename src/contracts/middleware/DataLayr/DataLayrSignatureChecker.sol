@@ -24,6 +24,7 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
     */
     function checkSignatures(bytes calldata)
         public
+        pure
         returns (
             uint64,
             bytes32,

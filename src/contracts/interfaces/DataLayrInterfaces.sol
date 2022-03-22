@@ -15,8 +15,7 @@ interface IDataLayr {
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,
-        address submitter,
-        uint24 quorum
+        address submitter
     ) external;
 
     function confirm(

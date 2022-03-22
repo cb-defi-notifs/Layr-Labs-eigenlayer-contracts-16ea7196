@@ -275,6 +275,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     function eigenDepositedByOperator(address operator)
         public
+        view
         returns (uint256)
     {
         return eigenDeposited[operator];
@@ -289,6 +290,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     function consensusLayrEthOfOperator(address operator)
         public
+        view
         returns (uint256)
     {
         return consensusLayerEth[operator];
