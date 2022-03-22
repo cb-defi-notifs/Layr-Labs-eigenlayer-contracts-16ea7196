@@ -15,17 +15,41 @@ import "../interfaces/IServiceFactory.sol";
  *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
  *      middleware, we have the following description:    
  *
- *          Let there be n delegators. Assume that operator is maintaining an array 
- *          [r_{1,k}, r_{2,k}, ..., r_{n,k}] where r_i is fraction of total rewards that the i^th 
- *          delegator is eligible for until the k^th instance where the fee manager is paying out 
- *          rewards to the delegators in this delegator terms contract.
+ *          We define a round to be the instant where fee manager pys out the rewards to the delegators of this delegation term contract.
+ *          Let there be n delegators with weightEth_{j,i} and weightEigen_{j,i} being the total ETH and Eigen that 
+ *          has been staked by j^th delegator at any round i. Suppose that at the round i, amount_i be the 
+ *          cumulative reward that is being allocated to all the n delegators since round (i-1). Also let totalWeightEth_i 
+ *          and totalWeightEigen_i are the total ETH and Eigen that been staked by the  delegators 
+ *          under this delegation term at round i, respectively. Let gammaEth and gammaEigen be the weights assigned 
+ *          by the middleware for splitting the rewards between the ETH stakers and Eigen stakers, respectively. 
  *
- *          Suppose that "amount" is the sum total reward that is being allocated to all the 
- *          delegators in (k+1)^th instance. Also let totalWeightEth_{k+1} and totalWeightEigen_{k+1}
- *          are the total ETH and Eigen that been staked by the  delegators under this delegation terms,
- *          respectively. Let gammaEth and gammaEigen be the weights assigned by the middleware for 
- *          splitting the rewards between the ETH stakers and Eigen stakers, respectively. 
+ *          Then the reward that any j^th delegator is eligible for its ETH stake at round i is
+ *                          
+ *                                    (weightEth_{j,i} / totalWeightEth_i) *  amount_i *  gammaEth           
+ *
+ *          Then the reward that any j^th delegator is eligible for its Eigen stake at round i is
+ *                          
+ *                                    (weightEigen_{j,i} / totalWeightEigen_i) *  amount_i *  gammaEigen                                      
+ *
+ *          The operator maintains arrays  [r_{ETH,1}, r_{ETH,2}, ...] and 
+ *          [r_{Eigen,1}, r_{Eigen,2}, ...] where 
+ *
+ *                                  r_{ETH,i} = r_{ETH,i} + (gammaEth / totalWeightEth_i),
+ *
+ *                                  r_{Eigen,i} = r_{Eigen,i} + (gammaEigen / totalWeightEigen_i).
+ *
+ *          If j^th delegator hasn't updated its stake in ETH or Eigen for the rounds i in [k_1,k_2], that is,
+ *
+ *                                  weightEth_{j,k_1} = weightEth_{j,k_1+1} = ... = weightEth_{j,k_2} = constEth,
+ *                                  weightEigen_{j,k_1} = weightEigen_{j,k_1+1} = ... = weightEigen_{j,k_2} = constEigen,
+ *
+ *          then, total reward j^th delegator is eligible for in the rounds in [k_1,k_2] is given by                                    
  *                 
+ *                    [(r_{ETH,k_2} - r_{ETH,k_1} + 1) *  constETH] +  [(r_{Eigen,k_2} - r_{Eigen,k_1} + 1) *  constEigen]     
+ *
+ *          However, if the delegator updates its ETH or Eigen stake at any round, then, the above     
+ *          formula is not true. So, before the delegator updates its ETH or Eigen stake, it has
+ *          to retrieve its reward.          
  */
 abstract contract DelegationTerms is IDelegationTerms {
     /// @notice stored for each delegator that have accepted this delegation terms from the operator
@@ -316,7 +340,6 @@ abstract contract DelegationTerms is IDelegationTerms {
         return weight;
     }
     //END COPIED CODE
-
     function weightOfEigen(address user) public view returns(uint256) {
         return investmentManager.getEigen(user);
     } 

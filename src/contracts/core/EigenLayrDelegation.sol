@@ -159,8 +159,6 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             for (uint256 i = 0; i < strategies.length; i++) {
                 operatorShares[operator][strategies[i]] -= shares[i];
                 if (operatorShares[operator][strategies[i]] == 0) {
-                    // CRITIC: strategyindex is always 0. This doesn't look right. Should increment 
-                    // whenever the above condition is satisfied
                     require(
                         operatorStrats[operator][
                             strategyIndexes[strategyIndex]
@@ -173,6 +171,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                         operatorStrats[operator].length
                     ];
                     operatorStrats[operator].pop();
+                    strategyIndex++;
                 }
             }
 
