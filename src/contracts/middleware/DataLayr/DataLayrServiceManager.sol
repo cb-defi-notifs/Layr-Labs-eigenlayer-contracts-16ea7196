@@ -5,48 +5,17 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/DataLayrInterfaces.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "./storage/DataLayrServiceManagerStorage.sol";
 import "./DataLayrPaymentChallenge.sol";
+import "./DataLayrSignatureChecker.sol";
 import "../QueryManager.sol";
-import "../../libraries/BytesLib.sol";
 
-contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
+contract DataLayrServiceManager is
+    DataLayrSignatureChecker
+{
     IEigenLayrDelegation public immutable eigenLayrDelegation;
-    uint256 public feePerBytePerTime;
-    uint256 public constant paymentFraudProofInterval = 7 days;
-    uint256 public paymentFraudProofCollateral = 1 wei;
-    IDataLayr public dataLayr;
     IERC20 public immutable paymentToken;
     IERC20 public immutable collateralToken;
-    IQueryManager public queryManager;
-    uint48 public dumpNumber;
-    mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
-    mapping(uint64 => uint256) public dumpNumberToFee;
-    mapping(address => Payment) public operatorToPayment;
-    mapping(address => address) public operatorToPaymentChallenge;
-
-    //a deposit root is posted every depositRootInterval dumps
-    uint48 public depositRootInterval;
-    mapping(uint256 => bytes32) public depositRoots;
-
-    // Payment
-    struct Payment {
-        uint48 fromDumpNumber; // dumpNumber payment being claimed from
-        uint48 toDumpNumber; // dumpNumber payment being claimed to exclusive
-        // payment for range [fromDumpNumber, toDumpNumber)
-        uint32 commitTime; // when commited, used for fraud proof period
-        uint120 amount; // max 1.3e36, keep in mind for token decimals
-        uint8 status; // 0: commited, 1: redeemed
-        uint256 collateral; //account for if collateral changed
-    }
-
-    struct PaymentChallenge {
-        address challenger;
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
-        uint120 amount1;
-        uint120 amount2;
-    }
-
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
@@ -108,15 +77,20 @@ contract DataLayrServiceManager is IFeeManager, IDataLayrServiceManager {
     }
 
     //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
-    function confirmDump(uint64 dumpNumberToConfirm, bytes calldata encodedSigs) external payable {
+    function confirmDump(bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
-        dumpNumberToSignatureHash[dumpNumberToConfirm] = keccak256(encodedSigs);
-        //TODO: @JEFFC: how to make this calldata accomodate for new method
-        (bool success,) = address(dataLayr).call{gas: gasleft()}(abi.encodeWithSignature("confirm()", abi.encode(dumpNumberToConfirm, encodedSigs)));
-        require(success, "Confirmation call did not succeed");
+        (
+            uint64 dumpNumberToConfirm,
+            bytes32 ferkleRoot,
+            uint256 totalEthSigned,
+            uint256 totalEigenSigned,
+            bytes32 signatoryRecordHash
+        ) = checkSignatures(data);
+        dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+        
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber

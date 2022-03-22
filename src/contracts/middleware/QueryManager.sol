@@ -68,15 +68,16 @@ contract QueryManager is Initializable, QueryManagerStorage {
             ),
             "deregistration not permitted"
         );
-
-        uint256 eigenDepositedByOperator = eigenDeposited[msg.sender];
-        if (eigenDepositedByOperator != 0) {
-            totalEigen -= eigenDepositedByOperator;
+        //updates total and operator's eigen
+        uint256 eigenDepositedByDeregisterer = eigenDeposited[msg.sender];
+        if (eigenDepositedByDeregisterer != 0) {
+            totalEigen -= eigenDepositedByDeregisterer;
         }
         eigenDeposited[msg.sender] = 0;
-
+        //updates total and operator's shares
         uint256 stratsLength = operatorStrats[msg.sender].length;
         for (uint i = 0; i < stratsLength; ) {
+            //TODO: REMOVE FROM STRATS IF SHARES ARE NOW 0
             shares[operatorStrats[msg.sender][i]] -= operatorShares[msg.sender][
                 operatorStrats[msg.sender][i]
             ];
@@ -85,7 +86,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 ++i;
             }
         }
+        //sets operator to have no strats
         operatorStrats[msg.sender] = new IInvestmentStrategy[](0);
+        //remove CLE and cleanup
         totalConsensusLayerEth -= consensusLayerEth[msg.sender];
         consensusLayerEth[msg.sender] = 0;
         numRegistrants--;
@@ -275,6 +278,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
         returns (uint256)
     {
         return eigenDeposited[operator];
+    }
+
+    function totalEthValueStakedAndEigenForOperator(address operator)
+        public
+        returns (uint256, uint256)
+    {
+        return (totalEthValueStakedForOperator(operator), eigenDeposited[operator]);
     }
 
     function consensusLayrEthOfOperator(address operator)

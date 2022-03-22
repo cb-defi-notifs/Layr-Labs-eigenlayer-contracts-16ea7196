@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "./IQueryManager.sol";
+
 /**
  * @title DataLayr
  * @dev L1 contracts that handles DataLayr Node registration
@@ -17,11 +19,19 @@ interface IDataLayr {
         uint24 quorum
     ) external;
 
-    function confirm() external;
+    function confirm(
+        uint256 dumpNumber,
+        bytes32 ferkleRoot,
+        address submitter,
+        uint256 totalEthSigned,
+        uint256 totalEigenSigned
+    ) external;
 }
 
 interface IDataLayrVoteWeigher {
     function setLatestTime(uint32) external;
+
+    function getOperatorId(address) external returns (uint32);
 
     function getOperatorFromDumpNumber(address) external view returns (uint48);
 }

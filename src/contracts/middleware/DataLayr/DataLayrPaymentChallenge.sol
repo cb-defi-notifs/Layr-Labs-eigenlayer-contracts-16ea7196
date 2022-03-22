@@ -161,9 +161,8 @@ contract DataLayrPaymentChallenge {
     function respondToPaymentChallengeFinal(
         bytes32 ferkleRoot,
         uint120 amount,
-        bytes32[] calldata rs,
-        bytes32[] calldata ss,
-        uint8[] calldata vs
+        uint32[] calldata signatoryRecord,
+        int256 index
     ) external {
         require(
             block.timestamp < challenge.commitTime + dlsm.paymentFraudProofInterval(),
@@ -174,18 +173,29 @@ contract DataLayrPaymentChallenge {
         //check sigs
         require(
             dlsm.getDumpNumberSignatureHash(challengedDumpNumber) ==
-                keccak256(abi.encodePacked(rs, ss, vs)),
-            "Sigs do not match hash"
+                keccak256(abi.encodePacked(signatoryRecord)),
+            "Sig record does not match hash"
         );
+        //fetch operator id
+        uint32 operatorId = IDataLayrVoteWeigher(address(IFeeManager(address(dlsm)).queryManager().voteWeighter())).getOperatorId(challenge.operator);
+        //an operator's bin is just the top 24 bits of their id
+        uint32 operatorBin = operatorId >> 8;
         //calculate the true amount deserved
         uint120 trueAmount;
-        for (uint256 i = 0; i < rs.length; i++) {
-            address addr = ecrecover(ferkleRoot, 27 + vs[i], rs[i], ss[i]);
-            if (addr == msg.sender) {
-                trueAmount = uint120(
-                    dlsm.getDumpNumberFee(challengedDumpNumber) / (rs.length)
-                );
+        for (uint256 i = 0; i < signatoryRecord.length;) {
+            //if this is the operators bin
+            if(signatoryRecord[i] == operatorBin) {
+                //if the claimsMadeInBin has a 1 bit in the operator index indicating the operator signed
+                if((1 << (operatorId % 256)) & signatoryRecord[i+1] != 0) {
+                    //divide the fee for that dump by the number of signers, which is the last element of the signatory record
+                    trueAmount = uint120(
+                        dlsm.getDumpNumberFee(challengedDumpNumber) / signatoryRecord[signatoryRecord.length - 1]
+                    );
+                }
                 break;
+            }
+            unchecked {
+                i += 2;
             }
         }
         if (status == 4) {

@@ -183,7 +183,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         latestTime = _latestTime;
     }
 
-    function getOperatorId(address operator) public view returns(uint256) {
+    function getOperatorId(address operator) public view returns(uint32) {
         return registry[operator].id;
     }
 }
