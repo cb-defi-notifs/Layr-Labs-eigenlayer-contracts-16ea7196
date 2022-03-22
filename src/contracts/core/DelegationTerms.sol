@@ -170,7 +170,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     //NOTE: currently there is no way to remove payment tokens
     /// @notice add new payment token that can be used by a middleware to pay delegators
     ///         in this delegation terms contract  
-    // CRITIC: probably we need remove token functionality too.
+    // CRITIC: probably we need remove token functionality too. What if some token ends up 
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
         paymentTokens.push(token);
