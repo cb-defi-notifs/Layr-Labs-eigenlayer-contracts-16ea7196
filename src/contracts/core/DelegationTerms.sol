@@ -66,10 +66,17 @@ abstract contract DelegationTerms is IDelegationTerms {
 
     /**
      *  @notice Used for recording the multiplying factor that has to be multiplied with 
-     *          delegator's 
+     *          delegator's delegated ETH and Eigen to obtain its actual rewards. 
      */
     /** 
-    */ 
+     *  @dev To relate the fields of this struct with explanation at the top, "TokenPayment" 
+     *       for any round k when the payment is being made from the fee manager, 
+     *                   TokenPayment.earnedPerWeightAllTimeEth = r_{ETH,k}
+     *                   TokenPayment.earnedPerWeightAllTimeEigen = r_{Eigen,k}.   
+     *
+     *       These multiplying factors r_{ETH,k} and r_{Eigen,k} can be also interpreted as the 
+     *       cumulative earnings in a given token per delegated ETH and Eigen.    
+     */ 
     struct TokenPayment {
         //cumulative earnings of the token, per delegated ETH, scaled up by REWARD_SCALING
         uint112 earnedPerWeightAllTimeEth;
@@ -79,7 +86,32 @@ abstract contract DelegationTerms is IDelegationTerms {
         uint32 paymentTimestamp;
     }
 
-    //constants. scaling factor and max operator fee are somewhat arbitrary within sane values
+    
+
+    // sum of value in ETH of individual delegator's shares in different strategies 
+    uint128 public totalWeightEth;
+    // sum of total Eigen of individual delegators that have been delegated to the operator
+    uint128 public totalWeightEigen;
+
+
+    /// @notice mapping from token => list of payments to this contract
+    /**  
+     *  @dev To relate to the description given at the top, the TokenPayment[] array for each token 
+     *       contains description of [r_{ETH,1}, r_{ETH,2}, ...] and [r_{Eigen,1}, r_{Eigen,2}, ...]
+     */
+    mapping(address => TokenPayment[]) public paymentsHistory;
+    // mapping from delegator => weights + last timestamp that they claimed rewards
+    mapping(address => DelegatorStatus) public delegatorStatus;
+    // earnings to be withdrawn by the operator
+    mapping(address => uint256) public operatorPendingEarnings;
+    // list of tokens that can be actively used by middlewares for paying to this delegation terms contract
+    address[] public paymentTokens;
+
+
+    // CONSTANTS. scaling factor and max operator fee are somewhat arbitrary within sane values
+    // CRITIC: are these arbitarily chosen values correct? if yes, write reasoning please. Seems
+    //         like some of these constants should be supplied by operator as part of the constructor 
+    //         for this contract. 
     uint256 internal constant REWARD_SCALING = 2**64;
     uint16 internal constant MAX_BIPS = 10000;
     uint16 internal constant MAX_OPERATOR_FEE_BIPS = 500;
@@ -89,26 +121,19 @@ abstract contract DelegationTerms is IDelegationTerms {
     uint16 internal constant MAX_PAYMENT_TOKENS = 256;
     //portion of all earnings (in BIPS) retained by operator
     uint16 public operatorFeeBips = 200;
-    //operator
+    // operator for this delegation contract
+    // CRITIC: should this be immutable?
     address public operator;
     //important contracts -- used for access control
     IServiceFactory immutable serviceFactory;
     address immutable eigenLayrDelegation;
-    //sum of individual delegator weights
-    uint128 public totalWeightEth;
-    uint128 public totalWeightEigen;
 
-    //mapping from token => list of payments to this contract
-    mapping(address => TokenPayment[]) public paymentsHistory;
-    //mapping from delegator => weights + last timestamp that they claimed rewards
-    mapping(address => DelegatorStatus) public delegatorStatus;
-    //earnings to be withdrawn by the operator
-    mapping(address => uint256) public operatorPendingEarnings;
-    //list of active payment methods
-    address[] public paymentTokens;
 
+    // EVENTS
     event OperatorFeeBipsSet(uint16 previousValue, uint16 newValue);
 
+
+    // MODIFIERS
     modifier onlyOperator() {
         require(msg.sender == operator, "onlyOperator");
         _;
@@ -118,6 +143,8 @@ abstract contract DelegationTerms is IDelegationTerms {
         require(msg.sender == eigenLayrDelegation, "only eigenLayrDelegation");
         _;
     }
+
+
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -133,6 +160,7 @@ abstract contract DelegationTerms is IDelegationTerms {
         eigenLayrDelegation = _eigenLayrDelegation;
     }
 
+    /// @notice sets the operatorFeeBips
     function setOperatorFeeBips(uint16 bips) external onlyOperator {
         require(bips <= MAX_OPERATOR_FEE_BIPS, "setOperatorFeeBips: input too high");
         emit OperatorFeeBipsSet(operatorFeeBips, bips);
@@ -140,6 +168,9 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     //NOTE: currently there is no way to remove payment tokens
+    /// @notice add new payment token that can be used by a middleware to pay delegators
+    ///         in this delegation terms contract  
+    // CRITIC: probably we need remove token functionality too. What if some token ends up 
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
         paymentTokens.push(token);
@@ -169,9 +200,6 @@ abstract contract DelegationTerms is IDelegationTerms {
      *          this operator and the delegators associated with it are eligible for because of their  
      *          service to that middleware.     
      */ 
-    /**
-     * @dev Suppose 
-     */ 
     /** 
      * @param token is the ERC20 token in which the middlewares are paying its rewards for the service,
      * @param amount is the amount of ERC20 tokens that is being paid as rewards. 
@@ -200,7 +228,7 @@ abstract contract DelegationTerms is IDelegationTerms {
             amount -= operatorEarnings;
         }
 
-        // 
+        //
         updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount * REWARD_SCALING) / totalWeightEth) * (MAX_BIPS - EIGEN_HOLDER_BIPS) / MAX_BIPS);
         updatedEarnings.earnedPerWeightAllTimeEigen += uint112(((amount * REWARD_SCALING) / totalWeightEigen) * (EIGEN_HOLDER_BIPS) / MAX_BIPS);
         updatedEarnings.paymentTimestamp = uint32(block.timestamp);
