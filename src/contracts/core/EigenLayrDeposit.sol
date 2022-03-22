@@ -38,21 +38,37 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         investmentManager = _investmentManager;
     }
 
-    // deposits eth into liquid staking and deposit stETH into strategy
+    /**
+      * @notice converts the deposited ETH into the specified liquidStakeToken which is 
+      * then invested into some specified strategy 
+    */
+    /// @param liquidStakeToken specifies the preference for liquid staking,
+    /// @param strategy specifies the strategy in which the above liquidStakeToken is to be invested in.  
     function depositETHIntoLiquidStaking(
         IERC20 liquidStakeToken,
         IInvestmentStrategy strategy
     ) external payable {
         require(
             isAllowedLiquidStakedToken[liquidStakeToken],
-            "Liquid staking token is not allowed"
+            "This liquid staking token is not permitted in EigenLayr"
         );
-        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)); // stETH balance before deposit
+
+        // balance of liquidStakeToken before deposit
+        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)); 
+
+        // send the ETH deposited to the ERC20 contract for liquidStakeToken
+        // this liquidStakeToken is credited to EigenLayrDeposit contract (address(this))
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
+
+        // increment in balance of liquidStakeToken
         depositAmount =
             liquidStakeToken.balanceOf(address(this)) -
-            depositAmount; // increment in stETH balance
+            depositAmount; 
+        
+        // approve investmentManager contract to be able to take out liquidStakeToken
         liquidStakeToken.approve(address(investmentManager), depositAmount);
+
+        
         investmentManager.depositIntoStrategy(
             msg.sender,
             strategy,
@@ -61,7 +77,22 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         );
     }
 
-    // proves deposit against legacy deposit root
+
+    /** 
+    *   @notice It is used to prove staking of ETH into settlement layer (beacon chain)  
+    *           before the launch of EigenLayr. We call this 
+    *           as legacy consensus layer deposit. EigenLayr now 
+    *           counts this staked ETH, under re-staking paradigm, as being 
+    *           staked in EigenLayr.
+    */
+    /** @dev The snapshot of which depositer has staked what amount of ETH into settlement layer
+    *        (beacon chain) is captured using a merkle tree where the leaf node is given by         
+    *        keccak256(abi.encodePacked(depositer, amount)). This merkle tree is then used 
+    *        to prove depositer's stake in the settlement layer.  
+    */   
+    /// @param proof is the merkle proof in the above merkle tree.
+    /// @param signature is the signature on the message "keccak256(abi.encodePacked(msg.sender, legacyDepositPermissionMessage)"  
+    // CRITIC - change the name to "proveLegacySettlementLayerDeposit"
     function proveLegacyConsensusLayerDeposit(
         bytes32[] calldata proof,
         address depositer,
@@ -75,26 +106,40 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         bytes32 messageHash = keccak256(
             abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
         );
+
+        // recovering the address to whom the signature belongs to and verifying it 
+        // is that of the depositer. 
         require(
             ECDSA.recover(messageHash, signature) == depositer,
             "Invalid signature"
         );
+
         bytes32 leaf = keccak256(abi.encodePacked(depositer, amount));
+        // verifying the merkle proof
         require(
             MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
             "Invalid merkle proof"
         );
+
+        // record that depositer has successfully proven its stake into legacy consensus layer
         depositProven[consensusLayerDepositRoot][depositer] = true;
-        // mark deposited eth in investment contract
+
+        // mark deposited ETH in investment contract
         investmentManager.depositConsenusLayerEth(depositer, amount);
     }
 
+
+    /**  
+    *    @notice Used for letting EigenLayr know that depositer's ETH should 
+    *            be staked in settlement layer via EigenLayr's withdrawal certificate 
+    *            and then be re-staked in EigenLayr.
+    */           
     function depositEthIntoConsensusLayer(
         bytes calldata pubkey,
         bytes calldata signature,
         bytes32 depositDataRoot
     ) external payable {
-        //deposit eth into consensus layer
+        //deposit eth into consensus layer using EigenLayr's withdrawal certificate
         depositContract.deposit{value: msg.value}(
             pubkey,
             abi.encodePacked(withdrawalCredentials),
@@ -106,6 +151,7 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         investmentManager.depositConsenusLayerEth(msg.sender, msg.value);
     }
 
+    /// @notice Used for staking Eigen in EigenLayr. 
     function depositEigen(uint256 amount) external payable {
         eigen.safeTransferFrom(
             msg.sender,
@@ -119,6 +165,17 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         investmentManager.depositEigen(msg.sender, msg.value);
     }
 
+
+    /** 
+    *   @notice Used to prove new staking of ETH into settlement layer (beacon chain)  
+    *           before the launch of EigenLayr and then re-stake it in EigenLayr. 
+    */
+    /**
+    *   @dev In order to update the snapshot of depositer and their stake in settlement 
+    *        layer, an EigenLayr query is made on the most recent commitment of the snapshot.
+    *        The new depositer's in the settlement layer who want to participate in 
+    *        EigenLayr has to prove their stake against this commitment.          
+    */
     function depositPOSProof(
         bytes32 queryHash,
         bytes32[] calldata proof,
@@ -126,7 +183,10 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         bytes calldata signature,
         uint256 amount
     ) external {
+        // get the most recent commitment of trie in settlement layer (beacon chain) that 
+        // describes the which depositer staked how much ETH. 
         bytes32 depositRoot = posMiddleware.getQueryOutcome(queryHash);
+
         require(
             !depositProven[depositRoot][depositer],
             "Depositer has already proven their stake"
@@ -140,10 +200,11 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         );
         bytes32 leaf = keccak256(abi.encodePacked(depositer, amount));
         require(
-            MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
+            MerkleProof.verify(proof, depositRoot, leaf),
             "Invalid merkle proof"
         );
         depositProven[depositRoot][depositer] = true;
+
         // mark deposited eth in investment contract
         investmentManager.depositConsenusLayerEth(depositer, amount);
     }
