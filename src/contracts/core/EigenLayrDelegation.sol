@@ -11,6 +11,15 @@ import "../utils/Governed.sol";
 import "./storage/EigenLayrDelegationStorage.sol";
 
 // todo: task specific delegation
+
+/**
+ * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
+ *            - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
+ *            - for enabling anyone to register as an operator
+ *            - for a registered delegator to delegate its stake to the operator of its agreed upon delegation terms contract
+ *            - for a delegator to do undelegate its assets from EigenLayr
+ *            - for anyone to challenge a delegator's claim to have fulfilled all its obligation before undelegation
+ */
 contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStorage, IEigenLayrDelegation {
 
     function initialize(
@@ -58,6 +67,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
     /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets 
     function delegateTo(address operator) external {
+        // CRITIC: shoudn't there be a check that the operator of delegatorTerms contract of the 
+        //         delegator is same as the operator passed as an argument of this function?
         // CRITIC: should there be a check that operator != msg.sender?
         require(
             address(delegationTerms[operator]) != address(0),

@@ -12,6 +12,8 @@ import "./storage/QueryManagerStorage.sol";
 
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
+/**
+ */ 
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
     IVoteWeighter public immutable voteWeighter;
