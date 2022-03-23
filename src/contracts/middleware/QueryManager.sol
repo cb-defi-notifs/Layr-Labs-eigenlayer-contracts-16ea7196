@@ -68,8 +68,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    // CRITIC: Currently, from DL perspective, this data parameter seems unused. Are we still 
-    //         envisioning it as an input opType?  
+    // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still 
+    //          envisioning it as an input opType? 
+    //         (2) Why is deregister a payable type? Whom are you paying for deregistering and why?
+    //         (3) Seems like an operator can deregister before requiring its delegators to withdraw
+    //             their respective pending rewards. Is this a concern? 
     function deregister(bytes calldata data) external payable {
         require(
             operatorType[msg.sender] != 0,
@@ -83,14 +86,18 @@ contract QueryManager is Initializable, QueryManagerStorage {
             "Deregistration not permitted"
         );
 
-        // get the total eigen that was being used by operator to provide service to middleware
+
         /**
-         * @dev This total eigen comprises of operator's own Eigen and the Eigen that had been 
-         *      delegated to it by its delegators. 
+         * Get the total eigen that was being used by operator to provide service to middleware.
+         * This total eigen comprises of operator's own Eigen and the Eigen that had been delegated
+         * to it by its delegators. 
          */
         uint256 eigenDepositedByDeregisterer = eigenDeposited[msg.sender];
         if (eigenDepositedByDeregisterer != 0) {
-            // deduct this eigen from total eigen that has been staked to validate the middleware's queries
+            /** 
+             * deduct this eigen from total eigen that has been staked to validate the
+             * middleware's queries
+             */
             totalEigen -= eigenDepositedByDeregisterer;
         }
         eigenDeposited[msg.sender] = 0;
@@ -109,7 +116,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 operatorStrats[msg.sender][i]
             ];
             /**
-             *   
+             * TBA.  
              */
             operatorShares[msg.sender][operatorStrats[msg.sender][i]] = 0;
             unchecked {
