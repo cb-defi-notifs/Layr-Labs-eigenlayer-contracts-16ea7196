@@ -20,23 +20,26 @@ import "./storage/EigenLayrDelegationStorage.sol";
  *            - for a delegator to do undelegate its assets from EigenLayr
  *            - for anyone to challenge a delegator's claim to have fulfilled all its obligation before undelegation
  */
-contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStorage, IEigenLayrDelegation {
-
+contract EigenLayrDelegation is
+    Initializable,
+    Governed,
+    EigenLayrDelegationStorage,
+    IEigenLayrDelegation
+{
     function initialize(
         IInvestmentManager _investmentManager,
         IServiceFactory _serviceFactory,
         uint256 _undelegationFraudProofInterval
-    ) initializer external {
+    ) external initializer {
         _transferGovernor(msg.sender);
         investmentManager = _investmentManager;
         serviceFactory = _serviceFactory;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
-
-    /// @notice This will be called by a staker to register itself as a delegate with respect 
-    ///         to a certain operator. 
-    /// @param dt is the delegation terms contract that staker has agreed to with the operator.   
+    /// @notice This will be called by a staker to register itself as a delegate with respect
+    ///         to a certain operator.
+    /// @param dt is the delegation terms contract that staker has agreed to with the operator.
     function registerAsDelgate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
@@ -46,8 +49,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         delegationTerms[msg.sender] = dt;
     }
 
-
-    /// @notice This will be called by a staker if it wants to act as its own operator. 
+    /// @notice This will be called by a staker if it wants to act as its own operator.
     function delegateToSelf() external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
@@ -63,11 +65,10 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         delegated[msg.sender] = true;
     }
 
-
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
-    /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets 
+    /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets
     function delegateTo(address operator) external {
-        // CRITIC: shoudn't there be a check that the operator of delegatorTerms contract of the 
+        // CRITIC: shoudn't there be a check that the operator of delegatorTerms contract of the
         //         delegator is same as the operator passed as an argument of this function?
         // CRITIC: should there be a check that operator != msg.sender?
         require(
@@ -86,7 +87,6 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             uint256 eigenAmount
         ) = investmentManager.getDeposits(msg.sender);
 
-
         // add strategy shares to delegate's shares and add strategy to existing strategies
         for (uint256 i = 0; i < strategies.length; i++) {
             if (operatorShares[operator][strategies[i]] == 0) {
@@ -98,10 +98,10 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             operatorShares[operator][strategies[i]] += shares[i];
         }
 
-        // update the total ETH delegated to the operator 
+        // update the total ETH delegated to the operator
         consensusLayerEth[operator] += consensusLayrEthDeposited;
 
-        // update the total EIGEN deposited with the operator 
+        // update the total EIGEN deposited with the operator
         eigenDelegated[operator] += eigenAmount;
 
         // record delegation relation between the delegator (msg.sender) and operator
@@ -119,26 +119,25 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         );
     }
 
-
-    /// @notice This function is used to notify the system that a delegator wants to stop 
-    ///         participating in the functioning of EigenLayr.   
+    /// @notice This function is used to notify the system that a delegator wants to stop
+    ///         participating in the functioning of EigenLayr.
     /// @param strategyIndexes is the array of indices whose corresponding strategies in
-    ///        the array "operatorStrats[operator]" has their shares go to zero 
-    ///        because of undelegation by the delegator.  
-    /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes: 
+    ///        the array "operatorStrats[operator]" has their shares go to zero
+    ///        because of undelegation by the delegator.
+    /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes:
     ///          Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
     ///          Consider that, as a consequence of undelegation by delegator,
-    ///             for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have 
+    ///             for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have
     ///                 operatorShares[operator][s] = 0.
-    ///          Here, i1, i2, ..., ik are the indices of the corresponding strategies 
-    ///          in operatorStrats[operator].      
-    ///          Then, strategyIndexes = [i1, i2, ..., ik].      
+    ///          Here, i1, i2, ..., ik are the indices of the corresponding strategies
+    ///          in operatorStrats[operator].
+    ///          Then, strategyIndexes = [i1, i2, ..., ik].
     ///      (2) In order to notify the system that delegator wants to undelegate,
-    ///          it is necessary to make sure that delegator is not within fraudproof 
-    ///          period for a previous undelegation.  
+    ///          it is necessary to make sure that delegator is not within fraudproof
+    ///          period for a previous undelegation.
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
-        // CRITIC: If a staker is giving the data for strategyIndexes, then 
-        // there is a potential concurrency problem. 
+        // CRITIC: If a staker is giving the data for strategyIndexes, then
+        // there is a potential concurrency problem.
 
         // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];
@@ -147,7 +146,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "Staker does not have existing delegation"
         );
 
-        // checks that delegator is not within fraudproof period for a previous undelegation 
+        // checks that delegator is not within fraudproof period for a previous undelegation
         require(
             block.timestamp >
                 undelegationFraudProofInterval +
@@ -167,22 +166,42 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
 
             // subtract strategy shares to delegate's shares and remove from strategy list if no shares remaining
             uint256 strategyIndex = 0;
-            for (uint256 i = 0; i < strategies.length; i++) {
+            for (uint256 i = 0; i < strategies.length; ) {
                 operatorShares[operator][strategies[i]] -= shares[i];
                 if (operatorShares[operator][strategies[i]] == 0) {
-                    require(
+                    // if the strategy matches with the strategy index provided
+                    if (
                         operatorStrats[operator][
                             strategyIndexes[strategyIndex]
-                        ] == strategies[i],
-                        "Incorrect strategy index"
-                    );
-                    operatorStrats[operator][
-                        strategyIndexes[strategyIndex]
-                    ] = operatorStrats[operator][
-                        operatorStrats[operator].length
-                    ];
+                        ] == strategies[i]
+                    ) {
+                        //replace the strategy with the last strategy in the list
+                        operatorStrats[operator][
+                            strategyIndexes[strategyIndex]
+                        ] = operatorStrats[operator][
+                            operatorStrats[operator].length - 1
+                        ];
+                    } else {
+                        //loop through all of the strategies, find the right one, then replace
+                        uint256 stratsLength = operatorStrats[operator].length;
+                        for (uint256 j = 0; j < stratsLength; ) {
+                            if (operatorStrats[operator][j] == strategies[i]) {
+                                //replace the strategy with the last strategy in the list
+                                operatorStrats[operator][j] = operatorStrats[
+                                    operator
+                                ][operatorStrats[operator].length - 1];
+                                break;
+                            }
+                            unchecked {
+                                ++j;
+                            }
+                        }
+                    }
                     operatorStrats[operator].pop();
                     strategyIndex++;
+                }
+                unchecked {
+                    ++i;
                 }
             }
 
@@ -208,9 +227,9 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         }
     }
 
-    /// @notice This function must be called by a delegator to notify that its stake is 
+    /// @notice This function must be called by a delegator to notify that its stake is
     ///         no longer active on any queries, which in turn launches the challenge
-    ///         period. 
+    ///         period.
     function finalizeUndelegation() external {
         // get their current operator
         address operator = delegation[msg.sender];
@@ -219,7 +238,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "Staker is not in the post commit phase"
         );
 
-        // checks that delegator is not within challenger period for a previous undelegation 
+        // checks that delegator is not within challenger period for a previous undelegation
         require(
             block.timestamp >
                 lastUndelegationCommit[msg.sender] +
@@ -227,24 +246,23 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "Staker is not in the post commit phase"
         );
 
-        // set time of last undelegation commit which is the beginning of the corresponding 
+        // set time of last undelegation commit which is the beginning of the corresponding
         // challenge period.
         lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
     // contests a stakers undelegation commit
-    /// @notice This function can be called by anyone to challenger whether a staker has 
+    /// @notice This function can be called by anyone to challenger whether a staker has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised,
-    /// @param queryManager is the contract with whom the query for which staker hasn't finished 
+    /// @param queryManager is the contract with whom the query for which staker hasn't finished
     ///        its obligation yet was deployed,
-    /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations    
+    /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
         IQueryManager queryManager,
         bytes32 queryHash
     ) external {
-    
         // CRITIC: need to determine the operator for staker, not msg.sender
         // get their current operator
         address operator = delegation[msg.sender];
@@ -257,7 +275,6 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "Challenge was raised after the end of challenge period"
         );
 
-        
         require(
             operator != address(0) && !delegated[msg.sender],
             "Challenge period hasn't yet started"
@@ -268,8 +285,8 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
             "QueryManager was not deployed through factory"
         );
 
-        // ongoing query is still active at time when staker was finalizing undelegation 
-        // and, therefore, hasn't served its obligation. 
+        // ongoing query is still active at time when staker was finalizing undelegation
+        // and, therefore, hasn't served its obligation.
         require(
             lastUndelegationCommit[staker] >
                 queryManager.getQueryCreationTime(queryHash) &&
@@ -282,12 +299,11 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         //slash here
     }
 
-
-    /// @notice checks whether a staker is currently undelegated and not 
-    ///         within challenge period from its last undelegation.       
+    /// @notice checks whether a staker is currently undelegated and not
+    ///         within challenge period from its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
         // CRITIC: if delegation[staker] is set to address(0) during commitUndelegation,
-        //         we can probably remove "(delegation[staker] == address(0)" 
+        //         we can probably remove "(delegation[staker] == address(0)"
         return
             !delegated[staker] &&
             (delegation[staker] == address(0) ||
@@ -296,7 +312,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                     lastUndelegationCommit[staker]);
     }
 
-    /// @notice returns the delegationTerms for the input operator 
+    /// @notice returns the delegationTerms for the input operator
     function getDelegationTerms(address operator)
         public
         view
@@ -306,7 +322,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
     }
 
     /// @notice returns the strategies that are being used by the delegators of this operator
-    // CRITIC: change the name to "getOperatorStrats"? 
+    // CRITIC: change the name to "getOperatorStrats"?
     function getOperatorShares(address operator)
         public
         view
@@ -315,29 +331,44 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return operatorStrats[operator];
     }
 
-
     /// @notice Returns the investment startegies, corresponding shares and the total ETH
     ///         deposited with the operator.
     function getControlledEthStake(address operator)
         external
         view
-        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256)
+        returns (
+            IInvestmentStrategy[] memory,
+            uint256[] memory,
+            uint256
+        )
     {
-        if(delegation[operator] == operator) {
-            (IInvestmentStrategy[] memory strats, uint256[] memory shares, uint256 consensusLayerEthForOperator,) = investmentManager.getDeposits(operator);
+        if (delegation[operator] == operator) {
+            (
+                IInvestmentStrategy[] memory strats,
+                uint256[] memory shares,
+                uint256 consensusLayerEthForOperator,
+
+            ) = investmentManager.getDeposits(operator);
             return (strats, shares, consensusLayerEthForOperator);
         } else {
-            // CRITIC: we are assuming here that delegation[operator] != operator which would 
-            // imply that operator is not actually an operator and would probably have no entry 
+            // CRITIC: we are assuming here that delegation[operator] != operator which would
+            // imply that operator is not actually an operator and would probably have no entry
             // in operatorStrats. So, it is not making sense to call operatorStrats[operator].
-            uint256[] memory shares = new uint256[](operatorStrats[operator].length);
+            uint256[] memory shares = new uint256[](
+                operatorStrats[operator].length
+            );
             for (uint256 i = 0; i < shares.length; i++) {
-                shares[i] = operatorShares[operator][operatorStrats[operator][i]];
+                shares[i] = operatorShares[operator][
+                    operatorStrats[operator][i]
+                ];
             }
-            return (operatorStrats[operator], shares, consensusLayerEth[operator]);
+            return (
+                operatorStrats[operator],
+                shares,
+                consensusLayerEth[operator]
+            );
         }
     }
-
 
     /// @notice Returns the total ETH value of the shares that have been deposited by the operator
     // CRITIC: isn't this a view function too?
@@ -357,7 +388,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                 );
             }
         } else {
-            // CRITIC: same problem as in getControlledEthStake, with calling 
+            // CRITIC: same problem as in getControlledEthStake, with calling
             // operatorStrats[operator] for the case "delegation[operator] != operator"
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
@@ -389,7 +420,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
                 );
             }
         } else {
-            // CRITIC: same problem as in getControlledEthStake, with calling 
+            // CRITIC: same problem as in getControlledEthStake, with calling
             // operatorStrats[operator] for the case "delegation[operator] != operator"
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
@@ -403,13 +434,12 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         return weight;
     }
 
-
     function getConsensusLayerEthDelegated(address operator)
         external
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling 
+        // CRITIC: same problem as in getControlledEthStake, with calling
         // operatorStrats[operator] for the case "delegation[operator] != operator"
         return
             delegation[operator] == operator
@@ -422,7 +452,7 @@ contract EigenLayrDelegation is Initializable, Governed, EigenLayrDelegationStor
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling 
+        // CRITIC: same problem as in getControlledEthStake, with calling
         // operatorStrats[operator] for the case "delegation[operator] != operator
         return
             delegation[operator] == operator
