@@ -20,7 +20,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     IVoteWeighter public immutable voteWeighter;
 
 
-    // EVENT
+    // EVENTS
     event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
 
     event ResponseReceived(
@@ -65,30 +65,37 @@ contract QueryManager is Initializable, QueryManagerStorage {
         investmentManager = _investmentManager;
     }
 
-    // decrement number of operators
-    /**
-     * @notice 
-     */ 
+\    /**
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
+     */
+    // CRITIC: Currently, from DL perspective, this data parameter seems unused. Are we still 
+    //         envisioning it as an input opType?  
     function deregister(bytes calldata data) external payable {
         require(
-            // CRITIC: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] != 0,
-            "Registrant is not registered"
+            "Registrant is not registered with this middleware."
         );
         require(
             IRegistrationManager(registrationManager).deregisterOperator(
                 msg.sender,
                 data
             ),
-            "deregistration not permitted"
+            "Deregistration not permitted"
         );
-        //updates total and operator's eigen
+
+        // get the total eigen that was being used by operator to provide service to middleware
+        /**
+         * @dev This total eigen comprises of operator's own Eigen and the Eigen that had been 
+         *      delegated to it by its delegators. 
+         */
         uint256 eigenDepositedByDeregisterer = eigenDeposited[msg.sender];
         if (eigenDepositedByDeregisterer != 0) {
             totalEigen -= eigenDepositedByDeregisterer;
         }
         eigenDeposited[msg.sender] = 0;
-        //updates total and operator's shares
+
+
+        // updates total and operator's shares
         uint256 stratsLength = operatorStrats[msg.sender].length;
         for (uint i = 0; i < stratsLength; ) {
             //TODO: REMOVE FROM STRATS IF SHARES ARE NOW 0
