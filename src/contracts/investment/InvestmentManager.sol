@@ -9,12 +9,19 @@ import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 
 // TODO: withdrawals of Eigen (and consensus layer ETH?)
-contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage {
+contract InvestmentManager is
+    Initializable,
+    Governed,
+    InvestmentManagerStorage
+{
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
 
     modifier onlyNotDelegated() {
-        require(delegation.isNotDelegated(msg.sender), "cannot withdraw while delegated");
+        require(
+            delegation.isNotDelegated(msg.sender),
+            "cannot withdraw while delegated"
+        );
         _;
     }
 
@@ -24,8 +31,10 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
     }
 
     // adds the given strategies to the investment manager
-    function initialize (IInvestmentStrategy[] memory strategies, address _slasher
-    ) initializer external {
+    function initialize(
+        IInvestmentStrategy[] memory strategies,
+        address _slasher
+    ) external initializer {
         _transferGovernor(msg.sender);
         slasher = _slasher;
         for (uint256 i = 0; i < strategies.length; i++) {
@@ -38,7 +47,8 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // adds the given strategies to the investment manager
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
-        external onlyGovernor
+        external
+        onlyGovernor
     {
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
@@ -51,8 +61,7 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
     // removes the given strategies from the investment manager
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
-    ) external onlyGovernor 
-    {
+    ) external onlyGovernor {
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = false;
         }
@@ -77,7 +86,12 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
     ) external payable onlyGovernor returns (uint256[] memory) {
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
-            shares[i] = _depositIntoStrategy(depositor, strategies[i], tokens[i], amounts[i]);
+            shares[i] = _depositIntoStrategy(
+                depositor,
+                strategies[i],
+                tokens[i],
+                amounts[i]
+            );
         }
         return shares;
     }
@@ -98,10 +112,7 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
         }
         //transfer tokens to the strategy
         _transferTokenOrEth(token, depositor, address(strategy), amount);
-        shares = strategy.deposit(
-            token,
-            amount
-        );
+        shares = strategy.deposit(token, amount);
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
     }
@@ -125,18 +136,34 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
                 .withdraw(depositor, tokens[i], shareAmounts[i]);
             // if no existing shares, remove is from this investors strats
             if (investorStratShares[depositor][strategies[i]] == 0) {
-                require(
+                // if the strategy matches with the strategy index provided
+                if (
                     investorStrats[depositor][
                         strategyIndexes[strategyIndexIndex]
-                    ] == strategies[i],
-                    "Strategy index is incorrect"
-                );
-                // move the last element to the removed strategy's index, then shorten the array
-                investorStrats[depositor][
-                    strategyIndexes[strategyIndexIndex]
-                ] = investorStrats[depositor][
-                    investorStrats[depositor].length - 1
-                ];
+                    ] == strategies[i]
+                ) {
+                    //replace the strategy with the last strategy in the list
+                    investorStrats[depositor][
+                        strategyIndexes[strategyIndexIndex]
+                    ] = investorStrats[depositor][
+                        investorStrats[depositor].length - 1
+                    ];
+                } else {
+                    //loop through all of the strategies, find the right one, then replace
+                    uint256 stratsLength = investorStrats[depositor].length;
+                    for (uint256 j = 0; j < stratsLength; ) {
+                        if (investorStrats[depositor][j] == strategies[i]) {
+                            //replace the strategy with the last strategy in the list
+                            investorStrats[depositor][j] = investorStrats[
+                                depositor
+                            ][investorStrats[depositor].length - 1];
+                            break;
+                        }
+                        unchecked {
+                            ++j;
+                        }
+                    }
+                }
                 investorStrats[depositor].pop();
                 strategyIndexIndex++;
             }
@@ -156,22 +183,21 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
             "Can only withdraw from approved strategies"
         );
         // subtract the returned shares to their existing shares for this strategy
-        investorStratShares[depositor][strategy] -= strategy
-            .withdraw(depositor, token, shareAmount);
+        investorStratShares[depositor][strategy] -= strategy.withdraw(
+            depositor,
+            token,
+            shareAmount
+        );
         // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
-                investorStrats[depositor][
-                    strategyIndex
-                ] == strategy,
+                investorStrats[depositor][strategyIndex] == strategy,
                 "Strategy index is incorrect"
             );
             // move the last element to the removed strategy's index, then shorten the array
-            investorStrats[depositor][
-                strategyIndex
-            ] = investorStrats[depositor][
-                investorStrats[depositor].length - 1
-            ];
+            investorStrats[depositor][strategyIndex] = investorStrats[
+                depositor
+            ][investorStrats[depositor].length - 1];
             investorStrats[depositor].pop();
         }
     }
@@ -192,7 +218,9 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
-            slashedAmount += strategies[i].underlyingEthValueOfShares(shareAmounts[i]);
+            slashedAmount += strategies[i].underlyingEthValueOfShares(
+                shareAmounts[i]
+            );
             // subtract the shares for this strategy
             investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
             // if no existing shares, remove is from this investors strats
@@ -206,9 +234,7 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
                 // move the last element to the removed strategy's index, then shorten the array
                 investorStrats[slashed][
                     strategyIndexes[strategyIndexIndex]
-                ] = investorStrats[slashed][
-                    investorStrats[slashed].length - 1
-                ];
+                ] = investorStrats[slashed][investorStrats[slashed].length - 1];
                 investorStrats[slashed].pop();
                 strategyIndexIndex++;
             }
@@ -222,7 +248,8 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // sets a user's eth balance on the consesnsus layer
     function depositConsenusLayerEth(address depositor, uint256 amount)
-        external onlyGovernor
+        external
+        onlyGovernor
         returns (uint256)
     {
         totalConsensusLayerEthStaked =
@@ -235,7 +262,8 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
 
     // sets a user's eigen deposit
     function depositEigen(address depositor, uint256 amount)
-        external onlyGovernor
+        external
+        onlyGovernor
         returns (uint256)
     {
         totalEigenStaked =
@@ -261,9 +289,13 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
         view
         returns (uint256[] memory)
     {
-        uint256[] memory shares = new uint256[](investorStrats[depositor].length);
+        uint256[] memory shares = new uint256[](
+            investorStrats[depositor].length
+        );
         for (uint256 i = 0; i < shares.length; i++) {
-            shares[i] = investorStratShares[depositor][investorStrats[depositor][i]];
+            shares[i] = investorStratShares[depositor][
+                investorStrats[depositor][i]
+            ];
         }
         return shares;
     }
@@ -278,11 +310,7 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
     }
 
     // gets depositor's eige deposited
-    function getEigen(address depositor)
-        external
-        view
-        returns (uint256)
-    {
+    function getEigen(address depositor) external view returns (uint256) {
         return eigenDeposited[depositor];
     }
 
@@ -290,13 +318,27 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
     function getDeposits(address depositor)
         external
         view
-        returns (IInvestmentStrategy[] memory, uint256[] memory, uint256, uint256)
+        returns (
+            IInvestmentStrategy[] memory,
+            uint256[] memory,
+            uint256,
+            uint256
+        )
     {
-        uint256[] memory shares = new uint256[](investorStrats[depositor].length);
+        uint256[] memory shares = new uint256[](
+            investorStrats[depositor].length
+        );
         for (uint256 i = 0; i < shares.length; i++) {
-            shares[i] = investorStratShares[depositor][investorStrats[depositor][i]];
+            shares[i] = investorStratShares[depositor][
+                investorStrats[depositor][i]
+            ];
         }
-        return (investorStrats[depositor], shares, consensusLayerEth[depositor], eigenDeposited[depositor]);
+        return (
+            investorStrats[depositor],
+            shares,
+            consensusLayerEth[depositor],
+            eigenDeposited[depositor]
+        );
     }
 
     // gets depositor's eth value staked
@@ -309,18 +351,23 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats; i++) {
             IInvestmentStrategy strat = investorStrats[depositer][i];
-            stake += strat.underlyingEthValueOfShares(investorStratShares[depositer][strat]);
+            stake += strat.underlyingEthValueOfShares(
+                investorStratShares[depositer][strat]
+            );
         }
         return stake;
     }
 
-    function getUnderlyingEthOfStrategyShares(IInvestmentStrategy[] calldata strats, uint256[] calldata shares)
-        external
-        returns (uint256)
-    {
+    function getUnderlyingEthOfStrategyShares(
+        IInvestmentStrategy[] calldata strats,
+        uint256[] calldata shares
+    ) external returns (uint256) {
         uint256 stake;
         uint256 numStrats = strats.length;
-        require(numStrats == shares.length, "shares and strats must be same length");
+        require(
+            numStrats == shares.length,
+            "shares and strats must be same length"
+        );
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats; i++) {
             stake += strats[i].underlyingEthValueOfShares(shares[i]);
@@ -328,14 +375,16 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
         return stake;
     }
 
-    function getUnderlyingEthOfStrategySharesView(IInvestmentStrategy[] calldata strats, uint256[] calldata shares)
-        external
-        view
-        returns (uint256)
-    {
+    function getUnderlyingEthOfStrategySharesView(
+        IInvestmentStrategy[] calldata strats,
+        uint256[] calldata shares
+    ) external view returns (uint256) {
         uint256 stake;
         uint256 numStrats = strats.length;
-        require(numStrats == shares.length, "shares and strats must be same length");
+        require(
+            numStrats == shares.length,
+            "shares and strats must be same length"
+        );
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats; i++) {
             stake += strats[i].underlyingEthValueOfSharesView(shares[i]);
@@ -354,12 +403,19 @@ contract InvestmentManager is Initializable, Governed, InvestmentManagerStorage 
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats; i++) {
             IInvestmentStrategy strat = investorStrats[depositer][i];
-            stake += strat.underlyingEthValueOfSharesView(investorStratShares[depositer][strat]);
+            stake += strat.underlyingEthValueOfSharesView(
+                investorStratShares[depositer][strat]
+            );
         }
         return stake;
     }
 
-    function _transferTokenOrEth(IERC20 token, address sender, address receiver, uint256 amount) internal {
+    function _transferTokenOrEth(
+        IERC20 token,
+        address sender,
+        address receiver,
+        uint256 amount
+    ) internal {
         if (address(token) == ETH) {
             (bool success, ) = receiver.call{value: amount}("");
             require(success, "failed to transfer value");

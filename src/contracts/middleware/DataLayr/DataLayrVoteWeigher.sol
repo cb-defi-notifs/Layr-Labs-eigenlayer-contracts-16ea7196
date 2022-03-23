@@ -37,7 +37,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     // Register, everyone is active in the list
     mapping(address => Registrant) public registry;
     address[] public registrantList;
-    uint32 public numRegistrant;
     uint32 public nextRegistrantId;
     uint256 public dlnEthStake = 1 wei;
     uint256 public dlnEigenStake = 1 wei;
