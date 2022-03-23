@@ -68,8 +68,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    // CRITIC: Currently, from DL perspective, this data parameter seems unused. Are we still 
-    //         envisioning it as an input opType?  
+    // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still 
+    //          envisioning it as an input opType? 
+    //         (2) Why is deregister a payable type? Whom are you paying for deregistering and why?
+    //         (3) Seems like an operator can deregister before requiring its delegators to withdraw
+    //             their respective pending rewards. Is this a concern? 
     function deregister(bytes calldata data) external payable {
         require(
             operatorType[msg.sender] != 0,
@@ -83,37 +86,62 @@ contract QueryManager is Initializable, QueryManagerStorage {
             "Deregistration not permitted"
         );
 
-        // get the total eigen that was being used by operator to provide service to middleware
+
         /**
-         * @dev This total eigen comprises of operator's own Eigen and the Eigen that had been 
-         *      delegated to it by its delegators. 
+         * Get the total eigen that was being used by operator to provide service to middleware.
+         * This total eigen comprises of operator's own Eigen and the Eigen that had been delegated
+         * to it by its delegators. 
          */
         uint256 eigenDepositedByDeregisterer = eigenDeposited[msg.sender];
         if (eigenDepositedByDeregisterer != 0) {
+            /** 
+             * deduct this eigen from total eigen that has been staked to validate the
+             * middleware's queries
+             */
             totalEigen -= eigenDepositedByDeregisterer;
         }
         eigenDeposited[msg.sender] = 0;
 
 
-        // updates total and operator's shares
+        // update shares due to the de-registration by the operator
         uint256 stratsLength = operatorStrats[msg.sender].length;
         for (uint i = 0; i < stratsLength; ) {
             //TODO: REMOVE FROM STRATS IF SHARES ARE NOW 0
+            /**  
+            *  Due to the operator de-registering from providing service to the middleware,
+            *  update total shares for the investment strategies that are 
+            *  being utilized by any of the delegator of that operator.
+            */
             shares[operatorStrats[msg.sender][i]] -= operatorShares[msg.sender][
                 operatorStrats[msg.sender][i]
             ];
+            /**
+             * TBA.  
+             */
             operatorShares[msg.sender][operatorStrats[msg.sender][i]] = 0;
             unchecked {
                 ++i;
             }
         }
-        //sets operator to have no strats
+
+        // sets operator to have no strats
         operatorStrats[msg.sender] = new IInvestmentStrategy[](0);
-        //remove CLE and cleanup
+
+        /**  
+         * deduct the ETH that was staked into settlement layer from the operator and its associated
+         * delegators from the total ETH
+         */
         totalConsensusLayerEth -= consensusLayerEth[msg.sender];
+
+        /** 
+         * record amount of ETH from the operator and its delegators that is being used for providing
+         * service to middleware as 0
+         */
         consensusLayerEth[msg.sender] = 0;
+
         //subtract 1 from the correct type count and 1 from the total count (last 32 bits)
         //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
+        // CRITIC: not clear to me what is it. Explanation in slack please?
         operatorCounts = (operatorCounts - (1 << 32*operatorType[msg.sender])) - 1;
         operatorType[msg.sender] = 0;
     }
