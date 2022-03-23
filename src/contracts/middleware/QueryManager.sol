@@ -65,7 +65,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         investmentManager = _investmentManager;
     }
 
-\    /**
+    /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
     // CRITIC: Currently, from DL perspective, this data parameter seems unused. Are we still 

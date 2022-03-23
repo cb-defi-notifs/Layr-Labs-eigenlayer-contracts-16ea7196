@@ -119,26 +119,29 @@ abstract contract DelegationTerms is IDelegationTerms {
     address[] public paymentTokens;
 
 
-    // CONSTANTS. scaling factor and max operator fee are somewhat arbitrary within sane values
-    // CRITIC: are these arbitarily chosen values correct? if yes, write reasoning please. Seems
-    //         like some of these constants should be supplied by operator as part of the constructor 
-    //         for this contract. 
+    // CONSTANTS. scaling factor is ~1.8e19 -- being on the order of 1 ETH (1e18) helps ensure that
+    //            ((amount * REWARD_SCALING) / totalWeightEth) is nonzero but also does not overflow
     uint256 internal constant REWARD_SCALING = 2**64;
     uint16 internal constant MAX_BIPS = 10000;
-    uint16 internal constant MAX_OPERATOR_FEE_BIPS = 500;
     //portion of earnings going to EIGEN delegators, *after* operator fees -- TODO: handle this better
     uint16 internal constant EIGEN_HOLDER_BIPS = 5000;
     //max number of payment tokens, for sanity's sake
     uint16 internal constant MAX_PAYMENT_TOKENS = 256;
     //portion of all earnings (in BIPS) retained by operator
-    uint16 public operatorFeeBips = 200;
+    uint16 public operatorFeeBips;
+    //maximum value to which 'operatorFeeBips' can be set by the operator
+    uint16 internal immutable MAX_OPERATOR_FEE_BIPS;
     // operator for this delegation contract
-    // CRITIC: should this be immutable?
-    address public operator;
+    address public immutable operator;
     //important contracts -- used for access control
-    IServiceFactory immutable serviceFactory;
-    address immutable eigenLayrDelegation;
+    IServiceFactory public immutable serviceFactory;
+    address public immutable eigenLayrDelegation;
+    //used for weighting of delegated ETH & EIGEN
+    IInvestmentManager public immutable investmentManager;
 
+    //NOTE: copied from 'DataLayrVoteWeigher.sol'
+    //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
+    uint256 public constant consensusLayerPercent = 10;
 
     // EVENTS
     event OperatorFeeBipsSet(uint16 previousValue, uint16 newValue);
@@ -161,7 +164,9 @@ abstract contract DelegationTerms is IDelegationTerms {
         IInvestmentManager _investmentManager,
         address[] memory _paymentTokens,
         IServiceFactory _serviceFactory,
-        address _eigenLayrDelegation
+        address _eigenLayrDelegation,
+        uint16 _MAX_OPERATOR_FEE_BIPS,
+        uint16 _operatorFeeBips
     ){
         investmentManager = _investmentManager;
         //initialize operator as msg.sender
@@ -169,22 +174,29 @@ abstract contract DelegationTerms is IDelegationTerms {
         paymentTokens = _paymentTokens;
         serviceFactory = _serviceFactory;
         eigenLayrDelegation = _eigenLayrDelegation;
+        require(_MAX_OPERATOR_FEE_BIPS <= MAX_BIPS, "MAX_OPERATOR_FEE_BIPS cannot be above MAX_BIPS");
+        MAX_OPERATOR_FEE_BIPS = _MAX_OPERATOR_FEE_BIPS;
+        _setOperatorFeeBips(_operatorFeeBips);
     }
 
     /// @notice sets the operatorFeeBips
     function setOperatorFeeBips(uint16 bips) external onlyOperator {
-        require(bips <= MAX_OPERATOR_FEE_BIPS, "setOperatorFeeBips: input too high");
-        emit OperatorFeeBipsSet(operatorFeeBips, bips);
-        operatorFeeBips = bips;
+        _setOperatorFeeBips(bips);
     }
 
-    //NOTE: currently there is no way to remove payment tokens
     /// @notice Add new payment token that can be used by a middleware to pay delegators
     ///         in this delegation terms contract.   
-    // CRITIC: probably we need remove token functionality too. What if some token ends up 
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
         paymentTokens.push(token);
+    }
+
+    /// @notice Remove an existing payment token from the array of payment tokens
+    function removePaymentToken(address token, uint256 currentIndexInArray) external onlyOperator {
+        require(token == paymentTokens[currentIndexInArray], "incorrect array index supplied");
+        //copy the last entry in the array to the index of the token to be removed, then pop the array
+        paymentTokens[currentIndexInArray] = paymentTokens[paymentTokens.length - 1];
+        paymentTokens.pop();
     }
 
     /**
@@ -260,7 +272,6 @@ abstract contract DelegationTerms is IDelegationTerms {
     /**
      * @notice Hook for receiving new delegation   
      */
-    // CRITIC: are we storing the staker's DelegatorStatus in the mapping delegatorStatus? 
     function onDelegationReceived(address staker) external onlyDelegation {
         DelegatorStatus memory delegatorUpdate;
         delegatorUpdate.weightEth = uint112(weightOfEth(staker));
@@ -268,21 +279,22 @@ abstract contract DelegationTerms is IDelegationTerms {
         delegatorUpdate.lastClaimedRewards = uint32(block.timestamp);
         totalWeightEth += delegatorUpdate.weightEth;
         totalWeightEigen += delegatorUpdate.weightEigen;
+        //update storage at end
+        delegatorStatus[staker] = delegatorUpdate;
     }
 
 //NOTE: currently this causes the delegator to lose any pending rewards
     /**
      * @notice Hook for withdrawing delegation   
      */
-    // CRITIC: are we updating the staker's DelegatorStatus in the mapping delegatorStatus? 
     function onDelegationWithdrawn(address staker) external onlyDelegation {
-        DelegatorStatus memory delegator = delegatorStatus[staker];
-        totalWeightEth -= delegator.weightEth;
-        totalWeightEigen -= delegator.weightEigen;
-        delegator.weightEth = 0;
-        delegator.weightEigen = 0;
+        DelegatorStatus memory delegatorUpdate = delegatorStatus[staker];
+        totalWeightEth -= delegatorUpdate.weightEth;
+        totalWeightEigen -= delegatorUpdate.weightEigen;
+        delegatorUpdate.weightEth = 0;
+        delegatorUpdate.weightEigen = 0;
         //update storage at end
-        delegatorStatus[staker];
+        delegatorStatus[staker] = delegatorUpdate;
     }
 
     /**
@@ -330,6 +342,13 @@ abstract contract DelegationTerms is IDelegationTerms {
             }
         }
         _updateDelegatorWeights(msg.sender);
+    }
+
+    /// @notice internal function used both in 'setOperatorFeeBips' and the constructor
+    function _setOperatorFeeBips(uint16 bips) internal {
+        require(bips <= MAX_OPERATOR_FEE_BIPS, "setOperatorFeeBips: input too high");
+        emit OperatorFeeBipsSet(operatorFeeBips, bips);
+        operatorFeeBips = bips;
     }
 
 
@@ -410,14 +429,8 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
     }
 
-    //TODO: move code copied from DataLayrVoteWeigher to its own file?
-    //BEGIN COPIED CODE
-    IInvestmentManager public investmentManager;
-    //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
-    uint256 public consensusLayerPercent = 10;
-
-
-
+//TODO: move logic for 'weightOfEth' and 'weightOfEigen' to separate contract, in the event that we want to use it elsewhere
+//      currently it heavily resembles the logic in the DataLayrVoteWeigher contract
     /**
      *  @notice returns the total ETH value of staked assets of the given staker in EigenLayr
      *          via this delegation term's operator.    
@@ -444,7 +457,24 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
         return weight;
     }
-    //END COPIED CODE
+    /// @notice similar to 'weightOfEth' but restricted to not modifying state
+    function weightOfEthView(address delegator) public view returns(uint256) {
+        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
+        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
+        
+        // get the strategies where delegator's assets has been staked
+        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
+
+        // get the shares in the strategies where delegator's assets has been staked
+        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+
+        for (uint256 i = 0; i < investorStrats.length; i++) {
+            // get the underlying ETH value of the shares
+            // each investment strategy have their own description of ETH value per share.
+            weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
+        }
+        return weight;
+    }
     function weightOfEigen(address user) public view returns(uint256) {
         return investmentManager.getEigen(user);
     } 
