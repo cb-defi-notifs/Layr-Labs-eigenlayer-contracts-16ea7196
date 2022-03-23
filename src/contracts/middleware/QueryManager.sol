@@ -88,7 +88,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
 
         /**
-         * Get the total eigen that was being used by operator to provide service to middleware.
+         * get the total eigen that was being used by operator to provide service to middleware.
          * This total eigen comprises of operator's own Eigen and the Eigen that had been delegated
          * to it by its delegators. 
          */
@@ -146,21 +146,40 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorType[msg.sender] = 0;
     }
 
-    // increment number of operators
+
     // call registration contract with given data
+    /**
+     * @notice Used by an operator to register itself for providing service to the middleware
+     *         associated with this QueryManager contract.
+     */
+    /**
+     * @param data is an encoding of the operatorType that the operator wants to register as 
+     *        with the middleware, infrastructure details that the middleware would need for 
+     *        coordinating with the operator to elicit its response, etc. The details may 
+     *        vary from middleware to middleware. 
+     */ 
     function register(bytes calldata data) external payable {
         require(
-            // CRITIC: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] == 0,
             "Registrant is already registered"
         );
-        // CRITIC: what is this opType?
+
+        /**
+         * This function calls the registerOperator function of the middleware to process the
+         * data that has been provided by the operator. This function is required under
+         * the interface IRegistrationManager.
+         */
         (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
 
         operatorType[msg.sender] = opType;
+        
+        // total Eigen that has been employed by the operator for providing validation service 
+        // to this middleware. 
         eigenDeposited[msg.sender] = eigenAmount;
+
+
         totalEigen += eigenAmount;
 
         (
@@ -358,6 +377,10 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return operatorType[operator];
     }
 
+
+    /**
+     * @notice 
+     */
     function createNewQuery(bytes calldata queryData) external override {
         address msgSender = msg.sender;
         bytes32 queryDataHash = keccak256(queryData);
@@ -370,6 +393,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
         IFeeManager(feeManager).payFee(msgSender);
     }
 
+    /**
+     * @notice Used by operators to respond to a specific query.   
+     */
+    /**
+     * @param queryHash is the identifier for the query to which the operator is responding,
+     * @param response is the operator's response for the query.   
+     */ 
     function respondToQuery(bytes32 queryHash, bytes calldata response)
         external
     {

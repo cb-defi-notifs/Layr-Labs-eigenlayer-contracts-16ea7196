@@ -69,7 +69,9 @@ abstract contract QueryManagerStorage is IQueryManager {
 
     /**
      * @notice For each operator "op", eigenDeposited[op] is the cumulative amount of Eigen that
-     *         is being employed by the operator for providing service to the middleware via EigenLayr 
+     *         is being employed by the operator for providing service to the middleware via EigenLayr.
+     *         This comprises of both Eigen of operator itself and Eigen delegated by the 
+     *         delegators to the operator.   
      */
     mapping(address => uint256) public eigenDeposited;
 
