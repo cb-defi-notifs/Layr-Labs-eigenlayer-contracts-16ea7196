@@ -15,6 +15,7 @@ contract DataLayrServiceManager is
     DataLayrSignatureChecker,
     IProofOfStakingOracle
 {
+
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     IERC20 public immutable paymentToken;
     IERC20 public immutable collateralToken;
@@ -42,6 +43,9 @@ contract DataLayrServiceManager is
             "Query Manager already set"
         );
         queryManager = _queryManager;
+        dlRegVW = IDataLayrVoteWeigher(
+            address(queryManager.voteWeighter())
+        );
     }
 
     //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
@@ -85,8 +89,7 @@ contract DataLayrServiceManager is
         (
             uint64 dumpNumberToConfirm,
             bytes32 ferkleRoot,
-            uint256 totalEthSigned,
-            uint256 totalEigenSigned,
+            SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
         //make sure they shouldn't be posting a deposit root
@@ -96,8 +99,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            totalEthSigned,
-            totalEigenSigned
+            signedTotals.totalEthSigned,
+            signedTotals.totalEigenSigned
         );
     }
 
@@ -110,8 +113,7 @@ contract DataLayrServiceManager is
         (
             uint64 dumpNumberToConfirm,
             bytes32 depositFerkleHash,
-            uint256 totalEthSigned,
-            uint256 totalEigenSigned,
+            SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
         //make sure they should be posting a deposit root
@@ -126,8 +128,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            totalEthSigned,
-            totalEigenSigned
+            signedTotals.totalEthSigned,
+            signedTotals.totalEigenSigned
         );
     }
 
