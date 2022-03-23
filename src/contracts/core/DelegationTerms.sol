@@ -8,6 +8,17 @@ import "../interfaces/IServiceFactory.sol";
 
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 // TODO: dynamic splitting of earnings between EIGEN and ETH delegators rather than the crappy, static implemenation of 'EIGEN_HOLDER_BIPS'
+
+/**
+ * @notice This contract specifies the delegation terms of a given operator. When any delegator
+ *         wants to delegate its stake to the operator, it has to agree to the terms set in this
+ *         delegator term of the operator. The contract specifies:
+ *           - the operator's portion of the rewards,
+ *           - each of the delegator's portion of the rewards,   
+ *           - tokens that  middlewares can use for paying to the operator and its delegators, 
+ *           - function for fee manager, associated with any middleware, to pay the rewards
+ *           - functions for enabling operator and delegators to withdraw rewards 
+ */
 /**
  * @dev The Delegation Terms contract of an operator maintains a record of what fraction
  *      of the total reward each delegator of that operator is owed whenever the operator triggers
@@ -78,9 +89,9 @@ abstract contract DelegationTerms is IDelegationTerms {
      *       cumulative earnings in a given token per delegated ETH and Eigen.    
      */ 
     struct TokenPayment {
-        //cumulative earnings of the token, per delegated ETH, scaled up by REWARD_SCALING
+        // multiplying factor for calculating the rewards due to ETH delegated to this operator
         uint112 earnedPerWeightAllTimeEth;
-        //cumulative earnings of the token, per delegated EIGEN, scaled up by REWARD_SCALING
+        // multiplying factor for calculating the rewards due to Eigen delegated to this operator
         uint112 earnedPerWeightAllTimeEigen;        
         //UTC timestamp at which the payment was received
         uint32 paymentTimestamp;
@@ -168,14 +179,17 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
     //NOTE: currently there is no way to remove payment tokens
-    /// @notice add new payment token that can be used by a middleware to pay delegators
-    ///         in this delegation terms contract  
+    /// @notice Add new payment token that can be used by a middleware to pay delegators
+    ///         in this delegation terms contract.   
     // CRITIC: probably we need remove token functionality too. What if some token ends up 
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
         paymentTokens.push(token);
     }
 
+    /**
+     * @notice Used for operator to withdraw all its rewards
+     */ 
     function operatorWithdrawal() external {
         uint256 length = paymentTokens.length;
         for (uint256 i; i < length;) {
@@ -187,6 +201,9 @@ abstract contract DelegationTerms is IDelegationTerms {
         }
     }
 
+    /**
+     * @notice Used for transferring rewards accrued in a speciifc token
+     */
     function _operatorWithdraw(address token) internal {
         uint256 pending = operatorPendingEarnings[token];
         operatorPendingEarnings[token] = 0;
@@ -228,13 +245,22 @@ abstract contract DelegationTerms is IDelegationTerms {
             amount -= operatorEarnings;
         }
 
-        //
+        // update the multiplying factors, scaled by REWARD_SCALING 
         updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount * REWARD_SCALING) / totalWeightEth) * (MAX_BIPS - EIGEN_HOLDER_BIPS) / MAX_BIPS);
         updatedEarnings.earnedPerWeightAllTimeEigen += uint112(((amount * REWARD_SCALING) / totalWeightEigen) * (EIGEN_HOLDER_BIPS) / MAX_BIPS);
+        
+        // update the timestamp for the last payment of the rewards
         updatedEarnings.paymentTimestamp = uint32(block.timestamp);
+
+        // record the payment details
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
+
+    /**
+     * @notice Hook for receiving new delegation   
+     */
+    // CRITIC: are we storing the staker's DelegatorStatus in the mapping delegatorStatus? 
     function onDelegationReceived(address staker) external onlyDelegation {
         DelegatorStatus memory delegatorUpdate;
         delegatorUpdate.weightEth = uint112(weightOfEth(staker));
@@ -245,6 +271,10 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
 //NOTE: currently this causes the delegator to lose any pending rewards
+    /**
+     * @notice Hook for withdrawing delegation   
+     */
+    // CRITIC: are we updating the staker's DelegatorStatus in the mapping delegatorStatus? 
     function onDelegationWithdrawn(address staker) external onlyDelegation {
         DelegatorStatus memory delegator = delegatorStatus[staker];
         totalWeightEth -= delegator.weightEth;
@@ -255,10 +285,18 @@ abstract contract DelegationTerms is IDelegationTerms {
         delegatorStatus[staker];
     }
 
-    //withdraw pending rewards for all tokens. indices are the locations in paymentsHistory to claim from
+    /**
+     * @notice Used by the delegator for withdrawing pending rewards for all active tokens that 
+     *         has been accrued from the service provided to the middlewares via EigenLayr.
+     */
+    /**
+     * @param indices are the locations in paymentsHistory to claim from.
+     */ 
     function withdrawPendingRewards(uint32[] calldata indices) external {
         uint256 length = paymentTokens.length;
         require(indices.length == length, "incorrect input length");
+
+        // getting the details on multiplying factor for the delegator and its last reward claim
         DelegatorStatus memory delegator = delegatorStatus[msg.sender];
         for (uint256 i; i < length;) {
             _withdrawPendingRewards(delegator, paymentTokens[i], indices[i]);
@@ -269,7 +307,18 @@ abstract contract DelegationTerms is IDelegationTerms {
         _updateDelegatorWeights(msg.sender);
     }
 
-    //withdraw pending rewards for specified tokens. NOTE: pending rewards are LOST for other tokens!
+
+    /**
+     * @notice Used by the delegator for withdrawing pending rewards for specified active tokens that 
+     *         has been accrued from the service provided to the middlewares via EigenLayr. Pending  
+     *         rewards are lost for other tokens!
+     */
+    /**
+     * @param tokens is the list of active tokens for whom rewards are to claimed,
+     * @param indices are the locations in paymentsHistory to claim from.
+     */
+    // CRITIC: should we have slight different name as it provided functionality to specify
+    //         the tokens? 
     function withdrawPendingRewards(address[] calldata tokens, uint32[] calldata indices) external {
         uint256 length = tokens.length;
         require(indices.length == length, "incorrect input length");
@@ -283,38 +332,49 @@ abstract contract DelegationTerms is IDelegationTerms {
         _updateDelegatorWeights(msg.sender);
     }
 
-//NOTE: must withdraw pending rewards first, or else they will be lost!
+
+    /**
+     * @notice Used by delegator for updating its info in contract depending on its updated stake.   
+     *         Delegator must withdraw pending rewards first, or else they will be lost!   
+     */
+    /**
+     * @param user is the delegator that is updating its info.   
+     */ 
     function _updateDelegatorWeights(address user) internal {
+        // query delegator delails
         DelegatorStatus memory delegator = delegatorStatus[user];
-        //update ETH weight
+        
+        // update the multiplying weight for ETH delegated to this operator
         uint256 newWeight = weightOfEth(user);
         uint256 previousWeight = delegator.weightEth;
-        //if weight has increased
+        // if weight has increased
         if (newWeight > previousWeight) {
             totalWeightEth += uint128(newWeight - previousWeight);
-        //if weight has decreased
+        // if weight has decreased
         } else if (newWeight < previousWeight) {
             totalWeightEth -= uint128(previousWeight - previousWeight);
         }
         delegator.weightEth = uint112(newWeight);
 
-        //update Eigen weight
+
+        // update the multiplying weight for Eigen delegated to this operator
         newWeight = weightOfEigen(user);
         previousWeight = delegator.weightEigen;
+        // if weight has increased
         if (newWeight > previousWeight) {
             totalWeightEigen += uint128(newWeight - previousWeight);
-        //if weight has decreased
+        // if weight has decreased
         } else if (newWeight < previousWeight) {
             totalWeightEigen -= uint128(previousWeight - previousWeight);
         }
         delegator.weightEigen = uint112(newWeight);
 
-        //update latest timestamp claimed
+        // update latest timestamp claimed
         if (block.timestamp > delegator.lastClaimedRewards) {
             delegator.lastClaimedRewards = uint32(block.timestamp);
         }
 
-        //update storage
+        //update delegator details 
         delegatorStatus[user] = delegator;
     }
 
@@ -325,14 +385,27 @@ abstract contract DelegationTerms is IDelegationTerms {
         if (paymentsHistory[address(token)].length > 0) {
             earnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
         }
+        
+        // getting the payment details from the last claim of reward
         TokenPayment memory pastEarnings = paymentsHistory[address(token)][index];
-        //check that delegator is only claiming rewards they deserve
+
+        // check that delegator is only claiming rewards they deserve
         require(delegator.lastClaimedRewards <= pastEarnings.paymentTimestamp, "attempt to claim rewards too far in past");
+        
+        // compute the multiplying weight used for evaluating the reward for ETH stake
         uint256 earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEth - pastEarnings.earnedPerWeightAllTimeEth;
+        
+        // calculate the pending reward for the delegator due to its delegation of ETH to the operator
         uint256 pending = (earningsPerWeightDelta * delegator.weightEth) / (totalWeightEth * REWARD_SCALING);
+        
+        // compute the multiplying weight used for evaluating the reward for Eigen stake
         earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEigen - pastEarnings.earnedPerWeightAllTimeEigen;
+        
+        // calculate the pending reward for the delegator due to its delegation of Eigen to the operator
         pending += (earningsPerWeightDelta * delegator.weightEigen) / (totalWeightEigen * REWARD_SCALING);
-            if (pending > 0) {
+        
+        // transfer the pending rewards for token
+        if (pending > 0) {
             IERC20(token).transfer(msg.sender, pending);
         }
     }
