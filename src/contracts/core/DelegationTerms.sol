@@ -64,7 +64,7 @@ import "../interfaces/IServiceFactory.sol";
  *          its ETH or Eigen stake, it has to retrieve its reward. However, other delegators whose delegated ETH or 
  *          Eigen hasn't updated, they can continue to use the above formula.          
  */
-abstract contract DelegationTerms is IDelegationTerms {
+contract DelegationTerms is IDelegationTerms {
     /// @notice Stored for each delegator that have accepted this delegation terms from the operator
     struct DelegatorStatus {
         // value of delegator's shares in different strategies in ETH
@@ -138,6 +138,7 @@ abstract contract DelegationTerms is IDelegationTerms {
     address public immutable eigenLayrDelegation;
     //used for weighting of delegated ETH & EIGEN
     IInvestmentManager public immutable investmentManager;
+    //used to find the proper split in earnings between delegated EIGEN and ETH tokens
 
     //NOTE: copied from 'DataLayrVoteWeigher.sol'
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
@@ -269,32 +270,54 @@ abstract contract DelegationTerms is IDelegationTerms {
     }
 
 
+//NOTE: the logic in this function currently mimmics that in the 'weightOfEth' function
     /**
      * @notice Hook for receiving new delegation   
      */
-    function onDelegationReceived(address staker) external onlyDelegation {
+    function onDelegationReceived(
+        address delegator,
+        IInvestmentStrategy[] memory investorStrats,
+        uint256[] memory investorShares
+    ) external onlyDelegation {
         DelegatorStatus memory delegatorUpdate;
-        delegatorUpdate.weightEth = uint112(weightOfEth(staker));
-        delegatorUpdate.weightEigen = uint112(weightOfEigen(staker));
+        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
+        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
+        // get the shares in the strategies where delegator's assets has been staked
+        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+        uint256 investorStratsLength = investorStrats.length;
+        for (uint256 i; i < investorStratsLength;) {
+            // get the underlying ETH value of the shares
+            // each investment strategy have their own description of ETH value per share.
+            weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
+            unchecked {
+                ++i;
+            }
+        }
+        delegatorUpdate.weightEth = uint112(weight);
+        delegatorUpdate.weightEigen = uint112(weightOfEigen(delegator));
         delegatorUpdate.lastClaimedRewards = uint32(block.timestamp);
         totalWeightEth += delegatorUpdate.weightEth;
         totalWeightEigen += delegatorUpdate.weightEigen;
         //update storage at end
-        delegatorStatus[staker] = delegatorUpdate;
+        delegatorStatus[delegator] = delegatorUpdate;
     }
 
 //NOTE: currently this causes the delegator to lose any pending rewards
     /**
      * @notice Hook for withdrawing delegation   
      */
-    function onDelegationWithdrawn(address staker) external onlyDelegation {
-        DelegatorStatus memory delegatorUpdate = delegatorStatus[staker];
+    function onDelegationWithdrawn(
+        address delegator,
+        IInvestmentStrategy[] memory,
+        uint256[] memory
+    ) external onlyDelegation {
+        DelegatorStatus memory delegatorUpdate = delegatorStatus[delegator];
         totalWeightEth -= delegatorUpdate.weightEth;
         totalWeightEigen -= delegatorUpdate.weightEigen;
         delegatorUpdate.weightEth = 0;
         delegatorUpdate.weightEigen = 0;
         //update storage at end
-        delegatorStatus[staker] = delegatorUpdate;
+        delegatorStatus[delegator] = delegatorUpdate;
     }
 
     /**
@@ -450,11 +473,16 @@ abstract contract DelegationTerms is IDelegationTerms {
         // get the shares in the strategies where delegator's assets has been staked
         uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
 
-        for (uint256 i = 0; i < investorStrats.length; i++) {
+        uint256 investorStratsLength = investorStrats.length;
+        for (uint256 i; i < investorStratsLength;) {
             // get the underlying ETH value of the shares
             // each investment strategy have their own description of ETH value per share.
             weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
+            unchecked {
+                ++i;
+            }
         }
+
         return weight;
     }
     /// @notice similar to 'weightOfEth' but restricted to not modifying state
@@ -468,11 +496,16 @@ abstract contract DelegationTerms is IDelegationTerms {
         // get the shares in the strategies where delegator's assets has been staked
         uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
 
-        for (uint256 i = 0; i < investorStrats.length; i++) {
+        uint256 investorStratsLength = investorStrats.length;
+        for (uint256 i; i < investorStratsLength;) {
             // get the underlying ETH value of the shares
             // each investment strategy have their own description of ETH value per share.
             weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
+            unchecked {
+                ++i;
+            }
         }
+
         return weight;
     }
     function weightOfEigen(address user) public view returns(uint256) {
