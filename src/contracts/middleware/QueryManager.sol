@@ -13,32 +13,41 @@ import "./storage/QueryManagerStorage.sol";
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 /**
+ * @notice 
  */ 
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
     IVoteWeighter public immutable voteWeighter;
 
+
+    // EVENT
     event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
+
     event ResponseReceived(
         address indexed submitter,
         bytes32 indexed queryDataHash,
         bytes32 indexed responseHash,
         uint256 weightAssigned
     );
+
     event NewLeadingResponse(
         bytes32 indexed queryDataHash,
         bytes32 indexed previousLeadingResponseHash,
         bytes32 indexed newLeadingResponseHash
     );
+
     event QueryFinalized(
         bytes32 indexed queryDataHash,
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
 
+
+
     constructor(IVoteWeighter _voteWeighter) {
         voteWeighter = _voteWeighter;
     }
+
 
     function initialize(
         uint256 _queryDuration,
@@ -57,9 +66,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
     }
 
     // decrement number of operators
+    /**
+     * @notice 
+     */ 
     function deregister(bytes calldata data) external payable {
         require(
-            // QUESTION: what is this operatorType and where is it defined? Can't find its declaration.
+            // CRITIC: what is this operatorType and where is it defined? Can't find its declaration.
             operatorType[msg.sender] != 0,
             "Registrant is not registered"
         );
