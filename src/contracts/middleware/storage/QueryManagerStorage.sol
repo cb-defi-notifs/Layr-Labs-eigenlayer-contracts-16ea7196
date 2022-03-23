@@ -50,4 +50,6 @@ abstract contract QueryManagerStorage is IQueryManager {
     //hash(queryData) => time query created
     mapping(bytes32 => uint256) public queriesCreated;
     bytes32[] public activeQueries;
+    // 28 bits for all 7 operatorTypes (1 through 7), 32 bits for the total number of operators
+    uint256 public operatorCounts;
 }

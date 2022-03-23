@@ -7,6 +7,8 @@ import "./IVoteWeighter.sol";
 interface IQueryManager {
     function timelock() external view returns (address);
 
+    function operatorCounts() external view returns(uint256);
+
     function consensusLayerEthToEth() external view returns (uint256);
 
     function totalEigen() external view returns (uint256);
@@ -21,7 +23,7 @@ interface IQueryManager {
 
     function getQueryCreationTime(bytes32) external returns (uint256);
 
-    function getRegistrantType(address) external view returns (uint8);
+    function getOperatorType(address) external view returns (uint8);
 
     function numRegistrants() external view returns (uint256);
 

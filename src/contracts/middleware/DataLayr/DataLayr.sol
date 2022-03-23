@@ -55,6 +55,10 @@ contract DataLayr is Ownable, IDataLayr {
         currDisperser = currDisperser_;
     }
 
+    function setQueryManager(IQueryManager _queryManager) public onlyOwner {
+        queryManager = _queryManager;
+    }
+
     // Precommit
 
     function initDataStore(
@@ -98,8 +102,8 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 dumpNumber,
         bytes32 ferkleRoot,
         address submitter,
-        uint256 totalEthSigned,
-        uint256 totalEigenSigned
+        uint32 ethSigners,
+        uint32 eigenSigners
     ) external  {
         DataStore storage dataStore = dataStores[ferkleRoot];
         //TODO: check if eth and eigen are sufficient
@@ -116,9 +120,10 @@ contract DataLayr is Ownable, IDataLayr {
             !dataStores[ferkleRoot].commited,
             "Data store already has already been committed"
         );
+        (uint32 totalEthSigners, uint32 totalEigenSigners) = getTotalEthAndEigenSigners();
         //require that signatories own at least a threshold percentage of eth and eigen
-        require(totalEthSigned*100/queryManager.totalEthStaked() >= ethSignatureThreshold 
-                && totalEigenSigned*100/queryManager.totalEigen() >= eigenSignatureThreshold, 
+        require(ethSigners*100/totalEthSigners >= ethSignatureThreshold 
+                && eigenSigners*100/totalEigenSigners >= eigenSignatureThreshold, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
         dataStores[ferkleRoot].commited = true;
         emit Commit(
@@ -134,5 +139,11 @@ contract DataLayr is Ownable, IDataLayr {
 
     function setEthSignatureThreshold(uint32 _ethSignatureThreshold) public onlyOwner {
         ethSignatureThreshold = _ethSignatureThreshold;
+    }
+
+    function getTotalEthAndEigenSigners() public view returns(uint32, uint32) {
+        uint256 operatorCounts = queryManager.operatorCounts();
+        //add eth and both eigen and eth operators                           add eigen and both eigen and eth operators
+        return (uint32(operatorCounts >> 64) + uint32(operatorCounts >> 96), uint32(operatorCounts >> 32) + uint32(operatorCounts >> 96));
     }
 }

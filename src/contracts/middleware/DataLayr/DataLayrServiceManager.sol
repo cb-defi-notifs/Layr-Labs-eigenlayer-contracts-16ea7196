@@ -99,8 +99,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            signedTotals.totalEthSigned,
-            signedTotals.totalEigenSigned
+            signedTotals.totalEthSigners,
+            signedTotals.totalEigenSigners
         );
     }
 
@@ -128,8 +128,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            signedTotals.totalEthSigned,
-            signedTotals.totalEigenSigned
+            signedTotals.totalEthSigners,
+            signedTotals.totalEigenSigners
         );
     }
 
@@ -137,7 +137,7 @@ contract DataLayrServiceManager is
     // TODO: collateral
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         require(
-            queryManager.getRegistrantType(msg.sender) != 0,
+            queryManager.getOperatorType(msg.sender) != 0,
             "Only registrants can call this function"
         );
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");

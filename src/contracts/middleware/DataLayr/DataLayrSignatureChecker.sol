@@ -5,12 +5,11 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 
 abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
-
-    struct SignatoryTotals  {
+    struct SignatoryTotals {
         //total eth stake of the signatories
-        uint128 totalEthSigned;
+        uint32 totalEthSigners;
         //total eigen stake of the signatories
-        uint128 totalEigenSigned;
+        uint32 totalEigenSigners;
     }
 
     //the DL vote weighter
@@ -73,7 +72,9 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
         uint256 mask;
         //record of all signatories stored in the form: keccak256(abi.encodePacked(currentBinIndex, claimsMadeInBin, previousHash))
         //with first hash being that of the ferkleRoot + dumpNumber
-        compressedSignatoryRecord = keccak256(abi.encodePacked(ferkleRoot, dumpNumberToConfirm));
+        compressedSignatoryRecord = keccak256(
+            abi.encodePacked(ferkleRoot, dumpNumberToConfirm)
+        );
         //loop for each bin of signatures. ends once all bins have been processed
         while (numberOfBins > 0) {
             //update sigsInBin and binIndex for next bin
@@ -122,21 +123,39 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
                 );
                 //flip the bit to mark that 'sigIndex' has been claimed
                 claimsMadeInBin = (claimsMadeInBin | mask);
-                //fetch the signatories eth and eigen staked
-                (uint256 ethStaked, uint256 eigenStaked) = queryManager
-                    .totalEthValueStakedAndEigenForOperator(signatory);
-                //increment by the signatories eth stake
-                signedTotals.totalEthSigned += uint128(ethStaked);
-                //increment by the signatories eigen stake
-                signedTotals.totalEigenSigned += uint128(eigenStaked);
+                //fetch type of of operator
+                uint8 operatorType = queryManager.getOperatorType(signatory);
+                //increment totals based on operator type
+                if (operatorType == 3) {
+                    unchecked {
+                        ++signedTotals.totalEigenSigners;
+                        ++signedTotals.totalEthSigners;
+                    }
+                } else if (operatorType == 2) {
+                    unchecked {
+                        ++signedTotals.totalEthSigners;
+                    }
+                } else if (operatorType == 1) {
+                    unchecked {
+                        ++signedTotals.totalEigenSigners;
+                    }
+                } else {
+                    revert("Operator not active");
+                }
                 //decrement counter of remaining signatures to check
                 unchecked {
                     --sigsInCurrentBin;
                 }
             }
             //update compressedSignatoryRecord variable
-            compressedSignatoryRecord = keccak256(abi.encodePacked(currentBinIndex, claimsMadeInBin, compressedSignatoryRecord));
-            //decrement numberOfBins counter at end of loop. 
+            compressedSignatoryRecord = keccak256(
+                abi.encodePacked(
+                    currentBinIndex,
+                    claimsMadeInBin,
+                    compressedSignatoryRecord
+                )
+            );
+            //decrement numberOfBins counter at end of loop.
             unchecked {
                 --numberOfBins;
             }

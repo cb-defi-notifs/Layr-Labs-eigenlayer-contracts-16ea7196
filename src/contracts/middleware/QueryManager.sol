@@ -93,7 +93,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
         //remove CLE and cleanup
         totalConsensusLayerEth -= consensusLayerEth[msg.sender];
         consensusLayerEth[msg.sender] = 0;
-        numRegistrants--;
+        //subtract 1 from the correct type count and 1 from the total count (last 32 bits)
+        //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
+        operatorCounts = (operatorCounts - (1 << 32*operatorType[msg.sender])) - 1;
         operatorType[msg.sender] = 0;
     }
 
@@ -134,7 +136,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         totalConsensusLayerEth += delegatedConsensusLayerEth;
         consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
-        numRegistrants++;
+        //add 1 to the correct type count and 1 to the total count (last 32 bits)
+        //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
+        operatorCounts = (operatorCounts - (1 << 32*opType)) - 1;
     }
 
     function updateStake(address operator)
@@ -298,7 +302,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return consensusLayerEth[operator];
     }
 
-    function getRegistrantType(address operator)
+    function getOperatorType(address operator)
         public
         view
         override
