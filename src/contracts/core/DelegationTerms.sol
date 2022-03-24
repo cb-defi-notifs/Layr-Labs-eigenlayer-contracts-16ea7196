@@ -282,8 +282,6 @@ contract DelegationTerms is IDelegationTerms {
         DelegatorStatus memory delegatorUpdate;
         // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
         uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
-        // get the shares in the strategies where delegator's assets has been staked
-        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
         uint256 investorStratsLength = investorStrats.length;
         for (uint256 i; i < investorStratsLength;) {
             // get the underlying ETH value of the shares

@@ -196,12 +196,12 @@ contract DataLayrServiceManager is
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
-        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
         paymentToken.transfer(address(dt), operatorToPayment[msg.sender].amount);
         //i.e. if operator is not a 'self operator'
         if (address(dt) != msg.sender) {
             //inform the DelegationTerms contract of the payment
-            dt.payForService(paymentToken, operatorToPayment[msg.sender].amount));            
+            dt.payForService(paymentToken, operatorToPayment[msg.sender].amount);            
         }
     }
 
