@@ -251,12 +251,12 @@ contract EigenLayrDelegation is
         lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
-    // contests a stakers undelegation commit
-    /// @notice This function can be called by anyone to challenger whether a staker has
+    // contests a delegator's undelegation commit
+    /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised,
-    /// @param queryManager is the contract with whom the query for which staker hasn't finished
-    ///        its obligation yet was deployed,
+    /// @param queryManager is the contract with whom the query for which delegator hasn't finished
+    ///        its obligation yet, was deployed,
     /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
@@ -331,8 +331,10 @@ contract EigenLayrDelegation is
         return operatorStrats[operator];
     }
 
-    /// @notice Returns the investment startegies, corresponding shares and the total ETH
-    ///         deposited with the operator.
+    /**
+     * @notice Returns the investment startegies, corresponding shares and the total ETH
+     *         deposited with the operator.
+     */
     function getControlledEthStake(address operator)
         external
         view

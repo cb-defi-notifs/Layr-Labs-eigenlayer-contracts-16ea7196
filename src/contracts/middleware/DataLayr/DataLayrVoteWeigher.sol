@@ -14,7 +14,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     IInvestmentManager public investmentManager;
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     IEigenLayrDelegation public delegation;
-    uint256 public consensusLayerPercent = 10;
+    uint256 public constant consensusLayerPercent = 10;
     // Data Layr Nodes
     struct Registrant {
         string socket; // how people can find it

@@ -5,6 +5,7 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
+import "../../interfaces/IDelegationTerms.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "./DataLayrPaymentChallenge.sol";
 import "./DataLayrSignatureChecker.sol";
@@ -190,11 +191,17 @@ contract DataLayrServiceManager is
             "Still eligible for fraud proofs"
         );
         operatorToPayment[msg.sender].status = 1;
-        paymentToken.transfer(msg.sender, operatorToPayment[msg.sender].amount);
         collateralToken.transfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
+        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
+        paymentToken.transfer(address(dt), operatorToPayment[msg.sender].amount);
+        //i.e. if operator is not a 'self operator'
+        if (address(dt) != msg.sender) {
+            //inform the DelegationTerms contract of the payment
+            dt.payForService(paymentToken, operatorToPayment[msg.sender].amount);            
+        }
     }
 
     //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
