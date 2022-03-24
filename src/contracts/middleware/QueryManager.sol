@@ -239,8 +239,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
 
 
-        // CRITIC: this is wrong, I think. Probably should be (operatorCounts + (1 << 32*opType)) + 1
-        operatorCounts = (operatorCounts - (1 << 32*opType)) - 1;
+        operatorCounts = (operatorCounts + (1 << 32*opType)) + 1;
     }
 
 
