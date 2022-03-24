@@ -179,7 +179,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         // to this middleware. 
         eigenDeposited[msg.sender] = eigenAmount;
 
-
+        // total Eigen being employed for securing the queries from middleware via EigenLayr
         totalEigen += eigenAmount;
 
         (
