@@ -114,6 +114,24 @@ abstract contract QueryManagerStorage is IQueryManager {
      * @notice Array of all active queries.
      */
     bytes32[] public activeQueries;
-    // 28 bits for all 7 operatorTypes (1 through 7), 32 bits for the total number of operators
+
+
+    /// @notice 28 bits for all 7 operatorTypes (1 through 7), 32 bits for the total number of operators
+    /**
+     * @dev It is an integrated storage variable that stores the number of operators for each 
+     *      operator type. The structure of this storage variable is based on following assumptions:
+     *         - there can be, at max, 7 operator types
+     *         - there can be at max 2**28 operators of each type
+     *         - there can be at max (2**28)*(2**3 - 1) total operators
+     *         
+     *      We use 4 bits to represent each of the operatorType, 28 bits to represent number of
+     *      operators for each operatorType, 32 bits to represent total operators. Let bit 
+     *      representation of i^th operatorType be <o_i>, bit representation of number of operators 
+     *      of i^th operatorType be <n_i> and bit representation of total number of operators
+     *      be <n>. Considering these specifics, we have the following structure:
+     *
+     *                ++++###...#__ ...... __++++###...#__++++###...#__###....#
+     *               <o_7> <n_7> __        __<o_2> <n_2>__<o_1> <n_1>__  <n> 
+     */
     uint256 public operatorCounts;
 }

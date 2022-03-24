@@ -139,10 +139,16 @@ contract QueryManager is Initializable, QueryManagerStorage {
          */
         consensusLayerEth[msg.sender] = 0;
 
-        //subtract 1 from the correct type count and 1 from the total count (last 32 bits)
-        //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
-        // CRITIC: not clear to me what is it. Explanation in slack please?
+
+        /**
+         * @dev Referring to the detailed explanation on structure of operatorCounts in 
+         *      QueryManagerStorage.sol, in order to subtract the number of operators
+         *      of i^th type, first left shift 1 by 32*i bits and subtract it from <n_i>.
+         *      Then, subtract 1 from <n>.
+         */
         operatorCounts = (operatorCounts - (1 << 32*operatorType[msg.sender])) - 1;
+
+        // the operator is recorded as being no longer active
         operatorType[msg.sender] = 0;
     }
 
@@ -157,6 +163,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
      *        with the middleware, infrastructure details that the middleware would need for 
      *        coordinating with the operator to elicit its response, etc. Details may 
      *        vary from middleware to middleware. 
+     */ 
+    /**
+     * @dev Calls the RegistrationManager contract.
      */ 
     function register(bytes calldata data) external payable {
         require(
@@ -224,10 +233,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
         // record the total ETH that has been staked for validating the middleware via EigenLayr
         totalConsensusLayerEth += delegatedConsensusLayerEth;
 
-        // record the total ETH 
+        // record the total ETH that has been employed by the operator for validating the 
+        // middleware via EigenLayr
         consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
-        //add 1 to the correct type count and 1 to the total count (last 32 bits)
-        //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
+
+
+        // CRITIC: this is wrong, I think. Probably should be (operatorCounts + (1 << 32*opType)) + 1
         operatorCounts = (operatorCounts - (1 << 32*opType)) - 1;
     }
 
