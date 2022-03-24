@@ -3,7 +3,8 @@ pragma solidity ^0.8.9;
 
 import "../../../interfaces/IERC20.sol";
 import "../../../interfaces/IQueryManager.sol";
-import "../../../interfaces/DataLayrInterfaces.sol";
+import "../../../interfaces/IDataLayrServiceManager.sol";
+import "../../../interfaces/IDataLayr.sol";
 import "../../../interfaces/IEigenLayrDelegation.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFeeManager {

@@ -7,7 +7,7 @@ pragma solidity ^0.8.9;
  */
 
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/DataLayrInterfaces.sol";
+import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IQueryManager.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";

@@ -4,9 +4,9 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IQueryManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
-import "../../interfaces/DataLayrInterfaces.sol";
 import "../QueryManager.sol";
 
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
