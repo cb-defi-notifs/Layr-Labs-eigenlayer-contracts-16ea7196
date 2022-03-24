@@ -133,8 +133,8 @@ contract EigenLayrDelegation is
     ///          in operatorStrats[operator].
     ///          Then, strategyIndexes = [i1, i2, ..., ik].
     ///      (2) In order to notify the system that delegator wants to undelegate,
-    ///          it is necessary to make sure that delegator is not within fraudproof
-    ///          period for a previous undelegation.
+    ///          it is necessary to make sure that delegator is not within challenge
+    ///          window for a previous undelegation.
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
         // CRITIC: If a staker is giving the data for strategyIndexes, then
         // there is a potential concurrency problem.
@@ -146,7 +146,7 @@ contract EigenLayrDelegation is
             "Staker does not have existing delegation"
         );
 
-        // checks that delegator is not within fraudproof period for a previous undelegation
+        // checks that delegator is not within challenge window for a previous undelegation
         require(
             block.timestamp >
                 undelegationFraudProofInterval +
@@ -345,6 +345,11 @@ contract EigenLayrDelegation is
         )
     {
         if (delegation[operator] == operator) {
+            /**
+             * @dev Under scenario where a delegator has delegated its asset to itself and 
+             * acting as its own operator. This would be because the staker called 
+             * delegateToSelf() for delegating its stake to itself.
+             */
             (
                 IInvestmentStrategy[] memory strats,
                 uint256[] memory shares,
@@ -353,9 +358,12 @@ contract EigenLayrDelegation is
             ) = investmentManager.getDeposits(operator);
             return (strats, shares, consensusLayerEthForOperator);
         } else {
+            /**
+             * @dev Under scenario where operator is being delegated assets by delegators.
+             */
             // CRITIC: we are assuming here that delegation[operator] != operator which would
-            // imply that operator is not actually an operator and would probably have no entry
-            // in operatorStrats. So, it is not making sense to call operatorStrats[operator].
+            // imply that operator is not actually an operator. Should there be a consition to check
+            // whether operator is actually an operator or not?
             uint256[] memory shares = new uint256[](
                 operatorStrats[operator].length
             );

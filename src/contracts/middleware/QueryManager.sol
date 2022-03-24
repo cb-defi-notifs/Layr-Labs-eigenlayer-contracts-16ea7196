@@ -155,7 +155,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @param data is an encoding of the operatorType that the operator wants to register as 
      *        with the middleware, infrastructure details that the middleware would need for 
-     *        coordinating with the operator to elicit its response, etc. The details may 
+     *        coordinating with the operator to elicit its response, etc. Details may 
      *        vary from middleware to middleware. 
      */ 
     function register(bytes calldata data) external payable {
@@ -166,28 +166,48 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         /**
          * This function calls the registerOperator function of the middleware to process the
-         * data that has been provided by the operator. This function is required under
-         * the interface IRegistrationManager.
+         * data that has been provided by the operator. 
          */
         (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
 
+        // record the operator type of the operator
         operatorType[msg.sender] = opType;
         
-        // total Eigen that has been employed by the operator for providing validation service 
-        // to this middleware. 
+        /** 
+         * total Eigen that has been employed by the operator for providing validation service 
+         * to this middleware. 
+         */        
         eigenDeposited[msg.sender] = eigenAmount;
 
-        // total Eigen being employed for securing the queries from middleware via EigenLayr
+        /**
+         * total Eigen being employed by the operator for securing the queries 
+         * from middleware via EigenLayr
+         */
         totalEigen += eigenAmount;
 
+        /** 
+         * get details on the delegators of the operator that has called this function
+         * for registration with the middleware
+         */
         (
             IInvestmentStrategy[] memory delegatedOperatorStrats,
             uint256[] memory delegatedOperatorShares,
             uint256 delegatedConsensusLayerEth
         ) = delegation.getControlledEthStake(msg.sender);
 
+
+        /** 
+         * Update the shares allocated with each of the investment startegy that is being
+         * used by even one delegator of an operator of this middleware. 
+         */
+        /**
+         * @dev If the investment startegy that is being used by a delegator of the operator 
+         *      is a strategy that isn't being used by any of the delegators of the existing
+         *      operators that are providing service to the middleware, then, we record this 
+         *      strategy into "strats".
+         */ 
         uint256 stratsLength = delegatedOperatorStrats.length;
         for (uint i = 0; i < stratsLength; ) {
             if (shares[delegatedOperatorStrats[i]] == 0) {
@@ -198,9 +218,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 ++i;
             }
         }
+        // record the strategies that are being used by any delegator of the operator
         operatorStrats[msg.sender] = delegatedOperatorStrats;
 
+        // record the total ETH that has been staked for validating the middleware via EigenLayr
         totalConsensusLayerEth += delegatedConsensusLayerEth;
+
+        // record the total ETH 
         consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
         //add 1 to the correct type count and 1 to the total count (last 32 bits)
         //shift is 32 bytes for the total count and 32 bytes for every type count the needs to be skipped
