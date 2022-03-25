@@ -128,8 +128,9 @@ abstract contract QueryManagerStorage is IQueryManager {
      *      of i^th operatorType be <n_i> and bit representation of total number of operators
      *      be <n>. Considering these specifics, we have the following structure:
      *
-     *                ++++###...#__ ...... __++++###...#__++++###...#__###....#
-     *               <o_7> <n_7> __        __<o_2> <n_2>__<o_1> <n_1>__  <n> 
+     *                ++++ | ###...#|     ......     |  ++++  |###...# | ++++ | ###...# | $$$....$
+     *               <o_7> |  <n_7> | (omitted bits) | <o_2>  | <n_2>  | <o_1>|  <n_1>  |    <n> 
+     *      where each +, #, $ represents a bit. 
      */
     uint256 public operatorCounts;
 }
