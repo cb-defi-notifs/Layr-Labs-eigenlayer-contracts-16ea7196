@@ -99,8 +99,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            signedTotals.totalEthSigners,
-            signedTotals.totalEigenSigners
+            signedTotals.ethStakeSigned,
+            signedTotals.eigenStakeSigned
         );
     }
 
@@ -128,8 +128,8 @@ contract DataLayrServiceManager is
             dumpNumberToConfirm,
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
-            signedTotals.totalEthSigners,
-            signedTotals.totalEigenSigners
+            signedTotals.ethStakeSigned,
+            signedTotals.eigenStakeSigned
         );
     }
 

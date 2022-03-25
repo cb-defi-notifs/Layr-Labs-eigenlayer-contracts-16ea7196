@@ -14,7 +14,7 @@ interface IDataLayr {
         uint256 dumpNumber,
         bytes32 ferkleRoot,
         address submitter,
-        uint32 ethSigners,
-        uint32 eigenSigners
+        uint128 ethStakeSigned,
+        uint128 eigenStakeSigned
     ) external;
 }

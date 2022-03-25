@@ -73,12 +73,16 @@ abstract contract QueryManagerStorage is IQueryManager {
      */
     mapping(address => uint256) public eigenDeposited;
 
+    struct Stake {
+        uint128 eigenStaked;
+        uint128 ethStaked;
+    }
+    mapping(address => Stake) public operatorStakes;
+    Stake public totalStake;
 
-    
     uint256 public consensusLayerEthToEth;
     mapping(address => uint256) public consensusLayerEth;
     uint256 public totalConsensusLayerEth;
-    uint256 public totalEigen;
     //fixed duration of all new queries
     uint256 public queryDuration;
     

@@ -15,6 +15,7 @@ contract ServiceFactory is IServiceFactory {
 
     function createNewQueryManager(
         uint256 queryDuration,
+        uint256 consensusLayerEthToEth,
         IFeeManager feeManager,
         IVoteWeighter voteWeigher,
         address registrationManager,
@@ -25,6 +26,7 @@ contract ServiceFactory is IServiceFactory {
         IQueryManager newQueryManager = new QueryManager(voteWeigher);
         QueryManager(payable(address(newQueryManager))).initialize(
             queryDuration,
+            consensusLayerEthToEth,
             feeManager,
             registrationManager,
             timelock,

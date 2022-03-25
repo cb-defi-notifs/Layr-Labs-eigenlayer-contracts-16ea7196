@@ -38,8 +38,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     mapping(address => Registrant) public registry;
     address[] public registrantList;
     uint32 public nextRegistrantId;
-    uint256 public dlnEthStake = 1 wei;
-    uint256 public dlnEigenStake = 1 wei;
+    uint128 public dlnEthStake = 1 wei;
+    uint128 public dlnEigenStake = 1 wei;
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -65,16 +65,15 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         queryManager = _queryManager;
     }
 
-    function weightOfOperatorEigen(address operator) public view returns (uint256) {
-        uint256 eigenAmount = delegation.getEigenDelegated(operator);
+    function weightOfOperatorEigen(address operator) public view returns (uint128) {
+        uint128 eigenAmount = uint128(delegation.getEigenDelegated(operator));
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }
 
-    function weightOfOperatorEth(address operator) public returns (uint256) {
-        uint256 amount = (delegation.getConsensusLayerEthDelegated(operator) *
-            consensusLayerPercent) /
-            100 +
-            delegation.getUnderlyingEthDelegated(operator);
+    function weightOfOperatorEth(address operator) public returns (uint128) {
+        uint128 amount = uint128(delegation.getConsensusLayerEthDelegated(operator) /
+            queryManager.consensusLayerEthToEth() +
+            delegation.getUnderlyingEthDelegated(operator));
         return amount < dlnEthStake ? 0 : amount;
     }
 
@@ -82,7 +81,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
 
     function registerOperator(address operator, bytes calldata data)
         public
-        returns (uint8, uint256)
+        returns (uint8, uint128)
     {
         require(
             registry[operator].active == 0,
@@ -90,7 +89,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         );
         //get the first byte of data
         uint8 registrantType = data.toUint8(0);
-        uint256 eigenAmount;
+        uint128 eigenAmount;
         if (registrantType == 1) {
             // if they want to be an "eigen" validator, check that they meet the eigen requirements
             eigenAmount = weightOfOperatorEigen(operator);
@@ -165,13 +164,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return registry[operator].fromDumpNumber;
     }
 
-    function setDlnStake(uint256 _dlnEthStake, uint256 _dlnEigenStake) public {
+    function setDlnEigenStake(uint128 _dlnEigenStake) public {
+        require(
+            queryManager.timelock() == msg.sender,
+            "Query Manager can only change stake"
+        );
+        dlnEigenStake = _dlnEigenStake;
+    }
+
+    function setDlnEthStake(uint128 _dlnEthStake) public {
         require(
             queryManager.timelock() == msg.sender,
             "Query Manager can only change stake"
         );
         dlnEthStake = _dlnEthStake;
-        dlnEigenStake = _dlnEigenStake;
     }
 
     function setLatestTime(uint32 _latestTime) public {

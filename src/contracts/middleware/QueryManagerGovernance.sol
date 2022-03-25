@@ -206,7 +206,7 @@ contract QueryManagerGovernance {
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
                 proposalThresholdEthPercentage() ||
-                (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
+                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() >=
                 proposalThresholdEigenPercentage(),
             "QueryManagerGovernance::propose: proposer votes below proposal threshold"
         );
@@ -346,7 +346,7 @@ contract QueryManagerGovernance {
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
                 proposalThresholdEthPercentage() ||
-                (eigenStaked * 100) / QUERY_MANAGER.totalEigen() >=
+                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() >=
                 proposalThresholdEigenPercentage(),
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
@@ -406,7 +406,7 @@ contract QueryManagerGovernance {
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
             quorumEthPercentage() ||
-            (proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigen() <
+            (proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigenStaked() <
             quorumEigenPercentage()
         ) {
             return ProposalState.Defeated;
@@ -518,21 +518,17 @@ contract QueryManagerGovernance {
         //TODO: Call to only update eigen/eth. Isnt everyone gonna be eth and eigen staked
         if (update) {
             (
-                uint256 delegatedConsensusLayerEth,
-                uint256 ethValueOfShares,
+                uint256 newEthStaked,
                 uint256 newEigenStaked
             ) = QUERY_MANAGER.updateStake(msg.sender);
             // weight the consensusLayrEth however desired
-            ethStaked =
-                ethValueOfShares +
-                delegatedConsensusLayerEth /
-                QUERY_MANAGER.consensusLayerEthToEth();
+            ethStaked = newEthStaked;
             eigenStaked = newEigenStaked;
         } else {
-            ethStaked = QUERY_MANAGER.totalEthValueStakedForOperator(
+            ethStaked = QUERY_MANAGER.ethStakedByOperator(
                 msg.sender
             );
-            eigenStaked = QUERY_MANAGER.eigenDepositedByOperator(msg.sender);
+            eigenStaked = QUERY_MANAGER.eigenStakedByOperator(msg.sender);
         }
         return (ethStaked, eigenStaked);
     }

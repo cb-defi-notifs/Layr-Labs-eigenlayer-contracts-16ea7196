@@ -58,7 +58,8 @@ contract DataLayrPaymentChallenge {
             "Must be challenger and thier turn or operator and their turn"
         );
         require(
-            block.timestamp < challenge.commitTime + dlsm.paymentFraudProofInterval(),
+            block.timestamp <
+                challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
         uint48 fromDumpNumber;
@@ -142,10 +143,8 @@ contract DataLayrPaymentChallenge {
     function resolveChallenge() public {
         uint256 interval = dlsm.paymentFraudProofInterval();
         require(
-            block.timestamp >
-                challenge.commitTime + interval &&
-                block.timestamp <
-                challenge.commitTime + 2 * interval,
+            block.timestamp > challenge.commitTime + interval &&
+                block.timestamp < challenge.commitTime + 2 * interval,
             "Fraud proof interval has passed"
         );
         uint8 status = challenge.status;
@@ -160,13 +159,11 @@ contract DataLayrPaymentChallenge {
 
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
-        bytes32 ferkleRoot,
-        uint120 amount,
-        uint32[] calldata signatoryRecord,
-        int256 index
+        uint32[] calldata signatoryRecord
     ) external {
         require(
-            block.timestamp < challenge.commitTime + dlsm.paymentFraudProofInterval(),
+            block.timestamp <
+                challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
         uint48 challengedDumpNumber = challenge.fromDumpNumber;
@@ -178,19 +175,22 @@ contract DataLayrPaymentChallenge {
             "Sig record does not match hash"
         );
         //fetch operator id
-        uint32 operatorId = IDataLayrVoteWeigher(address(IFeeManager(address(dlsm)).queryManager().voteWeighter())).getOperatorId(challenge.operator);
+        uint32 operatorId = IDataLayrVoteWeigher(
+            address(IFeeManager(address(dlsm)).queryManager().voteWeighter())
+        ).getOperatorId(challenge.operator);
         //an operator's bin is just the top 24 bits of their id
         uint32 operatorBin = operatorId >> 8;
         //calculate the true amount deserved
         uint120 trueAmount;
-        for (uint256 i = 0; i < signatoryRecord.length;) {
+        for (uint256 i = 0; i < signatoryRecord.length; ) {
             //if this is the operators bin
-            if(signatoryRecord[i] == operatorBin) {
+            if (signatoryRecord[i] == operatorBin) {
                 //if the claimsMadeInBin has a 1 bit in the operator index indicating the operator signed
-                if((1 << (operatorId % 256)) & signatoryRecord[i+1] != 0) {
+                if ((1 << (operatorId % 256)) & signatoryRecord[i + 1] != 0) {
                     //divide the fee for that dump by the number of signers, which is the last element of the signatory record
                     trueAmount = uint120(
-                        dlsm.getDumpNumberFee(challengedDumpNumber) / signatoryRecord[signatoryRecord.length - 1]
+                        dlsm.getDumpNumberFee(challengedDumpNumber) /
+                            signatoryRecord[signatoryRecord.length - 1]
                     );
                 }
                 break;
@@ -199,6 +199,7 @@ contract DataLayrPaymentChallenge {
                 i += 2;
             }
         }
+
         if (status == 4) {
             resolve(trueAmount != challenge.amount1);
         } else if (status == 5) {

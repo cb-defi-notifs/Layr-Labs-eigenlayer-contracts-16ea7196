@@ -13,12 +13,11 @@ import "./storage/QueryManagerStorage.sol";
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 /**
- * @notice 
- */ 
+ * @notice
+ */
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
     IVoteWeighter public immutable voteWeighter;
-
 
     // EVENTS
     event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
@@ -42,15 +41,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 totalCumulativeWeight
     );
 
-
-
     constructor(IVoteWeighter _voteWeighter) {
         voteWeighter = _voteWeighter;
     }
 
-
     function initialize(
         uint256 _queryDuration,
+        uint256 _consensusLayerEthToEth,
         IFeeManager _feeManager,
         address _registrationManager,
         address _timelock,
@@ -58,6 +55,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         IInvestmentManager _investmentManager
     ) external initializer {
         queryDuration = _queryDuration;
+        consensusLayerEthToEth = _consensusLayerEthToEth;
         feeManager = _feeManager;
         registrationManager = _registrationManager;
         timelock = _timelock;
@@ -68,11 +66,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still 
-    //          envisioning it as an input opType? 
+    // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still
+    //          envisioning it as an input opType?
     //         (2) Why is deregister a payable type? Whom are you paying for deregistering and why?
     //         (3) Seems like an operator can deregister before requiring its delegators to withdraw
-    //             their respective pending rewards. Is this a concern? 
+    //             their respective pending rewards. Is this a concern?
     function deregister(bytes calldata data) external payable {
         require(
             operatorType[msg.sender] != 0,
@@ -86,72 +84,26 @@ contract QueryManager is Initializable, QueryManagerStorage {
             "Deregistration not permitted"
         );
 
+        //subtract the deregisterers stake from the total
+        totalStake.eigenStaked -= operatorStakes[msg.sender].eigenStaked;
+        totalStake.ethStaked -= operatorStakes[msg.sender].ethStaked;
+        //clear the deregisterers stake
+        operatorStakes[msg.sender].eigenStaked = 0;
+        operatorStakes[msg.sender].ethStaked = 0;
 
         /**
-         * get the total eigen that was being used by operator to provide service to middleware.
-         * This total eigen comprises of operator's own Eigen and the Eigen that had been delegated
-         * to it by its delegators. 
-         */
-        uint256 eigenDepositedByDeregisterer = eigenDeposited[msg.sender];
-        if (eigenDepositedByDeregisterer != 0) {
-            /** 
-             * deduct this eigen from total eigen that has been staked to validate the
-             * middleware's queries
-             */
-            totalEigen -= eigenDepositedByDeregisterer;
-        }
-        eigenDeposited[msg.sender] = 0;
-
-
-        // update shares due to the de-registration by the operator
-        uint256 stratsLength = operatorStrats[msg.sender].length;
-        for (uint i = 0; i < stratsLength; ) {
-            //TODO: REMOVE FROM STRATS IF SHARES ARE NOW 0
-            /**  
-            *  Due to the operator de-registering from providing service to the middleware,
-            *  update total shares for the investment strategies that are 
-            *  being utilized by any of the delegator of that operator.
-            */
-            shares[operatorStrats[msg.sender][i]] -= operatorShares[msg.sender][
-                operatorStrats[msg.sender][i]
-            ];
-            /**
-             * TBA.  
-             */
-            operatorShares[msg.sender][operatorStrats[msg.sender][i]] = 0;
-            unchecked {
-                ++i;
-            }
-        }
-
-        // sets operator to have no strats
-        operatorStrats[msg.sender] = new IInvestmentStrategy[](0);
-
-        /**  
-         * deduct the ETH that was staked into settlement layer from the operator and its associated
-         * delegators from the total ETH
-         */
-        totalConsensusLayerEth -= consensusLayerEth[msg.sender];
-
-        /** 
-         * record amount of ETH from the operator and its delegators that is being used for providing
-         * service to middleware as 0
-         */
-        consensusLayerEth[msg.sender] = 0;
-
-
-        /**
-         * @dev Referring to the detailed explanation on structure of operatorCounts in 
+         * @dev Referring to the detailed explanation on structure of operatorCounts in
          *      QueryManagerStorage.sol, in order to subtract the number of operators
          *      of i^th type, first left shift 1 by 32*i bits and subtract it from <n_i>.
          *      Then, subtract 1 from <n> to decrement the number of total operators.
          */
-        operatorCounts = (operatorCounts - (1 << 32*operatorType[msg.sender])) - 1;
+        operatorCounts =
+            (operatorCounts - (1 << (32 * operatorType[msg.sender]))) -
+            1;
 
         // the operator is recorded as being no longer active
         operatorType[msg.sender] = 0;
     }
-
 
     // call registration contract with given data
     /**
@@ -160,14 +112,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
      *         the account has registered itself as an operator.
      */
     /**
-     * @param data is an encoding of the operatorType that the operator wants to register as 
-     *        with the middleware, infrastructure details that the middleware would need for 
-     *        coordinating with the operator to elicit its response, etc. Details may 
-     *        vary from middleware to middleware. 
-     */ 
+     * @param data is an encoding of the operatorType that the operator wants to register as
+     *        with the middleware, infrastructure details that the middleware would need for
+     *        coordinating with the operator to elicit its response, etc. Details may
+     *        vary from middleware to middleware.
+     */
     /**
      * @dev Calls the RegistrationManager contract.
-     */ 
+     */
     function register(bytes calldata data) external payable {
         require(
             operatorType[msg.sender] == 0,
@@ -176,242 +128,106 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         /**
          * This function calls the registerOperator function of the middleware to process the
-         * data that has been provided by the operator. 
+         * data that has been provided by the operator.
          */
-        (uint8 opType, uint256 eigenAmount) = IRegistrationManager(
+        (uint8 opType, uint128 eigenAmount) = IRegistrationManager(
             registrationManager
         ).registerOperator(msg.sender, data);
 
         // record the operator type of the operator
         operatorType[msg.sender] = opType;
-        
-        /** 
-         * total Eigen that has been employed by the operator for providing validation service 
-         * to this middleware. 
-         */        
-        eigenDeposited[msg.sender] = eigenAmount;
 
         /**
-         * total Eigen being employed by the operator for securing the queries 
-         * from middleware via EigenLayr
-         */
-        totalEigen += eigenAmount;
-
-        /** 
          * get details on the delegators of the operator that has called this function
          * for registration with the middleware
          */
-        (
-            IInvestmentStrategy[] memory delegatedOperatorStrats,
-            uint256[] memory delegatedOperatorShares,
-            uint256 delegatedConsensusLayerEth
-        ) = delegation.getControlledEthStake(msg.sender);
+        //SHOULD BE LESS THAN 2^128, do we need to switch everything to uint128? @TODO
+        uint128 ethAmount = uint128(
+            delegation.getUnderlyingEthDelegated(msg.sender) +
+                delegation.getConsensusLayerEthDelegated(msg.sender) /
+                consensusLayerEthToEth
+        );
 
+        //only 1 SSTORE
+        operatorStakes[msg.sender] = Stake(eigenAmount, ethAmount);
 
-        /** 
-         * Update the shares allocated with each of the investment startegy that is being
-         * used by even one delegator of an operator of this middleware. 
-         */
         /**
-         * @dev If the investment startegy that is being used by a delegator of the operator 
-         *      is a strategy that isn't being used by any of the delegators of the existing
-         *      operators that are providing service to the middleware, then, we record this 
-         *      strategy into "strats".
-         */ 
-        uint256 stratsLength = delegatedOperatorStrats.length;
-        for (uint i = 0; i < stratsLength; ) {
-            if (shares[delegatedOperatorStrats[i]] == 0) {
-                strats.push(delegatedOperatorStrats[i]);
-            }
-            shares[delegatedOperatorStrats[i]] += delegatedOperatorShares[i];
-            unchecked {
-                ++i;
-            }
-        }
-        // record the strategies that are being used by any delegator of the operator
-        operatorStrats[msg.sender] = delegatedOperatorStrats;
+         * total Eigen being employed by the operator for securing the queries
+         * from middleware via EigenLayr
+         */
+        //i think this gets batched as 1 SSTORE @TODO check
+        totalStake.eigenStaked += eigenAmount;
+        totalStake.ethStaked += ethAmount;
 
-        // record the total ETH that has been staked for validating the middleware via EigenLayr
-        totalConsensusLayerEth += delegatedConsensusLayerEth;
-
-        // record the total ETH that has been employed by the operator for validating the 
-        // middleware via EigenLayr
-        consensusLayerEth[msg.sender] = delegatedConsensusLayerEth;
-
-
-        operatorCounts = (operatorCounts + (1 << 32*opType)) + 1;
+        operatorCounts = (operatorCounts + (1 << (32 * opType))) + 1;
     }
-
 
     /**
      * @notice This function can be called by anyone to update the assets that have been
      *         deposited by the specified operator for validation of middleware.
      */
     /**
-     * @return 
-     */ 
+     * @return
+     */
     function updateStake(address operator)
         public
         override
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
+        returns (uint128, uint128)
     {
-        // get new eigen amount and replace it
-        uint256 newEigen = voteWeighter.weightOfOperatorEigen(operator);
-        totalEigen = totalEigen + newEigen - eigenDeposited[operator];
-        eigenDeposited[operator] = newEigen;
-        //get new delegated shares
-        (
-            IInvestmentStrategy[] memory delegatedOperatorStrats,
-            uint256[] memory delegatedOperatorShares,
-            uint256 delegatedConsensusLayerEth
-        ) = delegation.getControlledEthStake(operator);
-        //get current strategies
-        IInvestmentStrategy[] memory operatorStratsPrev = operatorStrats[
-            operator
-        ];
-        uint256 stratsRemaining = operatorStratsPrev.length;
-        uint256 stratsLength = delegatedOperatorStrats.length;
-        for (uint i = 0; i < stratsLength; ) {
-            uint256 qmShares = shares[delegatedOperatorStrats[i]];
-            //if first time seeing
-            if (qmShares == 0) {
-                strats.push(delegatedOperatorStrats[i]);
-            }
-            //add new shares
-            qmShares += delegatedOperatorShares[i];
-            //loop throuw all old strategies that havent matched the one's we have seen yet
-            for (uint j = 0; j < stratsRemaining; ) {
-                //check if new strategy matches an old one
-                if (delegatedOperatorStrats[i] == operatorStratsPrev[j]) {
-                    //subtract old shares, modify memory (looping) array
-                    qmShares -= operatorShares[operator][operatorStratsPrev[j]];
-                    //bring last unchecked strategies
-                    operatorStratsPrev[j] = operatorStratsPrev[
-                        (stratsRemaining - 1)
-                    ];
-                    //1 less strat remains
-                    --stratsRemaining;
-                    break;
-                }
-                unchecked {
-                    ++i;
-                }
-            }
+        // get new eigen and eth amounts
+        uint128 newEigen = voteWeighter.weightOfOperatorEigen(operator);
+        uint128 newEth = uint128(
+            delegation.getUnderlyingEthDelegated(msg.sender) +
+                delegation.getConsensusLayerEthDelegated(msg.sender) /
+                consensusLayerEthToEth
+        );
+        //store old stake in memory
+        uint128 prevEigen = operatorStakes[msg.sender].eigenStaked;
+        uint128 prevEth = operatorStakes[msg.sender].ethStaked;
 
-            //update shares in storage
-            shares[delegatedOperatorStrats[i]] = qmShares;
-            //update operator shares in storage
-            operatorShares[operator][
-                delegatedOperatorStrats[i]
-            ] = delegatedOperatorShares[i];
-            unchecked {
-                ++i;
-            }
-        }
+        //store the new stake
+        operatorStakes[msg.sender].eigenStaked = newEigen;
+        operatorStakes[msg.sender].ethStaked = newEth;
 
-        //set shares to zero for old strategies that aren't still present
-        for (uint i = 0; i < stratsRemaining; ) {
-            operatorShares[operator][operatorStratsPrev[i]] = 0;
-            unchecked {
-                ++i;
-            }
-        }
-        //update operator strats in storage
-        operatorStrats[operator] = delegatedOperatorStrats;
-        //update consensusLayrEth
-        totalConsensusLayerEth =
-            totalConsensusLayerEth +
-            delegatedConsensusLayerEth -
-            consensusLayerEth[operator];
-        consensusLayerEth[operator] = delegatedConsensusLayerEth;
+        //subtract the deregisterers stake from the total
+        totalStake.eigenStaked = totalStake.eigenStaked + newEigen - prevEigen;
+        totalStake.ethStaked = totalStake.ethStaked + newEth - prevEth;
         //return CLE, Eth shares, Eigen
-        return (
-            delegatedConsensusLayerEth,
-            investmentManager.getUnderlyingEthOfStrategyShares(
-                delegatedOperatorStrats,
-                delegatedOperatorShares
-            ),
-            newEigen
-        );
-    }
-
-    function totalEthValueOfShares() public returns (uint256) {
-        uint256[] memory sharesList = new uint256[](strats.length);
-        for (uint256 i = 0; i < sharesList.length; i++) {
-            sharesList[i] = shares[strats[i]];
-        }
-        return
-            investmentManager.getUnderlyingEthOfStrategyShares(
-                strats,
-                sharesList
-            );
-    }
-
-    function totalEthValueOfSharesForOperator(address operator)
-        public
-        returns (uint256)
-    {
-        uint256[] memory operatorSharesList = new uint256[](
-            operatorStrats[operator].length
-        );
-        for (uint256 i = 0; i < operatorSharesList.length; i++) {
-            operatorSharesList[i] = operatorShares[operator][
-                operatorStrats[operator][i]
-            ];
-        }
-        return
-            investmentManager.getUnderlyingEthOfStrategyShares(
-                operatorStrats[operator],
-                operatorSharesList
-            );
+        return (newEth, newEigen);
     }
 
     //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
-    function totalEthStaked() public returns (uint256) {
-        return
-            totalEthValueOfShares() +
-            totalConsensusLayerEth /
-            consensusLayerEthToEth;
+    function totalEthStaked() public view returns (uint128) {
+        return totalStake.ethStaked;
+    }
+
+    function totalEigenStaked() public view returns (uint128) {
+        return totalStake.eigenStaked;
     }
 
     //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
-    function totalEthValueStakedForOperator(address operator)
-        public
-        returns (uint256)
+    function ethStakedByOperator(address operator)
+        public view
+        returns (uint128)
     {
-        return
-            totalEthValueOfSharesForOperator(operator) +
-            totalConsensusLayerEth /
-            consensusLayerEthToEth;
+        return operatorStakes[operator].ethStaked;
     }
 
-    function eigenDepositedByOperator(address operator)
+    function eigenStakedByOperator(address operator)
         public
         view
-        returns (uint256)
+        returns (uint128)
     {
-        return eigenDeposited[operator];
+        return operatorStakes[operator].eigenStaked;
     }
 
-    function totalEthValueStakedAndEigenForOperator(address operator)
-        public
-        returns (uint256, uint256)
+    function ethAndEigenStakedForOperator(address operator)
+        public view
+        returns (uint128, uint128)
     {
-        return (totalEthValueStakedForOperator(operator), eigenDeposited[operator]);
+        Stake memory opStake = operatorStakes[operator];
+        return (opStake.ethStaked, opStake.eigenStaked);
     }
-
-    function consensusLayrEthOfOperator(address operator)
-        public
-        view
-        returns (uint256)
-    {
-        return consensusLayerEth[operator];
-    }
-
 
     /// @notice returns the type for the specified operator
     function getOperatorType(address operator)
@@ -422,7 +238,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
     {
         return operatorType[operator];
     }
-
 
     /**
      * @notice creates a new query based on the @param queryData passed.
@@ -440,12 +255,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
     }
 
     /**
-     * @notice Used by operators to respond to a specific query.   
+     * @notice Used by operators to respond to a specific query.
      */
     /**
      * @param queryHash is the identifier for the query to which the operator is responding,
-     * @param response is the operator's response for the query.   
-     */ 
+     * @param response is the operator's response for the query.
+     */
     function respondToQuery(bytes32 queryHash, bytes calldata response)
         external
     {

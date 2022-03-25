@@ -11,17 +11,13 @@ interface IQueryManager {
 
     function consensusLayerEthToEth() external view returns (uint256);
 
-    function totalEigen() external view returns (uint256);
-
-    function totalConsensusLayerEth() external returns (uint256);
-
-    function totalEthValueOfShares() external returns (uint256);
+    function totalEigenStaked() external view returns (uint128);
 
     function createNewQuery(bytes calldata queryData) external;
 
-    function getQueryDuration() external returns (uint256);
+    function getQueryDuration() external view returns (uint256);
 
-    function getQueryCreationTime(bytes32) external returns (uint256);
+    function getQueryCreationTime(bytes32) external view returns (uint256);
 
     function getOperatorType(address) external view returns (uint8);
 
@@ -34,24 +30,17 @@ interface IQueryManager {
     function updateStake(address)
         external
         returns (
-            uint256,
-            uint256,
-            uint256
+            uint128,
+            uint128
         );
 
-    function totalEthValueOfSharesForOperator(address)
+    function eigenStakedByOperator(address) external view returns (uint128);
+
+    function ethStakedByOperator(address) external view returns (uint128);
+
+    function totalEthStaked() external view returns (uint128);
+
+    function ethAndEigenStakedForOperator(address)
         external
-        returns (uint256);
-
-    function eigenDepositedByOperator(address) external returns (uint256);
-
-    function consensusLayrEthOfOperator(address) external returns (uint256);
-
-    function totalEthValueStakedForOperator(address) external returns (uint256);
-
-    function totalEthStaked() external returns (uint256);
-
-    function totalEthValueStakedAndEigenForOperator(address)
-        external
-        returns (uint256, uint256);
+        view returns (uint128, uint128);
 }

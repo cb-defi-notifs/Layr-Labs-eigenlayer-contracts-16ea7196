@@ -20,9 +20,9 @@ contract DataLayr is Ownable, IDataLayr {
     //the DL query manager
     IQueryManager public queryManager;
     //percentage of eigen that signers need to hold for a quorum
-    uint32 eigenSignatureThreshold;
+    uint128 eigenSignedThresholdPercentage;
     //percentage of eth that signers need to hold for a quorum
-    uint32 ethSignatureThreshold;
+    uint128 ethSignedThresholdPercentage;
 
     // Data Store
     struct DataStore {
@@ -102,8 +102,8 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 dumpNumber,
         bytes32 ferkleRoot,
         address submitter,
-        uint32 ethSigners,
-        uint32 eigenSigners
+        uint128 ethStakeSigned,
+        uint128 eigenStakeSigned
     ) external  {
         DataStore storage dataStore = dataStores[ferkleRoot];
         //TODO: check if eth and eigen are sufficient
@@ -120,10 +120,9 @@ contract DataLayr is Ownable, IDataLayr {
             !dataStores[ferkleRoot].commited,
             "Data store already has already been committed"
         );
-        (uint32 totalEthSigners, uint32 totalEigenSigners) = getTotalEthAndEigenSigners();
         //require that signatories own at least a threshold percentage of eth and eigen
-        require(ethSigners*100/totalEthSigners >= ethSignatureThreshold 
-                && eigenSigners*100/totalEigenSigners >= eigenSignatureThreshold, 
+        require(ethStakeSigned*100/queryManager.totalEthStaked() >= ethSignedThresholdPercentage 
+                && eigenStakeSigned*100/queryManager.totalEigenStaked() >= eigenSignedThresholdPercentage, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
         dataStores[ferkleRoot].commited = true;
         emit Commit(
@@ -133,17 +132,11 @@ contract DataLayr is Ownable, IDataLayr {
     }
     // Setters and Getters
 
-    function setEigenSignatureThreshold(uint32 _eigenSignatureThreshold) public onlyOwner {
-        eigenSignatureThreshold = _eigenSignatureThreshold;
+    function setEigenSignatureThreshold(uint128 _eigenSignedThresholdPercentage) public onlyOwner {
+        eigenSignedThresholdPercentage = _eigenSignedThresholdPercentage;
     }
 
-    function setEthSignatureThreshold(uint32 _ethSignatureThreshold) public onlyOwner {
-        ethSignatureThreshold = _ethSignatureThreshold;
-    }
-
-    function getTotalEthAndEigenSigners() public view returns(uint32, uint32) {
-        uint256 operatorCounts = queryManager.operatorCounts();
-        //add eth and both eigen and eth operators                           add eigen and both eigen and eth operators
-        return (uint32(operatorCounts >> 64) + uint32(operatorCounts >> 96), uint32(operatorCounts >> 32) + uint32(operatorCounts >> 96));
+    function setEthSignatureThreshold(uint128 _ethSignedThresholdPercentage) public onlyOwner {
+        ethSignedThresholdPercentage = _ethSignedThresholdPercentage;
     }
 }

@@ -8,9 +8,9 @@ import "./storage/DataLayrServiceManagerStorage.sol";
 abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
     struct SignatoryTotals {
         //total eth stake of the signatories
-        uint32 totalEthSigners;
+        uint128 ethStakeSigned;
         //total eigen stake of the signatories
-        uint32 totalEigenSigners;
+        uint128 eigenStakeSigned;
     }
 
     //the DL vote weighter
@@ -124,25 +124,11 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
                 );
                 //flip the bit to mark that 'sigIndex' has been claimed
                 claimsMadeInBin = (claimsMadeInBin | mask);
-                //fetch type of of operator
-                uint8 operatorType = queryManager.getOperatorType(signatory);
-                //increment totals based on operator type
-                if (operatorType == 3) {
-                    unchecked {
-                        ++signedTotals.totalEigenSigners;
-                        ++signedTotals.totalEthSigners;
-                    }
-                } else if (operatorType == 2) {
-                    unchecked {
-                        ++signedTotals.totalEthSigners;
-                    }
-                } else if (operatorType == 1) {
-                    unchecked {
-                        ++signedTotals.totalEigenSigners;
-                    }
-                } else {
-                    revert("Operator not active");
-                }
+
+                (uint128 ethStaked, uint128 eigenStaked) = queryManager.ethAndEigenStakedForOperator(signatory);
+
+                signedTotals.eigenStakeSigned += eigenStaked;
+                signedTotals.ethStakeSigned += ethStaked;
                 //decrement counter of remaining signatures to check
                 unchecked {
                     --sigsInCurrentBin;
