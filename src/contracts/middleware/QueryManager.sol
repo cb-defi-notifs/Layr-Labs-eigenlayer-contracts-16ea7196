@@ -144,7 +144,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
          * @dev Referring to the detailed explanation on structure of operatorCounts in 
          *      QueryManagerStorage.sol, in order to subtract the number of operators
          *      of i^th type, first left shift 1 by 32*i bits and subtract it from <n_i>.
-         *      Then, subtract 1 from <n>.
+         *      Then, subtract 1 from <n> to decrement the number of total operators.
          */
         operatorCounts = (operatorCounts - (1 << 32*operatorType[msg.sender])) - 1;
 
@@ -156,7 +156,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // call registration contract with given data
     /**
      * @notice Used by an operator to register itself for providing service to the middleware
-     *         associated with this QueryManager contract.
+     *         associated with this QueryManager contract. This also notifies the stakers that
+     *         the account has registered itself as an operator.
      */
     /**
      * @param data is an encoding of the operatorType that the operator wants to register as 
@@ -242,6 +243,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorCounts = (operatorCounts - (1 << 32*opType)) - 1;
     }
 
+
+    /**
+     * @notice This function can be called by anyone to update the assets that have been
+     *         deposited by the specified operator for validation of middleware.
+     */
+    /**
+     * @return 
+     */ 
     function updateStake(address operator)
         public
         override
@@ -251,7 +260,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
             uint256
         )
     {
-        //get new eigen amount and replace it
+        // get new eigen amount and replace it
         uint256 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         totalEigen = totalEigen + newEigen - eigenDeposited[operator];
         eigenDeposited[operator] = newEigen;
@@ -293,6 +302,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
                     ++i;
                 }
             }
+
             //update shares in storage
             shares[delegatedOperatorStrats[i]] = qmShares;
             //update operator shares in storage
@@ -403,6 +413,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return consensusLayerEth[operator];
     }
 
+
+    /// @notice returns the type for the specified operator
     function getOperatorType(address operator)
         public
         view
@@ -414,7 +426,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
 
     /**
-     * @notice 
+     * @notice creates a new query based on the @param queryData passed.
      */
     function createNewQuery(bytes calldata queryData) external override {
         address msgSender = msg.sender;

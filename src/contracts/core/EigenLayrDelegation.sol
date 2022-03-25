@@ -362,8 +362,9 @@ contract EigenLayrDelegation is
              * @dev Under scenario where operator is being delegated assets by delegators.
              */
             // CRITIC: we are assuming here that delegation[operator] != operator which would
-            // imply that operator is not actually an operator. Should there be a consition to check
-            // whether operator is actually an operator or not?
+            // imply that operator is not actually an operator. Should there be a condition to check
+            // whether operator is actually an operator or not? Like calling getOperatorType() in 
+            // QueryManager.sol and check it is non-zero?
             uint256[] memory shares = new uint256[](
                 operatorStrats[operator].length
             );
