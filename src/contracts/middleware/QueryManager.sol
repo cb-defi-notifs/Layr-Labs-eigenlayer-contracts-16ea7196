@@ -177,17 +177,17 @@ contract QueryManager is Initializable, QueryManagerStorage {
         // get new eigen and eth amounts
         uint128 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         uint128 newEth = uint128(
-            delegation.getUnderlyingEthDelegated(msg.sender) +
-                delegation.getConsensusLayerEthDelegated(msg.sender) /
+            delegation.getUnderlyingEthDelegated(operator) +
+                delegation.getConsensusLayerEthDelegated(operator) /
                 consensusLayerEthToEth
         );
         //store old stake in memory
-        uint128 prevEigen = operatorStakes[msg.sender].eigenStaked;
-        uint128 prevEth = operatorStakes[msg.sender].ethStaked;
+        uint128 prevEigen = operatorStakes[operator].eigenStaked;
+        uint128 prevEth = operatorStakes[operator].ethStaked;
 
         //store the new stake
-        operatorStakes[msg.sender].eigenStaked = newEigen;
-        operatorStakes[msg.sender].ethStaked = newEth;
+        operatorStakes[operator].eigenStaked = newEigen;
+        operatorStakes[operator].ethStaked = newEth;
 
         //subtract the deregisterers stake from the total
         totalStake.eigenStaked = totalStake.eigenStaked + newEigen - prevEigen;
@@ -243,7 +243,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
      * @notice creates a new query based on the @param queryData passed.
      */
     function createNewQuery(bytes calldata queryData) external override {
-        address msgSender = msg.sender;
+        _createNewQuery(msg.sender, queryData);
+    }
+
+    function _createNewQuery(address queryCreator, bytes calldata queryData)
+        internal 
+    {
         bytes32 queryDataHash = keccak256(queryData);
         //verify that query has not already been created
         require(queriesCreated[queryDataHash] == 0, "duplicate query");
@@ -251,7 +256,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         queriesCreated[queryDataHash] = block.timestamp;
         emit QueryCreated(queryDataHash, block.timestamp);
         //hook to manage payment for query
-        IFeeManager(feeManager).payFee(msgSender);
+        IFeeManager(feeManager).payFee(queryCreator);
     }
 
     /**
@@ -264,24 +269,29 @@ contract QueryManager is Initializable, QueryManagerStorage {
     function respondToQuery(bytes32 queryHash, bytes calldata response)
         external
     {
-        address msgSender = msg.sender;
+        _respondToQuery(msg.sender, queryHash, response);
+    }
+
+    function _respondToQuery(address respondent, bytes32 queryHash, bytes calldata response)
+        internal
+    {
         //make sure query is open and sender has not already responded to it
         require(block.timestamp < _queryExpiry(queryHash), "query period over");
         require(
-            queries[queryHash].operatorWeights[msgSender] == 0,
+            queries[queryHash].operatorWeights[respondent] == 0,
             "duplicate response to query"
         );
         //find sender's weight and the hash of their response
-        uint256 weightToAssign = voteWeighter.weightOfOperatorEth(msgSender);
+        uint256 weightToAssign = voteWeighter.weightOfOperatorEth(respondent);
         bytes32 responseHash = keccak256(response);
         //update Query struct with sender's weight + response
-        queries[queryHash].operatorWeights[msgSender] = weightToAssign;
-        queries[queryHash].responses[msgSender] = responseHash;
+        queries[queryHash].operatorWeights[respondent] = weightToAssign;
+        queries[queryHash].responses[respondent] = responseHash;
         queries[queryHash].cumulativeWeights[responseHash] += weightToAssign;
         queries[queryHash].totalCumulativeWeight += weightToAssign;
         //emit event for response
         emit ResponseReceived(
-            msgSender,
+            respondent,
             queryHash,
             responseHash,
             weightToAssign
@@ -303,7 +313,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         //hook for updating fee manager on each response
         feeManager.onResponse(
             queryHash,
-            msgSender,
+            respondent,
             responseHash,
             weightToAssign
         );
