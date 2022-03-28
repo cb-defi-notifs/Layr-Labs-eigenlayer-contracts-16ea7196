@@ -15,6 +15,19 @@ import "./storage/EigenLayrDepositStorage.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving
+/**
+ * @notice This is the contract for any user to deposit their stake into EigenLayr in order
+ *         to participate in providing validation servies to middlewares. The main 
+ *         functionalities of this contract are:
+ *           - enabling deposit of staking derivatives from liquid staking into EigenLayr while 
+ *             describing which investment strategy to use for investing these staking derivatives,
+ *           - enabling proving staking of ETH into settlement layer (beacon chain)  
+ *             before the launch of EigenLayr and then account it for staking into EigenLayr,
+ *           - enabling depositing ETH into settlement layer via EigenLayr's withdrawal 
+ *             certificate and then then account it for staking into EigenLayr,
+ *           - enabling acceptance of proof of staking into settlement layer, via depositer's
+ *             own withdrawal certificate, in order to use it for staking into EigenLayr.     
+ */
 contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrDeposit {
     bytes32 public immutable consensusLayerDepositRoot;
     Eigen public immutable eigen;
@@ -42,7 +55,7 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         postOracleSetter = _postOracleSetter;
     }
 
-    //set this to the DL query manager
+    // set this to the DL query manager
     function setPOStOracle(IProofOfStakingOracle _postOracle) public {
         require(msg.sender == postOracleSetter, "Only POSt setter can set the POSt oracle");
         //make setter 0, no one can set again
