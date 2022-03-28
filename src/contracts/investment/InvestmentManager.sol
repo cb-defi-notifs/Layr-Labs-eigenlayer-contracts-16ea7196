@@ -9,6 +9,9 @@ import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 
 // TODO: withdrawals of Eigen (and consensus layer ETH?)
+/**
+ * @notice TBA
+ */
 contract InvestmentManager is
     Initializable,
     Governed,
@@ -30,13 +33,25 @@ contract InvestmentManager is
         delegation = _delegation;
     }
 
-    // adds the given strategies to the investment manager
+    /**
+     * @notice Initializes the investment manager contract with a given set of strategies 
+     *         and slashing rules. 
+     */
+    /**
+     * @param strategies are the initial set of strategies
+     * @param _slasher is the set of slashing rules to be used for the strategies associated with 
+     *        this investment manager contract   
+     */
     function initialize(
         IInvestmentStrategy[] memory strategies,
         address _slasher
     ) external initializer {
+        // make the sender who is initializing the investment manager as the governor
         _transferGovernor(msg.sender);
+
         slasher = _slasher;
+
+        // record the strategies as approved
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
@@ -45,7 +60,18 @@ contract InvestmentManager is
         }
     }
 
-    // adds the given strategies to the investment manager
+
+
+    /**
+     * @notice used for adding new investment strategies to the list of approved stratgeies
+     *         of the investment manager contract 
+     */ 
+    /**
+     * @param strategies are new strategies to be added
+     */
+    /**
+     * @dev only the governor can add new strategies
+     */ 
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
         external
         onlyGovernor
@@ -58,16 +84,45 @@ contract InvestmentManager is
         }
     }
 
-    // removes the given strategies from the investment manager
+
+
+    /**
+     * @notice used for removing investment strategies from the list of approved stratgeies
+     *         of the investment manager contract 
+     */ 
+    /**
+     * @param strategies are strategies to be removed
+     */
+    /**
+     * @dev only the governor can add new strategies
+     */ 
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
     ) external onlyGovernor {
+        // set the approval status to false
         for (uint256 i = 0; i < strategies.length; i++) {
             stratApproved[strategies[i]] = false;
         }
     }
 
-    // deposits given tokens and amounts into the given strategies on behalf of depositor
+
+
+    /**
+     * @notice used for investing a depositer's asset into the specified strategy in the 
+     *         behalf of the depositer 
+     */
+    /**
+     * @param depositer is the address of the user who is investing assets into specified strategy,
+     * @param strategy is the specified strategy where investment is to be made, 
+     * @param token is the denomination in which the investment is to be made,
+     * @param amount is the amount of token to be invested in the strategy by the depositer
+     */
+    /**
+     * @dev this function is called when a user stakes ETH for the purpose of depositing
+     *      into liquid staking first, use the associated liquid stake token for providing 
+     *      validation service to EigenLayr and invest the token in DeFi. For more details, 
+     *      see EigenLayrDeposit.sol.    
+     */ 
     function depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategy,
@@ -77,7 +132,13 @@ contract InvestmentManager is
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
-    // deposits given tokens and amounts into the given strategies on behalf of depositor
+
+
+    /**
+     * @notice used for investing a depositer's assets into multiple specified strategy, in the 
+     *         behalf of the depositer, with each of the investment being done in terms of a
+     *         specified token and their respective amount. 
+     */
     function depositIntoStrategies(
         address depositor,
         IInvestmentStrategy[] calldata strategies,
@@ -96,6 +157,8 @@ contract InvestmentManager is
         return shares;
     }
 
+
+
     function _depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategy,
@@ -106,12 +169,16 @@ contract InvestmentManager is
             stratApproved[strategy],
             "Can only deposit from approved strategies"
         );
+
         // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
             investorStrats[depositor].push(strategy);
         }
+
         //transfer tokens to the strategy
         _transferTokenOrEth(token, depositor, address(strategy), amount);
+
+        
         shares = strategy.deposit(token, amount);
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;

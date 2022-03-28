@@ -56,9 +56,12 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
     }
 
     // set this to the DL query manager
+    /**
+     * @notice TBA
+     */
     function setPOStOracle(IProofOfStakingOracle _postOracle) public {
         require(msg.sender == postOracleSetter, "Only POSt setter can set the POSt oracle");
-        //make setter 0, no one can set again
+        // make setter 0, no one can set again
         postOracleSetter = address(0);
         postOracle = _postOracle;
     }
