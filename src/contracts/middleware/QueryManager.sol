@@ -13,7 +13,15 @@ import "./storage/QueryManagerStorage.sol";
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 /**
- * @notice
+ * @notice This is the contract for managing queries in any middleware. 
+ *         The main functionalities of this contract are:
+ *             - Enable mechanism for an operator to register with the middleware so that it can
+ *               respond to the middleware's queries,
+ *             - Enable mechanism for an operator to de-register with the middleware,
+ *             - Enable mechanism for updating the stake that is being deployed by an 
+ *               operator for validating the queries of the middleware,
+ *             - Enable mechanism for creating new queries by the middleware, responding to 
+ *               existing queries by operators and finalize the outcome of the queries.                        
  */
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
@@ -259,15 +267,19 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _createNewQuery(msg.sender, queryData);
     }
 
+
     function _createNewQuery(address queryCreator, bytes calldata queryData)
         internal 
     {
         bytes32 queryDataHash = keccak256(queryData);
+
         //verify that query has not already been created
         require(queriesCreated[queryDataHash] == 0, "duplicate query");
+
         //mark query as created and emit an event
         queriesCreated[queryDataHash] = block.timestamp;
         emit QueryCreated(queryDataHash, block.timestamp);
+        
         //hook to manage payment for query
         IFeeManager(feeManager).payFee(queryCreator);
     }
@@ -288,20 +300,25 @@ contract QueryManager is Initializable, QueryManagerStorage {
     function _respondToQuery(address respondent, bytes32 queryHash, bytes calldata response)
         internal
     {
-        //make sure query is open and sender has not already responded to it
+        // make sure query is open 
         require(block.timestamp < _queryExpiry(queryHash), "query period over");
+        
+        // make sure sender has not already responded to it
         require(
             queries[queryHash].operatorWeights[respondent] == 0,
             "duplicate response to query"
         );
-        //find sender's weight and the hash of their response
+
+        // find respondent's weight and the hash of their response
         uint256 weightToAssign = voteWeighter.weightOfOperatorEth(respondent);
         bytes32 responseHash = keccak256(response);
-        //update Query struct with sender's weight + response
+
+        // update Query struct with respondent's weight and response
         queries[queryHash].operatorWeights[respondent] = weightToAssign;
         queries[queryHash].responses[respondent] = responseHash;
         queries[queryHash].cumulativeWeights[responseHash] += weightToAssign;
         queries[queryHash].totalCumulativeWeight += weightToAssign;
+
         //emit event for response
         emit ResponseReceived(
             respondent,
@@ -309,7 +326,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
             responseHash,
             weightToAssign
         );
-        //check if leading response has changed. if so, update leadingResponse and emit an event
+
+        // check if leading response has changed. if so, update leadingResponse and emit an event
         bytes32 leadingResponseHash = queries[queryHash].leadingResponse;
         if (
             responseHash != leadingResponseHash &&
@@ -323,7 +341,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 responseHash
             );
         }
-        //hook for updating fee manager on each response
+        // hook for updating fee manager on each response
         feeManager.onResponse(
             queryHash,
             respondent,
@@ -332,19 +350,28 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
+
+    /**
+     * @notice Used for finalizing the outcome of the query associated with the queryHash
+     */
     function finalizeQuery(bytes32 queryHash) external {
-        //make sure queryHash is valid + query period has ended
+        // make sure queryHash is valid 
         require(queriesCreated[queryHash] != 0, "invalid queryHash");
+
+        // make sure query period has ended
         require(
             block.timestamp >= _queryExpiry(queryHash),
             "query period ongoing"
         );
-        //check that query has not already been finalized
+
+        // check that query has not already been finalized,
+        // query.outcome is always initialized as 0x0 and set after finalization
         require(
             queries[queryHash].outcome == bytes32(0),
             "duplicate finalization request"
         );
-        //record final outcome + emit an event
+
+        // record the leading response as the final outcome and emit an event
         bytes32 outcome = queries[queryHash].leadingResponse;
         queries[queryHash].outcome = outcome;
         emit QueryFinalized(
@@ -354,6 +381,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
+
+    /// @notice returns the outcome of the query associated with the queryHash
     function getQueryOutcome(bytes32 queryHash)
         external
         view
@@ -362,10 +391,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return queries[queryHash].outcome;
     }
 
+    /// @notice returns the duration of time for which an operator can respond to a query
     function getQueryDuration() external view override returns (uint256) {
         return queryDuration;
     }
 
+    /// @notice returns the time when the query, associated with queryHash, was created
     function getQueryCreationTime(bytes32 queryHash)
         external
         view
@@ -425,11 +456,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _fallback();
     }
 
+
+    /// @notice sets the fee manager for the iddleware's query manager
     function setFeeManager(IFeeManager _feeManager) external {
         require(msg.sender == timelock, "onlyTimelock");
         feeManager = _feeManager;
     }
 
+    /// @notice sets the timelock contract's address
     function setTimelock(address _timelock) external {
         require(msg.sender == timelock, "onlyTimelock");
         timelock = _timelock;
