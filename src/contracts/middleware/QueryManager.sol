@@ -69,8 +69,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still
     //          envisioning it as an input opType?
     //         (2) Why is deregister a payable type? Whom are you paying for deregistering and why?
-    //         (3) Seems like an operator can deregister before requiring its delegators to withdraw
-    //             their respective pending rewards. Is this a concern?
     function deregister(bytes calldata data) external payable {
         require(
             operatorType[msg.sender] != 0,
@@ -84,10 +82,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
             "Deregistration not permitted"
         );
 
-        //subtract the deregisterers stake from the total
+        // subtract the staked Eigen and ETH of the operator, that is getting deregistered, 
+        // from the total stake securing the middleware
         totalStake.eigenStaked -= operatorStakes[msg.sender].eigenStaked;
         totalStake.ethStaked -= operatorStakes[msg.sender].ethStaked;
-        //clear the deregisterers stake
+
+        // clear the staked Eigen and ETH of the operator which is getting deregistered
         operatorStakes[msg.sender].eigenStaked = 0;
         operatorStakes[msg.sender].ethStaked = 0;
 
@@ -118,7 +118,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
      *        vary from middleware to middleware.
      */
     /**
-     * @dev Calls the RegistrationManager contract.
+     * @dev Uses the RegistrationManager contract for registering the operator.
      */
     function register(bytes calldata data) external payable {
         require(
@@ -138,8 +138,10 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorType[msg.sender] = opType;
 
         /**
-         * get details on the delegators of the operator that has called this function
-         * for registration with the middleware
+         * Get the total ETH that has been deposited by the delegators of the operator. 
+         * This will account for ETH that has been delegated for staking in settlement layer only   
+         * and the ETH that has been cinverted into the specified liquidStakeToken first which is then
+         * being deposited in some investment strategy. 
          */
         //SHOULD BE LESS THAN 2^128, do we need to switch everything to uint128? @TODO
         uint128 ethAmount = uint128(
@@ -148,17 +150,18 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 consensusLayerEthToEth
         );
 
-        //only 1 SSTORE
+        // only 1 SSTORE
         operatorStakes[msg.sender] = Stake(eigenAmount, ethAmount);
 
         /**
-         * total Eigen being employed by the operator for securing the queries
-         * from middleware via EigenLayr
+         * update total Eigen and ETH tha are being employed by the operator for securing 
+         * the queries from middleware via EigenLayr
          */
         //i think this gets batched as 1 SSTORE @TODO check
         totalStake.eigenStaked += eigenAmount;
         totalStake.ethStaked += ethAmount;
 
+        // increment both the total number of operators and number of operators of opType
         operatorCounts = (operatorCounts + (1 << (32 * opType))) + 1;
     }
 
@@ -167,45 +170,53 @@ contract QueryManager is Initializable, QueryManagerStorage {
      *         deposited by the specified operator for validation of middleware.
      */
     /**
-     * @return
+     * @return (updated ETH, updated Eigen) staked with the operator
      */
     function updateStake(address operator)
         public
         override
         returns (uint128, uint128)
     {
-        // get new eigen and eth amounts
+        // get new updated Eigen and ETH that has been delegated by the delegators of the 
+        // operator 
         uint128 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         uint128 newEth = uint128(
             delegation.getUnderlyingEthDelegated(operator) +
                 delegation.getConsensusLayerEthDelegated(operator) /
                 consensusLayerEthToEth
         );
-        //store old stake in memory
+
+
+        // store old stake in memory
         uint128 prevEigen = operatorStakes[operator].eigenStaked;
         uint128 prevEth = operatorStakes[operator].ethStaked;
 
-        //store the new stake
+        // store the updated stake
         operatorStakes[operator].eigenStaked = newEigen;
         operatorStakes[operator].ethStaked = newEth;
 
-        //subtract the deregisterers stake from the total
+        // update the total stake
         totalStake.eigenStaked = totalStake.eigenStaked + newEigen - prevEigen;
         totalStake.ethStaked = totalStake.ethStaked + newEth - prevEth;
-        //return CLE, Eth shares, Eigen
+
+        //return (updated ETH, updated Eigen) staked with the operator
         return (newEth, newEigen);
     }
 
-    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+
+
+    /// @notice get total ETH staked for securing the middleware
     function totalEthStaked() public view returns (uint128) {
         return totalStake.ethStaked;
     }
 
+
+    /// @notice get total Eigen staked for securing the middleware
     function totalEigenStaked() public view returns (uint128) {
         return totalStake.eigenStaked;
     }
 
-    //get value of shares and add consensus layr eth weighted by whatever proportion the middlware desires
+    /// @notice get total ETH staked by delegators of the operator
     function ethStakedByOperator(address operator)
         public view
         returns (uint128)
@@ -213,6 +224,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return operatorStakes[operator].ethStaked;
     }
 
+    /// @notice get total Eigen staked by delegators of the operator
     function eigenStakedByOperator(address operator)
         public
         view
@@ -221,6 +233,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return operatorStakes[operator].eigenStaked;
     }
 
+    /// @notice get both total ETH and Eigen staked by delegators of the operator
     function ethAndEigenStakedForOperator(address operator)
         public view
         returns (uint128, uint128)

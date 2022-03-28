@@ -180,7 +180,9 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
 
     /** 
     *   @notice Used to prove new staking of ETH into settlement layer (beacon chain)  
-    *           before the launch of EigenLayr and then re-stake it in EigenLayr. 
+    *           after the launch of EigenLayr (staking in settlement layer was done 
+    *           by using depositer's own withdrawal certificate) and then re-stake it in 
+    *           EigenLayr. 
     */
     /**
     *   @dev In order to update the snapshot of depositer and their stake in settlement 

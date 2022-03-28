@@ -381,29 +381,43 @@ contract EigenLayrDelegation is
         }
     }
 
-    /// @notice Returns the total ETH value of the shares that have been deposited by the operator
-    // CRITIC: isn't this a view function too?
+    /// @notice Returns the total ETH value of the shares that have been deposited by the
+    //          delegators with operator while using investment strategies
     function getUnderlyingEthDelegated(address operator)
         external
         returns (uint256)
     {
         uint256 weight;
+    
         if (delegation[operator] == operator) {
+            // when the operator has delegated to self
+
+            //  get all strategies
             IInvestmentStrategy[] memory investorStrats = investmentManager
                 .getStrategies(operator);
+            
+            //  get shares of all strategies
             uint256[] memory investorShares = investmentManager
                 .getStrategyShares(operator);
+
+            // get cumulative ETH value of all shares
             for (uint256 i = 0; i < investorStrats.length; i++) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     investorShares[i]
                 );
             }
         } else {
+            // when the operator hasn't delegated to itself but other stakers
+            // have delegated
             // CRITIC: same problem as in getControlledEthStake, with calling
             // operatorStrats[operator] for the case "delegation[operator] != operator"
+            
+            // get all the investment strategies that is being used by any delegator
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
+
+            // get cumulative ETH value of all shares
             for (uint256 i = 0; i < investorStrats.length; i++) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     operatorShares[operator][investorStrats[i]]
@@ -413,7 +427,7 @@ contract EigenLayrDelegation is
         return weight;
     }
 
-    // CRITIC: same function as above
+
     function getUnderlyingEthDelegatedView(address operator)
         external
         view
@@ -445,6 +459,10 @@ contract EigenLayrDelegation is
         return weight;
     }
 
+
+    /// @notice returns the total ETH delegated by delegators with this operator 
+    ///         while staking it with the settlement layer (beacon chain)
+    // CRITIC: change name to getSettlementLayerEthDelegated
     function getConsensusLayerEthDelegated(address operator)
         external
         view
@@ -458,6 +476,8 @@ contract EigenLayrDelegation is
                 : consensusLayerEth[operator];
     }
 
+
+    /// @notice returns the total Eigen delegated by delegators with this operator 
     function getEigenDelegated(address operator)
         external
         view
