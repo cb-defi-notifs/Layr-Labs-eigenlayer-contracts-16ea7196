@@ -73,13 +73,6 @@ abstract contract QueryManagerStorage is IQueryManager {
      */
     mapping(address => uint256) public eigenDeposited;
 
-
-    // struct for storing the amount of Eigen and ETH that has been staked
-    struct Stake {
-        uint128 eigenStaked;
-        uint128 ethStaked;
-    }
-
     // mapping from each operator's address to its Stake for the middleware
     mapping(address => Stake) public operatorStakes;
 

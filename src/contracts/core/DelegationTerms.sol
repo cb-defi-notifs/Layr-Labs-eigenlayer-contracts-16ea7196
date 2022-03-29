@@ -7,7 +7,6 @@ import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
-// TODO: dynamic splitting of earnings between EIGEN and ETH delegators rather than the crappy, static implemenation of 'EIGEN_HOLDER_BIPS'
 
 /**
  * @notice This contract specifies the delegation terms of a given operator. When any delegator
@@ -123,8 +122,6 @@ contract DelegationTerms is IDelegationTerms {
     //            ((amount * REWARD_SCALING) / totalWeightEth) is nonzero but also does not overflow
     uint256 internal constant REWARD_SCALING = 2**64;
     uint16 internal constant MAX_BIPS = 10000;
-    //portion of earnings going to EIGEN delegators, *after* operator fees -- TODO: handle this better
-    uint16 internal constant EIGEN_HOLDER_BIPS = 5000;
     //max number of payment tokens, for sanity's sake
     uint16 internal constant MAX_PAYMENT_TOKENS = 256;
     //portion of all earnings (in BIPS) retained by operator
@@ -138,7 +135,6 @@ contract DelegationTerms is IDelegationTerms {
     address public immutable eigenLayrDelegation;
     //used for weighting of delegated ETH & EIGEN
     IInvestmentManager public immutable investmentManager;
-    //used to find the proper split in earnings between delegated EIGEN and ETH tokens
 
     //NOTE: copied from 'DataLayrVoteWeigher.sol'
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
@@ -236,13 +232,13 @@ contract DelegationTerms is IDelegationTerms {
      */
     function payForService(IERC20 token, uint256 amount) external payable {
         // determine the query manager associated with the fee manager
-        IQueryManager _queryManager = IFeeManager(msg.sender).queryManager();
+        IQueryManager queryManager = IFeeManager(msg.sender).queryManager();
 
         // only the fee manager can call this function
-        require(msg.sender == address(_queryManager.feeManager()), "only feeManagers");
+        require(msg.sender == address(queryManager.feeManager()), "only feeManagers");
 
         // check if the query manager exists
-        require(serviceFactory.queryManagerExists(_queryManager), "illegitimate queryManager");
+        require(serviceFactory.queryManagerExists(queryManager), "illegitimate queryManager");
 
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {
@@ -258,9 +254,24 @@ contract DelegationTerms is IDelegationTerms {
             amount -= operatorEarnings;
         }
 
+//TODO: improve this calculation
+        /*
+        // find the multiple of the amount earned by delegators holding EIGEN vs the amount earned by delegators holding ETH. this should be equal to:
+        //          (fraction of amount going to EIGEN holders in the middleware)
+        //          * (fraction of EIGEN in the middleware delegated to the operator of this contract)
+        //          / (fraction of ETH in the middleware delegated to the operator of this contract)
+        */
+        //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
+        uint256 multipleToEigenHolders = 1e18; //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees
+        IQueryManager.Stake memory totalStake = queryManager.totalStake();
+        IQueryManager.Stake memory operatorStake = queryManager.operatorStakes(operator);
+        fractionToEigenHolders = (((fractionToEigenHolders * totalStake.eigenStaked) / operatorStake.eigenStaked) * totalStake.ethStaked / operatorStake.ethStaked);
+        uint256 amountToEigenHolders = (amount * fractionToEigenHolders) / (fractionToEigenHolders + 1e18);
+        //uint256 amountToEthHolders = amount - amountToEigenHolders
+
         // update the multiplying factors, scaled by REWARD_SCALING 
-        updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount * REWARD_SCALING) / totalWeightEth) * (MAX_BIPS - EIGEN_HOLDER_BIPS) / MAX_BIPS);
-        updatedEarnings.earnedPerWeightAllTimeEigen += uint112(((amount * REWARD_SCALING) / totalWeightEigen) * (EIGEN_HOLDER_BIPS) / MAX_BIPS);
+        updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount - amountToEigenHolders) * REWARD_SCALING) / totalWeightEth);
+        updatedEarnings.earnedPerWeightAllTimeEigen += uint112((amountToEigenHolders * REWARD_SCALING) / totalWeightEigen);
         
         // update the timestamp for the last payment of the rewards
         updatedEarnings.paymentTimestamp = uint32(block.timestamp);

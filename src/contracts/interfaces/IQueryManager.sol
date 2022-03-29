@@ -5,6 +5,12 @@ import "./IFeeManager.sol";
 import "./IVoteWeighter.sol";
 
 interface IQueryManager {
+    // struct for storing the amount of Eigen and ETH that has been staked
+    struct Stake {
+        uint128 eigenStaked;
+        uint128 ethStaked;
+    }
+
     function timelock() external view returns (address);
 
     function operatorCounts() external view returns(uint256);
@@ -43,4 +49,8 @@ interface IQueryManager {
     function ethAndEigenStakedForOperator(address)
         external
         view returns (uint128, uint128);
+
+    function operatorStakes(address) external view returns (Stake memory);
+
+    function totalStake() external view returns (Stake memory);
 }
