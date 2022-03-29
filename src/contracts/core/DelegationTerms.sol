@@ -265,8 +265,8 @@ contract DelegationTerms is IDelegationTerms {
         uint256 multipleToEigenHolders = 1e18; //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees
         IQueryManager.Stake memory totalStake = queryManager.totalStake();
         IQueryManager.Stake memory operatorStake = queryManager.operatorStakes(operator);
-        fractionToEigenHolders = (((fractionToEigenHolders * totalStake.eigenStaked) / operatorStake.eigenStaked) * totalStake.ethStaked / operatorStake.ethStaked);
-        uint256 amountToEigenHolders = (amount * fractionToEigenHolders) / (fractionToEigenHolders + 1e18);
+        multipleToEigenHolders = (((multipleToEigenHolders * totalStake.eigenStaked) / operatorStake.eigenStaked) * totalStake.ethStaked / operatorStake.ethStaked);
+        uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 
         // update the multiplying factors, scaled by REWARD_SCALING 
