@@ -7,9 +7,14 @@ import "./storage/AaveInvestmentStrategyStorage.sol";
 import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
 
-contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrategyStorage, IInvestmentStrategy {
+abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrategyStorage, IInvestmentStrategy {
+    modifier onlyInvestmentManager() {
+        require(msg.sender == investmentManager, "onlyInvestmentManager");
+        _;
+    }
+
     function initialize (ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager
-    ) initializer external {
+    ) initializer public {
         _transferGovernor(msg.sender);
         lendingPool = _lendingPool;
         underlyingToken = _underlyingToken;
@@ -21,8 +26,7 @@ contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrate
     function deposit(
         IERC20 token,
         uint256 amount
-    ) external returns (uint256 newShares) {
-        require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
+    ) external onlyInvestmentManager returns (uint256 newShares) {
         uint256 aTokenIncrease;
         uint256 aTokensBefore;
         if (token == underlyingToken) {
@@ -55,8 +59,7 @@ contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrate
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external returns(uint256 amountWithdrawn) {
-        require(msg.sender == investmentManager, "Only the investment manager can deposit into this strategy");
+    ) external onlyInvestmentManager returns(uint256 amountWithdrawn) {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
         if (token == underlyingToken) {
             //withdraw from lendingPool
@@ -84,13 +87,10 @@ contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrate
         aToken = _aToken;
     }
 
-    function underlyingEthValueOfShares(uint256 numShares) public view returns(uint256) {
-        return sharesToUnderlying(numShares);
-    }
-
-    function underlyingEthValueOfSharesView(uint256 numShares) public view returns(uint256) {
-        return sharesToUnderlyingView(numShares);
-    }
+    // implementation for these functions in particular may vary for different underlying tokens
+    // thus, they are left as unimplimented in this general contract
+    function underlyingEthValueOfShares(uint256 numShares) public view virtual returns(uint256);
+    function underlyingEthValueOfSharesView(uint256 numShares) public view virtual returns(uint256);
 
     function sharesToUnderlyingView(uint256 amountShares) public view returns(uint256) {
         if (totalShares == 0) {
