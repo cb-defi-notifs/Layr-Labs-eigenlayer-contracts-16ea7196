@@ -13,21 +13,31 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+
+/**
+ * @notice This is the contract for 
+ */
 contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
+    // the current disperser for this DataLayr
     address public currDisperser;
-    //the DL query manager
+
+    // the DataLayr query manager
     IQueryManager public queryManager;
-    //percentage of eigen that signers need to hold for a quorum
+
+    // percentage of Eigen that DataLayr nodes who have agreed to serve the request
+    // need to hold in aggregate for achieving quorum 
     uint128 eigenSignedThresholdPercentage;
-    //percentage of eth that signers need to hold for a quorum
+
+    // percentage of ETH that DataLayr nodes who have agreed to serve the request
+    // need to hold in aggregate for achieving quorum 
     uint128 ethSignedThresholdPercentage;
 
-    // Data Store
+    // Data Store 
     struct DataStore {
         uint48 dumpNumber;
-        uint32 initTime; //when the store was inited
+        uint32 initTime; //when the store was initiated
         uint32 storePeriodLength; //when store expires
         address submitter; //address approved to submit signatures for this datastore
         bool commited; //whether the data has been certified available
@@ -50,7 +60,6 @@ contract DataLayr is Ownable, IDataLayr {
     mapping(bytes32 => mapping(address => bool)) public isCodingProofDLNActive;
 
     // Constructor
-
     constructor(address currDisperser_) {
         currDisperser = currDisperser_;
     }
@@ -60,7 +69,6 @@ contract DataLayr is Ownable, IDataLayr {
     }
 
     // Precommit
-
     function initDataStore(
         uint48 dumpNumber,
         bytes32 ferkleRoot,

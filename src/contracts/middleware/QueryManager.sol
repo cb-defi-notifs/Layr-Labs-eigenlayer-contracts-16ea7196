@@ -13,8 +13,8 @@ import "./storage/QueryManagerStorage.sol";
 //TODO: upgrading multisig for fee manager and registration manager
 //TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 /**
- * @notice This is the contract for managing queries in any middleware. 
- *         The main functionalities of this contract are:
+ * @notice This is the contract for managing queries in any middleware. Each middleware has a
+ *         a query manager. The main functionalities of this contract are:
  *             - Enable mechanism for an operator to register with the middleware so that it can
  *               respond to the middleware's queries,
  *             - Enable mechanism for an operator to de-register with the middleware,
