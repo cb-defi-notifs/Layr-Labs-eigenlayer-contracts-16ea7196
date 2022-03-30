@@ -263,9 +263,9 @@
 //         */
 //         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
 //         uint256 multipleToEigenHolders = 1e18; //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees
-//         IQueryManager.Stake memory totalStake = queryManager.totalStake();
-//         IQueryManager.Stake memory operatorStake = queryManager.operatorStakes(operator);
-//         multipleToEigenHolders = (((multipleToEigenHolders * totalStake.eigenStaked) / operatorStake.eigenStaked) * totalStake.ethStaked / operatorStake.ethStaked);
+//        (uint128 totalEigenStaked, uint128 totalEthStaked) = queryManager.totalStake();
+//        (uint128 operatorEigenStaked, uint128 operatorEthStaked) = queryManager.operatorStakes(operator);
+//        multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
 //         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
 //         //uint256 amountToEthHolders = amount - amountToEigenHolders
 

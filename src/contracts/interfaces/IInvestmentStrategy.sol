@@ -15,7 +15,7 @@ interface IInvestmentStrategy {
         address depositor,
         IERC20 token,
         uint256 amount
-    ) external returns (uint256);
+    ) external;
 
     function underlyingEthValueOfShares(uint256 numShares) external returns(uint256);
     function underlyingEthValueOfSharesView(uint256 numShares) external view returns(uint256);

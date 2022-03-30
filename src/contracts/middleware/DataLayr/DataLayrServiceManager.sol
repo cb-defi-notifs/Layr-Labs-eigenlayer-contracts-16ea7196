@@ -19,6 +19,7 @@ contract DataLayrServiceManager is
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     IERC20 public immutable paymentToken;
     IERC20 public immutable collateralToken;
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
@@ -43,6 +44,8 @@ contract DataLayrServiceManager is
             "Query Manager already set"
         );
         queryManager = _queryManager;
+
+        // CRITIC: dlRegVW not decalred anywhere
         dlRegVW = IDataLayrVoteWeigher(
             address(queryManager.voteWeighter())
         );

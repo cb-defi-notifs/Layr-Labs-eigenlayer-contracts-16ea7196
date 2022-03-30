@@ -82,42 +82,40 @@ abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestm
      * @notice Used for withdrawing assets from Aave in the specified token
      */
     /**
-     * @param depositer is the withdrawer's address
+     * @param depositor is the withdrawer's address
      * @param token is the token in which deposter intends to get back its assets
-     * @param shareAmount is the amount of share that the depositer wants to exchange for 
+     * @param shareAmount is the amount of share that the depositor wants to exchange for 
      *        withdrawing its assets
      */
-    /**
-     * @return amountWithdrawn is the amount of specified token that is being withdrawn
-     */ 
     function withdraw(
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyInvestmentManager returns(uint256 amountWithdrawn) {
+    ) external onlyInvestmentManager {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
 
         if (token == underlyingToken) {
             //withdraw from lendingPool
-            amountWithdrawn = lendingPool.withdraw(
+            uint256 amountWithdrawn = lendingPool.withdraw(
                 address(underlyingToken),
                 toWithdraw,
                 depositor
             );
 
-            // transfer the underlyingToken to the depositer
+            // transfer the underlyingToken to the depositor
             underlyingToken.transfer(depositor, amountWithdrawn);
 
         } else if (token == aToken) {
             aToken.transfer(depositor, toWithdraw);
-            amountWithdrawn = toWithdraw;
         } else {
             revert("can only withdraw as underlyingToken or aToken");
         }
+
+        // update the total shares for this investment strategy
         totalShares -= shareAmount;
-        return amountWithdrawn;
     }
 
+    
     function explanation() external pure returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
