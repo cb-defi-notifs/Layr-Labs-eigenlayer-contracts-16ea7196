@@ -251,7 +251,6 @@ contract EigenLayrDelegation is
         lastUndelegationCommit[msg.sender] = block.timestamp;
     }
 
-    // contests a delegator's undelegation commit
     /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised,

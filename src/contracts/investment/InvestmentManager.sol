@@ -178,11 +178,15 @@ contract InvestmentManager is
         // transfer tokens from the depositer to the strategy
         _transferTokenOrEth(token, depositor, address(strategy), amount);
 
-
+        // deposit the assets into the specified strategy and get the equivalent amount of
+        // shares in that strategy
         shares = strategy.deposit(token, amount);
+
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
     }
+
+
 
     // withdraws the given tokens and shareAmounts from the given strategies on behalf of the depositor
     function withdrawFromStrategies(
@@ -237,10 +241,13 @@ contract InvestmentManager is
         }
     }
 
-    // withdraws the given token and shareAmount from the given strategy on behalf of the depositor
+
     /**
-     * @notice 
+     * @notice withdraws the given token and shareAmount from the given strategy. 
      */
+    /**
+     * @dev only those stakers who are not delegated, thus, not (rest TBA)
+     */ 
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
@@ -254,18 +261,22 @@ contract InvestmentManager is
         );
         // subtract the returned shares to their existing shares for this strategy
         // CRITIC: transfer of funds happening before update to the depositer's share,
-        //         possibility of draining away all fund
+        //         possibility of draining away all fund - re-entry bug
         investorStratShares[depositor][strategy] -= strategy.withdraw(
             depositor,
             token,
             shareAmount
         );
-        // if no existing shares, remove is from this investors strats
+
+        // if no existing shares for this strategy, remove this strategy from the list of 
+        // strategies for this  depositer and instead replace it with the last strategy in 
+        // the list
         if (investorStratShares[depositor][strategy] == 0) {
             require(
                 investorStrats[depositor][strategyIndex] == strategy,
                 "Strategy index is incorrect"
             );
+
             // move the last element to the removed strategy's index, then shorten the array
             investorStrats[depositor][strategyIndex] = investorStrats[
                 depositor
@@ -273,6 +284,8 @@ contract InvestmentManager is
             investorStrats[depositor].pop();
         }
     }
+
+
 
     function slashShares(
         address slashed,

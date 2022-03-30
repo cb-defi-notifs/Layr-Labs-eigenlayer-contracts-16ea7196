@@ -114,10 +114,14 @@ abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestm
         } else {
             revert("can only withdraw as underlyingToken or aToken");
         }
+
+        // update the total shares with this investment strategy
         totalShares -= shareAmount;
+
         return amountWithdrawn;
     }
 
+    
     function explanation() external pure returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
