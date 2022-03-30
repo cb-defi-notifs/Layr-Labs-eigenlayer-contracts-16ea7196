@@ -10,9 +10,37 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
     using BytesLib for bytes;
     struct SignatoryTotals {
         //total eth stake of the signatories
-        uint128 ethStakeSigned;
+        uint256 ethStakeSigned;
         //total eigen stake of the signatories
-        uint128 eigenStakeSigned;
+        uint256 eigenStakeSigned;
+
+        uint256 totalEthStake;
+        uint256 totalEigenStake;
+    }
+
+    struct SignatureWithInfo {
+        bytes32 r;
+        bytes32 vs;
+        uint8 isEthStaker;
+        uint8 isEigenStaker;
+        uint32 ethStakesIndexOfSignatory;
+        uint32 eigenStakesIndexOfSignatory;
+        address signatory;
+        uint32 operatorId;
+    }
+
+    struct StakesMetaData {
+        //index of ethStakeHashUpdate
+        uint256 ethStakesIndex;
+        //index of eigenStakeHashUpdate
+        uint256 eigenStakesIndex;
+        //length of eth stakes
+        uint256 ethStakesLength;
+        //length of eigen stakes
+        uint256 eigenStakesLength;
+
+        bytes ethStakes;
+        bytes eigenStakes;
     }
 
     //the DL vote weighter
@@ -39,7 +67,7 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
     uint48, bytes32, uint16, followed by (number of bins) sets, of the format:
     uint16, uint32, bytes64 (signatures), with the number of signatures equal to the value of the uint16
     */
-    function checkSignatures(bytes calldata)
+    function checkSignatures(bytes calldata data)
         public
         returns (
             uint48 dumpNumberToConfirm,
@@ -51,14 +79,7 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
         //dumpNumber corresponding to the ferkleRoot
         //number of different signature bins that signatures are being posted from
         uint16 numberOfBins;
-        //index of ethStakeHashUpdate
-        uint256 ethStakesIndex;
-        //index of eigenStakeHashUpdate
-        uint256 eigenStakesIndex;
-        //length of eth stakes
-        uint256 ethStakesLength;
-        //length of eigen stakes
-        uint256 eigenStakesLength;
+        StakesMetaData memory smd;
         //signed data
         //bytes32 ferkleRoot;
         assembly {
@@ -68,53 +89,45 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
             ferkleRoot := calldataload(76)
             //get the next 16 bits
             numberOfBins := shr(240, calldataload(108))
-            //get the 32 bytes immediately after the above
-            ethStakesIndex := calldataload(110)
-            //get the 32 bytes immediately after the above
-            eigenStakesIndex := calldataload(142)
-            //get the 32 bytes immediately after the above
-            ethStakesLength := calldataload(174)
-            //get the 32 bytes immediately after the above
-            eigenStakesLength := calldataload(206)
         }
+        //subtract 68 because library takes offset into account
+        //TODO: Optimize mstores
+        smd.ethStakesIndex = data.toUint256(42);
+        smd.eigenStakesIndex = data.toUint256(74);
+        smd.ethStakesIndex = data.toUint256(106);
+        smd.ethStakesLength = data.toUint256(138);
         //initialize at value that will be used in next calldataload (just after all the already loaded data)
         uint256 calldataPointer = 238;
         //load and verify integrity of eigen and eth stake hashes
-        bytes memory ethStakes = msg.data.slice(
+        smd.ethStakes = msg.data.slice(
             calldataPointer,
-            ethStakesLength
+            smd.ethStakesLength
         );
-        calldataPointer += ethStakesLength;
+        calldataPointer += smd.ethStakesLength;
         require(
-            keccak256(ethStakes) ==
+            keccak256(smd.ethStakes) ==
                 dlRegVW.getEthStakesHashUpdateAndCheckIndex(
-                    ethStakesIndex,
+                    smd.ethStakesIndex,
                     dumpNumberToConfirm
                 ),
             "Eth stakes are incorrect"
         );
-        bytes memory eigenStakes = msg.data.slice(
+        smd.eigenStakes = msg.data.slice(
             calldataPointer,
-            eigenStakesLength
+            smd.eigenStakesLength
         );
-        calldataPointer += eigenStakesLength;
+        calldataPointer += smd.eigenStakesLength;
         require(
-            keccak256(eigenStakes) ==
+            keccak256(smd.eigenStakes) ==
                 dlRegVW.getEigenStakesHashUpdateAndCheckIndex(
-                    eigenStakesIndex,
+                    smd.eigenStakesIndex,
                     dumpNumberToConfirm
                 ),
             "Eigen stakes are incorrect"
         );
 
         //transitory variables to be reused in loops
-        bytes32 r;
-        bytes32 vs;
-        uint8 isEthStaker;
-        uint8 isEigenStaker;
-        uint32 ethStakesIndexOfSignatory;
-        uint32 eigenStakesIndexOfSignatory;
-        address signatory;
+        SignatureWithInfo memory sigWInfo;
         //number of signatures contained in the bin currently being processed
         uint16 sigsInCurrentBin;
         //index of current bin of signatures being processed. initially set to max value for a later check
@@ -122,7 +135,6 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
         //temporary variable used to gaurantee that binIndices are strictly increasing. prevents usage of duplicate bins
         uint32 nextBinIndex;
         //temp variables initiated outside of loop -- these are updated inside of each inner loop
-        uint32 operatorId;
         uint256 mask;
         //record of all signatories stored in the form: keccak256(abi.encodePacked(currentBinIndex, claimsMadeInBin, previousHash))
         //with first hash being that of the ferkleRoot + dumpNumber
@@ -153,25 +165,23 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
             uint256 claimsMadeInBin;
             //process a single bin
             while (sigsInCurrentBin > 0) {
-                assembly {
-                    //get the 32 bytes at calldataPointer, i.e. first half of signature data
-                    r := calldataload(calldataPointer)
-                    //get the 32 bytes at (calldataPointer + 32), i.e. second half of signature data
-                    vs := calldataload(add(calldataPointer, 32))
-                    isEthStaker := shr(248, calldataload(add(calldataPointer, 64)))
-                    isEigenStaker := shr(248, calldataload(add(calldataPointer, 65)))
-                }
-                signatory = ECDSA.recover(ferkleRoot, r, vs);
+                //use library here because idk how to store struc in assembly
+                //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
+                sigWInfo.r = data.toBytes32(calldataPointer - 68);
+                sigWInfo.vs = data.toBytes32(calldataPointer - 36);
+                sigWInfo.isEthStaker = data.toUint8(calldataPointer - 4);
+                sigWInfo.isEigenStaker = data.toUint8(calldataPointer - 3);
+                sigWInfo.signatory = ECDSA.recover(ferkleRoot, sigWInfo.r, sigWInfo.vs);
                 //increase calldataPointer to account for length of signature and
-                calldataPointer += 66;
-                operatorId = dlRegVW.getOperatorId(signatory);
+                calldataPointer += 65;
+                sigWInfo.operatorId = dlRegVW.getOperatorId(sigWInfo.signatory);
                 //16777216 is 2^24. this is the max bin index.
                 require(
-                    operatorId >> 8 == currentBinIndex,
+                    sigWInfo.operatorId >> 8 == currentBinIndex,
                     "invalid sig bin index - improper sig ordering?"
                 );
                 //mask has a single '1' bit at sigIndex position
-                mask = (1 << (operatorId % 256));
+                mask = (1 << (sigWInfo.operatorId % 256));
                 //check that bit has not already been flipped
                 require(
                     claimsMadeInBin & mask == 0,
@@ -182,27 +192,21 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
 
                 uint128 ethStaked;
                 uint128 eigenStaked;
-                if(isEthStaker == 0) {
+                if(sigWInfo.isEthStaker == 0) {
                     //then they are an eth staker
-                    assembly {
-                        //index of signature in ethStakes
-                        ethStakesIndexOfSignatory := shr(224, calldataload(calldataPointer))
-                    }
-                    require(ethStakes.toAddress(ethStakesIndexOfSignatory * 36) == signatory, "Eth stakes signatory index incorrect");
-                    calldataPointer += 32;
+                    sigWInfo.ethStakesIndexOfSignatory = data.toUint32(calldataPointer);
+                    require(smd.ethStakes.toAddress(sigWInfo.ethStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
+                    calldataPointer += 4;
                     //increment totals
-                    signedTotals.ethStakeSigned += ethStakes.toUint128(ethStakesIndexOfSignatory * 36 + 20);
+                    signedTotals.ethStakeSigned += smd.ethStakes.toUint128(sigWInfo.ethStakesIndexOfSignatory * 36 + 20);
                 }
-                if(isEigenStaker == 0) {
+                if(sigWInfo.isEigenStaker == 0) {
                     //then they are an eigen staker
-                    assembly {
-                        //index of signature in eigenStakes
-                        eigenStakesIndexOfSignatory := shr(224, calldataload(calldataPointer))
-                    }
-                    require(eigenStakes.toAddress(eigenStakesIndexOfSignatory * 36) == signatory, "Eth stakes signatory index incorrect");
-                    calldataPointer += 32;
+                    sigWInfo.eigenStakesIndexOfSignatory = data.toUint32(calldataPointer);
+                    require(smd.eigenStakes.toAddress(sigWInfo.eigenStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
+                    calldataPointer += 4;
                     //increment totals
-                    signedTotals.eigenStakeSigned += eigenStakes.toUint128(eigenStakesIndexOfSignatory * 36 + 20);
+                    signedTotals.eigenStakeSigned += smd.eigenStakes.toUint128(sigWInfo.eigenStakesIndexOfSignatory * 36 + 20);
                 }
 
                 //decrement counter of remaining signatures to check
@@ -223,6 +227,8 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
                 --numberOfBins;
             }
         }
+        signedTotals.totalEthStake = smd.ethStakes.toUint256(smd.ethStakesLength - 33);
+        signedTotals.totalEigenStake = smd.eigenStakes.toUint256(smd.eigenStakesLength - 33);
         //return dumpNumber, ferkle root, eth and eigen that signed and a hash of the signatories
         return (
             dumpNumberToConfirm,

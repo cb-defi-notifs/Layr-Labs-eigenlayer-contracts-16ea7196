@@ -102,8 +102,10 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 dumpNumber,
         bytes32 ferkleRoot,
         address submitter,
-        uint128 ethStakeSigned,
-        uint128 eigenStakeSigned
+        uint256 ethStakeSigned,
+        uint256 eigenStakeSigned,
+        uint256 totalEthStake,
+        uint256 totalEigenStake
     ) external  {
         DataStore storage dataStore = dataStores[ferkleRoot];
         //TODO: check if eth and eigen are sufficient
@@ -121,8 +123,8 @@ contract DataLayr is Ownable, IDataLayr {
             "Data store already has already been committed"
         );
         //require that signatories own at least a threshold percentage of eth and eigen
-        require(ethStakeSigned*100/queryManager.totalEthStaked() >= ethSignedThresholdPercentage 
-                && eigenStakeSigned*100/queryManager.totalEigenStaked() >= eigenSignedThresholdPercentage, 
+        require(ethStakeSigned*100/totalEthStake >= ethSignedThresholdPercentage 
+                && eigenStakeSigned*100/totalEigenStake >= eigenSignedThresholdPercentage, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
         dataStores[ferkleRoot].commited = true;
         emit Commit(

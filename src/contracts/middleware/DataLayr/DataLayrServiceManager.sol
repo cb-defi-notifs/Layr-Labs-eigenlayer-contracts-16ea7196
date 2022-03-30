@@ -100,7 +100,9 @@ contract DataLayrServiceManager is
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned
+            signedTotals.eigenStakeSigned,
+            signedTotals.totalEthStake,
+            signedTotals.totalEigenStake
         );
     }
 
@@ -129,7 +131,9 @@ contract DataLayrServiceManager is
             ferkleRoot,
             tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned
+            signedTotals.eigenStakeSigned,
+            signedTotals.totalEthStake,
+            signedTotals.totalEigenStake
         );
     }
 

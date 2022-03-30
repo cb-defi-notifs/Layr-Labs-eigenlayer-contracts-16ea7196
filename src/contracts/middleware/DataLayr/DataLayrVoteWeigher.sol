@@ -91,9 +91,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     // Registration and ETQ
     // Data is structured as such:
     // uint8 registrantType,
-    //      uint256 ethStakeLength, uint32 index, bytes ethStakes
+    //      uint256 ethStakeLength, bytes ethStakes
     //      or/and
-    //      uint256 eigenStakeLength, uint32 index, bytes eigenStakes,
+    //      uint256 eigenStakeLength, bytes eigenStakes,
     //      uint8 socketLength, bytes[socketLength] socket
     function registerOperator(address operator, bytes calldata data)
         public
@@ -106,21 +106,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         //get the first byte of data
         uint8 registrantType = data.toUint8(0);
         //length of socket in bytes
-        uint256 socketLengthPointer = 37;
+        uint256 socketLengthPointer = 33;
         uint128 eigenAmount;
         if (registrantType == 1) {
             // if they want to be an "eigen" validator, check that they meet the eigen requirements
             eigenAmount = weightOfOperatorEigen(operator);
             require(eigenAmount >= dlnEigenStake, "Not enough eigen staked");
             //parse and update eigen stakes
-            address[] memory operators = new address[](1);
-            uint32[] memory indexes = new uint32[](1);
-            operators[0] = operator;
-            indexes[0] = data.toUint32(33);
-            uint256 eigenStakesLength = data.toUint256(2);
+            uint256 eigenStakesLength = data.toUint256(1);
             //increment socket length pointer
             socketLengthPointer += eigenStakesLength;
-            updateEigenStakes(data.slice(37, eigenStakesLength), operators, indexes);
+            addOperatorToEigenStakes(
+                data.slice(socketLengthPointer, eigenStakesLength),
+                operator
+            );
         } else if (registrantType == 2) {
             // if they want to be an "eth" validator, check that they meet the eth requirements
             require(
@@ -128,14 +127,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 "Not enough eth value staked"
             );
             //parse and update eigen stakes
-            address[] memory operators = new address[](1);
-            uint32[] memory indexes = new uint32[](1);
-            operators[0] = operator;
-            indexes[0] = data.toUint32(33);
-            uint256 ethStakesLength = data.toUint256(2);
+            uint256 ethStakesLength = data.toUint256(1);
             //increment socket length pointer
             socketLengthPointer += ethStakesLength;
-            updateEthStakes(data.slice(37, ethStakesLength), operators, indexes);
+            addOperatorToEthStakes(
+                data.slice(33, ethStakesLength),
+                operator
+            );
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
@@ -145,27 +143,26 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 "Not enough eth value or eigen staked"
             );
             //parse and update eth and eigen stakes
-            address[] memory operators = new address[](1);
-            uint32[] memory indexes = new uint32[](1);
-            operators[0] = operator;
-            indexes[0] = data.toUint32(33);
-            uint256 stakesLength = data.toUint256(2);
+            uint256 stakesLength = data.toUint256(1);
             //increment socket length pointer
             socketLengthPointer += stakesLength;
-            updateEthStakes(data.slice(37, stakesLength), operators, indexes);
+            addOperatorToEthStakes(data.slice(33, stakesLength), operator);
             //now do it for eigen stuff
-            indexes[0] = data.toUint32(socketLengthPointer + 32);
             stakesLength = data.toUint256(socketLengthPointer);
             //increment socket length pointer
-            socketLengthPointer += stakesLength;
-            updateEigenStakes(data.slice(37, stakesLength), operators, indexes);
+            socketLengthPointer += stakesLength + 1;
+            addOperatorToEigenStakes(data.slice(socketLengthPointer - stakesLength, stakesLength), operator);
         } else {
             revert("Invalid registrant type");
         }
-        // everything but the first byte of data is their socket
-        // get current dump number from fee manager
+        //slice starting the byte after socket length
         registry[operator] = Registrant({
-            socket: string(data.slice(2, data.toUint8(socketLengthPointer) - 1)),
+            socket: string(
+                data.slice(
+                    socketLengthPointer + 1,
+                    data.toUint8(socketLengthPointer)
+                )
+            ),
             id: nextRegistrantId,
             index: uint64(queryManager.numRegistrants()),
             active: registrantType,
@@ -207,15 +204,85 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return true;
     }
 
+    function addOperatorToEthStakes(bytes memory stakes, address operator)
+        internal
+    {
+        //stakes must be preimage of last update's hash
+        require(
+            keccak256(stakes) ==
+                ethStakeHashes[
+                    ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+                ],
+            "Stakes are incorrect"
+        );
+        //get eth balance of operator
+        uint128 newEth = uint128(
+            delegation.getUnderlyingEthDelegated(operator) +
+                delegation.getConsensusLayerEthDelegated(operator) /
+                queryManager.consensusLayerEthToEth()
+        );
+        //get dump number from dlsm
+        uint48 currDumpNumber = IDataLayrServiceManager(
+            address(queryManager.feeManager())
+        ).dumpNumber();
+        ethStakeHashUpdates.push(currDumpNumber);
+        //add them to beginning of stakes
+        ethStakeHashes[currDumpNumber] = keccak256(
+            abi.encodePacked(
+                operator,
+                newEth,
+                stakes.slice(0, stakes.length - 33).concat(
+                    abi.encodePacked(stakes.toUint256(stakes.length - 33) + newEth)
+                )
+            )
+        );
+    }
+
+    function addOperatorToEigenStakes(bytes memory stakes, address operator)
+        internal
+    {
+        //stakes must be preimage of last update's hash
+        require(
+            keccak256(stakes) ==
+                eigenStakeHashes[
+                    eigenStakeHashUpdates[eigenStakeHashUpdates.length - 1]
+                ],
+            "Stakes are incorrect"
+        );
+        //get eigen weight of operator
+        uint128 newEigen = weightOfOperatorEigen(operator);
+        //get dump number from dlsm
+        uint48 currDumpNumber = IDataLayrServiceManager(
+            address(queryManager.feeManager())
+        ).dumpNumber();
+        eigenStakeHashUpdates.push(currDumpNumber);
+        //add them to beginning of stakes
+        eigenStakeHashes[currDumpNumber] = keccak256(
+            abi.encodePacked(
+                operator,
+                newEigen,
+                stakes.slice(0, stakes.length - 33).concat(
+                    abi.encodePacked(stakes.toUint256(stakes.length - 33) + newEigen)
+                )
+            )
+        );
+    }
+
     //stakes must be of the form
-    //address,uint128,address,uint128
+    //address,uint128,address,uint128...uint256
     function updateEthStakes(
         bytes memory stakes,
         address[] memory operators,
         uint32[] memory indexes
     ) public {
         //stakes must be preimage of last update's hash
-        require(keccak256(stakes) == ethStakeHashes[ethStakeHashUpdates[ethStakeHashUpdates.length - 1]], "Stakes are incorrect");
+        require(
+            keccak256(stakes) ==
+                ethStakeHashes[
+                    ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+                ],
+            "Stakes are incorrect"
+        );
         require(
             indexes.length == operators.length,
             "operator len and index len don't match"
@@ -228,40 +295,49 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                     queryManager.consensusLayerEthToEth()
             );
             uint256 start = uint256(indexes[i] * 36);
+            require(start < stakes.length - 68, "Cannot point to total bytes");
             //36 bytes per person: 20 for address, 16 for stake
             require(
-                stakes.toAddress(indexes[i] * 36) == operators[i],
+                stakes.toAddress(start) == operators[i],
                 "index is incorrect"
             );
             //replace stake with new eth stake
             stakes = stakes
-                .slice(0, indexes[i] * 36 + 20)
-                .concat(abi.encodePacked(uint256(newEth)))
+                .slice(0, start + 20)
+                .concat(abi.encodePacked(newEth))
+                //from where left off to right before the last 32 bytes
                 .concat(
-                    stakes.slice(
-                        indexes[i] * 36 + 36,
-                        stakes.length - 1 - indexes[i] * 36 + 36
-                    )
-                );
+                    stakes.slice(start + 36, stakes.length - 1 - (start + 36) - 32)
+                )
+                //subtract old eth and add new eth
+                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 33) + newEth));
             unchecked {
                 ++i;
             }
         }
         //get dump number from dlsm
-        uint48 currDumpNumber = IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber();
+        uint48 currDumpNumber = IDataLayrServiceManager(
+            address(queryManager.feeManager())
+        ).dumpNumber();
         ethStakeHashUpdates.push(currDumpNumber);
         ethStakeHashes[currDumpNumber] = keccak256(stakes);
     }
 
     //stakes must be of the form
-    //address,uint128,address,uint128
+    //address,uint128,address,uint128...uint256
     function updateEigenStakes(
         bytes memory stakes,
         address[] memory operators,
         uint32[] memory indexes
     ) public {
         //stakes must be preimage of last update's hash
-        require(keccak256(stakes) == eigenStakeHashes[eigenStakeHashUpdates[eigenStakeHashUpdates.length - 1]], "Stakes are incorrect");
+        require(
+            keccak256(stakes) ==
+                eigenStakeHashes[
+                    eigenStakeHashUpdates[eigenStakeHashUpdates.length - 1]
+                ],
+            "Stakes are incorrect"
+        );
         require(
             indexes.length == operators.length,
             "operator len and index len don't match"
@@ -270,27 +346,30 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         for (uint i = 0; i < len; ) {
             uint128 newEigen = weightOfOperatorEigen(operators[i]);
             uint256 start = uint256(indexes[i] * 36);
+            //last 32 bytes for total stake
+            require(start < stakes.length - 68, "Cannot point to total bytes");
             //36 bytes per person: 20 for address, 16 for stake
             require(
-                stakes.toAddress(indexes[i] * 36) == operators[i],
+                stakes.toAddress(start) == operators[i],
                 "index is incorrect"
             );
             //replace stake with new eigen stake
             stakes = stakes
-                .slice(0, indexes[i] * 36 + 20)
+                .slice(0, start + 20)
                 .concat(abi.encodePacked(uint256(newEigen)))
                 .concat(
-                    stakes.slice(
-                        indexes[i] * 36 + 36,
-                        stakes.length - 1 - indexes[i] * 36 + 36
-                    )
-                );
+                    stakes.slice(start + 36, stakes.length - 1 - (start + 36) - 32)
+                )
+                //subtract old eigen and add new eigen
+                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 33) - stakes.toUint128(start + 20) + newEigen));
             unchecked {
                 ++i;
             }
         }
         //get dump number from dlsm
-        uint48 currDumpNumber = IDataLayrServiceManager(address(queryManager.feeManager())).dumpNumber();
+        uint48 currDumpNumber = IDataLayrServiceManager(
+            address(queryManager.feeManager())
+        ).dumpNumber();
         eigenStakeHashUpdates.push(currDumpNumber);
         eigenStakeHashes[currDumpNumber] = keccak256(stakes);
     }
@@ -331,28 +410,46 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return registry[operator].id;
     }
 
-    function getEthStakesHashUpdate(uint256 index) public returns(uint256) {
+    function getEthStakesHashUpdate(uint256 index) public returns (uint256) {
         return ethStakeHashUpdates[index];
     }
 
-    function getEigenStakesHashUpdate(uint256 index) public returns(uint256) {
+    function getEigenStakesHashUpdate(uint256 index) public returns (uint256) {
         return eigenStakeHashUpdates[index];
     }
 
-    function getEthStakesHashUpdateAndCheckIndex(uint256 index, uint48 dumpNumber) public returns(bytes32) {
+    function getEthStakesHashUpdateAndCheckIndex(
+        uint256 index,
+        uint48 dumpNumber
+    ) public returns (bytes32) {
         uint48 dumpNumberAtIndex = ethStakeHashUpdates[index];
-        require(dumpNumberAtIndex <= dumpNumber, "DumpNumber at index is not less than or equal dumpNumber");
-        if(index != ethStakeHashUpdates.length - 1) {
-            require(ethStakeHashUpdates[index + 1] > dumpNumber, "DumpNumber at index is not less than or equal dumpNumber");
+        require(
+            dumpNumberAtIndex <= dumpNumber,
+            "DumpNumber at index is not less than or equal dumpNumber"
+        );
+        if (index != ethStakeHashUpdates.length - 1) {
+            require(
+                ethStakeHashUpdates[index + 1] > dumpNumber,
+                "DumpNumber at index is not less than or equal dumpNumber"
+            );
         }
         return ethStakeHashes[dumpNumberAtIndex];
     }
 
-    function getEigenStakesHashUpdateAndCheckIndex(uint256 index, uint48 dumpNumber) public returns(bytes32) {
+    function getEigenStakesHashUpdateAndCheckIndex(
+        uint256 index,
+        uint48 dumpNumber
+    ) public returns (bytes32) {
         uint48 dumpNumberAtIndex = eigenStakeHashUpdates[index];
-        require(dumpNumberAtIndex <= dumpNumber, "DumpNumber at index is not less than or equal dumpNumber");
-        if(index != eigenStakeHashUpdates.length - 1) {
-            require(eigenStakeHashUpdates[index + 1] > dumpNumber, "DumpNumber at index is not less than or equal dumpNumber");
+        require(
+            dumpNumberAtIndex <= dumpNumber,
+            "DumpNumber at index is not less than or equal dumpNumber"
+        );
+        if (index != eigenStakeHashUpdates.length - 1) {
+            require(
+                eigenStakeHashUpdates[index + 1] > dumpNumber,
+                "DumpNumber at index is not less than or equal dumpNumber"
+            );
         }
         return eigenStakeHashes[dumpNumberAtIndex];
     }
