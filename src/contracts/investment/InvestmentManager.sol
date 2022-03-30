@@ -213,16 +213,14 @@ contract InvestmentManager is
         uint256 strategyIndexIndex;
         address depositor = msg.sender;
 
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
             require(
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
-
-            // subtract the returned shares to their existing shares for this strategy
-            // CRITIC: similar issue as in withdrawFromStrategy
-            investorStratShares[depositor][strategies[i]] -= strategies[i]
-                .withdraw(depositor, tokens[i], shareAmounts[i]);
+            // subtract the shares from the depositor's existing shares for this strategy
+            investorStratShares[depositor][strategies[i]] -= shareAmounts[i];
 
             // if no existing shares, remove this from this investors strats
             if (investorStratShares[depositor][strategies[i]] == 0) {
@@ -259,6 +257,14 @@ contract InvestmentManager is
                 investorStrats[depositor].pop();
                 strategyIndexIndex++;
             }
+
+            // tell the strategy to send the appropriate amount of funds to the depositor
+            strategies[i].withdraw(depositor, tokens[i], shareAmounts[i]);
+
+            //increment the loop
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -288,28 +294,26 @@ contract InvestmentManager is
             stratEverApproved[strategy],
             "Can only withdraw from approved strategies"
         );
-        // subtract the returned shares to their existing shares for this strategy
-        investorStratShares[depositor][strategy] -= strategy.withdraw(
-            depositor,
-            token,
-            shareAmount
-        );
-
-        // if no existing shares for this strategy, remove this strategy from the list of 
-        // strategies for this  depositer and instead replace it with the last strategy in 
-        // the list
+        // subtract the shares from the depositor's existing shares for this strategy
+        investorStratShares[depositor][strategy] -= shareAmount;
+        // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
                 investorStrats[depositor][strategyIndex] == strategy,
                 "Strategy index is incorrect"
             );
-
             // move the last element to the removed strategy's index, then shorten the array
             investorStrats[depositor][strategyIndex] = investorStrats[
                 depositor
             ][investorStrats[depositor].length - 1];
             investorStrats[depositor].pop();
         }
+        // tell the strategy to send the appropriate amount of funds to the depositor
+        strategy.withdraw(
+            depositor,
+            token,
+            shareAmount
+        );
     }
 
 
