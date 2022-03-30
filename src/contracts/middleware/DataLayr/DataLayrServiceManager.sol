@@ -20,6 +20,14 @@ contract DataLayrServiceManager is
     IERC20 public immutable paymentToken;
     IERC20 public immutable collateralToken;
 
+    event InitDataStore(uint48 dumpNumber,bytes32 ferkleRoot,
+        uint32 totalBytes,
+        uint32 storePeriodLength);
+
+    event ConfirmDataStore(uint48 dumpNumber);
+
+    event PaymentCommit(address opertator, uint48 toDumpNumber, uint256 fee);
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
@@ -52,7 +60,7 @@ contract DataLayrServiceManager is
     }
 
     //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
-    function payFeeForDataStore(
+    function initDataStore(
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,
@@ -81,10 +89,11 @@ contract DataLayrServiceManager is
             storePeriodLength,
             submitter
         );
+        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
     }
 
     //checks signatures and hands off to DL
-    function confirmDump(bytes calldata data) external payable {
+    function confirmDataStore(bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
@@ -107,10 +116,11 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
     //checks signatures, stores POSt hash, and hands off to DL
-    function confirmDumpWithPOSt(bytes32 depositRoot, bytes32 ferkleRoot, bytes calldata data) external payable {
+    function confirmDataStoreWithPOSt(bytes32 depositRoot, bytes32 ferkleRoot, bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
@@ -138,6 +148,7 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
@@ -187,6 +198,7 @@ contract DataLayrServiceManager is
             0,
             paymentFraudProofCollateral
         );
+        emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
 
     function redeemPayment() external {

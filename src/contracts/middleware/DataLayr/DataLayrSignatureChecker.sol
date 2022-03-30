@@ -126,109 +126,109 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
             "Eigen stakes are incorrect"
         );
 
-        //transitory variables to be reused in loops
-        SignatureWithInfo memory sigWInfo;
-        //number of signatures contained in the bin currently being processed
-        uint16 sigsInCurrentBin;
-        //index of current bin of signatures being processed. initially set to max value for a later check
-        uint32 currentBinIndex = type(uint32).max;
-        //temporary variable used to gaurantee that binIndices are strictly increasing. prevents usage of duplicate bins
-        uint32 nextBinIndex;
-        //temp variables initiated outside of loop -- these are updated inside of each inner loop
-        uint256 mask;
-        //record of all signatories stored in the form: keccak256(abi.encodePacked(currentBinIndex, claimsMadeInBin, previousHash))
-        //with first hash being that of the ferkleRoot + dumpNumber
-        compressedSignatoryRecord = keccak256(
-            abi.encodePacked(ferkleRoot, dumpNumberToConfirm)
-        );
-        //loop for each bin of signatures. ends once all bins have been processed
-        while (numberOfBins > 0) {
-            //update sigsInBin and binIndex for next bin
-            assembly {
-                //get the 16 bits at the current calldataPointer
-                sigsInCurrentBin := shr(240, calldataload(calldataPointer))
-                //get the 32 bits immediately after the 2 bytes for sigsInCurrentBin
-                nextBinIndex := shr(224, calldataload(add(calldataPointer, 2)))
-            }
-            //increase calldataPointer to account for usage of 6 bytes
-            calldataPointer += 6;
-            //verify monotonic increase of bin indices
-            require(
-                currentBinIndex == type(uint32).max ||
-                    nextBinIndex > currentBinIndex,
-                "bad bin ordering - repeat bins?"
-            );
-            //update current bin index
-            currentBinIndex = nextBinIndex;
-            //256 single bit slots, initialized as zeroes
-            //each bit is flipped if a signature is provided from the valid signatory for that slot, in the current bin
-            uint256 claimsMadeInBin;
-            //process a single bin
-            while (sigsInCurrentBin > 0) {
-                //use library here because idk how to store struc in assembly
-                //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
-                sigWInfo.r = data.toBytes32(calldataPointer - 68);
-                sigWInfo.vs = data.toBytes32(calldataPointer - 36);
-                sigWInfo.isEthStaker = data.toUint8(calldataPointer - 4);
-                sigWInfo.isEigenStaker = data.toUint8(calldataPointer - 3);
-                sigWInfo.signatory = ECDSA.recover(ferkleRoot, sigWInfo.r, sigWInfo.vs);
-                //increase calldataPointer to account for length of signature and
-                calldataPointer += 65;
-                sigWInfo.operatorId = dlRegVW.getOperatorId(sigWInfo.signatory);
-                //16777216 is 2^24. this is the max bin index.
-                require(
-                    sigWInfo.operatorId >> 8 == currentBinIndex,
-                    "invalid sig bin index - improper sig ordering?"
-                );
-                //mask has a single '1' bit at sigIndex position
-                mask = (1 << (sigWInfo.operatorId % 256));
-                //check that bit has not already been flipped
-                require(
-                    claimsMadeInBin & mask == 0,
-                    "claim already made on this bit - repeat signature?"
-                );
-                //flip the bit to mark that 'sigIndex' has been claimed
-                claimsMadeInBin = (claimsMadeInBin | mask);
+        // //transitory variables to be reused in loops
+        // SignatureWithInfo memory sigWInfo;
+        // //number of signatures contained in the bin currently being processed
+        // uint16 sigsInCurrentBin;
+        // //index of current bin of signatures being processed. initially set to max value for a later check
+        // uint32 currentBinIndex = type(uint32).max;
+        // //temporary variable used to gaurantee that binIndices are strictly increasing. prevents usage of duplicate bins
+        // uint32 nextBinIndex;
+        // //temp variables initiated outside of loop -- these are updated inside of each inner loop
+        // uint256 mask;
+        // //record of all signatories stored in the form: keccak256(abi.encodePacked(currentBinIndex, claimsMadeInBin, previousHash))
+        // //with first hash being that of the ferkleRoot + dumpNumber
+        // compressedSignatoryRecord = keccak256(
+        //     abi.encodePacked(ferkleRoot, dumpNumberToConfirm)
+        // );
+        // //loop for each bin of signatures. ends once all bins have been processed
+        // while (numberOfBins > 0) {
+        //     //update sigsInBin and binIndex for next bin
+        //     assembly {
+        //         //get the 16 bits at the current calldataPointer
+        //         sigsInCurrentBin := shr(240, calldataload(calldataPointer))
+        //         //get the 32 bits immediately after the 2 bytes for sigsInCurrentBin
+        //         nextBinIndex := shr(224, calldataload(add(calldataPointer, 2)))
+        //     }
+        //     //increase calldataPointer to account for usage of 6 bytes
+        //     calldataPointer += 6;
+        //     //verify monotonic increase of bin indices
+        //     require(
+        //         currentBinIndex == type(uint32).max ||
+        //             nextBinIndex > currentBinIndex,
+        //         "bad bin ordering - repeat bins?"
+        //     );
+        //     //update current bin index
+        //     currentBinIndex = nextBinIndex;
+        //     //256 single bit slots, initialized as zeroes
+        //     //each bit is flipped if a signature is provided from the valid signatory for that slot, in the current bin
+        //     uint256 claimsMadeInBin;
+        //     //process a single bin
+        //     while (sigsInCurrentBin > 0) {
+        //         //use library here because idk how to store struc in assembly
+        //         //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
+        //         sigWInfo.r = data.toBytes32(calldataPointer - 68);
+        //         sigWInfo.vs = data.toBytes32(calldataPointer - 36);
+        //         sigWInfo.isEthStaker = data.toUint8(calldataPointer - 4);
+        //         sigWInfo.isEigenStaker = data.toUint8(calldataPointer - 3);
+        //         sigWInfo.signatory = ECDSA.recover(ferkleRoot, sigWInfo.r, sigWInfo.vs);
+        //         //increase calldataPointer to account for length of signature and
+        //         calldataPointer += 65;
+        //         sigWInfo.operatorId = dlRegVW.getOperatorId(sigWInfo.signatory);
+        //         //16777216 is 2^24. this is the max bin index.
+        //         require(
+        //             sigWInfo.operatorId >> 8 == currentBinIndex,
+        //             "invalid sig bin index - improper sig ordering?"
+        //         );
+        //         //mask has a single '1' bit at sigIndex position
+        //         mask = (1 << (sigWInfo.operatorId % 256));
+        //         //check that bit has not already been flipped
+        //         require(
+        //             claimsMadeInBin & mask == 0,
+        //             "claim already made on this bit - repeat signature?"
+        //         );
+        //         //flip the bit to mark that 'sigIndex' has been claimed
+        //         claimsMadeInBin = (claimsMadeInBin | mask);
 
-                uint128 ethStaked;
-                uint128 eigenStaked;
-                if(sigWInfo.isEthStaker == 0) {
-                    //then they are an eth staker
-                    sigWInfo.ethStakesIndexOfSignatory = data.toUint32(calldataPointer);
-                    require(smd.ethStakes.toAddress(sigWInfo.ethStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
-                    calldataPointer += 4;
-                    //increment totals
-                    signedTotals.ethStakeSigned += smd.ethStakes.toUint128(sigWInfo.ethStakesIndexOfSignatory * 36 + 20);
-                }
-                if(sigWInfo.isEigenStaker == 0) {
-                    //then they are an eigen staker
-                    sigWInfo.eigenStakesIndexOfSignatory = data.toUint32(calldataPointer);
-                    require(smd.eigenStakes.toAddress(sigWInfo.eigenStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
-                    calldataPointer += 4;
-                    //increment totals
-                    signedTotals.eigenStakeSigned += smd.eigenStakes.toUint128(sigWInfo.eigenStakesIndexOfSignatory * 36 + 20);
-                }
+        //         uint128 ethStaked;
+        //         uint128 eigenStaked;
+        //         if(sigWInfo.isEthStaker == 0) {
+        //             //then they are an eth staker
+        //             sigWInfo.ethStakesIndexOfSignatory = data.toUint32(calldataPointer);
+        //             require(smd.ethStakes.toAddress(sigWInfo.ethStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
+        //             calldataPointer += 4;
+        //             //increment totals
+        //             signedTotals.ethStakeSigned += smd.ethStakes.toUint128(sigWInfo.ethStakesIndexOfSignatory * 36 + 20);
+        //         }
+        //         if(sigWInfo.isEigenStaker == 0) {
+        //             //then they are an eigen staker
+        //             sigWInfo.eigenStakesIndexOfSignatory = data.toUint32(calldataPointer);
+        //             require(smd.eigenStakes.toAddress(sigWInfo.eigenStakesIndexOfSignatory * 36) == sigWInfo.signatory, "Eth stakes signatory index incorrect");
+        //             calldataPointer += 4;
+        //             //increment totals
+        //             signedTotals.eigenStakeSigned += smd.eigenStakes.toUint128(sigWInfo.eigenStakesIndexOfSignatory * 36 + 20);
+        //         }
 
-                //decrement counter of remaining signatures to check
-                unchecked {
-                    --sigsInCurrentBin;
-                }
-            }
-            //update compressedSignatoryRecord variable
-            compressedSignatoryRecord = keccak256(
-                abi.encodePacked(
-                    currentBinIndex,
-                    claimsMadeInBin,
-                    compressedSignatoryRecord
-                )
-            );
-            //decrement numberOfBins counter at end of loop.
-            unchecked {
-                --numberOfBins;
-            }
-        }
-        signedTotals.totalEthStake = smd.ethStakes.toUint256(smd.ethStakesLength - 33);
-        signedTotals.totalEigenStake = smd.eigenStakes.toUint256(smd.eigenStakesLength - 33);
+        //         //decrement counter of remaining signatures to check
+        //         unchecked {
+        //             --sigsInCurrentBin;
+        //         }
+        //     }
+        //     //update compressedSignatoryRecord variable
+        //     compressedSignatoryRecord = keccak256(
+        //         abi.encodePacked(
+        //             currentBinIndex,
+        //             claimsMadeInBin,
+        //             compressedSignatoryRecord
+        //         )
+        //     );
+        //     //decrement numberOfBins counter at end of loop.
+        //     unchecked {
+        //         --numberOfBins;
+        //     }
+        // }
+        // signedTotals.totalEthStake = smd.ethStakes.toUint256(smd.ethStakesLength - 33);
+        // signedTotals.totalEigenStake = smd.eigenStakes.toUint256(smd.eigenStakesLength - 33);
         //return dumpNumber, ferkle root, eth and eigen that signed and a hash of the signatories
         return (
             dumpNumberToConfirm,

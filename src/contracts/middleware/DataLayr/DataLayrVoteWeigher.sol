@@ -12,9 +12,7 @@ import "../QueryManager.sol";
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     using BytesLib for bytes;
     IInvestmentManager public investmentManager;
-    //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     IEigenLayrDelegation public delegation;
-    uint256 public constant consensusLayerPercent = 10;
     // Data Layr Nodes
     struct Registrant {
         string socket; // how people can find it
@@ -25,10 +23,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         uint8 active; //bool
     }
 
-    event Registration(
-        uint8 typeEvent, // 0: addedMember, 1: leftMember
-        uint32 initiator, // who started
-        uint32 numRegistrant
+    event DeregistrationCommit(
+        address registrant // who started
     );
 
     IQueryManager public queryManager;
@@ -45,6 +41,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     uint48[] public eigenStakeHashUpdates;
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
+
+    event EthStakeUpdate();
+    event EigenStakeUpdate();
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -174,7 +173,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
 
         registrantList.push(operator);
         nextRegistrantId++;
-        emit Registration(0, registry[operator].id, 0);
         return (registrantType, eigenAmount);
     }
 
@@ -187,7 +185,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         registry[msg.sender].to = latestTime;
         // but they will not sign off on any more dumps
         registry[msg.sender].active = 0;
-        emit Registration(1, registry[msg.sender].id, 0);
+        emit DeregistrationCommit(msg.sender);
         return true;
     }
 
@@ -321,6 +319,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         ethStakeHashUpdates.push(currDumpNumber);
         ethStakeHashes[currDumpNumber] = keccak256(stakes);
+        emit EthStakeUpdate();
     }
 
     //stakes must be of the form
@@ -372,6 +371,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         eigenStakeHashUpdates.push(currDumpNumber);
         eigenStakeHashes[currDumpNumber] = keccak256(stakes);
+        emit EigenStakeUpdate();
     }
 
     function getOperatorFromDumpNumber(address operator)

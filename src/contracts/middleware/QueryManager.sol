@@ -28,6 +28,9 @@ contract QueryManager is Initializable, QueryManagerStorage {
     IVoteWeighter public immutable voteWeighter;
 
     // EVENTS
+    event Registration(address operator);
+    event Deregistration(address operator);
+
     event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
 
     event ResponseReceived(
@@ -111,6 +114,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         // the operator is recorded as being no longer active
         operatorType[msg.sender] = 0;
+        emit Deregistration(msg.sender);
     }
 
     // call registration contract with given data
@@ -171,6 +175,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         // increment both the total number of operators and number of operators of opType
         operatorCounts = (operatorCounts + (1 << (32 * opType))) + 1;
+        emit Registration(msg.sender);
     }
 
     /**
