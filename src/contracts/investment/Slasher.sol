@@ -3,6 +3,13 @@ pragma solidity ^0.8.9;
 
 import "./InvestmentManager.sol";
 
+
+/**
+ * @notice This contract specifies details on slashing. The functionalities are:
+ *          - adding contracts who have permission to perform slashing,
+ *          - revoking permission for slashing from specified contracts,
+ *          - calling investManager to do actual slashing.          
+ */
 contract Slasher {
     address public governor;
     InvestmentManager public investmentManager;
@@ -13,6 +20,9 @@ contract Slasher {
         investmentManager = _investmentManager;
     }
 
+    /**
+     * @notice used for giving permission of slashing to contracts. 
+     */
     function addPermissionedContracts(address[] calldata contracts) external {
         require(msg.sender == governor, "Only governor");
         for (uint256 i = 0; i < contracts.length; i++) {
@@ -20,6 +30,9 @@ contract Slasher {
         } 
     }
 
+    /**
+     * @notice used for revoking permission of slashing from contracts. 
+     */
     function removePermissionedContracts(address[] calldata contracts) external {
         require(msg.sender == governor, "Only governor");
         for (uint256 i = 0; i < contracts.length; i++) {
@@ -27,6 +40,10 @@ contract Slasher {
         } 
     }
 
+
+    /**
+     * @notice used for calling slashing function in investmentManager contract.
+     */
     function slashShares(
         address slashed,
         address recipient,
