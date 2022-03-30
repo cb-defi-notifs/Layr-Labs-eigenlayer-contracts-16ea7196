@@ -87,7 +87,7 @@ contract DataLayrServiceManager is
             "Only the query manager can call this function"
         );
         (
-            uint64 dumpNumberToConfirm,
+            uint48 dumpNumberToConfirm,
             bytes32 ferkleRoot,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -111,7 +111,7 @@ contract DataLayrServiceManager is
             "Only the query manager can call this function"
         );
         (
-            uint64 dumpNumberToConfirm,
+            uint48 dumpNumberToConfirm,
             bytes32 depositFerkleHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash

@@ -26,7 +26,7 @@ contract DataLayr is Ownable, IDataLayr {
 
     // Data Store
     struct DataStore {
-        uint64 dumpNumber;
+        uint48 dumpNumber;
         uint32 initTime; //when the store was inited
         uint32 storePeriodLength; //when store expires
         address submitter; //address approved to submit signatures for this datastore
@@ -62,7 +62,7 @@ contract DataLayr is Ownable, IDataLayr {
     // Precommit
 
     function initDataStore(
-        uint64 dumpNumber,
+        uint48 dumpNumber,
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength,

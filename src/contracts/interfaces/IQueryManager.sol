@@ -50,7 +50,7 @@ interface IQueryManager {
         external
         view returns (uint128, uint128);
 
-    function operatorStakes(address) external view returns (Stake memory);
+    // function operatorStakes(address) external view returns (Stake memory);
 
-    function totalStake() external view returns (Stake memory);
+    // function totalStake() external view returns (Stake memory);
 }
