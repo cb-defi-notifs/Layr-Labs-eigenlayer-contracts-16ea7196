@@ -26,7 +26,7 @@ contract DataLayrServiceManager is
 
     event ConfirmDataStore(uint48 dumpNumber);
 
-    event PaymentCommit(address opertator, uint48 toDumpNumber, uint256 fee);
+    event PaymentCommit(address opertator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
