@@ -175,10 +175,10 @@ contract InvestmentManager is
             investorStrats[depositor].push(strategy);
         }
 
-        //transfer tokens to the strategy
+        // transfer tokens from the depositer to the strategy
         _transferTokenOrEth(token, depositor, address(strategy), amount);
 
-        
+
         shares = strategy.deposit(token, amount);
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
@@ -238,6 +238,9 @@ contract InvestmentManager is
     }
 
     // withdraws the given token and shareAmount from the given strategy on behalf of the depositor
+    /**
+     * @notice 
+     */
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
@@ -250,6 +253,8 @@ contract InvestmentManager is
             "Can only withdraw from approved strategies"
         );
         // subtract the returned shares to their existing shares for this strategy
+        // CRITIC: transfer of funds happening before update to the depositer's share,
+        //         possibility of draining away all fund
         investorStratShares[depositor][strategy] -= strategy.withdraw(
             depositor,
             token,
@@ -477,6 +482,10 @@ contract InvestmentManager is
         return stake;
     }
 
+    /**
+     * @notice used for transferring specified amount of specified token from the 
+     *         sender to the receiver
+     */
     function _transferTokenOrEth(
         IERC20 token,
         address sender,
