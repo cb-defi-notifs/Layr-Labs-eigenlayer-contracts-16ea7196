@@ -25,7 +25,7 @@ import "./storage/EigenLayrDepositStorage.sol";
  *             before the launch of EigenLayr and then account it for staking into EigenLayr,
  *           - enabling depositing ETH into settlement layer via EigenLayr's withdrawal 
  *             certificate and then then account it for staking into EigenLayr,
- *           - enabling acceptance of proof of staking into settlement layer, via depositer's
+ *           - enabling acceptance of proof of staking into settlement layer, via depositor's
  *             own withdrawal certificate, in order to use it for staking into EigenLayr.     
  */
 contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrDeposit {
@@ -113,22 +113,22 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
     *           counts this staked ETH, under re-staking paradigm, as being 
     *           staked in EigenLayr.
     */
-    /** @dev The snapshot of which depositer has staked what amount of ETH into settlement layer
+    /** @dev The snapshot of which depositor has staked what amount of ETH into settlement layer
     *        (beacon chain) is captured using a merkle tree where the leaf node is given by         
-    *        keccak256(abi.encodePacked(depositer, amount)). This merkle tree is then used 
-    *        to prove depositer's stake in the settlement layer.  
+    *        keccak256(abi.encodePacked(depositor, amount)). This merkle tree is then used 
+    *        to prove depositor's stake in the settlement layer.  
     */   
     /// @param proof is the merkle proof in the above merkle tree.
     /// @param signature is the signature on the message "keccak256(abi.encodePacked(msg.sender, legacyDepositPermissionMessage)"  
     // CRITIC - change the name to "proveLegacySettlementLayerDeposit"
     function proveLegacyConsensusLayerDeposit(
         bytes32[] calldata proof,
-        address depositer,
+        address depositor,
         bytes calldata signature,
         uint256 amount
     ) external payable {
         require(
-            !depositProven[consensusLayerDepositRoot][depositer],
+            !depositProven[consensusLayerDepositRoot][depositor],
             "Depositer has already proven their stake"
         );
         bytes32 messageHash = keccak256(
@@ -136,29 +136,29 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
         );
 
         // recovering the address to whom the signature belongs to and verifying it 
-        // is that of the depositer. 
+        // is that of the depositor. 
         require(
-            ECDSA.recover(messageHash, signature) == depositer,
+            ECDSA.recover(messageHash, signature) == depositor,
             "Invalid signature"
         );
 
-        bytes32 leaf = keccak256(abi.encodePacked(depositer, amount));
+        bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
         // verifying the merkle proof
         require(
             MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
             "Invalid merkle proof"
         );
 
-        // record that depositer has successfully proven its stake into legacy consensus layer
-        depositProven[consensusLayerDepositRoot][depositer] = true;
+        // record that depositor has successfully proven its stake into legacy consensus layer
+        depositProven[consensusLayerDepositRoot][depositor] = true;
 
         // mark deposited ETH in investment contract
-        investmentManager.depositConsenusLayerEth(depositer, amount);
+        investmentManager.depositConsenusLayerEth(depositor, amount);
     }
 
 
     /**  
-    *    @notice Used for letting EigenLayr know that depositer's ETH should 
+    *    @notice Used for letting EigenLayr know that depositor's ETH should 
     *            be staked in settlement layer via EigenLayr's withdrawal certificate 
     *            and then be re-staked in EigenLayr.
     */           
@@ -197,45 +197,45 @@ contract EigenLayrDeposit is Initializable, EigenLayrDepositStorage, IEigenLayrD
     /** 
     *   @notice Used to prove new staking of ETH into settlement layer (beacon chain)  
     *           after the launch of EigenLayr (staking in settlement layer was done 
-    *           by using depositer's own withdrawal certificate) and then re-stake it in 
+    *           by using depositor's own withdrawal certificate) and then re-stake it in 
     *           EigenLayr. 
     */
     /**
-    *   @dev In order to update the snapshot of depositer and their stake in settlement 
+    *   @dev In order to update the snapshot of depositor and their stake in settlement 
     *        layer, an EigenLayr query is made on the most recent commitment of the snapshot.
-    *        The new depositer's in the settlement layer who want to participate in 
+    *        The new depositor's in the settlement layer who want to participate in 
     *        EigenLayr has to prove their stake against this commitment.          
     */
     function depositPOSProof(
         uint256 blockNumber,
         bytes32[] calldata proof,
-        address depositer,
+        address depositor,
         bytes calldata signature,
         uint256 amount
     ) external {
         // get the most recent commitment of trie in settlement layer (beacon chain) that 
-        // describes the which depositer staked how much ETH. 
+        // describes the which depositor staked how much ETH. 
         bytes32 depositRoot = postOracle.getDepositRoot(blockNumber);
 
         require(
-            !depositProven[depositRoot][depositer],
+            !depositProven[depositRoot][depositor],
             "Depositer has already proven their stake"
         );
         bytes32 messageHash = keccak256(
             abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
         );
         require(
-            ECDSA.recover(messageHash, signature) == depositer,
+            ECDSA.recover(messageHash, signature) == depositor,
             "Invalid signature"
         );
-        bytes32 leaf = keccak256(abi.encodePacked(depositer, amount));
+        bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
         require(
             MerkleProof.verify(proof, depositRoot, leaf),
             "Invalid merkle proof"
         );
-        depositProven[depositRoot][depositer] = true;
+        depositProven[depositRoot][depositor] = true;
 
         // mark deposited eth in investment contract
-        investmentManager.depositConsenusLayerEth(depositer, amount);
+        investmentManager.depositConsenusLayerEth(depositor, amount);
     }
 }

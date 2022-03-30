@@ -116,14 +116,14 @@ contract InvestmentManager is
 
 
     /**
-     * @notice used for investing a depositer's asset into the specified strategy in the 
-     *         behalf of the depositer 
+     * @notice used for investing a depositor's asset into the specified strategy in the 
+     *         behalf of the depositor 
      */
     /**
-     * @param depositer is the address of the user who is investing assets into specified strategy,
+     * @param depositor is the address of the user who is investing assets into specified strategy,
      * @param strategy is the specified strategy where investment is to be made, 
      * @param token is the denomination in which the investment is to be made,
-     * @param amount is the amount of token to be invested in the strategy by the depositer
+     * @param amount is the amount of token to be invested in the strategy by the depositor
      */
     /**
      * @dev this function is called when a user stakes ETH for the purpose of depositing
@@ -143,8 +143,8 @@ contract InvestmentManager is
 
 
     /**
-     * @notice used for investing a depositer's assets into multiple specified strategy, in the 
-     *         behalf of the depositer, with each of the investment being done in terms of a
+     * @notice used for investing a depositor's assets into multiple specified strategy, in the 
+     *         behalf of the depositor, with each of the investment being done in terms of a
      *         specified token and their respective amount. 
      */
     function depositIntoStrategies(
@@ -183,7 +183,7 @@ contract InvestmentManager is
             investorStrats[depositor].push(strategy);
         }
 
-        // transfer tokens from the depositer to the strategy
+        // transfer tokens from the depositor to the strategy
         _transferTokenOrEth(token, depositor, address(strategy), amount);
 
         // deposit the assets into the specified strategy and get the equivalent amount of
@@ -277,7 +277,7 @@ contract InvestmentManager is
      *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
      *      call this function.
      */
-    // CRITIC: (1) transfer of funds happening before update to the depositer's share,
+    // CRITIC: (1) transfer of funds happening before update to the depositor's share,
     //             possibility of draining away all fund - re-entry bug
     //         (2) a staker can get its asset back before finalizeUndelegation. Therefore, 
     //             what is the incentive for calling finalizeUndelegation and starting off
@@ -384,7 +384,7 @@ contract InvestmentManager is
      * @notice Used for setting the delegator's new ETH balance in the settlement layer
      */
     /**
-     * @dev Caution that @param amount is the new ETH balance that the @param depositer wants
+     * @dev Caution that @param amount is the new ETH balance that the @param depositor wants
      *      and not the increment to the new balance.
      */ 
     function depositConsenusLayerEth(address depositor, uint256 amount)
@@ -398,7 +398,7 @@ contract InvestmentManager is
             amount -
             consensusLayerEth[depositor];
 
-        // record the ETH that has been staked by the depositer    
+        // record the ETH that has been staked by the depositor    
         consensusLayerEth[depositor] = amount;
 
         return amount;
@@ -409,7 +409,7 @@ contract InvestmentManager is
      * @notice Used for setting the delegator's new Eigen balance
      */
     /**
-     * @dev Caution that @param amount is the new Eigen balance that the @param depositer wants
+     * @dev Caution that @param amount is the new Eigen balance that the @param depositor wants
      *      and not the increment to the new balance.
      */ 
     function depositEigen(address depositor, uint256 amount)
@@ -481,10 +481,10 @@ contract InvestmentManager is
 
 
     /**
-     * @notice get all details on the depositer's investments, shares, ETH and Eigen staked.
+     * @notice get all details on the depositor's investments, shares, ETH and Eigen staked.
      */
     /**
-     * @return (depositer's strategies, shares in these strategies, ETH staked, Eigen staked)
+     * @return (depositor's strategies, shares in these strategies, ETH staked, Eigen staked)
      */
     function getDeposits(address depositor)
         external
@@ -516,39 +516,39 @@ contract InvestmentManager is
     /**
      * @notice get underlying sum of actual ETH staked into settlement layer and 
      *         and the ETH-denominated value of shares in various investment strategies 
-     *         for the given depositer    
+     *         for the given depositor    
      */
-    function getUnderlyingEthStaked(address depositer)
+    function getUnderlyingEthStaked(address depositor)
         external
         returns (uint256)
     {
         // actual ETH staked in settlement layer
-        uint256 stake = consensusLayerEth[depositer];
+        uint256 stake = consensusLayerEth[depositor];
 
         // for all strats find uderlying eth value of shares
-        uint256 numStrats = investorStrats[depositer].length;
+        uint256 numStrats = investorStrats[depositor].length;
         for (uint256 i = 0; i < numStrats; i++) {
-            IInvestmentStrategy strat = investorStrats[depositer][i];
+            IInvestmentStrategy strat = investorStrats[depositor][i];
             stake += strat.underlyingEthValueOfShares(
-                investorStratShares[depositer][strat]
+                investorStratShares[depositor][strat]
             );
         }
 
         return stake;
     }
 
-    function getUnderlyingEthStakedView(address depositer)
+    function getUnderlyingEthStakedView(address depositor)
         external
         view
         returns (uint256)
     {
-        uint256 stake = consensusLayerEth[depositer];
-        uint256 numStrats = investorStrats[depositer].length;
+        uint256 stake = consensusLayerEth[depositor];
+        uint256 numStrats = investorStrats[depositor].length;
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats; i++) {
-            IInvestmentStrategy strat = investorStrats[depositer][i];
+            IInvestmentStrategy strat = investorStrats[depositor][i];
             stake += strat.underlyingEthValueOfSharesView(
-                investorStratShares[depositer][strat]
+                investorStratShares[depositor][strat]
             );
         }
         return stake;
