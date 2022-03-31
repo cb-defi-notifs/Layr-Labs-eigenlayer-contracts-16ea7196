@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../../interfaces/IQueryManager.sol";
 import "../../../interfaces/IDataLayrServiceManager.sol";
 import "../../../interfaces/IDataLayr.sol";
+import "../../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../../interfaces/IEigenLayrDelegation.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFeeManager {
@@ -13,6 +14,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;
+    //the DL vote weighter
+    IDataLayrVoteWeigher public dlRegVW;
     uint48 public dumpNumber;
     mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
     mapping(uint64 => uint256) public dumpNumberToFee;

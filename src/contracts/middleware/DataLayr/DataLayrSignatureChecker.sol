@@ -42,9 +42,6 @@ abstract contract DataLayrSignatureChecker is DataLayrServiceManagerStorage {
         bytes eigenStakes;
     }
 
-    //the DL vote weighter
-    IDataLayrVoteWeigher public dlRegVW;
-
     //NOTE: this assumes length 64 signatures
     //TODO: sanity check on calldata length?
     //TODO: do math instead of updating calldataPointer variable?
