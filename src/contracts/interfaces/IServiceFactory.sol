@@ -7,5 +7,5 @@ import "./IQueryManager.sol";
 
 interface IServiceFactory {
 	//function createNewQueryManager(uint256 queryDuration, IFeeManager feeManager, IVoteWeighter voteWeigher, address registrationManager, address timelock) external;
-	function queryManagerExists(IQueryManager queryManager) external view returns(bool);
+	function queryManagerExists(IQueryManager) external view returns(bool);
 }
