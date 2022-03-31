@@ -109,7 +109,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
          *      Then, subtract 1 from <n> to decrement the number of total operators.
          */
         operatorCounts =
-            (operatorCounts - (1 << (32 * operatorType[msg.sender]))) -
+            (operatorCounts - (1 << (32 * operatorType[msg.sender]) + 32)) -
             1;
 
         // the operator is recorded as being no longer active
@@ -174,7 +174,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         totalStake.ethStaked += ethAmount;
 
         // increment both the total number of operators and number of operators of opType
-        operatorCounts = (operatorCounts + (1 << (32 * opType))) + 1;
+        operatorCounts = (operatorCounts + (1 << (32 * opType + 32))) + 1;
         emit Registration(msg.sender);
     }
 
@@ -472,5 +472,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
     function setTimelock(address _timelock) external {
         require(msg.sender == timelock, "onlyTimelock");
         timelock = _timelock;
+    }
+
+    function getOpertorCount() public pure view returns(uint32) {
+        return uint32(operatorCounts);
+    }
+
+    function getOpertorCountOfType(uint8 operatorType) public pure view returns(uint32) {
+        return uint32(operatorCounts >> (operatorType * 32 + 32));
     }
 }

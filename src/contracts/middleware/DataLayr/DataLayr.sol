@@ -43,21 +43,7 @@ contract DataLayr is Ownable, IDataLayr {
         bool commited; //whether the data has been certified available
     }
 
-    event DataStoreInit(
-        address initializer, //person initing store
-        bytes32 ferkleRoot, //counter-esque id
-        uint256 totalBytes //number of bytes in store including redundant chunks, basicall the total number of bytes in all frames of the FRS Merkle Tree
-    );
-
     mapping(bytes32 => DataStore) public dataStores;
-
-    event Commit(
-        address disperser,
-        bytes32 ferkleRoot
-    );
-
-    // Misc
-    mapping(bytes32 => mapping(address => bool)) public isCodingProofDLNActive;
 
     // Constructor
     constructor(address currDisperser_) {
@@ -91,12 +77,6 @@ contract DataLayr is Ownable, IDataLayr {
             storePeriodLength,
             submitter,
             false
-        );
-
-        emit DataStoreInit(
-            msg.sender,
-            ferkleRoot,
-            totalBytes
         );
     }
 
@@ -135,10 +115,6 @@ contract DataLayr is Ownable, IDataLayr {
                 && eigenStakeSigned*100/totalEigenStake >= eigenSignedThresholdPercentage, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
         dataStores[ferkleRoot].commited = true;
-        emit Commit(
-            msg.sender,
-            ferkleRoot
-        );
     }
     // Setters and Getters
 

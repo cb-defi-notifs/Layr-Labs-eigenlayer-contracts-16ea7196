@@ -26,7 +26,13 @@ contract DataLayrServiceManager is
 
     event ConfirmDataStore(uint48 dumpNumber);
 
-    event PaymentCommit(address opertator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
+    event PaymentCommit(address operator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
+
+    event PaymentChallengeInit(address operator, address challenger);
+
+    event PaymentChallengeResolution(address operator, bool operatorWon);
+
+    event PaymentRedemption(address operator, uint256 fee);
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -214,13 +220,15 @@ contract DataLayrServiceManager is
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
+        uint256 amount = operatorToPayment[msg.sender].amount;
         IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
-        paymentToken.transfer(address(dt), operatorToPayment[msg.sender].amount);
+        paymentToken.transfer(address(dt), amount);
         //i.e. if operator is not a 'self operator'
         if (address(dt) != msg.sender) {
             //inform the DelegationTerms contract of the payment
-            dt.payForService(paymentToken, operatorToPayment[msg.sender].amount);            
+            dt.payForService(paymentToken, amount);            
         }
+        emit PaymentRedemption(msg.sender, amount);
     }
 
     //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
@@ -255,6 +263,7 @@ contract DataLayrServiceManager is
         operatorToPayment[operator].status = 2;
         operatorToPayment[operator].commitTime = uint32(block.timestamp);
         operatorToPaymentChallenge[operator] = challengeContract;
+        emit PaymentChallengeInit(operator, msg.sender);
     }
 
     function resolvePaymentChallenge(address operator, bool winner) external {
@@ -271,6 +280,7 @@ contract DataLayrServiceManager is
                 operator,
                 operatorToPayment[operator].collateral
             );
+            emit PaymentChallengeResolution(operator, true);
         } else {
             // challeger was correct, reset payment
             operatorToPayment[operator].status = 1;
@@ -279,6 +289,7 @@ contract DataLayrServiceManager is
                 operator,
                 2 * operatorToPayment[operator].collateral
             );
+            emit PaymentChallengeResolution(operator, false);
         }
     }
 
