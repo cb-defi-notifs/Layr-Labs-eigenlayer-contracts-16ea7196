@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../governance/Timelock.sol";
 import "../interfaces/IInvestmentStrategy.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -18,10 +19,10 @@ import "./storage/QueryManagerStorage.sol";
  *             - Enable mechanism for an operator to register with the middleware so that it can
  *               respond to the middleware's queries,
  *             - Enable mechanism for an operator to de-register with the middleware,
- *             - Enable mechanism for updating the stake that is being deployed by an 
+ *             - Enable mechanism for updating the stake that is being deployed by an
  *               operator for validating the queries of the middleware,
- *             - Enable mechanism for creating new queries by the middleware, responding to 
- *               existing queries by operators and finalize the outcome of the queries.                        
+ *             - Enable mechanism for creating new queries by the middleware, responding to
+ *               existing queries by operators and finalize the outcome of the queries.
  */
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
@@ -60,8 +61,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 _queryDuration,
         uint256 _consensusLayerEthToEth,
         IFeeManager _feeManager,
-        address _registrationManager,
-        address _timelock,
+        IRegistrationManager _registrationManager,
+        uint256 _timelockDelay,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager
     ) external initializer {
@@ -69,7 +70,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         consensusLayerEthToEth = _consensusLayerEthToEth;
         feeManager = _feeManager;
         registrationManager = _registrationManager;
-        timelock = _timelock;
+        timelock = address(new Timelock(address(this), _timelockDelay));
         delegation = _delegation;
         investmentManager = _investmentManager;
     }
@@ -86,14 +87,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
             "Registrant is not registered with this middleware."
         );
         require(
-            IRegistrationManager(registrationManager).deregisterOperator(
-                msg.sender,
-                data
-            ),
+            registrationManager.deregisterOperator(msg.sender, data),
             "Deregistration not permitted"
         );
 
-        // subtract the staked Eigen and ETH of the operator, that is getting deregistered, 
+        // subtract the staked Eigen and ETH of the operator, that is getting deregistered,
         // from the total stake securing the middleware
         totalStake.eigenStaked -= operatorStakes[msg.sender].eigenStaked;
         totalStake.ethStaked -= operatorStakes[msg.sender].ethStaked;
@@ -109,7 +107,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
          *      Then, subtract 1 from <n> to decrement the number of total operators.
          */
         operatorCounts =
-            (operatorCounts - (1 << (32 * operatorType[msg.sender]) + 32)) -
+            (operatorCounts - (1 << ((32 * operatorType[msg.sender]) + 32))) -
             1;
 
         // the operator is recorded as being no longer active
@@ -142,18 +140,17 @@ contract QueryManager is Initializable, QueryManagerStorage {
          * This function calls the registerOperator function of the middleware to process the
          * data that has been provided by the operator.
          */
-        (uint8 opType, uint128 eigenAmount) = IRegistrationManager(
-            registrationManager
-        ).registerOperator(msg.sender, data);
+        (uint8 opType, uint128 eigenAmount) = registrationManager
+            .registerOperator(msg.sender, data);
 
         // record the operator type of the operator
         operatorType[msg.sender] = opType;
 
         /**
-         * Get the total ETH that has been deposited by the delegators of the operator. 
-         * This will account for ETH that has been delegated for staking in settlement layer only   
+         * Get the total ETH that has been deposited by the delegators of the operator.
+         * This will account for ETH that has been delegated for staking in settlement layer only
          * and the ETH that has been cinverted into the specified liquidStakeToken first which is then
-         * being deposited in some investment strategy. 
+         * being deposited in some investment strategy.
          */
         //SHOULD BE LESS THAN 2^128, do we need to switch everything to uint128? @TODO
         uint128 ethAmount = uint128(
@@ -166,7 +163,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         operatorStakes[msg.sender] = Stake(eigenAmount, ethAmount);
 
         /**
-         * update total Eigen and ETH tha are being employed by the operator for securing 
+         * update total Eigen and ETH tha are being employed by the operator for securing
          * the queries from middleware via EigenLayr
          */
         //i think this gets batched as 1 SSTORE @TODO check
@@ -190,15 +187,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
         override
         returns (uint128, uint128)
     {
-        // get new updated Eigen and ETH that has been delegated by the delegators of the 
-        // operator 
+        // get new updated Eigen and ETH that has been delegated by the delegators of the
+        // operator
         uint128 newEigen = voteWeighter.weightOfOperatorEigen(operator);
         uint128 newEth = uint128(
             delegation.getUnderlyingEthDelegated(operator) +
                 delegation.getConsensusLayerEthDelegated(operator) /
                 consensusLayerEthToEth
         );
-
 
         // store old stake in memory
         uint128 prevEigen = operatorStakes[operator].eigenStaked;
@@ -216,13 +212,10 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return (newEth, newEigen);
     }
 
-
-
     /// @notice get total ETH staked for securing the middleware
     function totalEthStaked() public view returns (uint128) {
         return totalStake.ethStaked;
     }
-
 
     /// @notice get total Eigen staked for securing the middleware
     function totalEigenStaked() public view returns (uint128) {
@@ -231,7 +224,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     /// @notice get total ETH staked by delegators of the operator
     function ethStakedByOperator(address operator)
-        public view
+        public
+        view
         returns (uint128)
     {
         return operatorStakes[operator].ethStaked;
@@ -248,7 +242,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     /// @notice get both total ETH and Eigen staked by delegators of the operator
     function ethAndEigenStakedForOperator(address operator)
-        public view
+        public
+        view
         returns (uint128, uint128)
     {
         Stake memory opStake = operatorStakes[operator];
@@ -272,9 +267,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _createNewQuery(msg.sender, queryData);
     }
 
-
     function _createNewQuery(address queryCreator, bytes calldata queryData)
-        internal 
+        internal
     {
         bytes32 queryDataHash = keccak256(queryData);
 
@@ -284,7 +278,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         //mark query as created and emit an event
         queriesCreated[queryDataHash] = block.timestamp;
         emit QueryCreated(queryDataHash, block.timestamp);
-        
+
         //hook to manage payment for query
         IFeeManager(feeManager).payFee(queryCreator);
     }
@@ -302,12 +296,14 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _respondToQuery(msg.sender, queryHash, response);
     }
 
-    function _respondToQuery(address respondent, bytes32 queryHash, bytes calldata response)
-        internal
-    {
-        // make sure query is open 
+    function _respondToQuery(
+        address respondent,
+        bytes32 queryHash,
+        bytes calldata response
+    ) internal {
+        // make sure query is open
         require(block.timestamp < _queryExpiry(queryHash), "query period over");
-        
+
         // make sure sender has not already responded to it
         require(
             queries[queryHash].operatorWeights[respondent] == 0,
@@ -355,12 +351,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
     }
 
-
     /**
      * @notice Used for finalizing the outcome of the query associated with the queryHash
      */
     function finalizeQuery(bytes32 queryHash) external {
-        // make sure queryHash is valid 
+        // make sure queryHash is valid
         require(queriesCreated[queryHash] != 0, "invalid queryHash");
 
         // make sure query period has ended
@@ -385,7 +380,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
             queries[queryHash].totalCumulativeWeight
         );
     }
-
 
     /// @notice returns the outcome of the query associated with the queryHash
     function getQueryOutcome(bytes32 queryHash)
@@ -461,7 +455,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _fallback();
     }
 
-
     /// @notice sets the fee manager for the iddleware's query manager
     function setFeeManager(IFeeManager _feeManager) external {
         require(msg.sender == timelock, "onlyTimelock");
@@ -474,11 +467,15 @@ contract QueryManager is Initializable, QueryManagerStorage {
         timelock = _timelock;
     }
 
-    function getOpertorCount() public pure view returns(uint32) {
+    function getOpertorCount() public pure returns (uint32) {
         return uint32(operatorCounts);
     }
 
-    function getOpertorCountOfType(uint8 operatorType) public pure view returns(uint32) {
+    function getOpertorCountOfType(uint8 operatorType)
+        public
+        pure
+        returns (uint32)
+    {
         return uint32(operatorCounts >> (operatorType * 32 + 32));
     }
 }

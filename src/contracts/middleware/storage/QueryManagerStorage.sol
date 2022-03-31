@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "../../interfaces/IRegistrationManager.sol";
 import "../../interfaces/IInvestmentStrategy.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
@@ -99,7 +100,7 @@ abstract contract QueryManagerStorage is IQueryManager {
     mapping(address => uint8) public operatorType;
 
 
-    address public registrationManager;
+    IRegistrationManager public registrationManager;
 
     /**
      * @notice Each query is mapped to its hash, which is used as its identifier.

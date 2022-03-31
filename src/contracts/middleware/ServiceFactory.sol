@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IServiceFactory.sol";
 import "./QueryManager.sol";
 
@@ -31,17 +31,17 @@ contract ServiceFactory is IServiceFactory {
      *        the response from an operator for the purpose of computing the outcome of the query, 
      * @param registrationManager is the address of the contract that manages registration of operators
      *        with the middleware of the query manager that is being created,  
-     * @param timelock is the contract for doing timelock capabilities. 
+     * @param timelockDelay is the intended delay on the governing timelock. 
      */ 
     function createNewQueryManager(
         uint256 queryDuration,
         uint256 consensusLayerEthToEth,
         IFeeManager feeManager,
         IVoteWeighter voteWeigher,
-        address registrationManager,
-        address timelock,
+        IRegistrationManager registrationManager,
+        uint256 timelockDelay,
         IEigenLayrDelegation delegation
-    ) external {
+    ) external returns(IQueryManager) {
         // register a new query manager
         IQueryManager newQueryManager = new QueryManager(voteWeigher);
         QueryManager(payable(address(newQueryManager))).initialize(
@@ -49,13 +49,14 @@ contract ServiceFactory is IServiceFactory {
             consensusLayerEthToEth,
             feeManager,
             registrationManager,
-            timelock,
+            timelockDelay,
             delegation,
             investmentManager
         );
 
         // set the existence bit on the query manager to true
         isQueryManager[newQueryManager] = true;
+        return newQueryManager;
     }
 
 

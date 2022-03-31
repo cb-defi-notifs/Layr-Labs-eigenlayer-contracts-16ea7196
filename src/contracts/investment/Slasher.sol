@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "./InvestmentManager.sol";
 
-
 /**
  * @notice This contract specifies details on slashing. The functionalities are:
  *          - adding contracts who have permission to perform slashing,

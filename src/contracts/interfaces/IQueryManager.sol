@@ -15,9 +15,9 @@ interface IQueryManager {
 
     function operatorCounts() external view returns(uint256);
 
-    function getOpertorCount() public pure view returns(uint32);
+    function getOpertorCount() external pure returns(uint32);
 
-    function getOpertorCountOfType(uint8) public pure view returns(uint32);
+    function getOpertorCountOfType(uint8) external pure returns(uint32);
 
     function consensusLayerEthToEth() external view returns (uint256);
 
