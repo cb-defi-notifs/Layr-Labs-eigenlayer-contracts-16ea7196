@@ -23,7 +23,7 @@ interface IQueryManager {
 
     function totalEigenStaked() external view returns (uint128);
 
-    function createNewQuery(bytes calldata queryData) external;
+    function createNewQuery(bytes calldata) external;
 
     function getQueryDuration() external view returns (uint256);
 
