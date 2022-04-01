@@ -412,6 +412,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
     // proxy to fee payer contract
     function _delegate(address implementation) internal virtual {
         uint256 value = msg.value;
+        //check that the first 32 bytes of calldata match the msg.sender of the call
+        uint160 sender;
+        assembly {
+            //get the 160 bits immediately after the function signature
+            sender := shr(96, calldataload(4))
+        }
+        require(address(sender) == msg.sender, "sender != msg.sender");
         assembly {
             // Copy msg.data. We take full control of memory in this inline assembly
             // block because it will not return to Solidity code. We overwrite the

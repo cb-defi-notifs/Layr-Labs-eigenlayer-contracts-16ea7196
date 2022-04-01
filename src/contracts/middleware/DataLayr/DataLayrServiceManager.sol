@@ -79,10 +79,10 @@ contract DataLayrServiceManager is
 
     //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
     function initDataStore(
+        address storer,
         bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength,
-        address submitter
+        uint32 storePeriodLength
     ) external payable {
         require(
             msg.sender == address(queryManager),
@@ -98,14 +98,13 @@ contract DataLayrServiceManager is
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
         //get fees
-        paymentToken.transferFrom(msg.sender, address(this), fee);
+        paymentToken.transferFrom(storer, address(this), fee);
         // call DL contract
         dataLayr.initDataStore(
             dumpNumber,
             ferkleRoot,
             totalBytes,
-            storePeriodLength,
-            submitter
+            storePeriodLength
         );
         emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
     }
@@ -128,7 +127,6 @@ contract DataLayrServiceManager is
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,
@@ -160,7 +158,6 @@ contract DataLayrServiceManager is
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,

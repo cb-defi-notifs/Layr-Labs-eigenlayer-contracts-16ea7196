@@ -82,7 +82,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         );
 
         dlsm = new DataLayrServiceManager(delegation, weth, weth);
-        dl = new DataLayr(address(dlsm));
+        dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
 
 
