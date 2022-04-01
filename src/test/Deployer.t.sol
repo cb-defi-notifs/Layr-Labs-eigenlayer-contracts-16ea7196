@@ -27,7 +27,7 @@ import "ds-test/test.sol";
 
 import "../contracts/interfaces/ERC165_Universal.sol";
 
-contract ContractTest is DSTest, ERC165_Universal {
+contract EigenLayrDeployer is DSTest, ERC165_Universal {
     DepositContract public depositContract;
     Eigen public eigen;
     EigenLayrDelegation public delegation;
@@ -102,11 +102,6 @@ contract ContractTest is DSTest, ERC165_Universal {
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         deposit.initialize(depositContract, investmentManager, dlsm);
-    }
-
-
-    function testExample() public {
-        assertTrue(true);
     }
 
     function testDeploymentSuccessful() public {
