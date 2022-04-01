@@ -382,19 +382,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return registry[operator].fromDumpNumber;
     }
 
-    function setDlnEigenStake(uint128 _dlnEigenStake) public {
-        require(
-            queryManager.timelock() == msg.sender,
-            "Query Manager can only change stake"
-        );
+    function setDlnEigenStake(uint128 _dlnEigenStake) public onlyQMGovernance {
         dlnEigenStake = _dlnEigenStake;
     }
 
-    function setDlnEthStake(uint128 _dlnEthStake) public {
-        require(
-            queryManager.timelock() == msg.sender,
-            "Query Manager can only change stake"
-        );
+    function setDlnEthStake(uint128 _dlnEthStake) public onlyQMGovernance {
         dlnEthStake = _dlnEthStake;
     }
 
