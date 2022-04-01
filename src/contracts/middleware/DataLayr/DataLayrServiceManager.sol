@@ -102,7 +102,6 @@ contract DataLayrServiceManager is
      * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
-     * @param submitter is the address that can assert the quorum of signatures 
      */
     function initDataStore(
         address storer,
