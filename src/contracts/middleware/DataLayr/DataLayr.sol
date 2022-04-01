@@ -96,8 +96,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 storePeriodLength,
         address submitter
     ) external {
-        // CRITIC: would it be better to have a modifier for this check as it is 
-        //         also used in confirm ?
+        // CRITIC: instead of msg.sender, should this be tx.origin?
         require(msg.sender == currDisperser, "Only current disperser can init");
 
 
@@ -153,6 +152,7 @@ contract DataLayr is Ownable, IDataLayr {
         DataStore storage dataStore = dataStores[ferkleRoot];
 
         //TODO: check if eth and eigen are sufficient
+        // CRITIC: should the check be done against tx.origin?
         require(msg.sender == currDisperser, "Only current disperser can call this function");
         
         require(

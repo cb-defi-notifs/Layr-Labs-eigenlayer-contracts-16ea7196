@@ -9,16 +9,36 @@ import "../../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../../interfaces/IEigenLayrDelegation.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFeeManager {
+    /**
+     * @notice service fee that will be paid out by the disperser to the DataLayr nodes
+     *         for storing per byte for per unit time. 
+     */
     uint256 public feePerBytePerTime;
+
     uint256 public constant paymentFraudProofInterval = 7 days;
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;
     //the DL vote weighter
     IDataLayrVoteWeigher public dlRegVW;
+
+    /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint48 public dumpNumber;
+
+    /**
+     * @notice mapping between the dumpNumber for a particular assertion of data into
+     *         DataLayr and a compressed information on the signatures of the DataLayr 
+     *         nodes who signed up to be the part of the quorum.  
+     */
     mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
+
+    /**
+     * @notice mapping between the total service fee that would be paid out in the 
+     *         corresponding assertion of data into DataLayr 
+     */
     mapping(uint64 => uint256) public dumpNumberToFee;
+
+
     mapping(address => Payment) public operatorToPayment;
     mapping(address => address) public operatorToPaymentChallenge;
 
