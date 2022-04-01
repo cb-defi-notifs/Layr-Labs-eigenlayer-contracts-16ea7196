@@ -35,7 +35,7 @@ contract WethStashInvestmentStrategy is
     }
 
     function deposit(IERC20 token, uint256 amount)
-        external
+        external view
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -60,7 +60,7 @@ contract WethStashInvestmentStrategy is
     // thus, they are left as unimplimented in this general contract
     function underlyingEthValueOfShares(uint256 numShares)
         public
-        view
+        pure
         virtual
         returns (uint256)
     {
@@ -69,7 +69,7 @@ contract WethStashInvestmentStrategy is
 
     function underlyingEthValueOfSharesView(uint256 numShares)
         public
-        view
+        pure
         virtual
         returns (uint256)
     {
@@ -78,10 +78,10 @@ contract WethStashInvestmentStrategy is
 
     function sharesToUnderlyingView(uint256 amountShares)
         public
-        view
+        pure
         returns (uint256)
     {
-        return weth.balanceOf(address(this));
+        return amountShares;
     }
 
     /**
@@ -92,15 +92,15 @@ contract WethStashInvestmentStrategy is
      */
     function sharesToUnderlying(uint256 amountShares)
         public
-        view
+        pure
         returns (uint256)
     {
-        return weth.balanceOf(address(this));
+        return amountShares;
     }
 
     function underlyingToSharesView(uint256 amountUnderlying)
         public
-        view
+        pure
         returns (uint256)
     {
         return amountUnderlying;
@@ -114,7 +114,7 @@ contract WethStashInvestmentStrategy is
      */
     function underlyingToShares(uint256 amountUnderlying)
         public
-        view
+        pure
         returns (uint256)
     {
         return amountUnderlying;
