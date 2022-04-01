@@ -60,6 +60,11 @@ contract DataLayr is Ownable, IDataLayr {
      */
     mapping(bytes32 => DataStore) public dataStores;
 
+    modifier onlyFeeManager() {
+        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can call this");
+        _;
+    }
+
     function setQueryManager(IQueryManager _queryManager) public onlyOwner {
         queryManager = _queryManager;
     }
@@ -80,12 +85,7 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 ferkleRoot,
         uint32 totalBytes,
         uint32 storePeriodLength
-    ) external {
-        // CRITIC: would it be better to have a modifier for this check as it is 
-        //         also used in confirm ?
-        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can init");
-
-
+    ) external onlyFeeManager {
         require(
             dataStores[ferkleRoot].initTime == 0,
             "Data store has already been initialized"
@@ -101,12 +101,6 @@ contract DataLayr is Ownable, IDataLayr {
             false
         );
     }
-
-
-    // Commit
-        // bytes32[] calldata rs,
-        // bytes32[] calldata ss,
-        // uint8[] calldata vs
 
     /**
      * @notice Used for confirming that quroum of signatures have been obtained from DataLayr
@@ -129,13 +123,12 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
         uint256 totalEigenStake
-    ) external  {
-        // accessing the metadata in settlement layer cooresponding to the data asserted 
+    ) external  onlyFeeManager {
+        // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
         DataStore storage dataStore = dataStores[ferkleRoot];
 
         //TODO: check if eth and eigen are sufficient
-        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can init");
 
         require(
             dumpNumber == dataStore.dumpNumber,
