@@ -28,6 +28,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         uint128 b;
     }
 
+    event Registration();
+
     event DeregistrationCommit(
         address registrant // who started
     );
