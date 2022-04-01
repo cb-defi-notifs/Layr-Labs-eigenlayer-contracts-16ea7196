@@ -136,7 +136,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external payable onlyGovernor returns (uint256 shares) {
+    ) external payable returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -152,7 +152,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external payable onlyGovernor returns (uint256[] memory) {
+    ) external payable returns (uint256[] memory) {
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
             shares[i] = _depositIntoStrategy(
@@ -183,8 +183,8 @@ contract InvestmentManager is
             investorStrats[depositor].push(strategy);
         }
 
-        // transfer tokens from the depositor to the strategy
-        _transferTokenOrEth(token, depositor, address(strategy), amount);
+        // transfer tokens from the sender to the strategy
+        _transferTokenOrEth(token, msg.sender, address(strategy), amount);
 
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy

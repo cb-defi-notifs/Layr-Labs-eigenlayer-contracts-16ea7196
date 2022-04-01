@@ -43,13 +43,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     WethStashInvestmentStrategy public strat;
     IQueryManager public dlqm;
 
-    function setUp() public {
-        uint256 wethInitialSupply = 10e18;
-        uint256 undelegationFraudProofInterval = 7 days;
-        uint256 consensusLayerEthToEth = 10;
-        uint256 timelockDelay = 2 days;
-        bytes32 consensusLayerDepositRoot;
+    uint256 wethInitialSupply = 10e18;
+    uint256 undelegationFraudProofInterval = 7 days;
+    uint256 consensusLayerEthToEth = 10;
+    uint256 timelockDelay = 2 days;
+    bytes32 consensusLayerDepositRoot;
 
+    function setUp() public {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
@@ -117,5 +117,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
+    }
+
+    function testWethDeposit() public {
+        weth.approve(address(investmentManager), type(uint256).max);
+        investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
     }
 }
