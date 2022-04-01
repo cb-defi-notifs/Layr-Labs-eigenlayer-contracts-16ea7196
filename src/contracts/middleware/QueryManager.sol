@@ -467,13 +467,13 @@ contract QueryManager is Initializable, QueryManagerStorage {
         timelock = _timelock;
     }
 
-    function getOpertorCount() public pure returns (uint32) {
+    function getOpertorCount() public view returns (uint32) {
         return uint32(operatorCounts);
     }
 
     function getOpertorCountOfType(uint8 operatorType)
         public
-        pure
+        view
         returns (uint32)
     {
         return uint32(operatorCounts >> (operatorType * 32 + 32));
