@@ -19,9 +19,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
-    // the current disperser for this DataLayr
-    address public currDisperser;
-
     // the DataLayr query manager
     IQueryManager public queryManager;
 
@@ -49,10 +46,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 initTime; 
 
         // time when obligation for storing this corresponding data by DataLayr nodes expires
-        uint32 storePeriodLength; 
-
-        // address approved to submit signatures of the quorum for this datastore
-        address submitter;  
+        uint32 storePeriodLength;  
 
         // indicates whether quorm of signatures from DataLayr has been obtained or not
         bool commited; 
@@ -65,13 +59,6 @@ contract DataLayr is Ownable, IDataLayr {
      *         layer.  
      */
     mapping(bytes32 => DataStore) public dataStores;
-
-
-    // Constructor
-    constructor(address currDisperser_) {
-        currDisperser = currDisperser_;
-    }
-
 
     function setQueryManager(IQueryManager _queryManager) public onlyOwner {
         queryManager = _queryManager;
@@ -87,17 +74,16 @@ contract DataLayr is Ownable, IDataLayr {
      * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
-     * @param submitter is the address that can assert the quorum of signatures 
      */
     function initDataStore(
         uint48 dumpNumber,
         bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength,
-        address submitter
+        uint32 storePeriodLength
     ) external {
-        // CRITIC: instead of msg.sender, should this be tx.origin?
-        require(msg.sender == currDisperser, "Only current disperser can init");
+        // CRITIC: would it be better to have a modifier for this check as it is 
+        //         also used in confirm ?
+        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can init");
 
 
         require(
@@ -112,7 +98,6 @@ contract DataLayr is Ownable, IDataLayr {
             dumpNumber,
             uint32(block.timestamp),
             storePeriodLength,
-            submitter,
             false
         );
     }
@@ -128,7 +113,6 @@ contract DataLayr is Ownable, IDataLayr {
      */
     /**
      * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
-     * @param submitter is the address that can assert the quorum of signatures,
      * @param ethStakeSigned is the total ETH that has been staked by the DataLayr nodes
      *                       who have signed up to be part of the quorum,     
      * @param eigenStakeSigned is the total Eigen that has been staked by the DataLayr nodes
@@ -141,7 +125,6 @@ contract DataLayr is Ownable, IDataLayr {
     function confirm(
         uint256 dumpNumber,
         bytes32 ferkleRoot,
-        address submitter,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
@@ -152,13 +135,7 @@ contract DataLayr is Ownable, IDataLayr {
         DataStore storage dataStore = dataStores[ferkleRoot];
 
         //TODO: check if eth and eigen are sufficient
-        // CRITIC: should the check be done against tx.origin?
-        require(msg.sender == currDisperser, "Only current disperser can call this function");
-        
-        require(
-            submitter == dataStore.submitter,
-            "Not authorized to submit signatures for this datastore"
-        );
+        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can init");
 
         require(
             dumpNumber == dataStore.dumpNumber,

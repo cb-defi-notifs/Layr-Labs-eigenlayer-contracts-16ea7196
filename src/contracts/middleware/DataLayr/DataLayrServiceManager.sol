@@ -105,10 +105,10 @@ contract DataLayrServiceManager is
      * @param submitter is the address that can assert the quorum of signatures 
      */
     function initDataStore(
+        address storer,
         bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength,
-        address submitter
+        uint32 storePeriodLength
     ) external payable {
         require(
             msg.sender == address(queryManager),
@@ -135,18 +135,14 @@ contract DataLayrServiceManager is
         // part of the quorum, have to store the data
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
-
-        // escrow the total service fees with this contract
-        paymentToken.transferFrom(msg.sender, address(this), fee);
-
-        // call DataLayr contract to store the metadata 
-        /// @dev this leads to on-chain accessible metadata 
+        //get fees
+        paymentToken.transferFrom(storer, address(this), fee);
+        // call DL contract
         dataLayr.initDataStore(
             dumpNumber,
             ferkleRoot,
             totalBytes,
-            storePeriodLength,
-            submitter
+            storePeriodLength
         );
 
         /// @dev this leads to off-chain accessible metadata
@@ -194,7 +190,6 @@ contract DataLayrServiceManager is
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,
@@ -255,7 +250,6 @@ contract DataLayrServiceManager is
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,
