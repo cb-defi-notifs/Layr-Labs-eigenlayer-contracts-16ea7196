@@ -191,7 +191,7 @@ contract DataLayrServiceManager is
         // record the compressed information on all the DataLayr nodes who signed 
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
-        // call DataLayr contract check whether quorum is satisfied or not and record it
+        // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
@@ -250,7 +250,7 @@ contract DataLayrServiceManager is
         // record the deposit root (POSt hash)
         depositRoots[block.number] = depositRoot;
 
-        // call DataLayr contract check whether quorum is satisfied or not and record it
+        // call DataLayr contract to check whether quorum is satisfied or not and record it
         // CRITIC: not to use tx.origin as it is a dangerous practice
         dataLayr.confirm(
             dumpNumberToConfirm,
@@ -266,6 +266,9 @@ contract DataLayrServiceManager is
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
     // TODO: collateral
+    /**
+     * @notice 
+     */
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         require(
             queryManager.getOperatorType(msg.sender) != 0,
@@ -313,6 +316,8 @@ contract DataLayrServiceManager is
         );
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
+
+
 
     function redeemPayment() external {
         require(
