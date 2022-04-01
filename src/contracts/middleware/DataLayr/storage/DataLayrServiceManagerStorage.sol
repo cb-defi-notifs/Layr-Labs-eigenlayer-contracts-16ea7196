@@ -15,7 +15,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
      */
     uint256 public feePerBytePerTime;
 
+    /**
+     * @notice challenge window for submitting fraudproof in case of incorrect payment 
+     *         claim by the registered operator 
+     */
     uint256 public constant paymentFraudProofInterval = 7 days;
+
+    
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;

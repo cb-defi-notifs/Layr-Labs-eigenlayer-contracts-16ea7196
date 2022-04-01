@@ -269,12 +269,16 @@ contract DataLayrServiceManager is
      * @notice 
      */
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
+        // only registered operators can call
         require(
             queryManager.getOperatorType(msg.sender) != 0,
-            "Only registrants can call this function"
+            "Only registered operators can call this function"
         );
+
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
-        //put up collateral
+
+        // operator puts up collateral which can be slashed in case of wrongful 
+        // payment claim
         collateralToken.transferFrom(
             msg.sender,
             address(this),
@@ -282,12 +286,19 @@ contract DataLayrServiceManager is
         );
 
         uint48 fromDumpNumber;
+
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            //this is the first payment commited, it must be claiming payment from when the operator registered
+            // this is the first payment claim and thus, it must be claiming payment from 
+            // when the operator registered
+
+            // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
                 address(queryManager.voteWeighter())
             ).getOperatorFromDumpNumber(msg.sender);
+
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
+
+            // record the payment information for the operator
             operatorToPayment[msg.sender] = Payment(
                 fromDumpNumber,
                 toDumpNumber,
@@ -296,15 +307,22 @@ contract DataLayrServiceManager is
                 0,
                 paymentFraudProofCollateral
             );
+
             return;
         }
+
+        // can only claim for a payment after redeeming the last payment
         require(
             operatorToPayment[msg.sender].status == 1,
             "Require last payment is redeemed"
         );
-        //you have to redeem starting from the last time redeemed up to
+
+        // you have to redeem starting from the last time redeemed up to
         fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
+
         require(fromDumpNumber < toDumpNumber, "invalid payment range");
+        
+        // update the record for the payment claimed by the operator
         operatorToPayment[msg.sender] = Payment(
             fromDumpNumber,
             toDumpNumber,
@@ -313,6 +331,7 @@ contract DataLayrServiceManager is
             0,
             paymentFraudProofCollateral
         );
+        
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
 
