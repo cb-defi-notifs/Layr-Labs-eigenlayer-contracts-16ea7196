@@ -136,13 +136,12 @@ contract DataLayrServiceManager is
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
-
-        // escrow the total service fees from the disperser to the DataLayr nodes in this contract
-        // CRITIC: change "storer" to "disperser"?
+    
+        // escrow the total service fees with this contract
         paymentToken.transferFrom(storer, address(this), fee);
 
-
-        // call DL contract
+        // call DataLayr contract to store the metadata 
+        /// @dev this leads to on-chain accessible metadata 
         dataLayr.initDataStore(
             dumpNumber,
             ferkleRoot,
