@@ -11,18 +11,30 @@ import "./DataLayrPaymentChallenge.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../QueryManager.sol";
 
+
+/**
+ * @notice 
+ */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
     IProofOfStakingOracle
 {
-
+    
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     IERC20 public immutable paymentToken;
     IERC20 public immutable collateralToken;
 
-    event InitDataStore(uint48 dumpNumber,bytes32 ferkleRoot,
+
+    // EVENTS
+    /**
+     * @notice 
+     */
+    event InitDataStore(
+        uint48 dumpNumber,
+        bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength);
+        uint32 storePeriodLength
+    );
 
     event ConfirmDataStore(uint48 dumpNumber);
 

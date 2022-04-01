@@ -25,7 +25,9 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "ds-test/test.sol";
 
-contract EigenLayrDeployer is DSTest {
+import "../contracts/interfaces/ERC165_Universal.sol";
+
+contract ContractTest is DSTest, ERC165_Universal {
     DepositContract public depositContract;
     Eigen public eigen;
     EigenLayrDelegation public delegation;
@@ -41,81 +43,17 @@ contract EigenLayrDeployer is DSTest {
     WethStashInvestmentStrategy public strat;
     IQueryManager public dlqm;
 
-    constructor(
-        uint256 wethInitialSupply,
-        uint256 undelegationFraudProofInterval,
-        bytes32 consensusLayerDepositRoot,
-        uint256 consensusLayerEthToEth,
-        uint256 timelockDelay
-    ) {
-        //eth2 deposit contract
-        depositContract = new DepositContract();
-        //deploy eigen
-        eigen = new Eigen(address(this));
-        //do stuff this eigen token here
-        delegation = new EigenLayrDelegation();
-        investmentManager = new InvestmentManager(eigen, delegation);
-        slasher = new Slasher(investmentManager);
-        serviceFactory = new ServiceFactory(investmentManager);
-        //used in the one investment strategy
-        weth = new ERC20PresetFixedSupply(
-            "weth",
-            "WETH",
-            wethInitialSupply,
-            address(this)
-        );
-        //do stuff with weth
-        strat = new WethStashInvestmentStrategy();
-        strat.initialize(address(investmentManager), weth);
-
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
-
-        investmentManager.initialize(strats, address(slasher));
-
-        delegation.initialize(
-            investmentManager,
-            serviceFactory,
-            undelegationFraudProofInterval
-        );
-
-        dlsm = new DataLayrServiceManager(delegation, weth, weth);
-        dl = new DataLayr(address(dlsm));
-        dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
-
-        dlqm = serviceFactory.createNewQueryManager(
-            1 days,
-            consensusLayerEthToEth,
-            dlsm,
-            dlRegVW,
-            dlRegVW,
-            timelockDelay,
-            delegation
-        );
-
-        dlsm.setDataLayr(dl);
-        dlsm.setQueryManager(dlqm);
-        dlRegVW.setQueryManager(dlqm);
-
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
-        deposit.initialize(depositContract, investmentManager, dlsm);
-
-        // deposit.initialize()
-    }
-
-    function setUp() public
-    {
+    function setUp() public {
         uint256 wethInitialSupply = 10e18;
         uint256 undelegationFraudProofInterval = 7 days;
-        bytes32 consensusLayerDepositRoot;
         uint256 consensusLayerEthToEth = 10;
-        uint256 timelockDelay = 600;
-
+        uint256 timelockDelay = 2 days;
+        bytes32 consensusLayerDepositRoot;
 
         //eth2 deposit contract
         depositContract = new DepositContract();
-        //deploy eigen
-        eigen = new Eigen(address(this));
+        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
+        eigen = new Eigen(address(37));
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         investmentManager = new InvestmentManager(eigen, delegation);
@@ -147,6 +85,7 @@ contract EigenLayrDeployer is DSTest {
         dl = new DataLayr(address(dlsm));
         dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
 
+
         dlqm = serviceFactory.createNewQueryManager(
             1 days,
             consensusLayerEthToEth,
@@ -157,22 +96,20 @@ contract EigenLayrDeployer is DSTest {
             delegation
         );
 
-        dlsm.setDataLayr(dl);
         dlsm.setQueryManager(dlqm);
+        dlsm.setDataLayr(dl);
         dlRegVW.setQueryManager(dlqm);
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         deposit.initialize(depositContract, investmentManager, dlsm);
-
-        // deposit.initialize()
     }
 
-    function testBroken() public {
-        assertTrue(1 == 0);
+
+    function testExample() public {
+        assertTrue(true);
     }
 
     function testDeploymentSuccessful() public {
-        assertTrue(address(deposit) == address(0), "test should fail here");
         assertTrue(address(depositContract) != address(0), "depositContract failed to deploy");
         assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(address(delegation) != address(0), "delegation failed to deploy");
@@ -185,6 +122,5 @@ contract EigenLayrDeployer is DSTest {
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(1 == 0, "test should fail here also");
     }
 }
