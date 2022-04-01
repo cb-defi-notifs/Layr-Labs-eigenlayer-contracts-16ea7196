@@ -135,8 +135,13 @@ contract DataLayrServiceManager is
         // part of the quorum, have to store the data
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
-        //get fees
+
+
+        // escrow the total service fees from the disperser to the DataLayr nodes in this contract
+        // CRITIC: change "storer" to "disperser"?
         paymentToken.transferFrom(storer, address(this), fee);
+
+
         // call DL contract
         dataLayr.initDataStore(
             dumpNumber,
