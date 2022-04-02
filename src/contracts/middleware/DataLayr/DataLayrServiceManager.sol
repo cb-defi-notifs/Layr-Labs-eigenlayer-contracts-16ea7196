@@ -288,8 +288,8 @@ contract DataLayrServiceManager is
         uint48 fromDumpNumber;
 
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            // this is the first payment claim and thus, it must be claiming payment from 
-            // when the operator registered
+            // this is the first commitment to a payment and thus, it must be claiming 
+            // payment from when the operator registered
 
             // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
@@ -322,7 +322,7 @@ contract DataLayrServiceManager is
 
         require(fromDumpNumber < toDumpNumber, "invalid payment range");
         
-        // update the record for the payment claimed by the operator
+        // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromDumpNumber,
             toDumpNumber,
@@ -331,12 +331,12 @@ contract DataLayrServiceManager is
             0,
             paymentFraudProofCollateral
         );
-        
+
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
 
 
-
+    // can only call after challenge window
     function redeemPayment() external {
         require(
             block.timestamp >
@@ -345,19 +345,33 @@ contract DataLayrServiceManager is
                 operatorToPayment[msg.sender].status == 0,
             "Still eligible for fraud proofs"
         );
+
+        // update the status to show that operator's payment is getting redeemed
         operatorToPayment[msg.sender].status = 1;
+
+        // transfer back the collateral to the operator as there was no successful 
+        // challenge to the payment commitment made by the operator.
         collateralToken.transfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
+
+        // transfer the amount due in the payment claim of the operator to its delegation
+        // terms contract, where the delegators can withdraw their rewards. 
         uint256 amount = operatorToPayment[msg.sender].amount;
         IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
         paymentToken.transfer(address(dt), amount);
-        //i.e. if operator is not a 'self operator'
+
+
+        // i.e. if operator is not a 'self operator'
+        // CRITIC: The self-operators seem to pass this test too as for self-operators
+        //         address(dt) = address(0).  
         if (address(dt) != msg.sender) {
-            //inform the DelegationTerms contract of the payment
+            // inform the DelegationTerms contract of the payment, which would determine
+            // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);            
         }
+
         emit PaymentRedemption(msg.sender, amount);
     }
 

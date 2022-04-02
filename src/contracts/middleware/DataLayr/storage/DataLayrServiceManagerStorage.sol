@@ -21,7 +21,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
-    
+
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;
@@ -45,7 +45,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
     mapping(uint64 => uint256) public dumpNumberToFee;
 
 
+    /**
+     * @notice mapping between the operator and its current committed or payment
+     *         or the last redeemed payment 
+     */
     mapping(address => Payment) public operatorToPayment;
+
+    
     mapping(address => address) public operatorToPaymentChallenge;
 
     //a deposit root is posted every depositRootInterval dumps

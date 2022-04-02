@@ -17,7 +17,7 @@ import "./storage/EigenLayrDelegationStorage.sol";
  *            - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
  *            - for enabling anyone to register as an operator
  *            - for a registered delegator to delegate its stake to the operator of its agreed upon delegation terms contract
- *            - for a delegator to do undelegate its assets from EigenLayr
+ *            - for a delegator to undelegate its assets from EigenLayr
  *            - for anyone to challenge a delegator's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is
