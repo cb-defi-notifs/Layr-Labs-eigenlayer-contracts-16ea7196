@@ -49,6 +49,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
 
+    event EthStakeAdded(address, uint128);
+    event EigenStakeAdded(address, uint128);
     event EthStakeUpdate(address, uint128);
     event EigenStakeUpdate(address, uint128);
 
@@ -248,7 +250,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             )
         );
         
-        emit EthStakeUpdate(operator, newEth);
+        emit EthStakeAdded(operator, newEth);
     }
 
     function addOperatorToEigenStakes(bytes memory stakes, address operator, uint128 newEigen)
@@ -278,7 +280,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             )
         );
 
-        emit EigenStakeUpdate(operator, newEigen);
+        emit EigenStakeAdded(operator, newEigen);
     }
 
     //stakes must be of the form
@@ -461,5 +463,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             );
         }
         return eigenStakeHashes[dumpNumberAtIndex];
+    }
+
+    function getEthStakesHashUpdateLength() public view returns(uint256) {
+        return ethStakeHashUpdates.length;
+    }
+
+    function getEigenStakesHashUpdateLength() public view returns(uint256) {
+        return eigenStakeHashUpdates.length;
     }
 }
