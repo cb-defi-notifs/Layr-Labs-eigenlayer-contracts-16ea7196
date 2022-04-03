@@ -366,7 +366,7 @@ contract DataLayrServiceManager is
         // i.e. if operator is not a 'self operator'
         // CRITIC: The self-operators seem to pass this test too as for self-operators
         //         address(dt) = address(0).  
-        if (address(dt) != msg.sender) {
+        if (address(dt) == msg.sender) {
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);            
