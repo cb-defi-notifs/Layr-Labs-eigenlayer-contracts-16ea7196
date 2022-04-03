@@ -49,8 +49,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
 
-    event EthStakeUpdate();
-    event EigenStakeUpdate();
+    event EthStakeUpdate(address, uint128);
+    event EigenStakeUpdate(address, uint128);
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -247,6 +247,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 )
             )
         );
+        
+        emit EthStakeUpdate(operator, newEth);
     }
 
     function addOperatorToEigenStakes(bytes memory stakes, address operator, uint128 newEigen)
@@ -275,6 +277,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 )
             )
         );
+
+        emit EigenStakeUpdate(operator, newEigen);
     }
 
     //stakes must be of the form
@@ -313,7 +317,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //replace stake with new eth stake
             stakes = stakes
                 .slice(0, start + 20)
-                .concat(abi.encodePacked(currentAndNewEth.a))
+                .concat(abi.encodePacked(currentAndNewEth.b))
                 //from where left off to right before the last 32 bytes
                 //68 = 36 + 32. we want to end slice just prior to last 32 bytes
                 .concat(
@@ -324,6 +328,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             unchecked {
                 ++i;
             }
+            emit EthStakeUpdate(operators[i], currentAndNewEth.b);
         }
         //get dump number from dlsm
         uint48 currDumpNumber = IDataLayrServiceManager(
@@ -331,7 +336,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         ethStakeHashUpdates.push(currDumpNumber);
         ethStakeHashes[currDumpNumber] = keccak256(stakes);
-        emit EthStakeUpdate();
     }
 
     //stakes must be of the form
@@ -374,6 +378,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 )
                 //subtract old eigen and add new eigen
                 .concat(abi.encodePacked(stakes.toUint256(stakes.length - 32) - stakes.toUint128(start + 20) + newEigen));
+            emit EigenStakeUpdate(operators[i], newEigen);
             unchecked {
                 ++i;
             }
@@ -384,7 +389,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         eigenStakeHashUpdates.push(currDumpNumber);
         eigenStakeHashes[currDumpNumber] = keccak256(stakes);
-        emit EigenStakeUpdate();
     }
 
     function getOperatorFromDumpNumber(address operator)
