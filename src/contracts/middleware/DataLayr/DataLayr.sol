@@ -26,13 +26,13 @@ contract DataLayr is Ownable, IDataLayr {
      * @notice percentage of Eigen that DataLayr nodes who have agreed to serve the request
      *         need to hold in aggregate for achieving quorum 
      */
-    uint128 eigenSignedThresholdPercentage;
+    uint128 public eigenSignedThresholdPercentage = 90;
 
     /**
      * @notice percentage of ETH that DataLayr nodes who have agreed to serve the request
      *         need to hold in aggregate for achieving quorum 
      */
-    uint128 ethSignedThresholdPercentage;
+    uint128 public ethSignedThresholdPercentage = 90;
 
 
     /**
@@ -156,9 +156,11 @@ contract DataLayr is Ownable, IDataLayr {
      * @notice used for setting specifications for quorum.  
      */  
     function setEigenSignatureThreshold(uint128 _eigenSignedThresholdPercentage) public onlyOwner {
+        require(_eigenSignedThresholdPercentage <= 100, "percentage must be between 0 and 100 inclusive");
         eigenSignedThresholdPercentage = _eigenSignedThresholdPercentage;
     }
     function setEthSignatureThreshold(uint128 _ethSignedThresholdPercentage) public onlyOwner {
+        require(_ethSignedThresholdPercentage <= 100, "percentage must be between 0 and 100 inclusive");
         ethSignedThresholdPercentage = _ethSignedThresholdPercentage;
     }
 }
