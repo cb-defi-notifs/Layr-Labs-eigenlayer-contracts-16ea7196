@@ -183,7 +183,7 @@ contract EigenLayrDeposit is
         );
 
         // mark deposited eigen in investment contract
-        investmentManager.depositEigen(msg.sender, msg.value);
+        investmentManager.depositEigen(msg.sender, amount);
     }
 
     /**

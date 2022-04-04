@@ -25,11 +25,12 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "ds-test/test.sol";
 
-import "../contracts/interfaces/ERC165_Universal.sol";
+import "../contracts/utils/ERC165_Universal.sol";
+import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "./CheatCodes.sol";
 
-contract EigenLayrDeployer is DSTest, ERC165_Universal {
+contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
     DepositContract public depositContract;
     Eigen public eigen;
@@ -51,13 +52,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     uint256 consensusLayerEthToEth = 10;
     uint256 timelockDelay = 2 days;
     bytes32 consensusLayerDepositRoot = 0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
-    address eigenReceiver = address(2000);
 
     function setUp() public {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        eigen = new Eigen(eigenReceiver);
+        eigen = new Eigen(address(this));
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
@@ -182,21 +182,22 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         proof[2] = bytes32(0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b);
         cheats.prank(depositor);
         deposit.proveLegacyConsensusLayerDeposit(proof, address(0), "0x", amount);
-        //make sure their cle has updates
+        //make sure their cle has updated
         assertEq(investmentManager.consensusLayerEth(depositor), amount);
     }
 
     function testInitDataStore() public {
-        bytes32 ferkleRoot = bytes32("test");
+        bytes memory header = bytes("0x0102030405060708091011121314151617181920");
         uint32 totalBytes = 1e6;
         uint32 storePeriodLength = 600;
 
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.approve(address(dlsm), type(uint256).max);
 
-        DataLayrServiceManager(address(dlqm)).initDataStore(address(this), ferkleRoot, totalBytes, storePeriodLength);
+        DataLayrServiceManager(address(dlqm)).initDataStore(address(this), header, totalBytes, storePeriodLength);
 
         uint48 dumpNumber = 1;
+        bytes32 ferkleRoot = keccak256(header);
         (uint48 dataStoreDumpNumber, uint32 dataStoreInitTime, uint32 dataStorePeriodLength, bool dataStoreCommitted) = dl.dataStores(ferkleRoot);
         assertTrue(dataStoreDumpNumber == dumpNumber, "wrong dumpNumber");
         assertTrue(dataStoreInitTime == uint32(block.timestamp), "wrong initTime");
@@ -204,11 +205,37 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(dataStoreCommitted == false, "wrong committed status");
     }
 
-    function testSelfOperatorSignup() public {
+    function testDepositEigen() public {
+        //approve 'deposit' contract to transfer EIGEN on behalf of this contract
+        eigen.setApprovalForAll(address(deposit), true);
+
+        uint256 toDeposit = 1e18;
+        deposit.depositEigen(toDeposit);
+
+        assertEq(investmentManager.eigenDeposited(address(this)), toDeposit, "deposit not properly credited");
+    }
+
+    function testSelfOperatorDelegate() public {
+        delegation.delegateToSelf();
+        //TODO: check something here
+    }
+
+    function testSelfOperatorRegister() public {
         //first byte of data is operator type
         //see 'registerOperator' function in 'DataLayrVoteWeigher'
         //TODO: format this data
-        bytes memory data;
+
+        testWethDeposit(1e18);
+        testDepositEigen();
+        testSelfOperatorDelegate();
+
+        //register as both ETH and EIGEN operator
+        uint8 registrantType = 3;
+        bytes32 spacer;
+        uint256 ethStakesLength = 0;
+        uint256 eigenStakesLength = 0;
+        bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
+            spacer, spacer, spacer, spacer, spacer, spacer);
         dlqm.register(data);
     }
 }
