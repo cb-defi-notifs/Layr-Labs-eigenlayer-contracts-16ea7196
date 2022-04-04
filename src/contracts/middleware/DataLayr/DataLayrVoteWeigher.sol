@@ -160,14 +160,34 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      * @notice Used for registering a new validator with DataLayr. 
      */
     /**
-     * @dev The structure for @param data is given by:
-     *        <uint8> <uint256> <bytes[ethStakeLength]>      
-     *        < (1) > <  (2)  > <      ethStakes      > <ethStakeLength> <      ethStakes      >
+     * @param operator is the operator that wants to register as a DataLayr node
+     * @param data is the meta-information that is required from operator for registering   
+     */ 
+    /**
+     * @dev In order to minimize gas costs from storage, we adopted an approach where 
+     *      we just store a hash of the all the ETH and Eigen staked by various DataLayr
+     *      nodes into the chain and emit an event specifying the information on a new
+     *      operator whenever it registers. Any operator wishing to register as a 
+     *      DataLayr node has to gather all information on the existing DataLayr nodes
+     *      and provide for it while regsitering itself with DataLayr.
+     *
+     *      The structure for @param data is given by:
+     *        <uint8> <uint256> <bytes[(2)]> <uint256> <bytes[(2)]> <uint8> <bytes[(6)]>    
+     *        < (1) > <  (2)  > <    (3)   > <  (4)  > <    (5)   > < (6) > <   (7)    >
      *
      *      where,
      *        (1) is registrantType that specifies whether the operator is an ETH validator,
      *            or Eigen validator or both,
-     *        (2) is ethStakeLength specifies length of the    
+     *        (2) is ethStakeLength which specifies length of (3),
+     *        (3) is the list of the form [<(operator address, operator's ETH deposit)>, total ETH deposit],
+     *            where <(operator address, operator's ETH deposit)> is the array of tuple
+     *            (operator address, operator's ETH deposit) for operators who are DataLayr nodes,    
+     *        (4) is eigenStakeLength which specifies length of (5),
+     *        (5) is the list of the form [<(operator address, operator's Eigen deposit)>, total Eigen deposit],
+     *            where <(operator address, operator's Eigen deposit)> is the array of tuple
+     *            (operator address, operator's Eigen deposit) for operators who are DataLayr nodes,       
+     *        (6) is socketLength which specifies length of (7),
+     *        (7) is the socket 
      */ 
     function registerOperator(address operator, bytes calldata data)
         public
