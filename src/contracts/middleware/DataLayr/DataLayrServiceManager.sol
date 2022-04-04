@@ -29,14 +29,6 @@ contract DataLayrServiceManager is
     /**
      * @notice 
      */
-    event InitDataStore(
-        uint48 dumpNumber,
-        bytes32 ferkleRoot,
-        uint32 totalBytes,
-        uint32 storePeriodLength
-    );
-
-    event ConfirmDataStore(uint48 dumpNumber);
 
     event PaymentCommit(address operator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
 
@@ -107,7 +99,6 @@ contract DataLayrServiceManager is
             storePeriodLength,
             submitter
         );
-        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
     }
 
     //checks signatures and hands off to DL
@@ -134,7 +125,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
-        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
     //checks signatures, stores POSt hash, and hands off to DL
@@ -166,7 +156,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
-        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber

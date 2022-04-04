@@ -37,6 +37,15 @@ contract DataLayr is Ownable, IDataLayr {
      */
     uint128 ethSignedThresholdPercentage;
 
+    event InitDataStore(
+        uint48 dumpNumber,
+        bytes32 ferkleRoot,
+        uint32 totalBytes,        
+        uint32 initTime,
+        uint32 storePeriodLength
+    );
+
+    event ConfirmDataStore(uint48 dumpNumber);
 
     /**
      * @notice data structure for storing metadata on a particular assertion of data 
@@ -107,15 +116,19 @@ contract DataLayr is Ownable, IDataLayr {
         );
 
         //initializes data store
+        uint32 initTime = uint32(block.timestamp);
 
         // initialize and record the datastore
         dataStores[ferkleRoot] = DataStore(
             dumpNumber,
-            uint32(block.timestamp),
+            initTime,
             storePeriodLength,
             submitter,
             false
         );
+
+        
+        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, initTime, storePeriodLength);
     }
 
 
@@ -140,7 +153,7 @@ contract DataLayr is Ownable, IDataLayr {
      *                        in DataLayr.  
      */
     function confirm(
-        uint256 dumpNumber,
+        uint48 dumpNumber,
         bytes32 ferkleRoot,
         address submitter,
         uint256 ethStakeSigned,
@@ -179,6 +192,8 @@ contract DataLayr is Ownable, IDataLayr {
 
         // record that quorum has been achieved 
         dataStores[ferkleRoot].commited = true;
+
+        emit ConfirmDataStore(dumpNumber);
     }
     
     
