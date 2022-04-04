@@ -27,7 +27,12 @@ import "ds-test/test.sol";
 
 import "../contracts/interfaces/ERC165_Universal.sol";
 
+interface CheatCodes {
+    function prank(address) external;
+}
+
 contract EigenLayrDeployer is DSTest, ERC165_Universal {
+    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
     DepositContract public depositContract;
     Eigen public eigen;
     EigenLayrDelegation public delegation;
@@ -47,13 +52,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
     uint256 timelockDelay = 2 days;
-    bytes32 consensusLayerDepositRoot = 0x517eab651b03c57caf4654a3af8d7f6df1e66290d8b12322071d1c1a73aad57d;
+    bytes32 consensusLayerDepositRoot = 0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
 
     function setUp() public {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         eigen = new Eigen(address(37));
+
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         investmentManager = new InvestmentManager(eigen, delegation);
@@ -73,7 +80,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
         strats[0] = IInvestmentStrategy(address(strat));
 
-        investmentManager.initialize(strats, address(slasher));
+        investmentManager.initialize(strats, address(slasher), address(deposit));
 
         delegation.initialize(
             investmentManager,
@@ -100,7 +107,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         dlsm.setDataLayr(dl);
         dlRegVW.setQueryManager(dlqm);
 
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         deposit.initialize(depositContract, investmentManager, dlsm);
     }
 
@@ -125,7 +131,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     }
 
     function testCleProof() public {
-        weth.approve(address(investmentManager), type(uint256).max);
-        investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
+        address depositor = address(0x1234123412341234123412341234123412341235);
+        uint256 amount = 100;
+        bytes32[] memory proof = new bytes32[](3);
+        proof[0] = bytes32(0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b);
+        proof[1] = bytes32(0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1);
+        proof[2] = bytes32(0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b);
+        cheats.prank(depositor);
+        deposit.proveLegacyConsensusLayerDeposit(proof, address(0), "0x", amount);
+        //make sure their cle has updates
+        assertEq(investmentManager.consensusLayerEth(depositor), amount);
     }
 }
