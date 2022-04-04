@@ -27,9 +27,7 @@ import "ds-test/test.sol";
 
 import "../contracts/interfaces/ERC165_Universal.sol";
 
-interface CheatCodes {
-    function prank(address) external;
-}
+import "./CheatCodes.sol";
 
 contract EigenLayrDeployer is DSTest, ERC165_Universal {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
@@ -125,9 +123,48 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
     }
 
-    function testWethDeposit() public {
+    function testWethDeposit(uint256 amountToDeposit) public returns(uint256 amountDeposited) {
         weth.approve(address(investmentManager), type(uint256).max);
-        investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
+
+        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
+        if (amountToDeposit > wethInitialSupply) {
+            cheats.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+            investmentManager.depositIntoStrategy(address(this), strat, weth, amountToDeposit);
+            amountDeposited = 0;
+        } else {
+            investmentManager.depositIntoStrategy(address(this), strat, weth, amountToDeposit);
+            amountDeposited = amountToDeposit;
+        }
+
+        //in this case, since shares never grow, the shares should just match the deposited amount
+        assertEq(investmentManager.investorStratShares(address(this), strat), amountDeposited, "shares should match deposit");
+    }
+
+    function testWethWithdrawal(uint256 amountToDeposit, uint256 amountToWithdraw) public {
+        uint256 wethBalanceBefore = weth.balanceOf(address(this));
+        uint256 amountDeposited = testWethDeposit(amountToDeposit);
+
+        // emit log_uint(amountToDeposit);
+        // emit log_uint(amountToWithdraw);
+        // emit log_uint(amountDeposited);
+
+        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and short-circuit if it happens
+        //TODO: figure out if making this 'expectRevert' work correctly is actually possible
+        if (amountDeposited == 0) {
+            // cheats.expectRevert(bytes("Index out of bounds."));
+            // investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+            return;
+        //trying to withdraw more than the amountDeposited will fail, so we expect a revert and short-circuit if it happens
+        } else if (amountToWithdraw > amountDeposited) {
+            cheats.expectRevert(bytes("shareAmount too high"));
+            investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+            return;
+        } else {
+            investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+        }
+
+        uint256 wethBalanceAfter = weth.balanceOf(address(this));
+        assertEq(wethBalanceBefore - amountToDeposit + amountToWithdraw, wethBalanceAfter, "weth is missing somewhere");
     }
 
     function testCleProof() public {

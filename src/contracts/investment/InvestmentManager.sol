@@ -220,8 +220,15 @@ contract InvestmentManager is
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
+            //check that the user has sufficient shares
+            uint256 userShares = investorStratShares[depositor][strategies[i]];
+            require(shareAmounts[i] <= userShares, "shareAmount too high");
+            //unchecked arithmetic since we just checked this above
+            unchecked {
+                userShares = userShares - shareAmounts[i];
+            }
             // subtract the shares from the depositor's existing shares for this strategy
-            investorStratShares[depositor][strategies[i]] -= shareAmounts[i];
+            investorStratShares[depositor][strategies[i]] = userShares;
 
             // if no existing shares, remove this from this investors strats
             if (investorStratShares[depositor][strategies[i]] == 0) {
@@ -295,8 +302,15 @@ contract InvestmentManager is
             stratEverApproved[strategy],
             "Can only withdraw from approved strategies"
         );
+        //check that the user has sufficient shares
+        uint256 userShares = investorStratShares[depositor][strategy];
+        require(shareAmount <= userShares, "shareAmount too high");
+        //unchecked arithmetic since we just checked this above
+        unchecked {
+            userShares = userShares - shareAmount;
+        }
         // subtract the shares from the depositor's existing shares for this strategy
-        investorStratShares[depositor][strategy] -= shareAmount;
+        investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
@@ -348,7 +362,7 @@ contract InvestmentManager is
             slashedAmount += strategies[i].underlyingEthValueOfShares(
                 shareAmounts[i]
             );
-
+            
             // subtract the shares for this strategy from that of slashed
             investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
 
@@ -611,7 +625,8 @@ contract InvestmentManager is
             (bool success, ) = receiver.call{value: amount}("");
             require(success, "failed to transfer value");
         } else {
-            token.transferFrom(sender, receiver, amount);
+            bool success = token.transferFrom(sender, receiver, amount);
+            require(success, "failed to transfer token");            
         }
     }
 }
