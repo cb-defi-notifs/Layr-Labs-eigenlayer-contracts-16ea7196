@@ -139,7 +139,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         proof[2] = bytes32(0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b);
         cheats.prank(depositor);
         deposit.proveLegacyConsensusLayerDeposit(proof, address(0), "0x", amount);
-        //make sure their cle has updates
+        //make sure their cle has updated
         assertEq(investmentManager.consensusLayerEth(depositor), amount);
     }
 }

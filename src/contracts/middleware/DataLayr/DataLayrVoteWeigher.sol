@@ -10,7 +10,7 @@ import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
 
 /**
- * @notice 
+ * @notice
  */
 
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
@@ -21,30 +21,25 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     IEigenLayrDelegation public delegation;
 
     /**
-     * @notice  Details on DataLayr nodes that would be used for - 
+     * @notice  Details on DataLayr nodes that would be used for -
      *           - sending data by the sequencer
      *           - querying by any challenger/retriever
-     *           - payment and associated challenges    
+     *           - payment and associated challenges
      */
     struct Registrant {
         // id is always unique
-        uint32 id; 
-
+        uint32 id;
         // corresponds to registrantList
-        uint64 index; 
-
-        // 
+        uint64 index;
+        //
         uint48 fromDumpNumber;
         uint32 to;
-
         uint8 active; //bool
-
-        // socket address of the DataLayr node 
-        string socket; 
+        // socket address of the DataLayr node
+        string socket;
     }
 
-
-    /** 
+    /**
      * @notice pack two uint128's into a storage slot
      */
     struct Uint128xUint128 {
@@ -52,10 +47,17 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         uint128 b;
     }
 
+    /**
+     * @notice pack two uint128's into a storage slot
+     */
+    struct Uint48xUint48 {
+        uint48 a;
+        uint48 b;
+    }
 
     // EVENT
     /**
-     * @notice 
+     * @notice
      */
     event Registration();
 
@@ -63,11 +65,30 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         address registrant // who started
     );
 
-    event EthStakeAdded(address, uint128);
-    event EigenStakeAdded(address, uint128);
-    event EthStakeUpdate(address, uint128);
-    event EigenStakeUpdate(address, uint128);
-
+    event EthStakeAdded(
+        address operator,
+        uint128 stake,
+        uint48 dumpNumber,
+        uint48 prevUpdateDumpNumber
+    );
+    event EigenStakeAdded(
+        address operator,
+        uint128 stake,
+        uint48 dumpNumber,
+        uint48 prevUpdateDumpNumber
+    );
+    event EthStakeUpdate(
+        address operator,
+        uint128 stake,
+        uint48 dumpNumber,
+        uint48 prevUpdateDumpNumber
+    );
+    event EigenStakeUpdate(
+        address operator,
+        uint128 stake,
+        uint48 dumpNumber,
+        uint48 prevUpdateDumpNumber
+    );
 
     IQueryManager public queryManager;
     uint32 public latestTime;
@@ -83,8 +104,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     uint48[] public eigenStakeHashUpdates;
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
-
-    
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -111,11 +130,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     }
 
     /**
-     * @notice returns the total Eigen delegated by delegators with this operator 
+     * @notice returns the total Eigen delegated by delegators with this operator
      */
     /**
      * @dev minimum delegation limit has to be satisfied.
-     */ 
+     */
     function weightOfOperatorEigen(address operator)
         public
         view
@@ -127,15 +146,14 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }
 
-
     /**
-     * @notice returns the total ETH delegated by delegators with this operator. 
+     * @notice returns the total ETH delegated by delegators with this operator.
      */
     /**
      * @dev Accounts for both ETH used for staking in settlement layer (via operator)
      *      and the ETH-denominated value of the shares in the investment strategies.
-     *      Note that the DataLayr can decide for itself how much weight it wants to 
-     *      give to the ETH that is being used for staking in settlement layer.    
+     *      Note that the DataLayr can decide for itself how much weight it wants to
+     *      give to the ETH that is being used for staking in settlement layer.
      */
     function weightOfOperatorEth(address operator) public returns (uint128) {
         uint128 amount = uint128(
@@ -195,7 +213,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 ethAmount
             );
-            socketLengthPointer +=  32 + ethStakesLength;
+            socketLengthPointer += 32 + ethStakesLength;
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
@@ -304,7 +322,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             )
         );
 
-        emit EthStakeAdded(operator, newEth);
+        emit EthStakeAdded(
+            operator,
+            newEth,
+            currDumpNumber,
+            ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+        );
     }
 
     function addOperatorToEigenStakes(
@@ -338,7 +361,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             )
         );
 
-        emit EigenStakeAdded(operator, newEigen);
+        emit EigenStakeAdded(
+            operator,
+            newEigen,
+            currDumpNumber,
+            ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+        );
     }
 
     //stakes must be of the form
@@ -360,8 +388,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             indexes.length == operators.length,
             "operator len and index len don't match"
         );
-        uint256 len = operators.length;
-        for (uint i = 0; i < len; ) {
+        //get dump number from dlsm
+        Uint48xUint48 memory dumpNumbers = Uint48xUint48(
+            IDataLayrServiceManager(address(queryManager.feeManager()))
+                .dumpNumber(),
+            ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+        );
+        for (uint i = 0; i < operators.length; ) {
             //36 bytes per person: 20 for address, 16 for stake
             uint256 start = uint256(indexes[i] * 36);
             require(start < stakes.length - 68, "Cannot point to total bytes");
@@ -389,17 +422,18 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                             currentAndNewEth.b
                     )
                 );
+            emit EthStakeUpdate(
+                operators[i],
+                currentAndNewEth.b,
+                dumpNumbers.a,
+                dumpNumbers.b
+            );
             unchecked {
                 ++i;
             }
-            emit EthStakeUpdate(operators[i], currentAndNewEth.b);
         }
-        //get dump number from dlsm
-        uint48 currDumpNumber = IDataLayrServiceManager(
-            address(queryManager.feeManager())
-        ).dumpNumber();
-        ethStakeHashUpdates.push(currDumpNumber);
-        ethStakeHashes[currDumpNumber] = keccak256(stakes);
+        ethStakeHashUpdates.push(dumpNumbers.a);
+        ethStakeHashes[dumpNumbers.a] = keccak256(stakes);
     }
 
     //stakes must be of the form
@@ -421,8 +455,14 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             indexes.length == operators.length,
             "operator len and index len don't match"
         );
-        uint256 len = operators.length;
-        for (uint i = 0; i < len; ) {
+        //get dump number from dlsm
+        //get dump number from dlsm
+        Uint48xUint48 memory dumpNumbers = Uint48xUint48(
+            IDataLayrServiceManager(address(queryManager.feeManager()))
+                .dumpNumber(),
+            ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+        );
+        for (uint i = 0; i < operators.length; ) {
             uint128 newEigen = weightOfOperatorEigen(operators[i]);
             uint256 start = uint256(indexes[i] * 36);
             //last 32 bytes for total stake
@@ -446,17 +486,18 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                             newEigen
                     )
                 );
-            emit EigenStakeUpdate(operators[i], newEigen);
+            emit EigenStakeUpdate(
+                operators[i],
+                newEigen,
+                dumpNumbers.a,
+                dumpNumbers.b
+            );
             unchecked {
                 ++i;
             }
         }
-        //get dump number from dlsm
-        uint48 currDumpNumber = IDataLayrServiceManager(
-            address(queryManager.feeManager())
-        ).dumpNumber();
-        eigenStakeHashUpdates.push(currDumpNumber);
-        eigenStakeHashes[currDumpNumber] = keccak256(stakes);
+        eigenStakeHashUpdates.push(dumpNumbers.a);
+        eigenStakeHashes[dumpNumbers.a] = keccak256(stakes);
     }
 
     function getOperatorFromDumpNumber(address operator)
