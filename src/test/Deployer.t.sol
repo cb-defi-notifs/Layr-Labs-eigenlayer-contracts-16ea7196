@@ -47,7 +47,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
     uint256 timelockDelay = 2 days;
-    bytes32 consensusLayerDepositRoot;
+    bytes32 consensusLayerDepositRoot = 0x517eab651b03c57caf4654a3af8d7f6df1e66290d8b12322071d1c1a73aad57d;
 
     function setUp() public {
         //eth2 deposit contract
@@ -120,6 +120,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
     }
 
     function testWethDeposit() public {
+        weth.approve(address(investmentManager), type(uint256).max);
+        investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
+    }
+
+    function testCleProof() public {
         weth.approve(address(investmentManager), type(uint256).max);
         investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
     }
