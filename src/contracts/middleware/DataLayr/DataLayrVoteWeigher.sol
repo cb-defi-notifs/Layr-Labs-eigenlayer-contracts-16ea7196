@@ -123,55 +123,51 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //parse and update eigen stakes
             uint256 eigenStakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += eigenStakesLength;
             addOperatorToEigenStakes(
-                data.slice(socketLengthPointer, eigenStakesLength),
+                data.slice(33, eigenStakesLength),
                 operator,
                 eigenAmount
             );
+            socketLengthPointer += 33 + eigenStakesLength;
         } else if (registrantType == 2) {
             // if they want to be an "eth" validator, check that they meet the eth requirements
             uint128 ethAmount = weightOfOperatorEth(operator);
-            require(
-                ethAmount >= dlnEthStake,
-                "Not enough eth value staked"
-            );
+            require(ethAmount >= dlnEthStake, "Not enough eth value staked");
             //parse and update eth stakes
             uint256 ethStakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += ethStakesLength;
             addOperatorToEthStakes(
-                data.slice(33, ethStakesLength),
+                data.slice(32, ethStakesLength),
                 operator,
                 ethAmount
             );
+            socketLengthPointer +=  32 + ethStakesLength;
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
             uint128 ethAmount = weightOfOperatorEth(operator);
             require(
-                eigenAmount >= dlnEigenStake &&
-                    ethAmount >= dlnEthStake,
+                eigenAmount >= dlnEigenStake && ethAmount >= dlnEthStake,
                 "Not enough eth value or eigen staked"
             );
             //parse and update eth and eigen stakes
             uint256 stakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += stakesLength;
             addOperatorToEthStakes(
-                data.slice(33, stakesLength),
+                data.slice(32, stakesLength),
                 operator,
                 ethAmount
             );
+            socketLengthPointer += 32 + stakesLength;
             //now do it for eigen stuff
             stakesLength = data.toUint256(socketLengthPointer);
             //increment socket length pointer
-            socketLengthPointer += stakesLength + 1;
             addOperatorToEigenStakes(
-                data.slice(socketLengthPointer - stakesLength, stakesLength),
+                data.slice(socketLengthPointer + 32, stakesLength),
                 operator,
                 eigenAmount
             );
+            socketLengthPointer += stakesLength + 32;
         } else {
             revert("Invalid registrant type");
         }
@@ -223,9 +219,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return true;
     }
 
-    function addOperatorToEthStakes(bytes memory stakes, address operator, uint128 newEth)
-        internal
-    {
+    function addOperatorToEthStakes(
+        bytes memory stakes,
+        address operator,
+        uint128 newEth
+    ) internal {
         //stakes must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -245,17 +243,21 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 newEth,
                 stakes.slice(0, stakes.length - 32).concat(
-                    abi.encodePacked(stakes.toUint256(stakes.length - 32) + newEth)
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) + newEth
+                    )
                 )
             )
         );
-        
+
         emit EthStakeAdded(operator, newEth);
     }
 
-    function addOperatorToEigenStakes(bytes memory stakes, address operator, uint128 newEigen)
-        internal
-    {
+    function addOperatorToEigenStakes(
+        bytes memory stakes,
+        address operator,
+        uint128 newEigen
+    ) internal {
         //stakes must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -275,7 +277,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 newEigen,
                 stakes.slice(0, stakes.length - 32).concat(
-                    abi.encodePacked(stakes.toUint256(stakes.length - 32) + newEigen)
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) + newEigen
+                    )
                 )
             )
         );
@@ -318,15 +322,19 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             });
             //replace stake with new eth stake
             stakes = stakes
-                .slice(0, start + 20)
-                .concat(abi.encodePacked(currentAndNewEth.b))
-                //from where left off to right before the last 32 bytes
-                //68 = 36 + 32. we want to end slice just prior to last 32 bytes
+            .slice(0, start + 20)
+            .concat(abi.encodePacked(currentAndNewEth.b))
+            //from where left off to right before the last 32 bytes
+            //68 = 36 + 32. we want to end slice just prior to last 32 bytes
+            .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
+            //subtract old eth and add new eth
                 .concat(
-                    stakes.slice(start + 36, stakes.length - (start + 68))
-                )
-                //subtract old eth and add new eth
-                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 32) + currentAndNewEth.a - currentAndNewEth.b));
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) +
+                            currentAndNewEth.a -
+                            currentAndNewEth.b
+                    )
+                );
             unchecked {
                 ++i;
             }
@@ -373,13 +381,17 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //replace stake with new eigen stake
             //68 = 36 + 32. we want to end slice just prior to last 32 bytes
             stakes = stakes
-                .slice(0, start + 20)
-                .concat(abi.encodePacked(uint256(newEigen)))
+            .slice(0, start + 20)
+            .concat(abi.encodePacked(uint256(newEigen)))
+            .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
+            //subtract old eigen and add new eigen
                 .concat(
-                    stakes.slice(start + 36, stakes.length - (start + 68))
-                )
-                //subtract old eigen and add new eigen
-                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 32) - stakes.toUint128(start + 20) + newEigen));
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) -
+                            stakes.toUint128(start + 20) +
+                            newEigen
+                    )
+                );
             emit EigenStakeUpdate(operators[i], newEigen);
             unchecked {
                 ++i;
@@ -421,11 +433,19 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return registry[operator].id;
     }
 
-    function getEthStakesHashUpdate(uint256 index) public view returns (uint256) {
+    function getEthStakesHashUpdate(uint256 index)
+        public
+        view
+        returns (uint256)
+    {
         return ethStakeHashUpdates[index];
     }
 
-    function getEigenStakesHashUpdate(uint256 index) public view returns (uint256) {
+    function getEigenStakesHashUpdate(uint256 index)
+        public
+        view
+        returns (uint256)
+    {
         return eigenStakeHashUpdates[index];
     }
 
@@ -465,11 +485,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return eigenStakeHashes[dumpNumberAtIndex];
     }
 
-    function getEthStakesHashUpdateLength() public view returns(uint256) {
+    function getEthStakesHashUpdateLength() public view returns (uint256) {
         return ethStakeHashUpdates.length;
     }
 
-    function getEigenStakesHashUpdateLength() public view returns(uint256) {
+    function getEigenStakesHashUpdateLength() public view returns (uint256) {
         return eigenStakeHashUpdates.length;
     }
 }
