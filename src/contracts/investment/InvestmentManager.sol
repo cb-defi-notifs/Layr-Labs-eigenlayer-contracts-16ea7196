@@ -51,10 +51,11 @@ contract InvestmentManager is
      */
     function initialize(
         IInvestmentStrategy[] memory strategies,
-        address _slasher
+        address _slasher,
+        address _governor
     ) external initializer {
         // make the sender who is initializing the investment manager as the governor
-        _transferGovernor(msg.sender);
+        _transferGovernor(_governor);
 
         slasher = _slasher;
 

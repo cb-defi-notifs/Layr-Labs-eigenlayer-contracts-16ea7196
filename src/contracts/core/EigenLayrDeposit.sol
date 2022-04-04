@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
 import "./storage/EigenLayrDepositStorage.sol";
+import "ds-test/test.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving
@@ -31,7 +32,8 @@ import "./storage/EigenLayrDepositStorage.sol";
 contract EigenLayrDeposit is
     Initializable,
     EigenLayrDepositStorage,
-    IEigenLayrDeposit
+    IEigenLayrDeposit,
+    DSTest
 {
     bytes32 public immutable consensusLayerDepositRoot;
     Eigen public immutable eigen;
@@ -118,18 +120,23 @@ contract EigenLayrDeposit is
             !depositProven[consensusLayerDepositRoot][depositor],
             "Depositer has already proven their stake"
         );
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
-        );
+        if (depositor == address(0)) {
+            depositor = msg.sender;
+        } else {
+            bytes32 messageHash = keccak256(
+                abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
+            );
 
-        // recovering the address to whom the signature belongs to and verifying it
-        // is that of the depositor.
-        require(
-            ECDSA.recover(messageHash, signature) == depositor,
-            "Invalid signature"
-        );
-
+            // recovering the address to whom the signature belongs to and verifying it
+            // is that of the depositor.
+            require(
+                ECDSA.recover(messageHash, signature) == depositor,
+                "Invalid signature"
+            );
+        }
+        
         bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
+
         // verifying the merkle proof
         require(
             MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),

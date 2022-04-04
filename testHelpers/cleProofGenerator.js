@@ -11,7 +11,7 @@ const leaves = ['0x1234123412341234123412341234123412341234000000000000000000000
                 '0x43214321432143214321432143214321432143240000000000000000000000000000000000000000000000000000000000000010',].
                 map(value => keccak256(value))
 
-var tree = new MerkleTree.MerkleTree(leaves, keccak256)
+var tree = new MerkleTree.MerkleTree(leaves, keccak256, { sortPairs: true })
 
 const root = tree.getHexRoot()
 const proof = tree.getHexProof(leaves[2])
