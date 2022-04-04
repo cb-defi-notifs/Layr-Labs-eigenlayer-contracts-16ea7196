@@ -102,6 +102,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
             delegation
         );
 
+        dl.setQueryManager(dlqm);
         dlsm.setQueryManager(dlqm);
         dlsm.setDataLayr(dl);
         dlRegVW.setQueryManager(dlqm);
@@ -122,6 +123,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
+        assertTrue(dlqm.feeManager() == dlsm, "feeManager set incorrectly");
+        assertTrue(dlsm.queryManager() == dlqm, "queryManager set incorrectly in dlsm");
+        assertTrue(dl.queryManager() == dlqm, "queryManager set incorrectly in dl");
     }
 
     function testWethDeposit(uint256 amountToDeposit) public returns(uint256 amountDeposited) {
