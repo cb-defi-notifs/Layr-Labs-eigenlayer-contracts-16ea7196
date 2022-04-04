@@ -62,11 +62,13 @@ contract DataLayrServiceManager is
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
-        IERC20 _collateralToken
+        IERC20 _collateralToken,
+        uint256 _feePerBytePerTime
     ) {
         eigenLayrDelegation = _eigenLayrDelegation;
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
+        feePerBytePerTime = _feePerBytePerTime;
     }
 
     modifier onlyQMGovernance() {

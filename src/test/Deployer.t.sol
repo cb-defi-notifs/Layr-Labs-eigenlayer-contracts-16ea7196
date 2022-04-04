@@ -87,7 +87,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
             undelegationFraudProofInterval
         );
 
-        dlsm = new DataLayrServiceManager(delegation, weth, weth);
+        uint256 feePerBytePerTime = 1e4;
+        dlsm = new DataLayrServiceManager(delegation, weth, weth, feePerBytePerTime);
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
 
@@ -194,5 +195,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         weth.approve(address(dlsm), type(uint256).max);
 
         DataLayrServiceManager(address(dlqm)).initDataStore(address(this), ferkleRoot, totalBytes, storePeriodLength);
+
+        uint48 dumpNumber = 1;
+        (uint48 dataStoreDumpNumber, uint32 dataStoreInitTime, uint32 dataStorePeriodLength, bool dataStoreCommitted) = dl.dataStores(ferkleRoot);
+        assertTrue(dataStoreDumpNumber == dumpNumber, "wrong dumpNumber");
+        assertTrue(dataStoreInitTime == uint32(block.timestamp), "wrong initTime");
+        assertTrue(dataStorePeriodLength == storePeriodLength, "wrong storePeriodLength");
+        assertTrue(dataStoreCommitted == false, "wrong committed status");
     }
 }
