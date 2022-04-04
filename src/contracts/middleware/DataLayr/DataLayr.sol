@@ -19,9 +19,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
-    // the current disperser for this DataLayr
-    address public currDisperser;
-
     // the DataLayr query manager
     IQueryManager public queryManager;
 
@@ -29,13 +26,13 @@ contract DataLayr is Ownable, IDataLayr {
      * @notice percentage of Eigen that DataLayr nodes who have agreed to serve the request
      *         need to hold in aggregate for achieving quorum 
      */
-    uint128 eigenSignedThresholdPercentage;
+    uint128 public eigenSignedThresholdPercentage = 90;
 
     /**
      * @notice percentage of ETH that DataLayr nodes who have agreed to serve the request
      *         need to hold in aggregate for achieving quorum 
      */
-    uint128 ethSignedThresholdPercentage;
+    uint128 public ethSignedThresholdPercentage = 90;
 
     event InitDataStore(
         uint48 dumpNumber,
@@ -58,10 +55,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 initTime; 
 
         // time when obligation for storing this corresponding data by DataLayr nodes expires
-        uint32 storePeriodLength; 
-
-        // address approved to submit signatures of the quorum for this datastore
-        address submitter;  
+        uint32 storePeriodLength;  
 
         // indicates whether quorm of signatures from DataLayr has been obtained or not
         bool commited; 
@@ -75,12 +69,10 @@ contract DataLayr is Ownable, IDataLayr {
      */
     mapping(bytes32 => DataStore) public dataStores;
 
-
-    // Constructor
-    constructor(address currDisperser_) {
-        currDisperser = currDisperser_;
+    modifier onlyFeeManager() {
+        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can call this");
+        _;
     }
-
 
     function setQueryManager(IQueryManager _queryManager) public onlyOwner {
         queryManager = _queryManager;
@@ -96,20 +88,13 @@ contract DataLayr is Ownable, IDataLayr {
      * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
-     * @param submitter is the address that can assert the quorum of signatures 
      */
     function initDataStore(
         uint48 dumpNumber,
         bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength,
-        address submitter
-    ) external {
-        // CRITIC: would it be better to have a modifier for this check as it is 
-        //         also used in confirm ?
-        require(msg.sender == currDisperser, "Only current disperser can init");
-
-
+        uint32 storePeriodLength
+    ) external onlyFeeManager {
         require(
             dataStores[ferkleRoot].initTime == 0,
             "Data store has already been initialized"
@@ -123,7 +108,6 @@ contract DataLayr is Ownable, IDataLayr {
             dumpNumber,
             initTime,
             storePeriodLength,
-            submitter,
             false
         );
 
@@ -131,18 +115,11 @@ contract DataLayr is Ownable, IDataLayr {
         emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, initTime, storePeriodLength);
     }
 
-
-    // Commit
-        // bytes32[] calldata rs,
-        // bytes32[] calldata ss,
-        // uint8[] calldata vs
-
     /**
      * @notice Used for confirming that quroum of signatures have been obtained from DataLayr
      */
     /**
      * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
-     * @param submitter is the address that can assert the quorum of signatures,
      * @param ethStakeSigned is the total ETH that has been staked by the DataLayr nodes
      *                       who have signed up to be part of the quorum,     
      * @param eigenStakeSigned is the total Eigen that has been staked by the DataLayr nodes
@@ -155,23 +132,16 @@ contract DataLayr is Ownable, IDataLayr {
     function confirm(
         uint48 dumpNumber,
         bytes32 ferkleRoot,
-        address submitter,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
         uint256 totalEigenStake
-    ) external  {
-        // accessing the metadata in settlement layer cooresponding to the data asserted 
+    ) external  onlyFeeManager {
+        // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
         DataStore storage dataStore = dataStores[ferkleRoot];
 
         //TODO: check if eth and eigen are sufficient
-        require(msg.sender == currDisperser, "Only current disperser can call this function");
-        
-        require(
-            submitter == dataStore.submitter,
-            "Not authorized to submit signatures for this datastore"
-        );
 
         require(
             dumpNumber == dataStore.dumpNumber,
@@ -201,9 +171,11 @@ contract DataLayr is Ownable, IDataLayr {
      * @notice used for setting specifications for quorum.  
      */  
     function setEigenSignatureThreshold(uint128 _eigenSignedThresholdPercentage) public onlyOwner {
+        require(_eigenSignedThresholdPercentage <= 100, "percentage must be between 0 and 100 inclusive");
         eigenSignedThresholdPercentage = _eigenSignedThresholdPercentage;
     }
     function setEthSignatureThreshold(uint128 _ethSignedThresholdPercentage) public onlyOwner {
+        require(_ethSignedThresholdPercentage <= 100, "percentage must be between 0 and 100 inclusive");
         ethSignedThresholdPercentage = _ethSignedThresholdPercentage;
     }
 }

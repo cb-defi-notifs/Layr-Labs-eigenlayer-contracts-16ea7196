@@ -9,30 +9,65 @@ import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
 
+/**
+ * @notice 
+ */
+
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     using BytesLib for bytes;
+
     IInvestmentManager public investmentManager;
+
     IEigenLayrDelegation public delegation;
-    // Data Layr Nodes
+
+    /**
+     * @notice  Details on DataLayr nodes that would be used for - 
+     *           - sending data by the sequencer
+     *           - querying by any challenger/retriever
+     *           - payment and associated challenges    
+     */
     struct Registrant {
-        uint32 id; // id is always unique
-        uint64 index; // corresponds to registrantList
+        // id is always unique
+        uint32 id; 
+
+        // corresponds to registrantList
+        uint64 index; 
+
+        // 
         uint48 fromDumpNumber;
         uint32 to;
+
         uint8 active; //bool
-        string socket; // how people can find it
+
+        // socket address of the DataLayr node 
+        string socket; 
     }
-    //pack two uint128's into a storage slot
+
+
+    /** 
+     * @notice pack two uint128's into a storage slot
+     */
     struct Uint128xUint128 {
         uint128 a;
         uint128 b;
     }
 
+
+    // EVENT
+    /**
+     * @notice 
+     */
     event Registration();
 
     event DeregistrationCommit(
         address registrant // who started
     );
+
+    event EthStakeAdded(address, uint128);
+    event EigenStakeAdded(address, uint128);
+    event EthStakeUpdate(address, uint128);
+    event EigenStakeUpdate(address, uint128);
+
 
     IQueryManager public queryManager;
     uint32 public latestTime;
@@ -49,8 +84,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
 
-    event EthStakeUpdate();
-    event EigenStakeUpdate();
+    
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -76,21 +110,41 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         queryManager = _queryManager;
     }
 
+    /**
+     * @notice returns the total Eigen delegated by delegators with this operator 
+     */
+    /**
+     * @dev minimum delegation limit has to be satisfied.
+     */ 
     function weightOfOperatorEigen(address operator)
         public
         view
         returns (uint128)
     {
         uint128 eigenAmount = uint128(delegation.getEigenDelegated(operator));
+
+        // check that minimum delegation limit is satisfied
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }
 
+
+    /**
+     * @notice returns the total ETH delegated by delegators with this operator. 
+     */
+    /**
+     * @dev Accounts for both ETH used for staking in settlement layer (via operator)
+     *      and the ETH-denominated value of the shares in the investment strategies.
+     *      Note that the DataLayr can decide for itself how much weight it wants to 
+     *      give to the ETH that is being used for staking in settlement layer.    
+     */
     function weightOfOperatorEth(address operator) public returns (uint128) {
         uint128 amount = uint128(
             delegation.getConsensusLayerEthDelegated(operator) /
                 queryManager.consensusLayerEthToEth() +
                 delegation.getUnderlyingEthDelegated(operator)
         );
+
+        // check that minimum delegation limit is satisfied
         return amount < dlnEthStake ? 0 : amount;
     }
 
@@ -101,6 +155,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     //      or/and
     //      uint256 eigenStakeLength, bytes eigenStakes,
     //      uint8 socketLength, bytes[socketLength] socket
+
+    /**
+     * @notice Used for registering a new validator with DataLayr. 
+     */
+    /**
+     * @dev The structure for @param data is given by:
+     *        <uint8> <uint256> <bytes[ethStakeLength]>      
+     *        < (1) > <  (2)  > <      ethStakes      > <ethStakeLength> <      ethStakes      >
+     *
+     *      where,
+     *        (1) is registrantType that specifies whether the operator is an ETH validator,
+     *            or Eigen validator or both,
+     *        (2) is ethStakeLength specifies length of the    
+     */ 
     function registerOperator(address operator, bytes calldata data)
         public
         returns (uint8, uint128)
@@ -109,8 +177,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             registry[operator].active == 0,
             "Operator is already registered"
         );
-        //get the first byte of data
+
+        // get the first byte of data
         uint8 registrantType = data.toUint8(0);
+
         //length of socket in bytes
         uint256 socketLengthPointer = 33;
         uint128 eigenAmount;
@@ -121,55 +191,53 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //parse and update eigen stakes
             uint256 eigenStakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += eigenStakesLength;
             addOperatorToEigenStakes(
-                data.slice(socketLengthPointer, eigenStakesLength),
+                data.slice(33, eigenStakesLength),
                 operator,
                 eigenAmount
             );
+            socketLengthPointer += 33 + eigenStakesLength;
         } else if (registrantType == 2) {
             // if they want to be an "eth" validator, check that they meet the eth requirements
             uint128 ethAmount = weightOfOperatorEth(operator);
-            require(
-                ethAmount >= dlnEthStake,
-                "Not enough eth value staked"
-            );
+            require(ethAmount >= dlnEthStake, "Not enough eth value staked");
             //parse and update eth stakes
             uint256 ethStakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += ethStakesLength;
+            
             addOperatorToEthStakes(
-                data.slice(33, ethStakesLength),
+                // CRITIC: change from 32 to 33
+                data.slice(32, ethStakesLength),
                 operator,
                 ethAmount
             );
+            socketLengthPointer +=  32 + ethStakesLength;
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
             uint128 ethAmount = weightOfOperatorEth(operator);
             require(
-                eigenAmount >= dlnEigenStake &&
-                    ethAmount >= dlnEthStake,
+                eigenAmount >= dlnEigenStake && ethAmount >= dlnEthStake,
                 "Not enough eth value or eigen staked"
             );
             //parse and update eth and eigen stakes
             uint256 stakesLength = data.toUint256(1);
             //increment socket length pointer
-            socketLengthPointer += stakesLength;
             addOperatorToEthStakes(
-                data.slice(33, stakesLength),
+                data.slice(32, stakesLength),
                 operator,
                 ethAmount
             );
+            socketLengthPointer += 32 + stakesLength;
             //now do it for eigen stuff
             stakesLength = data.toUint256(socketLengthPointer);
             //increment socket length pointer
-            socketLengthPointer += stakesLength + 1;
             addOperatorToEigenStakes(
-                data.slice(socketLengthPointer - stakesLength, stakesLength),
+                data.slice(socketLengthPointer + 32, stakesLength),
                 operator,
                 eigenAmount
             );
+            socketLengthPointer += stakesLength + 32;
         } else {
             revert("Invalid registrant type");
         }
@@ -221,9 +289,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return true;
     }
 
-    function addOperatorToEthStakes(bytes memory stakes, address operator, uint128 newEth)
-        internal
-    {
+    function addOperatorToEthStakes(
+        bytes memory stakes,
+        address operator,
+        uint128 newEth
+    ) internal {
         //stakes must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -243,15 +313,21 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 newEth,
                 stakes.slice(0, stakes.length - 32).concat(
-                    abi.encodePacked(stakes.toUint256(stakes.length - 32) + newEth)
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) + newEth
+                    )
                 )
             )
         );
+
+        emit EthStakeAdded(operator, newEth);
     }
 
-    function addOperatorToEigenStakes(bytes memory stakes, address operator, uint128 newEigen)
-        internal
-    {
+    function addOperatorToEigenStakes(
+        bytes memory stakes,
+        address operator,
+        uint128 newEigen
+    ) internal {
         //stakes must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -271,10 +347,14 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 newEigen,
                 stakes.slice(0, stakes.length - 32).concat(
-                    abi.encodePacked(stakes.toUint256(stakes.length - 32) + newEigen)
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) + newEigen
+                    )
                 )
             )
         );
+
+        emit EigenStakeAdded(operator, newEigen);
     }
 
     //stakes must be of the form
@@ -312,18 +392,23 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             });
             //replace stake with new eth stake
             stakes = stakes
-                .slice(0, start + 20)
-                .concat(abi.encodePacked(currentAndNewEth.a))
-                //from where left off to right before the last 32 bytes
-                //68 = 36 + 32. we want to end slice just prior to last 32 bytes
+            .slice(0, start + 20)
+            .concat(abi.encodePacked(currentAndNewEth.b))
+            //from where left off to right before the last 32 bytes
+            //68 = 36 + 32. we want to end slice just prior to last 32 bytes
+            .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
+            //subtract old eth and add new eth
                 .concat(
-                    stakes.slice(start + 36, stakes.length - (start + 68))
-                )
-                //subtract old eth and add new eth
-                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 32) + currentAndNewEth.a - currentAndNewEth.b));
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) +
+                            currentAndNewEth.a -
+                            currentAndNewEth.b
+                    )
+                );
             unchecked {
                 ++i;
             }
+            emit EthStakeUpdate(operators[i], currentAndNewEth.b);
         }
         //get dump number from dlsm
         uint48 currDumpNumber = IDataLayrServiceManager(
@@ -331,7 +416,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         ethStakeHashUpdates.push(currDumpNumber);
         ethStakeHashes[currDumpNumber] = keccak256(stakes);
-        emit EthStakeUpdate();
     }
 
     //stakes must be of the form
@@ -367,13 +451,18 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //replace stake with new eigen stake
             //68 = 36 + 32. we want to end slice just prior to last 32 bytes
             stakes = stakes
-                .slice(0, start + 20)
-                .concat(abi.encodePacked(uint256(newEigen)))
+            .slice(0, start + 20)
+            .concat(abi.encodePacked(uint256(newEigen)))
+            .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
+            //subtract old eigen and add new eigen
                 .concat(
-                    stakes.slice(start + 36, stakes.length - (start + 68))
-                )
-                //subtract old eigen and add new eigen
-                .concat(abi.encodePacked(stakes.toUint256(stakes.length - 32) - stakes.toUint128(start + 20) + newEigen));
+                    abi.encodePacked(
+                        stakes.toUint256(stakes.length - 32) -
+                            stakes.toUint128(start + 20) +
+                            newEigen
+                    )
+                );
+            emit EigenStakeUpdate(operators[i], newEigen);
             unchecked {
                 ++i;
             }
@@ -384,7 +473,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         ).dumpNumber();
         eigenStakeHashUpdates.push(currDumpNumber);
         eigenStakeHashes[currDumpNumber] = keccak256(stakes);
-        emit EigenStakeUpdate();
     }
 
     function getOperatorFromDumpNumber(address operator)
@@ -415,11 +503,19 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return registry[operator].id;
     }
 
-    function getEthStakesHashUpdate(uint256 index) public view returns (uint256) {
+    function getEthStakesHashUpdate(uint256 index)
+        public
+        view
+        returns (uint256)
+    {
         return ethStakeHashUpdates[index];
     }
 
-    function getEigenStakesHashUpdate(uint256 index) public view returns (uint256) {
+    function getEigenStakesHashUpdate(uint256 index)
+        public
+        view
+        returns (uint256)
+    {
         return eigenStakeHashUpdates[index];
     }
 
@@ -457,5 +553,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             );
         }
         return eigenStakeHashes[dumpNumberAtIndex];
+    }
+
+    function getEthStakesHashUpdateLength() public view returns (uint256) {
+        return ethStakeHashUpdates.length;
+    }
+
+    function getEigenStakesHashUpdateLength() public view returns (uint256) {
+        return eigenStakeHashUpdates.length;
     }
 }

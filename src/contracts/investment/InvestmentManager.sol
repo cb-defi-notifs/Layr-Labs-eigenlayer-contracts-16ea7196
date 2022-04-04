@@ -51,10 +51,11 @@ contract InvestmentManager is
      */
     function initialize(
         IInvestmentStrategy[] memory strategies,
-        address _slasher
+        address _slasher,
+        address _governor
     ) external initializer {
         // make the sender who is initializing the investment manager as the governor
-        _transferGovernor(msg.sender);
+        _transferGovernor(_governor);
 
         slasher = _slasher;
 
@@ -136,7 +137,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external payable onlyGovernor returns (uint256 shares) {
+    ) external payable returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -152,7 +153,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external payable onlyGovernor returns (uint256[] memory) {
+    ) external payable returns (uint256[] memory) {
         uint256[] memory shares = new uint256[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
             shares[i] = _depositIntoStrategy(
@@ -183,8 +184,8 @@ contract InvestmentManager is
             investorStrats[depositor].push(strategy);
         }
 
-        // transfer tokens from the depositor to the strategy
-        _transferTokenOrEth(token, depositor, address(strategy), amount);
+        // transfer tokens from the sender to the strategy
+        _transferTokenOrEth(token, msg.sender, address(strategy), amount);
 
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy
@@ -219,8 +220,15 @@ contract InvestmentManager is
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
+            //check that the user has sufficient shares
+            uint256 userShares = investorStratShares[depositor][strategies[i]];
+            require(shareAmounts[i] <= userShares, "shareAmount too high");
+            //unchecked arithmetic since we just checked this above
+            unchecked {
+                userShares = userShares - shareAmounts[i];
+            }
             // subtract the shares from the depositor's existing shares for this strategy
-            investorStratShares[depositor][strategies[i]] -= shareAmounts[i];
+            investorStratShares[depositor][strategies[i]] = userShares;
 
             // if no existing shares, remove this from this investors strats
             if (investorStratShares[depositor][strategies[i]] == 0) {
@@ -294,8 +302,15 @@ contract InvestmentManager is
             stratEverApproved[strategy],
             "Can only withdraw from approved strategies"
         );
+        //check that the user has sufficient shares
+        uint256 userShares = investorStratShares[depositor][strategy];
+        require(shareAmount <= userShares, "shareAmount too high");
+        //unchecked arithmetic since we just checked this above
+        unchecked {
+            userShares = userShares - shareAmount;
+        }
         // subtract the shares from the depositor's existing shares for this strategy
-        investorStratShares[depositor][strategy] -= shareAmount;
+        investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
@@ -347,7 +362,7 @@ contract InvestmentManager is
             slashedAmount += strategies[i].underlyingEthValueOfShares(
                 shareAmounts[i]
             );
-
+            
             // subtract the shares for this strategy from that of slashed
             investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
 
@@ -610,7 +625,8 @@ contract InvestmentManager is
             (bool success, ) = receiver.call{value: amount}("");
             require(success, "failed to transfer value");
         } else {
-            token.transferFrom(sender, receiver, amount);
+            bool success = token.transferFrom(sender, receiver, amount);
+            require(success, "failed to transfer token");            
         }
     }
 }

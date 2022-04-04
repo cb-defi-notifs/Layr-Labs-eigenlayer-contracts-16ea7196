@@ -19,15 +19,28 @@ contract DataLayrServiceManager is
     DataLayrSignatureChecker,
     IProofOfStakingOracle
 {
-    
+    /**
+     * @dev The EigenLayr delegation contract for this DataLayr which primarily used by 
+     *      delegators to delegate their stake to operators who would serve as DataLayr 
+     *      nodes and so on. For more details, see EigenLayrDelegation.sol.  
+     */   
     IEigenLayrDelegation public immutable eigenLayrDelegation;
+
+    /**
+     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
+     *         DataLayr nodes. 
+     */
     IERC20 public immutable paymentToken;
+
+
+
     IERC20 public immutable collateralToken;
 
 
     // EVENTS
     /**
-     * @notice 
+     * @notice used for notifying that disperser has initiated a data assertion into the 
+     *         DataLayr and is waiting for getting a quorum of DataLayr nodes to sign on it. 
      */
 
     event PaymentCommit(address operator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
@@ -63,72 +76,147 @@ contract DataLayrServiceManager is
         );
         queryManager = _queryManager;
 
-        // CRITIC: dlRegVW not decalred anywhere
+
         dlRegVW = IDataLayrVoteWeigher(
             address(queryManager.voteWeighter())
         );
     }
 
-    //pays fees for a datastore leaving tha payment in this contract and calling the datalayr contract with needed information
+    /**
+     * @notice This function is used for 
+     *          - notifying in the settlement layer that the disperser has asserted the data 
+     *            into DataLayr and is waiting for obtaining quorum of DataLayr nodes to sign,
+     *          - asserting the metadata corresponding to the data asserted into DataLayr
+     *          - escrow the service fees that DataLayr nodes will receive from the disperser 
+     *            on account of their service.  
+     */
+    /**
+     * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
+     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
+     * @param totalBytes  is the size of the data ,
+     */
     function initDataStore(
+        address storer,
         bytes32 ferkleRoot,
         uint32 totalBytes,
-        uint32 storePeriodLength,
-        address submitter
+        uint32 storePeriodLength
     ) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
+
         require(totalBytes > 32, "Can't store less than 33 bytes");
+
         require(storePeriodLength > 60, "store for more than a minute");
+
         require(storePeriodLength < 604800, "store for less than 7 days");
-        // fees as a function of bytes of data and time to store it
+
+        // evaluate the total service fees that disperser has to put in escrow for paying out 
+        // the DataLayr nodes for their service
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
+
+        // increment the counter
         dumpNumber++;
+
+        // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
+
+        // recording the expiry time until which the DataLayr nodes, who sign up to 
+        // part of the quorum, have to store the data
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
-        //get fees
-        paymentToken.transferFrom(msg.sender, address(this), fee);
+
+
+        // escrow the total service fees from the disperser to the DataLayr nodes in this contract
+        // CRITIC: change "storer" to "disperser"?
+        paymentToken.transferFrom(storer, address(this), fee);
+
+
         // call DL contract
         dataLayr.initDataStore(
             dumpNumber,
             ferkleRoot,
             totalBytes,
-            storePeriodLength,
-            submitter
+            storePeriodLength
         );
+<<<<<<< HEAD
+=======
+
+        /// @dev this leads to off-chain accessible metadata
+        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
-    //checks signatures and hands off to DL
+
+    /**
+     * @notice This function is used for 
+     *          - disperser to notify that signatures on the message, comprising of hash( ferkleroot ),
+     *            from quorum of DataLayr nodes have been obtained,
+     *          - check that each of the signatures are valid,
+     *          - call the DataLayr contract to check that whether quorum has been achieved or not.     
+     */
+    /**
+     * @param data TBA.
+     */ 
+    // CRITIC: there is an important todo in this function
     function confirmDataStore(bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
+
+        // verify the signatures that disperser is claiming to be that of DataLayr nodes
+        // who have agreed to be in the quorum
         (
             uint48 dumpNumberToConfirm,
             bytes32 ferkleRoot,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
-        //make sure they shouldn't be posting a deposit root
+
+        /**
+         * @dev Checks that there is no need for posting a deposit root required for proving 
+         * the new staking of ETH into settlement layer after the launch of EigenLayr. For 
+         * more details, see "depositPOSProof" in EigenLayrDeposit.sol. 
+         */
         require(dumpNumberToConfirm % depositRootInterval != 0, "Must post a deposit root now");
+        
+        // record the compressed information on all the DataLayr nodes who signed 
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+
+        // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+<<<<<<< HEAD
+=======
+
+        emit ConfirmDataStore(dumpNumberToConfirm);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
-    //checks signatures, stores POSt hash, and hands off to DL
-    function confirmDataStoreWithPOSt(bytes32 depositRoot, bytes32 ferkleRoot, bytes calldata data) external payable {
+
+    /**
+     * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
+     *         along with the regular assertion of data into the DataLayr by the disperser. This 
+     *         function enables 
+     *          - disperser to notify that signatures, comprising of hash(depositRoot || ferkleRoot),
+     *            from quorum of DataLayr nodes have been obtained,
+     *          - check that each of the signatures are valid,
+     *          - store the POSt hash, given by depositRoot,
+     *          - call the DataLayr contract to check that whether quorum has been achieved or not.      
+     */
+    function confirmDataStoreWithPOSt(
+        bytes32 depositRoot, 
+        bytes32 ferkleRoot, 
+        bytes calldata data
+    ) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
@@ -139,34 +227,59 @@ contract DataLayrServiceManager is
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
-        //make sure they should be posting a deposit root
+
+        /**
+         * @dev Checks that there is need for posting a deposit root required for proving 
+         * the new staking of ETH into settlement layer after the launch of EigenLayr. For 
+         * more details, see "depositPOSProof" in EigenLayrDeposit.sol. 
+         */
         require(dumpNumberToConfirm % depositRootInterval == 0, "Shouldn't post a deposit root now");
+
+        // record the compressed information on all the DataLayr nodes who signed 
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
-        //when posting a deposit root, DLNs will sign hash(depositRoot || ferkleRoot) instead of the usual ferkleRoot, 
-        //so the submitter must specify the preimage
+        
+        /**
+         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || ferkleRoot)
+         * instead of the usual ferkleRoot, so the submitter must specify the preimage
+         */
         require(keccak256(abi.encodePacked(depositRoot, ferkleRoot)) == depositFerkleHash, "Ferkle or deposit root is incorrect");
-        //store the depost root
+        
+        // record the deposit root (POSt hash)
         depositRoots[block.number] = depositRoot;
+
+        // call DataLayr contract to check whether quorum is satisfied or not and record it
+        // CRITIC: not to use tx.origin as it is a dangerous practice
         dataLayr.confirm(
             dumpNumberToConfirm,
             ferkleRoot,
-            tx.origin, //@TODO: How to we get the address that called the queryManager, may not be an EOA, it wont be
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+<<<<<<< HEAD
+=======
+
+        emit ConfirmDataStore(dumpNumberToConfirm);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
     // TODO: collateral
+    /**
+     * @notice 
+     */
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
+        // only registered operators can call
         require(
             queryManager.getOperatorType(msg.sender) != 0,
-            "Only registrants can call this function"
+            "Only registered operators can call this function"
         );
+
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
-        //put up collateral
+
+        // operator puts up collateral which can be slashed in case of wrongful 
+        // payment claim
         collateralToken.transferFrom(
             msg.sender,
             address(this),
@@ -174,12 +287,19 @@ contract DataLayrServiceManager is
         );
 
         uint48 fromDumpNumber;
+
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            //this is the first payment commited, it must be claiming payment from when the operator registered
+            // this is the first commitment to a payment and thus, it must be claiming 
+            // payment from when the operator registered
+
+            // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
                 address(queryManager.voteWeighter())
             ).getOperatorFromDumpNumber(msg.sender);
+
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
+
+            // record the payment information for the operator
             operatorToPayment[msg.sender] = Payment(
                 fromDumpNumber,
                 toDumpNumber,
@@ -188,15 +308,22 @@ contract DataLayrServiceManager is
                 0,
                 paymentFraudProofCollateral
             );
+
             return;
         }
+
+        // can only claim for a payment after redeeming the last payment
         require(
             operatorToPayment[msg.sender].status == 1,
             "Require last payment is redeemed"
         );
-        //you have to redeem starting from the last time redeemed up to
+
+        // you have to redeem starting from the last time redeemed up to
         fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
+
         require(fromDumpNumber < toDumpNumber, "invalid payment range");
+        
+        // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromDumpNumber,
             toDumpNumber,
@@ -205,9 +332,12 @@ contract DataLayrServiceManager is
             0,
             paymentFraudProofCollateral
         );
+
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
 
+
+    // can only call after challenge window
     function redeemPayment() external {
         require(
             block.timestamp >
@@ -216,19 +346,33 @@ contract DataLayrServiceManager is
                 operatorToPayment[msg.sender].status == 0,
             "Still eligible for fraud proofs"
         );
+
+        // update the status to show that operator's payment is getting redeemed
         operatorToPayment[msg.sender].status = 1;
+
+        // transfer back the collateral to the operator as there was no successful 
+        // challenge to the payment commitment made by the operator.
         collateralToken.transfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
+
+        // transfer the amount due in the payment claim of the operator to its delegation
+        // terms contract, where the delegators can withdraw their rewards. 
         uint256 amount = operatorToPayment[msg.sender].amount;
         IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
         paymentToken.transfer(address(dt), amount);
-        //i.e. if operator is not a 'self operator'
-        if (address(dt) != msg.sender) {
-            //inform the DelegationTerms contract of the payment
+
+
+        // i.e. if operator is not a 'self operator'
+        // CRITIC: The self-operators seem to pass this test too as for self-operators
+        //         address(dt) = address(0).  
+        if (address(dt) == msg.sender) {
+            // inform the DelegationTerms contract of the payment, which would determine
+            // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);            
         }
+
         emit PaymentRedemption(msg.sender, amount);
     }
 
