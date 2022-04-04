@@ -155,6 +155,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     //      or/and
     //      uint256 eigenStakeLength, bytes eigenStakes,
     //      uint8 socketLength, bytes[socketLength] socket
+
+    /**
+     * @notice Used for registering a new validator with DataLayr. 
+     */
+    /**
+     * @dev The structure for @param data is given by:
+     *        <uint8> <uint256> <bytes[ethStakeLength]>      
+     *        < (1) > <  (2)  > <      ethStakes      > <ethStakeLength> <      ethStakes      >
+     *
+     *      where,
+     *        (1) is registrantType that specifies whether the operator is an ETH validator,
+     *            or Eigen validator or both,
+     *        (2) is ethStakeLength specifies length of the    
+     */ 
     function registerOperator(address operator, bytes calldata data)
         public
         returns (uint8, uint128)
@@ -190,7 +204,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //parse and update eth stakes
             uint256 ethStakesLength = data.toUint256(1);
             //increment socket length pointer
+            
             addOperatorToEthStakes(
+                // CRITIC: change from 32 to 33
                 data.slice(32, ethStakesLength),
                 operator,
                 ethAmount

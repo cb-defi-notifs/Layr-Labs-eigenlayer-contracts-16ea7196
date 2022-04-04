@@ -42,14 +42,6 @@ contract DataLayrServiceManager is
      * @notice used for notifying that disperser has initiated a data assertion into the 
      *         DataLayr and is waiting for getting a quorum of DataLayr nodes to sign on it. 
      */
-    event InitDataStore(
-        uint48 dumpNumber,
-        bytes32 ferkleRoot,
-        uint32 totalBytes,
-        uint32 storePeriodLength
-    );
-
-    event ConfirmDataStore(uint48 dumpNumber);
 
     event PaymentCommit(address operator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
 
@@ -150,9 +142,12 @@ contract DataLayrServiceManager is
             totalBytes,
             storePeriodLength
         );
+<<<<<<< HEAD
+=======
 
         /// @dev this leads to off-chain accessible metadata
         emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
 
@@ -201,8 +196,11 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+<<<<<<< HEAD
+=======
 
         emit ConfirmDataStore(dumpNumberToConfirm);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
 
@@ -261,8 +259,11 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
+<<<<<<< HEAD
+=======
 
         emit ConfirmDataStore(dumpNumberToConfirm);
+>>>>>>> 8a475e94f55ad668049d4d8acf0a5fb597e5c89c
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
