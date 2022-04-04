@@ -168,16 +168,16 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      *      we just store a hash of the all the ETH and Eigen staked by various DataLayr
      *      nodes into the chain and emit an event specifying the information on a new
      *      operator whenever it registers. Any operator wishing to register as a 
-     *      DataLayr node has to gather all information on the existing DataLayr nodes
-     *      and provide for it while regsitering itself with DataLayr.
+     *      DataLayr node has to gather information on the existing DataLayr nodes
+     *      of its type and provide for it while registering itself with DataLayr.
      *
      *      The structure for @param data is given by:
      *        <uint8> <uint256> <bytes[(2)]> <uint256> <bytes[(2)]> <uint8> <bytes[(6)]>    
      *        < (1) > <  (2)  > <    (3)   > <  (4)  > <    (5)   > < (6) > <   (7)    >
      *
      *      where,
-     *        (1) is registrantType that specifies whether the operator is an ETH validator,
-     *            or Eigen validator or both,
+     *        (1) is registrantType that specifies whether the operator is an ETH DataLayr node,
+     *            or Eigen DataLayr node or both,
      *        (2) is ethStakeLength which specifies length of (3),
      *        (3) is the list of the form [<(operator address, operator's ETH deposit)>, total ETH deposit],
      *            where <(operator address, operator's ETH deposit)> is the array of tuple
@@ -188,6 +188,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      *            (operator address, operator's Eigen deposit) for operators who are DataLayr nodes,       
      *        (6) is socketLength which specifies length of (7),
      *        (7) is the socket 
+     *
+     *      An important point to note is that if the operator is registering itself as
+     *      ETH DataLayr node, it shouldn't provide info on Eigen DataLayr nodes or the length. Vice versa if the operator is registering itself as 
+     *      Eigen DataLayr nodes. However, if the operator is registering itself as 
+     *      an ETH-Eigen DataLayr node, then it needs to give information on both types
+     *      existing DataLayr nodes. 
+     *
      */ 
     function registerOperator(address operator, bytes calldata data)
         public
@@ -198,40 +205,66 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             "Operator is already registered"
         );
 
-        // get the first byte of data
+        // get the first byte of data which happens to specify the type of the operator
         uint8 registrantType = data.toUint8(0);
 
-        //length of socket in bytes
-        uint256 socketLengthPointer = 33;
+        // pointer to where socketLength is stored
+        /**
+         * @dev increment by 1 for storing registrantType which has already been obtained
+         */
+        uint256 socketLengthPointer = 1;
+
+        // CRITIC: do we need to declare it?
         uint128 eigenAmount;
+
         if (registrantType == 1) {
-            // if they want to be an "eigen" validator, check that they meet the eigen requirements
+            // if operator want to be an "Eigen" validator, check that they meet the 
+            // minimum requirements on how much Eigen it must deposit
             eigenAmount = weightOfOperatorEigen(operator);
             require(eigenAmount >= dlnEigenStake, "Not enough eigen staked");
-            //parse and update eigen stakes
+
+            // parse the length 
+            /// @dev this is (4) in the description just before the current function 
             uint256 eigenStakesLength = data.toUint256(1);
-            //increment socket length pointer
+
+            // add the tuple (operator address, operator's stake) to the meta-information
+            // on the Eigen stakes of the existing DataLayr nodes
             addOperatorToEigenStakes(
                 data.slice(33, eigenStakesLength),
                 operator,
                 eigenAmount
             );
+
+            /**
+             * @dev increment by 32 for storing uint256 eigenStakesLength and 
+             *      eigenStakesLength for storing the actual meta-data on Eigen staked 
+             *      by each existing DataLayr nodes, 
+             */
             socketLengthPointer += 33 + eigenStakesLength;
+
         } else if (registrantType == 2) {
-            // if they want to be an "eth" validator, check that they meet the eth requirements
+            // if operator want to be an "ETH" validator, check that they meet the 
+            // minimum requirements on how much ETH it must deposit
             uint128 ethAmount = weightOfOperatorEth(operator);
             require(ethAmount >= dlnEthStake, "Not enough eth value staked");
-            //parse and update eth stakes
+
+            // parse the length 
+            /// @dev this is (2) in the description just before the current function 
             uint256 ethStakesLength = data.toUint256(1);
-            //increment socket length pointer
             
+
+            // add the tuple (operator address, operator's stake) to the meta-information
+            // on the ETH stakes of the existing DataLayr nodes
             addOperatorToEthStakes(
                 // CRITIC: change from 32 to 33
                 data.slice(32, ethStakesLength),
                 operator,
                 ethAmount
             );
+
+            
             socketLengthPointer +=  32 + ethStakesLength;
+
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
