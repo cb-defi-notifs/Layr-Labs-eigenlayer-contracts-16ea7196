@@ -203,4 +203,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(dataStorePeriodLength == storePeriodLength, "wrong storePeriodLength");
         assertTrue(dataStoreCommitted == false, "wrong committed status");
     }
+
+    function testSelfOperatorSignup() public {
+        //first byte of data is operator type
+        //see 'registerOperator' function in 'DataLayrVoteWeigher'
+        //TODO: format this data
+        bytes memory data;
+        dlqm.register(data);
+    }
 }

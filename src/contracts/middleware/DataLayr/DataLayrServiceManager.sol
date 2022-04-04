@@ -142,9 +142,6 @@ contract DataLayrServiceManager is
             totalBytes,
             storePeriodLength
         );
-
-        /// @dev this leads to off-chain accessible metadata
-        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, storePeriodLength);
     }
 
 
@@ -193,8 +190,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
-
-        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
 
@@ -253,8 +248,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
-
-        emit ConfirmDataStore(dumpNumberToConfirm);
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
