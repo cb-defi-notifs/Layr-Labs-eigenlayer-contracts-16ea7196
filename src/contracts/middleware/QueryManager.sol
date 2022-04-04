@@ -80,8 +80,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
      */
     // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still
     //          envisioning it as an input opType?
-    //         (2) Why is deregister a payable type? Whom are you paying for deregistering and why?
-    function deregister(bytes calldata data) external payable {
+    function deregister(bytes calldata data) external {
         require(
             operatorType[msg.sender] != 0,
             "Registrant is not registered with this middleware."
@@ -130,7 +129,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @dev Uses the RegistrationManager contract for registering the operator.
      */
-    function register(bytes calldata data) external payable {
+    function register(bytes calldata data) external {
         require(
             operatorType[msg.sender] == 0,
             "Registrant is already registered"
@@ -415,8 +414,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         //check that the first 32 bytes of calldata match the msg.sender of the call
         uint160 sender;
         assembly {
-            //get the 160 bits immediately after the function signature
-            sender := shr(96, calldataload(4))
+            //address is 160 bits (256-96), beginning after 16 bytes -- 4 for function sig + 12 for padding in abi.encode
+            sender := shr(96, calldataload(16))
         }
         require(address(sender) == msg.sender, "sender != msg.sender");
         assembly {

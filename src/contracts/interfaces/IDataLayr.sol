@@ -10,7 +10,7 @@ interface IDataLayr {
     ) external;
 
     function confirm(
-        uint256 dumpNumber,
+        uint48 dumpNumber,
         bytes32 ferkleRoot,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,

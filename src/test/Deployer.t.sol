@@ -25,13 +25,12 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "ds-test/test.sol";
 
-import "../contracts/interfaces/ERC165_Universal.sol";
+import "../contracts/utils/ERC165_Universal.sol";
+import "../contracts/utils/ERC1155TokenReceiver.sol";
 
-interface CheatCodes {
-    function prank(address) external;
-}
+import "./CheatCodes.sol";
 
-contract EigenLayrDeployer is DSTest, ERC165_Universal {
+contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
     DepositContract public depositContract;
     Eigen public eigen;
@@ -58,7 +57,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        eigen = new Eigen(address(37));
+        eigen = new Eigen(address(this));
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
@@ -88,7 +87,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
             undelegationFraudProofInterval
         );
 
-        dlsm = new DataLayrServiceManager(delegation, weth, weth);
+        uint256 feePerBytePerTime = 1e4;
+        dlsm = new DataLayrServiceManager(delegation, weth, weth, feePerBytePerTime);
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
 
@@ -103,6 +103,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
             delegation
         );
 
+        dl.setQueryManager(dlqm);
         dlsm.setQueryManager(dlqm);
         dlsm.setDataLayr(dl);
         dlRegVW.setQueryManager(dlqm);
@@ -123,11 +124,53 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
+        assertTrue(dlqm.feeManager() == dlsm, "feeManager set incorrectly");
+        assertTrue(dlsm.queryManager() == dlqm, "queryManager set incorrectly in dlsm");
+        assertTrue(dl.queryManager() == dlqm, "queryManager set incorrectly in dl");
     }
 
-    function testWethDeposit() public {
+    function testWethDeposit(uint256 amountToDeposit) public returns(uint256 amountDeposited) {
         weth.approve(address(investmentManager), type(uint256).max);
-        investmentManager.depositIntoStrategy(address(this), strat, weth, wethInitialSupply);
+
+        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
+        if (amountToDeposit > wethInitialSupply) {
+            cheats.expectRevert(bytes("ERC20: transfer amount exceeds balance"));
+            investmentManager.depositIntoStrategy(address(this), strat, weth, amountToDeposit);
+            amountDeposited = 0;
+        } else {
+            investmentManager.depositIntoStrategy(address(this), strat, weth, amountToDeposit);
+            amountDeposited = amountToDeposit;
+        }
+
+        //in this case, since shares never grow, the shares should just match the deposited amount
+        assertEq(investmentManager.investorStratShares(address(this), strat), amountDeposited, "shares should match deposit");
+    }
+
+    function testWethWithdrawal(uint256 amountToDeposit, uint256 amountToWithdraw) public {
+        uint256 wethBalanceBefore = weth.balanceOf(address(this));
+        uint256 amountDeposited = testWethDeposit(amountToDeposit);
+
+        // emit log_uint(amountToDeposit);
+        // emit log_uint(amountToWithdraw);
+        // emit log_uint(amountDeposited);
+
+        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and short-circuit if it happens
+        //TODO: figure out if making this 'expectRevert' work correctly is actually possible
+        if (amountDeposited == 0) {
+            // cheats.expectRevert(bytes("Index out of bounds."));
+            // investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+            return;
+        //trying to withdraw more than the amountDeposited will fail, so we expect a revert and short-circuit if it happens
+        } else if (amountToWithdraw > amountDeposited) {
+            cheats.expectRevert(bytes("shareAmount too high"));
+            investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+            return;
+        } else {
+            investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
+        }
+
+        uint256 wethBalanceAfter = weth.balanceOf(address(this));
+        assertEq(wethBalanceBefore - amountToDeposit + amountToWithdraw, wethBalanceAfter, "weth is missing somewhere");
     }
 
     function testCleProof() public {
@@ -141,5 +184,58 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal {
         deposit.proveLegacyConsensusLayerDeposit(proof, address(0), "0x", amount);
         //make sure their cle has updated
         assertEq(investmentManager.consensusLayerEth(depositor), amount);
+    }
+
+    function testInitDataStore() public {
+        bytes memory header = bytes("0x0102030405060708091011121314151617181920");
+        uint32 totalBytes = 1e6;
+        uint32 storePeriodLength = 600;
+
+        //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.approve(address(dlsm), type(uint256).max);
+
+        DataLayrServiceManager(address(dlqm)).initDataStore(address(this), header, totalBytes, storePeriodLength);
+
+        uint48 dumpNumber = 1;
+        bytes32 ferkleRoot = keccak256(header);
+        (uint48 dataStoreDumpNumber, uint32 dataStoreInitTime, uint32 dataStorePeriodLength, bool dataStoreCommitted) = dl.dataStores(ferkleRoot);
+        assertTrue(dataStoreDumpNumber == dumpNumber, "wrong dumpNumber");
+        assertTrue(dataStoreInitTime == uint32(block.timestamp), "wrong initTime");
+        assertTrue(dataStorePeriodLength == storePeriodLength, "wrong storePeriodLength");
+        assertTrue(dataStoreCommitted == false, "wrong committed status");
+    }
+
+    function testDepositEigen() public {
+        //approve 'deposit' contract to transfer EIGEN on behalf of this contract
+        eigen.setApprovalForAll(address(deposit), true);
+
+        uint256 toDeposit = 1e18;
+        deposit.depositEigen(toDeposit);
+
+        assertEq(investmentManager.eigenDeposited(address(this)), toDeposit, "deposit not properly credited");
+    }
+
+    function testSelfOperatorDelegate() public {
+        delegation.delegateToSelf();
+        //TODO: check something here
+    }
+
+    function testSelfOperatorRegister() public {
+        //first byte of data is operator type
+        //see 'registerOperator' function in 'DataLayrVoteWeigher'
+        //TODO: format this data
+
+        testWethDeposit(1e18);
+        testDepositEigen();
+        testSelfOperatorDelegate();
+
+        //register as both ETH and EIGEN operator
+        uint8 registrantType = 3;
+        bytes32 spacer;
+        uint256 ethStakesLength = 0;
+        uint256 eigenStakesLength = 0;
+        bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
+            spacer, spacer, spacer, spacer, spacer, spacer);
+        dlqm.register(data);
     }
 }
