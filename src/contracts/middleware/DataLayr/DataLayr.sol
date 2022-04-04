@@ -42,7 +42,10 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 storePeriodLength
     );
 
-    event ConfirmDataStore(uint48 dumpNumber);
+    event ConfirmDataStore(
+        uint48 dumpNumber,
+        bytes32 ferkleRoot
+    );
 
     /**
      * @notice data structure for storing metadata on a particular assertion of data 
@@ -163,7 +166,7 @@ contract DataLayr is Ownable, IDataLayr {
         // record that quorum has been achieved 
         dataStores[ferkleRoot].commited = true;
 
-        emit ConfirmDataStore(dumpNumber);
+        emit ConfirmDataStore(dumpNumber, ferkleRoot);
     }
     
     
