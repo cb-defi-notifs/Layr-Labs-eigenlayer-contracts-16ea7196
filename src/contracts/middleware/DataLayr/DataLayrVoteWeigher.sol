@@ -63,6 +63,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         address registrant // who started
     );
 
+    event EthStakeAdded(address, uint128);
+    event EigenStakeAdded(address, uint128);
+    event EthStakeUpdate(address, uint128);
+    event EigenStakeUpdate(address, uint128);
+
+
     IQueryManager public queryManager;
     uint32 public latestTime;
 
@@ -78,10 +84,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     mapping(uint48 => bytes32) public ethStakeHashes;
     uint48[] public ethStakeHashUpdates;
 
-    event EthStakeAdded(address, uint128);
-    event EigenStakeAdded(address, uint128);
-    event EthStakeUpdate(address, uint128);
-    event EigenStakeUpdate(address, uint128);
+    
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -129,8 +132,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      * @notice returns the total ETH delegated by delegators with this operator. 
      */
     /**
-     * @dev accounst for both ETH used for staking in settlement layer (via operator)
-     *      and the ETH-denominated value of the shares in the investment strategies
+     * @dev Accounts for both ETH used for staking in settlement layer (via operator)
+     *      and the ETH-denominated value of the shares in the investment strategies.
+     *      Note that the DataLayr can decide for itself how much weight it wants to 
+     *      give to the ETH that is being used for staking in settlement layer.    
      */
     function weightOfOperatorEth(address operator) public returns (uint128) {
         uint128 amount = uint128(
