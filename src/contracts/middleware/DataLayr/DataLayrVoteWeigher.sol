@@ -9,25 +9,54 @@ import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
 
+/**
+ * @notice 
+ */
+
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     using BytesLib for bytes;
+
     IInvestmentManager public investmentManager;
+
     IEigenLayrDelegation public delegation;
-    // Data Layr Nodes
+
+    /**
+     * @notice  Details on DataLayr nodes that would be used for - 
+     *           - sending data by the sequencer
+     *           - querying by any challenger/retriever
+     *           - payment and associated challenges    
+     */
     struct Registrant {
-        uint32 id; // id is always unique
-        uint64 index; // corresponds to registrantList
+        // id is always unique
+        uint32 id; 
+
+        // corresponds to registrantList
+        uint64 index; 
+
+        // 
         uint48 fromDumpNumber;
         uint32 to;
+
         uint8 active; //bool
-        string socket; // how people can find it
+
+        // socket address of the DataLayr node 
+        string socket; 
     }
-    //pack two uint128's into a storage slot
+
+
+    /** 
+     * @notice pack two uint128's into a storage slot
+     */
     struct Uint128xUint128 {
         uint128 a;
         uint128 b;
     }
 
+
+    // EVENT
+    /**
+     * @notice 
+     */
     event Registration();
 
     event DeregistrationCommit(
@@ -78,21 +107,39 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         queryManager = _queryManager;
     }
 
+    /**
+     * @notice returns the total Eigen delegated by delegators with this operator 
+     */
+    /**
+     * @dev minimum delegation limit has to be satisfied.
+     */ 
     function weightOfOperatorEigen(address operator)
         public
         view
         returns (uint128)
     {
         uint128 eigenAmount = uint128(delegation.getEigenDelegated(operator));
+
+        // check that minimum delegation limit is satisfied
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
     }
 
+
+    /**
+     * @notice returns the total ETH delegated by delegators with this operator. 
+     */
+    /**
+     * @dev accounst for both ETH used for staking in settlement layer (via operator)
+     *      and the ETH-denominated value of the shares in the investment strategies
+     */
     function weightOfOperatorEth(address operator) public returns (uint128) {
         uint128 amount = uint128(
             delegation.getConsensusLayerEthDelegated(operator) /
                 queryManager.consensusLayerEthToEth() +
                 delegation.getUnderlyingEthDelegated(operator)
         );
+
+        // check that minimum delegation limit is satisfied
         return amount < dlnEthStake ? 0 : amount;
     }
 
@@ -111,8 +158,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             registry[operator].active == 0,
             "Operator is already registered"
         );
-        //get the first byte of data
+
+        // get the first byte of data
         uint8 registrantType = data.toUint8(0);
+
         //length of socket in bytes
         uint256 socketLengthPointer = 33;
         uint128 eigenAmount;
