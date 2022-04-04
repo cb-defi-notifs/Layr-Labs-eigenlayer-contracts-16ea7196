@@ -92,6 +92,15 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     ) {
         investmentManager = _investmentManager;
         delegation = _delegation;
+
+        //TODO: make sure this works!
+        //initialize the ETH and EIGEN stakes
+        eigenStakeHashUpdates.push(0);
+        ethStakeHashUpdates.push(0);
+        bytes memory zero;
+        bytes32 zeroHash = keccak256(zero);
+        eigenStakeHashes[0] = zeroHash;
+        ethStakeHashes[0] = zeroHash;
     }
 
     modifier onlyQMGovernance() {

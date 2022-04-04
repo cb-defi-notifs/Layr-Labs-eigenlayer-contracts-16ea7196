@@ -206,20 +206,36 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     }
 
     function testDepositEigen() public {
+        //approve 'deposit' contract to transfer EIGEN on behalf of this contract
+        eigen.setApprovalForAll(address(deposit), true);
 
+        uint256 toDeposit = 1e18;
+        deposit.depositEigen(toDeposit);
+
+        assertEq(investmentManager.eigenDeposited(address(this)), toDeposit, "deposit not properly credited");
     }
 
-    function testSelfOperatorSignup() public {
+    function testSelfOperatorDelegate() public {
+        delegation.delegateToSelf();
+        //TODO: check something here
+    }
+
+    function testSelfOperatorRegister() public {
         //first byte of data is operator type
         //see 'registerOperator' function in 'DataLayrVoteWeigher'
         //TODO: format this data
+
+        testWethDeposit(1e18);
+        testDepositEigen();
+        testSelfOperatorDelegate();
 
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
         bytes32 spacer;
         uint256 ethStakesLength = 0;
         uint256 eigenStakesLength = 0;
-        bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength);
+        bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
+            spacer, spacer, spacer, spacer, spacer, spacer);
         dlqm.register(data);
     }
 }
