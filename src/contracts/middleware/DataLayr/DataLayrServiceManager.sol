@@ -54,11 +54,13 @@ contract DataLayrServiceManager is
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
-        IERC20 _collateralToken
+        IERC20 _collateralToken,
+        uint256 _feePerBytePerTime
     ) {
         eigenLayrDelegation = _eigenLayrDelegation;
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
+        feePerBytePerTime = _feePerBytePerTime;
     }
 
     modifier onlyQMGovernance() {
@@ -91,13 +93,13 @@ contract DataLayrServiceManager is
      *            on account of their service.  
      */
     /**
-     * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
+     * @param header is the summary of the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
         address storer,
-        bytes32 ferkleRoot,
+        bytes calldata header,
         uint32 totalBytes,
         uint32 storePeriodLength
     ) external payable {
@@ -105,6 +107,8 @@ contract DataLayrServiceManager is
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
         );
+
+        bytes32 ferkleRoot = keccak256(header);
 
         require(totalBytes > 32, "Can't store less than 33 bytes");
 
@@ -246,7 +250,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEthStake,
             signedTotals.totalEigenStake
         );
-
     }
 
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber

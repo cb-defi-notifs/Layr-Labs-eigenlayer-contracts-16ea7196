@@ -57,4 +57,8 @@ interface IQueryManager {
     function operatorStakes(address) external view returns (uint128, uint128);
 
     function totalStake() external view returns (uint128, uint128);
+
+    function register(bytes calldata data) external;
+
+    function deregister(bytes calldata data) external;
 }

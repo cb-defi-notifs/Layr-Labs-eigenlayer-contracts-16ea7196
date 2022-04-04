@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
+import "../utils/ERC1155TokenReceiver.sol";
 
 // TODO: withdrawals of Eigen (and consensus layer ETH?)
 /**
@@ -22,7 +23,8 @@ import "./storage/InvestmentManagerStorage.sol";
 contract InvestmentManager is
     Initializable,
     Governed,
-    InvestmentManagerStorage
+    InvestmentManagerStorage,
+    ERC1155TokenReceiver
 {
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
@@ -362,7 +364,7 @@ contract InvestmentManager is
             slashedAmount += strategies[i].underlyingEthValueOfShares(
                 shareAmounts[i]
             );
-            
+
             // subtract the shares for this strategy from that of slashed
             investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
 
