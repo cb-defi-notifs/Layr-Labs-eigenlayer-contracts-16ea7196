@@ -8,12 +8,13 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
+import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
+contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     using BytesLib for bytes;
 
     IInvestmentManager public investmentManager;

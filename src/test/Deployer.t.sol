@@ -53,20 +53,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     bytes32 consensusLayerDepositRoot =
         0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
-    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293);
-
-    struct ConfirmCalldata {
-        uint48 dumpNumber;
-        bytes32 headerHash;
-        uint32 numberOfSigners;
-        uint256 ethStakesIndex;
-        uint256 eigenStakesIndex;
-        uint256 ethStakesLength;
-        uint256 eigenStakesLength;
-        bytes ethStakes;
-        bytes eigenStakes;
-        bytes sigWInfos;
-    }
+    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
 
     function setUp() public {
         //eth2 deposit contract
@@ -188,17 +175,16 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             weth.approve(address(investmentManager), type(uint256).max);
 
             investmentManager.depositIntoStrategy(
-                address(this),
+                registrant,
                 strat,
                 weth,
                 amountToDeposit
             );
             amountDeposited = amountToDeposit;
         }
-
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
-            investmentManager.investorStratShares(address(this), strat),
+            investmentManager.investorStratShares(registrant, strat),
             amountDeposited,
             "shares should match deposit"
         );
@@ -209,9 +195,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) public {
-        uint256 wethBalanceBefore = weth.balanceOf(address(this));
         uint256 amountDeposited = testWethDeposit(amountToDeposit);
-        cheats.startPrank(registrant);
+        cheats.prank(registrant);
         // emit log_uint(amountToDeposit);
         // emit log_uint(amountToWithdraw);
         // emit log_uint(amountDeposited);
@@ -240,10 +225,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
                 amountToWithdraw
             );
         }
-
         uint256 wethBalanceAfter = weth.balanceOf(registrant);
+
         assertEq(
-            wethBalanceBefore - amountToDeposit + amountToWithdraw,
+            amountToDeposit - amountDeposited + amountToWithdraw,
             wethBalanceAfter,
             "weth is missing somewhere"
         );
@@ -380,19 +365,20 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         );
         data = abi.encodePacked(
             data,
-            ethStakes.length,
-            eigenStakes.length,
             ethStakes,
             eigenStakes,
             bytes32(
-                0xdfb9b0b03bd42ddcea0a5e0e4878440c2437aa77094c2d234d5934b1a21a01ef
+                0xd014256b124b583eb14192505340f3c785c31c3412c7daa358072c0b81b85aa5
             ),
             bytes32(
-                0xF0875e533676b8e11d4138de62a20f5d49a20a3501e54d6a67bd64fe4d5a8560
+                0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
-            uint8(0)
+            uint8(0),
+            uint32(0),
+            uint32(0)
         );
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
+        
     }
 
     function testDepositEigen() public {
@@ -405,7 +391,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         deposit.depositEigen(toDeposit);
 
         assertEq(
-            investmentManager.eigenDeposited(address(this)),
+            investmentManager.eigenDeposited(registrant),
             toDeposit,
             "deposit not properly credited"
         );
@@ -443,15 +429,16 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             uint8(1),
             bytes("ff")
         );
+        cheats.startPrank(registrant);
         dlqm.register(data);
 
         uint48 dumpNumber = dlRegVW.ethStakeHashUpdates(1);
 
         uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(
-            address(this)
+            registrant
         );
         bytes memory ethStakes = abi.encodePacked(
-            address(this),
+            registrant,
             weightOfOperatorEth,
             uint256(weightOfOperatorEth)
         );
@@ -462,10 +449,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         );
 
         uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(
-            address(this)
+            registrant
         );
         bytes memory eigenStakes = abi.encodePacked(
-            address(this),
+            registrant,
             weightOfOperatorEigen,
             uint256(weightOfOperatorEigen)
         );
@@ -474,6 +461,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             hashOfStakesEigen == dlRegVW.eigenStakeHashes(dumpNumber),
             "EIGEN stakes stored incorrectly"
         );
+        cheats.stopPrank();
         return (ethStakes, eigenStakes);
     }
 }

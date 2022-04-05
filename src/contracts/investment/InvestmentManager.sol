@@ -8,6 +8,7 @@ import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
+import "ds-test/test.sol";
 
 // TODO: withdrawals of Eigen (and consensus layer ETH?)
 /**
@@ -24,7 +25,7 @@ contract InvestmentManager is
     Initializable,
     Governed,
     InvestmentManagerStorage,
-    ERC1155TokenReceiver
+    ERC1155TokenReceiver, DSTest
 {
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
