@@ -237,5 +237,17 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         bytes memory socket = bytes("ff");
         bytes memory data = abi.encodePacked(registrantType, ethStakesLength, spacer, eigenStakesLength, spacer, socketLength, socket);
         dlqm.register(data);
+
+        uint48 dumpNumber = dlRegVW.ethStakeHashUpdates(1);
+
+        uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(address(this));
+        bytes memory ethStakes = abi.encodePacked(address(this), weightOfOperatorEth, uint256(weightOfOperatorEth));
+        bytes32 hashOfStakesEth = keccak256(ethStakes);
+        assertTrue(hashOfStakesEth == dlRegVW.ethStakeHashes(dumpNumber), "ETH stakes stored incorrectly");
+
+        uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(address(this));
+        bytes memory eigenStakes = abi.encodePacked(address(this), weightOfOperatorEigen, uint256(weightOfOperatorEigen));
+        bytes32 hashOfStakesEigen = keccak256(eigenStakes);
+        assertTrue(hashOfStakesEigen == dlRegVW.eigenStakeHashes(dumpNumber), "EIGEN stakes stored incorrectly");
     }
 }
