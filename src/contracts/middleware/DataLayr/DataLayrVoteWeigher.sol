@@ -240,7 +240,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         /**
          * @dev increment by 1 for storing registrantType which has already been obtained
          */
-        uint256 socketLengthPointer = 33;
+        uint256 socketLengthPointer = 1;
 
         // CRITIC: do we need to declare it?
         uint128 eigenAmount;
@@ -258,7 +258,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             // add the tuple (operator address, operator's stake) to the meta-information
             // on the Eigen stakes of the existing DataLayr nodes
             addOperatorToEigenStakes(
-                data.slice(socketLengthPointer, eigenStakesLength),
+                data.slice(socketLengthPointer + 32, eigenStakesLength),
                 operator,
                 eigenAmount
             );
@@ -284,7 +284,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             // add the tuple (operator address, operator's stake) to the meta-information
             // on the ETH stakes of the existing DataLayr nodes
             addOperatorToEthStakes(
-                data.slice(socketLengthPointer, ethStakesLength),
+                data.slice(socketLengthPointer + 32, ethStakesLength),
                 operator,
                 ethAmount
             );
@@ -312,7 +312,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             // add the tuple (operator address, operator's stake) to the meta-information
             // on the ETH stakes of the existing DataLayr nodes
             addOperatorToEthStakes(
-                data.slice(socketLengthPointer, stakesLength),
+                data.slice(socketLengthPointer + 32, stakesLength),
                 operator,
                 ethAmount
             );
