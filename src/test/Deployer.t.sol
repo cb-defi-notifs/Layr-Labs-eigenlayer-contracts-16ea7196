@@ -217,7 +217,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
     function testSelfOperatorDelegate() public {
         delegation.delegateToSelf();
-        //TODO: check something here
+        assertTrue(delegation.delegation(address(this)) == address(this), "self delegation not properly recorded");
+        assertTrue(delegation.delegated(address(this)), "delegation not credited?");
     }
 
     function testSelfOperatorRegister() public {
