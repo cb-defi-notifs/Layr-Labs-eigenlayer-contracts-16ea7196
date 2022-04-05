@@ -5,24 +5,45 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 contract Naive_NFGT is ERC1155 {
-    constructor() ERC1155("https://insert-uri-here.com") {
-    }
-
-    uint256 internal constant TREE_DEPTH = 256;
-    bytes32[TREE_DEPTH] internal ZERO_HASHES;
+    uint256 internal immutable TREE_DEPTH;
+    uint256 internal immutable MAX_SLOT_VALUE;
+    uint256 internal immutable ORIGIN_ID;
     //tokenId => slot => slotContents => newTokenId
     mapping(uint256 => mapping(uint256 => mapping(bytes32 => uint256))) public tokenChanges;
     //tokenId => parent
     mapping(uint256 => uint256) public tokenParents;
+    //_ancestry[tokenA][tokenB] will be 'true' in the event that tokenB has been proven to be an ancestor of tokenA
+    //in the event that _ancestry[tokenA][tokenB] is false, nothing is proven
+    mapping(uint256 => mapping (uint256 => bool)) internal _ancestry;
+    bytes32[] internal ZERO_HASHES;
 
-    function setZeroHashes() internal {
+    modifier checkSlotValidity(uint256 slot) {
+        require(slot <= MAX_SLOT_VALUE, "slot value exceeds max slot value");
+        _;
+    }
+
+    constructor(string memory _uri, uint256 _TREE_DEPTH, uint256 _initSupply) ERC1155(_uri) {
+        require(_TREE_DEPTH <= 256, "max tree depth is 256");
+        require(_TREE_DEPTH >= 2, "min tree depth is 2");
+        TREE_DEPTH = _TREE_DEPTH;
+        uint256 maxSlotVal;
+        if (_TREE_DEPTH != 256) {
+            maxSlotVal = (2**_TREE_DEPTH) - 1;           
+        } else {
+            maxSlotVal = type(uint256).max;
+        }
+        MAX_SLOT_VALUE = maxSlotVal;
+        ZERO_HASHES = new bytes32[](_TREE_DEPTH);
         uint256 i;
-        while (i < TREE_DEPTH - 1) {
+        while (i < _TREE_DEPTH - 1) {
             ZERO_HASHES[i + 1] = keccak256(abi.encodePacked(ZERO_HASHES[i], ZERO_HASHES[i]));
             unchecked {
                 ++i;
             }
         }
+        uint256 originId = uint256(ZERO_HASHES[TREE_DEPTH - 1]);
+        ORIGIN_ID = originId;
+        _mint(msg.sender, originId, _initSupply, "");
     }
 
     function uint256ToBytes32(uint256 input) public pure returns (bytes32) {
@@ -33,14 +54,22 @@ contract Naive_NFGT is ERC1155 {
         return uint256(input);
     }
 
-    function proveLeaf(uint256 tokenId, uint256 slot, bytes32 slotContents, uint256 nodeWrittenBitmap, bytes32[] calldata proofElements) public view returns (bool) {
+    function proveLeaf(
+        uint256 tokenId,
+        uint256 slot,
+        bytes32 slotContents,
+        uint256 nodeWrittenBitmap,
+        bytes32[] calldata proofElements)
+        public view checkSlotValidity(slot) returns (bool) 
+    {
         bytes32 root = bytes32(tokenId);
         uint256 mask;
-        uint256 i;
         uint256 proofElementIndex;
         bool leftFork;
         bytes32 node = slotContents;
+        uint256 i;
         while (i < TREE_DEPTH) {
+            //take a '1' and move it to the i-th slot from right-to-left (little endian)
             mask = (1 << i);
             //i.e. if slot does not have a '1' at the i-th bit
             leftFork = ((slot & mask) == 0);
@@ -68,15 +97,23 @@ contract Naive_NFGT is ERC1155 {
         return (node == root);
     }
 
-    function writeLeafOutcome(uint256 tokenId, uint256 slot, bytes32 contentsToWrite, uint256 nodeWrittenBitmap, bytes32[] calldata proofElements) public view returns (uint256) {
+    function findLeafOutcome(
+        uint256 tokenId,
+        uint256 slot,
+        bytes32 contentsToWrite,
+        uint256 nodeWrittenBitmap,
+        bytes32[] calldata proofElements)
+        public view checkSlotValidity(slot) returns (uint256) 
+    {
         bytes32 root = bytes32(tokenId);
         uint256 mask;
-        uint256 i;
         uint256 proofElementIndex;
         bool leftFork;
         bytes32 node;
         bytes32 newNode = contentsToWrite;
+        uint256 i;
         while (i < TREE_DEPTH) {
+            //take a '1' and move it to the i-th slot from right-to-left (little endian)
             mask = (1 << i);
             //i.e. if slot does not have a '1' at the i-th bit
             leftFork = ((slot & mask) == 0);
@@ -110,34 +147,39 @@ contract Naive_NFGT is ERC1155 {
         return newTokenId;
     }
 
-    function _writeLeafToToken(uint256 tokenId, uint256 slot, bytes32 contentsToWrite, uint256 nodeWrittenBitmap, bytes32[] calldata proofElements) internal returns (uint256) {
-        uint256 newTokenId = writeLeafOutcome(tokenId, slot, contentsToWrite, nodeWrittenBitmap, proofElements);
+    function _writeLeafToToken(
+        uint256 tokenId,
+        uint256 slot,
+        bytes32 contentsToWrite,
+        uint256 nodeWrittenBitmap,
+        bytes32[] calldata proofElements)
+        internal returns (uint256) 
+    {
+        uint256 newTokenId = findLeafOutcome(tokenId, slot, contentsToWrite, nodeWrittenBitmap, proofElements);
         tokenChanges[tokenId][slot][contentsToWrite] = newTokenId;
         tokenParents[newTokenId] = tokenId;
         return newTokenId;
     }
 
-    function _convertTokens(uint256 tokenId, uint256 slot, bytes32 slotContents, uint256 newTokenId) internal view {
+    //TODO: sort out more about permissions / when + how this function is invoked
+    function _convertTokens(
+        address owner,
+        uint256 tokenAmount,
+        uint256 tokenId,
+        uint256 slot,
+        bytes32 slotContents,
+        uint256 newTokenId) internal 
+    {
         require(tokenChanges[tokenId][slot][slotContents] == newTokenId, "conversion invalid");
-        //TODO: actually convert to new tokenId
+        //TODO: more efficient method here?
+        _burn(owner, tokenId, tokenAmount);
+        _mint(owner, newTokenId, tokenAmount, "");
     }
 
-
-
-
-
-
-
-
-
-
-    //_ancestry[tokenA][tokenB] will be 'true' in the event that tokenB has been proven to be an ancestor of tokenA
-    //in the event that _ancestry[tokenA][tokenB] is false, nothing is proven
-    mapping(uint256 => mapping (uint256 => bool)) internal _ancestry;
-
+    //performs brute-force search, stepping backwards along descendant's ancestry until ancestor is reached or history runs out
     function _proveAncestrySimple(uint256 descendant, uint256 ancestor) internal returns (bool) {
         uint256 latestAncestor = tokenParents[descendant];
-        while ((latestAncestor != ancestor) && (latestAncestor != 0)) {
+        while ((latestAncestor != ancestor) && (latestAncestor != ORIGIN_ID)) {
             latestAncestor = tokenParents[latestAncestor];
         }
         if (latestAncestor == ancestor) {
@@ -148,6 +190,7 @@ contract Naive_NFGT is ERC1155 {
         }
     }
 
+    //checks storage, then performs brute-force search if result in storage is not 'true'
     function checkAncestrySimple(uint256 descendant, uint256 ancestor) public returns (bool) {
         if (_ancestry[descendant][ancestor] == true) {
             return true;
@@ -155,4 +198,27 @@ contract Naive_NFGT is ERC1155 {
             return _proveAncestrySimple(descendant, ancestor);
         }
     }
+
+    //equivalent to '_proveAncestrySimple', but does not modify state
+    function _proveAncestrySimpleView(uint256 descendant, uint256 ancestor) internal view returns (bool) {
+        uint256 latestAncestor = tokenParents[descendant];
+        while ((latestAncestor != ancestor) && (latestAncestor != ORIGIN_ID)) {
+            latestAncestor = tokenParents[latestAncestor];
+        }
+        if (latestAncestor == ancestor) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    //equivalent to 'checkAncestrySimple', but does not modify state
+    function checkAncestrySimpleView(uint256 descendant, uint256 ancestor) public view returns (bool) {
+        if (_ancestry[descendant][ancestor] == true) {
+            return true;
+        } else {
+            return _proveAncestrySimpleView(descendant, ancestor);
+        }
+    }
+
 }
