@@ -288,18 +288,30 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 ethAmount
             );
+
+            /**
+             * @dev increment by 32 for storing uint256 ethStakesLength and 
+             *      ethStakesLength for storing the actual meta-data on ETH staked 
+             *      by each existing DataLayr nodes.
+             */
+            // CRITIC: change 32 to 33?
             socketLengthPointer += 32 + ethStakesLength;
+
         } else if (registrantType == 3) {
-            // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
+            // if they want to be an "eigen and eth" validator, check that they meet 
+            // the Eigen and ETH requirements
             eigenAmount = weightOfOperatorEigen(operator);
             uint128 ethAmount = weightOfOperatorEth(operator);
             require(
                 eigenAmount >= dlnEigenStake && ethAmount >= dlnEthStake,
                 "Not enough eth value or eigen staked"
             );
-            //parse and update eth and eigen stakes
+
+            // parse the length
             uint256 stakesLength = data.toUint256(1);
-            //increment socket length pointer
+
+            // add the tuple (operator address, operator's stake) to the meta-information
+            // on the ETH stakes of the existing DataLayr nodes
             addOperatorToEthStakes(
                 data.slice(32, stakesLength),
                 operator,
