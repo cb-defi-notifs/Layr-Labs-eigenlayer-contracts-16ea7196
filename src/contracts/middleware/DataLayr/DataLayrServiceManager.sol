@@ -345,20 +345,22 @@ contract DataLayrServiceManager is
             operatorToPayment[msg.sender].collateral
         );
 
-        // transfer the amount due in the payment claim of the operator to its delegation
-        // terms contract, where the delegators can withdraw their rewards. 
+        ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
         IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
-        paymentToken.transfer(address(dt), amount);
-
 
         // i.e. if operator is not a 'self operator'
-        // CRITIC: The self-operators seem to pass this test too as for self-operators
-        //         address(dt) = address(0).  
-        if (address(dt) == msg.sender) {
+        if (address(dt) != address(0)) {
+            // transfer the amount due in the payment claim of the operator to its delegation
+            // terms contract, where the delegators can withdraw their rewards. 
+            paymentToken.transfer(address(dt), amount);
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
-            dt.payForService(paymentToken, amount);            
+            dt.payForService(paymentToken, amount);
+        // i.e. if the operator *is* a 'self operator'       
+        } else {
+            //simply transfer the payment amount in this case
+            paymentToken.transfer(msg.sender, amount);
         }
 
         emit PaymentRedemption(msg.sender, amount);
