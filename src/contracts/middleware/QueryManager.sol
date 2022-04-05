@@ -417,6 +417,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
             //address is 160 bits (256-96), beginning after 16 bytes -- 4 for function sig + 12 for padding in abi.encode
             sender := shr(96, calldataload(16))
         }
+        //TODO: change this back
         require(address(sender) == msg.sender, "sender != msg.sender");
         assembly {
             // Copy msg.data. We take full control of memory in this inline assembly
@@ -447,6 +448,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
                 return(0, returndatasize())
             }
         }
+        
     }
 
     function _fallback() internal virtual {

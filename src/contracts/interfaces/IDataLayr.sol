@@ -4,14 +4,14 @@ pragma solidity ^0.8.9;
 interface IDataLayr {
     function initDataStore(
         uint48 dumpNumber,
-        bytes32 ferkleRoot,
+        bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength
     ) external;
 
     function confirm(
         uint48 dumpNumber,
-        bytes32 ferkleRoot,
+        bytes32 headerHash,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
         uint256,

@@ -36,7 +36,7 @@ contract DataLayr is Ownable, IDataLayr {
 
     event InitDataStore(
         uint48 dumpNumber,
-        bytes32 ferkleRoot,
+        bytes32 headerHash,
         uint32 totalBytes,        
         uint32 initTime,
         uint32 storePeriodLength
@@ -44,7 +44,7 @@ contract DataLayr is Ownable, IDataLayr {
 
     event ConfirmDataStore(
         uint48 dumpNumber,
-        bytes32 ferkleRoot
+        bytes32 headerHash
     );
 
     /**
@@ -88,18 +88,18 @@ contract DataLayr is Ownable, IDataLayr {
      *         This precomit process includes asserting metadata.   
      */
     /**
-     * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
+     * @param headerHash is the commitment to the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
         uint48 dumpNumber,
-        bytes32 ferkleRoot,
+        bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength
     ) external onlyFeeManager {
         require(
-            dataStores[ferkleRoot].initTime == 0,
+            dataStores[headerHash].initTime == 0,
             "Data store has already been initialized"
         );
 
@@ -107,7 +107,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 initTime = uint32(block.timestamp);
 
         // initialize and record the datastore
-        dataStores[ferkleRoot] = DataStore(
+        dataStores[headerHash] = DataStore(
             dumpNumber,
             initTime,
             storePeriodLength,
@@ -115,14 +115,14 @@ contract DataLayr is Ownable, IDataLayr {
         );
 
         
-        emit InitDataStore(dumpNumber, ferkleRoot, totalBytes, initTime, storePeriodLength);
+        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength);
     }
 
     /**
      * @notice Used for confirming that quroum of signatures have been obtained from DataLayr
      */
     /**
-     * @param ferkleRoot is the commitment to the data that is being asserted into DataLayr,
+     * @param headerHash is the commitment to the data that is being asserted into DataLayr,
      * @param ethStakeSigned is the total ETH that has been staked by the DataLayr nodes
      *                       who have signed up to be part of the quorum,     
      * @param eigenStakeSigned is the total Eigen that has been staked by the DataLayr nodes
@@ -134,7 +134,7 @@ contract DataLayr is Ownable, IDataLayr {
      */
     function confirm(
         uint48 dumpNumber,
-        bytes32 ferkleRoot,
+        bytes32 headerHash,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
@@ -142,7 +142,7 @@ contract DataLayr is Ownable, IDataLayr {
     ) external  onlyFeeManager {
         // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
-        DataStore storage dataStore = dataStores[ferkleRoot];
+        DataStore storage dataStore = dataStores[headerHash];
 
         //TODO: check if eth and eigen are sufficient
 
@@ -153,7 +153,7 @@ contract DataLayr is Ownable, IDataLayr {
 
         // there can't be multiple signature commitments into settlement layer for same data
         require(
-            !dataStores[ferkleRoot].commited,
+            !dataStores[headerHash].commited,
             "Data store already has already been committed"
         );
 
@@ -164,9 +164,9 @@ contract DataLayr is Ownable, IDataLayr {
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
         // record that quorum has been achieved 
-        dataStores[ferkleRoot].commited = true;
+        dataStores[headerHash].commited = true;
 
-        emit ConfirmDataStore(dumpNumber, ferkleRoot);
+        emit ConfirmDataStore(dumpNumber, headerHash);
     }
     
     

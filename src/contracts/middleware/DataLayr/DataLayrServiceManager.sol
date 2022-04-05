@@ -108,7 +108,7 @@ contract DataLayrServiceManager is
             "Only the query manager can call this function"
         );
 
-        bytes32 ferkleRoot = keccak256(header);
+        bytes32 headerHash = keccak256(header);
 
         require(totalBytes > 32, "Can't store less than 33 bytes");
 
@@ -136,11 +136,10 @@ contract DataLayrServiceManager is
         // CRITIC: change "storer" to "disperser"?
         paymentToken.transferFrom(storer, address(this), fee);
 
-
         // call DL contract
         dataLayr.initDataStore(
             dumpNumber,
-            ferkleRoot,
+            headerHash,
             totalBytes,
             storePeriodLength
         );
@@ -149,7 +148,7 @@ contract DataLayrServiceManager is
 
     /**
      * @notice This function is used for 
-     *          - disperser to notify that signatures on the message, comprising of hash( ferkleroot ),
+     *          - disperser to notify that signatures on the message, comprising of hash( headerHash ),
      *            from quorum of DataLayr nodes have been obtained,
      *          - check that each of the signatures are valid,
      *          - call the DataLayr contract to check that whether quorum has been achieved or not.     
@@ -158,7 +157,7 @@ contract DataLayrServiceManager is
      * @param data TBA.
      */ 
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data) external payable {
+    function confirmDataStore(address storer, bytes calldata data) external payable {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
@@ -168,7 +167,7 @@ contract DataLayrServiceManager is
         // who have agreed to be in the quorum
         (
             uint48 dumpNumberToConfirm,
-            bytes32 ferkleRoot,
+            bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
@@ -184,14 +183,14 @@ contract DataLayrServiceManager is
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
-        dataLayr.confirm(
-            dumpNumberToConfirm,
-            ferkleRoot,
-            signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned,
-            signedTotals.totalEthStake,
-            signedTotals.totalEigenStake
-        );
+        // dataLayr.confirm(
+        //     dumpNumberToConfirm,
+        //     headerHash,
+        //     signedTotals.ethStakeSigned,
+        //     signedTotals.eigenStakeSigned,
+        //     signedTotals.totalEthStake,
+        //     signedTotals.totalEigenStake
+        // );
     }
 
 
@@ -199,7 +198,7 @@ contract DataLayrServiceManager is
      * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
      *         along with the regular assertion of data into the DataLayr by the disperser. This 
      *         function enables 
-     *          - disperser to notify that signatures, comprising of hash(depositRoot || ferkleRoot),
+     *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
      *            from quorum of DataLayr nodes have been obtained,
      *          - check that each of the signatures are valid,
      *          - store the POSt hash, given by depositRoot,
@@ -207,7 +206,7 @@ contract DataLayrServiceManager is
      */
     function confirmDataStoreWithPOSt(
         bytes32 depositRoot, 
-        bytes32 ferkleRoot, 
+        bytes32 headerHash, 
         bytes calldata data
     ) external payable {
         require(
@@ -232,10 +231,10 @@ contract DataLayrServiceManager is
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
         
         /**
-         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || ferkleRoot)
-         * instead of the usual ferkleRoot, so the submitter must specify the preimage
+         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
+         * instead of the usual headerHash, so the submitter must specify the preimage
          */
-        require(keccak256(abi.encodePacked(depositRoot, ferkleRoot)) == depositFerkleHash, "Ferkle or deposit root is incorrect");
+        require(keccak256(abi.encodePacked(depositRoot, headerHash)) == depositFerkleHash, "Ferkle or deposit root is incorrect");
         
         // record the deposit root (POSt hash)
         depositRoots[block.number] = depositRoot;
@@ -244,7 +243,7 @@ contract DataLayrServiceManager is
         // CRITIC: not to use tx.origin as it is a dangerous practice
         dataLayr.confirm(
             dumpNumberToConfirm,
-            ferkleRoot,
+            headerHash,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             signedTotals.totalEthStake,

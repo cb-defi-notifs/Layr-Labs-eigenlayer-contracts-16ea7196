@@ -470,7 +470,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      *        the form 
      *          (dln1's addr, dln1's Eigen deposit), (dln2's addr, dln2's Eigen deposit), ...
      * @param operator is the address who is registering  as a new DataLayr node.
-     * @param newEth is the amount of Eigen that the operator has deposited in EigenLAyr. 
+     * @param newEigen is the amount of Eigen that the operator has deposited in EigenLAyr. 
      */
     function addOperatorToEigenStakes(
         bytes memory stakes,
