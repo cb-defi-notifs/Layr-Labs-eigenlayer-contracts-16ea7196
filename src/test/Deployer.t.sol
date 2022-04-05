@@ -231,11 +231,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
-        bytes32 spacer;
-        uint256 ethStakesLength = 0;
-        uint256 eigenStakesLength = 0;
-        bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
-            spacer, spacer, spacer, spacer, spacer, spacer);
+        //spacer is used in place of stake totals
+        bytes32 spacer = bytes32(0);
+        uint256 ethStakesLength = 32;
+        uint256 eigenStakesLength = 32;
+        uint8 socketLength = 1;
+        bytes memory socket = bytes("ff");
+        bytes memory data = abi.encodePacked(registrantType, abi.encode(ethStakesLength, spacer), abi.encode(eigenStakesLength, spacer), socketLength, socket);
+        // bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
+        //     spacer, spacer, spacer, spacer, spacer, spacer);
         dlqm.register(data);
     }
 }

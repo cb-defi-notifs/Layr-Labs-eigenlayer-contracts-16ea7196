@@ -97,8 +97,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         //initialize the ETH and EIGEN stakes
         eigenStakeHashUpdates.push(0);
         ethStakeHashUpdates.push(0);
-        bytes memory zero;
-        bytes32 zeroHash = keccak256(zero);
+        //bytes memory zero = "0x00000000000000000000000000000000";
+        //bytes32 zeroHash = keccak256(zero);
+        bytes32 zeroHash = keccak256(abi.encode(bytes32(0)));
         eigenStakeHashes[0] = zeroHash;
         ethStakeHashes[0] = zeroHash;
     }
@@ -181,7 +182,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
      *      and provide for it while regsitering itself with DataLayr.
      *
      *      The structure for @param data is given by:
-     *        <uint8> <uint256> <bytes[(2)]> <uint256> <bytes[(2)]> <uint8> <bytes[(6)]>    
+     *        <uint8> <uint256> <bytes[(2)]> <uint256> <bytes[(5)]> <uint8> <bytes[(6)]>    
      *        < (1) > <  (2)  > <    (3)   > <  (4)  > <    (5)   > < (6) > <   (7)    >
      *
      *      where,
@@ -221,11 +222,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             uint256 eigenStakesLength = data.toUint256(1);
             //increment socket length pointer
             addOperatorToEigenStakes(
-                data.slice(33, eigenStakesLength),
+                data.slice(socketLengthPointer, eigenStakesLength),
                 operator,
                 eigenAmount
             );
-            socketLengthPointer += 33 + eigenStakesLength;
+            socketLengthPointer += (32 + eigenStakesLength);
         } else if (registrantType == 2) {
             // if they want to be an "eth" validator, check that they meet the eth requirements
             uint128 ethAmount = weightOfOperatorEth(operator);
@@ -235,12 +236,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             //increment socket length pointer
             
             addOperatorToEthStakes(
-                // CRITIC: change from 32 to 33
-                data.slice(32, ethStakesLength),
+                data.slice(socketLengthPointer, ethStakesLength),
                 operator,
                 ethAmount
             );
-            socketLengthPointer +=  32 + ethStakesLength;
+            socketLengthPointer += (32 + ethStakesLength);
         } else if (registrantType == 3) {
             // if they want to be an "eigen and eth" validator, check that they meet the eigen and eth requirements
             eigenAmount = weightOfOperatorEigen(operator);
@@ -253,11 +253,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             uint256 stakesLength = data.toUint256(1);
             //increment socket length pointer
             addOperatorToEthStakes(
-                data.slice(32, stakesLength),
+                data.slice(socketLengthPointer, stakesLength),
                 operator,
                 ethAmount
             );
-            socketLengthPointer += 32 + stakesLength;
+            socketLengthPointer += (32 + stakesLength);
             //now do it for eigen stuff
             stakesLength = data.toUint256(socketLengthPointer);
             //increment socket length pointer
@@ -266,7 +266,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 eigenAmount
             );
-            socketLengthPointer += stakesLength + 32;
+            socketLengthPointer += (32 + stakesLength);
         } else {
             revert("Invalid registrant type");
         }
