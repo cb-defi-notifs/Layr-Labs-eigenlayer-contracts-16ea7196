@@ -48,7 +48,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     }
 
     /**
-     * @notice pack two uint128's into a storage slot
+     * @notice pack two uint48's into a storage slot
      */
     struct Uint48xUint48 {
         uint48 a;
@@ -698,8 +698,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         require(
             address(queryManager.feeManager()) == msg.sender,
             "Fee manager can only call this"
-        );
-        latestTime = _latestTime;
+        ); if (_latestTime > latestTime) {
+            latestTime = _latestTime;            
+        }
     }
 
     function getOperatorId(address operator) public view returns (uint32) {
