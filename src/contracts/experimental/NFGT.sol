@@ -22,7 +22,7 @@ contract Naive_NFGT is ERC1155 {
         _;
     }
 
-    constructor(string memory _uri, uint256 _TREE_DEPTH) ERC1155(_uri) {
+    constructor(string memory _uri, uint256 _TREE_DEPTH, uint256 _initSupply) ERC1155(_uri) {
         require(_TREE_DEPTH <= 256, "max tree depth is 256");
         require(_TREE_DEPTH >= 2, "min tree depth is 2");
         TREE_DEPTH = _TREE_DEPTH;
@@ -41,7 +41,9 @@ contract Naive_NFGT is ERC1155 {
                 ++i;
             }
         }
-        ORIGIN_ID = uint256(ZERO_HASHES[TREE_DEPTH - 1]);
+        uint256 originId = uint256(ZERO_HASHES[TREE_DEPTH - 1]);
+        ORIGIN_ID = originId;
+        _mint(msg.sender, originId, _initSupply, "");
     }
 
     function uint256ToBytes32(uint256 input) public pure returns (bytes32) {
