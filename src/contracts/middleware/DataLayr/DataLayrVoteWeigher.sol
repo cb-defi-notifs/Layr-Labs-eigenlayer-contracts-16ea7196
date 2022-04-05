@@ -176,14 +176,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return amount < dlnEthStake ? 0 : amount;
     }
 
-    // Registration and ETQ
-    // Data is structured as such:
-    // uint8 registrantType,
-    //      uint256 ethStakeLength, bytes ethStakes
-    //      or/and
-    //      uint256 eigenStakeLength, bytes eigenStakes,
-    //      uint8 socketLength, bytes[socketLength] socket
-
     /**
      * @notice Used for registering a new validator with DataLayr. 
      */
@@ -316,20 +308,28 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 operator,
                 ethAmount
             );
+
+            // increment the pointer
             socketLengthPointer += (32 + stakesLength);
-            //now do it for eigen stuff
+
+            // parse the length
             stakesLength = data.toUint256(socketLengthPointer);
-            //increment socket length pointer
+
+            // increment socket length pointer
             addOperatorToEigenStakes(
                 data.slice(socketLengthPointer + 32, stakesLength),
                 operator,
                 eigenAmount
             );
+
+            // increment the pointer
             socketLengthPointer += (32 + stakesLength);
         } else {
             revert("Invalid registrant type");
         }
-        //slice starting the byte after socket length
+
+        // slice starting the byte after socket length to construct the details on the 
+        // DataLayr node
         registry[operator] = Registrant({
             id: nextRegistrantId,
             index: uint64(queryManager.numRegistrants()),
@@ -338,6 +338,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 address(queryManager.feeManager())
             ).dumpNumber(),
             to: 0,
+
+            // extract the socket address 
             socket: string(
                 data.slice(
                     socketLengthPointer + 1,
@@ -346,24 +348,42 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             )
         });
 
+        // record the operator being registered
         registrantList.push(operator);
+
+        // update the counter for registrant ID
         nextRegistrantId++;
+
         return (registrantType, eigenAmount);
+
+        // CRITIC: there should be event here?
     }
 
+    /**
+     * @notice Used for notifying that operator wants to deregister from being 
+     *         a DataLayr node 
+     */
     function commitDeregistration() public returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
         );
+        
         // they must store till the latest time a dump expires
         registry[msg.sender].to = latestTime;
-        // but they will not sign off on any more dumps
+
+        // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
+
         emit DeregistrationCommit(msg.sender);
         return true;
     }
 
+
+    /**
+     * @notice 
+     */
+    // CRITIC: what is this calldata variable for?
     function deregisterOperator(address operator, bytes calldata)
         public
         view
@@ -377,12 +397,25 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         return true;
     }
 
+
+    /**
+     * @notice Used for appending the ETH stakes of an operator that has registered 
+     *         as a new DataLayr node 
+     */
+    /**
+     * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
+     *        their ETH deposits. This is in abi-encoded form of the list of 
+     *        the form: 
+     *          (dln1's addr, dln1's ETH deposit), (dln2's addr, dln2's ETH deposit), ...
+     * @param operator is the address who is registering  as a new DataLayr node.
+     * @param newEth is the amount of ETH that the operator has deposited in EigenLAyr. 
+     */
     function addOperatorToEthStakes(
         bytes memory stakes,
         address operator,
         uint128 newEth
     ) internal {
-        //stakes must be preimage of last update's hash
+        // stakes must be preimage of last update's hash
         require(
             keccak256(stakes) ==
                 ethStakeHashes[
@@ -390,18 +423,28 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 ],
             "Stakes are incorrect"
         );
-        //get dump number from dlsm
+
+        // get current dump number from DataLayrServiceManagerStorage.sol
         uint48 currDumpNumber = IDataLayrServiceManager(
             address(queryManager.feeManager())
         ).dumpNumber();
+
         ethStakeHashUpdates.push(currDumpNumber);
-        //add them to beginning of stakes
+
+        // store the updated meta-data in the mapping with the key being the current dump number
+        /** 
+         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
+         *      Also, need to update the total ETH deposited by all DataLayr nodes.
+         */
         ethStakeHashes[currDumpNumber] = keccak256(
             abi.encodePacked(
+                // append at the front
                 operator,
                 newEth,
                 stakes.slice(0, stakes.length - 32).concat(
                     abi.encodePacked(
+                        // update the total ETH deposited
                         stakes.toUint256(stakes.length - 32) + newEth
                     )
                 )
@@ -416,6 +459,19 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         );
     }
 
+
+    /**
+     * @notice Used for appending the Eigen stakes of an operator that has registered 
+     *         as a new DataLayr node 
+     */
+    /**
+     * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
+     *        their Eigen deposits. This is in abi-encoded form of the list of 
+     *        the form 
+     *          (dln1's addr, dln1's Eigen deposit), (dln2's addr, dln2's Eigen deposit), ...
+     * @param operator is the address who is registering  as a new DataLayr node.
+     * @param newEth is the amount of Eigen that the operator has deposited in EigenLAyr. 
+     */
     function addOperatorToEigenStakes(
         bytes memory stakes,
         address operator,
@@ -429,12 +485,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 ],
             "Stakes are incorrect"
         );
-        //get dump number from dlsm
+
+        // get current dump number from DataLayrServiceManagerStorage.sol
         uint48 currDumpNumber = IDataLayrServiceManager(
             address(queryManager.feeManager())
         ).dumpNumber();
+
         eigenStakeHashUpdates.push(currDumpNumber);
-        //add them to beginning of stakes
+        
+        // store the updated meta-data in the mapping with the key being the current dump number
+        /** 
+         * @dev append the tuple (operator's address, operator's Eigen deposit in EigenLayr)
+         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
+         *      Also, need to update the total Eigen deposited by all DataLayr nodes.
+         */
         eigenStakeHashes[currDumpNumber] = keccak256(
             abi.encodePacked(
                 operator,
@@ -455,8 +519,21 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         );
     }
 
-    //stakes must be of the form
-    //address,uint128,address,uint128...uint256
+
+
+    /**
+     * @notice Used for updating information on ETH deposits of DataLayr nodes. 
+     */
+    /**
+     * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
+     *        their ETH deposits. This param is in abi-encoded form of the list of 
+     *        the form 
+     *          (dln1's addr, dln1's ETH deposit), (dln2's addr, dln2's ETH deposit), ...
+     * @param operators are the DataLayr nodes whose information on their ETH deposits
+     *        getting updated
+     * @param indexes are the tuple positions whose corresponding ETH deposit is 
+     *        getting updated  
+     */ 
     function updateEthStakes(
         bytes memory stakes,
         address[] memory operators,
@@ -470,37 +547,50 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
                 ],
             "Stakes are incorrect"
         );
+
         require(
             indexes.length == operators.length,
             "operator len and index len don't match"
         );
-        //get dump number from dlsm
+
+        // get dump number from DataLayrServiceManagerStorage.sol
         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
             IDataLayrServiceManager(address(queryManager.feeManager()))
                 .dumpNumber(),
             ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
         );
+
+        // iterating over all the tuples that is to be updated
         for (uint i = 0; i < operators.length; ) {
-            //36 bytes per person: 20 for address, 16 for stake
+
+            // placing the pointer at the starting byte of the tuple 
+            /// @dev 36 bytes per DataLayr node: 20 bytes for address, 16 bytes for its ETH deposit
             uint256 start = uint256(indexes[i] * 36);
+
             require(start < stakes.length - 68, "Cannot point to total bytes");
+
             require(
                 stakes.toAddress(start) == operators[i],
                 "index is incorrect"
             );
-            //find current stake and new stake
+
+            // determine current stake and new stake
             Uint128xUint128 memory currentAndNewEth = Uint128xUint128({
                 a: stakes.toUint128(start + 20),
                 b: weightOfOperatorEth(operators[i])
             });
-            //replace stake with new eth stake
+
+            // replacing ETH deposit of the operator with updated ETH deposit
             stakes = stakes
+            // slice until the address bytes of the DataLayr node
             .slice(0, start + 20)
+            // concatenate the updated ETH deposit
             .concat(abi.encodePacked(currentAndNewEth.b))
-            //from where left off to right before the last 32 bytes
-            //68 = 36 + 32. we want to end slice just prior to last 32 bytes
+            // concatenate the bytes pertaining to the tuples from rest of the DataLayr 
+            // nodes except the last 32 bytes that comprises of total ETH deposits
             .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
-            //subtract old eth and add new eth
+            // concatenate the updated ETH deposit in the last 32 bytes,
+            // subtract old ETH deposit and add the updated ETH deposit
                 .concat(
                     abi.encodePacked(
                         stakes.toUint256(stakes.length - 32) +
@@ -519,6 +609,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             }
         }
         ethStakeHashUpdates.push(dumpNumbers.a);
+
+        // record the commitment
         ethStakeHashes[dumpNumbers.a] = keccak256(stakes);
     }
 
