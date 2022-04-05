@@ -222,8 +222,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
     function testSelfOperatorRegister() public {
         //first byte of data is operator type
-        //see 'registerOperator' function in 'DataLayrVoteWeigher'
-        //TODO: format this data
 
         testWethDeposit(1e18);
         testDepositEigen();
@@ -237,9 +235,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         uint256 eigenStakesLength = 32;
         uint8 socketLength = 1;
         bytes memory socket = bytes("ff");
-        bytes memory data = abi.encodePacked(registrantType, abi.encode(ethStakesLength, spacer), abi.encode(eigenStakesLength, spacer), socketLength, socket);
-        // bytes memory data = abi.encodePacked(registrantType,spacer,spacer,ethStakesLength,eigenStakesLength,
-        //     spacer, spacer, spacer, spacer, spacer, spacer);
+        bytes memory data = abi.encodePacked(registrantType, ethStakesLength, spacer, eigenStakesLength, spacer, socketLength, socket);
         dlqm.register(data);
     }
 }
