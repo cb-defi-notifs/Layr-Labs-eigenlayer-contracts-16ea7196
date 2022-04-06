@@ -159,7 +159,13 @@ abstract contract DataLayrSignatureChecker is
             assembly {
                 mstore(sigWInfo, calldataload(add(pointer, 100)))
                 mstore(add(sigWInfo, 32), calldataload(add(pointer, 132)))
-                mstore(add(sigWInfo, 84), and(calldataload(add(pointer, 164)), 0xF000000000000000000000000000000000000000000000000000000000000000))
+                mstore(
+                    add(sigWInfo, 84),
+                    and(
+                        calldataload(add(pointer, 164)),
+                        0xF000000000000000000000000000000000000000000000000000000000000000
+                    )
+                )
             }
             sigWInfo.signatory = ecrecover(
                 signedHash,
@@ -183,9 +189,9 @@ abstract contract DataLayrSignatureChecker is
             //store signer info in memory variables
             previousSigner = uint160(sigWInfo.signatory);
             signers[i] = sigWInfo.signatory;
-
             if (sigWInfo.stakerType % 2 == 0) {
                 assembly {
+                    // store 36 * index at random key
                     if iszero(
                         eq(
                             and(
@@ -216,11 +222,38 @@ abstract contract DataLayrSignatureChecker is
                     ) {
                         revert(0, 0)
                     }
+                    mstore(
+                        signedTotals,
+                        add(
+                            mload(signedTotals),
+                            shr(
+                                128,
+                                calldataload(
+                                    add(
+                                        mload(smd),
+                                        add(
+                                            mul(
+                                                shr(
+                                                    224,
+                                                    calldataload(
+                                                        add(100, pointer)
+                                                    )
+                                                ),
+                                                36
+                                            ),
+                                            20
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
                 }
+
                 pointer += 4;
             }
             if (sigWInfo.stakerType % 3 == 0) {
-                //then they are an eigen staker
+                // store 36 * index at random key
                 assembly {
                     if iszero(
                         eq(
@@ -252,6 +285,32 @@ abstract contract DataLayrSignatureChecker is
                     ) {
                         revert(0, 0)
                     }
+                    mstore(
+                        add(signedTotals, 32),
+                        add(
+                            mload(add(signedTotals, 32)),
+                            shr(
+                                128,
+                                calldataload(
+                                    add(
+                                        mload(add(smd, 32)),
+                                        add(
+                                            mul(
+                                                shr(
+                                                    224,
+                                                    calldataload(
+                                                        add(100, pointer)
+                                                    )
+                                                ),
+                                                36
+                                            ),
+                                            20
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
                 }
                 pointer += 4;
             }
@@ -260,7 +319,7 @@ abstract contract DataLayrSignatureChecker is
             unchecked {
                 ++i;
             }
-            emit log_named_uint("4", gasleft());
+            emit log_named_uint("1", gasleft());
         }
 
         //set compressedSignatoryRecord variable
@@ -277,6 +336,7 @@ abstract contract DataLayrSignatureChecker is
         signedTotals.totalEigenStake = smd.eigenStakes.toUint256(
             smd.eigenStakesLength - 33
         );
+
         //return dumpNumber, ferkle root, eth and eigen that signed and a hash of the signatories
         return (
             dumpNumberToConfirm,
@@ -289,42 +349,39 @@ abstract contract DataLayrSignatureChecker is
     // function getAddressIsh(
     //     SignatureWithInfo memory sigWInfo,
     //     StakesMetaData memory smd,
+    //     SignatoryTotals memory signedTotals,
     //     uint256 pointer
     // ) internal {
     //     bytes32 sig;
     //     bytes32 osig;
     //     assembly {
-    //         if iszero(
-    //             eq(
-    //                 and(
-    //                     mload(add(sigWInfo, 64)),
-    //                     0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    //                 ),
-    //                 and(
-    //                     shr(
-    //                         96,
-    //                         calldataload(
-    //                             add(
-    //                                 mload(smd),
-    //                                 mul(
-    //                                     shr(
-    //                                         224,
-    //                                         calldataload(add(100, pointer))
-    //                                     ),
-    //                                     36
-    //                                 )
-    //                             )
-    //                         )
-    //                     ),
-    //                     0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    //                 )
+    //         sig := mload(
+    //             add(
+    //                 mload(smd),
+    //                 mul(shr(96, calldataload(add(100, pointer))), 36)
     //             )
-    //         ) {
-    //             revert(0, 0)
-    //         }
+    //         )
+
+    //         // add(
+    //         //     mload(signedTotals),
+    //         //     shr(
+    //         //         128,
+    //         //         mload(
+    //         //             add(
+    //         //                 mload(smd),
+    //         //                 add(
+    //         //                     mul(
+    //         //                         shr(224, calldataload(add(100, pointer))),
+    //         //                         36
+    //         //                     ),
+    //         //                     20
+    //         //                 )
+    //         //             )
+    //         //         )
+    //         //     )
+    //         // )
     //     }
-    //     // emit log_bytes(msg.data);
-    //     // emit log_bytes32(sig);
+
     //     // emit log_bytes32(osig);
     // }
 }
