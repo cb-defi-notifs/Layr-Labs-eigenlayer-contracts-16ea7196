@@ -377,8 +377,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             uint32(0),
             uint32(0)
         );
+        emit log_named_uint("3", gasleft());
+
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-        
+        emit log_named_uint("3", gasleft());
     }
 
     function testDepositEigen() public {
@@ -401,8 +403,14 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     function testSelfOperatorDelegate() public {
         cheats.prank(registrant);
         delegation.delegateToSelf();
-        assertTrue(delegation.delegation(address(this)) == address(this), "self delegation not properly recorded");
-        assertTrue(delegation.delegated(address(this)), "delegation not credited?");
+        assertTrue(
+            delegation.delegation(registrant) == registrant,
+            "self delegation not properly recorded"
+        );
+        assertTrue(
+            delegation.delegated(registrant),
+            "delegation not credited?"
+        );
     }
 
     function testSelfOperatorRegister()
@@ -435,9 +443,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         uint48 dumpNumber = dlRegVW.ethStakeHashUpdates(1);
 
-        uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(
-            registrant
-        );
+        uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(registrant);
         bytes memory ethStakes = abi.encodePacked(
             registrant,
             weightOfOperatorEth,

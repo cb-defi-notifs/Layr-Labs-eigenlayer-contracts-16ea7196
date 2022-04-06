@@ -24,13 +24,13 @@ abstract contract DataLayrSignatureChecker is
     struct SignatureWithInfo {
         bytes32 r;
         bytes32 vs;
-        uint8 stakerType;
-        uint32 ethStakesIndexOfSignatory;
-        uint32 eigenStakesIndexOfSignatory;
         address signatory;
+        uint8 stakerType;
     }
 
     struct StakesMetaData {
+        uint256 ethStakesPointer;
+        uint256 eigenStakesPointer;
         //index of ethStakeHashUpdate
         uint256 ethStakesIndex;
         //index of eigenStakeHashUpdate
@@ -119,6 +119,7 @@ abstract contract DataLayrSignatureChecker is
         //initialize at value that will be used in next calldataload (just after all the already loaded data)
         //load and verify integrity of eigen and eth stake hashes
         smd.ethStakes = data.slice(pointer, smd.ethStakesLength);
+        smd.ethStakesPointer = pointer + 100;
         pointer += smd.ethStakesLength;
         require(
             keccak256(smd.ethStakes) ==
@@ -129,6 +130,7 @@ abstract contract DataLayrSignatureChecker is
             "Eth stakes are incorrect"
         );
         smd.eigenStakes = data.slice(pointer, smd.eigenStakesLength);
+        smd.eigenStakesPointer = pointer + 100;
         pointer += smd.eigenStakesLength;
         require(
             keccak256(smd.eigenStakes) ==
@@ -150,17 +152,26 @@ abstract contract DataLayrSignatureChecker is
 
         //loop for each signatures ends once all signatures have been processed
         uint256 i;
+        emit log_named_uint("1", gasleft());
         while (i < numberOfSigners) {
             //use library here because idk how to store struc in assembly
             //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
-            sigWInfo.r = data.toBytes32(pointer);
-            sigWInfo.vs = data.toBytes32(pointer + 32);
-            sigWInfo.stakerType = data.toUint8(pointer + 64);
-            sigWInfo.signatory = ECDSA.recover(
+            assembly {
+                mstore(sigWInfo, calldataload(add(pointer, 100)))
+                mstore(add(sigWInfo, 32), calldataload(add(pointer, 132)))
+                mstore(add(sigWInfo, 84), and(calldataload(add(pointer, 164)), 0xF000000000000000000000000000000000000000000000000000000000000000))
+            }
+            sigWInfo.signatory = ecrecover(
                 signedHash,
+                27 + uint8(uint256(sigWInfo.vs >> 255)),
                 sigWInfo.r,
-                sigWInfo.vs
+                bytes32(uint(sigWInfo.vs) & (~uint(0) >> 1))
             );
+            // ECDSA.recover(
+            //     signedHash,
+            //     sigWInfo.r,
+            //     sigWInfo.vs
+            // );
             //increase calldataPointer to account for length of signature and staker markers
             pointer += 64;
 
@@ -174,40 +185,82 @@ abstract contract DataLayrSignatureChecker is
             signers[i] = sigWInfo.signatory;
 
             if (sigWInfo.stakerType % 2 == 0) {
-                //then they are an eth staker
-                sigWInfo.ethStakesIndexOfSignatory = data.toUint32(pointer);
-                require(
-                    smd.ethStakes.toAddress(
-                        sigWInfo.ethStakesIndexOfSignatory * 36
-                    ) == sigWInfo.signatory,
-                    "Eth stakes signatory index incorrect"
-                );
+                assembly {
+                    if iszero(
+                        eq(
+                            and(
+                                mload(add(sigWInfo, 64)),
+                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            ),
+                            and(
+                                shr(
+                                    96,
+                                    calldataload(
+                                        add(
+                                            mload(smd),
+                                            mul(
+                                                shr(
+                                                    224,
+                                                    calldataload(
+                                                        add(100, pointer)
+                                                    )
+                                                ),
+                                                36
+                                            )
+                                        )
+                                    )
+                                ),
+                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            )
+                        )
+                    ) {
+                        revert(0, 0)
+                    }
+                }
                 pointer += 4;
-                //increment totals
-                signedTotals.ethStakeSigned += smd.ethStakes.toUint128(
-                    sigWInfo.ethStakesIndexOfSignatory * 36 + 20
-                );
             }
             if (sigWInfo.stakerType % 3 == 0) {
                 //then they are an eigen staker
-                sigWInfo.eigenStakesIndexOfSignatory = data.toUint32(pointer);
-                require(
-                    smd.eigenStakes.toAddress(
-                        sigWInfo.eigenStakesIndexOfSignatory * 36
-                    ) == sigWInfo.signatory,
-                    "Eth stakes signatory index incorrect"
-                );
+                assembly {
+                    if iszero(
+                        eq(
+                            and(
+                                mload(add(sigWInfo, 64)),
+                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            ),
+                            and(
+                                shr(
+                                    96,
+                                    calldataload(
+                                        add(
+                                            mload(add(smd, 32)),
+                                            mul(
+                                                shr(
+                                                    224,
+                                                    calldataload(
+                                                        add(100, pointer)
+                                                    )
+                                                ),
+                                                36
+                                            )
+                                        )
+                                    )
+                                ),
+                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            )
+                        )
+                    ) {
+                        revert(0, 0)
+                    }
+                }
                 pointer += 4;
-                //increment totals
-                signedTotals.eigenStakeSigned += smd.eigenStakes.toUint128(
-                    sigWInfo.eigenStakesIndexOfSignatory * 36 + 20
-                );
             }
 
             //increment counter at end of loop
             unchecked {
                 ++i;
             }
+            emit log_named_uint("4", gasleft());
         }
 
         //set compressedSignatoryRecord variable
@@ -232,4 +285,46 @@ abstract contract DataLayrSignatureChecker is
             compressedSignatoryRecord
         );
     }
+
+    // function getAddressIsh(
+    //     SignatureWithInfo memory sigWInfo,
+    //     StakesMetaData memory smd,
+    //     uint256 pointer
+    // ) internal {
+    //     bytes32 sig;
+    //     bytes32 osig;
+    //     assembly {
+    //         if iszero(
+    //             eq(
+    //                 and(
+    //                     mload(add(sigWInfo, 64)),
+    //                     0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    //                 ),
+    //                 and(
+    //                     shr(
+    //                         96,
+    //                         calldataload(
+    //                             add(
+    //                                 mload(smd),
+    //                                 mul(
+    //                                     shr(
+    //                                         224,
+    //                                         calldataload(add(100, pointer))
+    //                                     ),
+    //                                     36
+    //                                 )
+    //                             )
+    //                         )
+    //                     ),
+    //                     0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    //                 )
+    //             )
+    //         ) {
+    //             revert(0, 0)
+    //         }
+    //     }
+    //     // emit log_bytes(msg.data);
+    //     // emit log_bytes32(sig);
+    //     // emit log_bytes32(osig);
+    // }
 }
