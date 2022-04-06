@@ -106,6 +106,7 @@ abstract contract DataLayrSignatureChecker is
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
+        //add together length of already read data
         uint256 pointer = 6 + 32 + 4;
         //subtract 88 because library takes offset into account
         //TODO: Optimize mstores
@@ -115,12 +116,16 @@ abstract contract DataLayrSignatureChecker is
         smd.eigenStakesLength = data.toUint256(pointer + 96);
 
         //just read 4* 32 bytes
-        pointer += 128;
+        unchecked {
+            pointer += 128;            
+        }
         //initialize at value that will be used in next calldataload (just after all the already loaded data)
         //load and verify integrity of eigen and eth stake hashes
         smd.ethStakes = data.slice(pointer, smd.ethStakesLength);
         smd.ethStakesPointer = pointer + 100;
-        pointer += smd.ethStakesLength;
+        unchecked {
+            pointer += smd.ethStakesLength;            
+        }
         require(
             keccak256(smd.ethStakes) ==
                 dlRegVW.getEthStakesHashUpdateAndCheckIndex(
@@ -131,7 +136,9 @@ abstract contract DataLayrSignatureChecker is
         );
         smd.eigenStakes = data.slice(pointer, smd.eigenStakesLength);
         smd.eigenStakesPointer = pointer + 100;
-        pointer += smd.eigenStakesLength;
+        unchecked {
+            pointer += smd.eigenStakesLength;            
+        }
         require(
             keccak256(smd.eigenStakes) ==
                 dlRegVW.getEigenStakesHashUpdateAndCheckIndex(
@@ -152,24 +159,33 @@ abstract contract DataLayrSignatureChecker is
 
         //loop for each signatures ends once all signatures have been processed
         uint256 i;
+            //emit log_uint(gasleft());
+
         while (i < numberOfSigners) {
             //use library here because idk how to store struc in assembly
             //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
             assembly {
+                //load r
                 mstore(sigWInfo, calldataload(add(pointer, 100)))
+                //load vs
                 mstore(add(sigWInfo, 32), calldataload(add(pointer, 132)))
+                //load registrantType (single byte)
                 mstore(
+                    //84 = 64 + 20 (20 bytes for signatory)
                     add(sigWInfo, 84),
                     and(
                         calldataload(add(pointer, 164)),
-                        0xF000000000000000000000000000000000000000000000000000000000000000
+                        //single byte mask (throw out the last 31 bytes)
+                        0xFF00000000000000000000000000000000000000000000000000000000000000
                     )
                 )
             }
             sigWInfo.signatory = ecrecover(
                 signedHash,
+                //recover v (parity)
                 27 + uint8(uint256(sigWInfo.vs >> 255)),
                 sigWInfo.r,
+                //recover s
                 bytes32(uint(sigWInfo.vs) & (~uint(0) >> 1))
             );
             // ECDSA.recover(
@@ -178,7 +194,9 @@ abstract contract DataLayrSignatureChecker is
             //     sigWInfo.vs
             // );
             //increase calldataPointer to account for length of signature and staker markers
-            pointer += 64;
+            unchecked {
+                pointer += 64;                    
+            }
 
             //verify monotonic increase of address value
             require(
@@ -193,44 +211,53 @@ abstract contract DataLayrSignatureChecker is
                     // store 36 * index at random key
                     if iszero(
                         eq(
+                            //gets signatory address
                             and(
+                                //signatory location in sigWInfo
                                 mload(add(sigWInfo, 64)),
+                                //20 byte mask
                                 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
                             ),
-                            and(
-                                shr(
-                                    96,
-                                    calldataload(
-                                        add(
-                                            mload(smd),
-                                            mul(
-                                                shr(
-                                                    224,
-                                                    calldataload(
-                                                        add(100, pointer)
-                                                    )
-                                                ),
-                                                36
-                                            )
+                            //pulls address from ethStakes
+                            shr(
+                                96,
+                                calldataload(
+                                    add(
+                                        //get pointer in calldata to start of ethStakes object
+                                        mload(smd),
+                                        //get byte location of signatory in ethStakes object
+                                        mul(
+                                            //gets ethStakesIndex (of signatory)
+                                            shr(
+                                                224,
+                                                calldataload(
+                                                    add(100, pointer)
+                                                )
+                                            ),
+                                            //length of a single 'stake' in ethStakes object
+                                            36
                                         )
                                     )
-                                ),
-                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                                )
                             )
                         )
                     ) {
                         revert(0, 0)
                     }
+                    //update ethStakeSigned (total)
                     mstore(
                         signedTotals,
                         add(
                             mload(signedTotals),
+                            //stake amount is 16 bytes, so right-shift by 128 bits
                             shr(
                                 128,
                                 calldataload(
                                     add(
                                         mload(smd),
+                                        //adding 20 to previous (signatory) index gets us index of stakeAmount for signatory
                                         add(
+                                            //same index as before (signatory)
                                             mul(
                                                 shr(
                                                     224,
@@ -249,8 +276,11 @@ abstract contract DataLayrSignatureChecker is
                     )
                 }
 
-                pointer += 4;
+                unchecked {
+                    pointer += 4;                    
+                }
             }
+
             if (sigWInfo.stakerType % 3 == 0) {
                 // store 36 * index at random key
                 assembly {
@@ -260,25 +290,22 @@ abstract contract DataLayrSignatureChecker is
                                 mload(add(sigWInfo, 64)),
                                 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
                             ),
-                            and(
-                                shr(
-                                    96,
-                                    calldataload(
-                                        add(
-                                            mload(add(smd, 32)),
-                                            mul(
-                                                shr(
-                                                    224,
-                                                    calldataload(
-                                                        add(100, pointer)
-                                                    )
-                                                ),
-                                                36
-                                            )
+                            shr(
+                                96,
+                                calldataload(
+                                    add(
+                                        mload(add(smd, 32)),
+                                        mul(
+                                            shr(
+                                                224,
+                                                calldataload(
+                                                    add(100, pointer)
+                                                )
+                                            ),
+                                            36
                                         )
                                     )
-                                ),
-                                0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                                )
                             )
                         )
                     ) {
@@ -311,7 +338,9 @@ abstract contract DataLayrSignatureChecker is
                         )
                     )
                 }
-                pointer += 4;
+                unchecked {
+                    pointer += 4;                    
+                }
             }
 
             //increment counter at end of loop
@@ -319,6 +348,7 @@ abstract contract DataLayrSignatureChecker is
                 ++i;
             }
         }
+            //emit log_uint(gasleft());
 
         //set compressedSignatoryRecord variable
         compressedSignatoryRecord = keccak256(
