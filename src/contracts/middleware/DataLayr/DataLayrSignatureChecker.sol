@@ -152,7 +152,6 @@ abstract contract DataLayrSignatureChecker is
 
         //loop for each signatures ends once all signatures have been processed
         uint256 i;
-        emit log_named_uint("1", gasleft());
         while (i < numberOfSigners) {
             //use library here because idk how to store struc in assembly
             //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
@@ -319,7 +318,6 @@ abstract contract DataLayrSignatureChecker is
             unchecked {
                 ++i;
             }
-            emit log_named_uint("1", gasleft());
         }
 
         //set compressedSignatoryRecord variable

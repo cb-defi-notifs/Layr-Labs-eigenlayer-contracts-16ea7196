@@ -183,14 +183,14 @@ contract DataLayrServiceManager is
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
-        // dataLayr.confirm(
-        //     dumpNumberToConfirm,
-        //     headerHash,
-        //     signedTotals.ethStakeSigned,
-        //     signedTotals.eigenStakeSigned,
-        //     signedTotals.totalEthStake,
-        //     signedTotals.totalEigenStake
-        // );
+        dataLayr.confirm(
+            dumpNumberToConfirm,
+            headerHash,
+            signedTotals.ethStakeSigned,
+            signedTotals.eigenStakeSigned,
+            signedTotals.totalEthStake,
+            signedTotals.totalEigenStake
+        );
     }
 
 
