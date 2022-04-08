@@ -106,6 +106,9 @@ abstract contract DataLayrSignatureChecker is
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
+        //emit log_named_uint("dumpNumberToConfirm", dumpNumberToConfirm);
+        //emit log_named_uint("data.length", data.length);
+
         //add together length of already read data
         uint256 pointer = 6 + 32 + 4;
         //subtract 88 because library takes offset into account
@@ -114,6 +117,9 @@ abstract contract DataLayrSignatureChecker is
         smd.eigenStakesIndex = data.toUint256(pointer + 32);
         smd.ethStakesLength = data.toUint256(pointer + 64);
         smd.eigenStakesLength = data.toUint256(pointer + 96);
+
+        //emit log_named_uint("smd.ethStakesIndex", smd.ethStakesIndex);
+        //emit log_named_uint("smd.eigenStakesIndex", smd.eigenStakesIndex);
 
         //just read 4* 32 bytes
         unchecked {
@@ -171,7 +177,7 @@ abstract contract DataLayrSignatureChecker is
                 mstore(add(sigWInfo, 32), calldataload(add(pointer, 132)))
                 //load registrantType (single byte)
                 mstore(
-                    //84 = 64 + 20 (20 bytes for signatory)
+                    //84 = 64 + 20 (64 bytes for signature, 20 bytes for signatory)
                     add(sigWInfo, 84),
                     and(
                         calldataload(add(pointer, 164)),
@@ -210,6 +216,7 @@ abstract contract DataLayrSignatureChecker is
                 assembly {
                     // store 36 * index at random key
                     if iszero(
+                        //check signatory address against address stored at specified index in ethStakes
                         eq(
                             //gets signatory address
                             and(
@@ -275,7 +282,7 @@ abstract contract DataLayrSignatureChecker is
                         )
                     )
                 }
-
+                //add 4 bytes for length of uint32 used to specify index in ethStakes object
                 unchecked {
                     pointer += 4;                    
                 }
@@ -338,6 +345,7 @@ abstract contract DataLayrSignatureChecker is
                         )
                     )
                 }
+                //add 4 bytes for length of uint32 used to specify index in eigenStakes object
                 unchecked {
                     pointer += 4;                    
                 }
@@ -358,6 +366,10 @@ abstract contract DataLayrSignatureChecker is
                 abi.encodePacked(signers)
             )
         );
+
+        //emit log_named_uint("signedTotals.totalEthStake", signedTotals.totalEthStake);
+        //emit log_named_uint("smd.ethStakesLength", smd.ethStakesLength);
+
         signedTotals.totalEthStake = smd.ethStakes.toUint256(
             smd.ethStakesLength - 33
         );

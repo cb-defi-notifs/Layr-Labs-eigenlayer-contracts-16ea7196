@@ -516,7 +516,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             operator,
             newEigen,
             currDumpNumber,
-            ethStakeHashUpdates[ethStakeHashUpdates.length - 1]
+            eigenStakeHashUpdates[eigenStakeHashUpdates.length - 1]
         );
     }
 
@@ -736,7 +736,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         if (index != ethStakeHashUpdates.length - 1) {
             require(
                 ethStakeHashUpdates[index + 1] > dumpNumber,
-                "DumpNumber at index is not less than or equal dumpNumber"
+                "!(ethStakeHashUpdates[index + 1] > dumpNumber)"
             );
         }
         return ethStakeHashes[dumpNumberAtIndex];
@@ -754,7 +754,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         if (index != eigenStakeHashUpdates.length - 1) {
             require(
                 eigenStakeHashUpdates[index + 1] > dumpNumber,
-                "DumpNumber at index is not less than or equal dumpNumber"
+                "!(eigenStakeHashUpdates[index + 1] > dumpNumber)"
             );
         }
         return eigenStakeHashes[dumpNumberAtIndex];
