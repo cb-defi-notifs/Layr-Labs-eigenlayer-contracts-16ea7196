@@ -21,7 +21,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
-
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;
@@ -30,6 +29,42 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint48 public dumpNumber;
+    
+    uint256 public constant disclosureFraudProofInterval = 7 days;
+    uint256 disclosurePaymentPerByte;
+    mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
+    bytes32 public powersOfTauMerkleRoot;
+    uint48 public numPowersOfTau; // num of leaves in the root tree
+    uint48 public log2NumPowersOfTau; // num of leaves in the root tree
+    struct DisclosureChallenge {
+        uint32 commitTime;
+        address challenger; // dumpNumber payment being claimed from
+        address challenge;//address of challenge contract if there is one
+        uint48 degree;
+        uint8 status; // 1: challenged, 2: responded (in fraud proof period), 3: challenged commitment, 4: operator incorrect
+        uint256 x; //commitment coordinates
+        uint256 y;
+        bytes32 polyHash;
+    }
+
+    struct MultiReveal {
+        uint256 i_x;
+        uint256 i_y;
+        uint256 c_minus_i_x;
+        uint256 c_minus_i_y;
+        uint256 pi_x;
+        uint256 pi_y;
+        uint256 pairing_x;
+        uint256 pairing_y;
+    }
+
+    struct Commitment {
+        uint256 x;
+        uint256 y;
+    }
+    //TODO: store these upon construction
+    // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
+    mapping (uint256 => Commitment) zeroPolynomialCommitments;
 
     /**
      * @notice mapping between the dumpNumber for a particular assertion of data into

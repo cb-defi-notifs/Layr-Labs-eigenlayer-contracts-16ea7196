@@ -15,4 +15,14 @@ interface IDataLayrServiceManager {
     function paymentFraudProofCollateral() external returns (uint256);
 
     function getPaymentCollateral(address) external returns (uint256);
+
+    function resolveDisclosureChallenge(bytes32, address, bool) external;
+
+    function disclosureFraudProofInterval() external returns (uint256);
+
+    function powersOfTauMerkleRoot() external returns(bytes32);
+    function numPowersOfTau() external returns(uint48);
+    function log2NumPowersOfTau() external returns(uint48);
+    
+    function getPolyHash(address, bytes32) external returns(bytes32);
 }

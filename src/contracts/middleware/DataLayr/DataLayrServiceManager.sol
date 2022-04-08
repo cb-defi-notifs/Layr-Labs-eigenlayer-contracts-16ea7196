@@ -8,42 +8,48 @@ import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "./DataLayrPaymentChallenge.sol";
+import "./DataLayrDisclosureChallenge.sol";
 import "./DataLayrSignatureChecker.sol";
+import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
 
-
 /**
- * @notice 
+ * @notice
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
     IProofOfStakingOracle
 {
+    using BytesLib for bytes;
     /**
-     * @dev The EigenLayr delegation contract for this DataLayr which primarily used by 
-     *      delegators to delegate their stake to operators who would serve as DataLayr 
-     *      nodes and so on. For more details, see EigenLayrDelegation.sol.  
-     */   
+     * @dev The EigenLayr delegation contract for this DataLayr which primarily used by
+     *      delegators to delegate their stake to operators who would serve as DataLayr
+     *      nodes and so on. For more details, see EigenLayrDelegation.sol.
+     */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes. 
+     *         DataLayr nodes.
      */
     IERC20 public immutable paymentToken;
 
-
-
     IERC20 public immutable collateralToken;
-
 
     // EVENTS
     /**
-     * @notice used for notifying that disperser has initiated a data assertion into the 
-     *         DataLayr and is waiting for getting a quorum of DataLayr nodes to sign on it. 
+     * @notice used for notifying that disperser has initiated a data assertion into the
+     *         DataLayr and is waiting for getting a quorum of DataLayr nodes to sign on it.
      */
 
-    event PaymentCommit(address operator, uint48 fromDumpNumber, uint48 toDumpNumber, uint256 fee);
+    event DisclosureChallengeInit(bytes32 headerHash, address operator);
+
+    event PaymentCommit(
+        address operator,
+        uint48 fromDumpNumber,
+        uint48 toDumpNumber,
+        uint256 fee
+    );
 
     event PaymentChallengeInit(address operator, address challenger);
 
@@ -78,23 +84,20 @@ contract DataLayrServiceManager is
         );
         queryManager = _queryManager;
 
-
-        dlRegVW = IDataLayrVoteWeigher(
-            address(queryManager.voteWeighter())
-        );
+        dlRegVW = IDataLayrVoteWeigher(address(queryManager.voteWeighter()));
     }
 
     /**
-     * @notice This function is used for 
-     *          - notifying in the settlement layer that the disperser has asserted the data 
+     * @notice This function is used for
+     *          - notifying in the settlement layer that the disperser has asserted the data
      *            into DataLayr and is waiting for obtaining quorum of DataLayr nodes to sign,
      *          - asserting the metadata corresponding to the data asserted into DataLayr
-     *          - escrow the service fees that DataLayr nodes will receive from the disperser 
-     *            on account of their service.  
+     *          - escrow the service fees that DataLayr nodes will receive from the disperser
+     *            on account of their service.
      */
     /**
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
+     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes,
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
@@ -116,7 +119,7 @@ contract DataLayrServiceManager is
 
         require(storePeriodLength < 604800, "store for less than 7 days");
 
-        // evaluate the total service fees that disperser has to put in escrow for paying out 
+        // evaluate the total service fees that disperser has to put in escrow for paying out
         // the DataLayr nodes for their service
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
 
@@ -126,11 +129,10 @@ contract DataLayrServiceManager is
         // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
 
-        // recording the expiry time until which the DataLayr nodes, who sign up to 
+        // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
-
 
         // escrow the total service fees from the disperser to the DataLayr nodes in this contract
         // CRITIC: change "storer" to "disperser"?
@@ -145,19 +147,21 @@ contract DataLayrServiceManager is
         );
     }
 
-
     /**
-     * @notice This function is used for 
+     * @notice This function is used for
      *          - disperser to notify that signatures on the message, comprising of hash( headerHash ),
      *            from quorum of DataLayr nodes have been obtained,
      *          - check that each of the signatures are valid,
-     *          - call the DataLayr contract to check that whether quorum has been achieved or not.     
+     *          - call the DataLayr contract to check that whether quorum has been achieved or not.
      */
     /**
      * @param data TBA.
-     */ 
+     */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(address storer, bytes calldata data) external payable {
+    function confirmDataStore(address storer, bytes calldata data)
+        external
+        payable
+    {
         require(
             msg.sender == address(queryManager),
             "Only the query manager can call this function"
@@ -173,13 +177,16 @@ contract DataLayrServiceManager is
         ) = checkSignatures(data);
 
         /**
-         * @dev Checks that there is no need for posting a deposit root required for proving 
-         * the new staking of ETH into settlement layer after the launch of EigenLayr. For 
-         * more details, see "depositPOSProof" in EigenLayrDeposit.sol. 
+         * @dev Checks that there is no need for posting a deposit root required for proving
+         * the new staking of ETH into settlement layer after the launch of EigenLayr. For
+         * more details, see "depositPOSProof" in EigenLayrDeposit.sol.
          */
-        require(dumpNumberToConfirm % depositRootInterval != 0, "Must post a deposit root now");
-        
-        // record the compressed information on all the DataLayr nodes who signed 
+        require(
+            dumpNumberToConfirm % depositRootInterval != 0,
+            "Must post a deposit root now"
+        );
+
+        // record the compressed information on all the DataLayr nodes who signed
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
@@ -193,20 +200,19 @@ contract DataLayrServiceManager is
         );
     }
 
-
     /**
      * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
-     *         along with the regular assertion of data into the DataLayr by the disperser. This 
-     *         function enables 
+     *         along with the regular assertion of data into the DataLayr by the disperser. This
+     *         function enables
      *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
      *            from quorum of DataLayr nodes have been obtained,
      *          - check that each of the signatures are valid,
      *          - store the POSt hash, given by depositRoot,
-     *          - call the DataLayr contract to check that whether quorum has been achieved or not.      
+     *          - call the DataLayr contract to check that whether quorum has been achieved or not.
      */
     function confirmDataStoreWithPOSt(
-        bytes32 depositRoot, 
-        bytes32 headerHash, 
+        bytes32 depositRoot,
+        bytes32 headerHash,
         bytes calldata data
     ) external payable {
         require(
@@ -221,21 +227,28 @@ contract DataLayrServiceManager is
         ) = checkSignatures(data);
 
         /**
-         * @dev Checks that there is need for posting a deposit root required for proving 
-         * the new staking of ETH into settlement layer after the launch of EigenLayr. For 
-         * more details, see "depositPOSProof" in EigenLayrDeposit.sol. 
+         * @dev Checks that there is need for posting a deposit root required for proving
+         * the new staking of ETH into settlement layer after the launch of EigenLayr. For
+         * more details, see "depositPOSProof" in EigenLayrDeposit.sol.
          */
-        require(dumpNumberToConfirm % depositRootInterval == 0, "Shouldn't post a deposit root now");
+        require(
+            dumpNumberToConfirm % depositRootInterval == 0,
+            "Shouldn't post a deposit root now"
+        );
 
-        // record the compressed information on all the DataLayr nodes who signed 
+        // record the compressed information on all the DataLayr nodes who signed
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
-        
+
         /**
          * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
          * instead of the usual headerHash, so the submitter must specify the preimage
          */
-        require(keccak256(abi.encodePacked(depositRoot, headerHash)) == depositFerkleHash, "Ferkle or deposit root is incorrect");
-        
+        require(
+            keccak256(abi.encodePacked(depositRoot, headerHash)) ==
+                depositFerkleHash,
+            "Ferkle or deposit root is incorrect"
+        );
+
         // record the deposit root (POSt hash)
         depositRoots[block.number] = depositRoot;
 
@@ -254,7 +267,7 @@ contract DataLayrServiceManager is
     //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
     // TODO: collateral
     /**
-     * @notice 
+     * @notice
      */
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         // only registered operators can call
@@ -265,7 +278,7 @@ contract DataLayrServiceManager is
 
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
 
-        // operator puts up collateral which can be slashed in case of wrongful 
+        // operator puts up collateral which can be slashed in case of wrongful
         // payment claim
         collateralToken.transferFrom(
             msg.sender,
@@ -276,7 +289,7 @@ contract DataLayrServiceManager is
         uint48 fromDumpNumber;
 
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            // this is the first commitment to a payment and thus, it must be claiming 
+            // this is the first commitment to a payment and thus, it must be claiming
             // payment from when the operator registered
 
             // get the dumpNumber in the DataLayr when the operator registered
@@ -309,7 +322,7 @@ contract DataLayrServiceManager is
         fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
 
         require(fromDumpNumber < toDumpNumber, "invalid payment range");
-        
+
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromDumpNumber,
@@ -322,7 +335,6 @@ contract DataLayrServiceManager is
 
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
-
 
     // can only call after challenge window
     function redeemPayment() external {
@@ -337,7 +349,7 @@ contract DataLayrServiceManager is
         // update the status to show that operator's payment is getting redeemed
         operatorToPayment[msg.sender].status = 1;
 
-        // transfer back the collateral to the operator as there was no successful 
+        // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
         collateralToken.transfer(
             msg.sender,
@@ -346,17 +358,19 @@ contract DataLayrServiceManager is
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(msg.sender);
+        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(
+            msg.sender
+        );
 
         // i.e. if operator is not a 'self operator'
         if (address(dt) != address(0)) {
             // transfer the amount due in the payment claim of the operator to its delegation
-            // terms contract, where the delegators can withdraw their rewards. 
+            // terms contract, where the delegators can withdraw their rewards.
             paymentToken.transfer(address(dt), amount);
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);
-        // i.e. if the operator *is* a 'self operator'       
+            // i.e. if the operator *is* a 'self operator'
         } else {
             //simply transfer the payment amount in this case
             paymentToken.transfer(msg.sender, amount);
@@ -427,6 +441,256 @@ contract DataLayrServiceManager is
         }
     }
 
+    function forceDLNToDisclose(
+        bytes32 headerHash,
+        uint256 stakeHashIndex,
+        bytes calldata stakes,
+        bool eigenOrEthStakes,
+        uint256 operatorIndex
+    ) public {
+        //get the dataStore being challenged
+        (
+            uint48 dumpNumber,
+            uint32 initTime,
+            uint32 storePeriodLength,
+            bool commited
+        ) = dataLayr.dataStores(headerHash);
+        require(commited, "Dump is not commited yet");
+        bytes32 stakeHash;
+        //if challenging eigen operator
+        if (eigenOrEthStakes) {
+            //retrieve the stake at the time of precommit
+            stakeHash = dlRegVW.getEigenStakesHashUpdateAndCheckIndex(
+                stakeHashIndex,
+                dumpNumber
+            );
+        } else {
+            //if challenging eth operator
+            stakeHash = dlRegVW.getEthStakesHashUpdateAndCheckIndex(
+                stakeHashIndex,
+                dumpNumber
+            );
+        }
+        //hash stakes and make sure preimage is correct
+        require(
+            keccak256(stakes) == stakeHash,
+            "Stakes provided are inconsistent with hashes"
+        );
+        uint256 operatorPointer = 36 * operatorIndex;
+        //make sure they are not past the end of stakes
+        require(
+            operatorPointer < stakes.length - 32,
+            "Cannot point to totals or further"
+        );
+        address operator = stakes.toAddress(operatorPointer);
+        require(
+            block.timestamp < initTime + storePeriodLength - 600 ||
+                (block.timestamp <
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        2 *
+                        disclosureFraudProofInterval &&
+                    block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval),
+            "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
+        );
+        require(
+            disclosureForOperator[headerHash][operator].status == 0,
+            "Operator is already challenged for dump number"
+        );
+        disclosureForOperator[headerHash][operator] = DisclosureChallenge(
+            uint32(block.timestamp),
+            msg.sender, // dumpNumber payment being claimed from
+            address(0), //address of challenge contract if there is one
+            0, //TODO: set degree here
+            1,
+            0,
+            0,
+            bytes32(0)
+        );
+        emit DisclosureChallengeInit(headerHash, operator);
+    }
+
+    function respondToDisclosureInit(
+        MultiReveal calldata multireveal,
+        bytes calldata poly,
+        bytes calldata header
+    ) external {
+        bytes32 headerHash = keccak256(header);
+        require(
+            block.timestamp <
+                disclosureForOperator[headerHash][msg.sender].commitTime +
+                disclosureFraudProofInterval,
+            "must be in fraud proof period"
+        );
+        require(
+            disclosureForOperator[headerHash][msg.sender].status == 1,
+            "Not in operator initial response phase"
+        );
+        (
+            uint256[2] memory c,
+            uint48 degree
+        ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
+        require(degree*32 == poly.length, "Polynomial mus have a 256 bit coefficient for each term");
+        //get the commitment to the zero polynomial of multireveal degree
+        // e(pi, z) = pairing
+        uint256[6] memory lhs_coors;
+        lhs_coors[0] = multireveal.pi_x;
+        lhs_coors[1] = multireveal.pi_y;
+        lhs_coors[2] = zeroPolynomialCommitments[degree].x;
+        lhs_coors[3] = zeroPolynomialCommitments[degree].y;
+        lhs_coors[4] = multireveal.pairing_x;
+        lhs_coors[5] = multireveal.pairing_y;
+        //get coordinates in memory
+        uint256[8] memory rhs_coors;
+        rhs_coors[0] = multireveal.i_x;
+        rhs_coors[1] = multireveal.i_y;
+        rhs_coors[2] = multireveal.c_minus_i_x;
+        rhs_coors[3] = multireveal.c_minus_i_y;
+        uint256[2] memory i_plus_c_minus_i;
+        assembly {
+            if iszero(
+                call(not(0), 0x06, 0, rhs_coors, 0x80, i_plus_c_minus_i, 0x40)
+            ) {
+                revert(0, 0)
+            }
+        }
+        require(
+            i_plus_c_minus_i[0] == c[0] && i_plus_c_minus_i[1] == c[1],
+            "c_minus_i is not correct"
+        );
+        //TODO: Bowen what is coordinates of H?
+        rhs_coors[4] = 1;
+        rhs_coors[5] = 1;
+        rhs_coors[6] = multireveal.pairing_x;
+        rhs_coors[7] = multireveal.pairing_y;
+        //e(pi, z) = e(c_minus_i, H)
+        assembly {
+            //check the lhs paring
+            if iszero(
+                call(not(0), 0x07, 0, lhs_coors, 0xC0, 0x0, 0x0)
+            ) {
+                revert(0, 0)
+            }
+            //check the rhs paring
+            if iszero(
+                call(not(0), 0x07, 0, add(rhs_coors, 0x40), 0xC0, 0x0, 0x0)
+            ) {
+                revert(0, 0)
+            }
+        }
+        //update disclosure to add commitment point, hash of poly, and degree
+        disclosureForOperator[headerHash][msg.sender].x = multireveal.i_x;
+        disclosureForOperator[headerHash][msg.sender].y = multireveal.i_y;
+        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
+            poly
+        );
+        disclosureForOperator[headerHash][msg.sender].commitTime = uint32(block
+            .timestamp);
+        disclosureForOperator[headerHash][msg.sender].status = 2;
+        disclosureForOperator[headerHash][msg.sender].degree = degree;
+    }
+
+    function initInterpolatingPolynomialFraudProof(
+        bytes32 headerHash,
+        address operator,
+        uint256 x_low,
+        uint256 y_low,
+        uint256 x_high,
+        uint256 y_high
+    ) public {
+        require(
+            disclosureForOperator[headerHash][operator].challenger == msg.sender,
+            "Only challenger can call"
+        );
+        require(
+            disclosureForOperator[headerHash][operator].status == 2,
+            "Not in post operator response phase"
+        );
+        disclosureForOperator[headerHash][operator].commitTime = uint32(block
+            .timestamp);
+        disclosureForOperator[headerHash][operator].status = 3;
+        uint256[6] memory coors;
+        coors[0] = x_low;
+        coors[1] = y_low;
+        coors[2] = x_high;
+        coors[3] = y_high;
+        assembly {
+            if iszero(
+                call(not(0), 0x06, 0, coors, 0x80, add(coors, 0x80), 0x40)
+            ) {
+                revert(0, 0)
+            }
+        }
+        require(coors[4] != disclosureForOperator[headerHash][operator].x || coors[5] != disclosureForOperator[headerHash][operator].y, "Cannot commit to same polynomial as DLN");
+        disclosureForOperator[headerHash][operator].challenge = address(new DataLayrDisclosureChallenge(operator, msg.sender, x_low, y_low, x_high, y_high));
+    }
+
+    function getDataCommitmentAndMultirevealDegreeFromHeader(
+        bytes calldata header
+    ) public returns (uint256[2] memory, uint48) {
+        //TODO: Bowen Implement
+        // return x, y coordinate of overall data poly commitment
+        // then return degree of multireveal polynomial
+        uint256[2] memory point = [uint256(0), uint256(0)];
+        return (point, 0);
+    }
+
+    function resolveDisclosureChallenge(
+        bytes32 headerHash,
+        address operator,
+        bool winner
+    ) external {
+        if (
+            msg.sender == disclosureForOperator[headerHash][operator].challenge
+        ) {
+            if (winner) {
+                // operator was correct, allow for another challenge
+                disclosureForOperator[headerHash][operator].status = 0;
+                operatorToPayment[operator].commitTime = uint32(
+                    block.timestamp
+                );
+                //give them previous challengers payment
+            } else {
+                // challeger was correct, reset payment
+                disclosureForOperator[headerHash][operator].status = 4;
+                //do something
+            }
+        } else if (
+            msg.sender == disclosureForOperator[headerHash][operator].challenger
+        ) {
+            require(
+                disclosureForOperator[headerHash][operator].status == 1,
+                "Operator is not in initial response phase"
+            );
+            require(
+                block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval,
+                "Fraud proof period has not passed"
+            );
+            //slash here
+        } else if (
+            msg.sender == operator
+        ) {
+            require(
+                disclosureForOperator[headerHash][operator].status == 2,
+                "Challenger is not in commitment challenge phase"
+            );
+            require(
+                block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval,
+                "Fraud proof period has not passed"
+            );
+            //get challengers payment here
+        } else {
+            revert(
+                "Only the challenge contract, challenger, or operator can call"
+            );
+        }
+    }
+
     function getDumpNumberFee(uint48 _dumpNumber)
         public
         view
@@ -451,8 +715,12 @@ contract DataLayrServiceManager is
         return operatorToPayment[operator].collateral;
     }
 
-    function getDepositRoot(uint256 blockNumber) public view returns(bytes32) {
+    function getDepositRoot(uint256 blockNumber) public view returns (bytes32) {
         return depositRoots[blockNumber];
+    }
+
+    function getPolyHash(address operator, bytes32 headerHash) public view returns(bytes32) {
+        return disclosureForOperator[headerHash][operator].polyHash;
     }
 
     function payFee(address) external payable {
@@ -481,7 +749,8 @@ contract DataLayrServiceManager is
 
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
-            (address(dataLayr) == address(0)) || (queryManager.timelock() == msg.sender),
+            (address(dataLayr) == address(0)) ||
+                (queryManager.timelock() == msg.sender),
             "Query Manager governance can only call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;

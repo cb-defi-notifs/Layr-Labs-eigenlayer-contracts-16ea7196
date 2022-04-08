@@ -17,4 +17,13 @@ interface IDataLayr {
         uint256,
         uint256
     ) external;
+
+    function dataStores(bytes32)
+        external
+        returns (
+            uint48,
+            uint32,
+            uint32,
+            bool
+        );
 }
