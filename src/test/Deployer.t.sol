@@ -400,11 +400,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             registrantType,
             uint32(1)
         );
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         //(uint48 dumpNumber, uint32 initTime, uint32 spl, bool committed) = dl.dataStores(headerHash);
         (, , , bool committed) = dl.dataStores(headerHash);
