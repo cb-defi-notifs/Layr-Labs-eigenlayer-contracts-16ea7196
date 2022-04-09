@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 library SignatureCompaction {
     bytes32 constant internal HALF_CURVE_ORDER = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
-    function ecrecoverPacked(bytes32 hash, bytes32 r, bytes32 vs) public returns (address) {
+    function ecrecoverPacked(bytes32 hash, bytes32 r, bytes32 vs) public pure returns (address) {
         return ecrecover(
             hash,
             //recover v (parity)

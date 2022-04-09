@@ -139,7 +139,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
         uint256 totalEigenStake
-    ) external  onlyFeeManager {
+    ) external onlyFeeManager {
         // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
         DataStore storage dataStore = dataStores[headerHash];
