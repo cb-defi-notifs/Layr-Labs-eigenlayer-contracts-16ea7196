@@ -158,7 +158,7 @@ contract DataLayrServiceManager is
      * @param data TBA.
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(address storer, bytes calldata data)
+    function confirmDataStore(address, bytes calldata data)
         external
         payable
     {
@@ -460,13 +460,13 @@ contract DataLayrServiceManager is
         //if challenging eigen operator
         if (eigenOrEthStakes) {
             //retrieve the stake at the time of precommit
-            stakeHash = dlRegVW.getEigenStakesHashUpdateAndCheckIndex(
+            stakeHash = dlRegVW.getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
         } else {
             //if challenging eth operator
-            stakeHash = dlRegVW.getEthStakesHashUpdateAndCheckIndex(
+            stakeHash = dlRegVW.getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
