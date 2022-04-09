@@ -511,26 +511,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         returns (bytes memory)
     {
         //register as both ETH and EIGEN operator
-        // uint8 registrantType = 3;
-        //spacer is used in place of stake totals
-        // bytes32 spacer = bytes32(0);
-        // uint256 ethStakesLength = 32;
-        // uint256 eigenStakesLength = 32;
-        bytes memory data = abi.encodePacked(
-            uint8(3),
-            uint256(32),
-            bytes32(0),
-            uint256(32),
-            bytes32(0),
-            uint8(1),
-            bytes("ff")
-        );
 
-        (bytes memory stakesPrev) = _testSelfOperatorRegister(registrant, data);
+        (bytes memory stakesPrev) = testSelfOperatorRegister();
 
         uint8 registrantType = 3;
         address sender = acct_0;
-        data = abi.encodePacked(
+        bytes memory data = abi.encodePacked(
             registrantType,
             uint256(stakesPrev.length),
             stakesPrev,
@@ -688,11 +674,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         // uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(2);
-        emit log_named_uint("dumpNumberAtIndex", dumpNumberAtIndex);
-        emit log_named_uint("dlRegVW.getStakesHashUpdateLength()", dlRegVW.getStakesHashUpdateLength());
+        // emit log_named_uint("dumpNumberAtIndex", dumpNumberAtIndex);
+        // emit log_named_uint("dlRegVW.getStakesHashUpdateLength()", dlRegVW.getStakesHashUpdateLength());
         uint48 currentDumpNumber = dlsm.dumpNumber();
-        emit log_named_uint("currentDumpNumber", currentDumpNumber);
-        emit log_named_uint("stakesPrev.length", stakesPrev.length);
+        // emit log_named_uint("currentDumpNumber", currentDumpNumber);
+        // emit log_named_uint("stakesPrev.length", stakesPrev.length);
 
         bytes memory data = abi.encodePacked(
             // uint48(dataStoreDumpNumber),
@@ -700,7 +686,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             uint48(1),
             headerHash,
             uint32(2),
-            (dlRegVW.getStakesHashUpdateLength() - 1)
+            uint256(dlRegVW.getStakesHashUpdateLength() - 1)
         );
         data = abi.encodePacked(
             data,
@@ -715,30 +701,29 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             bytes32(
                 0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
-            uint8(0), //signatory type
-            uint32(1), //signatory's index in ethStakes object
-            uint32(1) //signatory's index in eigenStakes object
+            uint8(3), //signatory type
+            // uint32(1), //signatory's index in stakes object
+            uint32(1) //signatory's bytes index in stakes object
         );
         data = abi.encodePacked(
             data,
             r,
             vs,
-            uint8(0), //signatory type
-            uint32(0), //signatory's index in ethStakes object
-            uint32(0) //signatory's index in eigenStakes object
+            uint8(3), //signatory type
+            // uint32(1 + 45), //signatory's index in stakes object
+            uint32(1 + 1 + 20 + 12 + 12) //signatory's bytes index in stakes object
         );
 
         cheats.prank(storer);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
 
     }
-
 }
