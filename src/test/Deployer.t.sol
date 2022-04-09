@@ -407,11 +407,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             uint32(0),
             uint32(0)
         );
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         (uint48 dumpNumber, uint32 initTime, uint32 spl, bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
@@ -736,13 +736,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         uint48 dumpNumberAtIndex = dlRegVW.ethStakeHashUpdates(dlRegVW.getEthStakesHashUpdateLength() - 1);
         // uint48 dumpNumberAtIndex = dlRegVW.ethStakeHashUpdates(2);
-        emit log_named_uint("dumpNumberAtIndex", dumpNumberAtIndex);
-        emit log_named_uint("dlRegVW.getEthStakesHashUpdateLength()", dlRegVW.getEthStakesHashUpdateLength());
-        emit log_named_uint("dlRegVW.getEigenStakesHashUpdateLength()", dlRegVW.getEigenStakesHashUpdateLength());
+        // emit log_named_uint("dumpNumberAtIndex", dumpNumberAtIndex);
+        // emit log_named_uint("dlRegVW.getEthStakesHashUpdateLength()", dlRegVW.getEthStakesHashUpdateLength());
+        // emit log_named_uint("dlRegVW.getEigenStakesHashUpdateLength()", dlRegVW.getEigenStakesHashUpdateLength());
         uint48 currentDumpNumber = dlsm.dumpNumber();
-        emit log_named_uint("currentDumpNumber", currentDumpNumber);
-        emit log_named_uint("ethStakes.length", ethStakes.length);
-        emit log_named_uint("eigenStakes.length", eigenStakes.length);
+        // emit log_named_uint("currentDumpNumber", currentDumpNumber);
+        // emit log_named_uint("ethStakes.length", ethStakes.length);
+        // emit log_named_uint("eigenStakes.length", eigenStakes.length);
 
         bytes memory data = abi.encodePacked(
             // uint48(dataStoreDumpNumber),
@@ -786,11 +786,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         cheats.prank(storer);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        emit log_named_uint("3", gasleft());
+        // emit log_named_uint("3", gasleft());
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();

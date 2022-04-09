@@ -623,7 +623,7 @@ contract DataLayrServiceManager is
             }
         }
         require(coors[4] != disclosureForOperator[headerHash][operator].x || coors[5] != disclosureForOperator[headerHash][operator].y, "Cannot commit to same polynomial as DLN");
-        disclosureForOperator[headerHash][operator].challenge = address(new DataLayrDisclosureChallenge(operator, msg.sender, x_low, y_low, x_high, y_high));
+        disclosureForOperator[headerHash][operator].challenge = address(new DataLayrDisclosureChallenge(operator, msg.sender, x_low, y_low, x_high, y_high, disclosureForOperator[headerHash][operator].degree/2));
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
