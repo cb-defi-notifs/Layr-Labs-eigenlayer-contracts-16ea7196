@@ -331,9 +331,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
     function testConfirmDataStore() public {
         bytes memory stakes = testSelfOperatorRegister();
-        emit log_named_bytes("stakes is now", stakes);
+        // emit log_named_bytes("stakes is now", stakes);
         bytes32 headerHash = _testInitDataStore();
-        uint8 registrantType = 3;
         // uint48 dumpNumber,
         // bytes32 headerHash,
         // uint32 numberOfSigners,
@@ -359,6 +358,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         //     uint32 eigenStakesIndex of signatory
         // }
 
+        uint48 dumpNumber = 1;
+        uint32 numberOfSigners = 1;
+        uint256 stakesIndex = 1;
         // indexes aare 1 becuase both hashes have only been updated once
         // length is known because only 1 staker so 20 + 16 + 32 = 68
         // precomputed signature and we know they are eth and eigen
@@ -377,16 +379,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         //     bytes32(
         //         0xF0875e533676b8e11d4138de62a20f5d49a20a3501e54d6a67bd64fe4d5a8560
         //     ),
-        //     registrantType
         // );
         // index in stakes = uint32(1)
         cheats.prank(storer);
         bytes memory data = abi.encodePacked(
-            uint48(1),
+            dumpNumber,
             headerHash,
-            uint32(1),
-            uint256(1),
-            stakes.length
+            numberOfSigners,
+            stakesIndex,
+            uint256(stakes.length)
         );
         data = abi.encodePacked(
             data,
@@ -397,14 +398,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             bytes32(
                 0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
-            registrantType,
-            uint32(1)
+            uint32(0)
         );
-        // emit log_named_uint("3", gasleft());
+         emit log_named_uint("gas before, testConfirmDataStore()", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        // emit log_named_uint("3", gasleft());
+         emit log_named_uint("gas after, testConfirmDataStore()", gasleft());
 
         //(uint48 dumpNumber, uint32 initTime, uint32 spl, bool committed) = dl.dataStores(headerHash);
         (, , , bool committed) = dl.dataStores(headerHash);
@@ -483,13 +483,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         dlqm.register(data);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-        emit log_named_uint("dumpNumber", dumpNumber);
-        //setting equal to 3 means both ETH and EIGEN operator
-        uint8 registrantType = 3;
+        // emit log_named_uint("dumpNumber", dumpNumber);
         uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(sender);
         uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(sender);
         bytes memory stakes = abi.encodePacked(
-            registrantType,
             sender,
             uint96(weightOfOperatorEth),
             uint96(weightOfOperatorEigen),
@@ -539,7 +536,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(sender);
         bytes memory stakes = abi.encodePacked(
             stakesPrev.slice(0,stakesPrev.length - 24),
-            registrantType,
             sender,
             uint96(weightOfOperatorEth),
             uint96(weightOfOperatorEigen),
@@ -610,6 +606,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
     function testConfirmDataStoreTwoOperators() public {
         bytes memory stakesPrev = testTwoSelfOperatorsRegister();
+        // emit log_named_bytes("stakesPrev", stakesPrev);
         bytes32 headerHash = _testInitDataStore();
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
@@ -701,26 +698,24 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             bytes32(
                 0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
-            uint8(3), //signatory type
             // uint32(1), //signatory's index in stakes object
-            uint32(1) //signatory's bytes index in stakes object
+            uint32(0) //signatory's index in stakes object
         );
         data = abi.encodePacked(
             data,
             r,
             vs,
-            uint8(3), //signatory type
             // uint32(1 + 45), //signatory's index in stakes object
-            uint32(1 + 1 + 20 + 12 + 12) //signatory's bytes index in stakes object
+            uint32(1) //signatory's index in stakes object
         );
 
         cheats.prank(storer);
 
-        // emit log_named_uint("3", gasleft());
+         emit log_named_uint("gas before, testConfirmDataStoreTwoOperators()", gasleft());
 
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
 
-        // emit log_named_uint("3", gasleft());
+         emit log_named_uint("gas after, testConfirmDataStoreTwoOperators()", gasleft());
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();

@@ -205,9 +205,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
      *        (1) is registrantType that specifies whether the operator is an ETH DataLayr node,
      *            or Eigen DataLayr node or both,
      *        (2) is stakeLength which specifies length of (3),
-     *        (3) is the list of the form [<(operator's type, operator address, operator's ETH deposit, operator's EIGEN deposit)>, total ETH deposit],
-     *            where <(operator's type, operator address, operator's ETH deposit, operator's EIGEN deposit)> is the array of tuple
-     *            (operator's type, operator address, operator's ETH deposit, operator's EIGEN deposit) for operators who are DataLayr nodes, 
+     *        (3) is the list of the form [<(operator address, operator's ETH deposit, operator's EIGEN deposit)>,
+     *                                      total ETH deposit, total EIGEN deposit],
+     *            where <(operator address, operator's ETH deposit, operator's EIGEN deposit)> is the array of tuple
+     *            (operator address, operator's ETH deposit, operator's EIGEN deposit) for operators who are DataLayr nodes, 
      * 
      *              
      *        (4) is socketLength which specifies length of (7),
@@ -232,9 +233,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         uint8 registrantType = data.toUint8(0);
 
         Uint96xUint96 memory ethAndEigenAmounts;
-        //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(registrantType, operator);
-
         // get current dump number from DataLayrServiceManagerStorage.sol
         uint48 currDumpNumber = IDataLayrServiceManager(
             address(queryManager.feeManager())
@@ -247,8 +245,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             // minimum requirements on how much ETH it must deposit
             ethAndEigenAmounts.a = uint96(weightOfOperatorEth(operator));
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
-            //append the ethAmount to the data we will add to the stakes object
-            dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.a);
             emit EthStakeAdded(
                 operator,
                 ethAndEigenAmounts.a,
@@ -263,8 +259,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             // minimum requirements on how much Eigen it must deposit
             ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
-            //append the eigenAmount to the data we will add to the stakes object
-            dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.b);
             emit EigenStakeAdded(
                 operator,
                 ethAndEigenAmounts.b,
@@ -272,6 +266,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
                 stakeHashUpdates[stakeHashUpdates.length - 1]
             );
         }
+
+        //bytes to add to the existing stakes object
+        bytes memory dataToAppend = abi.encodePacked(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b);
 
         require(ethAndEigenAmounts.a > 0 || ethAndEigenAmounts.b > 0, "must register as at least one type of validator");
         // parse the length 
