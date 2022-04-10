@@ -6,11 +6,10 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "../../libraries/BytesLib.sol";
 import "../../utils/SignatureCompaction.sol";
-import "ds-test/test.sol";
+// import "ds-test/test.sol";
 
 abstract contract DataLayrSignatureChecker is
-    DataLayrServiceManagerStorage,
-    DSTest
+    DataLayrServiceManagerStorage
 {
     using BytesLib for bytes;
     struct SignatoryTotals {
@@ -53,16 +52,13 @@ abstract contract DataLayrSignatureChecker is
     uint256 stakesLength,
     bytes stakes,
     bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
-
     stakes layout:
     packed tuple of address, uint96, uint96
         the uint96's are the ETH and EIGEN stake of the signatory (address)
-
     sigWInfo layout:
     bytes32 r
     bytes32 vs
     uint32 bytes location in 'stakes' of signatory
-
     */
     function checkSignatures(bytes calldata data)
         public

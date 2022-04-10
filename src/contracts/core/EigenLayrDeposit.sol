@@ -12,7 +12,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
 import "./storage/EigenLayrDepositStorage.sol";
-import "ds-test/test.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving
@@ -32,8 +31,7 @@ import "ds-test/test.sol";
 contract EigenLayrDeposit is
     Initializable,
     EigenLayrDepositStorage,
-    IEigenLayrDeposit,
-    DSTest
+    IEigenLayrDeposit
 {
     bytes32 public immutable consensusLayerDepositRoot;
     Eigen public immutable eigen;

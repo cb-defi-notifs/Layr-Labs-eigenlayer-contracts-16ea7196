@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "ds-test/test.sol";
 
-contract Multiplication is DSTest {
+contract Multiplication  {
 
 
     constructor() {}
@@ -20,7 +19,7 @@ contract Multiplication is DSTest {
                 revert(0, 0)
             }
         }
-        emit log_uint(product[0]);
-        emit log_uint(product[1]);
+        // emit log_uint(product[0]);
+        // emit log_uint(product[1]);
     }
 }

@@ -74,18 +74,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         address registrant // who started
     );
 
-    event EthStakeAdded(
-        address operator,
-        uint128 stake,
-        uint48 dumpNumber,
-        uint48 prevUpdateDumpNumber
-    );
-    event EigenStakeAdded(
-        address operator,
-        uint128 stake,
-        uint48 dumpNumber,
-        uint48 prevUpdateDumpNumber
-    );
+    event StakeAdded( address operator, uint96 ethStake, uint96 eigenStake, uint48 dumpNumber, uint48 prevUpdateDumpNumber );
     event EthStakeUpdate(
         address operator,
         uint128 stake,
@@ -245,12 +234,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             // minimum requirements on how much ETH it must deposit
             ethAndEigenAmounts.a = uint96(weightOfOperatorEth(operator));
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
-            emit EthStakeAdded(
-                operator,
-                ethAndEigenAmounts.a,
-                currDumpNumber,
-                stakeHashUpdates[stakeHashUpdates.length - 1]
-            );
+            // emit EthStakeAdded(
+            //     operator,
+            //     ethAndEigenAmounts.a,
+            //     currDumpNumber,
+            //     stakeHashUpdates[stakeHashUpdates.length - 1]
+            // );
         }
 
         //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
@@ -259,12 +248,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             // minimum requirements on how much Eigen it must deposit
             ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
-            emit EigenStakeAdded(
-                operator,
-                ethAndEigenAmounts.b,
-                currDumpNumber,
-                stakeHashUpdates[stakeHashUpdates.length - 1]
-            );
+            // emit EigenStakeAdded(
+            //     operator,
+            //     ethAndEigenAmounts.b,
+            //     currDumpNumber,
+            //     stakeHashUpdates[stakeHashUpdates.length - 1]
+            // );
         }
 
         //bytes to add to the existing stakes object
@@ -338,6 +327,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         unchecked {
             ++nextRegistrantId;
         }
+
+        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
         //TODO: change return type to uint96
         return (registrantType, uint128(ethAndEigenAmounts.b));

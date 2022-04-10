@@ -691,6 +691,27 @@ contract DataLayrServiceManager is
         }
     }
 
+    function getZeroPolynomialCommitment(uint256 degree, uint256 y) internal returns (uint256, uint256) {
+        // calculate y^degree mod p
+        bytes memory input;
+        uint256 y_to_the_degree;
+        assembly {
+            mstore(input, 4) //max 4 bytes worth of operators 2^32
+            mstore(add(input, 32), 4) //2^32 is the biggest power and smallest root of unity
+            mstore(add(input, 64), 32) //bn254's modulus is 254 bits!
+            mstore(add(input, 96), shl(224, y)) //y is the base
+            mstore(add(input, 100), shl(224, degree)) //degree is the power
+            mstore(add(input, 104), 21888242871839275222246405745257275088696311157297823662689037894645226208583) //the modulus of bn254
+            if iszero(
+                call(not(0), 0x05, 0, input, 0x12, y_to_the_degree, 0x20)
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        
+    }
+
     function getDumpNumberFee(uint48 _dumpNumber)
         public
         view
