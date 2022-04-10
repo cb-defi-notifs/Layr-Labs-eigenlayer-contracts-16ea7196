@@ -24,7 +24,9 @@ abstract contract DataLayrSignatureChecker is
         bytes32 r;
         bytes32 vs;
         address signatory;
-        uint8 stakerType;
+//TODO: determine if we need this
+        //fills the 32-byte memory slot (prevents overwriting anything important)
+        uint96 garbageData;
     }
 
     struct StakesMetaData {
@@ -51,17 +53,12 @@ abstract contract DataLayrSignatureChecker is
     bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
 
     stakes layout:
-    packed tuple of stakerType, address, uint96 (and possible second uint96)
-        the uint96's are the ETH and/or EIGEN stake of the signatory (address), signalled by setting first 2 bit of stakerType
-        signatory is an ETH signatory if first bit in stakerType set to '1' (i.e. stakerType & 0x00000001 == 0x00000001)
-        signatory is an EIGEN signatory if second bit in stakerType set to '1' (i.e. stakerType & 0x00000003 == 0x00000003)
-    eigenStakes layout:
-    packed uint128, one for each signatory that is an EIGEN signatory (signaled by setting stakerType & 0x00000003 == 0x00000003)
+    packed tuple of address, uint96, uint96
+        the uint96's are the ETH and EIGEN stake of the signatory (address)
 
     sigWInfo layout:
     bytes32 r
     bytes32 vs
-    bytes1 stakerType
     uint32 bytes location in 'stakes' of signatory
 
     */
@@ -140,9 +137,6 @@ abstract contract DataLayrSignatureChecker is
             // emit log_named_uint("i (numberOfSigners)", i);
             // emit log_named_uint("pointer at loop start", pointer);
 
-            //use library here because idk how to store struc in assembly
-            //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
-            // uint8 st;
             assembly {
                 //load r
                 mstore(sigWInfo, calldataload(add(pointer, 100)))
@@ -180,14 +174,18 @@ abstract contract DataLayrSignatureChecker is
                                 add(
                                     //get position in calldata for start of stakes object
                                     mload(smd),
-                                            //gets specified byte location of signatory in stakes object
+                                        mul(
+                                            //gets specified location of signatory in stakes object
                                             shr(
                                                 224,
                                                     calldataload(
-                                                        //100 + 32 + 32 + 1
-                                                        add(pointer, 165)
+                                                        //100 + 32 + 32
+                                                        add(pointer, 164)
                                                 )
-                                            )
+                                            ),
+                                            //20 + 12*2 for (address, uint96, uint96)
+                                            44
+                                        )
                                 )
             }
             // emit log_named_uint("signatoryCalldataByteLocation", signatoryCalldataByteLocation);
@@ -209,37 +207,11 @@ abstract contract DataLayrSignatureChecker is
             // }
             // emit log_named_bytes32("testing2", testing);
 
-            // uint8 testing_uint8;
-            // assembly {
-            //     testing_uint8 := calldataload(add(pointer, 164))
-            // }
-            // emit log_named_uint("testing_uint8", testing_uint8);
-            // assembly {
-            //     testing_uint8 :=                     and(
-            //             calldataload(add(pointer, 164)),
-            //             //single byte mask (throw out the last 31 bytes)
-            //             0xFF00000000000000000000000000000000000000000000000000000000000000
-            //         )
-            // }
-            // emit log_named_uint("testing_uint8_2", testing_uint8);
-            sigWInfo.stakerType = 3;
-            //END ADDED FOR TESTING
+            sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
 
-
-//TODO: try this once things are working
-            //sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
-
-            sigWInfo.signatory = ecrecover(
-                signedHash,
-                //recover v (parity)
-                27 + uint8(uint256(sigWInfo.vs >> 255)),
-                sigWInfo.r,
-                //recover s
-                bytes32(uint(sigWInfo.vs) & (~uint(0) >> 1))
-            );
-            //increase calldataPointer to account for length of signature and staker markers
+            //increase calldataPointer to account for length of signature components
             unchecked {
-                pointer += 65;                    
+                pointer += 64;                    
             }
 
             //verify monotonic increase of address value
@@ -300,8 +272,8 @@ abstract contract DataLayrSignatureChecker is
             // emit log_named_uint("ethStakeAmount", ethStakeAmount);
             //END ADDED FOR TESTING
 
-//TODO: check stored registrant type matches supplied type???
 
+            //this block ensures that the recovered signatory address matches the address stored at the specified index in the stakes object
             assembly {
                 //wrap inner part in revert statement (eq will return 0 if *not* equal, in which case, we revert)
                 if iszero(
@@ -379,7 +351,7 @@ abstract contract DataLayrSignatureChecker is
                         )
                     )
                 }
-            }
+            // }
 
             //add 4 bytes for length of uint32 used to specify index in stakes object
             unchecked {
@@ -422,43 +394,4 @@ abstract contract DataLayrSignatureChecker is
             compressedSignatoryRecord
         );
     }
-
-    // function getAddressIsh(
-    //     SignatureWithInfo memory sigWInfo,
-    //     StakesMetaData memory smd,
-    //     SignatoryTotals memory signedTotals,
-    //     uint256 pointer
-    // ) internal {
-    //     bytes32 sig;
-    //     bytes32 osig;
-    //     assembly {
-    //         sig := mload(
-    //             add(
-    //                 mload(smd),
-    //                 mul(shr(96, calldataload(add(100, pointer))), 36)
-    //             )
-    //         )
-
-    //         // add(
-    //         //     mload(signedTotals),
-    //         //     shr(
-    //         //         128,
-    //         //         mload(
-    //         //             add(
-    //         //                 mload(smd),
-    //         //                 add(
-    //         //                     mul(
-    //         //                         shr(224, calldataload(add(100, pointer))),
-    //         //                         36
-    //         //                     ),
-    //         //                     20
-    //         //                 )
-    //         //             )
-    //         //         )
-    //         //     )
-    //         // )
-    //     }
-
-    //     // emit log_bytes32(osig);
-    // }
 }
