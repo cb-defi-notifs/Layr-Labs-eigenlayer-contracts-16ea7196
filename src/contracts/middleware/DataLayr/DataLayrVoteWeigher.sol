@@ -8,12 +8,13 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
+import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
+contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     using BytesLib for bytes;
 
     IInvestmentManager public investmentManager;
@@ -73,14 +74,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
         address registrant // who started
     );
 
-    event StakeAdded(
-        address operator,
-        uint96 ethStake,
-        uint96 eigenStake,
-        uint48 dumpNumber,
-        uint48 prevUpdateDumpNumber
-    );
-
+    event StakeAdded( address operator, uint96 ethStake, uint96 eigenStake, uint48 dumpNumber, uint48 prevUpdateDumpNumber );
     event EthStakeUpdate(
         address operator,
         uint128 stake,
@@ -240,8 +234,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             // minimum requirements on how much ETH it must deposit
             ethAndEigenAmounts.a = uint96(weightOfOperatorEth(operator));
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
-            //append the ethAmount to the data we will add to the stakes object
-            dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.a);
             // emit EthStakeAdded(
             //     operator,
             //     ethAndEigenAmounts.a,
@@ -256,8 +248,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             // minimum requirements on how much Eigen it must deposit
             ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
-            //append the eigenAmount to the data we will add to the stakes object
-            dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.b);
             // emit EigenStakeAdded(
             //     operator,
             //     ethAndEigenAmounts.b,
@@ -338,17 +328,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
             ++nextRegistrantId;
         }
 
+        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+
         //TODO: change return type to uint96
         return (registrantType, uint128(ethAndEigenAmounts.b));
 
         // CRITIC: there should be event here?
-        emit StakeAdded(
-            operator,
-            ethAndEigenAmounts.a,
-            ethAndEigenAmounts.b,
-            currDumpNumber,
-            stakeHashUpdates[stakeHashUpdates.length - 1]
-        );
     }
 
     /**
