@@ -368,11 +368,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             //index in stakes object
             uint32(0)
         );
-         emit log_named_uint("gas before, testConfirmDataStore()", gasleft());
-
+        uint256 gasbefore = gasleft();
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-
-         emit log_named_uint("gas after, testConfirmDataStore()", gasleft());
+        emit log_named_uint("gas spent on confirm, testConfirmDataStore()", gasbefore - gasleft());
 
         //(uint48 dumpNumber, uint32 initTime, uint32 spl, bool committed) = dl.dataStores(headerHash);
         (, , , bool committed) = dl.dataStores(headerHash);
@@ -423,54 +421,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         public
         returns (bytes memory)
     {
-        //register as both ETH and EIGEN operator
-        uint8 registrantType = 3;
-        uint256 stakesLength = 24;
         // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-        bytes24 emptyStakes = bytes24(0);
-        uint8 socketLength = 1;
-        bytes memory socket = "ff";
-        bytes memory data = abi.encodePacked(
-            registrantType,
-            stakesLength,
-            emptyStakes,
-            socketLength,
-            socket
-        );
-
-        return _testSelfOperatorRegister(registrant, data);
-    }
-
-    function _testSelfOperatorRegister(address sender, bytes memory data)
-        internal
-        returns (bytes memory)
-    {
-        _testWethDeposit(sender, 1e18);
-        _testDepositEigen(sender);
-        _testSelfOperatorDelegate(sender);
-
-        cheats.startPrank(sender);
-        dlqm.register(data);
-
-        uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-        // emit log_named_uint("dumpNumber", dumpNumber);
-        uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(sender);
-        uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(sender);
-        bytes memory stakes = abi.encodePacked(
-            sender,
-            uint96(weightOfOperatorEth),
-            uint96(weightOfOperatorEigen),
-            uint96(weightOfOperatorEth),
-            uint96(weightOfOperatorEigen)
-        );
-        bytes32 hashOfStakes = keccak256(stakes);
-        assertTrue(
-            hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-            "_testSelfOperatorRegister: stakes stored incorrectly"
-        );
-
-        cheats.stopPrank();
-        return (stakes);
+        bytes memory emptyStakes = abi.encodePacked(bytes24(0));
+        return _testRegisterAdditionalSelfOperator(registrant, emptyStakes);
     }
 
     function testTwoSelfOperatorsRegister() internal returns (bytes memory)
@@ -557,9 +510,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         );
         cheats.prank(storer);
 
-         emit log_named_uint("gas before, testConfirmDataStoreTwoOperators()", gasleft());
+        uint256 gasbefore = gasleft();
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-         emit log_named_uint("gas after, testConfirmDataStoreTwoOperators()", gasleft());
+        emit log_named_uint("gas spent on confirm, testConfirmDataStoreTwoOperators()", gasbefore - gasleft());
 
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
@@ -568,28 +521,14 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     function testConfirmDataStoreTwelveOperators() public {
         _setSigners();
-        //register as both ETH and EIGEN operator
-        uint8 registrantType = 3;
-        uint256 stakesLength = 24;
-        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-        bytes24 emptyStakes = bytes24(0);
-        uint8 socketLength = 1;
-        bytes memory socket = "ff";
-        bytes memory initData = abi.encodePacked(
-            registrantType,
-            stakesLength,
-            emptyStakes,
-            socketLength,
-            socket
-        );
 
         uint32 numberOfSigners = 12;
 
-        //register the first operator
-        bytes memory stakes = _testSelfOperatorRegister(signers[0], initData);
+        //register the first operator. initial stakes is 24 zero bytes
+        bytes memory stakes = abi.encodePacked(bytes24(0));
 
         //register all other operators
-        for (uint256 i = 1; i < numberOfSigners; ++i) {
+        for (uint256 i = 0; i < numberOfSigners; ++i) {
             // emit log_named_uint("i", i);
             stakes = _testRegisterAdditionalSelfOperator(signers[i], stakes);
         }
@@ -625,9 +564,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         // emit log_named_bytes("data", data);
         cheats.prank(storer);
 
-        emit log_named_uint("gas before, testConfirmDataStoreTwelveOperators()", gasleft());
+        uint256 gasbefore = gasleft();
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-        emit log_named_uint("gas after, testConfirmDataStoreTwelveOperators()", gasleft());
+        emit log_named_uint("gas spent on confirm, testConfirmDataStoreTwelveOperators()", gasbefore - gasleft());
          
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
