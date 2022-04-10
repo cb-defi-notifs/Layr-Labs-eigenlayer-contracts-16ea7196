@@ -64,6 +64,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     address acct_0 = cheats.addr(uint256(priv_key_0));
 
+    //performs basic deployment before each test
     function setUp() public {
         //eth2 deposit contract
         depositContract = new DepositContract();
@@ -166,6 +167,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         );
     }
 
+    //verifies that depositing WETH works
     function testWethDeposit(
         uint256 amountToDeposit)
         public 
@@ -174,6 +176,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         return _testWethDeposit(registrant, amountToDeposit);
     }
 
+    //deposits 'amountToDeposit' of WETH from address 'sender'
     function _testWethDeposit(
         address sender,
         uint256 amountToDeposit)
@@ -210,6 +213,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         cheats.stopPrank();
     }
 
+    //checks that it is possible to withdraw WETH
     function testWethWithdrawal(
         uint256 amountToDeposit,
         uint256 amountToWithdraw
@@ -217,6 +221,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         _testWethWithdrawal(registrant, amountToDeposit, amountToWithdraw);
     }
 
+    //checks that it is possible to withdraw WETH
     function _testWethWithdrawal(
         address sender,
         uint256 amountToDeposit,
@@ -224,9 +229,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     ) internal {
         uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
         cheats.prank(sender);
-        // emit log_uint(amountToDeposit);
-        // emit log_uint(amountToWithdraw);
-        // emit log_uint(amountDeposited);
 
         //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and short-circuit if it happens
         //TODO: figure out if making this 'expectRevert' work correctly is actually possible
@@ -262,6 +264,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         cheats.stopPrank();
     }
 
+    //checks that it is possible to prove a consensus layer deposit
     function testCleProof() public {
         address depositor = address(0x1234123412341234123412341234123412341235);
         uint256 amount = 100;
@@ -286,10 +289,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         assertEq(investmentManager.consensusLayerEth(depositor), amount);
     }
 
+    //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
         return _testInitDataStore();
     }
 
+    //initiates a data store
+    //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
     function _testInitDataStore() internal returns (bytes32) {
         bytes memory header = bytes(
             "0x0102030405060708091011121314151617181920"
@@ -316,71 +322,29 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
-        assertTrue(dataStoreDumpNumber == dumpNumber, "wrong dumpNumber");
+        assertTrue(dataStoreDumpNumber == dumpNumber, "_testInitDataStore: wrong dumpNumber");
         assertTrue(
             dataStoreInitTime == uint32(block.timestamp),
-            "wrong initTime"
+            "_testInitDataStore: wrong initTime"
         );
         assertTrue(
             dataStorePeriodLength == storePeriodLength,
-            "wrong storePeriodLength"
+            "_testInitDataStore: wrong storePeriodLength"
         );
-        assertTrue(dataStoreCommitted == false, "wrong committed status");
+        assertTrue(dataStoreCommitted == false, "_testInitDataStore: wrong committed status");
         return headerHash;
     }   
 
+    //verifies that it is possible to confirm a data store
+    //checks that the store is marked as committed
     function testConfirmDataStore() public {
         bytes memory stakes = testSelfOperatorRegister();
         // emit log_named_bytes("stakes is now", stakes);
         bytes32 headerHash = _testInitDataStore();
-        // uint48 dumpNumber,
-        // bytes32 headerHash,
-        // uint32 numberOfSigners,
-        // uint256 ethStakesIndex, uint256 eigenStakesIndex,
-        // uint256 ethStakesLength, uint256 eigenStakesLength,
-        // bytes ethStakes, bytes eigenStakes,
-        // bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
-
-        // ethStakes layout:
-        // packed uint128, one for each signatory that is an ETH signatory (signaled by setting stakerType % 2 == 0)
-
-        // eigenStakes layout:
-        // packed uint128, one for each signatory that is an EIGEN signatory (signaled by setting stakerType % 3 == 0)
-
-        // sigWInfo layout:
-        // bytes32 r
-        // bytes32 vs
-        // bytes1 stakerType
-        // if (sigWInfo.stakerType % 2 == 0) {
-        //     uint32 ethStakesIndex of signatory
-        // }
-        // if (sigWInfo.stakerType % 3 == 0) {
-        //     uint32 eigenStakesIndex of signatory
-        // }
 
         uint48 dumpNumber = 1;
         uint32 numberOfSigners = 1;
         uint256 stakesIndex = 1;
-        // indexes aare 1 becuase both hashes have only been updated once
-        // length is known because only 1 staker so 20 + 16 + 32 = 68
-        // precomputed signature and we know they are eth and eigen
-        // all arguments will be computed off chain
-        // ConfirmCalldata memory data;
-        // data.dumpNumber = 1;
-        // data.headerHash = headerHash;
-        // data.numberOfSigners = 1;
-        // data.stakesIndex = 1;
-        // data.stakesLength = stakesPrev.length;
-        // data.stakes = stakes;
-        // data.sigWInfos = abi.encodePacked(
-        //     bytes32(
-        //         0xdfb9b0b03bd42ddcea0a5e0e4878440c2437aa77094c2d234d5934b1a21a01ef
-        //     ),
-        //     bytes32(
-        //         0xF0875e533676b8e11d4138de62a20f5d49a20a3501e54d6a67bd64fe4d5a8560
-        //     ),
-        // );
-        // index in stakes = uint32(1)
         cheats.prank(storer);
         bytes memory data = abi.encodePacked(
             dumpNumber,
@@ -392,12 +356,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         data = abi.encodePacked(
             data,
             stakes,
+            //signature r
             bytes32(
                 0xd014256b124b583eb14192505340f3c785c31c3412c7daa358072c0b81b85aa5
             ),
+            //signature vs
             bytes32(
                 0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
+            //index in stakes object
             uint32(0)
         );
          emit log_named_uint("gas before, testConfirmDataStore()", gasleft());
@@ -411,12 +378,14 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         assertTrue(committed, "Data store not committed");
     }
 
+    //verifies that it is possible to deposit eigen
     function testDepositEigen() public {
         _testDepositEigen(registrant);
     }
 
+    //deposits a fixed amount of eigen from address 'sender'
+    //checks that the deposit is credited correctly
     function _testDepositEigen(address sender) public {
-        //approve 'deposit' contract to transfer EIGEN on behalf of this contract
         uint256 toDeposit = 1e17;
         eigen.safeTransferFrom(address(this), sender, 0, toDeposit, "0x");
         cheats.startPrank(sender);
@@ -427,7 +396,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         assertEq(
             investmentManager.eigenDeposited(sender),
             toDeposit,
-            "deposit not properly credited"
+            "_testDepositEigen: deposit not properly credited"
         );
         cheats.stopPrank();
     }
@@ -441,11 +410,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         delegation.delegateToSelf();
         assertTrue(
             delegation.delegation(sender) == sender,
-            "self delegation not properly recorded"
+            "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
             delegation.delegated(sender),
-            "delegation not credited?"
+            "_testSelfOperatorDelegate: delegation not credited?"
         );
     }
 
@@ -496,85 +465,34 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         bytes32 hashOfStakes = keccak256(stakes);
         assertTrue(
             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-            "stakes stored incorrectly"
+            "_testSelfOperatorRegister: stakes stored incorrectly"
         );
 
         cheats.stopPrank();
         return (stakes);
     }
 
-    function testTwoSelfOperatorsRegister()
-        public 
-        returns (bytes memory)
+    function testTwoSelfOperatorsRegister() internal returns (bytes memory)
     {
-        //register as both ETH and EIGEN operator
-
         (bytes memory stakesPrev) = testSelfOperatorRegister();
-
-        uint8 registrantType = 3;
         address sender = acct_0;
-        bytes memory data = abi.encodePacked(
-            registrantType,
-            uint256(stakesPrev.length),
-            stakesPrev,
-            //length of socket
-            uint8(1),
-            //socket
-            bytes("fe")
-        );
-
-        _testWethDeposit(sender, 1e18);
-        _testDepositEigen(sender);
-        _testSelfOperatorDelegate(sender);  
-
-        cheats.startPrank(sender);
-        dlqm.register(data);
-
-        uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-
-        uint128 weightOfOperatorEth = dlRegVW.weightOfOperatorEth(sender);
-        uint128 weightOfOperatorEigen = dlRegVW.weightOfOperatorEigen(sender);
-        bytes memory stakes = abi.encodePacked(
-            stakesPrev.slice(0,stakesPrev.length - 24),
-            sender,
-            uint96(weightOfOperatorEth),
-            uint96(weightOfOperatorEigen),
-            uint96(weightOfOperatorEth) + (stakesPrev.toUint96(stakesPrev.length - 24)),
-            uint96(weightOfOperatorEigen) + (stakesPrev.toUint96(stakesPrev.length - 12))
-        );
-        bytes32 hashOfStakes = keccak256(stakes);
-        assertTrue(
-            hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-            "stakes stored incorrectly"
-        );
-
-        cheats.stopPrank();
-        return (stakes);
+        return _testRegisterAdditionalSelfOperator(sender, stakesPrev);
     }
 
-    function _testTwoSelfOperatorsRegister() internal returns (bytes memory)
-    {
-        (bytes memory stakesPrev) = testSelfOperatorRegister();
-
-        address sender = acct_0;
-        uint8 registrantType = 3;
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory stakesPrev) internal returns (bytes memory) {
         //register as both ETH and EIGEN operator
-        // uint8 registrantType = 3;
-        //spacer is used in place of stake totals
-        // bytes32 spacer = bytes32(0);
-        // uint256 ethStakesLength = 32;
-        // uint256 eigenStakesLength = 32;
+        uint8 registrantType = 3;
+        _testWethDeposit(sender, 1e18);
+        _testDepositEigen(sender);
+        _testSelfOperatorDelegate(sender);  
+        bytes memory socket = "fe";
         bytes memory data = abi.encodePacked(
             registrantType,
             uint256(stakesPrev.length),
             stakesPrev,
-            uint8(1),
-            bytes("fe")
+            uint8(socket.length),
+            socket
         );
-
-        _testWethDeposit(sender, 1e18);
-        _testDepositEigen(sender);
-        _testSelfOperatorDelegate(sender);  
 
         cheats.startPrank(sender);
         dlqm.register(data);
@@ -595,18 +513,16 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         bytes32 hashOfStakes = keccak256(stakes);
         assertTrue(
             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-            "stakes stored incorrectly"
+            "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
         );
-
-        dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
 
         cheats.stopPrank();
         return (stakes);
     }
 
     function testConfirmDataStoreTwoOperators() public {
-        bytes memory stakesPrev = testTwoSelfOperatorsRegister();
-        // emit log_named_bytes("stakesPrev", stakesPrev);
+        bytes memory stakes = testTwoSelfOperatorsRegister();
+
         bytes32 headerHash = _testInitDataStore();
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
@@ -617,78 +533,23 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
         require(ecrecover(signedHash, v, r, s) == acct_0, "bad sign");
 
-        //uint48 dumpNumber = 1;
+        uint32 numberOfSigners = 2;
 
-        // uint48 dumpNumber,
-        // bytes32 headerHash,
-        // uint32 numberOfSigners,
-        // uint256 ethStakesIndex, uint256 eigenStakesIndex,
-        // uint256 ethStakesLength, uint256 eigenStakesLength,
-        // bytes ethStakes, bytes eigenStakes,
-        // bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
-
-        // ethStakes layout:
-        // packed uint128, one for each signatory that is an ETH signatory (signaled by setting stakerType % 2 == 0)
-
-        // eigenStakes layout:
-        // packed uint128, one for each signatory that is an EIGEN signatory (signaled by setting stakerType % 3 == 0)
-
-        // sigWInfo layout:
-        // bytes32 r
-        // bytes32 vs
-        // bytes1 stakerType
-        // if (sigWInfo.stakerType % 2 == 0) {
-        //     uint32 ethStakesIndex of signatory
-        // }
-        // if (sigWInfo.stakerType % 3 == 0) {
-        //     uint32 eigenStakesIndex of signatory
-        // }
-
-        // indexes aare 2 becuase both hashes have been updated twice
-        // length is known because only 1 staker so 20 + 16 + 32 = 68
-        // precomputed signature and we know they are eth and eigen
-        // all arguments will be computed off chain
-        // ConfirmCalldata memory data;
-
-        // data.dumpNumber = 1;
-        // data.headerHash = headerHash;
-        // data.numberOfSigners = 2;
-        // data.ethStakesIndex = 2;
-        // data.eigenStakesIndex = 2;
-        // data.ethStakesLength = 36 * 2 + 32 = 104;
-        // data.eigenStakesLength = 36 * 2 + 32 = 104;
-        // data.ethStakes = ethStakes;
-        // data.eigenStakes = eigenStakes;
-        // data.sigWInfos = abi.encodePacked(
-        //     bytes32(
-        //         0xdfb9b0b03bd42ddcea0a5e0e4878440c2437aa77094c2d234d5934b1a21a01ef
-        //     ),
-        //     bytes32(
-        //         0xF0875e533676b8e11d4138de62a20f5d49a20a3501e54d6a67bd64fe4d5a8560
-        //     ),
-        //     uint8(0)
-        // );
-
-        uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-        // uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(2);
-        // emit log_named_uint("dumpNumberAtIndex", dumpNumberAtIndex);
-        // emit log_named_uint("dlRegVW.getStakesHashUpdateLength()", dlRegVW.getStakesHashUpdateLength());
+        // uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint48 currentDumpNumber = dlsm.dumpNumber();
-        // emit log_named_uint("currentDumpNumber", currentDumpNumber);
-        // emit log_named_uint("stakesPrev.length", stakesPrev.length);
 
         bytes memory data = abi.encodePacked(
             // uint48(dataStoreDumpNumber),
             // uint48(2),
-            uint48(1),
+            currentDumpNumber,
             headerHash,
-            uint32(2),
+            numberOfSigners,
             uint256(dlRegVW.getStakesHashUpdateLength() - 1)
         );
         data = abi.encodePacked(
             data,
-            stakesPrev.length,
-            stakesPrev
+            stakes.length,
+            stakes
         );
         data = abi.encodePacked(
             data,
@@ -698,14 +559,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             bytes32(
                 0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
             ),
-            // uint32(1), //signatory's index in stakes object
             uint32(0) //signatory's index in stakes object
         );
         data = abi.encodePacked(
             data,
             r,
             vs,
-            // uint32(1 + 45), //signatory's index in stakes object
             uint32(1) //signatory's index in stakes object
         );
 
