@@ -336,47 +336,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         return headerHash;
     }   
 
-    //verifies that it is possible to confirm a data store
-    //checks that the store is marked as committed
-    function testConfirmDataStore() public {
-        bytes memory stakes = testSelfOperatorRegister();
-        // emit log_named_bytes("stakes is now", stakes);
-        bytes32 headerHash = _testInitDataStore();
-
-        uint48 dumpNumber = 1;
-        uint32 numberOfSigners = 1;
-        uint256 stakesIndex = 1;
-        cheats.prank(storer);
-        bytes memory data = abi.encodePacked(
-            dumpNumber,
-            headerHash,
-            numberOfSigners,
-            stakesIndex,
-            uint256(stakes.length)
-        );
-        data = abi.encodePacked(
-            data,
-            stakes,
-            //signature r
-            bytes32(
-                0xd014256b124b583eb14192505340f3c785c31c3412c7daa358072c0b81b85aa5
-            ),
-            //signature vs
-            bytes32(
-                0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
-            ),
-            //index in stakes object
-            uint32(0)
-        );
-        uint256 gasbefore = gasleft();
-        DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-        emit log_named_uint("gas spent on confirm, testConfirmDataStore()", gasbefore - gasleft());
-
-        //(uint48 dumpNumber, uint32 initTime, uint32 spl, bool committed) = dl.dataStores(headerHash);
-        (, , , bool committed) = dl.dataStores(headerHash);
-        assertTrue(committed, "Data store not committed");
-    }
-
     //verifies that it is possible to deposit eigen
     function testDepositEigen() public {
         _testDepositEigen(registrant);
@@ -473,56 +432,27 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         return (stakes);
     }
 
+    //verifies that it is possible to confirm a data store
+    //checks that the store is marked as committed
+    function testConfirmDataStore() public {
+        testConfirmDataStoreSelfOperators(1);
+    }
+
     function testConfirmDataStoreTwoOperators() public {
-        bytes memory stakes = testTwoSelfOperatorsRegister();
-
-        bytes32 headerHash = _testInitDataStore();
-        bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
-        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(uint256(priv_key_0), signedHash);
-        bytes32 vs = SignatureCompaction.packVS(s,v);
-        // require(ecrecover(signedHash, v, r, s) == acct_0, "bad sign");
-        uint32 numberOfSigners = 2;
-        // uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-        uint48 currentDumpNumber = dlsm.dumpNumber();
-        bytes memory data = abi.encodePacked(
-            currentDumpNumber,
-            headerHash,
-            numberOfSigners,
-            uint256(dlRegVW.getStakesHashUpdateLength() - 1),
-            stakes.length,
-            stakes
-        );
-        data = abi.encodePacked(
-            data,
-            bytes32(
-                0xd014256b124b583eb14192505340f3c785c31c3412c7daa358072c0b81b85aa5
-            ),
-            bytes32(
-                0xf4c6a5d675588f311a9061cf6cbf6eacd95a15f42c9d111a9f65767dfe2e6ff8
-            ),
-            uint32(0) //signatory's index in stakes object
-        );
-        data = abi.encodePacked(
-            data,
-            r,
-            vs,
-            uint32(1) //signatory's index in stakes object
-        );
-        cheats.prank(storer);
-
-        uint256 gasbefore = gasleft();
-        DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-        emit log_named_uint("gas spent on confirm, testConfirmDataStoreTwoOperators()", gasbefore - gasleft());
-
-        (, , ,bool committed) = dl.dataStores(headerHash);
-        assertTrue(committed, "Data store not committed");
-        cheats.stopPrank();
+        testConfirmDataStoreSelfOperators(2);
     }
 
     function testConfirmDataStoreTwelveOperators() public {
-        _setSigners();
+        testConfirmDataStoreSelfOperators(12);
+    }
 
-        uint32 numberOfSigners = 12;
+    function testConfirmDataStoreSelfOperators(uint8 signersInput) public {
+        cheats.assume(signersInput > 0 && signersInput <= 12);
+
+        uint32 numberOfSigners = uint32(signersInput);
+
+        //loads hardcoded signer set
+        _setSigners();
 
         //register the first operator. initial stakes is 24 zero bytes
         bytes memory stakes = abi.encodePacked(bytes24(0));
@@ -566,7 +496,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         uint256 gasbefore = gasleft();
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-        emit log_named_uint("gas spent on confirm, testConfirmDataStoreTwelveOperators()", gasbefore - gasleft());
+        emit log_named_uint("gas spent on confirm, testConfirmDataStoreSelfOperators()", gasbefore - gasleft());
+        emit log_named_uint("number of operators", numberOfSigners);
          
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
