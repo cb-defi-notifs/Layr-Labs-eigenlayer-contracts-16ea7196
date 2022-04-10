@@ -170,6 +170,9 @@ abstract contract DataLayrSignatureChecker is
                 pointer += 64;                    
             }
 
+            // emit log_named_uint("previousSigner", previousSigner);
+            // emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
+            // emit log_named_uint("uint160(sigWInfo.signatory)", uint160(sigWInfo.signatory));
             //verify monotonic increase of address value
             require(
                 uint160(sigWInfo.signatory) > previousSigner,
@@ -180,16 +183,23 @@ abstract contract DataLayrSignatureChecker is
             signers[i] = sigWInfo.signatory;
 
             //BEGIN ADDED FOR TESTING
+            // address addrFromSigWInfo;
             // address addrFromStakes;
             // uint256 ethStakeAmount;
             // assembly {
-            //     addrFromStakes := 
+            //     addrFromSigWInfo := 
             //             //gets signatory address
             //             and(
             //                 //signatory location in sigWInfo
             //                 mload(add(sigWInfo, 64)),
             //                 //20 byte mask
             //                 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+            //             )
+            //     addrFromStakes :=
+            //             //pulls address from stakes object
+            //             shr(
+            //                 96,
+            //                 calldataload(signatoryCalldataByteLocation)
             //             )
             //     ethStakeAmount :=
             //                 shr(
@@ -205,6 +215,8 @@ abstract contract DataLayrSignatureChecker is
             // }
             // emit log_named_bytes("full calldata", msg.data);
             // emit log_named_uint("signatoryCalldataByteLocation", signatoryCalldataByteLocation);
+            // emit log_named_address("addrFromSigWInfo", addrFromSigWInfo);
+            // emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
             // emit log_named_address("addrFromStakes", addrFromStakes);
             // emit log_named_uint("ethStakeAmount", ethStakeAmount);
             //END ADDED FOR TESTING

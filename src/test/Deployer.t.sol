@@ -31,8 +31,9 @@ import "../contracts/libraries/BytesLib.sol";
 import "../contracts/utils/SignatureCompaction.sol";
 
 import "./CheatCodes.sol";
+import "./Signers.sol";
 
-contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
+contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Signers {
     using BytesLib for bytes;
 
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
@@ -386,7 +387,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     //deposits a fixed amount of eigen from address 'sender'
     //checks that the deposit is credited correctly
     function _testDepositEigen(address sender) public {
-        uint256 toDeposit = 1e17;
+        uint256 toDeposit = 1e16;
         eigen.safeTransferFrom(address(this), sender, 0, toDeposit, "0x");
         cheats.startPrank(sender);
         eigen.setApprovalForAll(address(deposit), true);
@@ -499,7 +500,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         dlqm.register(data);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-        emit log_named_uint("dumpNumber", dumpNumber);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
         uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
         bytes memory stakes = abi.encodePacked(
@@ -511,7 +511,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
         );
         bytes32 hashOfStakes = keccak256(stakes);
-        emit log_named_uint("dumpNumber", dumpNumber);
         assertTrue(
             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
@@ -525,30 +524,18 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         bytes memory stakes = testTwoSelfOperatorsRegister();
 
         bytes32 headerHash = _testInitDataStore();
-
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
-        // bytes32 signedHash = headerHash;
-
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign(uint256(priv_key_0), signedHash);
         bytes32 vs = SignatureCompaction.packVS(s,v);
-
-        require(ecrecover(signedHash, v, r, s) == acct_0, "bad sign");
-
+        // require(ecrecover(signedHash, v, r, s) == acct_0, "bad sign");
         uint32 numberOfSigners = 2;
-
         // uint48 dumpNumberAtIndex = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint48 currentDumpNumber = dlsm.dumpNumber();
-
         bytes memory data = abi.encodePacked(
-            // uint48(dataStoreDumpNumber),
-            // uint48(2),
             currentDumpNumber,
             headerHash,
             numberOfSigners,
-            uint256(dlRegVW.getStakesHashUpdateLength() - 1)
-        );
-        data = abi.encodePacked(
-            data,
+            uint256(dlRegVW.getStakesHashUpdateLength() - 1),
             stakes.length,
             stakes
         );
@@ -568,64 +555,82 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver {
             vs,
             uint32(1) //signatory's index in stakes object
         );
-
         cheats.prank(storer);
 
          emit log_named_uint("gas before, testConfirmDataStoreTwoOperators()", gasleft());
-
         DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
-
          emit log_named_uint("gas after, testConfirmDataStoreTwoOperators()", gasleft());
+
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
-
     }
 
-    uint256 constant NUM_SIGNERS = 5;
-    mapping(uint256 => address) signers;
-    mapping(uint256 => uint256) indices;
+    function testConfirmDataStoreTwelveOperators() public {
+        _setSigners();
+        //register as both ETH and EIGEN operator
+        uint8 registrantType = 3;
+        uint256 stakesLength = 24;
+        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
+        bytes24 emptyStakes = bytes24(0);
+        uint8 socketLength = 1;
+        bytes memory socket = "ff";
+        bytes memory initData = abi.encodePacked(
+            registrantType,
+            stakesLength,
+            emptyStakes,
+            socketLength,
+            socket
+        );
 
-    function testGetSigners() public {
-        uint256 key0 = 2 ** 255;
-        //get the addresses corresponding to the keys
-        for (uint256 i = 0; i < NUM_SIGNERS; i++) {
-            uint256 key = key0 + i;
-            address signer = cheats.addr(key);
-            emit log_named_address("signer", signer);
+        uint32 numberOfSigners = 12;
+
+        //register the first operator
+        bytes memory stakes = _testSelfOperatorRegister(signers[0], initData);
+
+        //register all other operators
+        for (uint256 i = 1; i < numberOfSigners; ++i) {
+            // emit log_named_uint("i", i);
+            stakes = _testRegisterAdditionalSelfOperator(signers[i], stakes);
         }
+
+        bytes32 headerHash = _testInitDataStore();
+        bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
+        uint48 currentDumpNumber = dlsm.dumpNumber();
+        //start forming the data object
+        bytes memory data = abi.encodePacked(
+            currentDumpNumber,
+            headerHash,
+            numberOfSigners,
+            uint256(dlRegVW.getStakesHashUpdateLength() - 1),
+            stakes.length,
+            stakes
+        );
+
+        //sign the headerHash with each signer, and append the signature to the data object
+        for (uint256 j = 0; j < numberOfSigners; ++j) {
+            (uint8 v, bytes32 r, bytes32 s) = cheats.sign(keys[j], signedHash);
+            // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));      
+            require(ecrecover(signedHash, v, r, s) == signers[j], "bad sign");
+            bytes32 vs = SignatureCompaction.packVS(s,v);
+            data = abi.encodePacked(
+                data,
+                r,
+                vs,
+                uint32(j) //signatory's index in stakes object
+            );
+        }
+
+        // emit log_named_bytes("stakes", stakes);
+        // emit log_named_bytes("data", data);
+        cheats.prank(storer);
+
+        emit log_named_uint("gas before, testConfirmDataStoreTwelveOperators()", gasleft());
+        DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
+        emit log_named_uint("gas after, testConfirmDataStoreTwelveOperators()", gasleft());
+         
+        (, , ,bool committed) = dl.dataStores(headerHash);
+        assertTrue(committed, "Data store not committed");
+        cheats.stopPrank();
     }
-
-
-    // function testOrderSigners() public {
-    //     uint256 key0 = 2 ** 255;
-    //     //get the addresses corresponding to the keys
-    //     for (uint256 i = 0; i < NUM_SIGNERS; i++) {
-    //         uint256 key = key0 + i;
-    //         address signer = cheats.addr(key);
-    //         signers[i] = signer;
-    //     }
-    //     address tempAddr;
-    //     uint256 tempIndex;
-    //     //sort the addresses
-    //     for (uint256 j = 0; j < 3; j++) {
-    //         emit log_named_uint("run", j);
-    //         for (uint256 jj = 0; j < (NUM_SIGNERS - 1); jj++) {
-    //             //swap the signers and their indices
-    //             if (signers[jj] > signers[jj + 1]) {
-    //                 tempAddr = signers[jj];
-    //                 signers[jj] = signers[jj + 1];
-    //                 signers[jj + 1] = tempAddr;
-
-    //                 tempIndex = indices[jj];
-    //                 indices[jj] = indices[jj + 1];
-    //                 indices[jj + 1] = tempIndex;
-    //             }
-    //         }
-    //     }
-    //     //print the indices
-    //     for (uint256 k = 0; k < NUM_SIGNERS; k++) {
-    //         emit log_named_uint("indices", indices[k]);
-    //     }
-    // }
 }
