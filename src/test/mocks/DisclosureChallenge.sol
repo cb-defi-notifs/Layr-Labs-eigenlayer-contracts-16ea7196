@@ -76,8 +76,8 @@ contract DataLayrDisclosureChallenge is DSTest {
                 revert(0, 0)
             }
         }
-        emit log_named_uint("sumx", sum[0]);
-        emit log_named_uint("sumy", sum[1]);
+        // emit log_named_uint("sumx", sum[0]);
+        // emit log_named_uint("sumy", sum[1]);
 
         require(
             sum[0] != x_contest || sum[1] != y_contest,
@@ -163,9 +163,9 @@ contract DataLayrDisclosureChallenge is DSTest {
         coors[1] = y_power;
         //this is the coefficient of the term with degree degree
         coors[2] = uint256(bytes32(poly[degree * 32:degree * 32 + 32]));
-        emit log_uint(coors[0]);
-        emit log_uint(coors[1]);
-        emit log_uint(coors[2]);
+        // emit log_uint(coors[0]);
+        // emit log_uint(coors[1]);
+        // emit log_uint(coors[2]);
         uint256[2] memory product;
         assembly {
             if iszero(
@@ -176,14 +176,14 @@ contract DataLayrDisclosureChallenge is DSTest {
         }
 
         if (turn) {
-            emit log_uint(1);
+            // emit log_uint(1);
             //if challenger turn, challenge successful if points dont match
             resolve(
                 headerHash,
                 contest_point[0] != product[0] || contest_point[1] != product[1]
             );
         } else {
-            emit log_uint(1);
+            // emit log_uint(1);
             //if operator turn, challenge successful if points match
             resolve(
                 headerHash,
@@ -208,25 +208,25 @@ contract DataLayrDisclosureChallenge is DSTest {
         //degree of power being proved
         uint48 degree;
         bytes32 node = nodeToProve;
-        emit log_named_bytes32("left", node);
+        // emit log_named_bytes32("left", node);
         for (uint i = 0; i < len; ) {
             if (leftRightFlags[i]) {
                 //left branch
-                emit log_named_bytes32("left", node);
-                emit log_named_bytes32("right", proof[i]);
-                emit log_named_bytes32(
-                    "parent",
-                    keccak256(abi.encodePacked(node, proof[i]))
-                );
+                // emit log_named_bytes32("left", node);
+                // emit log_named_bytes32("right", proof[i]);
+                // emit log_named_bytes32(
+                //     "parent",
+                //     keccak256(abi.encodePacked(node, proof[i]))
+                // );
                 node = keccak256(abi.encodePacked(node, proof[i]));
             } else {
                 //right branch
-                emit log_named_bytes32("left", proof[i]);
-                emit log_named_bytes32("right", node);
-                emit log_named_bytes32(
-                    "parent",
-                    keccak256(abi.encodePacked(proof[i], node))
-                );
+                // emit log_named_bytes32("left", proof[i]);
+                // emit log_named_bytes32("right", node);
+                // emit log_named_bytes32(
+                //     "parent",
+                //     keccak256(abi.encodePacked(proof[i], node))
+                // );
                 node = keccak256(abi.encodePacked(proof[i], node));
                 degree += powerOf2;
                 powerOf2 *= 2;
@@ -247,7 +247,7 @@ contract DataLayrDisclosureChallenge is DSTest {
 
     function resolve(bytes32 headerHash, bool challengeSuccessful) internal {
         emit Resolved(challengeSuccessful);
-        emit log_uint(challengeSuccessful ? 1 : 2);
+        // emit log_uint(challengeSuccessful ? 1 : 2);
         selfdestruct(payable(0));
     }
 }

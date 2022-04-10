@@ -8,13 +8,12 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
-import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
+contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager {
     using BytesLib for bytes;
 
     IInvestmentManager public investmentManager;
@@ -74,18 +73,14 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         address registrant // who started
     );
 
-    event EthStakeAdded(
+    event StakeAdded(
         address operator,
-        uint128 stake,
+        uint96 ethStake,
+        uint96 eigenStake,
         uint48 dumpNumber,
         uint48 prevUpdateDumpNumber
     );
-    event EigenStakeAdded(
-        address operator,
-        uint128 stake,
-        uint48 dumpNumber,
-        uint48 prevUpdateDumpNumber
-    );
+
     event EthStakeUpdate(
         address operator,
         uint128 stake,
@@ -249,12 +244,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
             //append the ethAmount to the data we will add to the stakes object
             dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.a);
-            emit EthStakeAdded(
-                operator,
-                ethAndEigenAmounts.a,
-                currDumpNumber,
-                stakeHashUpdates[stakeHashUpdates.length - 1]
-            );
+            // emit EthStakeAdded(
+            //     operator,
+            //     ethAndEigenAmounts.a,
+            //     currDumpNumber,
+            //     stakeHashUpdates[stakeHashUpdates.length - 1]
+            // );
         }
 
         //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
@@ -265,12 +260,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
             //append the eigenAmount to the data we will add to the stakes object
             dataToAppend = abi.encodePacked(dataToAppend, ethAndEigenAmounts.b);
-            emit EigenStakeAdded(
-                operator,
-                ethAndEigenAmounts.b,
-                currDumpNumber,
-                stakeHashUpdates[stakeHashUpdates.length - 1]
-            );
+            // emit EigenStakeAdded(
+            //     operator,
+            //     ethAndEigenAmounts.b,
+            //     currDumpNumber,
+            //     stakeHashUpdates[stakeHashUpdates.length - 1]
+            // );
         }
 
         require(ethAndEigenAmounts.a > 0 || ethAndEigenAmounts.b > 0, "must register as at least one type of validator");
@@ -346,6 +341,13 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         return (registrantType, uint128(ethAndEigenAmounts.b));
 
         // CRITIC: there should be event here?
+        emit StakeAdded(
+            operator,
+            ethAndEigenAmounts.a,
+            ethAndEigenAmounts.b,
+            currDumpNumber,
+            stakeHashUpdates[stakeHashUpdates.length - 1]
+        );
     }
 
     /**

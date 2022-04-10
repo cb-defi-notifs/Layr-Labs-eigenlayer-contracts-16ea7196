@@ -6,11 +6,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "../../libraries/BytesLib.sol";
 import "../../utils/SignatureCompaction.sol";
-import "ds-test/test.sol";
 
 abstract contract DataLayrSignatureChecker is
-    DataLayrServiceManagerStorage,
-    DSTest
+    DataLayrServiceManagerStorage
 {
     using BytesLib for bytes;
     struct SignatoryTotals {
@@ -139,8 +137,8 @@ abstract contract DataLayrSignatureChecker is
             //emit log_uint(gasleft());
 
         while (i < numberOfSigners) {
-            emit log_named_uint("i (numberOfSigners)", i);
-            emit log_named_uint("pointer at loop start", pointer);
+            // emit log_named_uint("i (numberOfSigners)", i);
+            // emit log_named_uint("pointer at loop start", pointer);
 
             //use library here because idk how to store struc in assembly
             //68 bytes is the encoding of bytes calldata offset, it's already counted in the lib
@@ -173,9 +171,9 @@ abstract contract DataLayrSignatureChecker is
             // }
             // emit log_named_bytes32("vs", vs);
             // emit log_named_bytes32("vs", calldataload(add(pointer, 132)));
-            emit log_named_uint("sigWInfo.stakerType0", sigWInfo.stakerType);
+            // emit log_named_uint("sigWInfo.stakerType0", sigWInfo.stakerType);
 
-            emit log_named_bytes("calldata", msg.data);
+            // emit log_named_bytes("calldata", msg.data);
 
             assembly {
                 signatoryCalldataByteLocation := 
@@ -192,7 +190,7 @@ abstract contract DataLayrSignatureChecker is
                                             )
                                 )
             }
-            emit log_named_uint("signatoryCalldataByteLocation", signatoryCalldataByteLocation);
+            // emit log_named_uint("signatoryCalldataByteLocation", signatoryCalldataByteLocation);
 
             //BEGIN ADDED FOR TESTING
             // emit log_named_uint("pointer plus 164", (pointer + 164));
@@ -252,8 +250,8 @@ abstract contract DataLayrSignatureChecker is
             //store signer info in memory variables
             previousSigner = uint160(sigWInfo.signatory);
             signers[i] = sigWInfo.signatory;
-            emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
-            emit log_named_uint("sigWInfo.stakerType1", sigWInfo.stakerType);
+            // emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
+            // emit log_named_uint("sigWInfo.stakerType1", sigWInfo.stakerType);
 
             //BEGIN ADDED FOR TESTING
             address addrFromStakes;
@@ -298,8 +296,8 @@ abstract contract DataLayrSignatureChecker is
                                 )
                             )
             }
-            emit log_named_address("addrFromStakes", addrFromStakes);
-            emit log_named_uint("ethStakeAmount", ethStakeAmount);
+            // emit log_named_address("addrFromStakes", addrFromStakes);
+            // emit log_named_uint("ethStakeAmount", ethStakeAmount);
             //END ADDED FOR TESTING
 
 //TODO: check stored registrant type matches supplied type???
@@ -329,7 +327,7 @@ abstract contract DataLayrSignatureChecker is
 
             if (sigWInfo.stakerType & 0x00000001 == 0x00000001) {
                 //BEGIN ADDED FOR TESTING
-                emit log_named_uint("break", 0);
+                // emit log_named_uint("break", 0);
                 //END ADDED FOR TESTING
                 assembly {
                     //update ethStakeSigned (total)
@@ -358,10 +356,10 @@ abstract contract DataLayrSignatureChecker is
             }
 
             // emit log_named_uint("sigWInfo.stakerType2", sigWInfo.stakerType);
-            emit log_named_uint("signedTotals.eigenStakeSigned", signedTotals.eigenStakeSigned);
+            // emit log_named_uint("signedTotals.eigenStakeSigned", signedTotals.eigenStakeSigned);
 
             if (sigWInfo.stakerType & 0x00000003 == 0x00000003) {
-                emit log_named_uint("break", 1);
+                // emit log_named_uint("break", 1);
                 assembly {
                     //update eigenStakeSigned (total)
                     mstore(
@@ -410,11 +408,11 @@ abstract contract DataLayrSignatureChecker is
             smd.stakesLength - 12
         );
 
-        emit log_named_uint("signedTotals.ethStakeSigned", signedTotals.ethStakeSigned);
-        emit log_named_uint("signedTotals.eigenStakeSigned", signedTotals.eigenStakeSigned);
-        emit log_named_uint("signedTotals.totalEthStake", signedTotals.totalEthStake);
-        emit log_named_uint("signedTotals.totalEigenStake", signedTotals.totalEigenStake);
-        emit log_named_uint("smd.stakesLength", smd.stakesLength);
+        // emit log_named_uint("signedTotals.ethStakeSigned", signedTotals.ethStakeSigned);
+        // emit log_named_uint("signedTotals.eigenStakeSigned", signedTotals.eigenStakeSigned);
+        // emit log_named_uint("signedTotals.totalEthStake", signedTotals.totalEthStake);
+        // emit log_named_uint("signedTotals.totalEigenStake", signedTotals.totalEigenStake);
+        // emit log_named_uint("smd.stakesLength", smd.stakesLength);
 
         //return dumpNumber, ferkle root, eth and eigen that signed and a hash of the signatories
         return (

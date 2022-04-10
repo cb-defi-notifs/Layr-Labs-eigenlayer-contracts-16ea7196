@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.9;
+
+import "./mock/DepositContract.sol";
+import "./governance/Timelock.sol";
+
+import "./core/Eigen.sol";
+
+import "./core/EigenLayrDelegation.sol";
+import "./core/EigenLayrDeposit.sol";
+
+import "./investment/InvestmentManager.sol";
+import "./investment/WethStashInvestmentStrategy.sol";
+import "./investment/Slasher.sol";
+
+import "./middleware/ServiceFactory.sol";
+import "./middleware/QueryManager.sol";
+import "./middleware/DataLayr/DataLayr.sol";
+import "./middleware/DataLayr/DataLayrServiceManager.sol";
+import "./middleware/DataLayr/DataLayrVoteWeigher.sol";
+
+import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+
+
+import "./utils/ERC165_Universal.sol";
+import "./utils/ERC1155TokenReceiver.sol";
+
+import "./libraries/BytesLib.sol";
+import "./utils/SignatureCompaction.sol";
+
+contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
+    using BytesLib for bytes;
+
+    DepositContract public depositContract;
+    Eigen public eigen;
+    EigenLayrDelegation public delegation;
+    EigenLayrDeposit public deposit;
+    InvestmentManager public investmentManager;
+    Slasher public slasher;
+    ServiceFactory public serviceFactory;
+    DataLayrVoteWeigher public dlRegVW;
+    DataLayrServiceManager public dlsm;
+    DataLayr public dl;
+
+    IERC20 public weth;
+    WethStashInvestmentStrategy public strat;
+    IQueryManager public dlqm;
+
+    uint256 wethInitialSupply = 10e50;
+    uint256 undelegationFraudProofInterval = 7 days;
+    uint256 consensusLayerEthToEth = 10;
+    uint256 timelockDelay = 2 days;
+    bytes32 consensusLayerDepositRoot =
+        0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
+    address storer = address(420);
+    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
+
+    //from testing seed phrase
+    bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
+
+    constructor() {
+        //eth2 deposit contract
+        depositContract = new DepositContract();
+        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
+        eigen = new Eigen(address(this));
+
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
+        //do stuff this eigen token here
+        delegation = new EigenLayrDelegation();
+        investmentManager = new InvestmentManager(eigen, delegation);
+        slasher = new Slasher(investmentManager);
+        serviceFactory = new ServiceFactory(investmentManager);
+        //used in the one investment strategy
+        weth = new ERC20PresetFixedSupply(
+            "weth",
+            "WETH",
+            wethInitialSupply,
+            address(this)
+        );
+        //do stuff with weth
+        strat = new WethStashInvestmentStrategy();
+        strat.initialize(address(investmentManager), weth);
+
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        strats[0] = IInvestmentStrategy(address(strat));
+
+        investmentManager.initialize(
+            strats,
+            address(slasher),
+            address(deposit)
+        );
+
+        delegation.initialize(
+            investmentManager,
+            serviceFactory,
+            undelegationFraudProofInterval
+        );
+
+        uint256 feePerBytePerTime = 1;
+        dlsm = new DataLayrServiceManager(
+            delegation,
+            weth,
+            weth,
+            feePerBytePerTime
+        );
+        dl = new DataLayr();
+        dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
+
+        dlqm = serviceFactory.createNewQueryManager(
+            1 days,
+            consensusLayerEthToEth,
+            dlsm,
+            dlRegVW,
+            dlRegVW,
+            timelockDelay,
+            delegation
+        );
+
+        dl.setQueryManager(dlqm);
+        dlsm.setQueryManager(dlqm);
+        dlsm.setDataLayr(dl);
+        dlRegVW.setQueryManager(dlqm);
+
+        deposit.initialize(depositContract, investmentManager, dlsm);
+    }
+}
