@@ -111,7 +111,6 @@ contract EigenLayrDelegation is
         delegated[msg.sender] = true;
 
         // call into hook in delegationTerms contract
-        // CRITIC: parameter list doesn't matches with the function in DelegationTerms.sol
         delegationTerms[operator].onDelegationReceived(
             msg.sender,
             strategies,
@@ -136,8 +135,6 @@ contract EigenLayrDelegation is
     ///          it is necessary to make sure that delegator is not within challenge
     ///          window for a previous undelegation.
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
-        // CRITIC: If a staker is giving the data for strategyIndexes, then
-        // there is a potential concurrency problem.
 
         // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];

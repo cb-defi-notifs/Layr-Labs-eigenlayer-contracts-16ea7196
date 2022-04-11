@@ -119,7 +119,7 @@ contract DataLayrServiceManager is
 
         require(storePeriodLength < 604800, "store for less than 7 days");
 
-        // evaluate the total service fees that disperser has to put in escrow for paying out
+        // evaluate the total service fees that storer has to put in escrow for paying out
         // the DataLayr nodes for their service
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
 
@@ -134,8 +134,7 @@ contract DataLayrServiceManager is
         IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
-        // escrow the total service fees from the disperser to the DataLayr nodes in this contract
-        // CRITIC: change "storer" to "disperser"?
+        // escrow the total service fees from the storer to the DataLayr nodes in this contract
         paymentToken.transferFrom(storer, address(this), fee);
 
         // call DL contract
@@ -253,7 +252,6 @@ contract DataLayrServiceManager is
         depositRoots[block.number] = depositRoot;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
-        // CRITIC: not to use tx.origin as it is a dangerous practice
         dataLayr.confirm(
             dumpNumberToConfirm,
             headerHash,

@@ -144,8 +144,6 @@ contract DataLayr is Ownable, IDataLayr {
         // into DataLayr
         DataStore storage dataStore = dataStores[headerHash];
 
-        //TODO: check if eth and eigen are sufficient
-
         require(
             dumpNumber == dataStore.dumpNumber,
             "Dump Number is incorrect"
