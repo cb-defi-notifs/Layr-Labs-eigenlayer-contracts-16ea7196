@@ -11,8 +11,6 @@ import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
 import "./storage/QueryManagerStorage.sol";
 
-//TODO: upgrading multisig for fee manager and registration manager
-//TODO: these should be autodeployed when this is created, allowing for nfgt and eth
 /**
  * @notice This is the contract for managing queries in any middleware. Each middleware has a
  *         a query manager. The main functionalities of this contract are:
@@ -52,6 +50,10 @@ contract QueryManager is Initializable, QueryManagerStorage {
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
+
+    modifier onlyTimelock() {
+        require(msg.sender == timelock, "onlyTimelock");
+    }
 
     constructor(IVoteWeighter _voteWeighter) {
         voteWeighter = _voteWeighter;
@@ -460,15 +462,18 @@ contract QueryManager is Initializable, QueryManagerStorage {
         _fallback();
     }
 
-    /// @notice sets the fee manager for the iddleware's query manager
-    function setFeeManager(IFeeManager _feeManager) external {
-        require(msg.sender == timelock, "onlyTimelock");
+    /// @notice sets the fee manager for the middleware's query manager
+    function setFeeManager(IFeeManager _feeManager) external onlyTimelock {
         feeManager = _feeManager;
     }
 
+    /// @notice sets the registration manager for the middleware's query manager
+    function setFeeManager(IRegistrationManager _registrationManager) external onlyTimelock {
+        registrationManager = _registrationManager;
+    }
+
     /// @notice sets the timelock contract's address
-    function setTimelock(address _timelock) external {
-        require(msg.sender == timelock, "onlyTimelock");
+    function setTimelock(address _timelock) external onlyTimelock {
         timelock = _timelock;
     }
 
