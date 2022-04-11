@@ -31,7 +31,6 @@ abstract contract DataLayrSignatureChecker is
     }
 
     struct StakesMetaData {
-        uint256 stakesPointer;
         //index of stakeHashUpdate
         uint256 stakesIndex;
         //length of stakes object
@@ -73,8 +72,6 @@ abstract contract DataLayrSignatureChecker is
         //number of different signature bins that signatures are being posted from
         uint32 numberOfSigners;
         StakesMetaData memory smd;
-        //signed data
-        //bytes32 headerHash;
         assembly {
             //get the 48 bits immediately after the function signature and length encoding of bytes calldata type
             dumpNumberToConfirm := shr(208, calldataload(100))
@@ -86,27 +83,18 @@ abstract contract DataLayrSignatureChecker is
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
-        //add together length of already read data
-        uint256 pointer = 6 + 32 + 4;
-        //subtract 88 because library takes offset into account
-        //TODO: Optimize mstores
-        smd.stakesIndex = data.toUint256(pointer);
-        smd.stakesLength = data.toUint256(pointer + 32);
+        // TODO: Optimize mstores
+        // add together length of already read data in bytes -- 42 = 6 + 32 + 4 
+        smd.stakesIndex = data.toUint256(42);
+        // read next 32 bytes
+        smd.stakesLength = data.toUint256(74);
 
-        //emit log_named_uint("smd.stakesIndex", smd.stakesIndex);
-        //emit log_named_uint("smd.eigenStakesIndex", smd.eigenStakesIndex);
+        // emit log_named_uint("smd.stakesIndex", smd.stakesIndex);
+        // emit log_named_uint("smd.eigenStakesIndex", smd.eigenStakesIndex);
 
-        //just read 2 * 32 additional bytes
-        unchecked {
-            pointer += 64;            
-        }
-        //initialize at value that will be used in next calldataload (just after all the already loaded data)
-        //load and verify integrity of stake hash
-        smd.stakes = data.slice(pointer, smd.stakesLength);
-        smd.stakesPointer = pointer + 100;
-        unchecked {
-            pointer += smd.stakesLength;            
-        }
+        // we just read 2 * 32 = 64 additional bytes -- pointer is now equal to (6 + 32 + 4 + 64) = 106
+        // load stakes into memory and verify integrity of stake hash
+        smd.stakes = data.slice(106, smd.stakesLength);
         require(
             keccak256(smd.stakes) ==
                 dlRegVW.getStakesHashUpdateAndCheckIndex(
@@ -115,6 +103,11 @@ abstract contract DataLayrSignatureChecker is
                 ),
             "ETH and/or EIGEN stakes are incorrect"
         );
+
+        // initialize at value that will be used in next calldataload (just after all the already loaded data)
+        // we add 100 to the amount of data we have read here, since 4 bytes (for function sig) + (32 * 3) bytes is used at start of calldata
+        uint256 pointer = 206 + smd.stakesLength;
+        // uint256 pointer = 106 + smd.stakesLength;
 
         //transitory variables to be reused in loop
         //current signer information
@@ -135,9 +128,9 @@ abstract contract DataLayrSignatureChecker is
 
             assembly {
                 //load r
-                mstore(sigWInfo, calldataload(add(pointer, 100)))
+                mstore(sigWInfo, calldataload(pointer))
                 //load vs
-                mstore(add(sigWInfo, 32), calldataload(add(pointer, 132)))
+                mstore(add(sigWInfo, 32), calldataload(add(pointer, 32)))
                 // signatoryCalldataByteLocation := 
                 //                 add(
                 //                     //get position in calldata for start of stakes object
@@ -147,14 +140,13 @@ abstract contract DataLayrSignatureChecker is
                 signatoryCalldataByteLocation := 
                                 add(
                                     //get position in calldata for start of stakes object
-                                    mload(smd),
+                                    206,
                                         mul(
                                             //gets specified location of signatory in stakes object
                                             shr(
                                                 224,
-                                                    calldataload(
-                                                        //100 + 32 + 32
-                                                        add(pointer, 164)
+                                                    //64 accounts for length of signature components
+                                                    calldataload(add(pointer, 64)
                                                 )
                                             ),
                                             //20 + 12*2 for (address, uint96, uint96)
@@ -165,9 +157,9 @@ abstract contract DataLayrSignatureChecker is
 
             sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
 
-            //increase calldataPointer to account for length of signature components
+            //increase calldataPointer to account for length of signature components + 4 bytes for length of uint32 used to specify index in stakes object
             unchecked {
-                pointer += 64;                    
+                pointer += 68;                    
             }
 
             // emit log_named_uint("previousSigner", previousSigner);
@@ -222,8 +214,8 @@ abstract contract DataLayrSignatureChecker is
             //END ADDED FOR TESTING
 
 
-            //this block ensures that the recovered signatory address matches the address stored at the specified index in the stakes object
             assembly {
+                //this block ensures that the recovered signatory address matches the address stored at the specified index in the stakes object
                 //wrap inner part in revert statement (eq will return 0 if *not* equal, in which case, we revert)
                 if iszero(
                     //check signatory address against address stored at specified index in stakes object
@@ -244,63 +236,44 @@ abstract contract DataLayrSignatureChecker is
                 ) {
                     revert(0, 0)
                 }
-            }
 
-//            if (stakerType & 0x00000001 == 0x00000001) {
-                assembly {
-                    //update ethStakeSigned (total)
-                    mstore(
-                        signedTotals,
-                        add(
-                            mload(signedTotals),
-                            //stake amount is 12 bytes, so right-shift by 160 bits (20 bytes)
-                            shr(
-                                160,
-                                calldataload(
-                                    //adding 20 to previous (signatory) index gets us index of ethStakeAmount for signatory
-                                    add(
-                                        signatoryCalldataByteLocation,
-                                        20
-                                    )
+                //update ethStakeSigned (total)
+                mstore(
+                    signedTotals,
+                    add(
+                        mload(signedTotals),
+                        //stake amount is 12 bytes, so right-shift by 160 bits (20 bytes)
+                        shr(
+                            160,
+                            calldataload(
+                                //adding 20 (bytes for signatory address) to previous index gets us index of ethStakeAmount for signatory
+                                add(
+                                    signatoryCalldataByteLocation,
+                                    20
                                 )
                             )
                         )
                     )
-                }
-                //add 12 bytes for length of uint96 used to specify size of ETH stake
-                unchecked {
-                    signatoryCalldataByteLocation += 12;                    
-                }
-            // }
-
-            // emit log_named_uint("stakerType2", stakerType);
-            
-            // if (stakerType & 0x00000003 == 0x00000003) {
-                assembly {
-                    //update eigenStakeSigned (total)
-                    mstore(
-                        add(signedTotals, 32),
-                        add(
-                            mload(add(signedTotals, 32)),
-                            //stake amount is 16 bytes, so right-shift by 160 bits (20 bits)
-                            shr(
-                                160,
-                                calldataload(
-                                    //adding 20 to previous (signatory, possibly plus 12 if eth validator) index gets us index of eigenStakeAmount for signatory
-                                    add(signatoryCalldataByteLocation,
-                                        20
-                                    )
+                )
+                //update eigenStakeSigned (total)
+                mstore(
+                    add(signedTotals, 32),
+                    add(
+                        mload(add(signedTotals, 32)),
+                        //stake amount is 16 bytes, so right-shift by 160 bits (20 bits)
+                        shr(
+                            160,
+                            calldataload(
+                                //adding 32 to previous index (20 for signatory, plus 12 for ethStake) gets us index of eigenStakeAmount for signatory
+                                add(signatoryCalldataByteLocation,
+                                    32
                                 )
                             )
                         )
                     )
-                }
-            // }
-
-            //add 4 bytes for length of uint32 used to specify index in stakes object
-            unchecked {
-                pointer += 4;                    
+                )             
             }
+
             //increment counter at end of loop
             unchecked {
                 ++i;
@@ -330,7 +303,7 @@ abstract contract DataLayrSignatureChecker is
         // emit log_named_uint("signedTotals.totalEigenStake", signedTotals.totalEigenStake);
         // emit log_named_uint("smd.stakesLength", smd.stakesLength);
 
-        //return dumpNumber, ferkle root, eth and eigen that signed and a hash of the signatories
+        //return dumpNumber, headerHash, eth and eigen that signed, and a hash of the signatories
         return (
             dumpNumberToConfirm,
             headerHash,
