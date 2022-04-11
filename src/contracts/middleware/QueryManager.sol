@@ -78,8 +78,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    // CRITIC: (1) Currently, from DL perspective, this data parameter seems unused. Are we still
-    //          envisioning it as an input opType?
     function deregister(bytes calldata data) external {
         require(
             operatorType[msg.sender] != 0,

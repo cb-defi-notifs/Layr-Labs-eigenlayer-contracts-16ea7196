@@ -324,8 +324,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
         return (registrantType, uint128(ethAndEigenAmounts.b));
-
-        // CRITIC: there should be event here?
     }
 
     /**
@@ -352,7 +350,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     /**
      * @notice 
      */
-    // CRITIC: what is this calldata variable for?
     function deregisterOperator(address operator, bytes calldata)
         public
         view

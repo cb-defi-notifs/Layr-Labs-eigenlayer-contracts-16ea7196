@@ -360,9 +360,7 @@ contract DelegationTerms is IDelegationTerms {
      * @param tokens is the list of active tokens for whom rewards are to claimed,
      * @param indices are the locations in paymentsHistory to claim from.
      */
-    // CRITIC: should we have slight different name as it provided functionality to specify
-    //         the tokens? 
-    function withdrawPendingRewards(address[] calldata tokens, uint32[] calldata indices) external {
+    function withdrawPendingRewardsOnlySpecificTokens(address[] calldata tokens, uint32[] calldata indices) external {
         uint256 length = tokens.length;
         require(indices.length == length, "incorrect input length");
         DelegatorStatus memory delegator = delegatorStatus[msg.sender];
