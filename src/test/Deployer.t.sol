@@ -394,14 +394,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     function _testRegisterAdditionalSelfOperator(address sender, bytes memory stakesPrev) internal returns (bytes memory) {
         //register as both ETH and EIGEN operator
-        // uint8 registrantType = 3;
+        uint8 registrantType = 3;
         _testWethDeposit(sender, 1e18);
         _testDepositEigen(sender);
         _testSelfOperatorDelegate(sender);  
         bytes memory socket = "fe";
         bytes memory data = abi.encodePacked(
-            // registrantType,
-            uint8(3),
+            registrantType,
             uint256(stakesPrev.length),
             stakesPrev,
             uint8(socket.length),
@@ -479,8 +478,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //sign the headerHash with each signer, and append the signature to the data object
         for (uint256 j = 0; j < numberOfSigners; ++j) {
             (uint8 v, bytes32 r, bytes32 s) = cheats.sign(keys[j], signedHash);
-            // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));      
-            require(ecrecover(signedHash, v, r, s) == signers[j], "bad sign");
+            // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));  
+            address recoveredAddress = ecrecover(signedHash, v, r, s);
+            if (recoveredAddress != signers[j]) {
+                emit log_named_address("bad signature from", recoveredAddress);
+                emit log_named_address("expected signature from", signers[j]);
+            } 
             bytes32 vs = SignatureCompaction.packVS(s,v);
             data = abi.encodePacked(
                 data,
