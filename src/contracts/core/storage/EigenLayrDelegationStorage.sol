@@ -32,8 +32,15 @@ abstract contract EigenLayrDelegationStorage {
     mapping(address => uint256) public lastUndelegationCommit;
 
     // staker => whether they are delegated or not
-    mapping(address => bool) public delegated;
+    mapping(address => DelegationStatus) public delegated;
     
     // fraud proof interval for undelegation
     uint256 public undelegationFraudProofInterval;
+
+    enum DelegationStatus {
+        UNDELEGATED,
+        DELEGATED,
+        UNDELEGATION_COMMITED,
+        UNDELEGATION_FINALIZED
+    }
 }
