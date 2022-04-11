@@ -253,7 +253,6 @@ contract DelegationTerms is IDelegationTerms {
             amount -= operatorEarnings;
         }
 
-//TODO: improve this calculation
         /*
         // find the multiple of the amount earned by delegators holding EIGEN vs the amount earned by delegators holding ETH. this should be equal to:
         //          (fraction of amount going to EIGEN holders in the middleware)

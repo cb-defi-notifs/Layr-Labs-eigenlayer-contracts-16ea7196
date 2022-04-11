@@ -9,7 +9,7 @@ import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 
-// TODO: withdrawals of Eigen (and consensus layer ETH?)
+// TODO: withdrawals of consensus layer ETH?
 /**
  * @notice This contract is for managing investments in different strategies. The main 
  *         functionalities are:
