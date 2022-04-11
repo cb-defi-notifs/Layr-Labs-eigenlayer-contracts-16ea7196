@@ -53,6 +53,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     modifier onlyTimelock() {
         require(msg.sender == timelock, "onlyTimelock");
+        _;
     }
 
     constructor(IVoteWeighter _voteWeighter) {
@@ -468,7 +469,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     }
 
     /// @notice sets the registration manager for the middleware's query manager
-    function setFeeManager(IRegistrationManager _registrationManager) external onlyTimelock {
+    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
         registrationManager = _registrationManager;
     }
 
