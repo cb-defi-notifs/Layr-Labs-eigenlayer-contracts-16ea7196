@@ -26,8 +26,7 @@ abstract contract DataLayrSignatureChecker is
         bytes32 r;
         bytes32 vs;
         address signatory;
-//TODO: determine if we need this
-        //fills the 32-byte memory slot (prevents overwriting anything important)
+        //fills the 32-byte memory slot (prevents overwriting anything important in dirty-write of 'signatory')
         uint96 garbageData;
     }
 
@@ -41,8 +40,6 @@ abstract contract DataLayrSignatureChecker is
     }
 
     //NOTE: this assumes length 64 signatures
-    //TODO: sanity check on calldata length?
-    //TODO: do math instead of updating calldataPointer variable?
     /*
     FULL CALLDATA FORMAT:
     uint48 dumpNumber,

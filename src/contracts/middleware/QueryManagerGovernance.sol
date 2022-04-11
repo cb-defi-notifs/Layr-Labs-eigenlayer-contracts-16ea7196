@@ -63,14 +63,13 @@ contract QueryManagerGovernance {
 
     /// @notice The delay before voting on a proposal may take place, once proposed. stored as uint256 in number of seconds
     function votingDelay() public pure returns (uint256) {
-        return 7 days;
+        return 2 days;
     }
 
-    //TODO: change this to timestamp? for quicker/slower chains
-    /// @notice The duration of voting on a proposal, in blocks
+    /// @notice The duration of voting on a proposal, in seconds
     function votingPeriod() public pure returns (uint256) {
-        return 17280;
-    } // ~3 days in blocks (assuming 15s blocks)
+        return 7 days;
+    }
 
     /// @notice The address of the Protocol Timelock
     TimelockInterface public timelock;
@@ -387,8 +386,7 @@ contract QueryManagerGovernance {
         return receipts[proposalId][voter];
     }
 
-    //TODO: add a version of this that is 'view', i.e. doesn't modify state?
-    function state(uint256 proposalId) public returns (ProposalState) {
+    function state(uint256 proposalId) public view returns (ProposalState) {
         //TODO: update this
         require(
             proposalCount >= proposalId && proposalId > 0,

@@ -323,7 +323,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
 
         emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
-        //TODO: change return type to uint96
         return (registrantType, uint128(ethAndEigenAmounts.b));
 
         // CRITIC: there should be event here?
