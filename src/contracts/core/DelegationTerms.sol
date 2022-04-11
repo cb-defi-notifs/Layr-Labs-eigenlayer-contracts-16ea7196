@@ -261,7 +261,8 @@ contract DelegationTerms is IDelegationTerms {
         //          / (fraction of ETH in the middleware delegated to the operator of this contract)
         */
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
-        uint256 multipleToEigenHolders = 1e18; //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees
+        //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
+        uint256 multipleToEigenHolders = 1e18;
        (uint128 totalEigenStaked, uint128 totalEthStaked) = queryManager.totalStake();
        (uint128 operatorEigenStaked, uint128 operatorEthStaked) = queryManager.operatorStakes(operator);
        multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
