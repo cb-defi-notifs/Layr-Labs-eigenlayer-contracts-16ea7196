@@ -41,14 +41,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     }
 
     /**
-     * @notice pack two uint128's into a storage slot
-     */
-    struct Uint128xUint128 {
-        uint128 a;
-        uint128 b;
-    }
-
-    /**
      * @notice pack two uint96's into a storage slot
      */
     struct Uint96xUint96 {
@@ -75,9 +67,10 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     );
 
     event StakeAdded( address operator, uint96 ethStake, uint96 eigenStake, uint48 dumpNumber, uint48 prevUpdateDumpNumber );
-    event EthStakeUpdate(
+    event StakeUpdate(
         address operator,
-        uint128 stake,
+        uint96 ethStake,
+        uint96 eigenStake,
         uint48 dumpNumber,
         uint48 prevUpdateDumpNumber
     );
@@ -374,20 +367,20 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         return true;
     }
 
-
-//TODO: THIS IS BROKEN -- FIX IT!!!
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
      */
     /**
      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
-     *        their ETH and/or EIGEN deposits. This param is in abi-encodedPacked form of the list of 
+     *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
      *        the form 
-     *          (dln1's registrantType, dln1's addr, dln1's ETH deposit and/or dln1's EIGEN deposit),
-     *          (dln2's registrantType, dln2's addr, dln2's ETH deposit and/or dln2's EIGEN deposit), ...
-     * @param operators are the DataLayr nodes whose information on their ETH and/or EIGEN deposits
+     *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
+     *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
+     *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
+     *          where registrantType is a uint8 and all others are a uint96
+     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
      *        getting updated
-     * @param indexes are the tuple positions whose corresponding ETH and/or EIGEN deposit is 
+     * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
      *        getting updated  
      */ 
     function updateStakes(
@@ -395,7 +388,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         address[] memory operators,
         uint32[] memory indexes
     ) public {
-        //stakes must be preimage of last update's hash
+        //provided 'stakes' must be preimage of last update's hash
         require(
             keccak256(stakes) ==
                 stakeHashes[
@@ -416,12 +409,12 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             stakeHashUpdates[stakeHashUpdates.length - 1]
         );
 
-        // iterating over all the tuples that is to be updated
-        for (uint i = 0; i < operators.length; ) {
+        // iterating over all the tuples that are to be updated
+        for (uint256 i = 0; i < operators.length; ) {
 
             // placing the pointer at the starting byte of the tuple 
-            /// @dev 36 bytes per DataLayr node: 20 bytes for address, 16 bytes for its ETH deposit
-            uint256 start = uint256(indexes[i] * 36);
+            /// @dev 44 bytes per DataLayr node: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+            uint256 start = uint256(indexes[i] * 44);
 
             require(start < stakes.length - 68, "Cannot point to total bytes");
 
@@ -430,33 +423,49 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
                 "index is incorrect"
             );
 
-            // determine current stake and new stake
-            Uint128xUint128 memory currentAndNewEth = Uint128xUint128({
-                a: stakes.toUint128(start + 20),
-                b: weightOfOperatorEth(operators[i])
+            // determine current stakes
+            Uint96xUint96 memory currentStakes = Uint96xUint96({
+                a: stakes.toUint96(start + 20),
+                b: stakes.toUint96(start + 32)
             });
 
-            // replacing ETH deposit of the operator with updated ETH deposit
+            // determine new stakes
+            Uint96xUint96 memory newStakes = Uint96xUint96({
+                a: uint96(weightOfOperatorEigen(operators[i])),
+                b: uint96(weightOfOperatorEth(operators[i]))
+            });
+
+            // check if minimum requirements have been met
+            if (newStakes.a < dlnEthStake) {
+                newStakes.a = uint96(0);
+            }
+            if (newStakes.a < dlnEigenStake) {
+                newStakes.b = uint96(0);
+            }
+
+            // find new stakes object, replacing deposit of the operator with updated deposit
             stakes = stakes
-            // slice until the address bytes of the DataLayr node
+            // slice until just after the address bytes of the DataLayr node
             .slice(0, start + 20)
-            // concatenate the updated ETH deposit
-            .concat(abi.encodePacked(currentAndNewEth.b))
+            // concatenate the updated ETH and EIGEN deposits
+            .concat(abi.encodePacked(newStakes.a, newStakes.b));
+//TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
+            stakes = stakes
             // concatenate the bytes pertaining to the tuples from rest of the DataLayr 
-            // nodes except the last 32 bytes that comprises of total ETH deposits
-            .concat(stakes.slice(start + 36, stakes.length - (start + 68)))
-            // concatenate the updated ETH deposit in the last 32 bytes,
-            // subtract old ETH deposit and add the updated ETH deposit
+            // nodes except the last 24 bytes that comprises of total ETH deposits
+            .concat(stakes.slice(start + 44, stakes.length - (start + 68))) //68 = 44 + 24
+            // concatenate the updated deposits in the last 24 bytes,
+            // subtract old ETH and EIGEN deposits and add the updated deposits
                 .concat(
                     abi.encodePacked(
-                        stakes.toUint256(stakes.length - 32) +
-                            currentAndNewEth.a -
-                            currentAndNewEth.b
+                        (stakes.toUint96(stakes.length - 24) + newStakes.a - currentStakes.a),
+                        (stakes.toUint96(stakes.length - 12) + newStakes.b - currentStakes.b)
                     )
                 );
-            emit EthStakeUpdate(
+            emit StakeUpdate(
                 operators[i],
-                currentAndNewEth.b,
+                newStakes.a,
+                newStakes.b,
                 dumpNumbers.a,
                 dumpNumbers.b
             );
