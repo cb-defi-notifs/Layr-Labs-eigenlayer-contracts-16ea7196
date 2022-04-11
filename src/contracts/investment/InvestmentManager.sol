@@ -29,10 +29,10 @@ contract InvestmentManager is
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
 
-    modifier onlyNotDelegated() {
+    modifier onlyNotDelegated(address user) {
         require(
-            delegation.isNotDelegated(msg.sender),
-            "cannot withdraw while delegated"
+            delegation.isNotDelegated(user),
+            "InvestmentManager: onlyNotDelegated"
         );
         _;
     }
@@ -212,7 +212,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
-    ) external onlyNotDelegated {
+    ) external onlyNotDelegated(msg.sender) {
         uint256 strategyIndexIndex;
         address depositor = msg.sender;
 
@@ -298,7 +298,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyNotDelegated {
+    ) external onlyNotDelegated(msg.sender) {
         address depositor = msg.sender;
         require(
             stratEverApproved[strategy],
@@ -421,27 +421,43 @@ contract InvestmentManager is
         return amount;
     }
 
-    // sets a user's eigen deposit
+    // adds to a user's eigen deposit
     /**
-     * @notice Used for setting the delegator's new Eigen balance
+     * @notice Used for adding to the delegator's Eigen balance
      */
-    /**
-     * @dev Caution that @param amount is the new Eigen balance that the @param depositor wants
-     *      and not the increment to the new balance.
-     */ 
     function depositEigen(address depositor, uint256 amount)
         external
         onlyGovernor
         returns (uint256)
     {
+        uint256 deposited = eigenDeposited[depositor];
         totalEigenStaked =
-            totalEigenStaked +
-            amount -
-            eigenDeposited[depositor];
+            (totalEigenStaked +
+            amount) -
+            deposited;
 
-        eigenDeposited[depositor] = amount;
+        eigenDeposited[depositor] += amount;
 
-        return amount;
+        return (deposited + amount);
+    }
+
+    /**
+     * @notice Used for withdrawing Eigen
+     */
+    function withdrawEigen(uint256 amount)
+        external
+        onlyNotDelegated(msg.sender)
+    {
+        eigenDeposited[msg.sender] -= amount;
+        totalEigenStaked -= amount;
+        EIGEN.safeTransferFrom(
+            address(this),
+            msg.sender,
+            // fixed tokenId. TODO: make this flexible?
+            0,
+            amount,
+            "0x"
+        );
     }
 
     /**
