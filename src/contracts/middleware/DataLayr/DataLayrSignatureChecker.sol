@@ -10,6 +10,7 @@ import "../../utils/SignatureCompaction.sol";
 
 abstract contract DataLayrSignatureChecker is
     DataLayrServiceManagerStorage
+    // , DSTest
 {
     using BytesLib for bytes;
     struct SignatoryTotals {
@@ -79,20 +80,19 @@ abstract contract DataLayrSignatureChecker is
             headerHash := calldataload(106)
             //get the next 32 bits
             numberOfSigners := shr(224, calldataload(138))
+            //store the next 32 bytes in the start of the 'smd' object (i.e. smd.stakesIndex)
+            mstore(smd, calldataload(142))
+            //store the next 32 bytes after the start of the 'smd' object (i.e. smd.stakesLength)
+            mstore(add(smd, 32), calldataload(174))
         }
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
-        // TODO: Optimize mstores
-        // add together length of already read data in bytes -- 42 = 6 + 32 + 4 
-        smd.stakesIndex = data.toUint256(42);
-        // read next 32 bytes
-        smd.stakesLength = data.toUint256(74);
-
+        // TODO: Optimize mstores further?
         // emit log_named_uint("smd.stakesIndex", smd.stakesIndex);
         // emit log_named_uint("smd.eigenStakesIndex", smd.eigenStakesIndex);
 
-        // we just read 2 * 32 = 64 additional bytes -- pointer is now equal to (6 + 32 + 4 + 64) = 106
+        // total bytes read so far is now (6 + 32 + 4 + 64) = 106
         // load stakes into memory and verify integrity of stake hash
         smd.stakes = data.slice(106, smd.stakesLength);
         require(
@@ -107,7 +107,31 @@ abstract contract DataLayrSignatureChecker is
         // initialize at value that will be used in next calldataload (just after all the already loaded data)
         // we add 100 to the amount of data we have read here, since 4 bytes (for function sig) + (32 * 3) bytes is used at start of calldata
         uint256 pointer = 206 + smd.stakesLength;
-        // uint256 pointer = 106 + smd.stakesLength;
+
+        assembly {
+            //fetch the totalEthStake value and store it in memory
+            mstore(
+                //signedTotals.totalEthStake location
+                add(signedTotals, 64),
+                //right-shift by 160 to get just the 96 bits we want
+                shr(
+                    160,
+                    //load data beginning 24 bytes before the end of the 'stakes' object (this is where totalEthStake begins)
+                    calldataload(sub(pointer, 24))                 
+                )
+            )
+            //fetch the totalEigenStake value and store it in memory
+            mstore(
+                //signedTotals.totalEigenStake location
+                add(signedTotals, 96),
+                //right-shift by 160 to get just the 96 bits we want
+                shr(
+                    160,
+                    //load data beginning 12 bytes before the end of the 'stakes' object (this is where totalEigenStake begins)
+                    calldataload(sub(pointer, 12))                 
+                )
+            )
+        }
 
         //transitory variables to be reused in loop
         //current signer information
@@ -288,13 +312,6 @@ abstract contract DataLayrSignatureChecker is
                 dumpNumberToConfirm,
                 abi.encodePacked(signers)
             )
-        );
-
-        signedTotals.totalEthStake = smd.stakes.toUint96(
-            smd.stakesLength - 24
-        );
-        signedTotals.totalEigenStake = smd.stakes.toUint96(
-            smd.stakesLength - 12
         );
 
         // emit log_named_uint("signedTotals.ethStakeSigned", signedTotals.ethStakeSigned);
