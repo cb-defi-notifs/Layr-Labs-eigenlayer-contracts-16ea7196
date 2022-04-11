@@ -106,10 +106,10 @@ contract DataLayrServiceManager is
         uint32 totalBytes,
         uint32 storePeriodLength
     ) external payable {
-        require(
-            msg.sender == address(queryManager),
-            "Only the query manager can call this function"
-        );
+        // require(
+        //     msg.sender == address(queryManager),
+        //     "Only the query manager can call this function"
+        // );
 
         bytes32 headerHash = keccak256(header);
 
@@ -162,10 +162,10 @@ contract DataLayrServiceManager is
         external
         payable
     {
-        require(
-            msg.sender == address(queryManager),
-            "Only the query manager can call this function"
-        );
+        // require(
+        //     msg.sender == address(queryManager),
+        //     "Only the query manager can call this function"
+        // );
 
         // verify the signatures that disperser is claiming to be that of DataLayr nodes
         // who have agreed to be in the quorum
@@ -215,10 +215,10 @@ contract DataLayrServiceManager is
         bytes32 headerHash,
         bytes calldata data
     ) external payable {
-        require(
-            msg.sender == address(queryManager),
-            "Only the query manager can call this function"
-        );
+        // require(
+        //     msg.sender == address(queryManager),
+        //     "Only the query manager can call this function"
+        // );
         (
             uint48 dumpNumberToConfirm,
             bytes32 depositFerkleHash,
