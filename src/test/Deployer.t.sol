@@ -8,6 +8,7 @@ import "../contracts/core/Eigen.sol";
 
 import "../contracts/core/EigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDeposit.sol";
+import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/WethStashInvestmentStrategy.sol";
@@ -489,7 +490,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
                 data,
                 r,
                 vs,
-                uint32(j) //signatory's index in stakes object
+                //signatory's index in stakes object
+                uint32(j)
             );
         }
 
@@ -504,6 +506,56 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
          
         (, , ,bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
+        cheats.stopPrank();
+    }
+
+    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    function testDelegation() public {
+        uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
+        uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        DelegationTerms dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelgate(registrant, dt);
+        _testWethDeposit(acct_0, 1e18);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+        uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
+        uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
+        assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
+    }
+
+    function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {
+        address[] memory paymentTokens = new address[](1);
+        paymentTokens[0] = address(weth);
+        uint16 _MAX_OPERATOR_FEE_BIPS = 500;
+        uint16 _operatorFeeBips = 500;
+        DelegationTerms dt = 
+            new DelegationTerms(
+                operator,
+                investmentManager,
+                paymentTokens,
+                serviceFactory,
+                address(delegation),
+                _MAX_OPERATOR_FEE_BIPS,
+                _operatorFeeBips
+            );
+        assertTrue(address(dt) != address(0), "_deployDelegationTerms: DelegationTerms failed to deploy");
+        return dt;
+    }
+
+    function _testRegisterAsDelgate(address sender, DelegationTerms dt) internal {
+        cheats.startPrank(sender);
+        delegation.registerAsDelgate(dt);
+        assertTrue(delegation.delegationTerms(sender) == dt, "_testRegisterAsDelgate: delegationTerms not set appropriately");
+        cheats.stopPrank();
+    }
+
+    function _testDelegateToOperator(address sender, address operator) internal {
+        cheats.startPrank(sender);
+        delegation.delegateTo(operator);
+        assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
+        assertTrue(delegation.delegated(sender), "_testDelegateToOperator: delegated status not set appropriately");
+        // TODO: add more checks?
         cheats.stopPrank();
     }
 }
