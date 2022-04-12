@@ -6,6 +6,7 @@ import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
 
+import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDeposit.sol";
 import "../contracts/core/DelegationTerms.sol";

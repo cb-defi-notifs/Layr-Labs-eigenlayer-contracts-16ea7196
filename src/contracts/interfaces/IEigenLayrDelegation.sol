@@ -4,6 +4,13 @@ pragma solidity ^0.8.9;
 import "./IDelegationTerms.sol";
 
 interface IEigenLayrDelegation {
+    enum DelegationStatus {
+        UNDELEGATED,
+        DELEGATED,
+        UNDELEGATION_COMMITED,
+        UNDELEGATION_FINALIZED
+    }
+
     function registerAsDelgate(IDelegationTerms dt) external;
 
     function getDelegationTerms(address operator)
