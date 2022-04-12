@@ -66,7 +66,16 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         address registrant // who started
     );
 
-    event StakeAdded( address operator, uint96 ethStake, uint96 eigenStake, uint48 dumpNumber, uint48 prevUpdateDumpNumber );
+    event StakeAdded( 
+        address operator,
+        uint96 ethStake, 
+        uint96 eigenStake,         
+        bytes32 prevHash,
+        uint48 dumpNumber,
+        uint48 prevUpdateDumpNumber
+    );
+    // uint48 prevUpdateDumpNumber 
+
     event StakeUpdate(
         address operator,
         uint96 ethStake,
@@ -263,11 +272,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         bytes memory stakes = data.slice(33, stakesLength);
 
         // stakes must be preimage of last update's hash
+        // uint48 prevDumpNumber = stakeHashUpdates[stakeHashUpdates.length - 1];
+        // bytes32 prevHash = stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]];
+
         require(
-            keccak256(stakes) ==
-                stakeHashes[
-                    stakeHashUpdates[stakeHashUpdates.length - 1]
-                ],
+            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
             "Supplied stakes are incorrect"
         );
 
@@ -321,7 +330,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             ++nextRegistrantId;
         }
 
-        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+
+        // TODO: Optimize storage calls
+        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]], currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
         return (registrantType, uint128(ethAndEigenAmounts.b));
 
