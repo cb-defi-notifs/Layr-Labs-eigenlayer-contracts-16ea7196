@@ -278,6 +278,136 @@ contract InvestmentManager is
         }
     }
 
+    /**
+     * @notice Used to queue a withdraw in the given token and shareAmount from each of the respective given strategies. 
+     */
+    /**
+     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
+     *      User shares are decreased in this function, but the total number of shares in each strategy remains the same.
+     *      The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
+     *      the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures 
+     *      that the value per share reported by each strategy will remain consistent, and that the shares will continue
+     *      to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     */
+    function queueWithdrawal(
+        uint256[] calldata strategyIndexes,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address withdrawer
+    ) external {
+        uint256 strategyIndexIndex;
+
+        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's usec
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
+
+        //TODO: take this nearly identically duplicated code and move it into a function
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
+            require(
+                stratEverApproved[strategies[i]],
+                "Can only withdraw from approved strategies"
+            );
+            //check that the user has sufficient shares
+            uint256 userShares = investorStratShares[msg.sender][strategies[i]];
+            require(shareAmounts[i] <= userShares, "shareAmount too high");
+            //unchecked arithmetic since we just checked this above
+            unchecked {
+                userShares = userShares - shareAmounts[i];
+            }
+            // subtract the shares from the msg.sender's existing shares for this strategy
+            investorStratShares[msg.sender][strategies[i]] = userShares;
+
+            // if no existing shares, remove this from this investors strats
+            if (investorStratShares[msg.sender][strategies[i]] == 0) {
+                // if the strategy matches with the strategy index provided
+                if (
+                    investorStrats[msg.sender][
+                        strategyIndexes[strategyIndexIndex]
+                    ] == strategies[i]
+                ) {
+                    // replace the strategy with the last strategy in the list
+                    investorStrats[msg.sender][
+                        strategyIndexes[strategyIndexIndex]
+                    ] = investorStrats[msg.sender][
+                        investorStrats[msg.sender].length - 1
+                    ];
+                } else {
+                    //loop through all of the strategies, find the right one, then replace
+                    uint256 stratsLength = investorStrats[msg.sender].length;
+
+                    for (uint256 j = 0; j < stratsLength; ) {
+                        if (investorStrats[msg.sender][j] == strategies[i]) {
+
+                            //replace the strategy with the last strategy in the list
+                            investorStrats[msg.sender][j] = investorStrats[
+                                msg.sender
+                            ][investorStrats[msg.sender].length - 1];
+                            break;
+                        }
+                        unchecked {
+                            ++j;
+                        }
+                    }
+                }
+                investorStrats[msg.sender].pop();
+                strategyIndexIndex++;
+            }
+
+            //increment the loop
+            unchecked {
+                ++i;
+            }
+        }
+
+        //update storage in mapping of queued withdrawals
+        queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(block.timestamp),
+            latestFraudproofTimestamp: uint32(block.timestamp),
+            withdrawer: withdrawer
+        });
+    }
+
+    function completeQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor
+    ) external {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        uint32 unlockTime = queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        address withdrawer = queuedWithdrawals[depositor][withdrawalRoot].withdrawer;
+        require(uint32(block.timestamp) >= unlockTime, "withdrawal waiting period has not yet passed");
+
+        //reset the storage slot in mapping of queued withdrawals
+        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(0),
+            latestFraudproofTimestamp: uint32(0),
+            withdrawer: address(0)
+        });
+
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
+            // tell the strategy to send the appropriate amount of funds to the depositor
+            strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
+        }
+    }
+
+    function fraudproofQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor
+    ) external {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+
+        //TODO: fraudproof requirement goes here
+
+        //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
+        queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
+    }
+
 
     /**
      * @notice Used to withdraw the given token and shareAmount from the given strategy. 
