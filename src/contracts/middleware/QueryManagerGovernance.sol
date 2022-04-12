@@ -199,6 +199,7 @@ contract QueryManagerGovernance {
         bool update
     ) public returns (uint256) {
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            msg.sender,
             update
         );
         // check percentage
@@ -339,13 +340,14 @@ contract QueryManagerGovernance {
 
         Proposal storage proposal = proposals[proposalId];
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            proposal.proposer,
             update
         );
         // check percentage
         require(
-            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
+            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() <
                 proposalThresholdEthPercentage() ||
-                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() >=
+                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() <
                 proposalThresholdEigenPercentage(),
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
@@ -465,6 +467,7 @@ contract QueryManagerGovernance {
             "QueryManagerGovernance::_castVote: voter already voted"
         );
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
+            voter,
             update
         );
         //sanity check against overflow, since we convert from uint256 => uint96 below
@@ -494,10 +497,6 @@ contract QueryManagerGovernance {
         emit VoteCast(voter, proposalId, support, eigenVotes, ethVotes);
     }
 
-    function __acceptAdmin() public {
-        timelock.acceptAdmin();
-    }
-
     function getChainId() internal view returns (uint256) {
         uint256 chainId;
         assembly {
@@ -506,7 +505,7 @@ contract QueryManagerGovernance {
         return chainId;
     }
 
-    function _getEthAndEigenStaked(bool update)
+    function _getEthAndEigenStaked(address user, bool update)
         internal
         returns (uint256, uint256)
     {
@@ -518,15 +517,15 @@ contract QueryManagerGovernance {
             (
                 uint256 newEthStaked,
                 uint256 newEigenStaked
-            ) = QUERY_MANAGER.updateStake(msg.sender);
+            ) = QUERY_MANAGER.updateStake(user);
             // weight the consensusLayrEth however desired
             ethStaked = newEthStaked;
             eigenStaked = newEigenStaked;
         } else {
             ethStaked = QUERY_MANAGER.ethStakedByOperator(
-                msg.sender
+                user
             );
-            eigenStaked = QUERY_MANAGER.eigenStakedByOperator(msg.sender);
+            eigenStaked = QUERY_MANAGER.eigenStakedByOperator(user);
         }
         return (ethStaked, eigenStaked);
     }
