@@ -6,6 +6,7 @@ import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
 
+import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDeposit.sol";
 import "../contracts/core/DelegationTerms.sol";
@@ -372,7 +373,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
-            delegation.delegated(sender),
+            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
     }
@@ -554,7 +555,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.startPrank(sender);
         delegation.delegateTo(operator);
         assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
-        assertTrue(delegation.delegated(sender), "_testDelegateToOperator: delegated status not set appropriately");
+        assertTrue(delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
     }
