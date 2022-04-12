@@ -372,7 +372,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
-            delegation.delegated(sender),
+            //TODO: write this properly
+            uint8(delegation.delegated(sender)) == 1,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
     }
@@ -554,7 +555,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.startPrank(sender);
         delegation.delegateTo(operator);
         assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
-        assertTrue(delegation.delegated(sender), "_testDelegateToOperator: delegated status not set appropriately");
+        //TODO: write this properly
+        assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
     }
