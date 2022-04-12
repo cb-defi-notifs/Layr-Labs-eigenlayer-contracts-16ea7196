@@ -9,7 +9,7 @@ import "../utils/Initializable.sol";
 import "./storage/InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 
-// TODO: withdrawals of Eigen (and consensus layer ETH?)
+// TODO: withdrawals of consensus layer ETH?
 /**
  * @notice This contract is for managing investments in different strategies. The main 
  *         functionalities are:
@@ -287,9 +287,7 @@ contract InvestmentManager is
      *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
      *      call this function.
      */
-    // CRITIC: (1) transfer of funds happening before update to the depositor's share,
-    //             possibility of draining away all fund - re-entry bug
-    //         (2) a staker can get its asset back before finalizeUndelegation. Therefore, 
+    // CRITIC:     a staker can get its asset back before finalizeUndelegation. Therefore, 
     //             what is the incentive for calling finalizeUndelegation and starting off
     //             the challenge period when the staker can get its asset back before
     //             fulfilling its obligations. More details in slack.   

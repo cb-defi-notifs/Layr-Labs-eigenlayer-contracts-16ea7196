@@ -253,7 +253,6 @@ contract DelegationTerms is IDelegationTerms {
             amount -= operatorEarnings;
         }
 
-//TODO: improve this calculation
         /*
         // find the multiple of the amount earned by delegators holding EIGEN vs the amount earned by delegators holding ETH. this should be equal to:
         //          (fraction of amount going to EIGEN holders in the middleware)
@@ -261,7 +260,8 @@ contract DelegationTerms is IDelegationTerms {
         //          / (fraction of ETH in the middleware delegated to the operator of this contract)
         */
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
-        uint256 multipleToEigenHolders = 1e18; //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees
+        //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
+        uint256 multipleToEigenHolders = 1e18;
        (uint128 totalEigenStaked, uint128 totalEthStaked) = queryManager.totalStake();
        (uint128 operatorEigenStaked, uint128 operatorEthStaked) = queryManager.operatorStakes(operator);
        multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
@@ -360,9 +360,7 @@ contract DelegationTerms is IDelegationTerms {
      * @param tokens is the list of active tokens for whom rewards are to claimed,
      * @param indices are the locations in paymentsHistory to claim from.
      */
-    // CRITIC: should we have slight different name as it provided functionality to specify
-    //         the tokens? 
-    function withdrawPendingRewards(address[] calldata tokens, uint32[] calldata indices) external {
+    function withdrawPendingRewardsOnlySpecificTokens(address[] calldata tokens, uint32[] calldata indices) external {
         uint256 length = tokens.length;
         require(indices.length == length, "incorrect input length");
         DelegatorStatus memory delegator = delegatorStatus[msg.sender];

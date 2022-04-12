@@ -62,15 +62,13 @@ contract EigenLayrDelegation is
         // store delegation relation that the staker (msg.sender) is its own operator (msg.sender)
         delegation[msg.sender] = msg.sender;
         // store the flag that the staker is delegated
-        delegated[msg.sender] = true;
+        delegated[msg.sender] = DelegationStatus.DELEGATED;
     }
 
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
     /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets
     function delegateTo(address operator) external {
-        // CRITIC: shoudn't there be a check that the operator of delegatorTerms contract of the
-        //         delegator is same as the operator passed as an argument of this function?
-        // CRITIC: should there be a check that operator != msg.sender?
+        require(operator != msg.sender, "Sender cannot delegate to themselves via this function");
         require(
             address(delegationTerms[operator]) != address(0),
             "Staker has not registered as a delegate yet. Please call registerAsDelgate(IDelegationTerms dt) first."
@@ -108,7 +106,7 @@ contract EigenLayrDelegation is
         delegation[msg.sender] = operator;
 
         // record that the staker is delegated
-        delegated[msg.sender] = true;
+        delegated[msg.sender] = DelegationStatus.DELEGATED;
 
         // call into hook in delegationTerms contract
         // CRITIC: parameter list doesn't matches with the function in DelegationTerms.sol
@@ -136,13 +134,10 @@ contract EigenLayrDelegation is
     ///          it is necessary to make sure that delegator is not within challenge
     ///          window for a previous undelegation.
     function commitUndelegation(uint256[] calldata strategyIndexes) external {
-        // CRITIC: If a staker is giving the data for strategyIndexes, then
-        // there is a potential concurrency problem.
-
         // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];
         require(
-            operator != address(0) && delegated[msg.sender],
+            operator != address(0) && delegated[msg.sender] == DelegationStatus.DELEGATED,
             "Staker does not have existing delegation"
         );
 
@@ -212,9 +207,7 @@ contract EigenLayrDelegation is
             eigenDelegated[operator] -= eigenAmount;
 
             // set that they are no longer delegated to anyone
-            delegated[msg.sender] = false;
-
-            // CRITIC: why is also delegation[msg.sender] not being set to address(0)?
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
 
             // call into hook in delegationTerms contract
             delegationTerms[operator].onDelegationWithdrawn(
@@ -223,7 +216,7 @@ contract EigenLayrDelegation is
                 shares
             );
         } else {
-            delegated[msg.sender] = false;
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
         }
     }
 
@@ -234,7 +227,7 @@ contract EigenLayrDelegation is
         // get their current operator
         address operator = delegation[msg.sender];
         require(
-            operator != address(0) && !delegated[msg.sender],
+            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
             "Staker is not in the post commit phase"
         );
 
@@ -249,6 +242,7 @@ contract EigenLayrDelegation is
         // set time of last undelegation commit which is the beginning of the corresponding
         // challenge period.
         lastUndelegationCommit[msg.sender] = block.timestamp;
+        delegated[msg.sender] = DelegationStatus.UNDELEGATION_FINALIZED;
     }
 
     /// @notice This function can be called by anyone to challenger whether a delegator has
@@ -262,20 +256,17 @@ contract EigenLayrDelegation is
         IQueryManager queryManager,
         bytes32 queryHash
     ) external {
-        // CRITIC: need to determine the operator for staker, not msg.sender
-        // get their current operator
-        address operator = delegation[msg.sender];
+        address operator = delegation[staker];
 
-        // CRITIC: need to determine the lastUndelegationCommit for staker, not msg.sender
         require(
             block.timestamp <
                 undelegationFraudProofInterval +
-                    lastUndelegationCommit[msg.sender],
+                    lastUndelegationCommit[staker],
             "Challenge was raised after the end of challenge period"
         );
 
         require(
-            operator != address(0) && !delegated[msg.sender],
+            delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
             "Challenge period hasn't yet started"
         );
 
@@ -304,8 +295,8 @@ contract EigenLayrDelegation is
         // CRITIC: if delegation[staker] is set to address(0) during commitUndelegation,
         //         we can probably remove "(delegation[staker] == address(0)"
         return
-            !delegated[staker] &&
-            (delegation[staker] == address(0) ||
+            delegated[staker] == DelegationStatus.UNDELEGATED ||
+            (delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED && 
                 block.timestamp >
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[staker]);
@@ -321,8 +312,7 @@ contract EigenLayrDelegation is
     }
 
     /// @notice returns the strategies that are being used by the delegators of this operator
-    // CRITIC: change the name to "getOperatorStrats"?
-    function getOperatorShares(address operator)
+    function getOperatorStrats(address operator)
         public
         view
         returns (IInvestmentStrategy[] memory)
