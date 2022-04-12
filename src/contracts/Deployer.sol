@@ -55,15 +55,18 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
+    address ownerAddr =  address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
 
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
+
+
 
     constructor() {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        eigen = new Eigen(address(this));
+        eigen = new Eigen(ownerAddr);
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
@@ -76,7 +79,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             "weth",
             "WETH",
             wethInitialSupply,
-            address(this)
+            ownerAddr
         );
         //do stuff with weth
         strat = new WethStashInvestmentStrategy();
