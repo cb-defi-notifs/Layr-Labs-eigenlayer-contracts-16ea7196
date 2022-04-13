@@ -456,10 +456,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //loads hardcoded signer set
         _setSigners();
 
-        //register the first operator. initial stakes is 24 zero bytes
+        //initial stakes is 24 zero bytes
         bytes memory stakes = abi.encodePacked(bytes24(0));
 
-        //register all other operators
+        //register all the operators
         for (uint256 i = 0; i < numberOfSigners; ++i) {
             // emit log_named_uint("i", i);
             stakes = _testRegisterAdditionalSelfOperator(signers[i], stakes);
