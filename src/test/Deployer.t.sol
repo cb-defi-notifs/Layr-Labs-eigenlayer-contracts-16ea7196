@@ -77,9 +77,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
-        investmentManager = new InvestmentManager(eigen, delegation);
         slasher = new Slasher(investmentManager);
         serviceFactory = new ServiceFactory(investmentManager);
+        investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
         //used in the one investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",

@@ -52,4 +52,9 @@ interface IEigenLayrDelegation {
         external
         view
         returns (bool);
+
+    function delegation(address delegator)
+        external
+        view
+        returns (address);
 }

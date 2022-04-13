@@ -23,8 +23,7 @@ import "./storage/EigenLayrDelegationStorage.sol";
 contract EigenLayrDelegation is
     Initializable,
     Governed,
-    EigenLayrDelegationStorage,
-    IEigenLayrDelegation
+    EigenLayrDelegationStorage
 {
     function initialize(
         IInvestmentManager _investmentManager,
@@ -265,6 +264,7 @@ contract EigenLayrDelegation is
             "Challenge was raised after the end of challenge period"
         );
 
+        //TODO: require that operator is registered to queryManager!
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
             "Challenge period hasn't yet started"

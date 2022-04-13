@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceFactory.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
@@ -28,6 +29,7 @@ contract InvestmentManager is
 {
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
+    IServiceFactory public immutable serviceFactory;
 
     modifier onlyNotDelegated(address user) {
         require(
@@ -37,9 +39,10 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
         EIGEN = _EIGEN;
         delegation = _delegation;
+        serviceFactory = _serviceFactory;
     }
 
     /**
@@ -369,6 +372,7 @@ contract InvestmentManager is
         });
     }
 
+    //TODO: add something related to slashing for queued withdrawals
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -376,8 +380,10 @@ contract InvestmentManager is
         address depositor
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
-        uint32 unlockTime = queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
-        address withdrawer = queuedWithdrawals[depositor][withdrawalRoot].withdrawer;
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        address withdrawer = withdrawalStorage.withdrawer;
+        require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
         require(uint32(block.timestamp) >= unlockTime, "withdrawal waiting period has not yet passed");
 
         //reset the storage slot in mapping of queued withdrawals
@@ -398,11 +404,36 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address depositor
+        address depositor,
+        IQueryManager queryManager,
+        bytes32 queryHash
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
+        require(initTimestamp > 0, "withdrawal does not exist");
+        require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
 
-        //TODO: fraudproof requirement goes here
+        //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
+        address operator = delegation.delegation(depositor);
+
+        require(
+            serviceFactory.queryManagerExists(queryManager),
+            "QueryManager was not deployed through factory"
+        );
+
+        // ongoing query was created at time when depositor queued the withdrawal
+        // and  still active at time that they will currently be able to complete the withdrawal
+        // therefore, the withdrawn funds are not expected to fully serve their obligation.
+        require(
+            initTimestamp >=
+                queryManager.getQueryCreationTime(queryHash) &&
+                unlockTime <
+                queryManager.getQueryCreationTime(queryHash) +
+                    queryManager.getQueryDuration(),
+            "query must expire before unlockTime"
+        );
 
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
