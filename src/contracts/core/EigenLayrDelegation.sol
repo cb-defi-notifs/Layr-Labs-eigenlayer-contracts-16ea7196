@@ -26,6 +26,13 @@ contract EigenLayrDelegation is
     Governed,
     EigenLayrDelegationStorage
 {
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
+
+    constructor() {
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid));
+    }
+
     function initialize(
         IInvestmentManager _investmentManager,
         IServiceFactory _serviceFactory,
@@ -72,10 +79,29 @@ contract EigenLayrDelegation is
         _delegate(msg.sender, operator);
     }
 
-    function delegateToBySignature(address delegator, address operator, bytes32 r, bytes32 vs) external {
+    function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external {
         //TODO: calculate the digestHash based on some other inputs, etc.
-        bytes32 digestHash;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                DELEGATION_TYPEHASH,
+                delegator,
+                operator,
+                nonce,
+                expiry
+            )
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
+        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
         require(SignatureCompaction.ecrecoverPacked(digestHash, r, vs) == delegator, "delegateToBySignature: bad signature");
+        // increment delegator's delegationNonce
+        ++delegationNonces[delegator];
         _delegate(delegator, operator);
     }
 
