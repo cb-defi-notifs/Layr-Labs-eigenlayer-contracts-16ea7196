@@ -31,6 +31,9 @@ contract InvestmentManager is
     IEigenLayrDelegation public immutable delegation;
     IServiceFactory public immutable serviceFactory;
 
+    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+    event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+
     modifier onlyNotDelegated(address user) {
         require(
             delegation.isNotDelegated(user),
@@ -281,6 +284,7 @@ contract InvestmentManager is
         }
     }
 
+    // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
     /**
      * @notice Used to queue a withdraw in the given token and shareAmount from each of the respective given strategies. 
      */
@@ -370,9 +374,32 @@ contract InvestmentManager is
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawer
         });
+
+        emit WithdrawalQueued(depositor, withdrawer, withdrawalRoot);
     }
 
+    /**
+     * @notice Used to check if a queued withdrawal can be completed
+     */
+    function canCompleteQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor
+    ) external view returns (bool) {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
+        return(uint32(block.timestamp) >= unlockTime || delegation.isNotDelegated(depositor));
+    }
+
+
     //TODO: add something related to slashing for queued withdrawals
+    /**
+     * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
+     *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
+     */
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -384,7 +411,10 @@ contract InvestmentManager is
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
         require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
-        require(uint32(block.timestamp) >= unlockTime, "withdrawal waiting period has not yet passed");
+        require(
+            uint32(block.timestamp) >= unlockTime || delegation.isNotDelegated(depositor),
+            "withdrawal waiting period has not yet passed and depositor is still delegated"
+        );
 
         //reset the storage slot in mapping of queued withdrawals
         queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
@@ -398,8 +428,18 @@ contract InvestmentManager is
             // tell the strategy to send the appropriate amount of funds to the depositor
             strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
         }
+
+        emit WithdrawalCompleted(depositor, withdrawer, withdrawalRoot);
     }
 
+    /**
+     * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
+     *         The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
+     * @dev The fraudproof requires providing a queryManager contract and queryHash, corresponding to a query that was
+     *      created at or before the time when the queued withdrawal was initiated, and expires prior to the time at 
+     *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
+     *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
+     */
     function fraudproofQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -418,6 +458,7 @@ contract InvestmentManager is
         //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
         address operator = delegation.delegation(depositor);
 
+        //TODO: require that operator is registered to queryManager!
         require(
             serviceFactory.queryManagerExists(queryManager),
             "QueryManager was not deployed through factory"
@@ -785,6 +826,7 @@ contract InvestmentManager is
         }
         return stake;
     }
+
 
     
 
