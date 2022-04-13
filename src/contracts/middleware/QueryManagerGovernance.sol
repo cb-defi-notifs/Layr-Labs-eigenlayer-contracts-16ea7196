@@ -34,13 +34,13 @@ contract QueryManagerGovernance {
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
     /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
     function quorumEthPercentage() public pure returns (uint256) {
-        return 90;
+        return 50;
     }
 
     /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
     /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
     function quorumEigenPercentage() public pure returns (uint256) {
-        return 90;
+        return 50;
     }
 
     /// @notice The amount of eth required in order for a voter to become a proposer
