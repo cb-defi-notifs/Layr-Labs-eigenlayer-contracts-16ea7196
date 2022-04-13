@@ -70,9 +70,9 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         address operator,
         uint96 ethStake, 
         uint96 eigenStake,         
-        bytes32 prevHash,
+        uint256 updateNumber,
         uint48 dumpNumber,
-        uint48 prevUpdateDumpNumber
+        uint48 prevDumpNumber
     );
     // uint48 prevUpdateDumpNumber 
 
@@ -280,25 +280,6 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
             "Supplied stakes are incorrect"
         );
 
-        stakeHashUpdates.push(currDumpNumber);
-
-        // store the updated meta-data in the mapping with the key being the current dump number
-        /** 
-         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
-         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
-         *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
-         */
-        stakeHashes[currDumpNumber] = keccak256(
-            abi.encodePacked(
-                stakes.slice(0, stakes.length - 24),
-                // append at the end of list
-                dataToAppend,
-                // update the total ETH deposited
-                stakes.toUint96(stakes.length - 24) + ethAndEigenAmounts.a,
-                // update the total EIGEN deposited
-                stakes.toUint96(stakes.length - 12) + ethAndEigenAmounts.b
-            )
-        );
 
         // slice starting the byte after socket length to construct the details on the 
         // DataLayr node
@@ -332,7 +313,29 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
 
 
         // TODO: Optimize storage calls
-        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]], currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashUpdates.length, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+
+
+        // store the updated meta-data in the mapping with the key being the current dump number
+        /** 
+         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
+         *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
+         */
+        stakeHashes[currDumpNumber] = keccak256(
+            abi.encodePacked(
+                stakes.slice(0, stakes.length - 24),
+                // append at the end of list
+                dataToAppend,
+                // update the total ETH deposited
+                stakes.toUint96(stakes.length - 24) + ethAndEigenAmounts.a,
+                // update the total EIGEN deposited
+                stakes.toUint96(stakes.length - 12) + ethAndEigenAmounts.b
+            )
+        );
+
+        stakeHashUpdates.push(currDumpNumber);
+
 
         return (registrantType, uint128(ethAndEigenAmounts.b));
     }
