@@ -4,10 +4,10 @@ pragma solidity ^0.8.9;
 //TODO: inherit from more efficient implementation
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
-contract Naive_NFGT is ERC1155 {
-    uint256 internal immutable TREE_DEPTH;
-    uint256 internal immutable MAX_SLOT_VALUE;
-    uint256 internal immutable ORIGIN_ID;
+contract NFGT is ERC1155 {
+    uint256 public immutable TREE_DEPTH;
+    uint256 public immutable MAX_SLOT_VALUE;
+    uint256 public immutable ORIGIN_ID;
     //tokenId => slot => slotContents => newTokenId
     mapping(uint256 => mapping(uint256 => mapping(bytes32 => uint256))) public tokenChanges;
     //tokenId => parent
@@ -15,7 +15,7 @@ contract Naive_NFGT is ERC1155 {
     //_ancestry[tokenA][tokenB] will be 'true' in the event that tokenB has been proven to be an ancestor of tokenA
     //in the event that _ancestry[tokenA][tokenB] is false, nothing is proven
     mapping(uint256 => mapping (uint256 => bool)) internal _ancestry;
-    bytes32[] internal ZERO_HASHES;
+    bytes32[] public ZERO_HASHES;
 
     modifier checkSlotValidity(uint256 slot) {
         require(slot <= MAX_SLOT_VALUE, "slot value exceeds max slot value");
@@ -41,7 +41,7 @@ contract Naive_NFGT is ERC1155 {
                 ++i;
             }
         }
-        uint256 originId = uint256(ZERO_HASHES[TREE_DEPTH - 1]);
+        uint256 originId = uint256(keccak256(abi.encodePacked(ZERO_HASHES[TREE_DEPTH - 1], ZERO_HASHES[TREE_DEPTH - 1])));
         ORIGIN_ID = originId;
         _mint(msg.sender, originId, _initSupply, "");
     }
@@ -146,6 +146,19 @@ contract Naive_NFGT is ERC1155 {
         uint256 newTokenId = uint256(newNode);
         return newTokenId;
     }
+
+    //TODO: sort out more about permissions / when + how this function is invoked
+    function writeLeafToToken(
+        uint256 tokenId,
+        uint256 slot,
+        bytes32 contentsToWrite,
+        uint256 nodeWrittenBitmap,
+        bytes32[] calldata proofElements)
+        external returns (uint256) 
+    {
+        return _writeLeafToToken(tokenId, slot, contentsToWrite, nodeWrittenBitmap, proofElements);
+    }
+    
 
     function _writeLeafToToken(
         uint256 tokenId,
