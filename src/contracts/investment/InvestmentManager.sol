@@ -310,10 +310,11 @@ contract InvestmentManager is
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
         require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
 
-        address operator = delegation.delegation(msg.sender);
+        // had to check against this directly rather than store it to solve 'stack too deep' error
+        // address operator = delegation.delegation(msg.sender);
         // i.e. if the msg.sender is not a self-operator
-        if (operator != msg.sender) {
-            delegation.reduceOperatorShares(operator, operatorStrategyIndexes, strategies, shareAmounts);
+        if (delegation.delegation(msg.sender) != msg.sender) {
+            delegation.reduceOperatorShares(delegation.delegation(msg.sender), operatorStrategyIndexes, strategies, shareAmounts);
         }
 
         //TODO: take this nearly identically duplicated code and move it into a function
@@ -324,6 +325,13 @@ contract InvestmentManager is
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
+            // //check that the user has sufficient shares
+            // uint256 userShares = investorStratShares[msg.sender][strategies[i]];
+            // require(shareAmounts[i] <= userShares, "shareAmount too high");
+            // //unchecked arithmetic since we just checked this above
+            // unchecked {
+            //     userShares = userShares - shareAmounts[i];
+            // }
             // subtract the shares from the msg.sender's existing shares for this strategy
             investorStratShares[msg.sender][strategies[i]] -= shareAmounts[i];
 
