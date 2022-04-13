@@ -37,7 +37,7 @@ contract NFGT_Tester is DSTest, ERC165_Universal, ERC1155TokenReceiver {
         // }
     }
 
-    function testFindLeafOutcome() public view returns (uint256){
+    function testFindLeafOutcome() public view returns (uint256) {
         uint256 tokenId = ORIGIN_ID;
         uint256 slot = uint256(0);
         bytes32 contentsToWrite = 0x0102030405060708091011121314151617181920212223242526272829303132;
