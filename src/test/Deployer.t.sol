@@ -516,7 +516,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         DelegationTerms dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelgate(registrant, dt);
+        _testRegisterAsDelegate(registrant, dt);
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
@@ -545,10 +545,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         return dt;
     }
 
-    function _testRegisterAsDelgate(address sender, DelegationTerms dt) internal {
+    function _testRegisterAsDelegate(address sender, DelegationTerms dt) internal {
         cheats.startPrank(sender);
-        delegation.registerAsDelgate(dt);
-        assertTrue(delegation.delegationTerms(sender) == dt, "_testRegisterAsDelgate: delegationTerms not set appropriately");
+        delegation.registerAsDelegate(dt);
+        assertTrue(delegation.delegationTerms(sender) == dt, "_testRegisterAsDelegate: delegationTerms not set appropriately");
         cheats.stopPrank();
     }
 

@@ -47,7 +47,7 @@ contract EigenLayrDelegation is
     /// @notice This will be called by a staker to register itself as a delegate with respect
     ///         to a certain operator.
     /// @param dt is the delegation terms contract that staker has agreed to with the operator.
-    function registerAsDelgate(IDelegationTerms dt) external {
+    function registerAsDelegate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
             "Delegate has already registered"
@@ -109,7 +109,7 @@ contract EigenLayrDelegation is
     function _delegate(address delegator, address operator) internal {
         require(
             address(delegationTerms[operator]) != address(0),
-            "Staker has not registered as a delegate yet. Please call registerAsDelgate(IDelegationTerms dt) first."
+            "Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(delegator),

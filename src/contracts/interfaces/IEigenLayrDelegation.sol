@@ -11,7 +11,7 @@ interface IEigenLayrDelegation {
         UNDELEGATION_FINALIZED
     }
 
-    function registerAsDelgate(IDelegationTerms dt) external;
+    function registerAsDelegate(IDelegationTerms dt) external;
 
     function getDelegationTerms(address operator)
         external
