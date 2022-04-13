@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceFactory.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
@@ -28,6 +29,10 @@ contract InvestmentManager is
 {
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
+    IServiceFactory public immutable serviceFactory;
+
+    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+    event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
     modifier onlyNotDelegated(address user) {
         require(
@@ -37,9 +42,10 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
         EIGEN = _EIGEN;
         delegation = _delegation;
+        serviceFactory = _serviceFactory;
     }
 
     /**
@@ -276,6 +282,205 @@ contract InvestmentManager is
                 ++i;
             }
         }
+    }
+
+    // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
+    /**
+     * @notice Used to queue a withdraw in the given token and shareAmount from each of the respective given strategies. 
+     */
+    /**
+     * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
+     *      User shares are decreased in this function, but the total number of shares in each strategy remains the same.
+     *      The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
+     *      the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures 
+     *      that the value per share reported by each strategy will remain consistent, and that the shares will continue
+     *      to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     */
+    function queueWithdrawal(
+        uint256[] calldata strategyIndexes,
+        uint256[] calldata operatorStrategyIndexes,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address withdrawer
+    ) external {
+        uint256 strategyIndexIndex;
+
+        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's used
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
+
+        address operator = delegation.delegation(msg.sender);
+        // i.e. if the msg.sender is not a self-operator
+        if (operator != msg.sender) {
+            delegation.reduceOperatorShares(operator, operatorStrategyIndexes, strategies, shareAmounts);
+        }
+
+        //TODO: take this nearly identically duplicated code and move it into a function
+        // had to check against this rather than store it to solve 'stack too deep' error
+        // uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategies.length;) {
+            require(
+                stratEverApproved[strategies[i]],
+                "Can only withdraw from approved strategies"
+            );
+            // subtract the shares from the msg.sender's existing shares for this strategy
+            investorStratShares[msg.sender][strategies[i]] -= shareAmounts[i];
+
+            // if no existing shares, remove this from this investors strats
+            if (investorStratShares[msg.sender][strategies[i]] == 0) {
+                // if the strategy matches with the strategy index provided
+                if (
+                    investorStrats[msg.sender][
+                        strategyIndexes[strategyIndexIndex]
+                    ] == strategies[i]
+                ) {
+                    // replace the strategy with the last strategy in the list
+                    investorStrats[msg.sender][
+                        strategyIndexes[strategyIndexIndex]
+                    ] = investorStrats[msg.sender][
+                        investorStrats[msg.sender].length - 1
+                    ];
+                } else {
+                    //loop through all of the strategies, find the right one, then replace
+                    uint256 stratsLength = investorStrats[msg.sender].length;
+
+                    for (uint256 j = 0; j < stratsLength; ) {
+                        if (investorStrats[msg.sender][j] == strategies[i]) {
+
+                            //replace the strategy with the last strategy in the list
+                            investorStrats[msg.sender][j] = investorStrats[
+                                msg.sender
+                            ][investorStrats[msg.sender].length - 1];
+                            break;
+                        }
+                        unchecked {
+                            ++j;
+                        }
+                    }
+                }
+                investorStrats[msg.sender].pop();
+                unchecked{
+                    ++strategyIndexIndex;
+                }
+            }
+
+            //increment the loop
+            unchecked {
+                ++i;
+            }
+        }
+
+        //update storage in mapping of queued withdrawals
+        queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(block.timestamp),
+            latestFraudproofTimestamp: uint32(block.timestamp),
+            withdrawer: withdrawer
+        });
+
+        emit WithdrawalQueued(msg.sender, withdrawer, withdrawalRoot);
+    }
+
+    /**
+     * @notice Used to check if a queued withdrawal can be completed
+     */
+    function canCompleteQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor
+    ) external view returns (bool) {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
+        return(uint32(block.timestamp) >= unlockTime || delegation.isNotDelegated(depositor));
+    }
+
+
+    //TODO: add something related to slashing for queued withdrawals
+    /**
+     * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
+     *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
+     */
+    function completeQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor
+    ) external {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        address withdrawer = withdrawalStorage.withdrawer;
+        require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
+        require(
+            uint32(block.timestamp) >= unlockTime || delegation.isNotDelegated(depositor),
+            "withdrawal waiting period has not yet passed and depositor is still delegated"
+        );
+
+        //reset the storage slot in mapping of queued withdrawals
+        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(0),
+            latestFraudproofTimestamp: uint32(0),
+            withdrawer: address(0)
+        });
+
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
+            // tell the strategy to send the appropriate amount of funds to the depositor
+            strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
+        }
+
+        emit WithdrawalCompleted(depositor, withdrawer, withdrawalRoot);
+    }
+
+    /**
+     * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
+     *         The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
+     * @dev The fraudproof requires providing a queryManager contract and queryHash, corresponding to a query that was
+     *      created at or before the time when the queued withdrawal was initiated, and expires prior to the time at 
+     *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
+     *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
+     */
+    function fraudproofQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor,
+        IQueryManager queryManager,
+        bytes32 queryHash
+    ) external {
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
+        require(initTimestamp > 0, "withdrawal does not exist");
+        require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
+
+        //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
+        address operator = delegation.delegation(depositor);
+
+        //TODO: require that operator is registered to queryManager!
+        require(
+            serviceFactory.queryManagerExists(queryManager),
+            "QueryManager was not deployed through factory"
+        );
+
+        // ongoing query was created at time when depositor queued the withdrawal
+        // and  still active at time that they will currently be able to complete the withdrawal
+        // therefore, the withdrawn funds are not expected to fully serve their obligation.
+        require(
+            initTimestamp >=
+                queryManager.getQueryCreationTime(queryHash) &&
+                unlockTime <
+                queryManager.getQueryCreationTime(queryHash) +
+                    queryManager.getQueryDuration(),
+            "query must expire before unlockTime"
+        );
+
+        //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
+        queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
     }
 
 
@@ -624,6 +829,7 @@ contract InvestmentManager is
         }
         return stake;
     }
+
 
     
 

@@ -6,7 +6,7 @@ import "../../interfaces/IDelegationTerms.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceFactory.sol";
 
-abstract contract EigenLayrDelegationStorage {
+abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     IInvestmentManager public investmentManager;
 
     IServiceFactory public serviceFactory;

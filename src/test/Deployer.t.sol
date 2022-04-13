@@ -77,9 +77,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
-        investmentManager = new InvestmentManager(eigen, delegation);
         slasher = new Slasher(investmentManager);
         serviceFactory = new ServiceFactory(investmentManager);
+        investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
         //used in the one investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -373,7 +373,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
-            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            //TODO: write this properly
+            uint8(delegation.delegated(sender)) == 1,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
     }
@@ -555,7 +556,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.startPrank(sender);
         delegation.delegateTo(operator);
         assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
-        assertTrue(delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED, "_testDelegateToOperator: delegated status not set appropriately");
+        //TODO: write this properly
+        assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
     }
