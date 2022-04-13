@@ -27,7 +27,7 @@ import "./utils/ERC165_Universal.sol";
 import "./utils/ERC1155TokenReceiver.sol";
 
 import "./libraries/BytesLib.sol";
-import "./utils/SignatureCompaction.sol";
+import "./libraries/SignatureCompaction.sol";
 
 contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     using BytesLib for bytes;

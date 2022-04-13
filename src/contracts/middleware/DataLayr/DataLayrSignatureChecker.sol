@@ -5,7 +5,7 @@ import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
 import "../../libraries/BytesLib.sol";
-import "../../utils/SignatureCompaction.sol";
+import "../../libraries/SignatureCompaction.sol";
 // import "ds-test/test.sol";
 
 abstract contract DataLayrSignatureChecker is

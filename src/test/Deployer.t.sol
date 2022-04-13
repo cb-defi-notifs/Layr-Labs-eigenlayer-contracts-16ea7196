@@ -30,7 +30,7 @@ import "../contracts/utils/ERC165_Universal.sol";
 import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/utils/SignatureCompaction.sol";
+import "../contracts/libraries/SignatureCompaction.sol";
 
 import "./CheatCodes.sol";
 import "./Signers.sol";
