@@ -298,6 +298,7 @@ contract InvestmentManager is
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
+        uint256[] calldata operatorStrategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
@@ -305,26 +306,26 @@ contract InvestmentManager is
     ) external {
         uint256 strategyIndexIndex;
 
-        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's usec
+        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's used
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
         require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
 
+        address operator = delegation.delegation(msg.sender);
+        // i.e. if the msg.sender is not a self-operator
+        if (operator != msg.sender) {
+            delegation.reduceOperatorShares(operator, operatorStrategyIndexes, strategies, shareAmounts);
+        }
+
         //TODO: take this nearly identically duplicated code and move it into a function
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
+        // had to check against this rather than store it to solve 'stack too deep' error
+        // uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategies.length;) {
             require(
                 stratEverApproved[strategies[i]],
                 "Can only withdraw from approved strategies"
             );
-            //check that the user has sufficient shares
-            uint256 userShares = investorStratShares[msg.sender][strategies[i]];
-            require(shareAmounts[i] <= userShares, "shareAmount too high");
-            //unchecked arithmetic since we just checked this above
-            unchecked {
-                userShares = userShares - shareAmounts[i];
-            }
             // subtract the shares from the msg.sender's existing shares for this strategy
-            investorStratShares[msg.sender][strategies[i]] = userShares;
+            investorStratShares[msg.sender][strategies[i]] -= shareAmounts[i];
 
             // if no existing shares, remove this from this investors strats
             if (investorStratShares[msg.sender][strategies[i]] == 0) {
@@ -359,7 +360,9 @@ contract InvestmentManager is
                     }
                 }
                 investorStrats[msg.sender].pop();
-                strategyIndexIndex++;
+                unchecked{
+                    ++strategyIndexIndex;
+                }
             }
 
             //increment the loop
@@ -375,7 +378,7 @@ contract InvestmentManager is
             withdrawer: withdrawer
         });
 
-        emit WithdrawalQueued(depositor, withdrawer, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, withdrawer, withdrawalRoot);
     }
 
     /**

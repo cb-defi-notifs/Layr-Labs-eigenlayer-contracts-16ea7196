@@ -158,7 +158,7 @@ contract EigenLayrDelegation is
                 uint256 eigenAmount
             ) = investmentManager.getDeposits(msg.sender);
 
-            // subtract strategy shares to delegate's shares and remove from strategy list if no shares remaining
+            // subtract strategy shares from delegate's shares and remove the strategy from delegate's strategy list if no shares remaining
             uint256 strategyIndex = 0;
             for (uint256 i = 0; i < strategies.length; ) {
                 operatorShares[operator][strategies[i]] -= shares[i];
@@ -192,7 +192,9 @@ contract EigenLayrDelegation is
                         }
                     }
                     operatorStrats[operator].pop();
-                    strategyIndex++;
+                    unchecked {
+                        ++strategyIndex;                        
+                    }
                 }
                 unchecked {
                     ++i;
@@ -217,6 +219,59 @@ contract EigenLayrDelegation is
         } else {
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
         }
+    }
+
+    function reduceOperatorShares(
+        address operator,
+        uint256[] calldata operatorStrategyIndexes,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external {
+        require(msg.sender == address(investmentManager), "onlyInvestmentManager");
+
+        // subtract strategy shares from delegate's shares and remove the strategy from delegate's strategy list if no shares remaining
+        uint256 strategyIndex = 0;
+        for (uint256 i = 0; i < strategies.length; ) {
+            operatorShares[operator][strategies[i]] -= shares[i];
+            if (operatorShares[operator][strategies[i]] == 0) {
+                // if the strategy matches with the strategy index provided
+                if (
+                    operatorStrats[operator][
+                        operatorStrategyIndexes[strategyIndex]
+                    ] == strategies[i]
+                ) {
+                    //replace the strategy with the last strategy in the list
+                    operatorStrats[operator][
+                        operatorStrategyIndexes[strategyIndex]
+                    ] = operatorStrats[operator][
+                        operatorStrats[operator].length - 1
+                    ];
+                } else {
+                    //loop through all of the strategies, find the right one, then replace
+                    uint256 stratsLength = operatorStrats[operator].length;
+                    for (uint256 j = 0; j < stratsLength; ) {
+                        if (operatorStrats[operator][j] == strategies[i]) {
+                            //replace the strategy with the last strategy in the list
+                            operatorStrats[operator][j] = operatorStrats[
+                                operator
+                            ][operatorStrats[operator].length - 1];
+                            break;
+                        }
+                        unchecked {
+                            ++j;
+                        }
+                    }
+                }
+                operatorStrats[operator].pop();
+                unchecked {
+                    ++strategyIndex;                        
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        //TOOD: call into delegationTerms contract as well?
     }
 
     /// @notice This function must be called by a delegator to notify that its stake is

@@ -57,4 +57,12 @@ interface IEigenLayrDelegation {
         external
         view
         returns (address);
+
+    // TODO: finalize this function
+    function reduceOperatorShares(
+        address operator,
+        uint256[] calldata operatorStrategyIndexes,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
 }
