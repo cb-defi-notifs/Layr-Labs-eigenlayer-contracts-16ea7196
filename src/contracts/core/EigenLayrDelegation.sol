@@ -9,6 +9,7 @@ import "../interfaces/IServiceFactory.sol";
 import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
 import "./storage/EigenLayrDelegationStorage.sol";
+import "../libraries/SignatureCompaction.sol";
 
 // todo: task specific delegation
 
@@ -46,6 +47,7 @@ contract EigenLayrDelegation is
         );
         // store the address of the delegation contract that staker has agreed to.
         delegationTerms[msg.sender] = dt;
+        _delegate(msg.sender, msg.sender);
     }
 
     /// @notice This will be called by a staker if it wants to act as its own operator.
@@ -67,13 +69,24 @@ contract EigenLayrDelegation is
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
     /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets
     function delegateTo(address operator) external {
-        require(operator != msg.sender, "Sender cannot delegate to themselves via this function");
+        _delegate(msg.sender, operator);
+    }
+
+    function delegateToBySignature(address delegator, address operator, bytes32 r, bytes32 vs) external {
+        //TODO: calculate the digestHash based on some other inputs, etc.
+        bytes32 digestHash;
+        require(SignatureCompaction.ecrecoverPacked(digestHash, r, vs) == delegator, "delegateToBySignature: bad signature");
+        _delegate(delegator, operator);
+    }
+
+    // internal function implementing the delegation of 'delegator' to 'operator'
+    function _delegate(address delegator, address operator) internal {
         require(
             address(delegationTerms[operator]) != address(0),
             "Staker has not registered as a delegate yet. Please call registerAsDelgate(IDelegationTerms dt) first."
         );
         require(
-            isNotDelegated(msg.sender),
+            isNotDelegated(delegator),
             "Staker has existing delegation or pending undelegation commitment"
         );
         // retrieve list of strategies and their shares from investment manager
@@ -82,10 +95,10 @@ contract EigenLayrDelegation is
             uint256[] memory shares,
             uint256 consensusLayrEthDeposited,
             uint256 eigenAmount
-        ) = investmentManager.getDeposits(msg.sender);
+        ) = investmentManager.getDeposits(delegator);
 
         // add strategy shares to delegate's shares and add strategy to existing strategies
-        for (uint256 i = 0; i < strategies.length; i++) {
+        for (uint256 i = 0; i < strategies.length;) {
             if (operatorShares[operator][strategies[i]] == 0) {
                 // if no asset has been delegated yet to this strategy in the operator's portfolio,
                 // then add it to the portfolio of strategies of the operator
@@ -93,6 +106,10 @@ contract EigenLayrDelegation is
             }
             // update the total share deposited in favor of the startegy in the operator's portfolio
             operatorShares[operator][strategies[i]] += shares[i];
+
+            unchecked {
+                ++i;
+            }
         }
 
         // update the total ETH delegated to the operator
@@ -101,16 +118,15 @@ contract EigenLayrDelegation is
         // update the total EIGEN deposited with the operator
         eigenDelegated[operator] += eigenAmount;
 
-        // record delegation relation between the delegator (msg.sender) and operator
-        delegation[msg.sender] = operator;
+        // record delegation relation between the delegator and operator
+        delegation[delegator] = operator;
 
         // record that the staker is delegated
-        delegated[msg.sender] = DelegationStatus.DELEGATED;
+        delegated[delegator] = DelegationStatus.DELEGATED;
 
         // call into hook in delegationTerms contract
-        // CRITIC: parameter list doesn't matches with the function in DelegationTerms.sol
         delegationTerms[operator].onDelegationReceived(
-            msg.sender,
+            delegator,
             strategies,
             shares
         );
@@ -445,10 +461,13 @@ contract EigenLayrDelegation is
                 .getStrategyShares(operator);
 
             // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length; i++) {
+            for (uint256 i = 0; i < investorStrats.length;) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     investorShares[i]
                 );
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             // when the operator hasn't delegated to itself but other stakers
@@ -462,10 +481,13 @@ contract EigenLayrDelegation is
             ];
 
             // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length; i++) {
+            for (uint256 i = 0; i < investorStrats.length;) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     operatorShares[operator][investorStrats[i]]
                 );
+                unchecked {
+                    ++i;
+                }
             }
         }
         return weight;
@@ -483,10 +505,13 @@ contract EigenLayrDelegation is
                 .getStrategies(operator);
             uint256[] memory investorShares = investmentManager
                 .getStrategyShares(operator);
-            for (uint256 i = 0; i < investorStrats.length; i++) {
+            for (uint256 i = 0; i < investorStrats.length;) {
                 weight += investorStrats[i].underlyingEthValueOfSharesView(
                     investorShares[i]
                 );
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             // CRITIC: same problem as in getControlledEthStake, with calling
@@ -494,10 +519,13 @@ contract EigenLayrDelegation is
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
-            for (uint256 i = 0; i < investorStrats.length; i++) {
+            for (uint256 i = 0; i < investorStrats.length;) {
                 weight += investorStrats[i].underlyingEthValueOfSharesView(
                     operatorShares[operator][investorStrats[i]]
                 );
+                unchecked {
+                    ++i;
+                }
             }
         }
         return weight;
