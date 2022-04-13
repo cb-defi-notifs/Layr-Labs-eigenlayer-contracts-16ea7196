@@ -54,7 +54,8 @@ contract EigenLayrDelegation is
         );
         // store the address of the delegation contract that staker has agreed to.
         delegationTerms[msg.sender] = dt;
-        _delegate(msg.sender, msg.sender);
+        // TODO: add this back in once delegating to your own delegationTerms will no longer break things
+        // _delegate(msg.sender, msg.sender);
     }
 
     /// @notice This will be called by a staker if it wants to act as its own operator.
@@ -107,6 +108,8 @@ contract EigenLayrDelegation is
 
     // internal function implementing the delegation of 'delegator' to 'operator'
     function _delegate(address delegator, address operator) internal {
+        //TODO: sort out making this possible
+        require(delegator != operator, "delegator cannot match operator");
         require(
             address(delegationTerms[operator]) != address(0),
             "Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
