@@ -124,6 +124,11 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
         _;
     }
 
+    modifier onlyQueryManager() {
+        require(address(queryManager) == msg.sender, "onlyQueryManager");
+        _;
+    }
+
     function setQueryManager(IQueryManager _queryManager) public {
         require(
             address(queryManager) == address(0),
@@ -208,7 +213,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
      *
      */ 
     function registerOperator(address operator, bytes calldata data)
-        public
+        public onlyQueryManager
         returns (uint8, uint128)
     {
         require(
@@ -361,7 +366,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
      * @notice 
      */
     function deregisterOperator(address operator, bytes calldata)
-        public
+        public onlyQueryManager
         view
         returns (bool)
     {
