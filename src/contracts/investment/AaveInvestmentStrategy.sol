@@ -5,9 +5,8 @@ import "../interfaces/IInvestmentManager.sol";
 import "./aave/ILendingPool.sol";
 import "./storage/AaveInvestmentStrategyStorage.sol";
 import "../utils/Initializable.sol";
-import "../utils/Governed.sol";
 
-abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestmentStrategyStorage, IInvestmentStrategy {
+abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, IInvestmentStrategy {
     modifier onlyInvestmentManager() {
         require(msg.sender == investmentManager, "onlyInvestmentManager");
         _;
@@ -15,7 +14,6 @@ abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestm
 
     function initialize (ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager
     ) initializer public {
-        _transferGovernor(msg.sender);
         lendingPool = _lendingPool;
         underlyingToken = _underlyingToken;
         aToken = _aToken;
@@ -118,10 +116,6 @@ abstract contract AaveInvestmentStrategy is Initializable, Governed, AaveInvestm
     
     function explanation() external pure returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
-    }
-
-    function updateAToken(IERC20 _aToken) external onlyGovernor {
-        aToken = _aToken;
     }
 
     // implementation for these functions in particular may vary for different underlying tokens
