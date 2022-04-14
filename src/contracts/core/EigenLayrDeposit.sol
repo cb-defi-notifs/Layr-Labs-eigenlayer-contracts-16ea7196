@@ -13,6 +13,12 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
 import "./storage/EigenLayrDepositStorage.sol";
 
+/* TODO:
+Currently, in the EigenLayrDeposit contract, all three function depositEthIntoConsensusLayer ,  proveLegacyConsensusLayerDeposit , and depositPOSProof call the same function on the InvestmentManager contract — depositConsenusLayerEth .
+However, the function depositEthIntoConsensusLayer  works differently, since in this case, the withdrawal credentials are set to the address of the EigenLayrDeposit contract itself (i.e. the withdrawal credentials are controlled by EigenLayr itself)
+@Gautham Anant I believe we should have some either additional or separate logic for this function, since it seems fundamentally different (funds are inherently slashable by us, vs. not slashable at all).
+Let’s discuss a good resolution for this
+*/
 // todo: slashing functionality
 // todo: figure out token moving
 /**
