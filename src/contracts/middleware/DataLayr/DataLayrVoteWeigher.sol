@@ -17,8 +17,6 @@ import "ds-test/test.sol";
 contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     using BytesLib for bytes;
 
-    IInvestmentManager public investmentManager;
-
     IEigenLayrDelegation public delegation;
 
     /**
@@ -106,10 +104,8 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
     uint48[] public stakeHashUpdates;
 
     constructor(
-        IInvestmentManager _investmentManager,
         IEigenLayrDelegation _delegation
     ) {
-        investmentManager = _investmentManager;
         delegation = _delegation;
 
         //initialize the stake object

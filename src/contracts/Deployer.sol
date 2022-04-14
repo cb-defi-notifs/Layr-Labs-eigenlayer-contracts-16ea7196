@@ -108,7 +108,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             feePerBytePerTime
         );
         dl = new DataLayr();
-        dlRegVW = new DataLayrVoteWeigher(investmentManager, delegation);
+        dlRegVW = new DataLayrVoteWeigher(delegation);
 
         dlqm = serviceFactory.createNewQueryManager(
             1 days,
