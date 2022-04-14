@@ -78,7 +78,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager);
-        serviceFactory = new ServiceFactory(investmentManager);
+        serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
         //used in the one investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -122,8 +122,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             dlsm,
             dlRegVW,
             dlRegVW,
-            timelockDelay,
-            delegation
+            timelockDelay
         );
 
         dl.setQueryManager(dlqm);

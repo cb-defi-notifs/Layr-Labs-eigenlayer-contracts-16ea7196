@@ -13,9 +13,11 @@ import "./QueryManager.sol";
 contract ServiceFactory is IServiceFactory {
     mapping(IQueryManager => bool) public isQueryManager;
     IInvestmentManager immutable investmentManager;
+    IEigenLayrDelegation immutable delegation;
 
-    constructor(IInvestmentManager _investmentManager) {
+    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
         investmentManager = _investmentManager;
+        delegation = _delegation;
     }
 
 
@@ -39,8 +41,7 @@ contract ServiceFactory is IServiceFactory {
         IFeeManager feeManager,
         IVoteWeighter voteWeigher,
         IRegistrationManager registrationManager,
-        uint256 timelockDelay,
-        IEigenLayrDelegation delegation
+        uint256 timelockDelay
     ) external returns(IQueryManager) {
         // register a new query manager
         IQueryManager newQueryManager = new QueryManager(voteWeigher);
