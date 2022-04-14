@@ -34,12 +34,10 @@ contract EigenLayrDeposit is
     IEigenLayrDeposit
 {
     bytes32 public immutable consensusLayerDepositRoot;
-    Eigen public immutable eigen;
     IProofOfStakingOracle postOracle;
 
-    constructor(bytes32 _consensusLayerDepositRoot, Eigen _eigen) {
+    constructor(bytes32 _consensusLayerDepositRoot) {
         consensusLayerDepositRoot = _consensusLayerDepositRoot;
-        eigen = _eigen;
     }
 
     function initialize(
@@ -168,20 +166,6 @@ contract EigenLayrDeposit is
 
         // mark deposited eth in investment contract
         investmentManager.depositConsenusLayerEth(msg.sender, msg.value);
-    }
-
-    /// @notice Used for staking Eigen in EigenLayr.
-    function depositEigen(uint256 amount) external payable {
-        eigen.safeTransferFrom(
-            msg.sender,
-            address(investmentManager),
-            eigenTokenId,
-            amount,
-            "0x"
-        );
-
-        // mark deposited eigen in investment contract
-        investmentManager.depositEigen(msg.sender, amount);
     }
 
     /**

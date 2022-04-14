@@ -43,7 +43,7 @@ interface IInvestmentManager {
         external
         returns (uint256);
 
-    function depositEigen(address depositor, uint256 amount)
+    function depositEigen(uint256 amount)
         external
         returns (uint256);
 

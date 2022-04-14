@@ -74,7 +74,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         eigen = new Eigen(address(this));
 
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, eigen);
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager);
@@ -349,9 +349,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint256 toDeposit = 1e16;
         eigen.safeTransferFrom(address(this), sender, 0, toDeposit, "0x");
         cheats.startPrank(sender);
-        eigen.setApprovalForAll(address(deposit), true);
+        eigen.setApprovalForAll(address(investmentManager), true);
 
-        deposit.depositEigen(toDeposit);
+        investmentManager.depositEigen(toDeposit);
 
         assertEq(
             investmentManager.eigenDeposited(sender),

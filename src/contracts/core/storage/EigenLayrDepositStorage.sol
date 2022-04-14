@@ -18,5 +18,4 @@ abstract contract EigenLayrDepositStorage {
     mapping(IERC20 => bool) public isAllowedLiquidStakedToken;
     mapping(bytes32 => mapping(address => bool)) public depositProven;
     IInvestmentManager public investmentManager;
-    uint256 constant eigenTokenId = 0;
 }

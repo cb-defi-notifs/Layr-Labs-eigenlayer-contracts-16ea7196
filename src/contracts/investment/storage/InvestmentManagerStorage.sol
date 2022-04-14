@@ -27,4 +27,5 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval!
     uint32 internal constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
+    uint256 constant eigenTokenId = 0;
 }

@@ -632,22 +632,28 @@ contract InvestmentManager is
         return amount;
     }
 
-    // adds to a user's eigen deposit
+    //returns depositor's new eigenBalance
     /**
-     * @notice Used for adding to the delegator's Eigen balance
+    /// @notice Used for staking Eigen in EigenLayr.
      */
-    function depositEigen(address depositor, uint256 amount)
+    function depositEigen(uint256 amount)
         external
-        onlyGovernor
         returns (uint256)
     {
-        uint256 deposited = eigenDeposited[depositor];
+        EIGEN.safeTransferFrom(
+            msg.sender,
+            address(this),
+            eigenTokenId,
+            amount,
+            ""
+        );
+        uint256 deposited = eigenDeposited[msg.sender];
         totalEigenStaked =
             (totalEigenStaked +
             amount) -
             deposited;
 
-        eigenDeposited[depositor] += amount;
+        eigenDeposited[msg.sender] += amount;
 
         return (deposited + amount);
     }
@@ -667,7 +673,7 @@ contract InvestmentManager is
             // fixed tokenId. TODO: make this flexible?
             0,
             amount,
-            "0x"
+            ""
         );
     }
 
