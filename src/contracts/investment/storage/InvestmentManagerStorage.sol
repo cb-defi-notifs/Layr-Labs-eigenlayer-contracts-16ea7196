@@ -22,6 +22,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     uint256 public totalConsensusLayerEthStaked;
     uint256 public totalEigenStaked;
     address public slasher;
+    address public eigenLayrDepositContract;
     // placeholder address for native asset
     address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     // fixed waiting period for withdrawals

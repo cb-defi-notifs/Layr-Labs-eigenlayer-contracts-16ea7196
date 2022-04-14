@@ -42,6 +42,14 @@ contract InvestmentManager is
         _;
     }
 
+    modifier onlyEigenLayrDepositContract() {
+        require(
+            msg.sender == eigenLayrDepositContract,
+            "InvestmentManager: onlyEigenLayrDepositContract"
+        );
+        _;
+    }
+
     constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
         EIGEN = _EIGEN;
         delegation = _delegation;
@@ -60,12 +68,13 @@ contract InvestmentManager is
     function initialize(
         IInvestmentStrategy[] memory strategies,
         address _slasher,
-        address _governor
+        address _governor,
+        address _eigenLayrDepositContract
     ) external initializer {
         // make the sender who is initializing the investment manager as the governor
         _transferGovernor(_governor);
-
         slasher = _slasher;
+        eigenLayrDepositContract = _eigenLayrDepositContract;
 
         // record the strategies as approved
         for (uint256 i = 0; i < strategies.length; i++) {
@@ -617,7 +626,7 @@ contract InvestmentManager is
      */ 
     function depositConsenusLayerEth(address depositor, uint256 amount)
         external
-        onlyGovernor
+        onlyEigenLayrDepositContract
         returns (uint256)
     {
         // updating the total ETH staked into the settlement layer
