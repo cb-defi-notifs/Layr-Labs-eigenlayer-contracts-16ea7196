@@ -15,7 +15,8 @@ contract NFGT_Tester is DSTest, ERC165_Universal, ERC1155TokenReceiver {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
     NFGT public nfgt;
     uint256 ORIGIN_ID;
-    uint256 TREE_DEPTH = 2;
+    //TODO: fuzz this in tests?
+    uint256 TREE_DEPTH = 32;
 
     function setUp() public {
         string memory nfgt_name = "nfgt name";
