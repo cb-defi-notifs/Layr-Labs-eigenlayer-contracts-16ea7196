@@ -119,6 +119,9 @@ contract DataLayrServiceManager is
 
         require(storePeriodLength < 604800, "store for less than 7 days");
 
+        //TODO: mechanism to change this?
+        require(totalBytes <= 4e9, "store of more than 4 GB");
+
         // evaluate the total service fees that storer has to put in escrow for paying out
         // the DataLayr nodes for their service
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
