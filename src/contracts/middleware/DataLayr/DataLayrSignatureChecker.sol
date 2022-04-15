@@ -94,7 +94,7 @@ abstract contract DataLayrSignatureChecker is
         smd.stakes = data.slice(106, smd.stakesLength);
         require(
             keccak256(smd.stakes) ==
-                dlRegVW.getStakesHashUpdateAndCheckIndex(
+                IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                     smd.stakesIndex,
                     dumpNumberToConfirm
                 ),
