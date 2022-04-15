@@ -26,7 +26,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 pragma solidity ^0.8.9;
 
 import "../interfaces/IQueryManager.sol";
-import "../interfaces/IvoteWeigher.sol";
+import "../interfaces/IVoteWeigher.sol";
 import "../governance/Timelock.sol";
 import "../utils/Timelock_Managed.sol";
 
@@ -100,7 +100,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
 
     IQueryManager public immutable QUERY_MANAGER;
-    IvoteWeigher public immutable VOTE_WEIGHTER;
+    IVoteWeigher public immutable VOTE_WEIGHTER;
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
     /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
@@ -170,7 +170,7 @@ contract QueryManagerGovernance is Timelock_Managed {
 
     constructor(
         IQueryManager _QUERY_MANAGER,
-        IvoteWeigher _VOTE_WEIGHTER,
+        IVoteWeigher _VOTE_WEIGHTER,
         Timelock _timelock,
         address _multisig,
         uint16 _quorumEthPercentage,

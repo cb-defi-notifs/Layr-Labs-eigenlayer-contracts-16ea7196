@@ -39,13 +39,14 @@ contract ServiceFactory is IServiceFactory {
         uint256 queryDuration,
         uint256 consensusLayerEthToEth,
         IFeeManager feeManager,
-        IvoteWeigher voteWeigher,
+        IVoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
         uint256 timelockDelay
     ) external returns(IQueryManager) {
         // register a new query manager
-        IQueryManager newQueryManager = new QueryManager(voteWeigher);
+        IQueryManager newQueryManager = new QueryManager();
         QueryManager(payable(address(newQueryManager))).initialize(
+            voteWeigher,
             queryDuration,
             consensusLayerEthToEth,
             feeManager,

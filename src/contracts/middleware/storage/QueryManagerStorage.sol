@@ -33,6 +33,8 @@ abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
         mapping(address => uint256) operatorWeights;
     }
 
+    //called when responses are provided by operators
+    IVoteWeigher public voteWeigher;
     IEigenLayrDelegation public delegation;
     IInvestmentManager public investmentManager;
     //called when new queries are created. handles payments for queries.

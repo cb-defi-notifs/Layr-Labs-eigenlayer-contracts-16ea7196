@@ -14,7 +14,7 @@ import "ds-test/test.sol";
  * @notice
  */
 
-contract DataLayrVoteWeigher is IvoteWeigher, IRegistrationManager, DSTest {
+contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
     using BytesLib for bytes;
 
     IEigenLayrDelegation public delegation;
