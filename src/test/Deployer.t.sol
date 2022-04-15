@@ -23,6 +23,8 @@ import "../contracts/middleware/DataLayr/DataLayrVoteWeigher.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "ds-test/test.sol";
 
@@ -35,6 +37,7 @@ import "../contracts/libraries/SignatureCompaction.sol";
 import "./CheatCodes.sol";
 import "./Signers.sol";
 
+//TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Signers {
     using BytesLib for bytes;
 
@@ -54,6 +57,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     WethStashInvestmentStrategy public strat;
     IQueryManager public dlqm;
 
+    ProxyAdmin public eigenLayrProxyAdmin;
+
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
@@ -69,17 +74,22 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     //performs basic deployment before each test
     function setUp() public {
+        eigenLayrProxyAdmin = new ProxyAdmin();
+
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         eigen = new Eigen(address(this));
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
+        deposit = EigenLayrDeposit(address(new TransparentUpgradeableProxy(address(deposit), address(eigenLayrProxyAdmin), "")));
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
+        delegation = EigenLayrDelegation(address(new TransparentUpgradeableProxy(address(delegation), address(eigenLayrProxyAdmin), "")));
         slasher = new Slasher(investmentManager);
         serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
+        investmentManager = InvestmentManager(address(new TransparentUpgradeableProxy(address(investmentManager), address(eigenLayrProxyAdmin), "")));
         //used in the one investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -89,6 +99,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         );
         //do stuff with weth
         strat = new WethStashInvestmentStrategy();
+        strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strat.initialize(address(investmentManager), weth);
 
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
