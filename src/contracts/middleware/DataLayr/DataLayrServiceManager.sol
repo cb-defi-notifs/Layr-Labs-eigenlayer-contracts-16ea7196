@@ -126,7 +126,7 @@ contract DataLayrServiceManager is
 
         // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(queryManager.voteWeighter()))
+        IDataLayrVoteWeigher(address(queryManager.voteWeigher()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
         // escrow the total service fees from the storer to the DataLayr nodes in this contract
@@ -278,7 +278,7 @@ contract DataLayrServiceManager is
 
             // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
-                address(queryManager.voteWeighter())
+                address(queryManager.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
@@ -444,13 +444,13 @@ contract DataLayrServiceManager is
         //if challenging eigen operator
         if (eigenOrEthStakes) {
             //retrieve the stake at the time of precommit
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeighter())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
         } else {
             //if challenging eth operator
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeighter())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );

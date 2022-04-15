@@ -25,7 +25,7 @@ import "./storage/QueryManagerStorage.sol";
  */
 contract QueryManager is Initializable, QueryManagerStorage {
     //called when responses are provided by operators
-    IVoteWeighter public immutable voteWeighter;
+    IvoteWeigher public immutable voteWeigher;
 
     // EVENTS
     event Registration(address operator);
@@ -52,8 +52,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 totalCumulativeWeight
     );
 
-    constructor(IVoteWeighter _voteWeighter) {
-        voteWeighter = _voteWeighter;
+    constructor(IvoteWeigher _voteWeigher) {
+        voteWeigher = _voteWeigher;
     }
 
     function initialize(
@@ -186,7 +186,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
     {
         // get new updated Eigen and ETH that has been delegated by the delegators of the
         // operator
-        uint128 newEigen = voteWeighter.weightOfOperatorEigen(operator);
+        uint128 newEigen = voteWeigher.weightOfOperatorEigen(operator);
         uint128 newEth = uint128(
             delegation.getUnderlyingEthDelegated(operator) +
                 delegation.getConsensusLayerEthDelegated(operator) /
@@ -308,7 +308,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
 
         // find respondent's weight and the hash of their response
-        uint256 weightToAssign = voteWeighter.weightOfOperatorEth(respondent);
+        uint256 weightToAssign = voteWeigher.weightOfOperatorEth(respondent);
         bytes32 responseHash = keccak256(response);
 
         // update Query struct with respondent's weight and response

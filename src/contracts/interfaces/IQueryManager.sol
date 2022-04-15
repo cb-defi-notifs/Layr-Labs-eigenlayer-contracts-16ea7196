@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./IFeeManager.sol";
-import "./IVoteWeighter.sol";
+import "./IvoteWeigher.sol";
 import "../interfaces/ITimelock_Managed.sol";
 
 interface IQueryManager is ITimelock_Managed {
@@ -32,7 +32,7 @@ interface IQueryManager is ITimelock_Managed {
 
     function numRegistrants() external view returns (uint256);
 
-    function voteWeighter() external view returns (IVoteWeighter);
+    function voteWeigher() external view returns (IvoteWeigher);
 
     function feeManager() external view returns (IFeeManager);
 

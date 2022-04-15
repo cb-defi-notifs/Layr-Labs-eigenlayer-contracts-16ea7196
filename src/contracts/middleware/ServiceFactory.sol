@@ -39,7 +39,7 @@ contract ServiceFactory is IServiceFactory {
         uint256 queryDuration,
         uint256 consensusLayerEthToEth,
         IFeeManager feeManager,
-        IVoteWeighter voteWeigher,
+        IvoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
         uint256 timelockDelay
     ) external returns(IQueryManager) {
