@@ -3,15 +3,14 @@ pragma solidity ^0.8.9;
 
 import "./IFeeManager.sol";
 import "./IVoteWeighter.sol";
+import "../interfaces/ITimelock_Managed.sol";
 
-interface IQueryManager {
+interface IQueryManager is ITimelock_Managed {
     // struct for storing the amount of Eigen and ETH that has been staked
     struct Stake {
         uint128 eigenStaked;
         uint128 ethStaked;
     }
-
-    function timelock() external view returns (address);
 
     function operatorCounts() external view returns(uint256);
 

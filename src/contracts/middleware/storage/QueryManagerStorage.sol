@@ -6,13 +6,13 @@ import "../../interfaces/IInvestmentStrategy.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IQueryManager.sol";
-
+import "../../utils/Timelock_Managed.sol";
 
 /**
  * @notice This contract specifies all the state variables that are being used 
  *         within QueryManager contract.
  */
-abstract contract QueryManagerStorage is IQueryManager {
+abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
 
     /**
      * @notice This struct is used for containing the details of a query that is created 
@@ -37,8 +37,6 @@ abstract contract QueryManagerStorage is IQueryManager {
     IInvestmentManager public investmentManager;
     //called when new queries are created. handles payments for queries.
     IFeeManager public feeManager;
-    //timelock address which has control over upgrades of feeManager
-    address public timelock;
 
     /**
      * @notice For each investment strategy "strat" that is part of any delegator's investment strategy

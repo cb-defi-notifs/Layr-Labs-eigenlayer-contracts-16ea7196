@@ -118,7 +118,7 @@ contract DataLayrVoteWeigher is IVoteWeighter, IRegistrationManager, DSTest {
 
     modifier onlyQMGovernance() {
         require(
-            queryManager.timelock() == msg.sender,
+            address(queryManager.timelock()) == msg.sender,
             "Query Manager governance can only call this function"
         );
         _;

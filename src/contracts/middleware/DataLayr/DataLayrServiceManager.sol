@@ -71,7 +71,7 @@ contract DataLayrServiceManager is
 
     modifier onlyQMGovernance() {
         require(
-            queryManager.timelock() == msg.sender,
+            address(queryManager.timelock()) == msg.sender,
             "Query Manager governance can only call this function"
         );
         _;
@@ -772,7 +772,7 @@ contract DataLayrServiceManager is
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
             (address(dataLayr) == address(0)) ||
-                (queryManager.timelock() == msg.sender),
+                (address(queryManager.timelock()) == msg.sender),
             "Query Manager governance can only call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;

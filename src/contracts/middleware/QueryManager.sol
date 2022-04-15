@@ -9,6 +9,7 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IQueryManager.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
+// import "../utils/Timelock_Managed.sol";
 import "./storage/QueryManagerStorage.sol";
 
 /**
@@ -51,11 +52,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 totalCumulativeWeight
     );
 
-    modifier onlyTimelock() {
-        require(msg.sender == timelock, "onlyTimelock");
-        _;
-    }
-
     constructor(IVoteWeighter _voteWeighter) {
         voteWeighter = _voteWeighter;
     }
@@ -73,7 +69,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         consensusLayerEthToEth = _consensusLayerEthToEth;
         feeManager = _feeManager;
         registrationManager = _registrationManager;
-        timelock = address(new Timelock(address(this), _timelockDelay));
+        Timelock _timelock = new Timelock(address(this), _timelockDelay);
+        _setTimelock(_timelock);
         delegation = _delegation;
         investmentManager = _investmentManager;
     }
@@ -471,11 +468,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /// @notice sets the registration manager for the middleware's query manager
     function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
         registrationManager = _registrationManager;
-    }
-
-    /// @notice sets the timelock contract's address
-    function setTimelock(address _timelock) external onlyTimelock {
-        timelock = _timelock;
     }
 
     function getOpertorCount() public view returns (uint32) {

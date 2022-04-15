@@ -28,53 +28,10 @@ pragma solidity ^0.8.9;
 import "../interfaces/IQueryManager.sol";
 import "../interfaces/IVoteWeighter.sol";
 import "../governance/Timelock.sol";
+import "../utils/Timelock_Managed.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract QueryManagerGovernance {
-    /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
-    /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
-    uint16 public quorumEthPercentage;
-
-    /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
-    /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
-    uint16 public quorumEigenPercentage;
-
-    /// @notice The percentage of eth required in order for a voter to become a proposer
-    uint16 proposalThresholdEthPercentage;
-
-    /// @notice The percentage of eigen required in order for a voter to become a proposer
-    uint16 public proposalThresholdEigenPercentage;
-
-    IQueryManager public immutable QUERY_MANAGER;
-    IVoteWeighter public immutable VOTE_WEIGHTER;
-
-    /// @notice The maximum number of actions that can be included in a proposal
-    function proposalMaxOperations() public pure returns (uint256) {
-        return 10;
-    } // 10 actions
-
-    /// @notice The delay before voting on a proposal may take place, once proposed. stored as uint256 in number of seconds
-    function votingDelay() public pure returns (uint256) {
-        return 2 days;
-    }
-
-    /// @notice The duration of voting on a proposal, in seconds
-    function votingPeriod() public pure returns (uint256) {
-        return 7 days;
-    }
-
-    /// @notice The address of the Protocol Timelock
-    Timelock public timelock;
-
-    /// @notice The total number of proposals
-    uint256 public proposalCount;
-
-    /// @notice Address of multisig or other trusted party. Has zero extra votes, but can make proposals without meeting proposal
-    ///         thresholds, and that pass by default
-    ///         In other words, proposals created by the 'multsig' address require at least a quorum to reject them in order to
-    ///         *not* pass, but otherwise operate like normal proposals, where the side with most votes wins
-    address public multisig;
-
+contract QueryManagerGovernance is Timelock_Managed {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -131,6 +88,43 @@ contract QueryManagerGovernance {
         Executed
     }
 
+    /// @notice The maximum number of actions that can be included in a proposal
+    uint16 public constant proposalMaxOperations = 10;
+    /// @notice The delay before voting on a proposal may take place, once proposed. stored as uint256 in number of seconds
+    uint256 public constant votingDelay = 2 days;
+    /// @notice The duration of voting on a proposal, in seconds
+    uint256 public constant votingPeriod = 7 days;
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256( "EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    /// @notice The EIP-712 typehash for the ballot struct used by the contract
+    bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
+
+    IQueryManager public immutable QUERY_MANAGER;
+    IVoteWeighter public immutable VOTE_WEIGHTER;
+
+    /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
+    /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
+    uint16 public quorumEthPercentage;
+
+    /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
+    /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
+    uint16 public quorumEigenPercentage;
+
+    /// @notice The percentage of eth required in order for a voter to become a proposer
+    uint16 proposalThresholdEthPercentage;
+
+    /// @notice The percentage of eigen required in order for a voter to become a proposer
+    uint16 public proposalThresholdEigenPercentage;
+
+    /// @notice The total number of proposals
+    uint256 public proposalCount;
+
+    /// @notice Address of multisig or other trusted party. Has zero extra votes, but can make proposals without meeting proposal
+    ///         thresholds, and that pass by default
+    ///         In other words, proposals created by the 'multsig' address require at least a quorum to reject them in order to
+    ///         *not* pass, but otherwise operate like normal proposals, where the side with most votes wins
+    address public multisig;
+
     /// @notice Receipts of ballots for the entire set of voters
     mapping(uint256 => mapping(address => Receipt)) receipts;
 
@@ -139,16 +133,6 @@ contract QueryManagerGovernance {
 
     /// @notice The latest proposal for each proposer
     mapping(address => uint) public latestProposalIds;
-
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256(
-            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
-        );
-
-    /// @notice The EIP-712 typehash for the ballot struct used by the contract
-    bytes32 public constant BALLOT_TYPEHASH =
-        keccak256("Ballot(uint256 proposalId,bool support)");
 
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(
@@ -182,16 +166,12 @@ contract QueryManagerGovernance {
     event ProposalExecuted(uint256 id);
 
     /// @notice Emitted when the 'multisig' address has been changed
-    event MultisigTransferred(address indexed previousMultisig, address indexed newMultisig);
-
-    modifier onlyTimelock() {
-        require(msg.sender == address(timelock), "onlyTimelock");
-        _;
-    }
+    event MultisigTransferred(address indexed previousAddress, address indexed newAddress);
 
     constructor(
         IQueryManager _QUERY_MANAGER,
         IVoteWeighter _VOTE_WEIGHTER,
+        Timelock _timelock,
         address _multisig,
         uint16 _quorumEthPercentage,
         uint16 _quorumEigenPercentage,
@@ -200,10 +180,9 @@ contract QueryManagerGovernance {
     ) {
         QUERY_MANAGER = _QUERY_MANAGER;
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
+        _setTimelock(_timelock);
         _setMultisig(_multisig);
         _setQuorumsAndThresholds(_quorumEthPercentage, _quorumEigenPercentage, _proposalThresholdEthPercentage, _proposalThresholdEigenPercentage);
-        //TODO: figure the time out
-        timelock = new Timelock(address(this), 10 days);
 
     }
 
@@ -239,7 +218,7 @@ contract QueryManagerGovernance {
             "QueryManagerGovernance::propose: must provide actions"
         );
         require(
-            targets.length <= proposalMaxOperations(),
+            targets.length <= proposalMaxOperations,
             "QueryManagerGovernance::propose: too many actions"
         );
 
@@ -267,8 +246,8 @@ contract QueryManagerGovernance {
             values: values,
             signatures: signatures,
             calldatas: calldatas,
-            startTime: block.timestamp + votingDelay(),
-            endTime: block.timestamp + votingDelay() + votingPeriod(),
+            startTime: block.timestamp + votingDelay,
+            endTime: block.timestamp + votingDelay + votingPeriod,
             forEthVotes: 0,
             againstEthVotes: 0,
             forEigenVotes: 0,
