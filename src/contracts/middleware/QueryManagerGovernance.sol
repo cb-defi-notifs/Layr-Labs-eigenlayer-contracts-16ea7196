@@ -33,25 +33,17 @@ import "../governance/Timelock.sol";
 contract QueryManagerGovernance {
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
     /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
-    function quorumEthPercentage() public pure returns (uint256) {
-        return 50;
-    }
+    uint16 public quorumEthPercentage;
 
     /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
     /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
-    function quorumEigenPercentage() public pure returns (uint256) {
-        return 50;
-    }
+    uint16 public quorumEigenPercentage;
 
-    /// @notice The amount of eth required in order for a voter to become a proposer
-    function proposalThresholdEthPercentage() public pure returns (uint256) {
-        return 1;
-    }
+    /// @notice The percentage of eth required in order for a voter to become a proposer
+    uint16 proposalThresholdEthPercentage;
 
-    /// @notice The number of eigen required in order for a voter to become a proposer
-    function proposalThresholdEigenPercentage() public pure returns (uint256) {
-        return 1;
-    }
+    /// @notice The percentage of eigen required in order for a voter to become a proposer
+    uint16 public proposalThresholdEigenPercentage;
 
     IQueryManager public immutable QUERY_MANAGER;
     IVoteWeighter public immutable VOTE_WEIGHTER;
@@ -76,6 +68,12 @@ contract QueryManagerGovernance {
 
     /// @notice The total number of proposals
     uint256 public proposalCount;
+
+    /// @notice Address of multisig or other trusted party. Has zero extra votes, but can make proposals without meeting proposal
+    ///         thresholds, and that pass by default
+    ///         In other words, proposals created by the 'multsig' address require at least a quorum to reject them in order to
+    ///         *not* pass, but otherwise operate like normal proposals, where the side with most votes wins
+    address public multisig;
 
     struct Proposal {
         /// @notice Unique id for looking up a proposal
@@ -183,11 +181,30 @@ contract QueryManagerGovernance {
     /// @notice An event emitted when a proposal has been executed in the Timelock
     event ProposalExecuted(uint256 id);
 
-    constructor(IQueryManager _QUERY_MANAGER, IVoteWeighter _VOTE_WEIGHTER) {
+    /// @notice Emitted when the 'multisig' address has been changed
+    event MultisigTransferred(address indexed previousMultisig, address indexed newMultisig);
+
+    modifier onlyTimelock() {
+        require(msg.sender == address(timelock), "onlyTimelock");
+        _;
+    }
+
+    constructor(
+        IQueryManager _QUERY_MANAGER,
+        IVoteWeighter _VOTE_WEIGHTER,
+        address _multisig,
+        uint16 _quorumEthPercentage,
+        uint16 _quorumEigenPercentage,
+        uint16 _proposalThresholdEthPercentage,
+        uint16 _proposalThresholdEigenPercentage
+    ) {
         QUERY_MANAGER = _QUERY_MANAGER;
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
+        _setMultisig(_multisig);
+        _setQuorumsAndThresholds(_quorumEthPercentage, _quorumEigenPercentage, _proposalThresholdEthPercentage, _proposalThresholdEigenPercentage);
         //TODO: figure the time out
         timelock = new Timelock(address(this), 10 days);
+
     }
 
     function propose(
@@ -205,9 +222,10 @@ contract QueryManagerGovernance {
         // check percentage
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
-                proposalThresholdEthPercentage() ||
+                proposalThresholdEthPercentage ||
                 (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() >=
-                proposalThresholdEigenPercentage(),
+                proposalThresholdEigenPercentage ||
+                msg.sender == multisig,
             "QueryManagerGovernance::propose: proposer votes below proposal threshold"
         );
         require(
@@ -339,6 +357,7 @@ contract QueryManagerGovernance {
         );
 
         Proposal storage proposal = proposals[proposalId];
+        require(proposal.proposer != multisig, "multisig does not have to meet threshold requirements");
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
             proposal.proposer,
             update
@@ -346,9 +365,9 @@ contract QueryManagerGovernance {
         // check percentage
         require(
             (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() <
-                proposalThresholdEthPercentage() ||
+                proposalThresholdEthPercentage ||
                 (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() <
-                proposalThresholdEigenPercentage(),
+                proposalThresholdEigenPercentage,
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
 
@@ -404,10 +423,18 @@ contract QueryManagerGovernance {
         } else if (
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
-            (proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
-            quorumEthPercentage() ||
-            (proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigenStaked() <
-            quorumEigenPercentage()
+            (
+                ((proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
+                quorumEthPercentage)
+                &&
+                (proposal.proposer != multisig)
+            ) ||
+            (
+                ((proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigenStaked() <
+                quorumEigenPercentage)
+                &&
+                (proposal.proposer != multisig)
+            )
         ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
@@ -497,12 +524,43 @@ contract QueryManagerGovernance {
         emit VoteCast(voter, proposalId, support, eigenVotes, ethVotes);
     }
 
+    function setQuorumsAndThresholds(
+        uint16 _quorumEthPercentage,
+        uint16 _quorumEigenPercentage,
+        uint16 _proposalThresholdEthPercentage,
+        uint16 _proposalThresholdEigenPercentage
+    ) external onlyTimelock {
+        _setQuorumsAndThresholds(_quorumEthPercentage, _quorumEigenPercentage, _proposalThresholdEthPercentage, _proposalThresholdEigenPercentage);
+    }
+
+    function _setQuorumsAndThresholds(
+        uint16 _quorumEthPercentage,
+        uint16 _quorumEigenPercentage,
+        uint16 _proposalThresholdEthPercentage,
+        uint16 _proposalThresholdEigenPercentage
+    ) internal {
+        require(_quorumEthPercentage > 0 && _quorumEthPercentage < 100, "bad _quorumEthPercentage");
+        require(_quorumEigenPercentage > 0 && _quorumEigenPercentage < 100, "bad _quorumEigenPercentage");
+        require(_proposalThresholdEthPercentage > 0 && _proposalThresholdEthPercentage < 100, "bad _proposalThresholdEthPercentage");
+        require(_proposalThresholdEigenPercentage > 0 && _proposalThresholdEigenPercentage < 100, "bad _proposalThresholdEigenPercentage");
+
+        quorumEthPercentage = _quorumEthPercentage;
+        quorumEigenPercentage = _quorumEigenPercentage;
+        proposalThresholdEthPercentage = _proposalThresholdEthPercentage;
+        proposalThresholdEigenPercentage = _proposalThresholdEigenPercentage;
+    }
+
+    function setMultisig(address _multisig) external onlyTimelock {
+        _setMultisig(_multisig);
+    }
+
+    function _setMultisig(address _multisig) internal {
+        emit MultisigTransferred(multisig, _multisig);
+        multisig = _multisig;
+    }
+
     function getChainId() internal view returns (uint256) {
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-        return chainId;
+        return block.chainid;
     }
 
     function _getEthAndEigenStaked(address user, bool update)
