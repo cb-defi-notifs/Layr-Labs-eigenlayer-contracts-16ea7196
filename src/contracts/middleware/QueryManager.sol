@@ -60,12 +60,12 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
         // subtract the staked Eigen and ETH of the operator, that is getting deregistered,
         // from the total stake securing the middleware
-        totalStake.eigenStaked -= operatorStakes[msg.sender].eigenStaked;
         totalStake.ethStaked -= operatorStakes[msg.sender].ethStaked;
+        totalStake.eigenStaked -= operatorStakes[msg.sender].eigenStaked;
 
         // clear the staked Eigen and ETH of the operator which is getting deregistered
-        operatorStakes[msg.sender].eigenStaked = 0;
         operatorStakes[msg.sender].ethStaked = 0;
+        operatorStakes[msg.sender].eigenStaked = 0;
 
         /**
          * @dev Referring to the detailed explanation on structure of operatorCounts in
@@ -127,15 +127,15 @@ contract QueryManager is Initializable, QueryManagerStorage {
         );
 
         // only 1 SSTORE
-        operatorStakes[msg.sender] = Stake(eigenAmount, ethAmount);
+        operatorStakes[msg.sender] = Stake(ethAmount, eigenAmount);
 
         /**
          * update total Eigen and ETH tha are being employed by the operator for securing
          * the queries from middleware via EigenLayr
          */
         //i think this gets batched as 1 SSTORE @TODO check
-        totalStake.eigenStaked += eigenAmount;
         totalStake.ethStaked += ethAmount;
+        totalStake.eigenStaked += eigenAmount;
 
         // increment both the total number of operators and number of operators of opType
         operatorCounts = (operatorCounts + (1 << (32 * opType + 32))) + 1;
@@ -160,18 +160,18 @@ contract QueryManager is Initializable, QueryManagerStorage {
         // get new updated Eigen and ETH that has been delegated by the delegators, and store the updated stake
         Stake memory newStake = 
             Stake({
-                eigenStaked: voteWeigher.weightOfOperatorEigen(operator),
                 ethStaked: uint128(
                     delegation.getUnderlyingEthDelegated(operator) +
                     delegation.getConsensusLayerEthDelegated(operator) /
                     consensusLayerEthToEth
-                )
+                ),
+                eigenStaked: voteWeigher.weightOfOperatorEigen(operator)
             });
         operatorStakes[operator] = newStake;
 
         // update the total stake
-        totalStake.eigenStaked = totalStake.eigenStaked + newStake.eigenStaked - prevStake.eigenStaked;
         totalStake.ethStaked = totalStake.ethStaked + newStake.ethStaked - prevStake.ethStaked;
+        totalStake.eigenStaked = totalStake.eigenStaked + newStake.eigenStaked - prevStake.eigenStaked;
 
         //return (updated ETH, updated Eigen) staked with the operator
         return (newStake.ethStaked, newStake.eigenStaked);

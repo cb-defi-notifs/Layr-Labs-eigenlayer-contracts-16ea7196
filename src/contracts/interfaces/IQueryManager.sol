@@ -29,8 +29,8 @@ interface IQueryManager is ITimelock_Managed {
 
     // struct for storing the amount of Eigen and ETH that has been staked
     struct Stake {
-        uint128 eigenStaked;
         uint128 ethStaked;
+        uint128 eigenStaked;
     }
 
     function operatorCounts() external view returns(uint256);
