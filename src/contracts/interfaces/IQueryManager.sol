@@ -6,6 +6,27 @@ import "./IVoteWeigher.sol";
 import "../interfaces/ITimelock_Managed.sol";
 
 interface IQueryManager is ITimelock_Managed {
+    // EVENTS
+    event Registration(address indexed operator);
+    event Deregistration(address indexed operator);
+    event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
+    event ResponseReceived(
+        address indexed submitter,
+        bytes32 indexed queryDataHash,
+        bytes32 indexed responseHash,
+        uint256 weightAssigned
+    );
+    event NewLeadingResponse(
+        bytes32 indexed queryDataHash,
+        bytes32 indexed previousLeadingResponseHash,
+        bytes32 indexed newLeadingResponseHash
+    );
+    event QueryFinalized(
+        bytes32 indexed queryDataHash,
+        bytes32 indexed outcome,
+        uint256 totalCumulativeWeight
+    );
+
     // struct for storing the amount of Eigen and ETH that has been staked
     struct Stake {
         uint128 eigenStaked;

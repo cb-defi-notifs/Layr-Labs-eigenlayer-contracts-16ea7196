@@ -559,9 +559,7 @@ contract QueryManagerGovernance is Timelock_Managed {
             ethStaked = newEthStaked;
             eigenStaked = newEigenStaked;
         } else {
-            ethStaked = QUERY_MANAGER.ethStakedByOperator(
-                user
-            );
+            ethStaked = QUERY_MANAGER.ethStakedByOperator(user);
             eigenStaked = QUERY_MANAGER.eigenStakedByOperator(user);
         }
         return (ethStaked, eigenStaked);

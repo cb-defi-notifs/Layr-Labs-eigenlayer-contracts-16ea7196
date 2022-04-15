@@ -9,7 +9,6 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IQueryManager.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
-// import "../utils/Timelock_Managed.sol";
 import "./storage/QueryManagerStorage.sol";
 
 /**
@@ -24,30 +23,6 @@ import "./storage/QueryManagerStorage.sol";
  *               existing queries by operators and finalize the outcome of the queries.
  */
 contract QueryManager is Initializable, QueryManagerStorage {
-    // EVENTS
-    event Registration(address operator);
-    event Deregistration(address operator);
-
-    event QueryCreated(bytes32 indexed queryDataHash, uint256 blockTimestamp);
-
-    event ResponseReceived(
-        address indexed submitter,
-        bytes32 indexed queryDataHash,
-        bytes32 indexed responseHash,
-        uint256 weightAssigned
-    );
-
-    event NewLeadingResponse(
-        bytes32 indexed queryDataHash,
-        bytes32 indexed previousLeadingResponseHash,
-        bytes32 indexed newLeadingResponseHash
-    );
-
-    event QueryFinalized(
-        bytes32 indexed queryDataHash,
-        bytes32 indexed outcome,
-        uint256 totalCumulativeWeight
-    );
 
     function initialize(
         IVoteWeigher _voteWeigher,
@@ -179,29 +154,27 @@ contract QueryManager is Initializable, QueryManagerStorage {
         override
         returns (uint128, uint128)
     {
-        // get new updated Eigen and ETH that has been delegated by the delegators of the
-        // operator
-        uint128 newEigen = voteWeigher.weightOfOperatorEigen(operator);
-        uint128 newEth = uint128(
-            delegation.getUnderlyingEthDelegated(operator) +
-                delegation.getConsensusLayerEthDelegated(operator) /
-                consensusLayerEthToEth
-        );
-
         // store old stake in memory
-        uint128 prevEigen = operatorStakes[operator].eigenStaked;
-        uint128 prevEth = operatorStakes[operator].ethStaked;
+        Stake memory prevStake = operatorStakes[operator];
 
-        // store the updated stake
-        operatorStakes[operator].eigenStaked = newEigen;
-        operatorStakes[operator].ethStaked = newEth;
+        // get new updated Eigen and ETH that has been delegated by the delegators, and store the updated stake
+        Stake memory newStake = 
+            Stake({
+                eigenStaked: voteWeigher.weightOfOperatorEigen(operator),
+                ethStaked: uint128(
+                    delegation.getUnderlyingEthDelegated(operator) +
+                    delegation.getConsensusLayerEthDelegated(operator) /
+                    consensusLayerEthToEth
+                )
+            });
+        operatorStakes[operator] = newStake;
 
         // update the total stake
-        totalStake.eigenStaked = totalStake.eigenStaked + newEigen - prevEigen;
-        totalStake.ethStaked = totalStake.ethStaked + newEth - prevEth;
+        totalStake.eigenStaked = totalStake.eigenStaked + newStake.eigenStaked - prevStake.eigenStaked;
+        totalStake.ethStaked = totalStake.ethStaked + newStake.ethStaked - prevStake.ethStaked;
 
         //return (updated ETH, updated Eigen) staked with the operator
-        return (newEth, newEigen);
+        return (newStake.ethStaked, newStake.eigenStaked);
     }
 
     /// @notice get total ETH staked for securing the middleware
@@ -401,8 +374,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         return queriesCreated[queryHash] + queryDuration;
     }
 
-    // proxy to fee payer contract
-    function _delegate(address implementation) internal virtual {
+    // proxy to fee manager contract
+    function _delegate(address _feeManager) internal virtual {
         uint256 value = msg.value;
         //check that the first 32 bytes of calldata match the msg.sender of the call
         uint160 sender;
@@ -416,11 +389,11 @@ contract QueryManager is Initializable, QueryManagerStorage {
             // block because it will not return to Solidity code. We overwrite the
             // Solidity scratch pad at memory position 0.
             calldatacopy(0, 0, calldatasize())
-            // Call the implementation.
+            // Call the feeManager.
             // out and outsize are 0 because we don't know the size yet.
             let result := call(
                 gas(), //rest of gas
-                implementation, //To addr
+                _feeManager, //To addr
                 value, //send value
                 0, // Inputs are at location x
                 calldatasize(), //send calldata
