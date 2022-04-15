@@ -83,8 +83,6 @@ contract DataLayrServiceManager is
             "Query Manager already set"
         );
         queryManager = _queryManager;
-
-        dlRegVW = IDataLayrVoteWeigher(address(queryManager.voteWeighter()));
     }
 
     /**
@@ -446,13 +444,13 @@ contract DataLayrServiceManager is
         //if challenging eigen operator
         if (eigenOrEthStakes) {
             //retrieve the stake at the time of precommit
-            stakeHash = dlRegVW.getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeighter())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
         } else {
             //if challenging eth operator
-            stakeHash = dlRegVW.getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeighter())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );

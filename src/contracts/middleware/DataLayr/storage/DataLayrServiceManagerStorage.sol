@@ -24,8 +24,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
     IQueryManager public queryManager;
-    //the DL vote weighter
-    IDataLayrVoteWeigher public dlRegVW;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint48 public dumpNumber;
