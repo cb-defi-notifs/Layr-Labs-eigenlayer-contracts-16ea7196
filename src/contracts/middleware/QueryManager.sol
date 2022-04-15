@@ -24,9 +24,6 @@ import "./storage/QueryManagerStorage.sol";
  *               existing queries by operators and finalize the outcome of the queries.
  */
 contract QueryManager is Initializable, QueryManagerStorage {
-    //called when responses are provided by operators
-    IvoteWeigher public immutable voteWeigher;
-
     // EVENTS
     event Registration(address operator);
     event Deregistration(address operator);
@@ -52,11 +49,8 @@ contract QueryManager is Initializable, QueryManagerStorage {
         uint256 totalCumulativeWeight
     );
 
-    constructor(IvoteWeigher _voteWeigher) {
-        voteWeigher = _voteWeigher;
-    }
-
     function initialize(
+        IVoteWeigher _voteWeigher,
         uint256 _queryDuration,
         uint256 _consensusLayerEthToEth,
         IFeeManager _feeManager,
@@ -65,6 +59,7 @@ contract QueryManager is Initializable, QueryManagerStorage {
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager
     ) external initializer {
+        _setVoteWeigher(_voteWeigher);
         queryDuration = _queryDuration;
         consensusLayerEthToEth = _consensusLayerEthToEth;
         feeManager = _feeManager;
@@ -468,6 +463,15 @@ contract QueryManager is Initializable, QueryManagerStorage {
     /// @notice sets the registration manager for the middleware's query manager
     function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
         registrationManager = _registrationManager;
+    }
+
+    /// @notice sets the vote weigher for the middleware's query manager
+    function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyTimelock {
+        _setVoteWeigher(_voteWeigher);
+    }
+
+    function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
+        voteWeigher = _voteWeigher;
     }
 
     function getOpertorCount() public view returns (uint32) {
