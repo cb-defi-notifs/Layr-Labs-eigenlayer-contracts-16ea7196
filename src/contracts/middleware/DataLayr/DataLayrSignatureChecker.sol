@@ -72,22 +72,22 @@ abstract contract DataLayrSignatureChecker is
         StakesMetaData memory smd;
         assembly {
             //get the 48 bits immediately after the function signature and length encoding of bytes calldata type
-            dumpNumberToConfirm := shr(208, calldataload(100))
+            dumpNumberToConfirm := shr(208, calldataload(68))
             //get the 32 bytes immediately after the above
-            headerHash := calldataload(106)
+            headerHash := calldataload(74)
             //get the next 32 bits
-            numberOfSigners := shr(224, calldataload(138))
+            numberOfSigners := shr(224, calldataload(106))
             //store the next 32 bytes in the start of the 'smd' object (i.e. smd.stakesIndex)
-            mstore(smd, calldataload(142))
+            mstore(smd, calldataload(110))
             //store the next 32 bytes after the start of the 'smd' object (i.e. smd.stakesLength)
-            mstore(add(smd, 32), calldataload(174))
+            mstore(add(smd, 32), calldataload(142))
         }
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
         // TODO: Optimize mstores further?
+        // emit log_named_bytes("calldata", msg.data);
         // emit log_named_uint("smd.stakesIndex", smd.stakesIndex);
-        // emit log_named_uint("smd.eigenStakesIndex", smd.eigenStakesIndex);
 
         // total bytes read so far is now (6 + 32 + 4 + 64) = 106
         // load stakes into memory and verify integrity of stake hash
@@ -102,8 +102,8 @@ abstract contract DataLayrSignatureChecker is
         );
 
         // initialize at value that will be used in next calldataload (just after all the already loaded data)
-        // we add 100 to the amount of data we have read here, since 4 bytes (for function sig) + (32 * 3) bytes is used at start of calldata
-        uint256 pointer = 206 + smd.stakesLength;
+        // we add 68 to the amount of data we have read here (174 = 106 + 68), since 4 bytes (for function sig) + (32 * 2) bytes is used at start of calldata
+        uint256 pointer = 174 + smd.stakesLength;
 
         assembly {
             //fetch the totalEthStake value and store it in memory
@@ -161,7 +161,7 @@ abstract contract DataLayrSignatureChecker is
                 signatoryCalldataByteLocation := 
                                 add(
                                     //get position in calldata for start of stakes object
-                                    206,
+                                    174,
                                         mul(
                                             //gets specified location of signatory in stakes object
                                             shr(

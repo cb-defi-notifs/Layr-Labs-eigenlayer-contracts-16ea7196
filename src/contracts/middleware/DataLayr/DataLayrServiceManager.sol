@@ -101,16 +101,10 @@ contract DataLayrServiceManager is
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
-        address storer,
         bytes calldata header,
         uint32 totalBytes,
         uint32 storePeriodLength
     ) external payable {
-        // require(
-        //     msg.sender == address(queryManager),
-        //     "Only the query manager can call this function"
-        // );
-
         bytes32 headerHash = keccak256(header);
 
         require(totalBytes > 32, "Can't store less than 33 bytes");
@@ -122,7 +116,7 @@ contract DataLayrServiceManager is
         //TODO: mechanism to change this?
         require(totalBytes <= 4e9, "store of more than 4 GB");
 
-        // evaluate the total service fees that storer has to put in escrow for paying out
+        // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
         uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
 
@@ -138,7 +132,7 @@ contract DataLayrServiceManager is
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
         // escrow the total service fees from the storer to the DataLayr nodes in this contract
-        paymentToken.transferFrom(storer, address(this), fee);
+        paymentToken.transferFrom(msg.sender, address(this), fee);
 
         // call DL contract
         dataLayr.initDataStore(
@@ -160,15 +154,10 @@ contract DataLayrServiceManager is
      * @param data TBA.
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(address, bytes calldata data)
+    function confirmDataStore(bytes calldata data)
         external
         payable
     {
-        // require(
-        //     msg.sender == address(queryManager),
-        //     "Only the query manager can call this function"
-        // );
-
         // verify the signatures that disperser is claiming to be that of DataLayr nodes
         // who have agreed to be in the quorum
         (
@@ -217,10 +206,6 @@ contract DataLayrServiceManager is
         bytes32 headerHash,
         bytes calldata data
     ) external payable {
-        // require(
-        //     msg.sender == address(queryManager),
-        //     "Only the query manager can call this function"
-        // );
         (
             uint48 dumpNumberToConfirm,
             bytes32 depositFerkleHash,

@@ -323,8 +323,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.prank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         cheats.prank(storer);
-        DataLayrServiceManager(address(dlqm)).initDataStore(
-            storer,
+        dlsm.initDataStore(
             header,
             totalBytes,
             storePeriodLength
@@ -514,7 +513,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.prank(storer);
 
         uint256 gasbefore = gasleft();
-        DataLayrServiceManager(address(dlqm)).confirmDataStore(storer, data);
+        dlsm.confirmDataStore(data);
         emit log_named_uint("gas spent on confirm, testConfirmDataStoreSelfOperators()", gasbefore - gasleft());
         emit log_named_uint("number of operators", numberOfSigners);
          
