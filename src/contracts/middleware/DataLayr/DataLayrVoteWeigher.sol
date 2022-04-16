@@ -16,27 +16,6 @@ import "ds-test/test.sol";
 
 contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
     using BytesLib for bytes;
-
-    // TODO: decide if this should be immutable or upgradeable
-    IEigenLayrDelegation public delegation;
-    // not set in constructor, since the queryManager sets the address of the vote weigher in
-    // its own constructor, and therefore the vote weigher must be deployed first
-    IQueryManager public queryManager;
-    // the latest UTC timestamp at which a DataStore expires
-    uint32 public latestTime;
-
-    // Register, everyone is active in the list
-    mapping(address => Registrant) public registry;
-    address[] public registrantList;
-    uint32 public nextRegistrantId;
-    uint128 public dlnEthStake = 1 wei;
-    uint128 public dlnEigenStake = 1 wei;
-
-    //mapping from dumpNumbers to hash of the 'stake' object at the dumpNumber
-    mapping(uint48 => bytes32) public stakeHashes;
-    //dumpNumbers at which the stake object was updated
-    uint48[] public stakeHashUpdates;
-
     /**
      * @notice  Details on DataLayr nodes that would be used for -
      *           - sending data by the sequencer
@@ -46,7 +25,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
     struct Registrant {
         // id is always unique
         uint32 id;
-        // corresponds to registrantList
+        // corresponds to position in registrantList
         uint64 index;
         //
         uint48 fromDumpNumber;
@@ -63,7 +42,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         uint96 a;
         uint96 b;
     }
-
+    
     /**
      * @notice pack two uint48's into a storage slot
      */
@@ -71,6 +50,26 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         uint48 a;
         uint48 b;
     }
+
+    // TODO: decide if this should be immutable or upgradeable
+    IEigenLayrDelegation public delegation;
+    // not set in constructor, since the queryManager sets the address of the vote weigher in
+    // its own constructor, and therefore the vote weigher must be deployed first
+    IQueryManager public queryManager;
+    // the latest UTC timestamp at which a DataStore expires
+    uint32 public latestTime;
+
+    uint32 public nextRegistrantId;
+    uint128 public dlnEthStake = 1 wei;
+    uint128 public dlnEigenStake = 1 wei;
+
+    // Register, everyone is active in the list
+    mapping(address => Registrant) public registry;
+    //mapping from dumpNumbers to hash of the 'stake' object at the dumpNumber
+    mapping(uint48 => bytes32) public stakeHashes;
+    //dumpNumbers at which the stake object was updated
+    uint48[] public stakeHashUpdates;
+    address[] public registrantList;
 
     // EVENT
     /**
