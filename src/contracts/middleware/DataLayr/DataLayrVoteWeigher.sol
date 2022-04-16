@@ -433,8 +433,8 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
 
             // determine new stakes
             Uint96xUint96 memory newStakes = Uint96xUint96({
-                a: uint96(weightOfOperatorEigen(operators[i])),
-                b: uint96(weightOfOperatorEth(operators[i]))
+                a: uint96(weightOfOperatorEth(operators[i])),
+                b: uint96(weightOfOperatorEigen(operators[i]))
             });
 
             // check if minimum requirements have been met
