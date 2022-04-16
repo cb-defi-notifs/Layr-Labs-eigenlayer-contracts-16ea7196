@@ -217,7 +217,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
      */ 
     function registerOperator(address operator, bytes calldata data)
         public onlyQueryManager
-        returns (uint96, uint96)
+        returns (uint8, uint96, uint96)
     {
         require(
             registry[operator].active == 0,
@@ -227,12 +227,8 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         // get the first byte of data which happens to specify the type of the operator
         uint8 registrantType = data.toUint8(0);
 
+        // TODO: shared struct type for this + registrantType, also used in QueryManager?
         Uint96xUint96 memory ethAndEigenAmounts;
-        // get current dump number from DataLayrServiceManagerStorage.sol
-        uint48 currDumpNumber = IDataLayrServiceManager(
-            address(queryManager.feeManager())
-        ).dumpNumber();
-
 
         //if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 0x00000001) == 0x00000001) {
@@ -240,12 +236,6 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
             // minimum requirements on how much ETH it must deposit
             ethAndEigenAmounts.a = uint96(weightOfOperatorEth(operator));
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
-            // emit EthStakeAdded(
-            //     operator,
-            //     ethAndEigenAmounts.a,
-            //     currDumpNumber,
-            //     stakeHashUpdates[stakeHashUpdates.length - 1]
-            // );
         }
 
         //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
@@ -254,12 +244,6 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
             // minimum requirements on how much Eigen it must deposit
             ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
-            // emit EigenStakeAdded(
-            //     operator,
-            //     ethAndEigenAmounts.b,
-            //     currDumpNumber,
-            //     stakeHashUpdates[stakeHashUpdates.length - 1]
-            // );
         }
 
         //bytes to add to the existing stakes object
@@ -315,9 +299,13 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
             ++nextRegistrantId;
         }
 
+        // get current dump number from DataLayrServiceManager
+        uint48 currentDumpNumber = IDataLayrServiceManager(
+            address(queryManager.feeManager())
+        ).dumpNumber();
 
         // TODO: Optimize storage calls
-        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashUpdates.length, currDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
 
         // store the updated meta-data in the mapping with the key being the current dump number
@@ -326,7 +314,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
          *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
          *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
          */
-        stakeHashes[currDumpNumber] = keccak256(
+        stakeHashes[currentDumpNumber] = keccak256(
             abi.encodePacked(
                 stakes.slice(0, stakes.length - 24),
                 // append at the end of list
@@ -338,10 +326,10 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
             )
         );
 
-        stakeHashUpdates.push(currDumpNumber);
+        stakeHashUpdates.push(currentDumpNumber);
 
 
-        return (ethAndEigenAmounts.a, ethAndEigenAmounts.b);
+        return (registrantType, ethAndEigenAmounts.a, ethAndEigenAmounts.b);
     }
 
     /**

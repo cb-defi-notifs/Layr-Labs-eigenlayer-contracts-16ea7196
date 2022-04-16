@@ -105,8 +105,12 @@ contract QueryManager is QueryManager_Overhead {
          * data that has been provided by the operator, and get their total delegated ETH
          * and EIGEN amounts
          */
-        (uint96 ethAmount, uint96 eigenAmount) = registrationManager
+        // TODO: shared struct type for all 3 of these values, also used in DataLayrVoteWeigher?
+        (uint8 registrantType, uint96 ethAmount, uint96 eigenAmount) = registrationManager
             .registerOperator(msg.sender, data);
+
+        //update operatorType
+        operatorType[msg.sender] = registrantType;
 
         // only 1 SSTORE
         operatorStakes[msg.sender] = Stake(uint128(ethAmount), eigenAmount);
@@ -116,7 +120,7 @@ contract QueryManager is QueryManager_Overhead {
          * the queries from middleware via EigenLayr
          */
         //i think this gets batched as 1 SSTORE @TODO check
-        totalStake.ethStaked += uint128(ethAmount);
+        totalStake.ethStaked += ethAmount;
         totalStake.eigenStaked += eigenAmount;
 
         //TODO: do we need this variable at all?

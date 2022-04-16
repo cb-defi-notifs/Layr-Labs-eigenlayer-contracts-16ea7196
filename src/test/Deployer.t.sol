@@ -226,6 +226,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "shares should match deposit"
         );
         cheats.stopPrank();
+        // IInvestmentStrategy[] memory senderStrats = investmentManager.getStrategies(sender);
+        // emit log_named_uint("senderStrats:", 11111111);
+        // for (uint256 i = 0; i < senderStrats.length; ++i) {
+        //     emit log_named_uint("senderStrats[i]", i);
+        //     emit log_named_address("senderStrats[i]", address(senderStrats[i]));
+        // }
     }
 
     //checks that it is possible to withdraw WETH
