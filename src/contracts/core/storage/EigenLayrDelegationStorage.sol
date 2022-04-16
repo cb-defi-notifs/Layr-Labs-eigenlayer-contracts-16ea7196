@@ -12,8 +12,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     IServiceFactory public serviceFactory;
 
     // operator => investment strategy => num shares delegated
-    mapping(address => mapping(IInvestmentStrategy => uint256))
-        public operatorShares;
+    mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
 
     mapping(address => IInvestmentStrategy[]) public operatorStrats;
 

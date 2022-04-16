@@ -217,7 +217,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
      */ 
     function registerOperator(address operator, bytes calldata data)
         public onlyQueryManager
-        returns (uint8, uint128)
+        returns (uint96, uint96)
     {
         require(
             registry[operator].active == 0,
@@ -341,7 +341,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         stakeHashUpdates.push(currDumpNumber);
 
 
-        return (registrantType, uint128(ethAndEigenAmounts.b));
+        return (ethAndEigenAmounts.a, ethAndEigenAmounts.b);
     }
 
     /**

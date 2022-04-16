@@ -535,6 +535,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
         assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
+        IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
+        assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
+        assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+        // emit log_named_uint("operatorShares", delegation.operatorShares(registrant, _strat));
     }
 
     function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {

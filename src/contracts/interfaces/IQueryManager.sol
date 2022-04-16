@@ -6,6 +6,32 @@ import "./IVoteWeigher.sol";
 import "../interfaces/ITimelock_Managed.sol";
 
 interface IQueryManager is ITimelock_Managed {
+    // STRUCTS
+    // struct for storing the amount of Eigen and ETH that has been staked
+    struct Stake {
+        uint128 ethStaked;
+        uint128 eigenStaked;
+    }
+
+    /**
+     * @notice This struct is used for containing the details of a query that is created 
+     *         by the middleware for validation in EigenLayr.
+     */
+    struct Query {
+        // hash(reponse) with the greatest cumulative weight
+        bytes32 leadingResponse;
+        // hash(finalized response). initialized as 0x0, updated if/when query is finalized
+        bytes32 outcome;
+        // sum of all cumulative weights
+        uint256 totalCumulativeWeight;
+        // hash(response) => cumulative weight
+        mapping(bytes32 => uint256) cumulativeWeights;
+        // operator => hash(response)
+        mapping(address => bytes32) responses;
+        // operator => weight
+        mapping(address => uint256) operatorWeights;
+    }
+    
     // EVENTS
     event Registration(address indexed operator);
     event Deregistration(address indexed operator);
@@ -26,18 +52,6 @@ interface IQueryManager is ITimelock_Managed {
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
-
-    // struct for storing the amount of Eigen and ETH that has been staked
-    struct Stake {
-        uint128 ethStaked;
-        uint128 eigenStaked;
-    }
-
-    function operatorCounts() external view returns(uint256);
-
-    function getOpertorCount() external view returns(uint32);
-
-    function getOpertorCountOfType(uint8) external view returns(uint32);
 
     function consensusLayerEthToEth() external view returns (uint256);
 

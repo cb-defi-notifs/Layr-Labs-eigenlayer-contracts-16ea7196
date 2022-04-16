@@ -13,26 +13,6 @@ import "../../utils/Timelock_Managed.sol";
  *         within QueryManager contract.
  */
 abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
-
-    /**
-     * @notice This struct is used for containing the details of a query that is created 
-     *         by the middleware for validation in EigenLayr.
-     */
-    struct Query {
-        // hash(reponse) with the greatest cumulative weight
-        bytes32 leadingResponse;
-        // hash(finalized response). initialized as 0x0, updated if/when query is finalized
-        bytes32 outcome;
-        // sum of all cumulative weights
-        uint256 totalCumulativeWeight;
-        // hash(response) => cumulative weight
-        mapping(bytes32 => uint256) cumulativeWeights;
-        // operator => hash(response)
-        mapping(address => bytes32) responses;
-        // operator => weight
-        mapping(address => uint256) operatorWeights;
-    }
-
     //called when responses are provided by operators
     IVoteWeigher public voteWeigher;
     IEigenLayrDelegation public delegation;
@@ -51,28 +31,6 @@ abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
     
     // number of registrants of this service
     uint256 public numRegistrants;
-
-
-    /// @notice 32 bits for all 7 operatorTypes (1 through 7), 32 bits for the total number of operators
-    /**
-     * @dev It is an integrated storage variable that stores the number of operators for each 
-     *      operator type. The structure of this storage variable is based on following assumptions:
-     *         - there can be, at max, 7 operator types
-     *         - there can be at max 2**32 operators of each type
-     *         - there can be at max 2**32 total operators
-     *         
-     *      We use 8 bits to represent each of the operatorType, 32 bits to represent number of
-     *      operators for each operatorType, 32 bits to represent total operators. Let bit 
-     *      representation of i^th operatorType be <o_i>, bit representation of number of operators 
-     *      of i^th operatorType be <n_i> and bit representation of total number of operators
-     *      be <n>. Considering these specifics, we have the following structure:
-     *
-     *                ++++ | ###...#|     ......     |  ++++  |###...# | ++++ | ###...# | $$$....$
-     *               <o_7> |  <n_7> | (omitted bits) | <o_2>  | <n_2>  | <o_1>|  <n_1>  |    <n> 
-     *      where each +, #, $ represents a bit. 
-     */
-    uint256 public operatorCounts;
-
 
     /**
      * @notice For each investment strategy "strat" that is part of any delegator's investment strategy
