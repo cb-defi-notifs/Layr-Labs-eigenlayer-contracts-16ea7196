@@ -7,8 +7,7 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./storage/DataLayrServiceManagerStorage.sol";
-import "./DataLayrPaymentChallenge.sol";
-import "./DataLayrDisclosureChallenge.sol";
+import "./DataLayrDisclosureChallengeFactory.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
@@ -36,6 +35,17 @@ contract DataLayrServiceManager is
 
     IERC20 public immutable collateralToken;
 
+    /**
+     * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
+     */
+    DataLayrPaymentChallengeFactory immutable public dataLayrPaymentChallengeFactory;
+
+    /**
+     * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
+     */
+    DataLayrDisclosureChallengeFactory immutable public dataLayrDisclosureChallengeFactory;
+
+
     // EVENTS
     /**
      * @notice used for notifying that disperser has initiated a data assertion into the
@@ -61,12 +71,16 @@ contract DataLayrServiceManager is
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         IERC20 _collateralToken,
-        uint256 _feePerBytePerTime
+        uint256 _feePerBytePerTime,
+        DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
+        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
     ) {
         eigenLayrDelegation = _eigenLayrDelegation;
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
         feePerBytePerTime = _feePerBytePerTime;
+        dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
+        dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
     }
 
     modifier onlyQMGovernance() {
@@ -378,15 +392,13 @@ contract DataLayrServiceManager is
             "Fraud proof interval has passed"
         );
         // deploy new challenge contract
-        address challengeContract = address(
-            new DataLayrPaymentChallenge(
+        address challengeContract = dataLayrPaymentChallengeFactory.createDataLayrPaymentChallenge(
                 operator,
                 msg.sender,
                 operatorToPayment[operator].fromDumpNumber,
                 operatorToPayment[operator].toDumpNumber,
                 amount1,
-                amount2
-            )
+                amount2            
         );
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
@@ -607,7 +619,17 @@ contract DataLayrServiceManager is
             }
         }
         require(coors[4] != disclosureForOperator[headerHash][operator].x || coors[5] != disclosureForOperator[headerHash][operator].y, "Cannot commit to same polynomial as DLN");
-        disclosureForOperator[headerHash][operator].challenge = address(new DataLayrDisclosureChallenge(operator, msg.sender, x_low, y_low, x_high, y_high, disclosureForOperator[headerHash][operator].degree/2));
+        uint48 temp = disclosureForOperator[headerHash][operator].degree/2;
+        disclosureForOperator[headerHash][operator].challenge = 
+            address(dataLayrDisclosureChallengeFactory.createDataLayrDisclosureChallenge(
+                operator,
+                msg.sender,
+                x_low,
+                y_low,
+                x_high,
+                y_high,
+                temp
+        ));
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(

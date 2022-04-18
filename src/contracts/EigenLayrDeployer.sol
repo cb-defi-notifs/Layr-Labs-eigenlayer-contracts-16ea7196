@@ -18,6 +18,8 @@ import "./middleware/QueryManager.sol";
 import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrVoteWeigher.sol";
+import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
+import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -46,6 +48,9 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
     IQueryManager public dlqm;
+
+    DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
+    DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
@@ -102,12 +107,17 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             undelegationFraudProofInterval
         );
 
+        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
+        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
             weth,
             weth,
-            feePerBytePerTime
+            feePerBytePerTime,
+            dataLayrPaymentChallengeFactory,
+            dataLayrDisclosureChallengeFactory
         );
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(delegation);

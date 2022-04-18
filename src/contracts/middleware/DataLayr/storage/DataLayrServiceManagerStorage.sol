@@ -7,6 +7,7 @@ import "../../../interfaces/IDataLayrServiceManager.sol";
 import "../../../interfaces/IDataLayr.sol";
 import "../../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../../interfaces/IEigenLayrDelegation.sol";
+import "../DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFeeManager {
     /**
