@@ -854,6 +854,10 @@ contract InvestmentManager is
     }
 
 
+    function investorStratsLength(address investor) external view returns (uint256) {
+        return investorStrats[investor].length;
+    }
+
     
 
     /**

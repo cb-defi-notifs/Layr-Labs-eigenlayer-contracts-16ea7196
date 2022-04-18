@@ -64,6 +64,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
     DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
 
+    // strategy index => IInvestmentStrategy
+    mapping(uint256 => IInvestmentStrategy) public strategies;
+    // number of strategies deployed
+    uint256 public numberOfStrats;
+
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
@@ -109,6 +114,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
         strats[0] = IInvestmentStrategy(address(strat));
+        // WETH strategy added to InvestmentManager
+        strategies[0] = IInvestmentStrategy(address(strat));
 
         address governor = address(this);
         investmentManager.initialize(
@@ -591,5 +598,66 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
+    }
+
+    function testAddStrategies(uint16 numStratsToAdd) public {
+        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
+        for (uint16 i = 1; i < numStratsToAdd; ++i) {
+            WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
+            // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
+            // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
+            strategy.initialize(address(investmentManager), weth);
+            // add strategy to InvestmentManager
+            IInvestmentStrategy[] memory stratsToAdd = new IInvestmentStrategy[](1);
+            stratsToAdd[0] = IInvestmentStrategy(address(strategy));
+            investmentManager.addInvestmentStrategies(stratsToAdd);
+            // check that investmentManager storage is updated accordingly
+            assertTrue(investmentManager.stratApproved(IInvestmentStrategy(address(strategy))), "strategy not approved");
+            assertTrue(investmentManager.stratEverApproved(IInvestmentStrategy(address(strategy))), "strategy not approved");
+            //store strategy in mapping
+            strategies[i] = IInvestmentStrategy(address(strategy));
+        }
+    }
+
+// TODO: fuzz this / make it more modular, for use inside other tests
+    function testDepositStrategies() public {
+        uint16 numStratsToAdd = 15;
+        testAddStrategies(numStratsToAdd);
+        uint256 amountToDeposit = 1e18;
+        address sender = registrant;
+
+        uint256 amountDeposited;
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
+            if (amountToDeposit > wethInitialSupply) {
+                cheats.expectRevert(
+                    bytes("ERC20: transfer amount exceeds balance")
+                );  
+                weth.transfer(sender, amountToDeposit);
+                amountDeposited = 0;
+            } else {
+                weth.transfer(sender, amountToDeposit);
+                cheats.startPrank(sender);
+                weth.approve(address(investmentManager), type(uint256).max);    
+
+                investmentManager.depositIntoStrategy(
+                    sender,
+                    strategies[i],
+                    weth,
+                    amountToDeposit
+                );
+                amountDeposited = amountToDeposit;
+            }
+            //in this case, since shares never grow, the shares should just match the deposited amount
+            assertEq(
+                investmentManager.investorStratShares(sender, strategies[i]),
+                amountDeposited,
+                "shares should match deposit"
+            );
+            cheats.stopPrank();
+
+            assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
+        }
+        assertTrue(investmentManager.investorStratsLength(sender) == numStratsToAdd, "investorStratsLength incorrect");
     }
 }
