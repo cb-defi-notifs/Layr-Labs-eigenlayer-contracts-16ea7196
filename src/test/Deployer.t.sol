@@ -208,10 +208,22 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         return _testWethDeposit(registrant, amountToDeposit);
     }
 
-    //deposits 'amountToDeposit' of WETH from address 'sender'
+    //deposits 'amountToDeposit' of WETH from address 'sender' into 'strat'
     function _testWethDeposit(
         address sender,
         uint256 amountToDeposit)
+        internal 
+        returns (uint256 amountDeposited)
+    {
+        amountDeposited = _testWethDepositStrat(sender, amountToDeposit, strat);
+    }
+
+
+    //deposits 'amountToDeposit' of WETH from address 'sender' into the supplied 'stratToDepositTo'
+    function _testWethDepositStrat(
+        address sender,
+        uint256 amountToDeposit,
+        WethStashInvestmentStrategy stratToDepositTo)
         internal 
         returns (uint256 amountDeposited)
     {
@@ -230,7 +242,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
             investmentManager.depositIntoStrategy(
                 sender,
-                strat,
+                stratToDepositTo,
                 weth,
                 amountToDeposit
             );
@@ -238,17 +250,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         }
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
-            investmentManager.investorStratShares(sender, strat),
+            investmentManager.investorStratShares(sender, stratToDepositTo),
             amountDeposited,
             "shares should match deposit"
         );
         cheats.stopPrank();
-        // IInvestmentStrategy[] memory senderStrats = investmentManager.getStrategies(sender);
-        // emit log_named_uint("senderStrats:", 11111111);
-        // for (uint256 i = 0; i < senderStrats.length; ++i) {
-        //     emit log_named_uint("senderStrats[i]", i);
-        //     emit log_named_address("senderStrats[i]", address(senderStrats[i]));
-        // }
     }
 
     //checks that it is possible to withdraw WETH
@@ -620,42 +626,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     }
 
 // TODO: fuzz this / make it more modular, for use inside other tests
-    function testDepositStrategies() public {
-        uint16 numStratsToAdd = 15;
+    function testDepositStrategies(uint16 numStratsToAdd) public {
+        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         testAddStrategies(numStratsToAdd);
+
         uint256 amountToDeposit = 1e18;
         address sender = registrant;
 
-        uint256 amountDeposited;
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
-            if (amountToDeposit > wethInitialSupply) {
-                cheats.expectRevert(
-                    bytes("ERC20: transfer amount exceeds balance")
-                );  
-                weth.transfer(sender, amountToDeposit);
-                amountDeposited = 0;
-            } else {
-                weth.transfer(sender, amountToDeposit);
-                cheats.startPrank(sender);
-                weth.approve(address(investmentManager), type(uint256).max);    
-
-                investmentManager.depositIntoStrategy(
-                    sender,
-                    strategies[i],
-                    weth,
-                    amountToDeposit
-                );
-                amountDeposited = amountToDeposit;
-            }
-            //in this case, since shares never grow, the shares should just match the deposited amount
-            assertEq(
-                investmentManager.investorStratShares(sender, strategies[i]),
-                amountDeposited,
-                "shares should match deposit"
-            );
-            cheats.stopPrank();
-
+            _testWethDepositStrat(sender, amountToDeposit, WethStashInvestmentStrategy(address(strategies[i])));
             assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
         assertTrue(investmentManager.investorStratsLength(sender) == numStratsToAdd, "investorStratsLength incorrect");
