@@ -147,6 +147,9 @@ contract QueryManager is QueryManager_Overhead {
         // store old stake in memory
         Stake memory prevStake = operatorStakes[operator];
 
+        // check that operator is registered
+        require(prevStake.ethStaked > 0 || prevStake.eigenStaked > 0, "operator not registered");
+
         // get new updated Eigen and ETH that has been delegated by the delegators, and store the updated stake
         Stake memory newStake = 
             Stake({
