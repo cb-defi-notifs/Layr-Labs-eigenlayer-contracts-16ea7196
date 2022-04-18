@@ -625,18 +625,49 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         }
     }
 
-// TODO: fuzz this / make it more modular, for use inside other tests
-    function testDepositStrategies(uint16 numStratsToAdd) public {
+    function _testDepositStrategies(address sender, uint256 amountToDeposit, uint16 numStratsToAdd) internal {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         testAddStrategies(numStratsToAdd);
-
-        uint256 amountToDeposit = 1e18;
-        address sender = registrant;
-
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             _testWethDepositStrat(sender, amountToDeposit, WethStashInvestmentStrategy(address(strategies[i])));
             assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
         assertTrue(investmentManager.investorStratsLength(sender) == numStratsToAdd, "investorStratsLength incorrect");
+
+    }
+
+    function testDepositStrategies(uint16 numStratsToAdd) public {
+        _testDepositStrategies(registrant, 1e18, numStratsToAdd);
+    }
+
+    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
+        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
+        uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
+        uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        DelegationTerms dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, dt);
+        _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+        uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
+        uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
+        assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
+        IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
+        assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
+        assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            IInvestmentStrategy depositorStrat = investmentManager.investorStrats(acct_0, i);
+            // emit log_named_uint("delegation.operatorShares(registrant, depositorStrat)", delegation.operatorShares(registrant, depositorStrat));
+            // emit log_named_uint("investmentManager.investorStratShares(registrant, depositorStrat)", investmentManager.investorStratShares(acct_0, depositorStrat));
+            assertTrue(
+                delegation.operatorShares(registrant, depositorStrat)
+                ==
+                investmentManager.investorStratShares(acct_0, depositorStrat),
+                "delegate shares not stored properly"
+            );
+        }
     }
 }
