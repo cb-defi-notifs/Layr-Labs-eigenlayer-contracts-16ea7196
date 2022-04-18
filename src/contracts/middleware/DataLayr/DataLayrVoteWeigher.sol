@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IQueryManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IInvestmentManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../QueryManager.sol";
+import "../VoteWeigherBase.sol";
 import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
+contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
     using BytesLib for bytes;
     /**
      * @notice  Details on DataLayr nodes that would be used for -
@@ -51,11 +48,6 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         uint48 b;
     }
 
-    // TODO: decide if this should be immutable or upgradeable
-    IEigenLayrDelegation public delegation;
-    // not set in constructor, since the queryManager sets the address of the vote weigher in
-    // its own constructor, and therefore the vote weigher must be deployed first
-    IQueryManager public queryManager;
     // the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
 
@@ -105,19 +97,6 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         uint48 prevUpdateDumpNumber
     );
 
-    constructor(
-        IEigenLayrDelegation _delegation
-    ) {
-        delegation = _delegation;
-
-        //initialize the stake object
-        stakeHashUpdates.push(0);
-        //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)
-        bytes32 zeroHash = keccak256(abi.encodePacked(bytes24(0)));
-        //initialize the mapping
-        stakeHashes[0] = zeroHash;
-    }
-
     modifier onlyQMGovernance() {
         require(
             address(queryManager.timelock()) == msg.sender,
@@ -131,12 +110,15 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         _;
     }
 
-    function setQueryManager(IQueryManager _queryManager) public {
-        require(
-            address(queryManager) == address(0),
-            "Query Manager already set"
-        );
-        queryManager = _queryManager;
+    constructor(
+        IEigenLayrDelegation _delegation
+    ) VoteWeigherBase(_delegation) {
+        //initialize the stake object
+        stakeHashUpdates.push(0);
+        //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)
+        bytes32 zeroHash = keccak256(abi.encodePacked(bytes24(0)));
+        //initialize the mapping
+        stakeHashes[0] = zeroHash;
     }
 
     /**
@@ -146,11 +128,11 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
      * @dev minimum delegation limit has to be satisfied.
      */
     function weightOfOperatorEigen(address operator)
-        public
+        public override
         view
         returns (uint128)
     {
-        uint128 eigenAmount = uint128(delegation.getEigenDelegated(operator));
+        uint128 eigenAmount = super.weightOfOperatorEigen(operator);
 
         // check that minimum delegation limit is satisfied
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
@@ -165,12 +147,8 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
      *      Note that the DataLayr can decide for itself how much weight it wants to
      *      give to the ETH that is being used for staking in settlement layer.
      */
-    function weightOfOperatorEth(address operator) public returns (uint128) {
-        uint128 amount = uint128(
-            delegation.getConsensusLayerEthDelegated(operator) /
-                queryManager.consensusLayerEthToEth() +
-                delegation.getUnderlyingEthDelegated(operator)
-        );
+    function weightOfOperatorEth(address operator) public override returns (uint128) {
+        uint128 amount = super.weightOfOperatorEth(operator);
 
         // check that minimum delegation limit is satisfied
         return amount < dlnEthStake ? 0 : amount;
@@ -238,7 +216,7 @@ contract DataLayrVoteWeigher is IVoteWeigher, IRegistrationManager, DSTest {
         }
 
         //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 0x00000003) == 0x00000003) {
+        if ((registrantType & 0x00000002) == 0x00000002) {
             // if operator want to be an "Eigen" validator, check that they meet the 
             // minimum requirements on how much Eigen it must deposit
             ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
