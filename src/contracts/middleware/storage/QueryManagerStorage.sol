@@ -32,37 +32,37 @@ abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
     // number of registrants of this service
     uint256 public numRegistrants;
 
-    /**
-     * @notice For each investment strategy "strat" that is part of any delegator's investment strategy
-     *         portfolio of any operator registered with the middleware, shares[strat] is the 
-     *         cumulative sum of shares of all such delegators for that startegy "strat" across all
-     *         all the operators of that middleware. 
-     */
-    mapping(IInvestmentStrategy => uint256) public shares;
+    // /**
+    //  * @notice For each investment strategy "strat" that is part of any delegator's investment strategy
+    //  *         portfolio of any operator registered with the middleware, shares[strat] is the 
+    //  *         cumulative sum of shares of all such delegators for that startegy "strat" across all
+    //  *         all the operators of that middleware. 
+    //  */
+    // mapping(IInvestmentStrategy => uint256) public shares;
 
-    /**
-     * @notice TBA.
-     */
-    mapping(address => mapping(IInvestmentStrategy => uint256))
-        public operatorShares;
+    // /**
+    //  * @notice TBA.
+    //  */
+    // mapping(address => mapping(IInvestmentStrategy => uint256))
+    //     public operatorShares;
 
 
-    /**
-     * @notice For each operator "op", operatorStrats[op] is the list of all investment strategies
-     *         that any delegator to that operator "op" is employing.    
-     */    
-    mapping(address => IInvestmentStrategy[]) public operatorStrats;
+    // /**
+    //  * @notice For each operator "op", operatorStrats[op] is the list of all investment strategies
+    //  *         that any delegator to that operator "op" is employing.    
+    //  */    
+    // mapping(address => IInvestmentStrategy[]) public operatorStrats;
 
-    /**
-     * @notice For each operator "op", eigenDeposited[op] is the cumulative amount of Eigen that
-     *         is being employed by the operator for providing service to the middleware via EigenLayr.  
-     */
-    mapping(address => uint256) public eigenDeposited;
+    // *
+    //  * @notice For each operator "op", eigenDeposited[op] is the cumulative amount of Eigen that
+    //  *         is being employed by the operator for providing service to the middleware via EigenLayr.  
+     
+    // mapping(address => uint256) public eigenDeposited;
 
     // mapping from each operator's address to its Stake for the middleware
     mapping(address => Stake) public operatorStakes;
 
-    mapping(address => uint256) public consensusLayerEth;
+    // mapping(address => uint256) public consensusLayerEth;
 
 
     /**
@@ -87,12 +87,12 @@ abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
     /**
      * @notice Array of all active queries.
      */
-    bytes32[] public activeQueries;
+    // bytes32[] public activeQueries;
 
     /**
      * @notice It is the array of all investment strategies whose corresponding entry in above 
      *         "shares" mapping is non-zero.
      */
-    IInvestmentStrategy[] public strats;
+    // IInvestmentStrategy[] public strats;
 
 }
