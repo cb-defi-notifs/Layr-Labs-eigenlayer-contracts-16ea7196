@@ -144,11 +144,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             dataLayrDisclosureChallengeFactory
         );
         dl = new DataLayr();
-        dlRegVW = new DataLayrVoteWeigher(delegation);
+        dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
         dlqm = serviceFactory.createNewQueryManager(
-            1 days,
-            consensusLayerEthToEth,
             dlsm,
             dlRegVW,
             dlRegVW,

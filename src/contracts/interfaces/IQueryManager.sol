@@ -54,19 +54,12 @@ interface IQueryManager is ITimelock_Managed {
         uint256 totalCumulativeWeight
     );
 
-    function consensusLayerEthToEth() external view returns (uint256);
-// TODO: move some of these commented out functions into the proper new interface spec(s)
-    // function totalEigenStaked() external view returns (uint128);
-
+// TODO: move some of these commented out functions into the proper new interface spec(s)?
     // function createNewQuery(bytes calldata) external;
 
     // function getQueryDuration() external view returns (uint256);
 
     // function getQueryCreationTime(bytes32) external view returns (uint256);
-
-    // function getOperatorType(address) external view returns (uint8);
-
-    // function numRegistrants() external view returns (uint256);
 
     function voteWeigher() external view returns (IVoteWeigher);
 
@@ -79,24 +72,4 @@ interface IQueryManager is ITimelock_Managed {
     //         uint128,
     //         uint128
     //     );
-
-    // function eigenStakedByOperator(address) external view returns (uint128);
-
-    // function ethStakedByOperator(address) external view returns (uint128);
-
-    // function totalEthStaked() external view returns (uint128);
-
-    // function ethAndEigenStakedForOperator(address)
-    //     external
-    //     view returns (uint128, uint128);
-
-    // function operatorStakes(address) external view returns (uint128, uint128);
-
-    // function totalStake() external view returns (uint128, uint128);
-
-    // function register(bytes calldata data) external;
-
-    // function deregister(bytes calldata data) external;
-
-    // function pushStakeUpdate(address operator, uint96 ethAmount, uint96 eigenAmount) external;
 }

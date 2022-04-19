@@ -120,11 +120,9 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             dataLayrDisclosureChallengeFactory
         );
         dl = new DataLayr();
-        dlRegVW = new DataLayrVoteWeigher(delegation);
+        dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
         dlqm = serviceFactory.createNewQueryManager(
-            1 days,
-            consensusLayerEthToEth,
             dlsm,
             dlRegVW,
             dlRegVW,

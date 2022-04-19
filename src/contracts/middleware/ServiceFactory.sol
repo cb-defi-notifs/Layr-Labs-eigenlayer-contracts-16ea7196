@@ -25,9 +25,6 @@ contract ServiceFactory is IServiceFactory {
      *  @notice Used for creating new query manager contracts with given specifications.
      */
     /**
-     * @param queryDuration is the duration for which each query in that query manager would 
-     *        remain open for accepting response from operators,
-     * @param consensusLayerEthToEth TBA,
      * @param feeManager is the contract for managing fees,
      * @param voteWeigher is the contract for determining how much vote to be assigned to
      *        the response from an operator for the purpose of computing the outcome of the query, 
@@ -36,8 +33,6 @@ contract ServiceFactory is IServiceFactory {
      * @param timelockDelay is the intended delay on the governing timelock. 
      */ 
     function createNewQueryManager(
-        uint256 queryDuration,
-        uint256 consensusLayerEthToEth,
         IFeeManager feeManager,
         IVoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
@@ -47,8 +42,6 @@ contract ServiceFactory is IServiceFactory {
         IQueryManager newQueryManager = new QueryManager();
         QueryManager(payable(address(newQueryManager))).initialize(
             voteWeigher,
-            queryDuration,
-            consensusLayerEthToEth,
             feeManager,
             registrationManager,
             timelockDelay,

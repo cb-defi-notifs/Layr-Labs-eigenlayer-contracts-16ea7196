@@ -12,11 +12,15 @@ contract VoteWeigherBase is IVoteWeigher {
     // not set in constructor, since the queryManager sets the address of the vote weigher in
     // its own constructor, and therefore the vote weigher must be deployed first
     IQueryManager public queryManager;
+    // divisor. X consensus layer ETH is treated as equivalent to (X / consensusLayerEthToEth) ETH locked into EigenLayr
+    uint256 public consensusLayerEthToEth;
 
     constructor(
-        IEigenLayrDelegation _delegation
+        IEigenLayrDelegation _delegation,
+        uint256 _consensusLayerEthToEth
     ) {
         delegation = _delegation;
+        consensusLayerEthToEth = _consensusLayerEthToEth;
     }
 
     // one-time function for initializing the queryManager
@@ -57,7 +61,7 @@ contract VoteWeigherBase is IVoteWeigher {
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
         uint128 amount = uint128(
             delegation.getConsensusLayerEthDelegated(operator) /
-                queryManager.consensusLayerEthToEth() +
+                consensusLayerEthToEth +
                 delegation.getUnderlyingEthDelegated(operator)
         );
 

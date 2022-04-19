@@ -178,8 +178,9 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
     }
 
     constructor(
-        IEigenLayrDelegation _delegation
-    ) VoteWeigherBase(_delegation) {
+        IEigenLayrDelegation _delegation,
+        uint256 _consensusLayerEthToEth
+    ) VoteWeigherBase(_delegation, _consensusLayerEthToEth) {
         //initialize the stake object
         stakeHashUpdates.push(0);
         //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)

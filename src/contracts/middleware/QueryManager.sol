@@ -26,8 +26,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
 
     function initialize(
         IVoteWeigher _voteWeigher,
-        uint256 _queryDuration,
-        uint256 _consensusLayerEthToEth,
         IFeeManager _feeManager,
         IRegistrationManager _registrationManager,
         uint256 _timelockDelay,
@@ -35,8 +33,6 @@ contract QueryManager is Initializable, QueryManagerStorage {
         IInvestmentManager _investmentManager
     ) external initializer {
         _setVoteWeigher(_voteWeigher);
-        queryDuration = _queryDuration;
-        consensusLayerEthToEth = _consensusLayerEthToEth;
         feeManager = _feeManager;
         registrationManager = _registrationManager;
         Timelock _timelock = new Timelock(address(this), _timelockDelay);
