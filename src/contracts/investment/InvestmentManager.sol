@@ -487,14 +487,15 @@ contract InvestmentManager is
         // ongoing query was created at time when depositor queued the withdrawal
         // and  still active at time that they will currently be able to complete the withdrawal
         // therefore, the withdrawn funds are not expected to fully serve their obligation.
-        require(
-            initTimestamp >=
-                queryManager.getQueryCreationTime(queryHash) &&
-                unlockTime <
-                queryManager.getQueryCreationTime(queryHash) +
-                    queryManager.getQueryDuration(),
-            "query must expire before unlockTime"
-        );
+//TODO: fix this to work with new contract architecture
+        // require(
+        //     initTimestamp >=
+        //         queryManager.getQueryCreationTime(queryHash) &&
+        //         unlockTime <
+        //         queryManager.getQueryCreationTime(queryHash) +
+        //             queryManager.getQueryDuration(),
+        //     "query must expire before unlockTime"
+        // );
 
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);

@@ -377,14 +377,15 @@ contract EigenLayrDelegation is
 
         // ongoing query is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.
-        require(
-            lastUndelegationCommit[staker] >
-                queryManager.getQueryCreationTime(queryHash) &&
-                lastUndelegationCommit[staker] <
-                queryManager.getQueryCreationTime(queryHash) +
-                    queryManager.getQueryDuration(),
-            "Given query is inactive"
-        );
+//TODO: fix this to work with new contract architecture
+        // require(
+        //     lastUndelegationCommit[staker] >
+        //         queryManager.getQueryCreationTime(queryHash) &&
+        //         lastUndelegationCommit[staker] <
+        //         queryManager.getQueryCreationTime(queryHash) +
+        //             queryManager.getQueryDuration(),
+        //     "Given query is inactive"
+        // );
 
         //slash here
     }

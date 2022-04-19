@@ -12,21 +12,11 @@ import "../utils/Initializable.sol";
 import "./storage/QueryManagerStorage.sol";
 
 // TODO: discuss deprecation of this logic and/or change in specification to support deprecating this.
-abstract contract QueryManager_Overhead is Initializable, QueryManagerStorage {
-    /// @notice returns the type for the specified operator
-    function getOperatorType(address operator)
-        public
-        view
-        override
-        returns (uint8)
-    {
-        return operatorType[operator];
-    }
-
+abstract contract QueryManager_Deprecated_Functionality is Initializable, QueryManagerStorage {
     /**
      * @notice creates a new query based on the @param queryData passed.
      */
-    function createNewQuery(bytes calldata queryData) external override {
+    function createNewQuery(bytes calldata queryData) external {
         _createNewQuery(msg.sender, queryData);
     }
 
@@ -154,7 +144,7 @@ abstract contract QueryManager_Overhead is Initializable, QueryManagerStorage {
     }
 
     /// @notice returns the duration of time for which an operator can respond to a query
-    function getQueryDuration() external view override returns (uint256) {
+    function getQueryDuration() external view returns (uint256) {
         return queryDuration;
     }
 
@@ -162,7 +152,6 @@ abstract contract QueryManager_Overhead is Initializable, QueryManagerStorage {
     function getQueryCreationTime(bytes32 queryHash)
         external
         view
-        override
         returns (uint256)
     {
         return queriesCreated[queryHash];

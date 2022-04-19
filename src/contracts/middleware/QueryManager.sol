@@ -10,7 +10,6 @@ import "../interfaces/IQueryManager.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
 import "./storage/QueryManagerStorage.sol";
-import "./QueryManager_Overhead.sol";
 
 /**
  * @notice This is the contract for managing queries in any middleware. Each middleware has a
@@ -23,7 +22,7 @@ import "./QueryManager_Overhead.sol";
  *             - Enable mechanism for creating new queries by the middleware, responding to
  *               existing queries by operators and finalize the outcome of the queries.
  */
-contract QueryManager is QueryManager_Overhead {
+contract QueryManager is Initializable, QueryManagerStorage {
 
     modifier onlyRegistrationManager() {
         require(msg.sender == address(registrationManager), "onlyRegistrationManager");
@@ -247,4 +246,15 @@ contract QueryManager is QueryManager_Overhead {
     function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
         voteWeigher = _voteWeigher;
     }
+
+    /// @notice returns the type for the specified operator
+    function getOperatorType(address operator)
+        public
+        view
+        override
+        returns (uint8)
+    {
+        return operatorType[operator];
+    }
+
 }

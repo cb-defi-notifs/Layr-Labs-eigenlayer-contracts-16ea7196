@@ -57,11 +57,11 @@ interface IQueryManager is ITimelock_Managed {
 
     function totalEigenStaked() external view returns (uint128);
 
-    function createNewQuery(bytes calldata) external;
+    // function createNewQuery(bytes calldata) external;
 
-    function getQueryDuration() external view returns (uint256);
+    // function getQueryDuration() external view returns (uint256);
 
-    function getQueryCreationTime(bytes32) external view returns (uint256);
+    // function getQueryCreationTime(bytes32) external view returns (uint256);
 
     function getOperatorType(address) external view returns (uint8);
 
