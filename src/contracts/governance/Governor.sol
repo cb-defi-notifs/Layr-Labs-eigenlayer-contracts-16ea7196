@@ -28,11 +28,11 @@ pragma solidity ^0.8.9;
 import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistrationManager.sol";
-import "../governance/Timelock.sol";
+import "./Timelock.sol";
 import "../utils/Timelock_Managed.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract RepositoryGovernance is Timelock_Managed {
+contract Governor is Timelock_Managed {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
