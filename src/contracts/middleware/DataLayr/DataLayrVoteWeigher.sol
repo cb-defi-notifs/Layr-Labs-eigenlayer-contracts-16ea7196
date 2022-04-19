@@ -323,7 +323,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
             index: numRegistrants,
             active: registrantType,
             fromDumpNumber: IDataLayrServiceManager(
-                address(repository.feeManager())
+                address(repository.ServiceManager())
             ).dumpNumber(),
             to: 0,
 
@@ -348,7 +348,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         // get current dump number from DataLayrServiceManager
         uint48 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.feeManager())
+            address(repository.ServiceManager())
         ).dumpNumber();
 
         // TODO: Optimize storage calls
@@ -488,7 +488,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         // get dump number from DataLayrServiceManagerStorage.sol
         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
-            IDataLayrServiceManager(address(repository.feeManager()))
+            IDataLayrServiceManager(address(repository.ServiceManager()))
                 .dumpNumber(),
             stakeHashUpdates[stakeHashUpdates.length - 1]
         );
@@ -596,8 +596,8 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
     function setLatestTime(uint32 _latestTime) public {
         require(
-            address(repository.feeManager()) == msg.sender,
-            "Fee manager can only call this"
+            address(repository.ServiceManager()) == msg.sender,
+            "service manager can only call this"
         ); if (_latestTime > latestTime) {
             latestTime = _latestTime;            
         }

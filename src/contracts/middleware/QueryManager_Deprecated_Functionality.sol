@@ -33,7 +33,7 @@ pragma solidity ^0.8.9;
 //         emit QueryCreated(queryDataHash, block.timestamp);
 
 //         //hook to manage payment for query
-//         IFeeManager(feeManager).payFee(queryCreator);
+//         IServiceManager(ServiceManager).payFee(queryCreator);
 //     }
 
 //     /**
@@ -95,8 +95,8 @@ pragma solidity ^0.8.9;
 //                 responseHash
 //             );
 //         }
-//         // hook for updating fee manager on each response
-//         feeManager.onResponse(
+//         // hook for updating service manager on each response
+//         ServiceManager.onResponse(
 //             queryHash,
 //             respondent,
 //             responseHash,
@@ -161,8 +161,8 @@ pragma solidity ^0.8.9;
 //         return queriesCreated[queryHash] + queryDuration;
 //     }
 
-//     // proxy to fee manager contract
-//     function _delegate(address _feeManager) internal virtual {
+//     // proxy to service manager contract
+//     function _delegate(address _ServiceManager) internal virtual {
 //         uint256 value = msg.value;
 //         //check that the first 32 bytes of calldata match the msg.sender of the call
 //         uint160 sender;
@@ -176,11 +176,11 @@ pragma solidity ^0.8.9;
 //             // block because it will not return to Solidity code. We overwrite the
 //             // Solidity scratch pad at memory position 0.
 //             calldatacopy(0, 0, calldatasize())
-//             // Call the feeManager.
+//             // Call the ServiceManager.
 //             // out and outsize are 0 because we don't know the size yet.
 //             let result := call(
 //                 gas(), //rest of gas
-//                 _feeManager, //To addr
+//                 _ServiceManager, //To addr
 //                 value, //send value
 //                 0, // Inputs are at location x
 //                 calldatasize(), //send calldata
@@ -204,7 +204,7 @@ pragma solidity ^0.8.9;
 //     }
 
 //     function _fallback() internal virtual {
-//         _delegate(address(feeManager));
+//         _delegate(address(ServiceManager));
 //     }
 
 //     fallback() external payable virtual {

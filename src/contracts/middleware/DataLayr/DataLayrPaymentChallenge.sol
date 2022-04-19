@@ -176,7 +176,7 @@ contract DataLayrPaymentChallenge {
         );
         //fetch operator id
         uint32 operatorId = IDataLayrVoteWeigher(
-            address(IFeeManager(address(dlsm)).repository().voteWeigher())
+            address(IServiceManager(address(dlsm)).repository().voteWeigher())
         ).getOperatorId(challenge.operator);
         //an operator's bin is just the top 24 bits of their id
         uint32 operatorBin = operatorId >> 8;

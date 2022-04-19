@@ -25,7 +25,7 @@ contract ServiceFactory is IServiceFactory {
      *  @notice Used for creating new repository contracts with given specifications.
      */
     /**
-     * @param feeManager is the contract for managing fees,
+     * @param ServiceManager is the contract for managing fees,
      * @param voteWeigher is the contract for determining how much vote to be assigned to
      *        the response from an operator for the purpose of computing the outcome of the query, 
      * @param registrationManager is the address of the contract that manages registration of operators
@@ -33,7 +33,7 @@ contract ServiceFactory is IServiceFactory {
      * @param timelockDelay is the intended delay on the governing timelock. 
      */ 
     function createNewRepository(
-        IFeeManager feeManager,
+        IServiceManager ServiceManager,
         IVoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
         uint256 timelockDelay
@@ -42,7 +42,7 @@ contract ServiceFactory is IServiceFactory {
         IRepository newRepository = new Repository();
         Repository(payable(address(newRepository))).initialize(
             voteWeigher,
-            feeManager,
+            ServiceManager,
             registrationManager,
             timelockDelay,
             delegation,

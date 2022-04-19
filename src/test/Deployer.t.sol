@@ -186,7 +186,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(dlqm.feeManager() == dlsm, "feeManager set incorrectly");
+        assertTrue(dlqm.ServiceManager() == dlsm, "ServiceManager set incorrectly");
         assertTrue(
             dlsm.repository() == dlqm,
             "repository set incorrectly in dlsm"

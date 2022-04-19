@@ -72,8 +72,8 @@ contract DataLayr is Ownable, IDataLayr {
      */
     mapping(bytes32 => DataStore) public dataStores;
 
-    modifier onlyFeeManager() {
-        require(msg.sender == address(repository.feeManager()), "Only fee manager can call this");
+    modifier onlyServiceManager() {
+        require(msg.sender == address(repository.ServiceManager()), "Only service manager can call this");
         _;
     }
 
@@ -97,7 +97,7 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength
-    ) external onlyFeeManager {
+    ) external onlyServiceManager {
         require(
             dataStores[headerHash].initTime == 0,
             "Data store has already been initialized"
@@ -139,7 +139,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
         uint256 totalEigenStake
-    ) external onlyFeeManager {
+    ) external onlyServiceManager {
         // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
         DataStore storage dataStore = dataStores[headerHash];

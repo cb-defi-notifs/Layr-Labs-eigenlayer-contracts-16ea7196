@@ -9,7 +9,7 @@ import "../../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../../interfaces/IEigenLayrDelegation.sol";
 import "../DataLayrPaymentChallengeFactory.sol";
 
-abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFeeManager {
+abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
     /**
      * @notice service fee that will be paid out by the disperser to the DataLayr nodes
      *         for storing per byte for per unit time. 

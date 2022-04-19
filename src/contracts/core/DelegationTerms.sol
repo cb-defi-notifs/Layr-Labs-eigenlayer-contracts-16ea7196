@@ -15,17 +15,17 @@ import "../interfaces/IRegistrationManager.sol";
  *           - the operator's portion of the rewards,
  *           - each of the delegator's portion of the rewards,   
  *           - tokens that  middlewares can use for paying to the operator and its delegators, 
- *           - function for fee manager, associated with any middleware, to pay the rewards
+ *           - function for service manager, associated with any middleware, to pay the rewards
  *           - functions for enabling operator and delegators to withdraw rewards 
  */
 /**
  * @dev The Delegation Terms contract of an operator maintains a record of what fraction
  *      of the total reward each delegator of that operator is owed whenever the operator triggers
- *      a fee manager to pay the rewards for the service that was offered to that fee manager's
+ *      a service manager to pay the rewards for the service that was offered to that service manager's
  *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
  *      middleware, we have the following description:    
  *
- *          We define a round to be the instant where fee manager pays out the rewards to the delegators of this delegation term contract.
+ *          We define a round to be the instant where service manager pays out the rewards to the delegators of this delegation term contract.
  *          Let there be n delegators with weightEth_{j,i} and weightEigen_{j,i} being the total ETH and Eigen that 
  *          has been delegated by j^th delegator at any round i. Suppose that at the round i, amount_i be the 
  *          cumulative reward that is being allocated to all the n delegators since round (i-1). Also let totalWeightEth_i 
@@ -80,7 +80,7 @@ contract DelegationTerms is IDelegationTerms {
      */
     /** 
      *  @dev To relate the fields of this struct with explanation at the top, "TokenPayment" 
-     *       for any round k when the payment is being made from the fee manager, 
+     *       for any round k when the payment is being made from the service manager, 
      *                   TokenPayment.earnedPerWeightAllTimeEth = r_{ETH,k}
      *                   TokenPayment.earnedPerWeightAllTimeEigen = r_{Eigen,k}.   
      *
@@ -222,7 +222,7 @@ contract DelegationTerms is IDelegationTerms {
     }
 
     /** 
-     * @notice  Fee manager of a middleware calls this function in order to update the rewards that 
+     * @notice  service manager of a middleware calls this function in order to update the rewards that 
      *          this operator and the delegators associated with it are eligible for because of their  
      *          service to that middleware.     
      */ 
@@ -231,11 +231,11 @@ contract DelegationTerms is IDelegationTerms {
      * @param amount is the amount of ERC20 tokens that is being paid as rewards. 
      */
     function payForService(IERC20 token, uint256 amount) external payable {
-        // determine the repository associated with the fee manager
-        IRepository repository = IFeeManager(msg.sender).repository();
+        // determine the repository associated with the service manager
+        IRepository repository = IServiceManager(msg.sender).repository();
 
-        // only the fee manager can call this function
-        require(msg.sender == address(repository.feeManager()), "only feeManagers");
+        // only the service manager can call this function
+        require(msg.sender == address(repository.ServiceManager()), "only ServiceManagers");
 
         // check if the repository exists
         require(serviceFactory.repositoryExists(repository), "illegitimate repository");
