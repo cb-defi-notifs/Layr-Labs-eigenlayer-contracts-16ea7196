@@ -48,6 +48,73 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         uint48 b;
     }
 
+//BEGIN ADDED FUNCTIONALITY FOR STORING STAKES AND REGISTRATION
+// TODO: de-duplicate this struct and the Uint96xUint96 struct
+    // struct for storing the amount of Eigen and ETH that has been staked, as well as additional data
+    struct Stake {
+        uint96 ethStaked;
+        uint96 eigenStaked;
+        //TODO: any use for the remaining 56 bits? perhaps a uint32 'latestTimestampUpdated'?
+    }
+
+    // variable for storing total ETH and Eigen staked into securing the middleware
+    Stake public totalStake;
+
+    // mapping from each operator's address to its Stake for the middleware
+    mapping(address => Stake) public operatorStakes;
+
+    //TODO: do we need this variable?
+    // number of registrants of this service
+    uint64 public numRegistrants;
+
+    /// @notice get total ETH staked for securing the middleware
+    function totalEthStaked() public view returns (uint96) {
+        return totalStake.ethStaked;
+    }
+
+    /// @notice get total Eigen staked for securing the middleware
+    function totalEigenStaked() public view returns (uint96) {
+        return totalStake.eigenStaked;
+    }
+
+    /// @notice get total ETH staked by delegators of the operator
+    function ethStakedByOperator(address operator)
+        public
+        view
+        returns (uint96)
+    {
+        return operatorStakes[operator].ethStaked;
+    }
+
+    /// @notice get total Eigen staked by delegators of the operator
+    function eigenStakedByOperator(address operator)
+        public
+        view
+        returns (uint96)
+    {
+        return operatorStakes[operator].eigenStaked;
+    }
+
+    /// @notice get both total ETH and Eigen staked by delegators of the operator
+    function ethAndEigenStakedForOperator(address operator)
+        public
+        view
+        returns (uint96, uint96)
+    {
+        Stake memory opStake = operatorStakes[operator];
+        return (opStake.ethStaked, opStake.eigenStaked);
+    }
+
+    /// @notice returns the type for the specified operator
+    function getOperatorType(address operator)
+        public
+        view
+        returns (uint8)
+    {
+        return registry[operator].active;
+    }
+//END ADDED FUNCTIONALITY FOR STORING STAKES AND REGISTRATION
+
     // the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
 
@@ -192,12 +259,14 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
      *      storing the entire object in storage)
      *
      */ 
-    function registerOperator(address operator, bytes calldata data)
-        public onlyQueryManager
+// TODO: decide if address input is necessary for the standard
+    function registerOperator(address, bytes calldata data)
+        external
         returns (uint8, uint96, uint96)
     {
+        // address operator = msg.sender;
         require(
-            registry[operator].active == 0,
+            registry[msg.sender].active == 0,
             "Operator is already registered"
         );
 
@@ -211,7 +280,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         if ((registrantType & 0x00000001) == 0x00000001) {
             // if operator want to be an "ETH" validator, check that they meet the 
             // minimum requirements on how much ETH it must deposit
-            ethAndEigenAmounts.a = uint96(weightOfOperatorEth(operator));
+            ethAndEigenAmounts.a = uint96(weightOfOperatorEth(msg.sender));
             require(ethAndEigenAmounts.a >= dlnEthStake, "Not enough eth value staked");
         }
 
@@ -219,12 +288,12 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         if ((registrantType & 0x00000002) == 0x00000002) {
             // if operator want to be an "Eigen" validator, check that they meet the 
             // minimum requirements on how much Eigen it must deposit
-            ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(operator));
+            ethAndEigenAmounts.b = uint96(weightOfOperatorEigen(msg.sender));
             require(ethAndEigenAmounts.b >= dlnEigenStake, "Not enough eigen staked");
         }
 
         //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b);
+        bytes memory dataToAppend = abi.encodePacked(msg.sender, ethAndEigenAmounts.a, ethAndEigenAmounts.b);
 
         require(ethAndEigenAmounts.a > 0 || ethAndEigenAmounts.b > 0, "must register as at least one type of validator");
         // parse the length 
@@ -248,9 +317,9 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         // slice starting the byte after socket length to construct the details on the 
         // DataLayr node
-        registry[operator] = Registrant({
+        registry[msg.sender] = Registrant({
             id: nextRegistrantId,
-            index: uint64(queryManager.numRegistrants()),
+            index: numRegistrants,
             active: registrantType,
             fromDumpNumber: IDataLayrServiceManager(
                 address(queryManager.feeManager())
@@ -269,7 +338,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         });
 
         // record the operator being registered
-        registrantList.push(operator);
+        registrantList.push(msg.sender);
 
         // update the counter for registrant ID
         unchecked {
@@ -282,7 +351,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         ).dumpNumber();
 
         // TODO: Optimize storage calls
-        emit StakeAdded(operator, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(msg.sender, ethAndEigenAmounts.a, ethAndEigenAmounts.b, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
 
         // store the updated meta-data in the mapping with the key being the current dump number
@@ -305,7 +374,25 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         stakeHashUpdates.push(currentDumpNumber);
 
+        //update stakes in storage
+        // only 1 SSTORE
+        operatorStakes[msg.sender] = Stake(ethAndEigenAmounts.a, ethAndEigenAmounts.b);
 
+        /**
+         * update total Eigen and ETH that are being employed by the operator for securing
+         * the queries from middleware via EigenLayr
+         */
+        //i think this gets batched as 1 SSTORE @TODO check
+        totalStake.ethStaked += ethAndEigenAmounts.a;
+        totalStake.eigenStaked += ethAndEigenAmounts.b;
+
+        //TODO: do we need this variable at all?
+        //increment number of registrants
+        unchecked {
+            ++numRegistrants;
+        }
+
+        // TODO: do we need this return data?
         return (registrantType, ethAndEigenAmounts.a, ethAndEigenAmounts.b);
     }
 
@@ -331,18 +418,35 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
 
     /**
-     * @notice 
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    function deregisterOperator(address operator, bytes calldata)
-        public onlyQueryManager
-        view
+// TODO: decide if address input is necessary for the standard
+    function deregisterOperator(address, bytes calldata)
+        external
         returns (bool)
     {
+        address operator = msg.sender;
+        // TODO: verify this check is adequate
         require(
             registry[operator].to != 0 ||
                 registry[operator].to < block.timestamp,
             "Operator is already registered"
         );
+
+        // subtract the staked Eigen and ETH of the operator that is getting deregistered
+        // from the total stake securing the middleware
+        totalStake.ethStaked -= operatorStakes[operator].ethStaked;
+        totalStake.eigenStaked -= operatorStakes[operator].eigenStaked;
+
+        // clear the staked Eigen and ETH of the operator which is getting deregistered
+        operatorStakes[operator].ethStaked = 0;
+        operatorStakes[operator].eigenStaked = 0;
+
+        //decrement number of registrants
+        unchecked {
+            --numRegistrants;
+        }
+
         return true;
     }
 
@@ -441,7 +545,21 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
                         (stakes.toUint96(stakes.length - 12) + newStakes.b - currentStakes.b)
                     )
                 );
-            queryManager.pushStakeUpdate(operators[i], newStakes.a, newStakes.b);
+            // update stored stake data
+            // store old stake in memory
+            Stake memory prevStake = operatorStakes[operators[i]];
+
+            // get new updated Eigen and ETH that has been delegated by the delegators, and store the updated stake
+            Stake memory newStake = 
+                Stake({
+                    ethStaked: newStakes.a,
+                    eigenStaked: newStakes.b
+                });
+            // push new stake to storage
+            operatorStakes[operators[i]] = newStake;
+            // update the total stake
+            totalStake.ethStaked = totalStake.ethStaked + newStake.ethStaked - prevStake.ethStaked;
+            totalStake.eigenStaked = totalStake.eigenStaked + newStake.eigenStaked - prevStake.eigenStaked;
             emit StakeUpdate(
                 operators[i],
                 newStakes.a,

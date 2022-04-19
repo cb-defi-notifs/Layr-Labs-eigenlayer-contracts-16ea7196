@@ -27,6 +27,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IQueryManager.sol";
 import "../interfaces/IVoteWeigher.sol";
+import "../interfaces/IRegistrationManager.sol";
 import "../governance/Timelock.sol";
 import "../utils/Timelock_Managed.sol";
 
@@ -200,9 +201,9 @@ contract QueryManagerGovernance is Timelock_Managed {
         );
         // check percentage
         require(
-            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() >=
+            (ethStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() >=
+                (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "QueryManagerGovernance::propose: proposer votes below proposal threshold"
@@ -343,9 +344,9 @@ contract QueryManagerGovernance is Timelock_Managed {
         );
         // check percentage
         require(
-            (ethStaked * 100) / QUERY_MANAGER.totalEthStaked() <
+            (ethStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / QUERY_MANAGER.totalEigenStaked() <
+                (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "QueryManagerGovernance::cancel: proposer above threshold"
         );
@@ -403,13 +404,13 @@ contract QueryManagerGovernance is Timelock_Managed {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / QUERY_MANAGER.totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / QUERY_MANAGER.totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -543,7 +544,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     }
 
     function _getEthAndEigenStaked(address user, bool update)
-        internal
+        internal view
         returns (uint256, uint256)
     {
         uint256 ethStaked;
@@ -551,16 +552,18 @@ contract QueryManagerGovernance is Timelock_Managed {
         //if proposer wants to update their shares before proposing, calculate stake based on result of update
         //TODO: Call to only update eigen/eth. Isnt everyone gonna be eth and eigen staked
         if (update) {
-            (
-                uint256 newEthStaked,
-                uint256 newEigenStaked
-            ) = QUERY_MANAGER.updateStake(user);
-            // weight the consensusLayrEth however desired
-            ethStaked = newEthStaked;
-            eigenStaked = newEigenStaked;
+        // TODO: eliminate this branch and the 'update' input?
+            revert("this is broken rn");
+            // (
+            //     uint256 newEthStaked,
+            //     uint256 newEigenStaked
+            // ) = QUERY_MANAGER.updateStake(user);
+            // // weight the consensusLayrEth however desired
+            // ethStaked = newEthStaked;
+            // eigenStaked = newEigenStaked;
         } else {
-            ethStaked = QUERY_MANAGER.ethStakedByOperator(user);
-            eigenStaked = QUERY_MANAGER.eigenStakedByOperator(user);
+            ethStaked = IRegistrationManager(QUERY_MANAGER.registrationManager()).ethStakedByOperator(user);
+            eigenStaked = IRegistrationManager(QUERY_MANAGER.registrationManager()).eigenStakedByOperator(user);
         }
         return (ethStaked, eigenStaked);
     }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./IFeeManager.sol";
 import "./IVoteWeigher.sol";
+import "./IRegistrationManager.sol";
 import "../interfaces/ITimelock_Managed.sol";
 
 interface IQueryManager is ITimelock_Managed {
@@ -54,8 +55,8 @@ interface IQueryManager is ITimelock_Managed {
     );
 
     function consensusLayerEthToEth() external view returns (uint256);
-
-    function totalEigenStaked() external view returns (uint128);
+// TODO: move some of these commented out functions into the proper new interface spec(s)
+    // function totalEigenStaked() external view returns (uint128);
 
     // function createNewQuery(bytes calldata) external;
 
@@ -63,38 +64,39 @@ interface IQueryManager is ITimelock_Managed {
 
     // function getQueryCreationTime(bytes32) external view returns (uint256);
 
-    function getOperatorType(address) external view returns (uint8);
+    // function getOperatorType(address) external view returns (uint8);
 
-    function numRegistrants() external view returns (uint256);
+    // function numRegistrants() external view returns (uint256);
 
     function voteWeigher() external view returns (IVoteWeigher);
 
     function feeManager() external view returns (IFeeManager);
 
-    function updateStake(address)
-        external
-        returns (
-            uint128,
-            uint128
-        );
+    function registrationManager() external view returns (IRegistrationManager);
+    // function updateStake(address)
+    //     external
+    //     returns (
+    //         uint128,
+    //         uint128
+    //     );
 
-    function eigenStakedByOperator(address) external view returns (uint128);
+    // function eigenStakedByOperator(address) external view returns (uint128);
 
-    function ethStakedByOperator(address) external view returns (uint128);
+    // function ethStakedByOperator(address) external view returns (uint128);
 
-    function totalEthStaked() external view returns (uint128);
+    // function totalEthStaked() external view returns (uint128);
 
-    function ethAndEigenStakedForOperator(address)
-        external
-        view returns (uint128, uint128);
+    // function ethAndEigenStakedForOperator(address)
+    //     external
+    //     view returns (uint128, uint128);
 
-    function operatorStakes(address) external view returns (uint128, uint128);
+    // function operatorStakes(address) external view returns (uint128, uint128);
 
-    function totalStake() external view returns (uint128, uint128);
+    // function totalStake() external view returns (uint128, uint128);
 
-    function register(bytes calldata data) external;
+    // function register(bytes calldata data) external;
 
-    function deregister(bytes calldata data) external;
+    // function deregister(bytes calldata data) external;
 
-    function pushStakeUpdate(address operator, uint96 ethAmount, uint96 eigenAmount) external;
+    // function pushStakeUpdate(address operator, uint96 ethAmount, uint96 eigenAmount) external;
 }

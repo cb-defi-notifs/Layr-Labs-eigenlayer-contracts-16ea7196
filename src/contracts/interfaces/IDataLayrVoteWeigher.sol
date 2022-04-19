@@ -13,4 +13,6 @@ interface IDataLayrVoteWeigher {
     function getOperatorId(address) external returns (uint32);
 
     function getOperatorFromDumpNumber(address) external view returns (uint48);
+
+    function getOperatorType(address operator) external view returns (uint8);
 }

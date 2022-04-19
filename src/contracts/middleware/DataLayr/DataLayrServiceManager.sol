@@ -270,7 +270,9 @@ contract DataLayrServiceManager is
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         // only registered operators can call
         require(
-            queryManager.getOperatorType(msg.sender) != 0,
+            IDataLayrVoteWeigher(
+                address(queryManager.voteWeigher())
+            ).getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 

@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
+import "../interfaces/IRegistrationManager.sol";
 
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 
@@ -262,8 +263,8 @@ contract DelegationTerms is IDelegationTerms {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-       (uint128 totalEigenStaked, uint128 totalEthStaked) = queryManager.totalStake();
-       (uint128 operatorEigenStaked, uint128 operatorEthStaked) = queryManager.operatorStakes(operator);
+       (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(queryManager.registrationManager()).totalStake();
+       (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(queryManager.registrationManager()).operatorStakes(operator);
        multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders

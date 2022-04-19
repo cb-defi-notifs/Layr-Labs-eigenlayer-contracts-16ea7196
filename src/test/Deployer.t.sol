@@ -451,7 +451,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         );
 
         cheats.startPrank(sender);
-        dlqm.register(data);
+        dlRegVW.registerOperator(sender, data);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
