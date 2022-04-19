@@ -164,7 +164,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         uint48 prevUpdateDumpNumber
     );
 
-    modifier onlyQMGovernance() {
+    modifier onlyRepositoryGovernance() {
         require(
             address(repository.timelock()) == msg.sender,
             "only repository governance can call this function"
@@ -586,11 +586,11 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         return registry[operator].fromDumpNumber;
     }
 
-    function setDlnEigenStake(uint128 _dlnEigenStake) public onlyQMGovernance {
+    function setDlnEigenStake(uint128 _dlnEigenStake) public onlyRepositoryGovernance {
         dlnEigenStake = _dlnEigenStake;
     }
 
-    function setDlnEthStake(uint128 _dlnEthStake) public onlyQMGovernance {
+    function setDlnEthStake(uint128 _dlnEthStake) public onlyRepositoryGovernance {
         dlnEthStake = _dlnEthStake;
     }
 

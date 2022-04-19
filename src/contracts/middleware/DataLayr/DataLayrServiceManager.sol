@@ -83,7 +83,7 @@ contract DataLayrServiceManager is
         dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
     }
 
-    modifier onlyQMGovernance() {
+    modifier onlyRepositoryGovernance() {
         require(
             address(repository.timelock()) == msg.sender,
             "repository governance can only call this function"
@@ -765,14 +765,14 @@ contract DataLayrServiceManager is
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
         public
-        onlyQMGovernance
+        onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
     }
 
     function setPaymentFraudProofCollateral(
         uint256 _paymentFraudProofCollateral
-    ) public onlyQMGovernance {
+    ) public onlyRepositoryGovernance {
         paymentFraudProofCollateral = _paymentFraudProofCollateral;
     }
 
@@ -788,7 +788,7 @@ contract DataLayrServiceManager is
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(
         IERC20 _paymentToken
-    ) public onlyQMGovernance {
+    ) public onlyRepositoryGovernance {
         paymentToken = _paymentToken;
     }
 */

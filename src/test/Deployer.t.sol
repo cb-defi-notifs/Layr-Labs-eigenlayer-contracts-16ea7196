@@ -57,7 +57,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    IRepository public dlqm;
+    IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
@@ -146,17 +146,17 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
-        dlqm = serviceFactory.createNewRepository(
+        dlRepository = serviceFactory.createNewRepository(
             dlsm,
             dlRegVW,
             dlRegVW,
             timelockDelay
         );
 
-        dl.setRepository(dlqm);
-        dlsm.setRepository(dlqm);
+        dl.setRepository(dlRepository);
+        dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
-        dlRegVW.setRepository(dlqm);
+        dlRegVW.setRepository(dlRepository);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }
@@ -184,15 +184,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dl) != address(0), "dl failed to deploy");
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
-        assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
+        assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(dlqm.ServiceManager() == dlsm, "ServiceManager set incorrectly");
+        assertTrue(dlRepository.ServiceManager() == dlsm, "ServiceManager set incorrectly");
         assertTrue(
-            dlsm.repository() == dlqm,
+            dlsm.repository() == dlRepository,
             "repository set incorrectly in dlsm"
         );
         assertTrue(
-            dl.repository() == dlqm,
+            dl.repository() == dlRepository,
             "repository set incorrectly in dl"
         );
     }

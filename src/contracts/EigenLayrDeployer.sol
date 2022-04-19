@@ -47,7 +47,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    IRepository public dlqm;
+    IRepository public dlRepository;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
     DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
@@ -122,17 +122,17 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
-        dlqm = serviceFactory.createNewRepository(
+        dlRepository = serviceFactory.createNewRepository(
             dlsm,
             dlRegVW,
             dlRegVW,
             timelockDelay
         );
 
-        dl.setRepository(dlqm);
-        dlsm.setRepository(dlqm);
+        dl.setRepository(dlRepository);
+        dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
-        dlRegVW.setRepository(dlqm);
+        dlRegVW.setRepository(dlRepository);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }

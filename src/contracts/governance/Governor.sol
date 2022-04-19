@@ -100,7 +100,7 @@ contract Governor is Timelock_Managed {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
 
-    IRepository public immutable QUERY_MANAGER;
+    IRepository public immutable REPOSITORY;
     IVoteWeigher public immutable VOTE_WEIGHTER;
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
@@ -170,7 +170,7 @@ contract Governor is Timelock_Managed {
     event MultisigTransferred(address indexed previousAddress, address indexed newAddress);
 
     constructor(
-        IRepository _QUERY_MANAGER,
+        IRepository _REPOSITORY,
         IVoteWeigher _VOTE_WEIGHTER,
         Timelock _timelock,
         address _multisig,
@@ -179,7 +179,7 @@ contract Governor is Timelock_Managed {
         uint16 _proposalThresholdEthPercentage,
         uint16 _proposalThresholdEigenPercentage
     ) {
-        QUERY_MANAGER = _QUERY_MANAGER;
+        REPOSITORY = _REPOSITORY;
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
@@ -201,9 +201,9 @@ contract Governor is Timelock_Managed {
         );
         // check percentage
         require(
-            (ethStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() >=
+            (ethStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() >=
+                (eigenStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
@@ -344,9 +344,9 @@ contract Governor is Timelock_Managed {
         );
         // check percentage
         require(
-            (ethStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() <
+            (ethStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() <
+                (eigenStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
@@ -404,13 +404,13 @@ contract Governor is Timelock_Managed {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -557,13 +557,13 @@ contract Governor is Timelock_Managed {
             // (
             //     uint256 newEthStaked,
             //     uint256 newEigenStaked
-            // ) = QUERY_MANAGER.updateStake(user);
+            // ) = REPOSITORY.updateStake(user);
             // // weight the consensusLayrEth however desired
             // ethStaked = newEthStaked;
             // eigenStaked = newEigenStaked;
         } else {
-            ethStaked = IRegistrationManager(QUERY_MANAGER.registrationManager()).ethStakedByOperator(user);
-            eigenStaked = IRegistrationManager(QUERY_MANAGER.registrationManager()).eigenStakedByOperator(user);
+            ethStaked = IRegistrationManager(REPOSITORY.registrationManager()).ethStakedByOperator(user);
+            eigenStaked = IRegistrationManager(REPOSITORY.registrationManager()).eigenStakedByOperator(user);
         }
         return (ethStaked, eigenStaked);
     }
