@@ -25,6 +25,11 @@ import "./QueryManager_Overhead.sol";
  */
 contract QueryManager is QueryManager_Overhead {
 
+    modifier onlyRegistrationManager() {
+        require(msg.sender == address(registrationManager), "onlyRegistrationManager");
+        _;
+    }
+
     function initialize(
         IVoteWeigher _voteWeigher,
         uint256 _queryDuration,
@@ -156,6 +161,7 @@ contract QueryManager is QueryManager_Overhead {
                 ethStaked: voteWeigher.weightOfOperatorEth(operator),
                 eigenStaked: voteWeigher.weightOfOperatorEigen(operator)
             });
+        // push new stake to storage
         operatorStakes[operator] = newStake;
 
         // update the total stake
@@ -164,6 +170,25 @@ contract QueryManager is QueryManager_Overhead {
 
         //return (updated ETH, updated Eigen) staked with the operator
         return (newStake.ethStaked, newStake.eigenStaked);
+    }
+
+    // permissioned function that allows the registrationManager to update an operator's stake
+    function pushStakeUpdate(address operator, uint96 ethAmount, uint96 eigenAmount) external onlyRegistrationManager {
+         // store old stake in memory
+       Stake memory prevStake = operatorStakes[operator];
+
+        // get new updated Eigen and ETH that has been delegated by the delegators, and store the updated stake
+        Stake memory newStake = 
+            Stake({
+                ethStaked: ethAmount,
+                eigenStaked: eigenAmount
+            });
+        // push new stake to storage
+        operatorStakes[operator] = newStake;
+
+        // update the total stake
+        totalStake.ethStaked = totalStake.ethStaked + newStake.ethStaked - prevStake.ethStaked;
+        totalStake.eigenStaked = totalStake.eigenStaked + newStake.eigenStaked - prevStake.eigenStaked;
     }
 
     /// @notice get total ETH staked for securing the middleware

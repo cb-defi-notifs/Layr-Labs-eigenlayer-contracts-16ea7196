@@ -95,4 +95,6 @@ interface IQueryManager is ITimelock_Managed {
     function register(bytes calldata data) external;
 
     function deregister(bytes calldata data) external;
+
+    function pushStakeUpdate(address operator, uint96 ethAmount, uint96 eigenAmount) external;
 }

@@ -441,6 +441,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
                         (stakes.toUint96(stakes.length - 12) + newStakes.b - currentStakes.b)
                     )
                 );
+            queryManager.pushStakeUpdate(operators[i], newStakes.a, newStakes.b);
             emit StakeUpdate(
                 operators[i],
                 newStakes.a,
