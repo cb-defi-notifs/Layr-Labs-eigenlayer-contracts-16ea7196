@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IDataLayr.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -19,8 +19,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
-    // the DataLayr query manager
-    IQueryManager public queryManager;
+    // the DataLayr repository
+    IRepository public repository;
 
     /**  
      * @notice percentage of Eigen that DataLayr nodes who have agreed to serve the request
@@ -73,12 +73,12 @@ contract DataLayr is Ownable, IDataLayr {
     mapping(bytes32 => DataStore) public dataStores;
 
     modifier onlyFeeManager() {
-        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can call this");
+        require(msg.sender == address(repository.feeManager()), "Only fee manager can call this");
         _;
     }
 
-    function setQueryManager(IQueryManager _queryManager) public onlyOwner {
-        queryManager = _queryManager;
+    function setRepository(IRepository _repository) public onlyOwner {
+        repository = _repository;
     }
 
 

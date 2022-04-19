@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../../interfaces/IDelegationTerms.sol";
@@ -10,7 +10,7 @@ import "./storage/DataLayrServiceManagerStorage.sol";
 import "./DataLayrDisclosureChallengeFactory.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
-import "../QueryManager.sol";
+import "../Repository.sol";
 
 /**
  * @notice
@@ -85,18 +85,18 @@ contract DataLayrServiceManager is
 
     modifier onlyQMGovernance() {
         require(
-            address(queryManager.timelock()) == msg.sender,
-            "Query Manager governance can only call this function"
+            address(repository.timelock()) == msg.sender,
+            "repository governance can only call this function"
         );
         _;
     }
 
-    function setQueryManager(IQueryManager _queryManager) public {
+    function setRepository(IRepository _repository) public {
         require(
-            address(queryManager) == address(0),
-            "Query Manager already set"
+            address(repository) == address(0),
+            "repository already set"
         );
-        queryManager = _queryManager;
+        repository = _repository;
     }
 
     /**
@@ -140,7 +140,7 @@ contract DataLayrServiceManager is
 
         // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(queryManager.voteWeigher()))
+        IDataLayrVoteWeigher(address(repository.voteWeigher()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
         // escrow the total service fees from the storer to the DataLayr nodes in this contract
@@ -271,7 +271,7 @@ contract DataLayrServiceManager is
         // only registered operators can call
         require(
             IDataLayrVoteWeigher(
-                address(queryManager.voteWeigher())
+                address(repository.voteWeigher())
             ).getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
@@ -294,7 +294,7 @@ contract DataLayrServiceManager is
 
             // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
-                address(queryManager.voteWeigher())
+                address(repository.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
@@ -458,13 +458,13 @@ contract DataLayrServiceManager is
         //if challenging eigen operator
         if (eigenOrEthStakes) {
             //retrieve the stake at the time of precommit
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
         } else {
             //if challenging eth operator
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
@@ -779,8 +779,8 @@ contract DataLayrServiceManager is
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
             (address(dataLayr) == address(0)) ||
-                (address(queryManager.timelock()) == msg.sender),
-            "Query Manager governance can only call this function, or DL must not be initialized"
+                (address(repository.timelock()) == msg.sender),
+            "repository governance can only call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;
     }

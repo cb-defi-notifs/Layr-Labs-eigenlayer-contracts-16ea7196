@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/BytesLib.sol";
-import "../QueryManager.sol";
+import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "ds-test/test.sol";
 
@@ -166,14 +166,14 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
     modifier onlyQMGovernance() {
         require(
-            address(queryManager.timelock()) == msg.sender,
-            "only Query Manager governance can call this function"
+            address(repository.timelock()) == msg.sender,
+            "only repository governance can call this function"
         );
         _;
     }
 
-    modifier onlyQueryManager() {
-        require(address(queryManager) == msg.sender, "onlyQueryManager");
+    modifier onlyRepository() {
+        require(address(repository) == msg.sender, "onlyRepository");
         _;
     }
 
@@ -274,7 +274,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
         // get the first byte of data which happens to specify the type of the operator
         uint8 registrantType = data.toUint8(0);
 
-        // TODO: shared struct type for this + registrantType, also used in QueryManager?
+        // TODO: shared struct type for this + registrantType, also used in Repository?
         Uint96xUint96 memory ethAndEigenAmounts;
 
         //if first bit of registrantType is '1', then operator wants to be an ETH validator
@@ -323,7 +323,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
             index: numRegistrants,
             active: registrantType,
             fromDumpNumber: IDataLayrServiceManager(
-                address(queryManager.feeManager())
+                address(repository.feeManager())
             ).dumpNumber(),
             to: 0,
 
@@ -348,7 +348,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         // get current dump number from DataLayrServiceManager
         uint48 currentDumpNumber = IDataLayrServiceManager(
-            address(queryManager.feeManager())
+            address(repository.feeManager())
         ).dumpNumber();
 
         // TODO: Optimize storage calls
@@ -488,7 +488,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
         // get dump number from DataLayrServiceManagerStorage.sol
         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
-            IDataLayrServiceManager(address(queryManager.feeManager()))
+            IDataLayrServiceManager(address(repository.feeManager()))
                 .dumpNumber(),
             stakeHashUpdates[stakeHashUpdates.length - 1]
         );
@@ -596,7 +596,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
     function setLatestTime(uint32 _latestTime) public {
         require(
-            address(queryManager.feeManager()) == msg.sender,
+            address(repository.feeManager()) == msg.sender,
             "Fee manager can only call this"
         ); if (_latestTime > latestTime) {
             latestTime = _latestTime;            

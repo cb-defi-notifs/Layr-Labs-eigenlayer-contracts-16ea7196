@@ -25,14 +25,14 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 pragma solidity ^0.8.9;
 
-import "../interfaces/IQueryManager.sol";
+import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../governance/Timelock.sol";
 import "../utils/Timelock_Managed.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract QueryManagerGovernance is Timelock_Managed {
+contract RepositoryGovernance is Timelock_Managed {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -100,7 +100,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
 
-    IQueryManager public immutable QUERY_MANAGER;
+    IRepository public immutable QUERY_MANAGER;
     IVoteWeigher public immutable VOTE_WEIGHTER;
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
@@ -170,7 +170,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     event MultisigTransferred(address indexed previousAddress, address indexed newAddress);
 
     constructor(
-        IQueryManager _QUERY_MANAGER,
+        IRepository _QUERY_MANAGER,
         IVoteWeigher _VOTE_WEIGHTER,
         Timelock _timelock,
         address _multisig,
@@ -206,21 +206,21 @@ contract QueryManagerGovernance is Timelock_Managed {
                 (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
-            "QueryManagerGovernance::propose: proposer votes below proposal threshold"
+            "RepositoryGovernance::propose: proposer votes below proposal threshold"
         );
         require(
             targets.length == values.length &&
                 targets.length == signatures.length &&
                 targets.length == calldatas.length,
-            "QueryManagerGovernance::propose: proposal function information arity mismatch"
+            "RepositoryGovernance::propose: proposal function information arity mismatch"
         );
         require(
             targets.length != 0,
-            "QueryManagerGovernance::propose: must provide actions"
+            "RepositoryGovernance::propose: must provide actions"
         );
         require(
             targets.length <= proposalMaxOperations,
-            "QueryManagerGovernance::propose: too many actions"
+            "RepositoryGovernance::propose: too many actions"
         );
 
         uint256 latestProposalId = latestProposalIds[msg.sender];
@@ -230,11 +230,11 @@ contract QueryManagerGovernance is Timelock_Managed {
             );
             require(
                 proposersLatestProposalState != ProposalState.Active,
-                "QueryManagerGovernance::propose: one live proposal per proposer, found an already active proposal"
+                "RepositoryGovernance::propose: one live proposal per proposer, found an already active proposal"
             );
             require(
                 proposersLatestProposalState != ProposalState.Pending,
-                "QueryManagerGovernance::propose: one live proposal per proposer, found an already pending proposal"
+                "RepositoryGovernance::propose: one live proposal per proposer, found an already pending proposal"
             );
         }
 
@@ -277,7 +277,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     function queue(uint256 proposalId) public {
         require(
             state(proposalId) == ProposalState.Succeeded,
-            "QueryManagerGovernance::queue: proposal can only be queued if it is succeeded"
+            "RepositoryGovernance::queue: proposal can only be queued if it is succeeded"
         );
         Proposal storage proposal = proposals[proposalId];
         uint256 eta = block.timestamp + timelock.delay();
@@ -305,7 +305,7 @@ contract QueryManagerGovernance is Timelock_Managed {
             !timelock.queuedTransactions(
                 keccak256(abi.encode(target, value, signature, data, eta))
             ),
-            "QueryManagerGovernance::_queueOrRevert: proposal action already queued at eta"
+            "RepositoryGovernance::_queueOrRevert: proposal action already queued at eta"
         );
         timelock.queueTransaction(target, value, signature, data, eta);
     }
@@ -313,7 +313,7 @@ contract QueryManagerGovernance is Timelock_Managed {
     function execute(uint256 proposalId) public payable {
         require(
             state(proposalId) == ProposalState.Queued,
-            "QueryManagerGovernance::execute: proposal can only be executed if it is queued"
+            "RepositoryGovernance::execute: proposal can only be executed if it is queued"
         );
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
@@ -333,7 +333,7 @@ contract QueryManagerGovernance is Timelock_Managed {
         ProposalState stateOfProposal = state(proposalId);
         require(
             stateOfProposal != ProposalState.Executed,
-            "QueryManagerGovernance::cancel: cannot cancel executed proposal"
+            "RepositoryGovernance::cancel: cannot cancel executed proposal"
         );
 
         Proposal storage proposal = proposals[proposalId];
@@ -348,7 +348,7 @@ contract QueryManagerGovernance is Timelock_Managed {
                 proposalThresholdEthPercentage ||
                 (eigenStaked * 100) / IRegistrationManager(QUERY_MANAGER.registrationManager()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
-            "QueryManagerGovernance::cancel: proposer above threshold"
+            "RepositoryGovernance::cancel: proposer above threshold"
         );
 
         proposal.canceled = true;
@@ -391,7 +391,7 @@ contract QueryManagerGovernance is Timelock_Managed {
         //TODO: update this
         require(
             proposalCount >= proposalId && proposalId > 0,
-            "QueryManagerGovernance::state: invalid proposal id"
+            "RepositoryGovernance::state: invalid proposal id"
         );
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
@@ -452,7 +452,7 @@ contract QueryManagerGovernance is Timelock_Managed {
         address signatory = ecrecover(digest, v, r, s);
         require(
             signatory != address(0),
-            "QueryManagerGovernance::castVoteBySig: invalid signature"
+            "RepositoryGovernance::castVoteBySig: invalid signature"
         );
         return _castVote(signatory, proposalId, support, update);
     }
@@ -465,13 +465,13 @@ contract QueryManagerGovernance is Timelock_Managed {
     ) internal {
         require(
             state(proposalId) == ProposalState.Active,
-            "QueryManagerGovernance::_castVote: voting is closed"
+            "RepositoryGovernance::_castVote: voting is closed"
         );
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(
             receipt.hasVoted == false,
-            "QueryManagerGovernance::_castVote: voter already voted"
+            "RepositoryGovernance::_castVote: voter already voted"
         );
         (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
             voter,
@@ -481,7 +481,7 @@ contract QueryManagerGovernance is Timelock_Managed {
         require(
             ethStaked < type(uint96).max &&
                 eigenStaked < type(uint96).max,
-            "QueryManagerGovernance::weight overflow"
+            "RepositoryGovernance::weight overflow"
         );
         uint96 ethVotes = uint96(ethStaked);
         uint96 eigenVotes = uint96(eigenStaked);

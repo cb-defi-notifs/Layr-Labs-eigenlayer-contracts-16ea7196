@@ -455,7 +455,7 @@ contract InvestmentManager is
     /**
      * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
      *         The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
-     * @dev The fraudproof requires providing a queryManager contract and queryHash, corresponding to a query that was
+     * @dev The fraudproof requires providing a repository contract and queryHash, corresponding to a query that was
      *      created at or before the time when the queued withdrawal was initiated, and expires prior to the time at 
      *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
@@ -465,7 +465,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        IQueryManager queryManager,
+        IRepository repository,
         bytes32 queryHash
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
@@ -478,10 +478,10 @@ contract InvestmentManager is
         //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
         address operator = delegation.delegation(depositor);
 
-        //TODO: require that operator is registered to queryManager!
+        //TODO: require that operator is registered to repository!
         require(
-            serviceFactory.queryManagerExists(queryManager),
-            "QueryManager was not deployed through factory"
+            serviceFactory.repositoryExists(repository),
+            "Repository was not deployed through factory"
         );
 
         // ongoing query was created at time when depositor queued the withdrawal
@@ -490,10 +490,10 @@ contract InvestmentManager is
 //TODO: fix this to work with new contract architecture
         // require(
         //     initTimestamp >=
-        //         queryManager.getQueryCreationTime(queryHash) &&
+        //         repository.getQueryCreationTime(queryHash) &&
         //         unlockTime <
-        //         queryManager.getQueryCreationTime(queryHash) +
-        //             queryManager.getQueryDuration(),
+        //         repository.getQueryCreationTime(queryHash) +
+        //             repository.getQueryDuration(),
         //     "query must expire before unlockTime"
         // );
 

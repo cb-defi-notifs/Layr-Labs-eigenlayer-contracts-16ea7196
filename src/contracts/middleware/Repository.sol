@@ -6,14 +6,14 @@ import "../governance/Timelock.sol";
 import "../interfaces/IInvestmentStrategy.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IQueryManager.sol";
+import "../interfaces/IRepository.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
-import "./storage/QueryManagerStorage.sol";
+import "./storage/RepositoryStorage.sol";
 
 /**
  * @notice This is the contract for managing queries in any middleware. Each middleware has a
- *         a query manager. The main functionalities of this contract are:
+ *         a repository. The main functionalities of this contract are:
  *             - Enable mechanism for an operator to register with the middleware so that it can
  *               respond to the middleware's queries,
  *             - Enable mechanism for an operator to de-register with the middleware,
@@ -22,7 +22,7 @@ import "./storage/QueryManagerStorage.sol";
  *             - Enable mechanism for creating new queries by the middleware, responding to
  *               existing queries by operators and finalize the outcome of the queries.
  */
-contract QueryManager is Initializable, QueryManagerStorage {
+contract Repository is Initializable, RepositoryStorage {
 
     function initialize(
         IVoteWeigher _voteWeigher,
@@ -41,17 +41,17 @@ contract QueryManager is Initializable, QueryManagerStorage {
         investmentManager = _investmentManager;
     }
 
-    /// @notice sets the fee manager for the middleware's query manager
+    /// @notice sets the fee manager for the middleware's repository
     function setFeeManager(IFeeManager _feeManager) external onlyTimelock {
         feeManager = _feeManager;
     }
 
-    /// @notice sets the registration manager for the middleware's query manager
+    /// @notice sets the registration manager for the middleware's repository
     function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
         registrationManager = _registrationManager;
     }
 
-    /// @notice sets the vote weigher for the middleware's query manager
+    /// @notice sets the vote weigher for the middleware's repository
     function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyTimelock {
         _setVoteWeigher(_voteWeigher);
     }

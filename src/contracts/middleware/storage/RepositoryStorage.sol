@@ -5,14 +5,14 @@ import "../../interfaces/IRegistrationManager.sol";
 import "../../interfaces/IInvestmentStrategy.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "../../utils/Timelock_Managed.sol";
 
 /**
  * @notice This contract specifies all the state variables that are being used 
- *         within QueryManager contract.
+ *         within Repository contract.
  */
-abstract contract QueryManagerStorage is Timelock_Managed, IQueryManager {
+abstract contract RepositoryStorage is Timelock_Managed, IRepository {
     //called when responses are provided by operators
     IVoteWeigher public voteWeigher;
     IEigenLayrDelegation public delegation;

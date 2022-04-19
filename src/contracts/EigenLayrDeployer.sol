@@ -14,7 +14,7 @@ import "./investment/WethStashInvestmentStrategy.sol";
 import "./investment/Slasher.sol";
 
 import "./middleware/ServiceFactory.sol";
-import "./middleware/QueryManager.sol";
+import "./middleware/Repository.sol";
 import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrVoteWeigher.sol";
@@ -47,7 +47,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    IQueryManager public dlqm;
+    IRepository public dlqm;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
     DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
@@ -122,17 +122,17 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
-        dlqm = serviceFactory.createNewQueryManager(
+        dlqm = serviceFactory.createNewRepository(
             dlsm,
             dlRegVW,
             dlRegVW,
             timelockDelay
         );
 
-        dl.setQueryManager(dlqm);
-        dlsm.setQueryManager(dlqm);
+        dl.setRepository(dlqm);
+        dlsm.setRepository(dlqm);
         dlsm.setDataLayr(dl);
-        dlRegVW.setQueryManager(dlqm);
+        dlRegVW.setRepository(dlqm);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }

@@ -231,14 +231,14 @@ contract DelegationTerms is IDelegationTerms {
      * @param amount is the amount of ERC20 tokens that is being paid as rewards. 
      */
     function payForService(IERC20 token, uint256 amount) external payable {
-        // determine the query manager associated with the fee manager
-        IQueryManager queryManager = IFeeManager(msg.sender).queryManager();
+        // determine the repository associated with the fee manager
+        IRepository repository = IFeeManager(msg.sender).repository();
 
         // only the fee manager can call this function
-        require(msg.sender == address(queryManager.feeManager()), "only feeManagers");
+        require(msg.sender == address(repository.feeManager()), "only feeManagers");
 
-        // check if the query manager exists
-        require(serviceFactory.queryManagerExists(queryManager), "illegitimate queryManager");
+        // check if the repository exists
+        require(serviceFactory.repositoryExists(repository), "illegitimate repository");
 
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {
@@ -263,8 +263,8 @@ contract DelegationTerms is IDelegationTerms {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-       (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(queryManager.registrationManager()).totalStake();
-       (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(queryManager.registrationManager()).operatorStakes(operator);
+       (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(repository.registrationManager()).totalStake();
+       (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(operator);
        multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders

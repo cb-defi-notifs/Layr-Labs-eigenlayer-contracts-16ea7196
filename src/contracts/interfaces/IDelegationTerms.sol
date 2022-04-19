@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IQueryManager.sol";
+import "./IRepository.sol";
 import "./IInvestmentStrategy.sol";
 
 //TODO: discuss if we can structure the inputs of these functions better

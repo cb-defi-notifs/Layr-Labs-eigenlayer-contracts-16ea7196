@@ -347,12 +347,12 @@ contract EigenLayrDelegation is
     /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised,
-    /// @param queryManager is the contract with whom the query for which delegator hasn't finished
+    /// @param repository is the contract with whom the query for which delegator hasn't finished
     ///        its obligation yet, was deployed,
     /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
-        IQueryManager queryManager,
+        IRepository repository,
         bytes32 queryHash
     ) external {
         address operator = delegation[staker];
@@ -364,15 +364,15 @@ contract EigenLayrDelegation is
             "Challenge was raised after the end of challenge period"
         );
 
-        //TODO: require that operator is registered to queryManager!
+        //TODO: require that operator is registered to repository!
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
             "Challenge period hasn't yet started"
         );
 
         require(
-            serviceFactory.queryManagerExists(queryManager),
-            "QueryManager was not deployed through factory"
+            serviceFactory.repositoryExists(repository),
+            "Repository was not deployed through factory"
         );
 
         // ongoing query is still active at time when staker was finalizing undelegation
@@ -380,10 +380,10 @@ contract EigenLayrDelegation is
 //TODO: fix this to work with new contract architecture
         // require(
         //     lastUndelegationCommit[staker] >
-        //         queryManager.getQueryCreationTime(queryHash) &&
+        //         repository.getQueryCreationTime(queryHash) &&
         //         lastUndelegationCommit[staker] <
-        //         queryManager.getQueryCreationTime(queryHash) +
-        //             queryManager.getQueryDuration(),
+        //         repository.getQueryCreationTime(queryHash) +
+        //             repository.getQueryDuration(),
         //     "Given query is inactive"
         // );
 
@@ -454,7 +454,7 @@ contract EigenLayrDelegation is
             // CRITIC: we are assuming here that delegation[operator] != operator which would
             // imply that operator is not actually an operator. Should there be a condition to check
             // whether operator is actually an operator or not? Like calling getOperatorType() in 
-            // QueryManager.sol and check it is non-zero?
+            // Repository.sol and check it is non-zero?
             uint256[] memory shares = new uint256[](
                 operatorStrats[operator].length
             );

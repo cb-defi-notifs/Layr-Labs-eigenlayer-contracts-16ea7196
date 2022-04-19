@@ -6,7 +6,7 @@ import "./IVoteWeigher.sol";
 import "./IRegistrationManager.sol";
 import "../interfaces/ITimelock_Managed.sol";
 
-interface IQueryManager is ITimelock_Managed {
+interface IRepository is ITimelock_Managed {
     // STRUCTS
     // struct for storing the amount of Eigen and ETH that has been staked
     struct Stake {

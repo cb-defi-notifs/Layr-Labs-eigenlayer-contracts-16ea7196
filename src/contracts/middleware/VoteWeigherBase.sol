@@ -2,16 +2,16 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IQueryManager.sol";
+import "../interfaces/IRepository.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
 
 contract VoteWeigherBase is IVoteWeigher {
     // TODO: decide if this should be immutable or upgradeable
     IEigenLayrDelegation public delegation;
-    // not set in constructor, since the queryManager sets the address of the vote weigher in
+    // not set in constructor, since the repository sets the address of the vote weigher in
     // its own constructor, and therefore the vote weigher must be deployed first
-    IQueryManager public queryManager;
+    IRepository public repository;
     // divisor. X consensus layer ETH is treated as equivalent to (X / consensusLayerEthToEth) ETH locked into EigenLayr
     uint256 public consensusLayerEthToEth;
 
@@ -23,13 +23,13 @@ contract VoteWeigherBase is IVoteWeigher {
         consensusLayerEthToEth = _consensusLayerEthToEth;
     }
 
-    // one-time function for initializing the queryManager
-    function setQueryManager(IQueryManager _queryManager) public {
+    // one-time function for initializing the repository
+    function setRepository(IRepository _repository) public {
         require(
-            address(queryManager) == address(0),
-            "Query Manager already set"
+            address(repository) == address(0),
+            "repository already set"
         );
-        queryManager = _queryManager;
+        repository = _repository;
     }
 
     /**

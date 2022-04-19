@@ -2,11 +2,11 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "../QueryManager.sol";
+import "../Repository.sol";
 
 contract DataLayrDisclosureChallenge {
     IDataLayrServiceManager public dlsm;

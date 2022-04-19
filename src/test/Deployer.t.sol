@@ -16,7 +16,7 @@ import "../contracts/investment/WethStashInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
-import "../contracts/middleware/QueryManager.sol";
+import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrVoteWeigher.sol";
@@ -57,7 +57,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    IQueryManager public dlqm;
+    IRepository public dlqm;
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
@@ -146,17 +146,17 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         dl = new DataLayr();
         dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
-        dlqm = serviceFactory.createNewQueryManager(
+        dlqm = serviceFactory.createNewRepository(
             dlsm,
             dlRegVW,
             dlRegVW,
             timelockDelay
         );
 
-        dl.setQueryManager(dlqm);
-        dlsm.setQueryManager(dlqm);
+        dl.setRepository(dlqm);
+        dlsm.setRepository(dlqm);
         dlsm.setDataLayr(dl);
-        dlRegVW.setQueryManager(dlqm);
+        dlRegVW.setRepository(dlqm);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }
@@ -188,12 +188,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
         assertTrue(dlqm.feeManager() == dlsm, "feeManager set incorrectly");
         assertTrue(
-            dlsm.queryManager() == dlqm,
-            "queryManager set incorrectly in dlsm"
+            dlsm.repository() == dlqm,
+            "repository set incorrectly in dlsm"
         );
         assertTrue(
-            dl.queryManager() == dlqm,
-            "queryManager set incorrectly in dl"
+            dl.repository() == dlqm,
+            "repository set incorrectly in dl"
         );
     }
 

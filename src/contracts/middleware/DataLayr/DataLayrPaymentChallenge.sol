@@ -2,11 +2,11 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "../QueryManager.sol";
+import "../Repository.sol";
 
 contract DataLayrPaymentChallenge {
     IDataLayrServiceManager public dlsm;
@@ -176,7 +176,7 @@ contract DataLayrPaymentChallenge {
         );
         //fetch operator id
         uint32 operatorId = IDataLayrVoteWeigher(
-            address(IFeeManager(address(dlsm)).queryManager().voteWeigher())
+            address(IFeeManager(address(dlsm)).repository().voteWeigher())
         ).getOperatorId(challenge.operator);
         //an operator's bin is just the top 24 bits of their id
         uint32 operatorBin = operatorId >> 8;

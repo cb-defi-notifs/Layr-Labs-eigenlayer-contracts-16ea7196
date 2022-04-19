@@ -6,13 +6,13 @@ pragma solidity ^0.8.9;
 // import "../interfaces/IInvestmentStrategy.sol";
 // import "../interfaces/IInvestmentManager.sol";
 // import "../interfaces/IEigenLayrDelegation.sol";
-// import "../interfaces/IQueryManager.sol";
+// import "../interfaces/IRepository.sol";
 // import "../interfaces/IRegistrationManager.sol";
 // import "../utils/Initializable.sol";
-// import "./storage/QueryManagerStorage.sol";
+// import "./storage/RepositoryStorage.sol";
 
 // // TODO: discuss deprecation of this logic and/or change in specification to support deprecating this.
-// abstract contract QueryManager_Deprecated_Functionality is Initializable, QueryManagerStorage {
+// abstract contract Repository_Deprecated_Functionality is Initializable, RepositoryStorage {
 //     /**
 //      * @notice creates a new query based on the @param queryData passed.
 //      */

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../../interfaces/IQueryManager.sol";
+import "../../../interfaces/IRepository.sol";
 import "../../../interfaces/IDataLayrServiceManager.sol";
 import "../../../interfaces/IDataLayr.sol";
 import "../../../interfaces/IDataLayrVoteWeigher.sol";
@@ -24,7 +24,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IFee
 
     uint256 public paymentFraudProofCollateral = 1 wei;
     IDataLayr public dataLayr;
-    IQueryManager public queryManager;
+    IRepository public repository;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint48 public dumpNumber;
