@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./aave/ILendingPool.sol";
-import "./storage/AaveInvestmentStrategyStorage.sol";
+import "./AaveInvestmentStrategyStorage.sol";
 import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
 

@@ -7,7 +7,7 @@ import "../interfaces/IServiceFactory.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
-import "./storage/InvestmentManagerStorage.sol";
+import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 
 // TODO: withdrawals of consensus layer ETH?

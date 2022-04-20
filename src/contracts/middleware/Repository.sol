@@ -9,7 +9,7 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
-import "./storage/RepositoryStorage.sol";
+import "./RepositoryStorage.sol";
 
 /**
  * @notice This is the contract for managing queries in any middleware. Each middleware has a

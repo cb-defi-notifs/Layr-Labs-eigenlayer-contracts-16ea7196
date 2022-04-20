@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IInvestmentManager.sol";
+import "../interfaces/IInvestmentManager.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     struct WithdrawalStorage {

@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../Eigen.sol";
-import "../../interfaces/IDepositContract.sol";
-import "../../interfaces/IInvestmentManager.sol";
-import "../../middleware/Repository.sol";
+import "./Eigen.sol";
+import "../interfaces/IDepositContract.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../middleware/Repository.sol";
 
 // todo: slashing functionality
 // todo: figure out token moving

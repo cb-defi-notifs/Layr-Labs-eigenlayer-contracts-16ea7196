@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IRegistrationManager.sol";
-import "../../interfaces/IInvestmentStrategy.sol";
-import "../../interfaces/IInvestmentManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IRepository.sol";
-import "../../utils/Timelock_Managed.sol";
+import "../interfaces/IRegistrationManager.sol";
+import "../interfaces/IInvestmentStrategy.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IRepository.sol";
+import "../utils/Timelock_Managed.sol";
 
 /**
  * @notice This contract specifies all the state variables that are being used 

@@ -8,7 +8,7 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
-import "./storage/EigenLayrDelegationStorage.sol";
+import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
 
 // todo: task specific delegation

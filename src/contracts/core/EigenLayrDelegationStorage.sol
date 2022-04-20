@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IInvestmentManager.sol";
-import "../../interfaces/IDelegationTerms.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IServiceFactory.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDelegationTerms.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceFactory.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     IInvestmentManager public investmentManager;
