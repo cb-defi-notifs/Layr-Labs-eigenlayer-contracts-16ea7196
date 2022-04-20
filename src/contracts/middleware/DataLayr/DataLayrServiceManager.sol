@@ -76,7 +76,7 @@ contract DataLayrServiceManager is
     modifier onlyRepositoryGovernance() {
         require(
             address(repository.timelock()) == msg.sender,
-            "repository governance can only call this function"
+            "only repository governance can call this function"
         );
         _;
     }
@@ -759,7 +759,7 @@ contract DataLayrServiceManager is
         require(
             (address(dataLayr) == address(0)) ||
                 (address(repository.timelock()) == msg.sender),
-            "repository governance can only call this function, or DL must not be initialized"
+            "only repository governance can call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;
     }
