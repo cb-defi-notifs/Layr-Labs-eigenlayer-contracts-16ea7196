@@ -5,13 +5,14 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
+import "../RegistrationManagerBase.sol";
 import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
+contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest {
     using BytesLib for bytes;
     /**
      * @notice  Details on DataLayr nodes that would be used for -
@@ -33,83 +34,12 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
     }
 
     /**
-     * @notice struct for storing the amount of Eigen and ETH that has been staked, as well as additional data
-     *          packs two uint96's into a single storage slot
-     */
-    struct EthAndEigenAmounts {
-        uint96 ethAmount;
-        uint96 eigenAmount;
-    }
-    
-    /**
      * @notice pack two uint48's into a storage slot
      */
     struct Uint48xUint48 {
         uint48 a;
         uint48 b;
     }
-
-//BEGIN ADDED FUNCTIONALITY FOR STORING STAKES AND REGISTRATION
-// TODO: de-duplicate this struct and the EthAndEigenAmounts struct
-    // struct for storing the amount of Eigen and ETH that has been staked, as well as additional data
-
-    // variable for storing total ETH and Eigen staked into securing the middleware
-    EthAndEigenAmounts public totalStake;
-
-    // mapping from each operator's address to its Stake for the middleware
-    mapping(address => EthAndEigenAmounts) public operatorStakes;
-
-    //TODO: do we need this variable?
-    // number of registrants of this service
-    uint64 public numRegistrants;
-
-    /// @notice get total ETH staked for securing the middleware
-    function totalEthStaked() public view returns (uint96) {
-        return totalStake.ethAmount;
-    }
-
-    /// @notice get total Eigen staked for securing the middleware
-    function totalEigenStaked() public view returns (uint96) {
-        return totalStake.eigenAmount;
-    }
-
-    /// @notice get total ETH staked by delegators of the operator
-    function ethStakedByOperator(address operator)
-        public
-        view
-        returns (uint96)
-    {
-        return operatorStakes[operator].ethAmount;
-    }
-
-    /// @notice get total Eigen staked by delegators of the operator
-    function eigenStakedByOperator(address operator)
-        public
-        view
-        returns (uint96)
-    {
-        return operatorStakes[operator].eigenAmount;
-    }
-
-    /// @notice get both total ETH and Eigen staked by delegators of the operator
-    function ethAndEigenStakedForOperator(address operator)
-        public
-        view
-        returns (uint96, uint96)
-    {
-        EthAndEigenAmounts memory opStake = operatorStakes[operator];
-        return (opStake.ethAmount, opStake.eigenAmount);
-    }
-
-    /// @notice returns the type for the specified operator
-    function getOperatorType(address operator)
-        public
-        view
-        returns (uint8)
-    {
-        return registry[operator].active;
-    }
-//END ADDED FUNCTIONALITY FOR STORING STAKES AND REGISTRATION
 
     // the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
@@ -126,16 +56,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
     uint48[] public stakeHashUpdates;
     address[] public registrantList;
 
-    // EVENT
-    /**
-     * @notice
-     */
-    event Registration();
-
-    event DeregistrationCommit(
-        address registrant // who started
-    );
-
+    // EVENTS
     event StakeAdded( 
         address operator,
         uint96 ethStake, 
@@ -259,6 +180,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 // TODO: decide if address input is necessary for the standard
     function registerOperator(address, bytes calldata data)
         external
+        override
         returns (uint8, uint96, uint96)
     {
         // address operator = msg.sender;
@@ -396,7 +318,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
      * @notice Used for notifying that operator wants to deregister from being 
      *         a DataLayr node 
      */
-    function commitDeregistration() public returns (bool) {
+    function commitDeregistration() external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -419,6 +341,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 // TODO: decide if address input is necessary for the standard
     function deregisterOperator(address, bytes calldata)
         external
+        override
         returns (bool)
     {
         address operator = msg.sender;
@@ -620,5 +543,15 @@ contract DataLayrVoteWeigher is VoteWeigherBase, IRegistrationManager, DSTest {
 
     function getStakesHashUpdateLength() public view returns (uint256) {
         return stakeHashUpdates.length;
+    }
+
+
+    /// @notice returns the type for the specified operator
+    function getOperatorType(address operator)
+        public
+        view
+        returns (uint8)
+    {
+        return registry[operator].active;
     }
 }
