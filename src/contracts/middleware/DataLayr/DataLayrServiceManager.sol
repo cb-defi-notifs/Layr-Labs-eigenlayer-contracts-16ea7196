@@ -130,7 +130,7 @@ contract DataLayrServiceManager is
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
-        uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
+        uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
         // increment the counter
         dumpNumber++;
