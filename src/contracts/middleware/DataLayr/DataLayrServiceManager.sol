@@ -28,14 +28,6 @@ contract DataLayrServiceManager is
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes.
-     */
-    IERC20 public immutable paymentToken;
-
-    IERC20 public immutable collateralToken;
-
-    /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
     DataLayrPaymentChallengeFactory immutable public dataLayrPaymentChallengeFactory;
@@ -74,10 +66,8 @@ contract DataLayrServiceManager is
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
         DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
-    ) {
+    ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
-        paymentToken = _paymentToken;
-        collateralToken = _collateralToken;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
@@ -751,17 +741,6 @@ contract DataLayrServiceManager is
     function getPolyHash(address operator, bytes32 headerHash) public view returns(bytes32) {
         return disclosureForOperator[headerHash][operator].polyHash;
     }
-
-    function payFee(address) external payable {
-        revert();
-    }
-
-    function onResponse(
-        bytes32 queryHash,
-        address operator,
-        bytes32 reponseHash,
-        uint256 senderWeight
-    ) external {}
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
         public

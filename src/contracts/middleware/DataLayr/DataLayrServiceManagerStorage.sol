@@ -10,31 +10,24 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
-    /**
-     * @notice service fee that will be paid out by the disperser to the DataLayr nodes
-     *         for storing per byte for per unit time. 
-     */
-    uint256 public feePerBytePerTime;
+    // Payment
+    struct Payment {
+        uint48 fromDumpNumber; // dumpNumber payment being claimed from
+        uint48 toDumpNumber; // dumpNumber payment being claimed to exclusive
+        // payment for range [fromDumpNumber, toDumpNumber)
+        uint32 commitTime; // when commited, used for fraud proof period
+        uint120 amount; // max 1.3e36, keep in mind for token decimals
+        uint8 status; // 0: commited, 1: redeemed
+        uint256 collateral; //account for if collateral changed
+    }
 
-    /**
-     * @notice challenge window for submitting fraudproof in case of incorrect payment 
-     *         claim by the registered operator 
-     */
-    uint256 public constant paymentFraudProofInterval = 7 days;
-
-    uint256 public paymentFraudProofCollateral = 1 wei;
-    IDataLayr public dataLayr;
-    IRepository public repository;
-
-    /// @notice counter for number of assertions of data that has happened on this DataLayr
-    uint48 public dumpNumber;
-    
-    uint256 public constant disclosureFraudProofInterval = 7 days;
-    uint256 disclosurePaymentPerByte;
-    mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
-    bytes32 public powersOfTauMerkleRoot;
-    uint48 public numPowersOfTau; // num of leaves in the root tree
-    uint48 public log2NumPowersOfTau; // num of leaves in the root tree
+    struct PaymentChallenge {
+        address challenger;
+        uint48 fromDumpNumber;
+        uint48 toDumpNumber;
+        uint120 amount1;
+        uint120 amount2;
+    }
     struct DisclosureChallenge {
         uint32 commitTime;
         address challenger; // dumpNumber payment being claimed from
@@ -61,6 +54,42 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint256 x;
         uint256 y;
     }
+
+    /**
+     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
+     *         DataLayr nodes.
+     */
+    IERC20 public immutable paymentToken;
+
+    IERC20 public immutable collateralToken;
+
+    IDataLayr public dataLayr;
+    IRepository public repository;
+
+    /**
+     * @notice service fee that will be paid out by the disperser to the DataLayr nodes
+     *         for storing per byte for per unit time. 
+     */
+    uint256 public feePerBytePerTime;
+
+    /**
+     * @notice challenge window for submitting fraudproof in case of incorrect payment 
+     *         claim by the registered operator 
+     */
+    uint256 public constant paymentFraudProofInterval = 7 days;
+
+    uint256 public paymentFraudProofCollateral = 1 wei;
+
+    /// @notice counter for number of assertions of data that has happened on this DataLayr
+    uint48 public dumpNumber;
+    
+    uint256 public constant disclosureFraudProofInterval = 7 days;
+    uint256 disclosurePaymentPerByte;
+    mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
+    bytes32 public powersOfTauMerkleRoot;
+    uint48 public numPowersOfTau; // num of leaves in the root tree
+    uint48 public log2NumPowersOfTau; // num of leaves in the root tree
+
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
     mapping (uint256 => Commitment) zeroPolynomialCommitments;
@@ -91,23 +120,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     //a deposit root is posted every depositRootInterval dumps
     uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins
     mapping(uint256 => bytes32) public depositRoots; // blockNumber => depositRoot
-
-    // Payment
-    struct Payment {
-        uint48 fromDumpNumber; // dumpNumber payment being claimed from
-        uint48 toDumpNumber; // dumpNumber payment being claimed to exclusive
-        // payment for range [fromDumpNumber, toDumpNumber)
-        uint32 commitTime; // when commited, used for fraud proof period
-        uint120 amount; // max 1.3e36, keep in mind for token decimals
-        uint8 status; // 0: commited, 1: redeemed
-        uint256 collateral; //account for if collateral changed
-    }
-
-    struct PaymentChallenge {
-        address challenger;
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
-        uint120 amount1;
-        uint120 amount2;
+ 
+    constructor(IERC20 _paymentToken, IERC20 _collateralToken) {
+        paymentToken = _paymentToken;
+        collateralToken = _collateralToken;
     }
 }
