@@ -76,10 +76,14 @@ contract InvestmentManager is
         eigenLayrDepositContract = _eigenLayrDepositContract;
 
         // record the strategies as approved
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
                 stratEverApproved[strategies[i]] = true;
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -100,11 +104,14 @@ contract InvestmentManager is
         external
         onlyGovernor
     {
-        for (uint256 i = 0; i < strategies.length; i++) { 
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) { 
             stratApproved[strategies[i]] = true;
-
             if (!stratEverApproved[strategies[i]]) {
                 stratEverApproved[strategies[i]] = true;
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -170,14 +177,18 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata amounts
     ) external payable returns (uint256[] memory) {
-        uint256[] memory shares = new uint256[](strategies.length);
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        uint256[] memory shares = new uint256[](strategiesLength);
+        for (uint256 i = 0; i < strategiesLength;) {
             shares[i] = _depositIntoStrategy(
                 depositor,
                 strategies[i],
                 tokens[i],
                 amounts[i]
             );
+            unchecked {
+                ++i;
+            }
         }
         return shares;
     }
@@ -279,7 +290,9 @@ contract InvestmentManager is
                     }
                 }
                 investorStrats[depositor].pop();
-                strategyIndexIndex++;
+                unchecked {
+                    ++strategyIndexIndex;                    
+                }
             }
 
             // tell the strategy to send the appropriate amount of funds to the depositor
@@ -601,7 +614,9 @@ contract InvestmentManager is
                     strategyIndexes[strategyIndexIndex]
                 ] = investorStrats[slashed][investorStrats[slashed].length - 1];
                 investorStrats[slashed].pop();
-                strategyIndexIndex++;
+                unchecked {
+                    ++strategyIndexIndex;
+                }
             }
 
             // add investor strats to that of recipient if it has not invested in this strategy yet
