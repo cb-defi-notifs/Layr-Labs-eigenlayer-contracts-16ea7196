@@ -11,4 +11,5 @@ interface IRegistrationManager {
     function ethAndEigenStakedForOperator(address) external view returns (uint96, uint96);
     function operatorStakes(address) external view returns (uint96, uint96);
     function totalStake() external view returns (uint96, uint96);
+    //TODO: add 'isRegistered' / other functions for querying registration status!
 }

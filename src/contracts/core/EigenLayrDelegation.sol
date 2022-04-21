@@ -77,7 +77,8 @@ contract EigenLayrDelegation is
     }
 
     function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external {
-        //TODO: calculate the digestHash based on some other inputs, etc.
+        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
+        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
         bytes32 structHash = keccak256(
             abi.encode(
                 DELEGATION_TYPEHASH,
@@ -94,9 +95,10 @@ contract EigenLayrDelegation is
                 structHash
             )
         );
-        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
-        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
-        require(SignatureCompaction.ecrecoverPacked(digestHash, r, vs) == delegator, "delegateToBySignature: bad signature");
+        //check validity of signature
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
+        require(recoveredAddress != address(0), "delegateToBySignature: bad signature");
+        require(recoveredAddress == delegator, "delegateToBySignature: sig not from delegator");
         // increment delegator's delegationNonce
         ++delegationNonces[delegator];
         _delegate(delegator, operator);
@@ -360,7 +362,6 @@ contract EigenLayrDelegation is
             "Challenge was raised after the end of challenge period"
         );
 
-        //TODO: require that operator is registered to repository!
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
             "Challenge period hasn't yet started"
@@ -370,6 +371,11 @@ contract EigenLayrDelegation is
             serviceFactory.repositoryExists(repository),
             "Repository was not deployed through factory"
         );
+
+//TODO: require that operator is registered to repository!
+        // require(
+        //     IRegistrationManager(repository.registrationManager()).isRegistered(staker);
+        // );
 
         // ongoing query is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.

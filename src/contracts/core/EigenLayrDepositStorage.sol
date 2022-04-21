@@ -7,8 +7,6 @@ import "../interfaces/IDepositContract.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../middleware/Repository.sol";
 
-// todo: slashing functionality
-// todo: figure out token moving
 abstract contract EigenLayrDepositStorage {
     bytes32 public withdrawalCredentials;
     bytes32 public constant legacyDepositPermissionMessage =
