@@ -84,10 +84,6 @@ abstract contract DataLayrSignatureChecker is
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
 
-        // TODO: Optimize mstores further?
-        // emit log_named_bytes("calldata", msg.data);
-        // emit log_named_uint("smd.stakesIndex", smd.stakesIndex);
-
         // total bytes read so far is now (6 + 32 + 4 + 64) = 106
         // load stakes into memory and verify integrity of stake hash
         smd.stakes = data.slice(106, smd.stakesLength);
@@ -142,7 +138,6 @@ abstract contract DataLayrSignatureChecker is
 
         //loop for each signatures ends once all signatures have been processed
         uint256 i;
-            //emit log_uint(gasleft());
 
         while (i < numberOfSigners) {
 
@@ -182,9 +177,6 @@ abstract contract DataLayrSignatureChecker is
                 pointer += 68;                    
             }
 
-            // emit log_named_uint("previousSigner", previousSigner);
-            // emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
-            // emit log_named_uint("uint160(sigWInfo.signatory)", uint160(sigWInfo.signatory));
             //verify monotonic increase of address value
             require(
                 uint160(sigWInfo.signatory) > previousSigner,
@@ -193,46 +185,6 @@ abstract contract DataLayrSignatureChecker is
             //store signer info in memory variables
             previousSigner = uint160(sigWInfo.signatory);
             signers[i] = sigWInfo.signatory;
-
-            //BEGIN ADDED FOR TESTING
-            // address addrFromSigWInfo;
-            // address addrFromStakes;
-            // uint256 ethStakeAmount;
-            // assembly {
-            //     addrFromSigWInfo := 
-            //             //gets signatory address
-            //             and(
-            //                 //signatory location in sigWInfo
-            //                 mload(add(sigWInfo, 64)),
-            //                 //20 byte mask
-            //                 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-            //             )
-            //     addrFromStakes :=
-            //             //pulls address from stakes object
-            //             shr(
-            //                 96,
-            //                 calldataload(signatoryCalldataByteLocation)
-            //             )
-            //     ethStakeAmount :=
-            //                 shr(
-            //                     160,
-            //                     calldataload(
-            //                         //adding 20 to previous (signatory) index gets us index of ethStakeAmount for signatory
-            //                         add(
-            //                             signatoryCalldataByteLocation,
-            //                             20
-            //                         )
-            //                     )
-            //                 )
-            // }
-            // emit log_named_bytes("full calldata", msg.data);
-            // emit log_named_uint("signatoryCalldataByteLocation", signatoryCalldataByteLocation);
-            // emit log_named_address("addrFromSigWInfo", addrFromSigWInfo);
-            // emit log_named_address("sigWInfo.signatory", sigWInfo.signatory);
-            // emit log_named_address("addrFromStakes", addrFromStakes);
-            // emit log_named_uint("ethStakeAmount", ethStakeAmount);
-            //END ADDED FOR TESTING
-
 
             assembly {
                 //this block ensures that the recovered signatory address matches the address stored at the specified index in the stakes object
@@ -299,7 +251,6 @@ abstract contract DataLayrSignatureChecker is
                 ++i;
             }
         }
-            //emit log_uint(gasleft());
 
         //set compressedSignatoryRecord variable
         compressedSignatoryRecord = keccak256(
@@ -309,12 +260,6 @@ abstract contract DataLayrSignatureChecker is
                 abi.encodePacked(signers)
             )
         );
-
-        // emit log_named_uint("signedTotals.ethStakeSigned", signedTotals.ethStakeSigned);
-        // emit log_named_uint("signedTotals.eigenStakeSigned", signedTotals.eigenStakeSigned);
-        // emit log_named_uint("signedTotals.totalEthStake", signedTotals.totalEthStake);
-        // emit log_named_uint("signedTotals.totalEigenStake", signedTotals.totalEigenStake);
-        // emit log_named_uint("smd.stakesLength", smd.stakesLength);
 
         //return dumpNumber, headerHash, eth and eigen that signed, and a hash of the signatories
         return (

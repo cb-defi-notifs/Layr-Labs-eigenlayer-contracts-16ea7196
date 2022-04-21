@@ -269,7 +269,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest
             address(repository.ServiceManager())
         ).dumpNumber();
 
-        // TODO: Optimize storage calls
         emit StakeAdded(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
 
@@ -399,8 +398,9 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest
             "Stakes are incorrect"
         );
 
+        uint256 operatorsLength = operators.length;
         require(
-            indexes.length == operators.length,
+            indexes.length == operatorsLength,
             "operator len and index len don't match"
         );
 
@@ -412,7 +412,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest
         );
 
         // iterating over all the tuples that are to be updated
-        for (uint256 i = 0; i < operators.length; ) {
+        for (uint256 i = 0; i < operatorsLength; ) {
 
             // placing the pointer at the starting byte of the tuple 
             /// @dev 44 bytes per DataLayr node: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit

@@ -7,7 +7,7 @@ import "../interfaces/IRegistrationManager.sol";
  * @notice Simple Implementation of the IRegistrationManager Interface. Handles registration and deregistration, as well as
  *          storing ETH and EIGEN stakes of registered nodes.
  */
-// TODO: simple, functionaly implementation of the virtual functions, so this contract doesn't need to be marked as abstract
+// TODO: simple, functional implementation of the virtual functions, so this contract doesn't need to be marked as abstract
 abstract contract RegistrationManagerBase is IRegistrationManager {
     /**
      * @notice struct for storing the amount of Eigen and ETH that has been staked, as well as additional data

@@ -60,10 +60,4 @@ interface IRepository is ITimelock_Managed {
     function ServiceManager() external view returns (IServiceManager);
 
     function registrationManager() external view returns (IRegistrationManager);
-    // function updateStake(address)
-    //     external
-    //     returns (
-    //         uint128,
-    //         uint128
-    //     );
 }
