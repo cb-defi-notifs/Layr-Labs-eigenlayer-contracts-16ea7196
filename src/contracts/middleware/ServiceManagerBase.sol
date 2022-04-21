@@ -222,6 +222,15 @@ contract ServiceManagerBase is Initializable, IServiceManager {
         return serviceObjectCreated[serviceObjectHash];
     }
 
+    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, will expire
+    function getServiceObjectExpiry(bytes32 serviceObjectHash)
+        external
+        view
+        returns (uint256)
+    {
+        return _serviceObjectExpiry(serviceObjectHash);
+    }
+
     function _serviceObjectExpiry(bytes32 serviceObjectHash) internal view returns (uint256) {
         return serviceObjectCreated[serviceObjectHash] + serviceObjectDuration;
     }
