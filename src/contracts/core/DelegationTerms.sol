@@ -118,9 +118,9 @@ contract DelegationTerms is IDelegationTerms {
     address[] public paymentTokens;
 
 
-    // CONSTANTS. scaling factor is ~1.8e19 -- being on the order of 1 ETH (1e18) helps ensure that
+    // CONSTANTS. scaling factor being on the order of 1 ETH (1e18) helps ensure that
     //            ((amount * REWARD_SCALING) / totalWeightEth) is nonzero but also does not overflow
-    uint256 internal constant REWARD_SCALING = 2**64;
+    uint256 internal constant REWARD_SCALING = 1e18;
     uint16 internal constant MAX_BIPS = 10000;
     //max number of payment tokens, for sanity's sake
     uint16 internal constant MAX_PAYMENT_TOKENS = 256;
@@ -265,7 +265,7 @@ contract DelegationTerms is IDelegationTerms {
         uint256 multipleToEigenHolders = 1e18;
        (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(repository.registrationManager()).totalStake();
        (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(operator);
-       multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
+       multipleToEigenHolders = ((((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked) / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 

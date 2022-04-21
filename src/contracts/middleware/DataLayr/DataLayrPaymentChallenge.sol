@@ -144,7 +144,7 @@ contract DataLayrPaymentChallenge {
         uint256 interval = dlsm.paymentFraudProofInterval();
         require(
             block.timestamp > challenge.commitTime + interval &&
-                block.timestamp < challenge.commitTime + 2 * interval,
+                block.timestamp < challenge.commitTime + (2 * interval),
             "Fraud proof interval has passed"
         );
         uint8 status = challenge.status;
