@@ -153,7 +153,7 @@ contract Governor is Timelock_Managed {
         address voter,
         uint256 proposalId,
         bool support,
-        uint256 eiegnVotes,
+        uint256 eigenVotes,
         uint256 ethVotes
     );
 
@@ -192,18 +192,16 @@ contract Governor is Timelock_Managed {
         uint[] memory values,
         string[] memory signatures,
         bytes[] memory calldatas,
-        string memory description,
-        bool update
+        string memory description
     ) public returns (uint256) {
-        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
-            msg.sender,
-            update
+        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+            msg.sender
         );
         // check percentage
         require(
-            (ethStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() >=
+            (uint256(ethStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() >=
+                (uint256(eigenStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
@@ -329,7 +327,7 @@ contract Governor is Timelock_Managed {
         emit ProposalExecuted(proposalId);
     }
 
-    function cancel(uint256 proposalId, bool update) public {
+    function cancel(uint256 proposalId) public {
         ProposalState stateOfProposal = state(proposalId);
         require(
             stateOfProposal != ProposalState.Executed,
@@ -338,15 +336,14 @@ contract Governor is Timelock_Managed {
 
         Proposal storage proposal = proposals[proposalId];
         require(proposal.proposer != multisig, "multisig does not have to meet threshold requirements");
-        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
-            proposal.proposer,
-            update
+        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+            proposal.proposer
         );
         // check percentage
         require(
-            (ethStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
+            (uint256(ethStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (eigenStaked * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
+                (uint256(eigenStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
@@ -388,7 +385,6 @@ contract Governor is Timelock_Managed {
     }
 
     function state(uint256 proposalId) public view returns (ProposalState) {
-        //TODO: update this
         require(
             proposalCount >= proposalId && proposalId > 0,
             "RepositoryGovernance::state: invalid proposal id"
@@ -428,8 +424,8 @@ contract Governor is Timelock_Managed {
         }
     }
 
-    function castVote(uint256 proposalId, bool support, bool update) public {
-        return _castVote(msg.sender, proposalId, support, update);
+    function castVote(uint256 proposalId, bool support) public {
+        return _castVote(msg.sender, proposalId, support);
     }
 
     function castVoteBySig(
@@ -437,8 +433,7 @@ contract Governor is Timelock_Managed {
         bool support,
         uint8 v,
         bytes32 r,
-        bytes32 s,
-        bool update
+        bytes32 s
     ) public {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
@@ -454,14 +449,13 @@ contract Governor is Timelock_Managed {
             signatory != address(0),
             "RepositoryGovernance::castVoteBySig: invalid signature"
         );
-        return _castVote(signatory, proposalId, support, update);
+        return _castVote(signatory, proposalId, support);
     }
 
     function _castVote(
         address voter,
         uint256 proposalId,
-        bool support,
-        bool update
+        bool support
     ) internal {
         require(
             state(proposalId) == ProposalState.Active,
@@ -473,35 +467,25 @@ contract Governor is Timelock_Managed {
             receipt.hasVoted == false,
             "RepositoryGovernance::_castVote: voter already voted"
         );
-        (uint256 ethStaked, uint256 eigenStaked) = _getEthAndEigenStaked(
-            voter,
-            update
+        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+            voter
         );
-        //sanity check against overflow, since we convert from uint256 => uint96 below
-        require(
-            ethStaked < type(uint96).max &&
-                eigenStaked < type(uint96).max,
-            "RepositoryGovernance::weight overflow"
-        );
-        uint96 ethVotes = uint96(ethStaked);
-        uint96 eigenVotes = uint96(eigenStaked);
 
         if (support) {
-            proposal.forEthVotes = proposal.forEthVotes + ethVotes;
-            proposal.forEigenVotes = proposal.forEigenVotes + eigenVotes;
+            proposal.forEthVotes = proposal.forEthVotes + ethStaked;
+            proposal.forEigenVotes = proposal.forEigenVotes + eigenStaked;
         } else {
-            proposal.againstEthVotes = proposal.againstEthVotes + ethVotes;
+            proposal.againstEthVotes = proposal.againstEthVotes + ethStaked;
             proposal.againstEigenVotes =
                 proposal.againstEigenVotes +
-                eigenVotes;
+                eigenStaked;
         }
-
         receipt.hasVoted = true;
         receipt.support = support;
-        receipt.eigenVotes = eigenVotes;
-        receipt.ethVotes = ethVotes;
+        receipt.eigenVotes = eigenStaked;
+        receipt.ethVotes = ethStaked;
 
-        emit VoteCast(voter, proposalId, support, eigenVotes, ethVotes);
+        emit VoteCast(voter, proposalId, support, eigenStaked, ethStaked);
     }
 
     function setQuorumsAndThresholds(
@@ -543,28 +527,12 @@ contract Governor is Timelock_Managed {
         return block.chainid;
     }
 
-    function _getEthAndEigenStaked(address user, bool update)
+    // TODO: reintroduce a way to update stakes before simply fetching them?
+    function _getEthAndEigenStaked(address user)
         internal view
-        returns (uint256, uint256)
+        returns (uint96, uint96)
     {
-        uint256 ethStaked;
-        uint256 eigenStaked;
-        //if proposer wants to update their shares before proposing, calculate stake based on result of update
-        //TODO: Call to only update eigen/eth. Isnt everyone gonna be eth and eigen staked
-        if (update) {
-        // TODO: eliminate this branch and the 'update' input?
-            revert("this is broken rn");
-            // (
-            //     uint256 newEthStaked,
-            //     uint256 newEigenStaked
-            // ) = REPOSITORY.updateStake(user);
-            // // weight the consensusLayrEth however desired
-            // ethStaked = newEthStaked;
-            // eigenStaked = newEigenStaked;
-        } else {
-            ethStaked = IRegistrationManager(REPOSITORY.registrationManager()).ethStakedByOperator(user);
-            eigenStaked = IRegistrationManager(REPOSITORY.registrationManager()).eigenStakedByOperator(user);
-        }
+        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(REPOSITORY.registrationManager()).ethAndEigenStakedForOperator(user);
         return (ethStaked, eigenStaked);
     }
 }
