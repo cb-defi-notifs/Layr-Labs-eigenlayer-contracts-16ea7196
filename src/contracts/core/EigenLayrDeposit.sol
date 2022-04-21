@@ -2,16 +2,13 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Eigen.sol";
-import "../interfaces/IDepositContract.sol";
-import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDeposit.sol";
 import "../interfaces/ProofOfStakingInterfaces.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
-import "./storage/EigenLayrDepositStorage.sol";
+import "./EigenLayrDepositStorage.sol";
 
 /* TODO:
 Currently, in the EigenLayrDeposit contract, all three function depositEthIntoConsensusLayer ,  proveLegacyConsensusLayerDeposit , and depositPOSProof call the same function on the InvestmentManager contract — depositConsenusLayerEth .

@@ -2,30 +2,26 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IQueryManager.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
+import "./VoteWeigherBaseStorage.sol";
 
-contract VoteWeigherBase is IVoteWeigher {
-    // TODO: decide if this should be immutable or upgradeable
-    IEigenLayrDelegation public delegation;
-    // not set in constructor, since the queryManager sets the address of the vote weigher in
-    // its own constructor, and therefore the vote weigher must be deployed first
-    IQueryManager public queryManager;
+contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
 
     constructor(
-        IEigenLayrDelegation _delegation
+        IEigenLayrDelegation _delegation,
+        uint256 _consensusLayerEthToEth
     ) {
         delegation = _delegation;
+        consensusLayerEthToEth = _consensusLayerEthToEth;
     }
 
-    // one-time function for initializing the queryManager
-    function setQueryManager(IQueryManager _queryManager) public {
+    // one-time function for initializing the repository
+    function setRepository(IRepository _repository) public {
         require(
-            address(queryManager) == address(0),
-            "Query Manager already set"
+            address(repository) == address(0),
+            "repository already set"
         );
-        queryManager = _queryManager;
+        repository = _repository;
     }
 
     /**
@@ -57,7 +53,7 @@ contract VoteWeigherBase is IVoteWeigher {
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
         uint128 amount = uint128(
             delegation.getConsensusLayerEthDelegated(operator) /
-                queryManager.consensusLayerEthToEth() +
+                consensusLayerEthToEth +
                 delegation.getUnderlyingEthDelegated(operator)
         );
 

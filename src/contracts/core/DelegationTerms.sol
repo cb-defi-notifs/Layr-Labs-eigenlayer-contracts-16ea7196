@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
+import "../interfaces/IRegistrationManager.sol";
 
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 
@@ -14,17 +15,17 @@ import "../interfaces/IServiceFactory.sol";
  *           - the operator's portion of the rewards,
  *           - each of the delegator's portion of the rewards,   
  *           - tokens that  middlewares can use for paying to the operator and its delegators, 
- *           - function for fee manager, associated with any middleware, to pay the rewards
+ *           - function for service manager, associated with any middleware, to pay the rewards
  *           - functions for enabling operator and delegators to withdraw rewards 
  */
 /**
  * @dev The Delegation Terms contract of an operator maintains a record of what fraction
  *      of the total reward each delegator of that operator is owed whenever the operator triggers
- *      a fee manager to pay the rewards for the service that was offered to that fee manager's
+ *      a service manager to pay the rewards for the service that was offered to that service manager's
  *      middleware via EigenLayr. To understand how each delegator's rewards are allocated for each
  *      middleware, we have the following description:    
  *
- *          We define a round to be the instant where fee manager pays out the rewards to the delegators of this delegation term contract.
+ *          We define a round to be the instant where service manager pays out the rewards to the delegators of this delegation term contract.
  *          Let there be n delegators with weightEth_{j,i} and weightEigen_{j,i} being the total ETH and Eigen that 
  *          has been delegated by j^th delegator at any round i. Suppose that at the round i, amount_i be the 
  *          cumulative reward that is being allocated to all the n delegators since round (i-1). Also let totalWeightEth_i 
@@ -79,7 +80,7 @@ contract DelegationTerms is IDelegationTerms {
      */
     /** 
      *  @dev To relate the fields of this struct with explanation at the top, "TokenPayment" 
-     *       for any round k when the payment is being made from the fee manager, 
+     *       for any round k when the payment is being made from the service manager, 
      *                   TokenPayment.earnedPerWeightAllTimeEth = r_{ETH,k}
      *                   TokenPayment.earnedPerWeightAllTimeEigen = r_{Eigen,k}.   
      *
@@ -117,9 +118,9 @@ contract DelegationTerms is IDelegationTerms {
     address[] public paymentTokens;
 
 
-    // CONSTANTS. scaling factor is ~1.8e19 -- being on the order of 1 ETH (1e18) helps ensure that
+    // CONSTANTS. scaling factor being on the order of 1 ETH (1e18) helps ensure that
     //            ((amount * REWARD_SCALING) / totalWeightEth) is nonzero but also does not overflow
-    uint256 internal constant REWARD_SCALING = 2**64;
+    uint256 internal constant REWARD_SCALING = 1e18;
     uint16 internal constant MAX_BIPS = 10000;
     //max number of payment tokens, for sanity's sake
     uint16 internal constant MAX_PAYMENT_TOKENS = 256;
@@ -221,7 +222,7 @@ contract DelegationTerms is IDelegationTerms {
     }
 
     /** 
-     * @notice  Fee manager of a middleware calls this function in order to update the rewards that 
+     * @notice  service manager of a middleware calls this function in order to update the rewards that 
      *          this operator and the delegators associated with it are eligible for because of their  
      *          service to that middleware.     
      */ 
@@ -230,14 +231,14 @@ contract DelegationTerms is IDelegationTerms {
      * @param amount is the amount of ERC20 tokens that is being paid as rewards. 
      */
     function payForService(IERC20 token, uint256 amount) external payable {
-        // determine the query manager associated with the fee manager
-        IQueryManager queryManager = IFeeManager(msg.sender).queryManager();
+        // determine the repository associated with the service manager
+        IRepository repository = IServiceManager(msg.sender).repository();
 
-        // only the fee manager can call this function
-        require(msg.sender == address(queryManager.feeManager()), "only feeManagers");
+        // only the service manager can call this function
+        require(msg.sender == address(repository.ServiceManager()), "only ServiceManagers");
 
-        // check if the query manager exists
-        require(serviceFactory.queryManagerExists(queryManager), "illegitimate queryManager");
+        // check if the repository exists
+        require(serviceFactory.repositoryExists(repository), "illegitimate repository");
 
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {
@@ -262,9 +263,9 @@ contract DelegationTerms is IDelegationTerms {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-       (uint128 totalEigenStaked, uint128 totalEthStaked) = queryManager.totalStake();
-       (uint128 operatorEigenStaked, uint128 operatorEthStaked) = queryManager.operatorStakes(operator);
-       multipleToEigenHolders = (((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked / operatorEthStaked);
+       (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(repository.registrationManager()).totalStake();
+       (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(operator);
+       multipleToEigenHolders = ((((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked) / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 

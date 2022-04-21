@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IDataLayr.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -19,8 +19,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DataLayr is Ownable, IDataLayr {
     using ECDSA for bytes32;
 
-    // the DataLayr query manager
-    IQueryManager public queryManager;
+    // the DataLayr repository
+    IRepository public repository;
 
     /**  
      * @notice percentage of Eigen that DataLayr nodes who have agreed to serve the request
@@ -72,13 +72,13 @@ contract DataLayr is Ownable, IDataLayr {
      */
     mapping(bytes32 => DataStore) public dataStores;
 
-    modifier onlyFeeManager() {
-        require(msg.sender == address(queryManager.feeManager()), "Only fee manager can call this");
+    modifier onlyServiceManager() {
+        require(msg.sender == address(repository.ServiceManager()), "Only service manager can call this");
         _;
     }
 
-    function setQueryManager(IQueryManager _queryManager) public onlyOwner {
-        queryManager = _queryManager;
+    function setRepository(IRepository _repository) public onlyOwner {
+        repository = _repository;
     }
 
 
@@ -97,7 +97,7 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength
-    ) external onlyFeeManager {
+    ) external onlyServiceManager {
         require(
             dataStores[headerHash].initTime == 0,
             "Data store has already been initialized"
@@ -139,7 +139,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint256 eigenStakeSigned,
         uint256 totalEthStake,
         uint256 totalEigenStake
-    ) external onlyFeeManager {
+    ) external onlyServiceManager {
         // accessing the metadata in settlement layer corresponding to the data asserted 
         // into DataLayr
         DataStore storage dataStore = dataStores[headerHash];

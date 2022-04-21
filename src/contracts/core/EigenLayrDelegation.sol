@@ -2,13 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IInvestmentManager.sol";
-import "../interfaces/IDelegationTerms.sol";
-import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
 import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
-import "./storage/EigenLayrDelegationStorage.sol";
+import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
 
 // todo: task specific delegation
@@ -81,7 +77,8 @@ contract EigenLayrDelegation is
     }
 
     function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external {
-        //TODO: calculate the digestHash based on some other inputs, etc.
+        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
+        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
         bytes32 structHash = keccak256(
             abi.encode(
                 DELEGATION_TYPEHASH,
@@ -98,9 +95,10 @@ contract EigenLayrDelegation is
                 structHash
             )
         );
-        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
-        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
-        require(SignatureCompaction.ecrecoverPacked(digestHash, r, vs) == delegator, "delegateToBySignature: bad signature");
+        //check validity of signature
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
+        require(recoveredAddress != address(0), "delegateToBySignature: bad signature");
+        require(recoveredAddress == delegator, "delegateToBySignature: sig not from delegator");
         // increment delegator's delegationNonce
         ++delegationNonces[delegator];
         _delegate(delegator, operator);
@@ -347,12 +345,12 @@ contract EigenLayrDelegation is
     /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised,
-    /// @param queryManager is the contract with whom the query for which delegator hasn't finished
+    /// @param repository is the contract with whom the query for which delegator hasn't finished
     ///        its obligation yet, was deployed,
     /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
-        IQueryManager queryManager,
+        IRepository repository,
         bytes32 queryHash
     ) external {
         address operator = delegation[staker];
@@ -364,27 +362,32 @@ contract EigenLayrDelegation is
             "Challenge was raised after the end of challenge period"
         );
 
-        //TODO: require that operator is registered to queryManager!
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
             "Challenge period hasn't yet started"
         );
 
         require(
-            serviceFactory.queryManagerExists(queryManager),
-            "QueryManager was not deployed through factory"
+            serviceFactory.repositoryExists(repository),
+            "Repository was not deployed through factory"
         );
+
+//TODO: require that operator is registered to repository!
+        // require(
+        //     IRegistrationManager(repository.registrationManager()).isRegistered(staker);
+        // );
 
         // ongoing query is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.
-        require(
-            lastUndelegationCommit[staker] >
-                queryManager.getQueryCreationTime(queryHash) &&
-                lastUndelegationCommit[staker] <
-                queryManager.getQueryCreationTime(queryHash) +
-                    queryManager.getQueryDuration(),
-            "Given query is inactive"
-        );
+//TODO: fix this to work with new contract architecture
+        // require(
+        //     lastUndelegationCommit[staker] >
+        //         repository.getQueryCreationTime(queryHash) &&
+        //         lastUndelegationCommit[staker] <
+        //         repository.getQueryCreationTime(queryHash) +
+        //             repository.getQueryDuration(),
+        //     "Given query is inactive"
+        // );
 
         //slash here
     }
@@ -421,7 +424,7 @@ contract EigenLayrDelegation is
     }
 
     /**
-     * @notice Returns the investment startegies, corresponding shares and the total ETH
+     * @notice Returns the investment strategies, corresponding shares and the total ETH
      *         deposited with the operator.
      */
     function getControlledEthStake(address operator)
@@ -453,7 +456,7 @@ contract EigenLayrDelegation is
             // CRITIC: we are assuming here that delegation[operator] != operator which would
             // imply that operator is not actually an operator. Should there be a condition to check
             // whether operator is actually an operator or not? Like calling getOperatorType() in 
-            // QueryManager.sol and check it is non-zero?
+            // Repository.sol and check it is non-zero?
             uint256[] memory shares = new uint256[](
                 operatorStrats[operator].length
             );
