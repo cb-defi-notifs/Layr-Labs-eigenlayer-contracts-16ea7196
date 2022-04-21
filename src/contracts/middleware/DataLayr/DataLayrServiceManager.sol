@@ -2,15 +2,15 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IQueryManager.sol";
+import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/ProofOfStakingInterfaces.sol";
 import "../../interfaces/IDelegationTerms.sol";
-import "./storage/DataLayrServiceManagerStorage.sol";
+import "./DataLayrServiceManagerStorage.sol";
 import "./DataLayrDisclosureChallengeFactory.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
-import "../QueryManager.sol";
+import "../Repository.sol";
 
 /**
  * @notice
@@ -26,14 +26,6 @@ contract DataLayrServiceManager is
      *      nodes and so on. For more details, see EigenLayrDelegation.sol.
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
-
-    /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes.
-     */
-    IERC20 public immutable paymentToken;
-
-    IERC20 public immutable collateralToken;
 
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
@@ -74,29 +66,27 @@ contract DataLayrServiceManager is
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
         DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
-    ) {
+    ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
-        paymentToken = _paymentToken;
-        collateralToken = _collateralToken;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
     }
 
-    modifier onlyQMGovernance() {
+    modifier onlyRepositoryGovernance() {
         require(
-            address(queryManager.timelock()) == msg.sender,
-            "Query Manager governance can only call this function"
+            address(repository.timelock()) == msg.sender,
+            "only repository governance can call this function"
         );
         _;
     }
 
-    function setQueryManager(IQueryManager _queryManager) public {
+    function setRepository(IRepository _repository) public {
         require(
-            address(queryManager) == address(0),
-            "Query Manager already set"
+            address(repository) == address(0),
+            "repository already set"
         );
-        queryManager = _queryManager;
+        repository = _repository;
     }
 
     /**
@@ -130,7 +120,7 @@ contract DataLayrServiceManager is
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
-        uint256 fee = totalBytes * storePeriodLength * feePerBytePerTime;
+        uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
         // increment the counter
         dumpNumber++;
@@ -140,7 +130,7 @@ contract DataLayrServiceManager is
 
         // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(queryManager.voteWeigher()))
+        IDataLayrVoteWeigher(address(repository.voteWeigher()))
             .setLatestTime(uint32(block.timestamp) + storePeriodLength);
 
         // escrow the total service fees from the storer to the DataLayr nodes in this contract
@@ -270,7 +260,9 @@ contract DataLayrServiceManager is
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         // only registered operators can call
         require(
-            queryManager.getOperatorType(msg.sender) != 0,
+            IDataLayrVoteWeigher(
+                address(repository.voteWeigher())
+            ).getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
@@ -292,7 +284,7 @@ contract DataLayrServiceManager is
 
             // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrVoteWeigher(
-                address(queryManager.voteWeigher())
+                address(repository.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
@@ -456,13 +448,13 @@ contract DataLayrServiceManager is
         //if challenging eigen operator
         if (eigenOrEthStakes) {
             //retrieve the stake at the time of precommit
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
         } else {
             //if challenging eth operator
-            stakeHash = IDataLayrVoteWeigher(address(queryManager.voteWeigher())).getStakesHashUpdateAndCheckIndex(
+            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
                 stakeHashIndex,
                 dumpNumber
             );
@@ -750,35 +742,24 @@ contract DataLayrServiceManager is
         return disclosureForOperator[headerHash][operator].polyHash;
     }
 
-    function payFee(address) external payable {
-        revert();
-    }
-
-    function onResponse(
-        bytes32 queryHash,
-        address operator,
-        bytes32 reponseHash,
-        uint256 senderWeight
-    ) external {}
-
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
         public
-        onlyQMGovernance
+        onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
     }
 
     function setPaymentFraudProofCollateral(
         uint256 _paymentFraudProofCollateral
-    ) public onlyQMGovernance {
+    ) public onlyRepositoryGovernance {
         paymentFraudProofCollateral = _paymentFraudProofCollateral;
     }
 
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
             (address(dataLayr) == address(0)) ||
-                (address(queryManager.timelock()) == msg.sender),
-            "Query Manager governance can only call this function, or DL must not be initialized"
+                (address(repository.timelock()) == msg.sender),
+            "only repository governance can call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;
     }
@@ -786,7 +767,7 @@ contract DataLayrServiceManager is
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(
         IERC20 _paymentToken
-    ) public onlyQMGovernance {
+    ) public onlyRepositoryGovernance {
         paymentToken = _paymentToken;
     }
 */

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IInvestmentManager.sol";
 import "./aave/ILendingPool.sol";
-import "./storage/AaveInvestmentStrategyStorage.sol";
+import "./AaveInvestmentStrategyStorage.sol";
 import "../utils/Initializable.sol";
 
 abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, IInvestmentStrategy {

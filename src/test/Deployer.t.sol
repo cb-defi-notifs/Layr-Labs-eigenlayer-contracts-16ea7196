@@ -16,7 +16,7 @@ import "../contracts/investment/WethStashInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
-import "../contracts/middleware/QueryManager.sol";
+import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrVoteWeigher.sol";
@@ -57,7 +57,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    IQueryManager public dlqm;
+    IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
@@ -144,21 +144,19 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             dataLayrDisclosureChallengeFactory
         );
         dl = new DataLayr();
-        dlRegVW = new DataLayrVoteWeigher(delegation);
+        dlRegVW = new DataLayrVoteWeigher(delegation, consensusLayerEthToEth);
 
-        dlqm = serviceFactory.createNewQueryManager(
-            1 days,
-            consensusLayerEthToEth,
+        dlRepository = serviceFactory.createNewRepository(
             dlsm,
             dlRegVW,
             dlRegVW,
             timelockDelay
         );
 
-        dl.setQueryManager(dlqm);
-        dlsm.setQueryManager(dlqm);
+        dl.setRepository(dlRepository);
+        dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
-        dlRegVW.setQueryManager(dlqm);
+        dlRegVW.setRepository(dlRepository);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }
@@ -186,16 +184,16 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dl) != address(0), "dl failed to deploy");
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
-        assertTrue(address(dlqm) != address(0), "dlqm failed to deploy");
+        assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(dlqm.feeManager() == dlsm, "feeManager set incorrectly");
+        assertTrue(dlRepository.ServiceManager() == dlsm, "ServiceManager set incorrectly");
         assertTrue(
-            dlsm.queryManager() == dlqm,
-            "queryManager set incorrectly in dlsm"
+            dlsm.repository() == dlRepository,
+            "repository set incorrectly in dlsm"
         );
         assertTrue(
-            dl.queryManager() == dlqm,
-            "queryManager set incorrectly in dl"
+            dl.repository() == dlRepository,
+            "repository set incorrectly in dl"
         );
     }
 
@@ -451,7 +449,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         );
 
         cheats.startPrank(sender);
-        dlqm.register(data);
+        dlRegVW.registerOperator(sender, data);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));

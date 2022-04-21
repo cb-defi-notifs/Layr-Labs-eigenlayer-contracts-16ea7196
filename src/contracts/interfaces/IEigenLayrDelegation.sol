@@ -17,13 +17,7 @@ interface IEigenLayrDelegation {
         external
         view
         returns (IDelegationTerms);
-
-        //TODO: do we need this?
-    // function getOperatorShares(address operator)
-    //     external
-    //     view
-    //     returns (IInvestmentStrategy[] memory);
-
+        
     function getUnderlyingEthDelegated(address operator)
         external
         returns (uint256);

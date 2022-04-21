@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
-import "./storage/InvestmentManagerStorage.sol";
+import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 
 // TODO: withdrawals of consensus layer ETH?
@@ -77,10 +76,14 @@ contract InvestmentManager is
         eigenLayrDepositContract = _eigenLayrDepositContract;
 
         // record the strategies as approved
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
             stratApproved[strategies[i]] = true;
             if (!stratEverApproved[strategies[i]]) {
                 stratEverApproved[strategies[i]] = true;
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -101,11 +104,14 @@ contract InvestmentManager is
         external
         onlyGovernor
     {
-        for (uint256 i = 0; i < strategies.length; i++) { 
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) { 
             stratApproved[strategies[i]] = true;
-
             if (!stratEverApproved[strategies[i]]) {
                 stratEverApproved[strategies[i]] = true;
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -171,14 +177,18 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata amounts
     ) external payable returns (uint256[] memory) {
-        uint256[] memory shares = new uint256[](strategies.length);
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        uint256[] memory shares = new uint256[](strategiesLength);
+        for (uint256 i = 0; i < strategiesLength;) {
             shares[i] = _depositIntoStrategy(
                 depositor,
                 strategies[i],
                 tokens[i],
                 amounts[i]
             );
+            unchecked {
+                ++i;
+            }
         }
         return shares;
     }
@@ -280,7 +290,9 @@ contract InvestmentManager is
                     }
                 }
                 investorStrats[depositor].pop();
-                strategyIndexIndex++;
+                unchecked {
+                    ++strategyIndexIndex;                    
+                }
             }
 
             // tell the strategy to send the appropriate amount of funds to the depositor
@@ -455,7 +467,7 @@ contract InvestmentManager is
     /**
      * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
      *         The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
-     * @dev The fraudproof requires providing a queryManager contract and queryHash, corresponding to a query that was
+     * @dev The fraudproof requires providing a repository contract and queryHash, corresponding to a query that was
      *      created at or before the time when the queued withdrawal was initiated, and expires prior to the time at 
      *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
@@ -465,7 +477,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        IQueryManager queryManager,
+        IRepository repository,
         bytes32 queryHash
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
@@ -478,23 +490,24 @@ contract InvestmentManager is
         //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
         address operator = delegation.delegation(depositor);
 
-        //TODO: require that operator is registered to queryManager!
+        //TODO: require that operator is registered to repository!
         require(
-            serviceFactory.queryManagerExists(queryManager),
-            "QueryManager was not deployed through factory"
+            serviceFactory.repositoryExists(repository),
+            "Repository was not deployed through factory"
         );
 
         // ongoing query was created at time when depositor queued the withdrawal
         // and  still active at time that they will currently be able to complete the withdrawal
         // therefore, the withdrawn funds are not expected to fully serve their obligation.
-        require(
-            initTimestamp >=
-                queryManager.getQueryCreationTime(queryHash) &&
-                unlockTime <
-                queryManager.getQueryCreationTime(queryHash) +
-                    queryManager.getQueryDuration(),
-            "query must expire before unlockTime"
-        );
+//TODO: fix this to work with new contract architecture
+        // require(
+        //     initTimestamp >=
+        //         repository.getQueryCreationTime(queryHash) &&
+        //         unlockTime <
+        //         repository.getQueryCreationTime(queryHash) +
+        //             repository.getQueryDuration(),
+        //     "query must expire before unlockTime"
+        // );
 
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
@@ -601,7 +614,9 @@ contract InvestmentManager is
                     strategyIndexes[strategyIndexIndex]
                 ] = investorStrats[slashed][investorStrats[slashed].length - 1];
                 investorStrats[slashed].pop();
-                strategyIndexIndex++;
+                unchecked {
+                    ++strategyIndexIndex;
+                }
             }
 
             // add investor strats to that of recipient if it has not invested in this strategy yet
