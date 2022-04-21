@@ -424,7 +424,7 @@ contract EigenLayrDelegation is
     }
 
     /**
-     * @notice Returns the investment startegies, corresponding shares and the total ETH
+     * @notice Returns the investment strategies, corresponding shares and the total ETH
      *         deposited with the operator.
      */
     function getControlledEthStake(address operator)
