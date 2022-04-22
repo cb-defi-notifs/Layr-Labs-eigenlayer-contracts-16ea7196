@@ -5,14 +5,14 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
-import "../RegistrationManagerBase.sol";
+import "../RegistrationManagerBaseMinusRepository.sol";
 import "ds-test/test.sol";
 
 /**
  * @notice
  */
 
-contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest {
+contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRepository, DSTest {
     using BytesLib for bytes;
     /**
      * @notice  Details on DataLayr nodes that would be used for -
@@ -95,9 +95,10 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBase, DSTest
     }
 
     constructor(
+        Repository _repository,
         IEigenLayrDelegation _delegation,
         uint256 _consensusLayerEthToEth
-    ) VoteWeigherBase(_delegation, _consensusLayerEthToEth) {
+    ) VoteWeigherBase(_repository, _delegation, _consensusLayerEthToEth) {
         //initialize the stake object
         stakeHashUpdates.push(0);
         //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)

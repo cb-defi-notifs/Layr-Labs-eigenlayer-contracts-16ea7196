@@ -238,7 +238,7 @@ contract DelegationTerms is IDelegationTerms {
         require(msg.sender == address(repository.ServiceManager()), "only ServiceManagers");
 
         // check if the repository exists
-        require(serviceFactory.repositoryExists(repository), "illegitimate repository");
+        require(serviceFactory.isRepository(repository), "illegitimate repository");
 
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {

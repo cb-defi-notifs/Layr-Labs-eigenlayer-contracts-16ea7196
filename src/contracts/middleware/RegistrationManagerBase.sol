@@ -1,84 +1,39 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IRegistrationManager.sol";
+import "./RegistrationManagerBaseMinusRepository.sol";
 
 /**
  * @notice Simple Implementation of the IRegistrationManager Interface. Handles registration and deregistration, as well as
  *          storing ETH and EIGEN stakes of registered nodes.
  */
 // TODO: simple, functional implementation of the virtual functions, so this contract doesn't need to be marked as abstract
-abstract contract RegistrationManagerBase is IRegistrationManager {
-    /**
-     * @notice struct for storing the amount of Eigen and ETH that has been staked, as well as additional data
-     *          packs two uint96's into a single storage slot
-     */
-    struct EthAndEigenAmounts {
-        uint96 ethAmount;
-        uint96 eigenAmount;
+contract RegistrationManagerBase is RegistrationManagerBaseMinusRepository {
+    IRepository public immutable repository;
+    constructor(IRepository _repository) {
+        repository = _repository;
     }
-
-    // variable for storing total ETH and Eigen staked into securing the middleware
-    EthAndEigenAmounts public totalStake;
-
-    // mapping from each operator's address to its Stake for the middleware
-    mapping(address => EthAndEigenAmounts) public operatorStakes;
-
-    //TODO: do we need this variable?
-    // number of registrants of this service
-    uint64 public numRegistrants;
-
-    /// @notice get total ETH staked for securing the middleware
-    function totalEthStaked() public view returns (uint96) {
-        return totalStake.ethAmount;
-    }
-
-    /// @notice get total Eigen staked for securing the middleware
-    function totalEigenStaked() public view returns (uint96) {
-        return totalStake.eigenAmount;
-    }
-
-    /// @notice get total ETH staked by delegators of the operator
-    function ethStakedByOperator(address operator)
-        public
-        view
-        returns (uint96)
-    {
-        return operatorStakes[operator].ethAmount;
-    }
-
-    /// @notice get total Eigen staked by delegators of the operator
-    function eigenStakedByOperator(address operator)
-        public
-        view
-        returns (uint96)
-    {
-        return operatorStakes[operator].eigenAmount;
-    }
-
-    /// @notice get both total ETH and Eigen staked by delegators of the operator
-    function ethAndEigenStakedForOperator(address operator)
-        public
-        view
-        returns (uint96, uint96)
-    {
-        EthAndEigenAmounts memory opStake = operatorStakes[operator];
-        return (opStake.ethAmount, opStake.eigenAmount);
-    }
-
-    /**
-     * @notice
-     */
-    event Registration();
-
-    event DeregistrationCommit(
-        address registrant // who started
-    );
-
     function registerOperator(address, bytes calldata data)
         external
         virtual
-        returns (uint8, uint96, uint96);
+        override
+        returns (uint8, uint96, uint96)
+    {
+        // load operator's current stakes
+        EthAndEigenAmounts memory opStake = operatorStakes[msg.sender];
+        require(opStake.ethAmount == 0 && opStake.eigenAmount == 0, "operator already registered");
+        // get msg.sender's vote weights
+        IVoteWeigher voteWeigher = repository.voteWeigher();
+        // TODO: add sanity check for size to this?
+        opStake.ethAmount = uint96(voteWeigher.weightOfOperatorEth(msg.sender));
+        opStake.eigenAmount = uint96(voteWeigher.weightOfOperatorEigen(msg.sender));
+        // update total stake
+        totalStake.ethAmount += opStake.ethAmount;
+        totalStake.eigenAmount += opStake.eigenAmount;
+        // store the operator's stake in storage
+        operatorStakes[msg.sender] = opStake;
+        return(1, opStake.ethAmount, opStake.eigenAmount);
+    }
 
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
@@ -87,5 +42,17 @@ abstract contract RegistrationManagerBase is IRegistrationManager {
     function deregisterOperator(address, bytes calldata)
         external
         virtual
-        returns (bool);
+        override
+        returns (bool)
+    {
+// TODO: verify that the operator can deregister!
+        // load operator's current stakes
+        EthAndEigenAmounts memory opStake = operatorStakes[msg.sender];
+        // update total stake
+        totalStake.ethAmount -= opStake.ethAmount;
+        totalStake.eigenAmount -= opStake.eigenAmount;
+        // zero out the operator's stake in storage
+        operatorStakes[msg.sender] = EthAndEigenAmounts({ethAmount:0, eigenAmount:0});
+        return true;
+    }
 }

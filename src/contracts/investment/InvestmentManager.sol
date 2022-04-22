@@ -506,7 +506,7 @@ contract InvestmentManager is
 
         //TODO: require that operator is registered to repository!
         require(
-            serviceFactory.repositoryExists(repository),
+            serviceFactory.isRepository(repository),
             "Repository was not deployed through factory"
         );
 
