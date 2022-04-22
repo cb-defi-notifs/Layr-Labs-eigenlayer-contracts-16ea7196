@@ -96,7 +96,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(address(new TransparentUpgradeableProxy(address(delegation), address(eigenLayrProxyAdmin), "")));
-        slasher = new Slasher(investmentManager);
+        slasher = new Slasher(investmentManager, address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
         investmentManager = InvestmentManager(address(new TransparentUpgradeableProxy(address(investmentManager), address(eigenLayrProxyAdmin), "")));
