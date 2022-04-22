@@ -118,14 +118,18 @@ contract InvestmentManager is
      * @param strategies are strategies to be removed
      */
     /**
-     * @dev only the governor can add new strategies
+     * @dev only the governor can remove strategies, disabling new deposits to them
      */ 
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
     ) external onlyGovernor {
         // set the approval status to false
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
             stratApproved[strategies[i]] = false;
+            unchecked {
+                ++i;
+            }
         }
     }
 

@@ -17,6 +17,11 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
         uint96 nonce;
     }
 
+    uint256 constant eigenTokenId = 0;
+    // fixed waiting period for withdrawals
+    // TODO: set this to a proper interval!
+    uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
+
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
     IServiceFactory public immutable serviceFactory;
@@ -25,12 +30,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     uint256 public totalEigenStaked;
     address public slasher;
     address public eigenLayrDepositContract;
-    // placeholder address for native asset
-    address internal constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    // fixed waiting period for withdrawals
-    // TODO: set this to a proper interval!
-    uint32 internal constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
-    uint256 constant eigenTokenId = 0;
     mapping(IInvestmentStrategy => bool) public stratEverApproved;
     mapping(IInvestmentStrategy => bool) public stratApproved;
     // staker => InvestmentStrategy => num shares
