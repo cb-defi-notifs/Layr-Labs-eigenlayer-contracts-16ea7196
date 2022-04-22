@@ -580,7 +580,7 @@ contract InvestmentManager is
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
             if (_removeShares(
-                    msg.sender,
+                    slashed,
                     strategyIndexes[strategyIndexIndex],
                     strategies[i],
                     shareAmounts[i])
