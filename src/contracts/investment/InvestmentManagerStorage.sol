@@ -12,6 +12,10 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
         uint32 latestFraudproofTimestamp;
         address withdrawer;
     }
+    struct WithdrawerAndNonce {
+        address withdrawer;
+        uint96 nonce;
+    }
 
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
@@ -38,7 +42,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => hash of withdrawal inputs => timestamps related to the withdrawal
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
-    mapping(address => uint256) public numWithdrawalsQueued;
+    mapping(address => uint96) public numWithdrawalsQueued;
 
     constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
         EIGEN = _EIGEN;

@@ -152,7 +152,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external payable returns (uint256 shares) {
+    ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -168,7 +168,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external payable returns (uint256[] memory) {
+    ) external returns (uint256[] memory) {
         uint256 strategiesLength = strategies.length;
         uint256[] memory shares = new uint256[](strategiesLength);
         for (uint256 i = 0; i < strategiesLength;) {
@@ -204,7 +204,8 @@ contract InvestmentManager is
         }
 
         // transfer tokens from the sender to the strategy
-        _transferTokenOrEth(token, msg.sender, address(strategy), amount);
+        bool success = token.transferFrom(depositor, address(strategy), amount);
+        require(success, "failed to transfer token");
 
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy
@@ -361,17 +362,16 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address withdrawer,
-        uint256 queuedWithdrawalNonce
+        WithdrawerAndNonce memory withdrawerAndNonce
     ) external {
-        require(queuedWithdrawalNonce == numWithdrawalsQueued[msg.sender], "queuedWithdrawalNonce incorrect");
+        require(withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender], "provided nonce incorrect");
         // increment the numWithdrawalsQueued of the sender
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
         }
         uint256 strategyIndexIndex;
 
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, withdrawerAndNonce.nonce));
 
         // had to check against this directly rather than store it to solve 'stack too deep' error
         // address operator = delegation.delegation(msg.sender);
@@ -407,10 +407,10 @@ contract InvestmentManager is
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             latestFraudproofTimestamp: uint32(block.timestamp),
-            withdrawer: withdrawer
+            withdrawer: withdrawerAndNonce.withdrawer
         });
 
-        emit WithdrawalQueued(msg.sender, withdrawer, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, withdrawalRoot);
     }
 
 
@@ -422,7 +422,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        uint256 queuedWithdrawalNonce
+        uint96 queuedWithdrawalNonce
     ) external view returns (bool) {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
@@ -442,7 +442,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        uint256 queuedWithdrawalNonce
+        uint96 queuedWithdrawalNonce
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
@@ -843,26 +843,5 @@ contract InvestmentManager is
 
     function investorStratsLength(address investor) external view returns (uint256) {
         return investorStrats[investor].length;
-    }
-
-    
-
-    /**
-     * @notice used for transferring specified amount of specified token from the 
-     *         sender to the receiver
-     */
-    function _transferTokenOrEth(
-        IERC20 token,
-        address sender,
-        address receiver,
-        uint256 amount
-    ) internal {
-        if (address(token) == ETH) {
-            (bool success, ) = receiver.call{value: amount}("");
-            require(success, "failed to transfer value");
-        } else {
-            bool success = token.transferFrom(sender, receiver, amount);
-            require(success, "failed to transfer token");            
-        }
     }
 }
