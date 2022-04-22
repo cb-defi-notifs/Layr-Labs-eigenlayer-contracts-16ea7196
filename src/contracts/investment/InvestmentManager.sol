@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
@@ -26,10 +23,6 @@ contract InvestmentManager is
     InvestmentManagerStorage,
     ERC1155TokenReceiver
 {
-    IERC1155 public immutable EIGEN;
-    IEigenLayrDelegation public immutable delegation;
-    IServiceFactory public immutable serviceFactory;
-
     event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
@@ -49,10 +42,9 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
-        EIGEN = _EIGEN;
-        delegation = _delegation;
-        serviceFactory = _serviceFactory;
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory)
+        InvestmentManagerStorage(_EIGEN, _delegation, _serviceFactory)
+    {
     }
 
     /**
@@ -369,13 +361,17 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address withdrawer
+        address withdrawer,
+        uint256 queuedWithdrawalNonce
     ) external {
+        require(queuedWithdrawalNonce == numWithdrawalsQueued[msg.sender], "queuedWithdrawalNonce incorrect");
+        // increment the numWithdrawalsQueued of the sender
+        unchecked {
+            ++numWithdrawalsQueued[msg.sender];
+        }
         uint256 strategyIndexIndex;
 
-        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's used
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
-        require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
 
         // had to check against this directly rather than store it to solve 'stack too deep' error
         // address operator = delegation.delegation(msg.sender);
@@ -425,9 +421,10 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address depositor
+        address depositor,
+        uint256 queuedWithdrawalNonce
     ) external view returns (bool) {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
@@ -444,9 +441,10 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address depositor
+        address depositor,
+        uint256 queuedWithdrawalNonce
     ) external {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
@@ -488,10 +486,11 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
+        uint256 queuedWithdrawalNonce,
         IRepository repository,
         bytes32 queryHash
     ) external {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
