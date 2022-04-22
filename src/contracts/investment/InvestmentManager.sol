@@ -459,6 +459,9 @@ contract InvestmentManager is
         for (uint256 i = 0; i < strategiesLength;) {
             // tell the strategy to send the appropriate amount of funds to the depositor
             strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
+            unchecked {
+                ++i;
+            }
         }
 
         emit WithdrawalCompleted(depositor, withdrawer, withdrawalRoot);
