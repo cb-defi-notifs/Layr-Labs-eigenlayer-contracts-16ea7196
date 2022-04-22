@@ -321,8 +321,6 @@ contract EigenLayrDelegation is
     ///         no longer active on any queries, which in turn launches the challenge
     ///         period.
     function finalizeUndelegation() external {
-        // get their current operator
-        address operator = delegation[msg.sender];
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
             "Staker is not in the post commit phase"
@@ -374,7 +372,7 @@ contract EigenLayrDelegation is
 
 //TODO: require that operator is registered to repository!
         // require(
-        //     IRegistrationManager(repository.registrationManager()).isRegistered(staker);
+        //     IRegistrationManager(repository.registrationManager()).isRegistered(operator);
         // );
 
         // ongoing query is still active at time when staker was finalizing undelegation
