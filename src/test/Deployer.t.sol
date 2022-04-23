@@ -83,6 +83,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     address acct_0 = cheats.addr(uint256(priv_key_0));
 
+    bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
+    address acct_1 = cheats.addr(uint256(priv_key_1));
+
+
+
     //performs basic deployment before each test
     function setUp() public  {
         eigenLayrProxyAdmin = new ProxyAdmin();
@@ -624,6 +629,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
+      
         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         DelegationTerms dt = _deployDelegationTerms(registrant);
@@ -631,7 +637,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
-       
+        _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
+    
         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
@@ -678,55 +685,24 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.stopPrank();
     }
 
-    function  testDelegateToBySignature() public {
-        _testDelegateToBySignature(registrant, acct_0);
-    }
 
-    function _testDelegateToBySignature(address delegator, address operator) internal {
-        
+    function _testDelegateToBySignature(address sender, address operator, uint256 priv_key) internal {
+        cheats.startPrank(sender);
         bytes32 structHash = keccak256(
             abi.encode(
-                delegation.DELEGATION_TYPEHASH, delegator, operator, 0, 0
+                delegation.DELEGATION_TYPEHASH(), sender, operator, 0, 0
                 )
         );
         bytes32 digestHash = keccak256(
             abi.encodePacked(
-            "\x19\x01", delegation.DOMAIN_SEPARATOR, structHash)
+            "\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash)
             );
 
-        
-        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(1, digestHash);
-
-        //packed Signature recovery not working?
+        (uint8 v, bytes32 r, bytes32 s) = cheats.sign((priv_key), digestHash);
         bytes32 vs;
+        
         (r, vs) = SignatureCompaction.packSignature(r, s, v);
-
-        emit log_named_bytes32("r", r);
-        emit log_named_bytes32("s", s);
-        emit log_named_uint("v", v);
-
-        emit log_named_uint("v-27", uint256(v-27));
-        emit log_named_uint("uint256(s)", uint256(s));
-        emit log_named_uint("v-27 | uint256(s)", uint256(v - 27) | uint256(s));
-        emit log_named_bytes32("bytes32(v-27 | uint256(s))", bytes32(uint256(v - 27) | uint256(s)));
-
-
-
-
-        emit log_named_bytes32("vs: ", vs);
-        emit log_named_uint("calculated v", uint8((uint256(vs) >> 255) + 27));
-        emit log_named_bytes32("calculated s", vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff));
-
-
-
-
-        address recoveredAddress = ecrecover(digestHash, v, r, s);
-        address recover = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
-        (address recovered, ECDSA.RecoverError nice) = ECDSA.tryRecover(digestHash, r, vs);
-
-        emit log_named_address("recovered address", recover);
-        emit log_named_address("delegator address", cheats.addr(1));
-        //delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
+        delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
     }
 
     function testAddStrategies(uint16 numStratsToAdd) public {
