@@ -27,6 +27,7 @@ import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "ds-test/test.sol";
 
@@ -83,7 +84,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     address acct_0 = cheats.addr(uint256(priv_key_0));
 
     //performs basic deployment before each test
-    function setUp() public {
+    function setUp() public  {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
@@ -253,6 +254,74 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "shares should match deposit"
         );
         cheats.stopPrank();
+    }
+
+   
+
+    //Testing deposits in Eigen Layr Contracts - check msg.value
+    function testDepositETHIntoConsensusLayer() 
+        public 
+        returns(uint256 amountDeposited)
+    {
+        amountDeposited = _testDepositETHIntoConsensusLayer(registrant, amountDeposited);
+    }
+
+    function _testDepositETHIntoConsensusLayer(
+        address sender,
+        uint256 amountToDeposit)
+        internal
+        returns(uint256 amountDeposited)
+    {
+        bytes32 depositDataRoot = depositContract.get_deposit_root();
+
+        cheats.deal(sender, amountToDeposit);
+        cheats.startPrank(sender);
+        deposit.depositEthIntoConsensusLayer{value: amountToDeposit}("0x", "0x", depositDataRoot);
+        amountDeposited = amountToDeposit;
+
+        assertEq(investmentManager.consensusLayerEth(sender), amountDeposited);
+        cheats.stopPrank();
+    }
+
+    function testDepositETHIntoLiquidStaking()
+        public
+        returns(uint256 amountDeposited)
+    {
+        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, strat);
+    }
+
+
+    //reverts for some reason?
+    function _testDepositETHIntoLiquidStaking(
+        address sender,
+        uint256 amountToDeposit,
+        WethStashInvestmentStrategy stratToDepositTo)
+        internal
+        returns(uint256 amountDeposited)
+    {
+        if (amountToDeposit > wethInitialSupply) {
+            cheats.expectRevert(
+                bytes("ERC20: transfer amount exceeds balance")
+            );
+
+            weth.transfer(sender, amountToDeposit);
+            amountDeposited = 0;
+        } else {
+            weth.transfer(sender, amountToDeposit);
+            emit log_named_uint("WETH BALANCE", weth.balanceOf(sender));
+            cheats.startPrank(sender);
+            deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(weth, stratToDepositTo);
+            
+            amountDeposited = amountToDeposit;
+        }
+        
+        assertEq(
+            investmentManager.investorStratShares(sender, stratToDepositTo),
+            amountDeposited,
+            "shares should match deposit"
+        );
+        cheats.stopPrank();
+        
     }
 
     //checks that it is possible to withdraw WETH
@@ -558,6 +627,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
+       
         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
@@ -602,6 +672,57 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
+    }
+
+    function  testDelegateToBySignature() public {
+        _testDelegateToBySignature(registrant, acct_0);
+    }
+
+    function _testDelegateToBySignature(address delegator, address operator) internal {
+        
+        bytes32 structHash = keccak256(
+            abi.encode(
+                delegation.DELEGATION_TYPEHASH, delegator, operator, 0, 0
+                )
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked(
+            "\x19\x01", delegation.DOMAIN_SEPARATOR, structHash)
+            );
+
+        
+        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(1, digestHash);
+
+        //packed Signature recovery not working?
+        bytes32 vs;
+        (r, vs) = SignatureCompaction.packSignature(r, s, v);
+
+        emit log_named_bytes32("r", r);
+        emit log_named_bytes32("s", s);
+        emit log_named_uint("v", v);
+
+        emit log_named_uint("v-27", uint256(v-27));
+        emit log_named_uint("uint256(s)", uint256(s));
+        emit log_named_uint("v-27 | uint256(s)", uint256(v - 27) | uint256(s));
+        emit log_named_bytes32("bytes32(v-27 | uint256(s))", bytes32(uint256(v - 27) | uint256(s)));
+
+
+
+
+        emit log_named_bytes32("vs: ", vs);
+        emit log_named_uint("calculated v", uint8((uint256(vs) >> 255) + 27));
+        emit log_named_bytes32("calculated s", vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff));
+
+
+
+
+        address recoveredAddress = ecrecover(digestHash, v, r, s);
+        address recover = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
+        (address recovered, ECDSA.RecoverError nice) = ECDSA.tryRecover(digestHash, r, vs);
+
+        emit log_named_address("recovered address", recover);
+        emit log_named_address("delegator address", cheats.addr(1));
+        //delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
     }
 
     function testAddStrategies(uint16 numStratsToAdd) public {
