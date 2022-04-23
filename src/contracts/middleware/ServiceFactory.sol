@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IServiceFactory.sol";
 import "./Repository.sol";
+import "./VoteWeigherBase.sol";
+import "./RegistrationManagerBase.sol";
 
 /**
  * @notice This factory contract is used for launching new repository contracts.
@@ -12,6 +14,7 @@ import "./Repository.sol";
 
 contract ServiceFactory is IServiceFactory {
     mapping(IRepository => bool) public isRepository;
+    mapping(IRegistrationManager => bool) public isRegistrationManager;
     IInvestmentManager immutable investmentManager;
     IEigenLayrDelegation immutable delegation;
 
@@ -25,7 +28,7 @@ contract ServiceFactory is IServiceFactory {
      *  @notice Used for creating new repository contracts with given specifications.
      */
     /**
-     * @param ServiceManager is the contract for managing fees,
+     * @param serviceManager is the contract for managing fees,
      * @param voteWeigher is the contract for determining how much vote to be assigned to
      *        the response from an operator for the purpose of computing the outcome of the query, 
      * @param registrationManager is the address of the contract that manages registration of operators
@@ -33,7 +36,7 @@ contract ServiceFactory is IServiceFactory {
      * @param timelockDelay is the intended delay on the governing timelock. 
      */ 
     function createNewRepository(
-        IServiceManager ServiceManager,
+        IServiceManager serviceManager,
         IVoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
         uint256 timelockDelay
@@ -42,7 +45,7 @@ contract ServiceFactory is IServiceFactory {
         IRepository newRepository = new Repository();
         Repository(payable(address(newRepository))).initialize(
             voteWeigher,
-            ServiceManager,
+            serviceManager,
             registrationManager,
             timelockDelay,
             delegation,
@@ -54,13 +57,25 @@ contract ServiceFactory is IServiceFactory {
         return newRepository;
     }
 
-
-    /// @notice used for checking if the repository exists  
-    function repositoryExists(IRepository repository)
-        external
-        view
-        returns (bool)
-    {
-        return isRepository[repository];
+    function createNewService(
+        IServiceManager serviceManager,
+        uint256 timelockDelay,
+        uint256 _consensusLayerEthToEth
+    ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
+        IRepository repository = new Repository();
+        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, _consensusLayerEthToEth);
+        IRegistrationManager registrationManager = new RegistrationManagerBase(repository);
+        Repository(payable(address(repository))).initialize(
+            voteWeigher,
+            serviceManager,
+            registrationManager,
+            timelockDelay,
+            delegation,
+            investmentManager
+        );
+        // set the existence bit on the repository and registration manager to true
+        isRepository[repository] = true;
+        isRegistrationManager[registrationManager] = true;
+        return (repository, registrationManager, voteWeigher);
     }
 }

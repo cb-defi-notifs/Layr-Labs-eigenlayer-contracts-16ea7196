@@ -8,20 +8,12 @@ import "./VoteWeigherBaseStorage.sol";
 contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
 
     constructor(
+        IRepository _repository,
         IEigenLayrDelegation _delegation,
         uint256 _consensusLayerEthToEth
-    ) {
+    ) VoteWeigherBaseStorage(_repository) {
         delegation = _delegation;
         consensusLayerEthToEth = _consensusLayerEthToEth;
-    }
-
-    // one-time function for initializing the repository
-    function setRepository(IRepository _repository) public {
-        require(
-            address(repository) == address(0),
-            "repository already set"
-        );
-        repository = _repository;
     }
 
     /**

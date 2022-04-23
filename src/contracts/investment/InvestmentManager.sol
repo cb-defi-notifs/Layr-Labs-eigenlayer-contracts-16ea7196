@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../utils/Governed.sol";
 import "../utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
@@ -26,10 +23,6 @@ contract InvestmentManager is
     InvestmentManagerStorage,
     ERC1155TokenReceiver
 {
-    IERC1155 public immutable EIGEN;
-    IEigenLayrDelegation public immutable delegation;
-    IServiceFactory public immutable serviceFactory;
-
     event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
@@ -49,10 +42,9 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
-        EIGEN = _EIGEN;
-        delegation = _delegation;
-        serviceFactory = _serviceFactory;
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory)
+        InvestmentManagerStorage(_EIGEN, _delegation, _serviceFactory)
+    {
     }
 
     /**
@@ -126,14 +118,18 @@ contract InvestmentManager is
      * @param strategies are strategies to be removed
      */
     /**
-     * @dev only the governor can add new strategies
+     * @dev only the governor can remove strategies, disabling new deposits to them
      */ 
     function removeInvestmentStrategies(
         IInvestmentStrategy[] calldata strategies
     ) external onlyGovernor {
         // set the approval status to false
-        for (uint256 i = 0; i < strategies.length; i++) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength;) {
             stratApproved[strategies[i]] = false;
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -160,7 +156,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external payable returns (uint256 shares) {
+    ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -176,7 +172,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external payable returns (uint256[] memory) {
+    ) external returns (uint256[] memory) {
         uint256 strategiesLength = strategies.length;
         uint256[] memory shares = new uint256[](strategiesLength);
         for (uint256 i = 0; i < strategiesLength;) {
@@ -212,7 +208,8 @@ contract InvestmentManager is
         }
 
         // transfer tokens from the sender to the strategy
-        _transferTokenOrEth(token, msg.sender, address(strategy), amount);
+        bool success = token.transferFrom(depositor, address(strategy), amount);
+        require(success, "failed to transfer token");
 
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy
@@ -243,10 +240,6 @@ contract InvestmentManager is
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
-            require(
-                stratEverApproved[strategies[i]],
-                "Can only withdraw from approved strategies"
-            );
             //check that the user has sufficient shares
             uint256 userShares = investorStratShares[depositor][strategies[i]];
             require(shareAmounts[i] <= userShares, "shareAmount too high");
@@ -257,52 +250,102 @@ contract InvestmentManager is
             // subtract the shares from the depositor's existing shares for this strategy
             investorStratShares[depositor][strategies[i]] = userShares;
 
-            // if no existing shares, remove this from this investors strats
-            if (investorStratShares[depositor][strategies[i]] == 0) {
-                // if the strategy matches with the strategy index provided
-                if (
-                    investorStrats[depositor][
-                        strategyIndexes[strategyIndexIndex]
-                    ] == strategies[i]
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (_withdrawFromStrategy(
+                    depositor,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    tokens[i],
+                    shareAmounts[i])
                 ) {
-                    // replace the strategy with the last strategy in the list
-                    investorStrats[depositor][
-                        strategyIndexes[strategyIndexIndex]
-                    ] = investorStrats[depositor][
-                        investorStrats[depositor].length - 1
-                    ];
-                } else {
-                    //loop through all of the strategies, find the right one, then replace
-                    uint256 stratsLength = investorStrats[depositor].length;
-
-                    for (uint256 j = 0; j < stratsLength; ) {
-                        if (investorStrats[depositor][j] == strategies[i]) {
-
-                            //replace the strategy with the last strategy in the list
-                            investorStrats[depositor][j] = investorStrats[
-                                depositor
-                            ][investorStrats[depositor].length - 1];
-                            break;
-                        }
-                        unchecked {
-                            ++j;
-                        }
-                    }
-                }
-                investorStrats[depositor].pop();
                 unchecked {
                     ++strategyIndexIndex;                    
                 }
             }
-
-            // tell the strategy to send the appropriate amount of funds to the depositor
-            strategies[i].withdraw(depositor, tokens[i], shareAmounts[i]);
-
             //increment the loop
             unchecked {
                 ++i;
             }
         }
+    }
+
+    // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    function _withdrawFromStrategy(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 shareAmount
+    ) internal returns (bool strategyRemovedFromArray) {
+        strategyRemovedFromArray = _removeShares(depositor, strategyIndex, strategy, shareAmount);
+        // tell the strategy to send the appropriate amount of funds to the depositor
+        strategy.withdraw(
+            depositor,
+            token,
+            shareAmount
+        );
+    }
+
+    // reduces the shares that 'depositor' holds in 'strategy' by 'shareAmount'
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    function _removeShares(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        uint256 shareAmount
+    ) internal returns (bool) {
+        require(
+            stratEverApproved[strategy],
+            "Can only withdraw from approved strategies"
+        );
+        //check that the user has sufficient shares
+        uint256 userShares = investorStratShares[depositor][strategy];
+        require(shareAmount <= userShares, "shareAmount too high");
+        //unchecked arithmetic since we just checked this above
+        unchecked {
+            userShares = userShares - shareAmount;
+        }
+        // subtract the shares from the depositor's existing shares for this strategy
+        investorStratShares[depositor][strategy] = userShares;
+        // if no existing shares, remove is from this investors strats
+        if (investorStratShares[depositor][strategy] == 0) {
+            // if the strategy matches with the strategy index provided
+            if (
+                investorStrats[depositor][strategyIndex] == strategy
+            ) {
+                // replace the strategy with the last strategy in the list
+                investorStrats[depositor][strategyIndex] = 
+                investorStrats[depositor][
+                    investorStrats[depositor].length - 1
+                ];
+            } else {
+                //loop through all of the strategies, find the right one, then replace
+                uint256 stratsLength = investorStrats[depositor].length;
+
+                for (uint256 j = 0; j < stratsLength; ) {
+                    if (investorStrats[depositor][j] == strategy) {
+
+                        //replace the strategy with the last strategy in the list
+                        investorStrats[depositor][j] = investorStrats[
+                            depositor
+                        ][investorStrats[depositor].length - 1];
+                        break;
+                    }
+                    unchecked {
+                        ++j;
+                    }
+                }
+            }
+
+            // return true in the event that the strategy was removed from investorStrats[depositor]
+            return true;
+        }
+        // return false in the event that the strategy was *not* removed from investorStrats[depositor]
+        return false;
     }
 
     // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
@@ -323,13 +366,16 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address withdrawer
+        WithdrawerAndNonce memory withdrawerAndNonce
     ) external {
+        require(withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender], "provided nonce incorrect");
+        // increment the numWithdrawalsQueued of the sender
+        unchecked {
+            ++numWithdrawalsQueued[msg.sender];
+        }
         uint256 strategyIndexIndex;
 
-        //TODO: non-replicable (i.e. guaranteed unique) version of this. change it everywhere it's used
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
-        require(queuedWithdrawals[msg.sender][withdrawalRoot].initTimestamp == 0, "queued withdrawal already exists");
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, withdrawerAndNonce.nonce));
 
         // had to check against this directly rather than store it to solve 'stack too deep' error
         // address operator = delegation.delegation(msg.sender);
@@ -342,55 +388,16 @@ contract InvestmentManager is
         // had to check against this rather than store it to solve 'stack too deep' error
         // uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategies.length;) {
-            require(
-                stratEverApproved[strategies[i]],
-                "Can only withdraw from approved strategies"
-            );
-            // //check that the user has sufficient shares
-            // uint256 userShares = investorStratShares[msg.sender][strategies[i]];
-            // require(shareAmounts[i] <= userShares, "shareAmount too high");
-            // //unchecked arithmetic since we just checked this above
-            // unchecked {
-            //     userShares = userShares - shareAmounts[i];
-            // }
-            // subtract the shares from the msg.sender's existing shares for this strategy
-            investorStratShares[msg.sender][strategies[i]] -= shareAmounts[i];
-
-            // if no existing shares, remove this from this investors strats
-            if (investorStratShares[msg.sender][strategies[i]] == 0) {
-                // if the strategy matches with the strategy index provided
-                if (
-                    investorStrats[msg.sender][
-                        strategyIndexes[strategyIndexIndex]
-                    ] == strategies[i]
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (_removeShares(
+                    msg.sender,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    shareAmounts[i])
                 ) {
-                    // replace the strategy with the last strategy in the list
-                    investorStrats[msg.sender][
-                        strategyIndexes[strategyIndexIndex]
-                    ] = investorStrats[msg.sender][
-                        investorStrats[msg.sender].length - 1
-                    ];
-                } else {
-                    //loop through all of the strategies, find the right one, then replace
-                    uint256 stratsLength = investorStrats[msg.sender].length;
-
-                    for (uint256 j = 0; j < stratsLength; ) {
-                        if (investorStrats[msg.sender][j] == strategies[i]) {
-
-                            //replace the strategy with the last strategy in the list
-                            investorStrats[msg.sender][j] = investorStrats[
-                                msg.sender
-                            ][investorStrats[msg.sender].length - 1];
-                            break;
-                        }
-                        unchecked {
-                            ++j;
-                        }
-                    }
-                }
-                investorStrats[msg.sender].pop();
-                unchecked{
-                    ++strategyIndexIndex;
+                unchecked {
+                    ++strategyIndexIndex;                    
                 }
             }
 
@@ -404,11 +411,12 @@ contract InvestmentManager is
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             latestFraudproofTimestamp: uint32(block.timestamp),
-            withdrawer: withdrawer
+            withdrawer: withdrawerAndNonce.withdrawer
         });
 
-        emit WithdrawalQueued(msg.sender, withdrawer, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, withdrawalRoot);
     }
+
 
     /**
      * @notice Used to check if a queued withdrawal can be completed
@@ -417,9 +425,10 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address depositor
+        address depositor,
+        uint96 queuedWithdrawalNonce
     ) external view returns (bool) {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         require(withdrawalStorage.initTimestamp > 0, "withdrawal does not exist");
@@ -436,9 +445,10 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        address depositor
+        address depositor,
+        uint96 queuedWithdrawalNonce
     ) external {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
@@ -459,6 +469,9 @@ contract InvestmentManager is
         for (uint256 i = 0; i < strategiesLength;) {
             // tell the strategy to send the appropriate amount of funds to the depositor
             strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
+            unchecked {
+                ++i;
+            }
         }
 
         emit WithdrawalCompleted(depositor, withdrawer, withdrawalRoot);
@@ -477,10 +490,11 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
+        uint256 queuedWithdrawalNonce,
         IRepository repository,
         bytes32 queryHash
     ) external {
-        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts));
+        bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
@@ -492,7 +506,7 @@ contract InvestmentManager is
 
         //TODO: require that operator is registered to repository!
         require(
-            serviceFactory.repositoryExists(repository),
+            serviceFactory.isRepository(repository),
             "Repository was not deployed through factory"
         );
 
@@ -532,40 +546,8 @@ contract InvestmentManager is
         IERC20 token,
         uint256 shareAmount
     ) external onlyNotDelegated(msg.sender) {
-        address depositor = msg.sender;
-        require(
-            stratEverApproved[strategy],
-            "Can only withdraw from approved strategies"
-        );
-        //check that the user has sufficient shares
-        uint256 userShares = investorStratShares[depositor][strategy];
-        require(shareAmount <= userShares, "shareAmount too high");
-        //unchecked arithmetic since we just checked this above
-        unchecked {
-            userShares = userShares - shareAmount;
-        }
-        // subtract the shares from the depositor's existing shares for this strategy
-        investorStratShares[depositor][strategy] = userShares;
-        // if no existing shares, remove is from this investors strats
-        if (investorStratShares[depositor][strategy] == 0) {
-            require(
-                investorStrats[depositor][strategyIndex] == strategy,
-                "Strategy index is incorrect"
-            );
-            // move the last element to the removed strategy's index, then shorten the array
-            investorStrats[depositor][strategyIndex] = investorStrats[
-                depositor
-            ][investorStrats[depositor].length - 1];
-            investorStrats[depositor].pop();
-        }
-        // tell the strategy to send the appropriate amount of funds to the depositor
-        strategy.withdraw(
-            depositor,
-            token,
-            shareAmount
-        );
+        _withdrawFromStrategy(msg.sender, strategyIndex, strategy, token, shareAmount);
     }
-
 
 
     /**
@@ -589,33 +571,22 @@ contract InvestmentManager is
 
         uint256 strategyIndexIndex;
         uint256 slashedAmount;
-        for (uint256 i = 0; i < strategies.length; i++) {
-            require(
-                stratEverApproved[strategies[i]],
-                "Can only withdraw from approved strategies"
-            );
+        for (uint256 i = 0; i < strategies.length;) {
+            // add the value of the slashed shares to the total amount slashed
             slashedAmount += strategies[i].underlyingEthValueOfShares(
                 shareAmounts[i]
             );
 
-            // subtract the shares for this strategy from that of slashed
-            investorStratShares[slashed][strategies[i]] -= shareAmounts[i];
-
-            // if no existing shares, remove this from slashed's investor strats
-            if (investorStratShares[slashed][strategies[i]] == 0) {
-                require(
-                    investorStrats[slashed][
-                        strategyIndexes[strategyIndexIndex]
-                    ] == strategies[i],
-                    "Strategy index is incorrect"
-                );
-                // move the last element to the removed strategy's index, then shorten the array
-                investorStrats[slashed][
-                    strategyIndexes[strategyIndexIndex]
-                ] = investorStrats[slashed][investorStrats[slashed].length - 1];
-                investorStrats[slashed].pop();
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (_removeShares(
+                    slashed,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    shareAmounts[i])
+                ) {
                 unchecked {
-                    ++strategyIndexIndex;
+                    ++strategyIndexIndex;                    
                 }
             }
 
@@ -626,6 +597,11 @@ contract InvestmentManager is
 
             // add the slashed shares to that of the recipient
             investorStratShares[recipient][strategies[i]] += shareAmounts[i];
+
+            // increment the loop
+            unchecked {
+                ++i;
+            }
         }
 
         require(slashedAmount <= maxSlashedAmount, "excessive slashing");
@@ -871,26 +847,5 @@ contract InvestmentManager is
 
     function investorStratsLength(address investor) external view returns (uint256) {
         return investorStrats[investor].length;
-    }
-
-    
-
-    /**
-     * @notice used for transferring specified amount of specified token from the 
-     *         sender to the receiver
-     */
-    function _transferTokenOrEth(
-        IERC20 token,
-        address sender,
-        address receiver,
-        uint256 amount
-    ) internal {
-        if (address(token) == ETH) {
-            (bool success, ) = receiver.call{value: amount}("");
-            require(success, "failed to transfer value");
-        } else {
-            bool success = token.transferFrom(sender, receiver, amount);
-            require(success, "failed to transfer token");            
-        }
     }
 }
