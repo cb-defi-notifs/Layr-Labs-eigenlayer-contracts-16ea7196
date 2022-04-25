@@ -27,7 +27,6 @@ import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "ds-test/test.sol";
 
@@ -67,12 +66,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
-    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
     // number of strategies deployed
     uint256 public numberOfStrats;
-
-    //strategy indexes for undelegation (see commitUndelegation function)
-    uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
@@ -87,13 +82,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     address acct_0 = cheats.addr(uint256(priv_key_0));
 
-    bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    address acct_1 = cheats.addr(uint256(priv_key_1));
-
-
-
     //performs basic deployment before each test
-    function setUp() public  {
+    function setUp() public {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
@@ -267,74 +257,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "shares should match deposit"
         );
         cheats.stopPrank();
-    }
-
-   
-
-    //Testing deposits in Eigen Layr Contracts - check msg.value
-    function testDepositETHIntoConsensusLayer() 
-        public 
-        returns(uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoConsensusLayer(registrant, amountDeposited);
-    }
-
-    function _testDepositETHIntoConsensusLayer(
-        address sender,
-        uint256 amountToDeposit)
-        internal
-        returns(uint256 amountDeposited)
-    {
-        bytes32 depositDataRoot = depositContract.get_deposit_root();
-
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositEthIntoConsensusLayer{value: amountToDeposit}("0x", "0x", depositDataRoot);
-        amountDeposited = amountToDeposit;
-
-        assertEq(investmentManager.consensusLayerEth(sender), amountDeposited);
-        cheats.stopPrank();
-    }
-
-    function testDepositETHIntoLiquidStaking()
-        public
-        returns(uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, strat);
-    }
-
-
-    //reverts for some reason?
-    function _testDepositETHIntoLiquidStaking(
-        address sender,
-        uint256 amountToDeposit,
-        WethStashInvestmentStrategy stratToDepositTo)
-        internal
-        returns(uint256 amountDeposited)
-    {
-        if (amountToDeposit > wethInitialSupply) {
-            cheats.expectRevert(
-                bytes("ERC20: transfer amount exceeds balance")
-            );
-
-            weth.transfer(sender, amountToDeposit);
-            amountDeposited = 0;
-        } else {
-            weth.transfer(sender, amountToDeposit);
-            emit log_named_uint("WETH BALANCE", weth.balanceOf(sender));
-            cheats.startPrank(sender);
-            deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(weth, stratToDepositTo);
-            
-            amountDeposited = amountToDeposit;
-        }
-        
-        assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
-            amountDeposited,
-            "shares should match deposit"
-        );
-        cheats.stopPrank();
-        
     }
 
     //checks that it is possible to withdraw WETH
@@ -633,7 +555,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
-      
         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         DelegationTerms dt = _deployDelegationTerms(registrant);
@@ -641,8 +562,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
-        _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
-    
         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
@@ -650,6 +569,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
         assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
         assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+        // emit log_named_uint("operatorShares", delegation.operatorShares(registrant, _strat));
     }
 
     function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {
@@ -686,29 +606,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
         // TODO: add more checks?
         cheats.stopPrank();
-    }
-
-
-    function _testDelegateToBySignature(address sender, address operator, uint256 priv_key) internal {
-        cheats.startPrank(sender);
-        bytes32 structHash = keccak256(
-            abi.encode(
-                delegation.DELEGATION_TYPEHASH(), sender, operator, 0, 0
-                )
-        );
-        bytes32 digestHash = keccak256(
-            abi.encodePacked(
-            "\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash)
-            );
-
-        (uint8 v, bytes32 r, bytes32 s) = cheats.sign((priv_key), digestHash);
-        bytes32 vs;
-
-        (r, vs) = SignatureCompaction.packSignature(r, s, v);
-        delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
-        assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
-        cheats.stopPrank();
-
     }
 
     function testAddStrategies(uint16 numStratsToAdd) public {
@@ -774,50 +671,5 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
                 "delegate shares not stored properly"
             );
         }
-    }
-
-//TODO: add tests for contestDelegationCommit() 
-    function testUndelegation() public {
-
-        //delegate
-        DelegationTerms dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelegate(registrant, dt);
-        _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0);
-        _testDelegateToOperator(acct_0, registrant);
-
-        //delegator-specific information
-         (
-                IInvestmentStrategy[] memory delegatorStrategies,
-                uint256[] memory delegatorShares,
-                uint256 consensusLayrEthDeposited,
-                uint256 eigenAmount
-            ) = investmentManager.getDeposits(msg.sender);
-
-        //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
-        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-            initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
-        }
-
-        //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
-        for (uint256 j = 0; j< delegation.getOperatorStrats(registrant).length; j++){
-            strategyIndexes.push(j);
-        }
-
-        _testUndelegation(acct_0, strategyIndexes);
-
-        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-            uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
-            assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
-        }
-    }
-
-    function _testUndelegation(address sender, uint256[] storage strategyIndexes) internal{
-        cheats.startPrank(sender);
-        cheats.warp(block.timestamp+1000000);
-        delegation.commitUndelegation(strategyIndexes);
-        delegation.finalizeUndelegation();
-        cheats.stopPrank();
     }
 }
