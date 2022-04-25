@@ -67,8 +67,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
+    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
     // number of strategies deployed
     uint256 public numberOfStrats;
+
+    //strategy indexes for undelegation (see commitUndelegation function)
+    uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
@@ -703,7 +707,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         (r, vs) = SignatureCompaction.packSignature(r, s, v);
         delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
         assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
-
+        cheats.stopPrank();
 
     }
 
@@ -771,4 +775,65 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             );
         }
     }
+
+
+    function testUndelegation() public {
+
+        //delegate
+        DelegationTerms dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, dt);
+        _testWethDeposit(acct_0, 1e18);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+
+        //delegator-specific information
+         (
+                IInvestmentStrategy[] memory delegatorStrategies,
+                uint256[] memory delegatorShares,
+                uint256 consensusLayrEthDeposited,
+                uint256 eigenAmount
+            ) = investmentManager.getDeposits(msg.sender);
+
+        //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
+        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
+            initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
+        }
+
+        //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
+        for (uint256 j = 0; j< delegation.getOperatorStrats(registrant).length; j++){
+            strategyIndexes.push(j);
+        }
+
+        _testCommitUndelegation(acct_0, strategyIndexes);
+
+        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
+
+
+            uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
+            uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
+            assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
+
+        }
+
+
+
+
+        //testing self operator undelegation
+        //  _testWethDeposit(registrant, 1e18);
+        // _testDepositEigen(registrant);
+        // _testSelfOperatorDelegate(registrant);
+        // _testCommitUndelegation(registrant, strategyIndexes)
+
+
+
+    }
+
+    function _testCommitUndelegation(address sender, uint256[] storage strategyIndexes) internal{
+        cheats.startPrank(sender);
+        cheats.warp(block.timestamp+1000000);
+        delegation.commitUndelegation(strategyIndexes);
+        cheats.stopPrank();
+    }
+
+
 }
