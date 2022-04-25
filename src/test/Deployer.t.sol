@@ -776,7 +776,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         }
     }
 
-
+//TODO: add tests for contestDelegationCommit() 
     function testUndelegation() public {
 
         //delegate
@@ -804,23 +804,20 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             strategyIndexes.push(j);
         }
 
-        _testCommitUndelegation(acct_0, strategyIndexes);
+        _testUndelegation(acct_0, strategyIndexes);
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-
-
             uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
             uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
             assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
-
         }
-
     }
 
-    function _testCommitUndelegation(address sender, uint256[] storage strategyIndexes) internal{
+    function _testUndelegation(address sender, uint256[] storage strategyIndexes) internal{
         cheats.startPrank(sender);
         cheats.warp(block.timestamp+1000000);
         delegation.commitUndelegation(strategyIndexes);
+        delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
 }
