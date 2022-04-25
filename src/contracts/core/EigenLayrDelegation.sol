@@ -76,7 +76,7 @@ contract EigenLayrDelegation is
         _delegate(msg.sender, operator);
     }
 
-    function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external {
+    function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external{
         require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
         require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
         bytes32 structHash = keccak256(
@@ -102,6 +102,8 @@ contract EigenLayrDelegation is
         // increment delegator's delegationNonce
         ++delegationNonces[delegator];
         _delegate(delegator, operator);
+
+
     }
 
     // internal function implementing the delegation of 'delegator' to 'operator'
@@ -419,6 +421,19 @@ contract EigenLayrDelegation is
         returns (IInvestmentStrategy[] memory)
     {
         return operatorStrats[operator];
+    }
+
+    /**
+    * @notice returns the shares in a specified strategy being used by the delegator of this operator 
+    **/
+
+    function getOperatorShares(address operator, IInvestmentStrategy investmentStrategy)
+        public
+        view
+        returns (uint256)
+    {
+        return operatorShares[operator][investmentStrategy];
+
     }
 
     /**
