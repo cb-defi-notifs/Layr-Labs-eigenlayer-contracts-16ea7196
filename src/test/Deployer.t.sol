@@ -815,14 +815,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         }
 
-
-
-
         //testing self operator undelegation
-        //  _testWethDeposit(registrant, 1e18);
-        // _testDepositEigen(registrant);
-        // _testSelfOperatorDelegate(registrant);
-        // _testCommitUndelegation(registrant, strategyIndexes)
+         _testWethDeposit(registrant, 1e18);
+        _testDepositEigen(registrant);
+        _testSelfOperatorDelegate(registrant);
+        _testCommitUndelegation(registrant, strategyIndexes);
 
 
 
