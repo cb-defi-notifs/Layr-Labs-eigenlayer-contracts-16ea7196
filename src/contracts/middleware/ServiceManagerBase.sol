@@ -215,11 +215,16 @@ contract ServiceManagerBase is Initializable, IServiceManager {
 
     /// @notice returns the time when the serviceObject, associated with serviceObjectHash, was created
     function getServiceObjectCreationTime(bytes32 serviceObjectHash)
-        external
+        public
         view
         returns (uint256)
     {
-        return serviceObjectCreated[serviceObjectHash];
+        uint256 timeCreated = serviceObjectCreated[serviceObjectHash];
+        if (timeCreated != 0) {
+            return timeCreated;
+        } else {
+            return type(uint256).max;
+        }
     }
 
     /// @notice returns the time when the serviceObject, associated with serviceObjectHash, will expire
@@ -232,6 +237,6 @@ contract ServiceManagerBase is Initializable, IServiceManager {
     }
 
     function _serviceObjectExpiry(bytes32 serviceObjectHash) internal view returns (uint256) {
-        return serviceObjectCreated[serviceObjectHash] + serviceObjectDuration;
+        return getServiceObjectCreationTime(serviceObjectHash) + serviceObjectDuration;
     }
 }

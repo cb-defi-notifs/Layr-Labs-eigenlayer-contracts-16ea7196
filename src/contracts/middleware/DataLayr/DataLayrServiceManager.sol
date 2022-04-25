@@ -764,6 +764,46 @@ contract DataLayrServiceManager is
         dataLayr = _dataLayr;
     }
 
+    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, was created
+    function getServiceObjectCreationTime(bytes32 serviceObjectHash)
+        public
+        view
+        returns (uint256)
+    {
+        (
+            ,
+            uint32 initTime,
+            ,
+            
+        ) = dataLayr.dataStores(serviceObjectHash);
+        uint256 timeCreated = uint256(initTime);
+        if (timeCreated != 0) {
+            return timeCreated;
+        } else {
+            return type(uint256).max;
+        }
+    }
+
+    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, will expire
+    function getServiceObjectExpiry(bytes32 serviceObjectHash)
+        external
+        view
+        returns (uint256)
+    {
+        (
+            ,
+            uint32 initTime,
+            uint32 storePeriodLength,
+            
+        ) = dataLayr.dataStores(serviceObjectHash);
+        uint256 timeCreated = uint256(initTime);
+        if (timeCreated != 0) {
+            return (timeCreated + storePeriodLength);
+        } else {
+            return type(uint256).max;
+        }
+    }
+
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(
         IERC20 _paymentToken
