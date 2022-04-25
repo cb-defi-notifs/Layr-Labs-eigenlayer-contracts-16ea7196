@@ -646,7 +646,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
         assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
         assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
-        // emit log_named_uint("operatorShares", delegation.operatorShares(registrant, _strat));
     }
 
     function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {
@@ -700,9 +699,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign((priv_key), digestHash);
         bytes32 vs;
-        
+
         (r, vs) = SignatureCompaction.packSignature(r, s, v);
         delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
+        assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
+
+
     }
 
     function testAddStrategies(uint16 numStratsToAdd) public {
