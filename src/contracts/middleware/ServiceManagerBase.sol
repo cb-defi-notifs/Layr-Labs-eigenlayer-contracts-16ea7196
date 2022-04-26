@@ -86,7 +86,7 @@ contract ServiceManagerBase is Initializable, IServiceManager {
      * @notice creates a new serviceObject based on the @param serviceObjectData passed.
      */
     // CRITIC: if we end up maintaining a database of registered middlewares (whitelisting) in EigenLayr contracts,
-    //         ten it might be good (necessary?) to only ensure a middleware can call this function.
+    //         then it might be good (necessary?) to only ensure a middleware can call this function.
     function createNewServiceObject(bytes calldata serviceObjectData) external {
         _createNewServiceObject(msg.sender, serviceObjectData);
     }
