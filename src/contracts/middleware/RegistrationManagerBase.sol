@@ -13,7 +13,7 @@ contract RegistrationManagerBase is RegistrationManagerBaseMinusRepository {
     constructor(IRepository _repository) {
         repository = _repository;
     }
-    function registerOperator(address, bytes calldata data)
+    function registerOperator(address, bytes calldata)
         external
         virtual
         override

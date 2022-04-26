@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "./InvestmentManager.sol";
 import "../utils/Governed.sol";
 import "../interfaces/IServiceFactory.sol";
+import "../interfaces/IRepository.sol";
 
 /**
  * @notice This contract specifies details on slashing. The functionalities are:
@@ -72,14 +73,37 @@ contract Slasher is Governed {
     }
 
     // give the contract permission to slash your funds
-    function allowToSlash(address slashingContract) external {
-        optedIntoSlashing[msg.sender][slashingContract] = true;
+    function allowToSlash(address repository) external {
+        optedIntoSlashing[msg.sender][repository] = true;
     }
 
-    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
-        if (optedIntoSlashing[toBeSlashed][slashingContract]) {
-            return true;
+    // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
+    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistrationManager registrationManager) public view returns (bool) {
+        // if the user has directly opted in to the 'repository' address being allowed to slash them
+        if (optedIntoSlashing[toBeSlashed][address(repository)]
+            || 
+            (
+                // if specified 'serviceFactory' address is included in the approved list of service factories
+                (serviceFactories[address(serviceFactory)])
+            &&
+                // if both 'repository' and 'registrationManager' were created by 'serviceFactory' (and are the correct contract type)
+                (serviceFactory.isRepository(repository) && serviceFactory.isRegistrationManager(registrationManager))
+            )
+            )
+        {
+            // if 'registrationManager' is the active RegistrationManager in 'repository'
+            if (
+                (repository.registrationManager() == registrationManager)
+                &&
+                // if address 'toBeSlashed' is a registered operator in 'registrationManager'
+                (registrationManager.isRegistered(toBeSlashed))
+                )
+            {
+                return true;
+            }
         }
+        // else return 'false'
+        return false;
     }
 
     /**

@@ -78,7 +78,7 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
         address registrant // who started
     );
 
-    function registerOperator(address, bytes calldata data)
+    function registerOperator(address, bytes calldata)
         external
         virtual
         returns (uint8, uint96, uint96);
@@ -91,4 +91,9 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
         external
         virtual
         returns (bool);
+
+    function isRegistered(address operator) external virtual view returns (bool) {
+        EthAndEigenAmounts memory opStake = operatorStakes[operator];
+        return (opStake.ethAmount > 0 || opStake.eigenAmount > 0);
+    }
 }
