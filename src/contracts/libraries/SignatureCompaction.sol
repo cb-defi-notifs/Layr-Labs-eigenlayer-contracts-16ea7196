@@ -9,15 +9,6 @@ library SignatureCompaction {
     function ecrecoverPacked(bytes32 hash, bytes32 r, bytes32 vs) internal pure returns (address) {
         (address recovered, ECDSA.RecoverError err) = ECDSA.tryRecover(hash, r, vs);
         return recovered;
-        // return ecrecover(
-        //     hash,
-        //     //recover v (parity)
-        //     27 + uint8(uint256(vs >> 255)),
-        //     r,
-        //     //recover s
-        //     //bytes32(uint(vs) & (uint256.max >> 1))
-        //     bytes32(uint256(vs) & (0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff))
-        // );
     }
 
     function packSignature(bytes32 r, bytes32 s, uint8 v) internal pure returns (bytes32, bytes32) {

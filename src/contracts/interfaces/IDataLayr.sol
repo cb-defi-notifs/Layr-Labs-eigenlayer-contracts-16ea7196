@@ -20,6 +20,7 @@ interface IDataLayr {
 
     function dataStores(bytes32)
         external
+        view
         returns (
             uint48,
             uint32,
