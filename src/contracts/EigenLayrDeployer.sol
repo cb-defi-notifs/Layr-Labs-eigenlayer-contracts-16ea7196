@@ -96,7 +96,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         address governor = address(this);
         investmentManager.initialize(
             strats,
-            address(slasher),
+            slasher,
             governor,
             address(deposit)
         );
@@ -104,6 +104,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         delegation.initialize(
             investmentManager,
             serviceFactory,
+            slasher,
             undelegationFraudProofInterval
         );
 

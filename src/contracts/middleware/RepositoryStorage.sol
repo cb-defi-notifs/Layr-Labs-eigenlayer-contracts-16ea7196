@@ -19,5 +19,5 @@ abstract contract RepositoryStorage is Timelock_Managed, IRepository {
     IInvestmentManager public investmentManager;
     IRegistrationManager public registrationManager;
     //called when new queries are created. handles payments for queries.
-    IServiceManager public ServiceManager;
+    IServiceManager public serviceManager;
 }

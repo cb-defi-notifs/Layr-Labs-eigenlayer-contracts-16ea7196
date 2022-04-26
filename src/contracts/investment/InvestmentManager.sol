@@ -58,7 +58,7 @@ contract InvestmentManager is
      */
     function initialize(
         IInvestmentStrategy[] memory strategies,
-        address _slasher,
+        Slasher _slasher,
         address _governor,
         address _eigenLayrDepositContract
     ) external initializer {
@@ -485,14 +485,17 @@ contract InvestmentManager is
      *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
      */
+        // TODO: de-duplicate this code and the code in EigenLayrDelegation's 'contestUndelegationCommit' function, if at all possible
     function fraudproofQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
         uint256 queuedWithdrawalNonce,
+        bytes32 serviceObjectHash,
+        IServiceFactory serviceFactory,
         IRepository repository,
-        bytes32 queryHash
+        IRegistrationManager registrationManager
     ) external {
         bytes32 withdrawalRoot = keccak256(abi.encodePacked(strategies, tokens, shareAmounts, queuedWithdrawalNonce));
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
@@ -501,27 +504,25 @@ contract InvestmentManager is
         require(initTimestamp > 0, "withdrawal does not exist");
         require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
 
-        //TODO: Right now this is based on code from EigenLayrDelegation.sol. make this code non-duplicated
         address operator = delegation.delegation(depositor);
 
-        //TODO: require that operator is registered to repository!
         require(
-            serviceFactory.isRepository(repository),
-            "Repository was not deployed through factory"
+            slasher.canSlash(operator, serviceFactory, repository, registrationManager),
+            "Contract does not have rights to prevent undelegation"
         );
 
-        // ongoing query was created at time when depositor queued the withdrawal
-        // and  still active at time that they will currently be able to complete the withdrawal
-        // therefore, the withdrawn funds are not expected to fully serve their obligation.
-//TODO: fix this to work with new contract architecture
-        // require(
-        //     initTimestamp >=
-        //         repository.getQueryCreationTime(queryHash) &&
-        //         unlockTime <
-        //         repository.getQueryCreationTime(queryHash) +
-        //             repository.getQueryDuration(),
-        //     "query must expire before unlockTime"
-        // );
+        IServiceManager serviceManager = repository.serviceManager();
+
+        // ongoing serviceObject is still active at time when staker was finalizing undelegation
+        // and, therefore, hasn't served its obligation.
+        require(
+            initTimestamp >
+            serviceManager.getServiceObjectCreationTime(serviceObjectHash)
+            &&
+            unlockTime <
+            serviceManager.getServiceObjectExpiry(serviceObjectHash),
+            "serviceObject does not meet requirements"
+        );
 
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
@@ -567,7 +568,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         uint256 maxSlashedAmount
     ) external {
-        require(msg.sender == slasher, "Only Slasher");
+        require(msg.sender == address(slasher), "Only Slasher");
 
         uint256 strategyIndexIndex;
         uint256 slashedAmount;

@@ -73,7 +73,7 @@ contract DataLayr is Ownable, IDataLayr {
     mapping(bytes32 => DataStore) public dataStores;
 
     modifier onlyServiceManager() {
-        require(msg.sender == address(repository.ServiceManager()), "Only service manager can call this");
+        require(msg.sender == address(repository.serviceManager()), "Only service manager can call this");
         _;
     }
 

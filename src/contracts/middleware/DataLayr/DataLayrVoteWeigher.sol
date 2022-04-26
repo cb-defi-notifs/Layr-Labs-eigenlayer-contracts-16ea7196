@@ -242,7 +242,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
             index: numRegistrants,
             active: registrantType,
             fromDumpNumber: IDataLayrServiceManager(
-                address(repository.ServiceManager())
+                address(repository.serviceManager())
             ).dumpNumber(),
             to: 0,
 
@@ -267,7 +267,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
 
         // get current dump number from DataLayrServiceManager
         uint48 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.ServiceManager())
+            address(repository.serviceManager())
         ).dumpNumber();
 
         emit StakeAdded(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
@@ -407,7 +407,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
 
         // get dump number from DataLayrServiceManagerStorage.sol
         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
-            IDataLayrServiceManager(address(repository.ServiceManager()))
+            IDataLayrServiceManager(address(repository.serviceManager()))
                 .dumpNumber(),
             stakeHashUpdates[stakeHashUpdates.length - 1]
         );
@@ -505,7 +505,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
 
     function setLatestTime(uint32 _latestTime) public {
         require(
-            address(repository.ServiceManager()) == msg.sender,
+            address(repository.serviceManager()) == msg.sender,
             "service manager can only call this"
         ); if (_latestTime > latestTime) {
             latestTime = _latestTime;            

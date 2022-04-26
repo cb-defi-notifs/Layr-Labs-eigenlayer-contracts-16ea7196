@@ -7,7 +7,7 @@ import "../utils/Governed.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
 
-// todo: task specific delegation
+// TODO: updating of stored addresses by governance?
 
 /**
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
@@ -32,11 +32,13 @@ contract EigenLayrDelegation is
     function initialize(
         IInvestmentManager _investmentManager,
         IServiceFactory _serviceFactory,
+        Slasher _slasher,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
         _transferGovernor(msg.sender);
         investmentManager = _investmentManager;
         serviceFactory = _serviceFactory;
+        slasher = _slasher;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
@@ -347,11 +349,13 @@ contract EigenLayrDelegation is
     /// @param staker is the delegator against whom challenge is being raised,
     /// @param repository is the contract with whom the query for which delegator hasn't finished
     ///        its obligation yet, was deployed,
-    /// @param queryHash is the hash of the query for whom staker hasn't finished its obligations
+    /// @param serviceObjectHash is the hash of the query for whom staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
+        bytes32 serviceObjectHash,
+        IServiceFactory serviceFactory,
         IRepository repository,
-        bytes32 queryHash
+        IRegistrationManager registrationManager
     ) external {
         address operator = delegation[staker];
 
@@ -367,29 +371,26 @@ contract EigenLayrDelegation is
             "Challenge period hasn't yet started"
         );
 
+        // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
         require(
-            serviceFactory.isRepository(repository),
-            "Repository was not deployed through factory"
+            slasher.canSlash(operator, serviceFactory, repository, registrationManager),
+            "Contract does not have rights to prevent undelegation"
         );
 
-//TODO: require that operator is registered to repository!
-        // require(
-        //     IRegistrationManager(repository.registrationManager()).isRegistered(operator);
-        // );
+        IServiceManager serviceManager = repository.serviceManager();
 
-        // ongoing query is still active at time when staker was finalizing undelegation
+        // ongoing serviceObject is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.
-//TODO: fix this to work with new contract architecture
-        // require(
-        //     lastUndelegationCommit[staker] >
-        //         repository.getQueryCreationTime(queryHash) &&
-        //         lastUndelegationCommit[staker] <
-        //         repository.getQueryCreationTime(queryHash) +
-        //             repository.getQueryDuration(),
-        //     "Given query is inactive"
-        // );
+        require(
+            lastUndelegationCommit[staker] >
+            serviceManager.getServiceObjectCreationTime(serviceObjectHash)
+            &&
+            lastUndelegationCommit[staker] <
+            serviceManager.getServiceObjectExpiry(serviceObjectHash),
+            "serviceObject does not meet requirements"
+        );
 
-        //slash here
+        //TODO: slash here
     }
 
     /// @notice checks whether a staker is currently undelegated and not

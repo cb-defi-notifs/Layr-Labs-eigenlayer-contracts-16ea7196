@@ -51,13 +51,9 @@ interface IRepository is ITimelock_Managed {
 // TODO: move some of these commented out functions into the proper new interface spec(s)?
     // function createNewQuery(bytes calldata) external;
 
-    // function getQueryDuration() external view returns (uint256);
-
-    // function getQueryCreationTime(bytes32) external view returns (uint256);
-
     function voteWeigher() external view returns (IVoteWeigher);
 
-    function ServiceManager() external view returns (IServiceManager);
+    function serviceManager() external view returns (IServiceManager);
 
     function registrationManager() external view returns (IRegistrationManager);
 }

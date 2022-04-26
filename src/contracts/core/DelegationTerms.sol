@@ -235,7 +235,7 @@ contract DelegationTerms is IDelegationTerms {
         IRepository repository = IServiceManager(msg.sender).repository();
 
         // only the service manager can call this function
-        require(msg.sender == address(repository.ServiceManager()), "only ServiceManagers");
+        require(msg.sender == address(repository.serviceManager()), "only ServiceManagers");
 
         // check if the repository exists
         require(serviceFactory.isRepository(repository), "illegitimate repository");

@@ -22,14 +22,14 @@ contract Repository is Initializable, RepositoryStorage {
 
     function initialize(
         IVoteWeigher _voteWeigher,
-        IServiceManager _ServiceManager,
+        IServiceManager _serviceManager,
         IRegistrationManager _registrationManager,
         uint256 _timelockDelay,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager
     ) external initializer {
         _setVoteWeigher(_voteWeigher);
-        ServiceManager = _ServiceManager;
+        serviceManager = _serviceManager;
         registrationManager = _registrationManager;
         Timelock _timelock = new Timelock(address(this), _timelockDelay);
         _setTimelock(_timelock);
@@ -38,8 +38,8 @@ contract Repository is Initializable, RepositoryStorage {
     }
 
     /// @notice sets the service manager for the middleware's repository
-    function setServiceManager(IServiceManager _ServiceManager) external onlyTimelock {
-        ServiceManager = _ServiceManager;
+    function setServiceManager(IServiceManager _serviceManager) external onlyTimelock {
+        serviceManager = _serviceManager;
     }
 
     /// @notice sets the registration manager for the middleware's repository

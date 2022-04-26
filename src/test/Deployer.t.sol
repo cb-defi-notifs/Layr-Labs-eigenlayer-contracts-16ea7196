@@ -130,7 +130,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         address governor = address(this);
         investmentManager.initialize(
             strats,
-            address(slasher),
+            slasher,
             governor,
             address(deposit)
         );
@@ -138,6 +138,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         delegation.initialize(
             investmentManager,
             serviceFactory,
+            slasher,
             undelegationFraudProofInterval
         );
 
@@ -200,7 +201,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(dlRepository.ServiceManager() == dlsm, "ServiceManager set incorrectly");
+        assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
         assertTrue(
             dlsm.repository() == dlRepository,
             "repository set incorrectly in dlsm"
