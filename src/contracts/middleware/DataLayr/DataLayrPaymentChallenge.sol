@@ -24,6 +24,12 @@ contract DataLayrPaymentChallenge {
         // 4: operator turn (one step), 5: challenger turn (one step)
     }
 
+    struct SignerMetadata {
+        address signer;
+        uint96 ethStake;
+        uint96 eigenStake;
+    }
+
     constructor(
         address operator,
         address challenger,
@@ -159,7 +165,13 @@ contract DataLayrPaymentChallenge {
 
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
-        uint32[] calldata signatoryRecord
+        uint256 stakeOffset,
+        uint256 signerIndex,
+        address[] calldata signers,
+        uint32 stakesIndex,
+        bytes calldata stakes,
+        uint256 totalEthStakeSigned,
+        uint256 totalEigenStakeSigned
     ) external {
         require(
             block.timestamp <
@@ -168,36 +180,71 @@ contract DataLayrPaymentChallenge {
         );
         uint48 challengedDumpNumber = challenge.fromDumpNumber;
         uint8 status = challenge.status;
+        address operator = challenge.operator;
         //check sigs
         require(
             dlsm.getDumpNumberSignatureHash(challengedDumpNumber) ==
-                keccak256(abi.encodePacked(signatoryRecord)),
+                keccak256(
+                    abi.encodePacked(
+                        challengedDumpNumber,
+                        signers,
+                        stakes,
+                        totalEthStakeSigned,
+                        totalEigenStakeSigned
+                    )
+                ),
             "Sig record does not match hash"
         );
-        //fetch operator id
-        uint32 operatorId = IDataLayrVoteWeigher(
-            address(IServiceManager(address(dlsm)).repository().voteWeigher())
-        ).getOperatorId(challenge.operator);
-        //an operator's bin is just the top 24 bits of their id
-        uint32 operatorBin = operatorId >> 8;
+
         //calculate the true amount deserved
         uint120 trueAmount;
-        for (uint256 i = 0; i < signatoryRecord.length; ) {
-            //if this is the operators bin
-            if (signatoryRecord[i] == operatorBin) {
-                //if the claimsMadeInBin has a 1 bit in the operator index indicating the operator signed
-                if ((1 << (operatorId % 256)) & signatoryRecord[i + 1] != 0) {
-                    //divide the fee for that dump by the number of signers, which is the last element of the signatory record
-                    trueAmount = uint120(
-                        dlsm.getDumpNumberFee(challengedDumpNumber) /
-                            signatoryRecord[signatoryRecord.length - 1]
-                    );
+
+        //2^32 is an impossible index because it is more than the max number of registrants
+        //the challenger marks 2^32 as the index to show that operator has not signed
+        if (signerIndex == 1 << 32) {
+            for (uint256 i = 0; i < signers.length; ) {
+                require(signers[i] != operator, "Operator was a signatory");
+
+                unchecked {
+                    i += 2;
                 }
-                break;
             }
-            unchecked {
-                i += 2;
+        } else {
+            require(
+                signers[signerIndex] == operator,
+                "Signer index is incorrect"
+            );
+            //TODO: Change this
+            uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
+            SignerMetadata memory signerMetadata;
+            assembly {
+                //skip 44 bytes per person, load 32 bytes, shr 96 bit because only first 20 bytes
+                mstore(signerMetadata, calldataload(add(stakeOffset, mul(44, stakesIndex))))
+                    
+                //skip 44 bytes per person, then 20 bytes for the persons address, load 32 bytes
+                // shr 160 bit because only first 12 bytes
+                mstore(add(signerMetadata, 20), 
+                    calldataload(
+                        add(stakeOffset, add(mul(44, stakesIndex), 20))
+                    ))
+
+                //skip 44 bytes per person, then 20 bytes for the persons address, 12 bytes for ethStake, load 32 bytes,
+                // shr 160 bit because only first 12 bytes
+                mstore(add(signerMetadata, 32), 
+                    calldataload(
+                        add(stakeOffset, add(mul(44, stakesIndex), 32))
+                    ))
             }
+            require(signerMetadata.signer == operator, "Incorrect signer index");
+            //TODO: assumes even eigen eth split
+            trueAmount = uint120(
+                (fee * signerMetadata.ethStake) /
+                    totalEthStakeSigned /
+                    2 +
+                    (fee * signerMetadata.eigenStake) /
+                    totalEigenStakeSigned /
+                    2
+            );
         }
 
         if (status == 4) {
