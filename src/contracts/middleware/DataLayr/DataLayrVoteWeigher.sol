@@ -6,6 +6,8 @@ import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "../RegistrationManagerBaseMinusRepository.sol";
+import "../../libraries/SignatureCompaction.sol";
+
 import "ds-test/test.sol";
 
 /**
@@ -40,6 +42,13 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint48 a;
         uint48 b;
     }
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant REGISTRATION_TYPEHASH = keccak256("Registration(address operator,address registrationContract,uint256 expiry)");
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
@@ -105,6 +114,8 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         bytes32 zeroHash = keccak256(abi.encodePacked(bytes24(0)));
         //initialize the mapping
         stakeHashes[0] = zeroHash;
+        //initialize the DOMAIN_SEPARATOR for signatures
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid));
     }
 
     /**
@@ -184,9 +195,12 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         override
         returns (uint8, uint96, uint96)
     {
-        // address operator = msg.sender;
+        return _registerOperator(msg.sender, data);
+    }
+
+    function _registerOperator(address operator, bytes calldata data) internal returns (uint8, uint96, uint96) {
         require(
-            registry[msg.sender].active == 0,
+            registry[operator].active == 0,
             "Operator is already registered"
         );
 
@@ -200,7 +214,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         if ((registrantType & 0x00000001) == 0x00000001) {
             // if operator want to be an "ETH" validator, check that they meet the 
             // minimum requirements on how much ETH it must deposit
-            ethAndEigenAmounts.ethAmount = uint96(weightOfOperatorEth(msg.sender));
+            ethAndEigenAmounts.ethAmount = uint96(weightOfOperatorEth(operator));
             require(ethAndEigenAmounts.ethAmount >= dlnEthStake, "Not enough eth value staked");
         }
 
@@ -208,12 +222,12 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         if ((registrantType & 0x00000002) == 0x00000002) {
             // if operator want to be an "Eigen" validator, check that they meet the 
             // minimum requirements on how much Eigen it must deposit
-            ethAndEigenAmounts.eigenAmount = uint96(weightOfOperatorEigen(msg.sender));
+            ethAndEigenAmounts.eigenAmount = uint96(weightOfOperatorEigen(operator));
             require(ethAndEigenAmounts.eigenAmount >= dlnEigenStake, "Not enough eigen staked");
         }
 
         //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount);
+        bytes memory dataToAppend = abi.encodePacked(operator, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount);
 
         require(ethAndEigenAmounts.ethAmount > 0 || ethAndEigenAmounts.eigenAmount > 0, "must register as at least one type of validator");
         // parse the length 
@@ -237,7 +251,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
 
         // slice starting the byte after socket length to construct the details on the 
         // DataLayr node
-        registry[msg.sender] = Registrant({
+        registry[operator] = Registrant({
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
@@ -258,7 +272,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         });
 
         // record the operator being registered
-        registrantList.push(msg.sender);
+        registrantList.push(operator);
 
         // update the counter for registrant ID
         unchecked {
@@ -270,7 +284,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
             address(repository.serviceManager())
         ).dumpNumber();
 
-        emit StakeAdded(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(operator, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
 
 
         // store the updated meta-data in the mapping with the key being the current dump number
@@ -294,7 +308,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         stakeHashUpdates.push(currentDumpNumber);
 
         //update stakes in storage
-        operatorStakes[msg.sender] = ethAndEigenAmounts;
+        operatorStakes[operator] = ethAndEigenAmounts;
 
         /**
          * update total Eigen and ETH that are being employed by the operator for securing
@@ -311,7 +325,34 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         }
 
         // TODO: do we need this return data?
-        return (registrantType, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount);
+        return (registrantType, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount); 
+    }
+
+    function registerOperatorBySignature(address operator, uint256 expiry, bytes32 r, bytes32 vs, bytes calldata data) 
+        external returns (uint8, uint96, uint96)
+    {
+        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
+        bytes32 structHash = keccak256(
+            abi.encode(
+                REGISTRATION_TYPEHASH,
+                operator,
+                address(this),
+                expiry
+            )
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+        //check validity of signature
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
+        require(recoveredAddress != address(0), "registerOperatorBySignature: bad signature");
+        require(recoveredAddress == operator, "registerOperatorBySignature: sig not from operator");
+
+        return _registerOperator(operator, data);
     }
 
     /**

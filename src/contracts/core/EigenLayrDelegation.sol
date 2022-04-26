@@ -104,8 +104,6 @@ contract EigenLayrDelegation is
         // increment delegator's delegationNonce
         ++delegationNonces[delegator];
         _delegate(delegator, operator);
-
-
     }
 
     // internal function implementing the delegation of 'delegator' to 'operator'
