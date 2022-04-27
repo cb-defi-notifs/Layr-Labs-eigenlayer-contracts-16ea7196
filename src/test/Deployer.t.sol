@@ -878,8 +878,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
          (
                 IInvestmentStrategy[] memory delegatorStrategies,
                 uint256[] memory delegatorShares,
-                uint256 consensusLayrEthDeposited,
-                uint256 eigenAmount
+                // uint256 consensusLayrEthDeposited,
+                // uint256 eigenAmount
+                ,
+                
             ) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
