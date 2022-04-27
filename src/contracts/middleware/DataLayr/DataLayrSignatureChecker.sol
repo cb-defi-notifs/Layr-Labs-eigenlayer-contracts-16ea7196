@@ -253,11 +253,15 @@ abstract contract DataLayrSignatureChecker is
         }
 
         //set compressedSignatoryRecord variable
+        //used for payment fraud proofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
-                headerHash,
+                // headerHash,
                 dumpNumberToConfirm,
-                abi.encodePacked(signers)
+                abi.encodePacked(signers),
+                smd.stakes,
+                signedTotals.ethStakeSigned,
+                signedTotals.eigenStakeSigned
             )
         );
 
