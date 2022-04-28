@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
-import "ds-test/test.sol";
+// import "ds-test/test.sol";
 
 /* TODO:
 Currently, in the EigenLayrDeposit contract, all three function depositEthIntoConsensusLayer ,  proveLegacyConsensusLayerDeposit , and depositPOSProof call the same function on the InvestmentManager contract — depositConsenusLayerEth .
@@ -35,8 +35,8 @@ Let’s discuss a good resolution for this
 contract EigenLayrDeposit is
     Initializable,
     EigenLayrDepositStorage,
-    IEigenLayrDeposit,
-    DSTest
+    IEigenLayrDeposit
+    // ,DSTest
 {
     bytes32 public immutable consensusLayerDepositRoot;
     IProofOfStakingOracle postOracle;
@@ -68,14 +68,11 @@ contract EigenLayrDeposit is
         IERC20 liquidStakeToken,
         IInvestmentStrategy strategy
     ) external payable {
-        emit log_named_address("THIS IS NUTS", msg.sender);
-
         // TODO: verify this check is 1000% not needed. I believe InvestmentManager and the Strategy itself should cover this.
         // require(
         //     isAllowedLiquidStakedToken[liquidStakeToken],
         //     "This liquid staking token is not permitted in EigenLayr"
         // );
-        emit log_named_uint("THIS IS NUTS", msg.value);
 
         // balance of liquidStakeToken before deposit
         uint256 depositAmount = liquidStakeToken.balanceOf(address(this));

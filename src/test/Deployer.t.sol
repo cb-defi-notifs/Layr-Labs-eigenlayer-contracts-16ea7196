@@ -641,7 +641,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         returns (bytes memory)
     {
         uint8 numOperators = 10;
-        emit log_named_uint("numOperators", numOperators);
+        // emit log_named_uint("numOperators", numOperators);
         return testSelfOperatorsRegisterBySignatureSameTime(numOperators);
     }
 
