@@ -77,6 +77,9 @@ contract Slasher is Governed {
         optedIntoSlashing[msg.sender][repository] = true;
     }
 
+    // TODO: safe way to opt OUT of slashing (fraudproof)
+    // idea -- require registrationManager of repository to call function that opts you out
+
     // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
     function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistrationManager registrationManager) public view returns (bool) {
         // if the user has directly opted in to the 'repository' address being allowed to slash them

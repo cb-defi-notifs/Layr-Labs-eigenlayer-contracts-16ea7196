@@ -78,20 +78,6 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
         address registrant // who started
     );
 
-    function registerOperator(address, bytes calldata)
-        external
-        virtual
-        returns (uint8, uint96, uint96);
-
-    /**
-     * @notice Used by an operator to de-register itself from providing service to the middleware.
-     */
-// TODO: decide if address input is necessary for the standard
-    function deregisterOperator(address, bytes calldata)
-        external
-        virtual
-        returns (bool);
-
     function isRegistered(address operator) external virtual view returns (bool) {
         EthAndEigenAmounts memory opStake = operatorStakes[operator];
         return (opStake.ethAmount > 0 || opStake.eigenAmount > 0);

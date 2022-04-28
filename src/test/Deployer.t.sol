@@ -522,17 +522,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(sender, 1e18);
         _testDepositEigen(sender);
         _testSelfOperatorDelegate(sender);  
-        bytes memory socket = "fe";
-        bytes memory data = abi.encodePacked(
-            registrantType,
-            uint256(stakesPrev.length),
-            stakesPrev,
-            uint8(socket.length),
-            socket
-        );
+        string memory socket = "fe";
 
         cheats.startPrank(sender);
-        dlRegVW.registerOperator(sender, data);
+        // function registerOperator(uint8 registrantType, string calldata socket, bytes calldata stakes)
+        dlRegVW.registerOperator(registrantType, socket, stakesPrev);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
@@ -574,14 +568,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(sender, 1e18);
         _testDepositEigen(sender);
         _testSelfOperatorDelegate(sender);  
-        // bytes memory socket = "fe";
-        bytes memory data = abi.encodePacked(
-            uint8(3),
-            uint256(stakesPrev.length),
-            stakesPrev,
-            uint8(bytes("fe").length),
-            "fe"
-        );
+        // string memory socket = "fe";
 
         cheats.startPrank(sender);
 
@@ -611,9 +598,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             emit log_named_address("expected signature from", sender);
         } 
         vs = SignatureCompaction.packVS(vs,v);
-        // try to actually register by signature
-        // dlRegVW.registerOperatorBySignature(sender, expiry, r, vs, data);
-        dlRegVW.registerOperatorBySignature(sender, uint256(0), r, vs, data);
+    // function registerOperatorBySignature(
+    //     address operator,
+    //     uint8 registrantType,
+    //     string calldata socket,
+    //     uint256 expiry,
+    //     bytes32 r,
+    //     bytes32 vs,
+    //     bytes calldata stakes
+        dlRegVW.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
 
         // uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
@@ -881,7 +874,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
                 // uint256 consensusLayrEthDeposited,
                 // uint256 eigenAmount
                 ,
-                
+
             ) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;

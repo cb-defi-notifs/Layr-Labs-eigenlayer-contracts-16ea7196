@@ -13,11 +13,9 @@ contract RegistrationManagerBase is RegistrationManagerBaseMinusRepository {
     constructor(IRepository _repository) {
         repository = _repository;
     }
-    function registerOperator(address, bytes calldata)
+    function registerOperator()
         external
         virtual
-        override
-        returns (uint8, uint96, uint96)
     {
         // load operator's current stakes
         EthAndEigenAmounts memory opStake = operatorStakes[msg.sender];
@@ -32,17 +30,15 @@ contract RegistrationManagerBase is RegistrationManagerBaseMinusRepository {
         totalStake.eigenAmount += opStake.eigenAmount;
         // store the operator's stake in storage
         operatorStakes[msg.sender] = opStake;
-        return(1, opStake.ethAmount, opStake.eigenAmount);
     }
 
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
 // TODO: decide if address input is necessary for the standard
-    function deregisterOperator(address, bytes calldata)
+    function deregisterOperator()
         external
         virtual
-        override
         returns (bool)
     {
 // TODO: verify that the operator can deregister!
