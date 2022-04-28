@@ -522,17 +522,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testWethDeposit(sender, 1e18);
         _testDepositEigen(sender);
         _testSelfOperatorDelegate(sender);  
-        bytes memory socket = "fe";
-        bytes memory data = abi.encodePacked(
-            registrantType,
-            uint256(stakesPrev.length),
-            stakesPrev,
-            uint8(socket.length),
-            socket
-        );
+        string memory socket = "fe";
 
         cheats.startPrank(sender);
-        dlRegVW.registerOperator(sender, data);
+        // function registerOperator(uint8 registrantType, string calldata socket, bytes calldata stakes)
+        dlRegVW.registerOperator(registrantType, socket, stakesPrev);
 
         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
@@ -550,6 +544,92 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
         );
+
+        cheats.stopPrank();
+        return (stakes);
+    }
+
+    function testSelfOperatorRegisterBySignature()
+        public
+        returns (bytes memory)
+    {
+        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
+        bytes memory emptyStakes = abi.encodePacked(bytes24(0));
+        return _testRegisterAdditionalSelfOperatorBySignature(uint256(priv_key_0), emptyStakes);
+    }
+
+    // TODO: clean up this really ugly test
+    function _testRegisterAdditionalSelfOperatorBySignature(uint256 privKey, bytes memory stakesPrev) internal returns (bytes memory) {
+        // uint256 expiry = 0;
+
+        address sender = cheats.addr(privKey);
+        //register as both ETH and EIGEN operator
+        // uint8 registrantType = 3;
+        _testWethDeposit(sender, 1e18);
+        _testDepositEigen(sender);
+        _testSelfOperatorDelegate(sender);  
+        // string memory socket = "fe";
+
+        cheats.startPrank(sender);
+
+        // calculate hash to sign, imitating logic in DataLayrVoteWeigher
+        bytes32 digestHash = keccak256(
+            abi.encode(
+                dlRegVW.REGISTRATION_TYPEHASH(),
+                sender,
+                address(dlRegVW),
+                // expiry
+                uint256(0)
+            )
+        );
+        digestHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                dlRegVW.DOMAIN_SEPARATOR(),
+                digestHash
+            )
+        );
+        // get signature
+        (uint8 v, bytes32 r, bytes32 vs) = cheats.sign(privKey, digestHash);
+        // sanity check signature
+        address recoveredAddress = ecrecover(digestHash, v, r, vs);
+        if (recoveredAddress != sender) {
+            emit log_named_address("bad signature from", recoveredAddress);
+            emit log_named_address("expected signature from", sender);
+        } 
+        vs = SignatureCompaction.packVS(vs,v);
+    // function registerOperatorBySignature(
+    //     address operator,
+    //     uint8 registrantType,
+    //     string calldata socket,
+    //     uint256 expiry,
+    //     bytes32 r,
+    //     bytes32 vs,
+    //     bytes calldata stakes
+        dlRegVW.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
+
+        // uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
+        uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
+        uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
+        bytes memory stakes = abi.encodePacked(
+            stakesPrev.slice(0,stakesPrev.length - 24),
+            sender
+        );
+        stakes = abi.encodePacked(
+            stakes,
+            weightOfOperatorEth,
+            weightOfOperatorEigen
+        );
+        stakes = abi.encodePacked(
+            stakes,
+            weightOfOperatorEth + (stakesPrev.toUint96(stakesPrev.length - 24)),
+            weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
+        );
+        // bytes32 hashOfStakes = keccak256(stakes);
+        // assertTrue(
+        //     hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+        //     "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
+        // );
 
         cheats.stopPrank();
         return (stakes);
@@ -791,8 +871,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
          (
                 IInvestmentStrategy[] memory delegatorStrategies,
                 uint256[] memory delegatorShares,
-                uint256 consensusLayrEthDeposited,
-                uint256 eigenAmount
+                // uint256 consensusLayrEthDeposited,
+                // uint256 eigenAmount
+                ,
+
             ) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;

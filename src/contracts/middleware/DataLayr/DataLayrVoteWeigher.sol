@@ -6,6 +6,8 @@ import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "../RegistrationManagerBaseMinusRepository.sol";
+import "../../libraries/SignatureCompaction.sol";
+
 import "ds-test/test.sol";
 
 /**
@@ -40,6 +42,13 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint48 a;
         uint48 b;
     }
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant REGISTRATION_TYPEHASH = keccak256("Registration(address operator,address registrationContract,uint256 expiry)");
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
@@ -105,6 +114,8 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         bytes32 zeroHash = keccak256(abi.encodePacked(bytes24(0)));
         //initialize the mapping
         stakeHashes[0] = zeroHash;
+        //initialize the DOMAIN_SEPARATOR for signatures
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid));
     }
 
     /**
@@ -141,180 +152,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
     }
 
     /**
-     * @notice Used for registering a new validator with DataLayr. 
-     */
-    /**
-     * @param operator is the operator that wants to register as a DataLayr node
-     * @param data is the meta-information that is required from operator for registering   
-     */ 
-    /**
-     * @dev In order to minimize gas costs from storage, we adopted an approach where 
-     *      we just store a hash of the all the ETH and Eigen staked by various DataLayr
-     *      nodes into the chain and emit an event specifying the information on a new
-     *      operator whenever it registers. Any operator wishing to register as a 
-     *      DataLayr node has to gather information on the existing DataLayr nodes
-     *      and provide it while registering itself with DataLayr.
-     *
-     *      The structure for @param data is given by:
-     *        <uint8> <uint256> <bytes[(2)]> <uint8> <bytes[(4)]>    
-     *        < (1) > <  (2)  > <    (3)   > < (4) > <   (5)    >
-     *
-     *      where,
-     *        (1) is registrantType that specifies whether the operator is an ETH DataLayr node,
-     *            or Eigen DataLayr node or both,
-     *        (2) is stakeLength which specifies length of (3),
-     *        (3) is the list of the form [<(operator address, operator's ETH deposit, operator's EIGEN deposit)>,
-     *                                      total ETH deposit, total EIGEN deposit],
-     *            where <(operator address, operator's ETH deposit, operator's EIGEN deposit)> is the array of tuple
-     *            (operator address, operator's ETH deposit, operator's EIGEN deposit) for operators who are DataLayr nodes, 
-     * 
-     *              
-     *        (4) is socketLength which specifies length of (7),
-     *        (5) is the socket 
-     *
-     *      An important point to note that each operator's ETH deposit (EIGEN deposit) is left out of the member of the tuple in the event that the
-     *              operator has registrantType with first (second) bit 0.
-     *      When registering as a node, a new node operator must provide the existing stake information (since we only store the hash, rather than
-     *      storing the entire object in storage)
-     *
-     */ 
-// TODO: decide if address input is necessary for the standard
-    function registerOperator(address, bytes calldata data)
-        external
-        override
-        returns (uint8, uint96, uint96)
-    {
-        // address operator = msg.sender;
-        require(
-            registry[msg.sender].active == 0,
-            "Operator is already registered"
-        );
-
-        // get the first byte of data which happens to specify the type of the operator
-        uint8 registrantType = data.toUint8(0);
-
-        // TODO: shared struct type for this + registrantType, also used in Repository?
-        EthAndEigenAmounts memory ethAndEigenAmounts;
-
-        //if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 0x00000001) == 0x00000001) {
-            // if operator want to be an "ETH" validator, check that they meet the 
-            // minimum requirements on how much ETH it must deposit
-            ethAndEigenAmounts.ethAmount = uint96(weightOfOperatorEth(msg.sender));
-            require(ethAndEigenAmounts.ethAmount >= dlnEthStake, "Not enough eth value staked");
-        }
-
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 0x00000002) == 0x00000002) {
-            // if operator want to be an "Eigen" validator, check that they meet the 
-            // minimum requirements on how much Eigen it must deposit
-            ethAndEigenAmounts.eigenAmount = uint96(weightOfOperatorEigen(msg.sender));
-            require(ethAndEigenAmounts.eigenAmount >= dlnEigenStake, "Not enough eigen staked");
-        }
-
-        //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount);
-
-        require(ethAndEigenAmounts.ethAmount > 0 || ethAndEigenAmounts.eigenAmount > 0, "must register as at least one type of validator");
-        // parse the length 
-        /// @dev this is (2) in the description just before the current function 
-        uint256 stakesLength = data.toUint256(1);
-
-        // add the tuple (operator address, operator's stake) to the meta-information
-        // on the stakes of the existing DataLayr nodes
-        // '33' is used here to account for registrantType (already read) and stakesLength
-        bytes memory stakes = data.slice(33, stakesLength);
-
-        // stakes must be preimage of last update's hash
-        // uint48 prevDumpNumber = stakeHashUpdates[stakeHashUpdates.length - 1];
-        // bytes32 prevHash = stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]];
-
-        require(
-            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
-            "Supplied stakes are incorrect"
-        );
-
-
-        // slice starting the byte after socket length to construct the details on the 
-        // DataLayr node
-        registry[msg.sender] = Registrant({
-            id: nextRegistrantId,
-            index: numRegistrants,
-            active: registrantType,
-            fromDumpNumber: IDataLayrServiceManager(
-                address(repository.serviceManager())
-            ).dumpNumber(),
-            to: 0,
-
-            // extract the socket address 
-            socket: string(
-                data.slice(
-                    //begin just after byte where socket length is specified
-                    (34 + stakesLength),
-                    //fetch byte that specifies socket length
-                    data.toUint8(33 + stakesLength)
-                )
-            )
-        });
-
-        // record the operator being registered
-        registrantList.push(msg.sender);
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
-
-        // get current dump number from DataLayrServiceManager
-        uint48 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();
-
-        emit StakeAdded(msg.sender, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
-
-
-        // store the updated meta-data in the mapping with the key being the current dump number
-        /** 
-         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
-         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
-         *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
-         */
-        stakeHashes[currentDumpNumber] = keccak256(
-            abi.encodePacked(
-                stakes.slice(0, stakes.length - 24),
-                // append at the end of list
-                dataToAppend,
-                // update the total ETH deposited
-                stakes.toUint96(stakes.length - 24) + ethAndEigenAmounts.ethAmount,
-                // update the total EIGEN deposited
-                stakes.toUint96(stakes.length - 12) + ethAndEigenAmounts.eigenAmount
-            )
-        );
-
-        stakeHashUpdates.push(currentDumpNumber);
-
-        //update stakes in storage
-        operatorStakes[msg.sender] = ethAndEigenAmounts;
-
-        /**
-         * update total Eigen and ETH that are being employed by the operator for securing
-         * the queries from middleware via EigenLayr
-         */
-        //i think this gets batched as 1 SSTORE @TODO check
-        totalStake.ethAmount += ethAndEigenAmounts.ethAmount;
-        totalStake.eigenAmount += ethAndEigenAmounts.eigenAmount;
-
-        //TODO: do we need this variable at all?
-        //increment number of registrants
-        unchecked {
-            ++numRegistrants;
-        }
-
-        // TODO: do we need this return data?
-        return (registrantType, ethAndEigenAmounts.ethAmount, ethAndEigenAmounts.eigenAmount);
-    }
-
-    /**
      * @notice Used for notifying that operator wants to deregister from being 
      *         a DataLayr node 
      */
@@ -339,9 +176,9 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
 // TODO: decide if address input is necessary for the standard
+// TODO: JEFFC -- delete operator out of stakes object (replace them with the last person & pop off the data)
     function deregisterOperator(address, bytes calldata)
         external
-        override
         returns (bool)
     {
         address operator = msg.sender;
@@ -554,5 +391,320 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         returns (uint8)
     {
         return registry[operator].active;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    function registerOperator(uint8 registrantType, string calldata socket, bytes calldata stakes) public {
+        _registerOperator(msg.sender, registrantType, socket, stakes);
+    }
+
+    function registerOperatorBySignature(
+        address operator,
+        uint8 registrantType,
+        string calldata socket,
+        uint256 expiry,
+        bytes32 r,
+        bytes32 vs,
+        bytes calldata stakes
+        ) external
+    {
+        require(expiry == 0 || expiry <= block.timestamp, "registration signature expired");
+        bytes32 structHash = keccak256(
+            abi.encode(
+                REGISTRATION_TYPEHASH,
+                operator,
+                address(this),
+                expiry
+            )
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+        //check validity of signature
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
+        require(recoveredAddress != address(0), "registerOperatorBySignature: bad signature");
+        require(recoveredAddress == operator, "registerOperatorBySignature: sig not from operator");
+
+        _registerOperator(operator, registrantType, socket, stakes);
+    }
+
+    function _registerOperator(address operator, uint8 registrantType, string calldata socket, bytes calldata stakes) internal {
+        require(
+            registry[operator].active == 0,
+            "Operator is already registered"
+        );
+
+        // TODO: shared struct type for this + registrantType, also used in Repository?
+        EthAndEigenAmounts memory _operatorStake;
+
+        //if first bit of registrantType is '1', then operator wants to be an ETH validator
+        if ((registrantType & 0x00000001) == 0x00000001) {
+            // if operator want to be an "ETH" validator, check that they meet the 
+            // minimum requirements on how much ETH it must deposit
+            _operatorStake.ethAmount = uint96(weightOfOperatorEth(operator));
+            require(_operatorStake.ethAmount >= dlnEthStake, "Not enough eth value staked");
+        }
+
+        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
+        if ((registrantType & 0x00000002) == 0x00000002) {
+            // if operator want to be an "Eigen" validator, check that they meet the 
+            // minimum requirements on how much Eigen it must deposit
+            _operatorStake.eigenAmount = uint96(weightOfOperatorEigen(operator));
+            require(_operatorStake.eigenAmount >= dlnEigenStake, "Not enough eigen staked");
+        }
+
+        //bytes to add to the existing stakes object
+        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethAmount, _operatorStake.eigenAmount);
+
+        require(_operatorStake.ethAmount > 0 || _operatorStake.eigenAmount > 0, "must register as at least one type of validator");
+
+        require(
+            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
+            "Supplied stakes are incorrect"
+        );
+
+        // slice starting the byte after socket length to construct the details on the 
+        // DataLayr node
+        registry[operator] = Registrant({
+            id: nextRegistrantId,
+            index: numRegistrants,
+            active: registrantType,
+            fromDumpNumber: IDataLayrServiceManager(
+                address(repository.serviceManager())
+            ).dumpNumber(),
+            to: 0,
+            // extract the socket address 
+            socket: socket
+        });
+
+        // record the operator being registered
+        registrantList.push(operator);
+
+        // update the counter for registrant ID
+        unchecked {
+            ++nextRegistrantId;
+        }
+
+        // get current dump number from DataLayrServiceManager
+        uint48 currentDumpNumber = IDataLayrServiceManager(
+            address(repository.serviceManager())
+        ).dumpNumber();
+
+        emit StakeAdded(operator, _operatorStake.ethAmount, _operatorStake.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+
+        stakeHashUpdates.push(currentDumpNumber);
+
+        // update operator stake in storage
+        operatorStakes[operator] = _operatorStake;
+
+        // copy total stake to memory
+        EthAndEigenAmounts memory _totalStake = totalStake;
+        /**
+         * update total Eigen and ETH that are being employed by the operator for securing
+         * the queries from middleware via EigenLayr
+         */
+        _totalStake.ethAmount += _operatorStake.ethAmount;
+        _totalStake.eigenAmount += _operatorStake.eigenAmount;
+        // update storage of total stake
+        totalStake = _totalStake;
+
+        //TODO: do we need this variable at all?
+        //increment number of registrants
+        unchecked {
+            ++numRegistrants;
+        }
+
+        // store the updated meta-data in the mapping with the key being the current dump number
+        /** 
+         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
+         *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
+         */
+        stakeHashes[currentDumpNumber] = keccak256(
+            abi.encodePacked(
+                stakes.slice(0, stakes.length - 24),
+                // append at the end of list
+                dataToAppend,
+                // update the total ETH and EIGEN deposited
+                _totalStake.ethAmount,
+                _totalStake.eigenAmount
+            )
+        );
+    }
+
+    function registerOperatorsBySignatures(
+        address[] calldata operators,
+        uint8[] calldata registrantTypes,
+        string[] calldata sockets,
+        uint256[] calldata expiries,
+        // set of all r's for all signers, then set of all vs's for signers
+        bytes32[] calldata signatureData,
+        bytes calldata stakes) 
+        external
+    {
+        // check all the signatures
+        // uint256 operatorsLength = operators.length;
+        // for (uint256 i = 0; i < operatorsLength;) {
+        for (uint256 i = 0; i < operators.length;) {
+            require(expiries[i] == 0 || expiries[i] <= block.timestamp, "registration signature expired");
+            bytes32 structHash = keccak256(
+                abi.encode(
+                    REGISTRATION_TYPEHASH,
+                    operators[i],
+                    address(this),
+                    expiries[i]
+                )
+            );
+            bytes32 digestHash = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    DOMAIN_SEPARATOR,
+                    structHash
+                )
+            );
+            //check validity of signature
+            address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, signatureData[i], signatureData[2 * i]);
+            require(recoveredAddress != address(0), "registerOperatorBySignature: bad signature");
+            require(recoveredAddress == operators[i], "registerOperatorBySignature: sig not from operator");
+
+            // increment loop
+            unchecked {
+                ++i;
+            }
+        }
+        _registerOperators(operators, registrantTypes, sockets, stakes);
+    }
+    
+    function _registerOperators(address[] calldata operators, uint8[] calldata registrantTypes, string[] calldata sockets, bytes calldata stakes) internal {
+        require(
+            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
+            "Supplied stakes are incorrect"
+        );        
+        // copy total stake to memory
+        EthAndEigenAmounts memory _totalStake = totalStake;
+
+        //bytes to add to the existing stakes object
+        bytes memory dataToAppend;
+
+        // get current dump number from DataLayrServiceManager
+        uint48 currentDumpNumber = IDataLayrServiceManager(
+            address(repository.serviceManager())
+        ).dumpNumber(); 
+
+        // uint256 operatorsLength = operators.length;
+        // for (uint256 i = 0; i < operatorsLength;) {
+        for (uint256 i = 0; i < operators.length;) { 
+            require(
+                registry[operators[i]].active == 0,
+                "Operator is already registered"
+            );
+
+            // TODO: shared struct type for this + registrantType, also used in Repository?
+            EthAndEigenAmounts memory _operatorStake;
+
+            //if first bit of registrantType is '1', then operator wants to be an ETH validator
+            if ((registrantTypes[i] & 0x00000001) == 0x00000001) {
+                // if operator want to be an "ETH" validator, check that they meet the 
+                // minimum requirements on how much ETH it must deposit
+                _operatorStake.ethAmount = uint96(weightOfOperatorEth(operators[i]));
+                require(_operatorStake.ethAmount >= dlnEthStake, "Not enough eth value staked");
+            }   
+
+            //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
+            if ((registrantTypes[i] & 0x00000002) == 0x00000002) {
+                // if operator want to be an "Eigen" validator, check that they meet the 
+                // minimum requirements on how much Eigen it must deposit
+                _operatorStake.eigenAmount = uint96(weightOfOperatorEigen(operators[i]));
+                require(_operatorStake.eigenAmount >= dlnEigenStake, "Not enough eigen staked");
+            }   
+
+            require(_operatorStake.ethAmount > 0 || _operatorStake.eigenAmount > 0, "must register as at least one type of validator");
+
+            // add operator's info to the 'dataToAppend' object
+            dataToAppend = abi.encodePacked(dataToAppend, operators[i], _operatorStake.ethAmount, _operatorStake.eigenAmount);
+
+            // slice starting the byte after socket length to construct the details on the 
+            // DataLayr node
+            registry[operators[i]] = Registrant({
+                id: nextRegistrantId,
+                index: numRegistrants,
+                active: registrantTypes[i],
+                fromDumpNumber: currentDumpNumber,
+                to: 0,
+                // extract the socket address 
+                socket: sockets[i]
+            });
+
+            // record the operator being registered
+            registrantList.push(operators[i]);  
+
+            // update the counter for registrant ID
+            unchecked {
+                ++nextRegistrantId;
+            }   
+
+            emit StakeAdded(operators[i], _operatorStake.ethAmount, _operatorStake.eigenAmount, stakeHashUpdates.length, currentDumpNumber, stakeHashUpdates[stakeHashUpdates.length - 1]); 
+
+            // update operator stake in storage
+            operatorStakes[operators[i]] = _operatorStake;  
+
+            /**
+             * update total Eigen and ETH that are being employed by the operator for securing
+             * the queries from middleware via EigenLayr
+             */
+            _totalStake.ethAmount += _operatorStake.ethAmount;
+            _totalStake.eigenAmount += _operatorStake.eigenAmount;
+
+            //TODO: do we need this variable at all?
+            //increment number of registrants
+            unchecked {
+                ++numRegistrants;
+            }   
+
+            // increment the loop
+            unchecked {
+                ++i;
+            }
+        }
+
+        // update storage of total stake
+        totalStake = _totalStake;   
+
+        stakeHashUpdates.push(currentDumpNumber);  
+
+        // store the updated meta-data in the mapping with the key being the current dump number
+        /** 
+         * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+         *      at the front of the list of tuples pertaining to existing DataLayr nodes. 
+         *      Also, need to update the total ETH and/or EIGEN deposited by all DataLayr nodes.
+         */
+        stakeHashes[currentDumpNumber] = keccak256(
+            abi.encodePacked(
+                stakes.slice(0, stakes.length - 24),
+                // append at the end of list
+                dataToAppend,
+                // update the total ETH and EIGEN deposited
+                _totalStake.ethAmount,
+                _totalStake.eigenAmount
+            )
+        );
     }
 }
