@@ -130,7 +130,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         address governor = address(this);
         investmentManager.initialize(
             strats,
-            slasher,
+            address(slasher),
             governor,
             address(deposit)
         );
@@ -138,7 +138,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         delegation.initialize(
             investmentManager,
             serviceFactory,
-            slasher,
             undelegationFraudProofInterval
         );
 
@@ -201,7 +200,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
         assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
+        assertTrue(dlRepository.ServiceManager() == dlsm, "ServiceManager set incorrectly");
         assertTrue(
             dlsm.repository() == dlRepository,
             "repository set incorrectly in dlsm"
@@ -301,7 +300,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         public
         returns(uint256 amountDeposited)
     {
-        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, strat);
+        IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 1);
+        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, _strat);
     }
 
 
@@ -309,7 +309,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     function _testDepositETHIntoLiquidStaking(
         address sender,
         uint256 amountToDeposit,
-        WethStashInvestmentStrategy stratToDepositTo)
+        IInvestmentStrategy stratToDepositTo)
         internal
         returns(uint256 amountDeposited)
     {
@@ -821,4 +821,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
+
+
 }
