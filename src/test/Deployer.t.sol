@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./mocks/DepositContract.sol";
+import "./mocks/LiquidStakingToken.sol";
 import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
@@ -13,6 +14,7 @@ import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/WethStashInvestmentStrategy.sol";
+import "../contracts/investment/LidoInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
@@ -58,12 +60,16 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
+    LidoInvestmentStrategy public strat1;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
     DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
+
+    WETH public liquidStakingMockToken;
+    WethStashInvestmentStrategy public liquidStakingMockStrat;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -75,6 +81,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
+    uint256 stethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
     uint256 timelockDelay = 2 days;
@@ -117,8 +124,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             wethInitialSupply,
             address(this)
         );
+        
+
         //do stuff with weth
         strat = new WethStashInvestmentStrategy();
+        strat1 = new LidoInvestmentStrategy();
         strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strat.initialize(address(investmentManager), weth);
 
@@ -174,6 +184,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         dlsm.setDataLayr(dl);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
+
+        liquidStakingMockToken = new WETH();
+        liquidStakingMockStrat = new WethStashInvestmentStrategy();
+        liquidStakingMockStrat.initialize(address(investmentManager), IERC20(address(liquidStakingMockToken)));
+        IInvestmentStrategy[] memory toAdd = new IInvestmentStrategy[](1);
+        toAdd[0] = liquidStakingMockStrat;
+        investmentManager.addInvestmentStrategies(toAdd);
     }
 
     function testDeploymentSuccessful() public {
@@ -301,7 +318,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         public
         returns(uint256 amountDeposited)
     {
-        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, strat);
+        return _testDepositETHIntoLiquidStaking(registrant, 1e18, liquidStakingMockToken, liquidStakingMockStrat);
+        //deposit.depositETHIntoLiquidStaking{value: 10, gas: 450000}(weth, strat1);
     }
 
 
@@ -309,31 +327,25 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     function _testDepositETHIntoLiquidStaking(
         address sender,
         uint256 amountToDeposit,
-        WethStashInvestmentStrategy stratToDepositTo)
+        IERC20 liquidStakingToken,
+        IInvestmentStrategy stratToDepositTo)
         internal
         returns(uint256 amountDeposited)
     {
-        if (amountToDeposit > wethInitialSupply) {
-            cheats.expectRevert(
-                bytes("ERC20: transfer amount exceeds balance")
-            );
-
-            weth.transfer(sender, amountToDeposit);
-            amountDeposited = 0;
-        } else {
-            weth.transfer(sender, amountToDeposit);
-            emit log_named_uint("WETH BALANCE", weth.balanceOf(sender));
-            cheats.startPrank(sender);
-            deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(weth, stratToDepositTo);
-            
-            amountDeposited = amountToDeposit;
-        }
+        // sanity in the amount we are depositing
+        cheats.assume(amountToDeposit < type(uint96).max);
+        cheats.deal(sender, amountToDeposit);
+        cheats.startPrank(sender);
+        deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(liquidStakingToken, stratToDepositTo);
+        
+        amountDeposited = amountToDeposit;
         
         assertEq(
             investmentManager.investorStratShares(sender, stratToDepositTo),
             amountDeposited,
             "shares should match deposit"
         );
+ 
         cheats.stopPrank();
         
     }
