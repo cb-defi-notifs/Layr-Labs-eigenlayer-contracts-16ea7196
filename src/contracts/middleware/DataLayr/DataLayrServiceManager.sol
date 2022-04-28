@@ -30,13 +30,14 @@ contract DataLayrServiceManager is
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
-    DataLayrPaymentChallengeFactory immutable public dataLayrPaymentChallengeFactory;
+    DataLayrPaymentChallengeFactory
+        public immutable dataLayrPaymentChallengeFactory;
 
     /**
      * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
      */
-    DataLayrDisclosureChallengeFactory immutable public dataLayrDisclosureChallengeFactory;
-
+    DataLayrDisclosureChallengeFactory
+        public immutable dataLayrDisclosureChallengeFactory;
 
     // EVENTS
     /**
@@ -82,10 +83,7 @@ contract DataLayrServiceManager is
     }
 
     function setRepository(IRepository _repository) public {
-        require(
-            address(repository) == address(0),
-            "repository already set"
-        );
+        require(address(repository) == address(0), "repository already set");
         repository = _repository;
     }
 
@@ -130,8 +128,9 @@ contract DataLayrServiceManager is
 
         // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(repository.voteWeigher()))
-            .setLatestTime(uint32(block.timestamp) + storePeriodLength);
+        IDataLayrVoteWeigher(address(repository.voteWeigher())).setLatestTime(
+            uint32(block.timestamp) + storePeriodLength
+        );
 
         // escrow the total service fees from the storer to the DataLayr nodes in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
@@ -156,10 +155,7 @@ contract DataLayrServiceManager is
      * @param data TBA.
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data)
-        external
-        payable
-    {
+    function confirmDataStore(bytes calldata data) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr nodes
         // who have agreed to be in the quorum
         (
@@ -260,9 +256,8 @@ contract DataLayrServiceManager is
     function commitPayment(uint48 toDumpNumber, uint120 amount) external {
         // only registered operators can call
         require(
-            IDataLayrVoteWeigher(
-                address(repository.voteWeigher())
-            ).getOperatorType(msg.sender) != 0,
+            IDataLayrVoteWeigher(address(repository.voteWeigher()))
+                .getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
@@ -384,14 +379,15 @@ contract DataLayrServiceManager is
             "Fraud proof interval has passed"
         );
         // deploy new challenge contract
-        address challengeContract = dataLayrPaymentChallengeFactory.createDataLayrPaymentChallenge(
+        address challengeContract = dataLayrPaymentChallengeFactory
+            .createDataLayrPaymentChallenge(
                 operator,
                 msg.sender,
                 operatorToPayment[operator].fromDumpNumber,
                 operatorToPayment[operator].toDumpNumber,
                 amount1,
-                amount2            
-        );
+                amount2
+            );
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.transferFrom(msg.sender, address(this), collateral);
@@ -433,7 +429,6 @@ contract DataLayrServiceManager is
         bytes32 headerHash,
         uint256 stakeHashIndex,
         bytes calldata stakes,
-        bool eigenOrEthStakes,
         uint256 operatorIndex
     ) public {
         //get the dataStore being challenged
@@ -444,30 +439,19 @@ contract DataLayrServiceManager is
             bool commited
         ) = dataLayr.dataStores(headerHash);
         require(commited, "Dump is not commited yet");
-        bytes32 stakeHash;
-        //if challenging eigen operator
-        if (eigenOrEthStakes) {
-            //retrieve the stake at the time of precommit
-            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
-                stakeHashIndex,
-                dumpNumber
-            );
-        } else {
-            //if challenging eth operator
-            stakeHash = IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
-                stakeHashIndex,
-                dumpNumber
-            );
-        }
+        bytes32 stakeHash = IDataLayrVoteWeigher(
+            address(repository.voteWeigher())
+        ).getStakesHashUpdateAndCheckIndex(stakeHashIndex, dumpNumber);
+
         //hash stakes and make sure preimage is correct
         require(
             keccak256(stakes) == stakeHash,
             "Stakes provided are inconsistent with hashes"
         );
-        uint256 operatorPointer = 36 * operatorIndex;
-        //make sure they are not past the end of stakes
+        uint256 operatorPointer = 44 * operatorIndex;
+        //make sure pointer is before total stakes and last persons stake amounts
         require(
-            operatorPointer < stakes.length - 32,
+            operatorPointer < stakes.length - 67,
             "Cannot point to totals or further"
         );
         address operator = stakes.toAddress(operatorPointer);
@@ -508,7 +492,7 @@ contract DataLayrServiceManager is
         require(
             block.timestamp <
                 disclosureForOperator[headerHash][msg.sender].commitTime +
-                disclosureFraudProofInterval,
+                    disclosureFraudProofInterval,
             "must be in fraud proof period"
         );
         require(
@@ -519,7 +503,10 @@ contract DataLayrServiceManager is
             uint256[2] memory c,
             uint48 degree
         ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
-        require(degree*32 == poly.length, "Polynomial mus have a 256 bit coefficient for each term");
+        require(
+            degree * 32 == poly.length,
+            "Polynomial mus have a 256 bit coefficient for each term"
+        );
         //get the commitment to the zero polynomial of multireveal degree
         // e(pi, z) = pairing
         uint256[6] memory lhs_coors;
@@ -555,9 +542,7 @@ contract DataLayrServiceManager is
         //e(pi, z) = e(c_minus_i, H)
         assembly {
             //check the lhs paring
-            if iszero(
-                call(not(0), 0x07, 0, lhs_coors, 0xC0, 0x0, 0x0)
-            ) {
+            if iszero(call(not(0), 0x07, 0, lhs_coors, 0xC0, 0x0, 0x0)) {
                 revert(0, 0)
             }
             //check the rhs paring
@@ -573,8 +558,9 @@ contract DataLayrServiceManager is
         disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
             poly
         );
-        disclosureForOperator[headerHash][msg.sender].commitTime = uint32(block
-            .timestamp);
+        disclosureForOperator[headerHash][msg.sender].commitTime = uint32(
+            block.timestamp
+        );
         disclosureForOperator[headerHash][msg.sender].status = 2;
         disclosureForOperator[headerHash][msg.sender].degree = degree;
     }
@@ -588,15 +574,17 @@ contract DataLayrServiceManager is
         uint256 y_high
     ) public {
         require(
-            disclosureForOperator[headerHash][operator].challenger == msg.sender,
+            disclosureForOperator[headerHash][operator].challenger ==
+                msg.sender,
             "Only challenger can call"
         );
         require(
             disclosureForOperator[headerHash][operator].status == 2,
             "Not in post operator response phase"
         );
-        disclosureForOperator[headerHash][operator].commitTime = uint32(block
-            .timestamp);
+        disclosureForOperator[headerHash][operator].commitTime = uint32(
+            block.timestamp
+        );
         disclosureForOperator[headerHash][operator].status = 3;
         uint256[6] memory coors;
         coors[0] = x_low;
@@ -610,18 +598,24 @@ contract DataLayrServiceManager is
                 revert(0, 0)
             }
         }
-        require(coors[4] != disclosureForOperator[headerHash][operator].x || coors[5] != disclosureForOperator[headerHash][operator].y, "Cannot commit to same polynomial as DLN");
-        uint48 temp = disclosureForOperator[headerHash][operator].degree/2;
-        disclosureForOperator[headerHash][operator].challenge = 
-            address(dataLayrDisclosureChallengeFactory.createDataLayrDisclosureChallenge(
-                operator,
-                msg.sender,
-                x_low,
-                y_low,
-                x_high,
-                y_high,
-                temp
-        ));
+        require(
+            coors[4] != disclosureForOperator[headerHash][operator].x ||
+                coors[5] != disclosureForOperator[headerHash][operator].y,
+            "Cannot commit to same polynomial as DLN"
+        );
+        uint48 temp = disclosureForOperator[headerHash][operator].degree / 2;
+        disclosureForOperator[headerHash][operator].challenge = address(
+            dataLayrDisclosureChallengeFactory
+                .createDataLayrDisclosureChallenge(
+                    operator,
+                    msg.sender,
+                    x_low,
+                    y_low,
+                    x_high,
+                    y_high,
+                    temp
+                )
+        );
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
@@ -668,9 +662,7 @@ contract DataLayrServiceManager is
                 "Fraud proof period has not passed"
             );
             //slash here
-        } else if (
-            msg.sender == operator
-        ) {
+        } else if (msg.sender == operator) {
             require(
                 disclosureForOperator[headerHash][operator].status == 2,
                 "Challenger is not in commitment challenge phase"
@@ -689,7 +681,10 @@ contract DataLayrServiceManager is
         }
     }
 
-    function getZeroPolynomialCommitment(uint256 degree, uint256 y) internal returns (uint256, uint256) {
+    function getZeroPolynomialCommitment(uint256 degree, uint256 y)
+        internal
+        returns (uint256, uint256)
+    {
         // calculate y^degree mod p
         bytes memory input;
         uint256 y_to_the_degree;
@@ -699,15 +694,16 @@ contract DataLayrServiceManager is
             mstore(add(input, 64), 32) //bn254's modulus is 254 bits!
             mstore(add(input, 96), shl(224, y)) //y is the base
             mstore(add(input, 100), shl(224, degree)) //degree is the power
-            mstore(add(input, 104), 21888242871839275222246405745257275088696311157297823662689037894645226208583) //the modulus of bn254
+            mstore(
+                add(input, 104),
+                21888242871839275222246405745257275088696311157297823662689037894645226208583
+            ) //the modulus of bn254
             if iszero(
                 call(not(0), 0x05, 0, input, 0x12, y_to_the_degree, 0x20)
             ) {
                 revert(0, 0)
             }
         }
-
-        
     }
 
     function getDumpNumberFee(uint48 _dumpNumber)
@@ -738,7 +734,11 @@ contract DataLayrServiceManager is
         return depositRoots[blockNumber];
     }
 
-    function getPolyHash(address operator, bytes32 headerHash) public view returns(bytes32) {
+    function getPolyHash(address operator, bytes32 headerHash)
+        public
+        view
+        returns (bytes32)
+    {
         return disclosureForOperator[headerHash][operator].polyHash;
     }
 
@@ -770,12 +770,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (
-            ,
-            uint32 initTime,
-            ,
-            
-        ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, , ) = dataLayr.dataStores(serviceObjectHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -790,12 +785,9 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (
-            ,
-            uint32 initTime,
-            uint32 storePeriodLength,
-            
-        ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
+            serviceObjectHash
+        );
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return (timeCreated + storePeriodLength);
