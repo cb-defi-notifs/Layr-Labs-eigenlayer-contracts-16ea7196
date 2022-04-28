@@ -30,6 +30,8 @@ contract DataLayrPaymentChallenge {
         uint96 eigenStake;
     }
 
+    event PaymentBreakdown(uint48 fromDumpNumber, uint48 toDumpNumber, uint120 amount1, uint120 amount2);
+
     constructor(
         address operator,
         address challenger,
@@ -104,6 +106,7 @@ contract DataLayrPaymentChallenge {
             updateChallengeAmounts(2, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
+        emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
     function updateStatus(address operator, uint48 diff)
