@@ -208,7 +208,7 @@ contract InvestmentManager is
         }
 
         // transfer tokens from the sender to the strategy
-        bool success = token.transferFrom(depositor, address(strategy), amount);
+        bool success = token.transferFrom(msg.sender, address(strategy), amount);
         require(success, "failed to transfer token");
 
         // deposit the assets into the specified strategy and get the equivalent amount of
