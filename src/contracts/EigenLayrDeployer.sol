@@ -120,7 +120,9 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         dlRepository = new Repository(delegation, investmentManager);
 
-        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, consensusLayerEthToEth);
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        strats[0] = IInvestmentStrategy(address(strat));
+        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, consensusLayerEthToEth, strats);
 
         Repository(address(dlRepository)).initialize(
             dlRegVW,

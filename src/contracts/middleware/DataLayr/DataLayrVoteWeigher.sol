@@ -106,8 +106,9 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
-        uint256 _consensusLayerEthToEth
-    ) VoteWeigherBase(_repository, _delegation, _consensusLayerEthToEth) {
+        uint256 _consensusLayerEthToEth,
+        IInvestmentStrategy[] memory _strategiesConsidered
+    ) VoteWeigherBase(_repository, _delegation, _consensusLayerEthToEth, _strategiesConsidered) {
         //initialize the stake object
         stakeHashUpdates.push(0);
         //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)

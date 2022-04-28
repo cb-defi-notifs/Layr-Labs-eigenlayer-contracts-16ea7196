@@ -10,10 +10,11 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
-        uint256 _consensusLayerEthToEth
-    ) VoteWeigherBaseStorage(_repository) {
-        delegation = _delegation;
+        uint256 _consensusLayerEthToEth,
+        IInvestmentStrategy[] memory _strategiesConsidered
+    ) VoteWeigherBaseStorage(_repository, _delegation) {
         consensusLayerEthToEth = _consensusLayerEthToEth;
+        strategiesConsidered = _strategiesConsidered;
     }
 
     /**
@@ -43,13 +44,25 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
      *      give to the ETH that is being used for staking in settlement layer.
      */
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
-        uint128 amount = uint128(
-            delegation.getConsensusLayerEthDelegated(operator) /
-                consensusLayerEthToEth +
-                delegation.getUnderlyingEthDelegated(operator)
-        );
+        uint256 stratsLength = strategiesConsideredLength();
+        uint128 amount;
+        for (uint256 i = 0; i < stratsLength;) {
+            amount += uint128(delegation.getOperatorShares(operator, strategiesConsidered[i]));
+            unchecked {
+                ++i;
+            }
+        }
+        // uint128 amount = uint128(
+        //     delegation.getConsensusLayerEthDelegated(operator) /
+        //         consensusLayerEthToEth +
+        //         delegation.getUnderlyingEthDelegated(operator)
+        // );
 
         // check that minimum delegation limit is satisfied
         return amount;
+    }
+
+    function strategiesConsideredLength() public view returns (uint256) {
+        return strategiesConsidered.length;
     }
 }
