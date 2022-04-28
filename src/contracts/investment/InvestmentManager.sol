@@ -52,12 +52,10 @@ contract InvestmentManager is
      *         and slashing rules. 
      */
     /**
-     * @param strategies are the initial set of strategies
      * @param _slasher is the set of slashing rules to be used for the strategies associated with 
      *        this investment manager contract   
      */
     function initialize(
-        IInvestmentStrategy[] memory strategies,
         Slasher _slasher,
         address _governor,
         address _eigenLayrDepositContract
@@ -66,71 +64,6 @@ contract InvestmentManager is
         _transferGovernor(_governor);
         slasher = _slasher;
         eigenLayrDepositContract = _eigenLayrDepositContract;
-
-        // record the strategies as approved
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
-            stratApproved[strategies[i]] = true;
-            if (!stratEverApproved[strategies[i]]) {
-                stratEverApproved[strategies[i]] = true;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-
-
-    /**
-     * @notice used for adding new investment strategies to the list of approved stratgeies
-     *         of the investment manager contract 
-     */ 
-    /**
-     * @param strategies are new strategies to be added
-     */
-    /**
-     * @dev only the governor can add new strategies
-     */ 
-    function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
-        external
-        onlyGovernor
-    {
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) { 
-            stratApproved[strategies[i]] = true;
-            if (!stratEverApproved[strategies[i]]) {
-                stratEverApproved[strategies[i]] = true;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-
-
-    /**
-     * @notice used for removing investment strategies from the list of approved stratgeies
-     *         of the investment manager contract 
-     */ 
-    /**
-     * @param strategies are strategies to be removed
-     */
-    /**
-     * @dev only the governor can remove strategies, disabling new deposits to them
-     */ 
-    function removeInvestmentStrategies(
-        IInvestmentStrategy[] calldata strategies
-    ) external onlyGovernor {
-        // set the approval status to false
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
-            stratApproved[strategies[i]] = false;
-            unchecked {
-                ++i;
-            }
-        }
     }
 
 
@@ -197,11 +130,6 @@ contract InvestmentManager is
         IERC20 token,
         uint256 amount
     ) internal returns (uint256 shares) {
-        require(
-            stratApproved[strategy],
-            "Can only deposit from approved strategies"
-        );
-
         // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
             investorStrats[depositor].push(strategy);
@@ -298,10 +226,6 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         uint256 shareAmount
     ) internal returns (bool) {
-        require(
-            stratEverApproved[strategy],
-            "Can only withdraw from approved strategies"
-        );
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
         require(shareAmount <= userShares, "shareAmount too high");

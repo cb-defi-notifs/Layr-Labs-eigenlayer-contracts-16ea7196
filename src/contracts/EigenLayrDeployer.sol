@@ -90,12 +90,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         strat = new WethStashInvestmentStrategy();
         strat.initialize(address(investmentManager), weth);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
-
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
             governor,
             address(deposit)

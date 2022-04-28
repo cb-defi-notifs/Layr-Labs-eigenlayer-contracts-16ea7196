@@ -4,13 +4,6 @@ pragma solidity ^0.8.9;
 import "./IInvestmentStrategy.sol";
 
 interface IInvestmentManager {
-    function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
-        external;
-
-    function removeInvestmentStrategies(
-        IInvestmentStrategy[] calldata strategies
-    ) external;
-
     function depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategies,
