@@ -160,7 +160,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         );
         dl = new DataLayr();
 
-        dlRepository = new Repository();
+        dlRepository = new Repository(delegation, investmentManager);
 
         dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, consensusLayerEthToEth);
 
@@ -168,9 +168,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             dlRegVW,
             dlsm,
             dlRegVW,
-            timelockDelay,
-            delegation,
-            investmentManager
+            timelockDelay
         );
 
         dl.setRepository(dlRepository);
