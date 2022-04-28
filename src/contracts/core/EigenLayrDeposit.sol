@@ -70,10 +70,11 @@ contract EigenLayrDeposit is
     ) external payable {
         emit log_named_address("THIS IS NUTS", msg.sender);
 
-        require(
-            isAllowedLiquidStakedToken[liquidStakeToken],
-            "This liquid staking token is not permitted in EigenLayr"
-        );
+        // TODO: verify this check is 1000% not needed. I believe InvestmentManager and the Strategy itself should cover this.
+        // require(
+        //     isAllowedLiquidStakedToken[liquidStakeToken],
+        //     "This liquid staking token is not permitted in EigenLayr"
+        // );
         emit log_named_uint("THIS IS NUTS", msg.value);
 
         // balance of liquidStakeToken before deposit
