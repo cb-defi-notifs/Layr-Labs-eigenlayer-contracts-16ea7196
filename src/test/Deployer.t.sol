@@ -329,6 +329,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             amountDeposited = 0;
         } else {
             weth.transfer(sender, amountToDeposit);
+            cheats.startPrank(sender);
             deposit.depositETHIntoLiquidStaking{value: amountToDeposit, gas: 450000}(weth, stratToDepositTo);
             
             amountDeposited = amountToDeposit;
@@ -340,6 +341,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "shares should match deposit"
         );
  
+        cheats.stopPrank();
         
     }
 
