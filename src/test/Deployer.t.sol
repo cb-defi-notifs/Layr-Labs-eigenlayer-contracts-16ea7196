@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "./mocks/DepositContract.sol";
-import "./mocks/LiquidStakingToken.sol";
 import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
@@ -14,7 +13,6 @@ import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/WethStashInvestmentStrategy.sol";
-import "../contracts/investment/LidoInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
@@ -60,16 +58,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
     IERC20 public weth;
     WethStashInvestmentStrategy public strat;
-    LidoInvestmentStrategy public strat1;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
     DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
-
-    WETH public liquidStakingMockToken;
-    WethStashInvestmentStrategy public liquidStakingMockStrat;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -81,7 +75,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     uint256[] public strategyIndexes;
 
     uint256 wethInitialSupply = 10e50;
-    uint256 stethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
     uint256 timelockDelay = 2 days;
@@ -124,11 +117,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             wethInitialSupply,
             address(this)
         );
-        
-
         //do stuff with weth
         strat = new WethStashInvestmentStrategy();
-        strat1 = new LidoInvestmentStrategy();
         strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strat.initialize(address(investmentManager), weth);
 
@@ -185,12 +175,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         deposit.initialize(depositContract, investmentManager, dlsm);
 
-        liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new WethStashInvestmentStrategy();
-        liquidStakingMockStrat.initialize(address(investmentManager), IERC20(address(liquidStakingMockToken)));
-        IInvestmentStrategy[] memory toAdd = new IInvestmentStrategy[](1);
-        toAdd[0] = liquidStakingMockStrat;
-        investmentManager.addInvestmentStrategies(toAdd);
+        //loads hardcoded signer set
+        _setSigners();
     }
 
     function testDeploymentSuccessful() public {
@@ -318,8 +304,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         public
         returns(uint256 amountDeposited)
     {
-        return _testDepositETHIntoLiquidStaking(registrant, 1e18, liquidStakingMockToken, liquidStakingMockStrat);
-        //deposit.depositETHIntoLiquidStaking{value: 10, gas: 450000}(weth, strat1);
+        amountDeposited = _testDepositETHIntoLiquidStaking(registrant, 10, strat);
     }
 
 
@@ -327,25 +312,31 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     function _testDepositETHIntoLiquidStaking(
         address sender,
         uint256 amountToDeposit,
-        IERC20 liquidStakingToken,
-        IInvestmentStrategy stratToDepositTo)
+        WethStashInvestmentStrategy stratToDepositTo)
         internal
         returns(uint256 amountDeposited)
     {
-        // sanity in the amount we are depositing
-        cheats.assume(amountToDeposit < type(uint96).max);
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(liquidStakingToken, stratToDepositTo);
-        
-        amountDeposited = amountToDeposit;
+        if (amountToDeposit > wethInitialSupply) {
+            cheats.expectRevert(
+                bytes("ERC20: transfer amount exceeds balance")
+            );
+
+            weth.transfer(sender, amountToDeposit);
+            amountDeposited = 0;
+        } else {
+            weth.transfer(sender, amountToDeposit);
+            emit log_named_uint("WETH BALANCE", weth.balanceOf(sender));
+            cheats.startPrank(sender);
+            deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(weth, stratToDepositTo);
+            
+            amountDeposited = amountToDeposit;
+        }
         
         assertEq(
             investmentManager.investorStratShares(sender, stratToDepositTo),
             amountDeposited,
             "shares should match deposit"
         );
- 
         cheats.stopPrank();
         
     }
@@ -582,8 +573,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testSelfOperatorDelegate(sender);  
         // string memory socket = "fe";
 
-        cheats.startPrank(sender);
-
         // calculate hash to sign, imitating logic in DataLayrVoteWeigher
         bytes32 digestHash = keccak256(
             abi.encode(
@@ -620,7 +609,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     //     bytes calldata stakes
         dlRegVW.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
 
-        // uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
+        uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
         uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
         bytes memory stakes = abi.encodePacked(
@@ -637,14 +626,127 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             weightOfOperatorEth + (stakesPrev.toUint96(stakesPrev.length - 24)),
             weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
         );
-        // bytes32 hashOfStakes = keccak256(stakes);
-        // assertTrue(
-        //     hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-        //     "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
-        // );
+        bytes32 hashOfStakes = keccak256(stakes);
+        assertTrue(
+            hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+            "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
+        );
 
-        cheats.stopPrank();
         return (stakes);
+    }
+
+    function testSelfOperatorsRegisterBySignatureSameTimeInputTen()
+        public
+        returns (bytes memory)
+    {
+        uint8 numOperators = 10;
+        emit log_named_uint("numOperators", numOperators);
+        return testSelfOperatorsRegisterBySignatureSameTime(numOperators);
+    }
+
+// we need this struct to avoid stack too deep errors in the below test
+    struct SignerData {
+        address[] operators;
+        uint8[] registrantTypes;
+        string[] sockets;
+        uint256[] expiries;
+        bytes32[] signatureData;
+    }
+
+    // TODO: clean up this really ugly test
+    function testSelfOperatorsRegisterBySignatureSameTime(uint8 numOperators) public returns (bytes memory) {
+        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
+        bytes memory stakesPrev = abi.encodePacked(bytes24(0));
+        bytes memory initStakes = stakesPrev;
+
+        // sanity check on input
+        cheats.assume(numOperators <= 12);
+
+        SignerData memory signerData;
+        signerData.operators = new address[](numOperators);
+        signerData.registrantTypes = new uint8[](numOperators);
+        signerData.sockets = new string[](numOperators);
+        signerData.expiries = new uint256[](numOperators);
+        signerData.signatureData = new bytes32[](numOperators * 2);
+        for (uint256 i; i < numOperators; ++i) {
+            //register as both ETH and EIGEN operator
+            // uint8 registrantType = 3;
+            _testWethDeposit(signers[i], 1e18);
+            _testDepositEigen(signers[i]);
+            _testSelfOperatorDelegate(signers[i]);  
+            // string memory socket = "fe";
+
+            // calculate hash to sign, imitating logic in DataLayrVoteWeigher
+            bytes32 digestHash = keccak256(
+                abi.encode(
+                    dlRegVW.REGISTRATION_TYPEHASH(),
+                    signers[i],
+                    address(dlRegVW),
+                    // expiry
+                    uint256(0)
+                )
+            );
+            digestHash = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    dlRegVW.DOMAIN_SEPARATOR(),
+                    digestHash
+                )
+            );
+
+            // get signature
+            (uint8 v, bytes32 r, bytes32 vs) = cheats.sign(keys[i], digestHash);
+            // sanity check signature
+            if (ecrecover(digestHash, v, r, vs) != signers[i]) {
+                emit log_named_address("bad signature from", ecrecover(digestHash, v, r, vs));
+                emit log_named_address("expected signature from", signers[i]);
+            } 
+            vs = SignatureCompaction.packVS(vs,v);
+            signerData.operators[i] = signers[i];
+            signerData.registrantTypes[i] = uint8(3);
+            signerData.sockets[i] = string("TEST");
+            signerData.expiries[i] = uint256(0);
+            signerData.signatureData[2 * i] = r;
+            signerData.signatureData[2 * i + 1] = vs;
+
+            uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(signers[i]));
+            uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(signers[i]));
+
+            bytes memory stakes = abi.encodePacked(
+                stakesPrev.slice(0,stakesPrev.length - 24),
+                signers[i]
+            );
+            stakes = abi.encodePacked(
+                stakes,
+                weightOfOperatorEth,
+                weightOfOperatorEigen
+            );
+            stakes = abi.encodePacked(
+                stakes,
+                weightOfOperatorEth + (stakesPrev.toUint96(stakesPrev.length - 24)),
+                weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
+            );
+
+            stakesPrev = stakes;
+        }
+    // function registerOperatorsBySignatures(
+    // address[] calldata operators,
+    // uint8[] calldata registrantTypes,
+    // string[] calldata sockets,
+    // uint256[] calldata expiries,
+    //  // set of all {r, vs} for signers
+    // bytes32[] calldata signatureData,
+    // bytes calldata stakes)
+        dlRegVW.registerOperatorsBySignatures(signerData.operators, signerData.registrantTypes, signerData.sockets, signerData.expiries, signerData.signatureData, initStakes);
+
+        uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
+
+        bytes32 hashOfStakes = keccak256(stakesPrev);
+        assertTrue(
+            hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+            "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
+        );
+        return (stakesPrev);
     }
 
     //verifies that it is possible to confirm a data store
@@ -665,9 +767,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.assume(signersInput > 0 && signersInput <= 12);
 
         uint32 numberOfSigners = uint32(signersInput);
-
-        //loads hardcoded signer set
-        _setSigners();
 
         //initial stakes is 24 zero bytes
         bytes memory stakes = abi.encodePacked(bytes24(0));

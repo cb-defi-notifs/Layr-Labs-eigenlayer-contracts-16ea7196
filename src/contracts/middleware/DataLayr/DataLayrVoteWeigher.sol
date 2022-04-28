@@ -555,7 +555,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint8[] calldata registrantTypes,
         string[] calldata sockets,
         uint256[] calldata expiries,
-        // set of all r's for all signers, then set of all vs's for signers
+        // set of all {r, vs} for signers
         bytes32[] calldata signatureData,
         bytes calldata stakes) 
         external
@@ -581,7 +581,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
                 )
             );
             //check validity of signature
-            address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, signatureData[i], signatureData[2 * i]);
+            address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, signatureData[2 * i], signatureData[2 * i + 1]);
             require(recoveredAddress != address(0), "registerOperatorBySignature: bad signature");
             require(recoveredAddress == operators[i], "registerOperatorBySignature: sig not from operator");
 
