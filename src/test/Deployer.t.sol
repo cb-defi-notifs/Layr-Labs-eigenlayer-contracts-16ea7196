@@ -126,14 +126,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strat.initialize(address(investmentManager), weth);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
         // WETH strategy added to InvestmentManager
         strategies[0] = IInvestmentStrategy(address(strat));
 
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
             governor,
             address(deposit)
@@ -162,7 +159,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         dlRepository = new Repository(delegation, investmentManager);
 
-        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, consensusLayerEthToEth);
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        strats[0] = IInvestmentStrategy(address(strat));
+        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
 
         Repository(address(dlRepository)).initialize(
             dlRegVW,
@@ -180,9 +179,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new WethStashInvestmentStrategy();
         liquidStakingMockStrat.initialize(address(investmentManager), IERC20(address(liquidStakingMockToken)));
-        IInvestmentStrategy[] memory toAdd = new IInvestmentStrategy[](1);
-        toAdd[0] = liquidStakingMockStrat;
-        investmentManager.addInvestmentStrategies(toAdd);
 
         //loads hardcoded signer set
         _setSigners();
@@ -912,10 +908,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             // add strategy to InvestmentManager
             IInvestmentStrategy[] memory stratsToAdd = new IInvestmentStrategy[](1);
             stratsToAdd[0] = IInvestmentStrategy(address(strategy));
-            investmentManager.addInvestmentStrategies(stratsToAdd);
-            // check that investmentManager storage is updated accordingly
-            assertTrue(investmentManager.stratApproved(IInvestmentStrategy(address(strategy))), "strategy not approved");
-            assertTrue(investmentManager.stratEverApproved(IInvestmentStrategy(address(strategy))), "strategy not approved");
             //store strategy in mapping
             strategies[i] = IInvestmentStrategy(address(strategy));
         }
