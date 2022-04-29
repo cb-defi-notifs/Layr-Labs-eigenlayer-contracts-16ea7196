@@ -33,8 +33,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     uint256 public totalEigenStaked;
     address public eigenLayrDepositContract;
-    mapping(IInvestmentStrategy => bool) public stratEverApproved;
-    mapping(IInvestmentStrategy => bool) public stratApproved;
     // staker => InvestmentStrategy => num shares
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public investorStratShares;
