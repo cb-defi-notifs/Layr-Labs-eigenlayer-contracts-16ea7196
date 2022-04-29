@@ -41,6 +41,10 @@ interface IInvestmentManager {
         external
         returns (uint256);
 
+    function depositProofOfStakingEth(address depositor, uint256 amount)
+        external
+        returns (uint256);
+
     function depositEigen(uint256 amount)
         external
         returns (uint256);

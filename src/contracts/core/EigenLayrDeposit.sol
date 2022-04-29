@@ -150,7 +150,7 @@ contract EigenLayrDeposit is
         depositProven[consensusLayerDepositRoot][depositor] = true;
 
         // mark deposited ETH in investment contract
-        investmentManager.depositConsenusLayerEth(depositor, amount);
+        investmentManager.depositProofOfStakingEth(depositor, amount);
     }
 
     /**
@@ -217,6 +217,6 @@ contract EigenLayrDeposit is
         depositProven[depositRoot][depositor] = true;
 
         // mark deposited eth in investment contract
-        investmentManager.depositConsenusLayerEth(depositor, amount);
+        investmentManager.depositProofOfStakingEth(depositor, amount);
     }
 }

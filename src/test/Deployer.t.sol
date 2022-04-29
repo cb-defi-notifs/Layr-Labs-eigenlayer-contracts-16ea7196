@@ -418,8 +418,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "0x",
             amount
         );
-        //make sure their cle has updated
-        assertEq(investmentManager.getConsensusLayerEth(depositor), amount);
+        //make sure their proofOfStakingEth has updated
+        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
     }
 
     //checks that it is possible to init a data store
