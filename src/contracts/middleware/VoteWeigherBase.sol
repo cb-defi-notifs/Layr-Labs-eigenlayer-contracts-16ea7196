@@ -18,6 +18,14 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
         strategiesConsidered = _strategiesConsidered;
     }
 
+    modifier onlyRepositoryGovernance() {
+        require(
+            address(repository.timelock()) == msg.sender,
+            "only repository governance can call this function"
+        );
+        _;
+    }
+
     /**
      * @notice returns the total Eigen delegated by delegators with this operator
      */
@@ -75,5 +83,32 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
 
     function strategiesConsideredLength() public view returns (uint256) {
         return strategiesConsidered.length;
+    }
+
+    function updateStrategiesConsidered(IInvestmentStrategy[] calldata _strategiesConsidered) external onlyRepositoryGovernance {
+        strategiesConsidered = _strategiesConsidered;
+    }
+
+    function addStrategiesConsidered(IInvestmentStrategy[] calldata _newStrategiesConsidered) external onlyRepositoryGovernance {
+        uint256 numStrats = _newStrategiesConsidered.length;
+        for (uint256 i = 0; i < numStrats;) {
+            strategiesConsidered.push(_newStrategiesConsidered[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    // NOTE: higher indices should be *first* in the list of indicesToRemove
+    function removeStrategiesConsidered(IInvestmentStrategy[] calldata _strategiesToRemove, uint256[] calldata indicesToRemove) external onlyRepositoryGovernance {
+        uint256 numStrats = indicesToRemove.length;
+        for (uint256 i = 0; i < numStrats;) {
+            require(strategiesConsidered[indicesToRemove[i]] == _strategiesToRemove[i], "index incorrect");
+            strategiesConsidered[indicesToRemove[i]] = strategiesConsidered[strategiesConsidered.length - 1];
+            strategiesConsidered.pop();
+            unchecked {
+                ++i;
+            }
+        }
     }
 }
