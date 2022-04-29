@@ -301,7 +301,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         deposit.depositEthIntoConsensusLayer{value: amountToDeposit}("0x", "0x", depositDataRoot);
         amountDeposited = amountToDeposit;
 
-        assertEq(investmentManager.consensusLayerEth(sender), amountDeposited);
+        assertEq(investmentManager.getConsensusLayerEth(sender), amountDeposited);
         cheats.stopPrank();
     }
 
@@ -409,7 +409,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             amount
         );
         //make sure their cle has updated
-        assertEq(investmentManager.consensusLayerEth(depositor), amount);
+        assertEq(investmentManager.getConsensusLayerEth(depositor), amount);
     }
 
     //checks that it is possible to init a data store
@@ -973,10 +973,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
          (
                 IInvestmentStrategy[] memory delegatorStrategies,
                 uint256[] memory delegatorShares,
-                // uint256 consensusLayrEthDeposited,
-                // uint256 eigenAmount
-                ,
-
             ) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;

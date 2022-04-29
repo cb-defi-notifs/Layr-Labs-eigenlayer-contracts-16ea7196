@@ -26,7 +26,9 @@ contract EigenLayrDelegation is
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     constructor() {
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid));
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
+        );
     }
 
     function initialize(
@@ -78,29 +80,42 @@ contract EigenLayrDelegation is
         _delegate(msg.sender, operator);
     }
 
-    function delegateToBySignature(address delegator, address operator, uint256 nonce, uint256 expiry, bytes32 r, bytes32 vs) external{
-        require(delegationNonces[delegator] == nonce, "invalid delegation nonce");
-        require(expiry == 0 || expiry <= block.timestamp, "delegation signature expired");
+    function delegateToBySignature(
+        address delegator,
+        address operator,
+        uint256 nonce,
+        uint256 expiry,
+        bytes32 r,
+        bytes32 vs
+    ) external {
+        require(
+            delegationNonces[delegator] == nonce,
+            "invalid delegation nonce"
+        );
+        require(
+            expiry == 0 || expiry <= block.timestamp,
+            "delegation signature expired"
+        );
         bytes32 structHash = keccak256(
-            abi.encode(
-                DELEGATION_TYPEHASH,
-                delegator,
-                operator,
-                nonce,
-                expiry
-            )
+            abi.encode(DELEGATION_TYPEHASH, delegator, operator, nonce, expiry)
         );
         bytes32 digestHash = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                structHash
-            )
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
         //check validity of signature
-        address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, r, vs);
-        require(recoveredAddress != address(0), "delegateToBySignature: bad signature");
-        require(recoveredAddress == delegator, "delegateToBySignature: sig not from delegator");
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+            digestHash,
+            r,
+            vs
+        );
+        require(
+            recoveredAddress != address(0),
+            "delegateToBySignature: bad signature"
+        );
+        require(
+            recoveredAddress == delegator,
+            "delegateToBySignature: sig not from delegator"
+        );
         // increment delegator's delegationNonce
         ++delegationNonces[delegator];
         _delegate(delegator, operator);
@@ -122,12 +137,11 @@ contract EigenLayrDelegation is
         (
             IInvestmentStrategy[] memory strategies,
             uint256[] memory shares,
-            uint256 consensusLayrEthDeposited,
             uint256 eigenAmount
         ) = investmentManager.getDeposits(delegator);
 
         // add strategy shares to delegate's shares and add strategy to existing strategies
-        for (uint256 i = 0; i < strategies.length;) {
+        for (uint256 i = 0; i < strategies.length; ) {
             if (operatorShares[operator][strategies[i]] == 0) {
                 // if no asset has been delegated yet to this strategy in the operator's portfolio,
                 // then add it to the portfolio of strategies of the operator
@@ -140,9 +154,6 @@ contract EigenLayrDelegation is
                 ++i;
             }
         }
-
-        // update the total ETH delegated to the operator
-        consensusLayerEth[operator] += consensusLayrEthDeposited;
 
         // update the total EIGEN deposited with the operator
         eigenDelegated[operator] += eigenAmount;
@@ -181,7 +192,8 @@ contract EigenLayrDelegation is
         // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];
         require(
-            operator != address(0) && delegated[msg.sender] == DelegationStatus.DELEGATED,
+            operator != address(0) &&
+                delegated[msg.sender] == DelegationStatus.DELEGATED,
             "Staker does not have existing delegation"
         );
 
@@ -199,7 +211,6 @@ contract EigenLayrDelegation is
             (
                 IInvestmentStrategy[] memory strategies,
                 uint256[] memory shares,
-                uint256 consensusLayrEthDeposited,
                 uint256 eigenAmount
             ) = investmentManager.getDeposits(msg.sender);
 
@@ -238,16 +249,13 @@ contract EigenLayrDelegation is
                     }
                     operatorStrats[operator].pop();
                     unchecked {
-                        ++strategyIndex;                        
+                        ++strategyIndex;
                     }
                 }
                 unchecked {
                     ++i;
                 }
             }
-
-            // update the ETH delegated to the operator
-            consensusLayerEth[operator] -= consensusLayrEthDeposited;
 
             // update the Eigen delegated to the operator
             eigenDelegated[operator] -= eigenAmount;
@@ -272,7 +280,10 @@ contract EigenLayrDelegation is
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external {
-        require(msg.sender == address(investmentManager), "onlyInvestmentManager");
+        require(
+            msg.sender == address(investmentManager),
+            "onlyInvestmentManager"
+        );
 
         // subtract strategy shares from delegate's shares and remove the strategy from delegate's strategy list if no shares remaining
         uint256 strategyIndex = 0;
@@ -309,7 +320,7 @@ contract EigenLayrDelegation is
                 }
                 operatorStrats[operator].pop();
                 unchecked {
-                    ++strategyIndex;                        
+                    ++strategyIndex;
                 }
             }
             unchecked {
@@ -359,8 +370,7 @@ contract EigenLayrDelegation is
 
         require(
             block.timestamp <
-                undelegationFraudProofInterval +
-                    lastUndelegationCommit[staker],
+                undelegationFraudProofInterval + lastUndelegationCommit[staker],
             "Challenge was raised after the end of challenge period"
         );
 
@@ -371,7 +381,12 @@ contract EigenLayrDelegation is
 
         // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
         require(
-            slasher.canSlash(operator, serviceFactory, repository, registrationManager),
+            slasher.canSlash(
+                operator,
+                serviceFactory,
+                repository,
+                registrationManager
+            ),
             "Contract does not have rights to prevent undelegation"
         );
 
@@ -381,10 +396,11 @@ contract EigenLayrDelegation is
         // and, therefore, hasn't served its obligation.
         require(
             lastUndelegationCommit[staker] >
-            serviceManager.getServiceObjectCreationTime(serviceObjectHash)
-            &&
-            lastUndelegationCommit[staker] <
-            serviceManager.getServiceObjectExpiry(serviceObjectHash),
+                serviceManager.getServiceObjectCreationTime(
+                    serviceObjectHash
+                ) &&
+                lastUndelegationCommit[staker] <
+                serviceManager.getServiceObjectExpiry(serviceObjectHash),
             "serviceObject does not meet requirements"
         );
 
@@ -398,7 +414,7 @@ contract EigenLayrDelegation is
         //         we can probably remove "(delegation[staker] == address(0)"
         return
             delegated[staker] == DelegationStatus.UNDELEGATED ||
-            (delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED && 
+            (delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED &&
                 block.timestamp >
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[staker]);
@@ -423,16 +439,14 @@ contract EigenLayrDelegation is
     }
 
     /**
-    * @notice returns the shares in a specified strategy being used by the delegator of this operator 
-    **/
+     * @notice returns the shares in a specified strategy being used by the delegator of this operator
+     **/
 
-    function getOperatorShares(address operator, IInvestmentStrategy investmentStrategy)
-        public
-        view
-        returns (uint256)
-    {
+    function getOperatorShares(
+        address operator,
+        IInvestmentStrategy investmentStrategy
+    ) public view returns (uint256) {
         return operatorShares[operator][investmentStrategy];
-
     }
 
     /**
@@ -444,30 +458,27 @@ contract EigenLayrDelegation is
         view
         returns (
             IInvestmentStrategy[] memory,
-            uint256[] memory,
-            uint256
+            uint256[] memory
         )
     {
         if (delegation[operator] == operator) {
             /**
-             * @dev Under scenario where a delegator has delegated its asset to itself and 
-             * acting as its own operator. This would be because the staker called 
+             * @dev Under scenario where a delegator has delegated its asset to itself and
+             * acting as its own operator. This would be because the staker called
              * delegateToSelf() for delegating its stake to itself.
              */
             (
                 IInvestmentStrategy[] memory strats,
                 uint256[] memory shares,
-                uint256 consensusLayerEthForOperator,
-
             ) = investmentManager.getDeposits(operator);
-            return (strats, shares, consensusLayerEthForOperator);
+            return (strats, shares);
         } else {
             /**
              * @dev Under scenario where operator is being delegated assets by delegators.
              */
             // CRITIC: we are assuming here that delegation[operator] != operator which would
             // imply that operator is not actually an operator. Should there be a condition to check
-            // whether operator is actually an operator or not? Like calling getOperatorType() in 
+            // whether operator is actually an operator or not? Like calling getOperatorType() in
             // Repository.sol and check it is non-zero?
             uint256[] memory shares = new uint256[](
                 operatorStrats[operator].length
@@ -477,11 +488,7 @@ contract EigenLayrDelegation is
                     operatorStrats[operator][i]
                 ];
             }
-            return (
-                operatorStrats[operator],
-                shares,
-                consensusLayerEth[operator]
-            );
+            return (operatorStrats[operator], shares);
         }
     }
 
@@ -492,20 +499,20 @@ contract EigenLayrDelegation is
         returns (uint256)
     {
         uint256 weight;
-    
+
         if (delegation[operator] == operator) {
             // when the operator has delegated to self
 
             //  get all strategies
             IInvestmentStrategy[] memory investorStrats = investmentManager
                 .getStrategies(operator);
-            
+
             //  get shares of all strategies
             uint256[] memory investorShares = investmentManager
                 .getStrategyShares(operator);
 
             // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length;) {
+            for (uint256 i = 0; i < investorStrats.length; ) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     investorShares[i]
                 );
@@ -518,14 +525,14 @@ contract EigenLayrDelegation is
             // have delegated
             // CRITIC: same problem as in getControlledEthStake, with calling
             // operatorStrats[operator] for the case "delegation[operator] != operator"
-            
+
             // get all the investment strategies that is being used by any delegator
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
 
             // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length;) {
+            for (uint256 i = 0; i < investorStrats.length; ) {
                 weight += investorStrats[i].underlyingEthValueOfShares(
                     operatorShares[operator][investorStrats[i]]
                 );
@@ -536,7 +543,6 @@ contract EigenLayrDelegation is
         }
         return weight;
     }
-
 
     function getUnderlyingEthDelegatedView(address operator)
         external
@@ -549,7 +555,7 @@ contract EigenLayrDelegation is
                 .getStrategies(operator);
             uint256[] memory investorShares = investmentManager
                 .getStrategyShares(operator);
-            for (uint256 i = 0; i < investorStrats.length;) {
+            for (uint256 i = 0; i < investorStrats.length; ) {
                 weight += investorStrats[i].underlyingEthValueOfSharesView(
                     investorShares[i]
                 );
@@ -563,7 +569,7 @@ contract EigenLayrDelegation is
             IInvestmentStrategy[] memory investorStrats = operatorStrats[
                 operator
             ];
-            for (uint256 i = 0; i < investorStrats.length;) {
+            for (uint256 i = 0; i < investorStrats.length; ) {
                 weight += investorStrats[i].underlyingEthValueOfSharesView(
                     operatorShares[operator][investorStrats[i]]
                 );
@@ -575,8 +581,7 @@ contract EigenLayrDelegation is
         return weight;
     }
 
-
-    /// @notice returns the total ETH delegated by delegators with this operator 
+    /// @notice returns the total ETH delegated by delegators with this operator
     ///         while staking it with the settlement layer (beacon chain)
     // CRITIC: change name to getSettlementLayerEthDelegated
     function getConsensusLayerEthDelegated(address operator)
@@ -589,11 +594,10 @@ contract EigenLayrDelegation is
         return
             delegation[operator] == operator
                 ? investmentManager.getConsensusLayerEth(operator)
-                : consensusLayerEth[operator];
+                : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
     }
 
-
-    /// @notice returns the total Eigen delegated by delegators with this operator 
+    /// @notice returns the total Eigen delegated by delegators with this operator
     function getEigenDelegated(address operator)
         external
         view
