@@ -10,9 +10,10 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
+        IInvestmentManager _investmentManager,
         uint256 _consensusLayerEthToEth,
         IInvestmentStrategy[] memory _strategiesConsidered
-    ) VoteWeigherBaseStorage(_repository, _delegation) {
+    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager) {
         consensusLayerEthToEth = _consensusLayerEthToEth;
         strategiesConsidered = _strategiesConsidered;
     }
@@ -46,10 +47,19 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
         uint256 stratsLength = strategiesConsideredLength();
         uint128 amount;
-        for (uint256 i = 0; i < stratsLength;) {
-            amount += uint128(delegation.getOperatorShares(operator, strategiesConsidered[i]));
-            unchecked {
-                ++i;
+        if (delegation.isDelegatedToSelf(operator)) {
+            for (uint256 i = 0; i < stratsLength;) {
+                amount += uint128(investmentManager.investorStratShares(operator, strategiesConsidered[i]));
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            for (uint256 i = 0; i < stratsLength;) {
+                amount += uint128(delegation.getOperatorShares(operator, strategiesConsidered[i]));
+                unchecked {
+                    ++i;
+                }
             }
         }
         // uint128 amount = uint128(

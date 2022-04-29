@@ -62,7 +62,7 @@ contract ServiceFactory is IServiceFactory {
         IInvestmentStrategy[] memory _strategiesConsidered
     ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
-        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, _consensusLayerEthToEth, _strategiesConsidered);
+        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _consensusLayerEthToEth, _strategiesConsidered);
         IRegistrationManager registrationManager = new RegistrationManagerBase(repository);
         Repository(payable(address(repository))).initialize(
             voteWeigher,

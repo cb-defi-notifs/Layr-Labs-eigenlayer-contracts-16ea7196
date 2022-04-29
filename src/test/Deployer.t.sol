@@ -161,7 +161,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
         strats[0] = IInvestmentStrategy(address(strat));
-        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, consensusLayerEthToEth, strats);
+        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
 
         Repository(address(dlRepository)).initialize(
             dlRegVW,

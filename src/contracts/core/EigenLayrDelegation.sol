@@ -606,4 +606,12 @@ contract EigenLayrDelegation is
                 ? investmentManager.getEigen(operator)
                 : eigenDelegated[operator];
     }
+
+    function isDelegatedToSelf(address operator)
+        external
+        view
+        returns (bool)
+    {
+        return (delegation[operator] == operator);
+    }
 }

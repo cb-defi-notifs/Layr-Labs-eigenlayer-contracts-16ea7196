@@ -64,4 +64,9 @@ interface IEigenLayrDelegation {
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external;
+
+    function isDelegatedToSelf(address operator)
+        external
+        view
+        returns (bool);
 }
