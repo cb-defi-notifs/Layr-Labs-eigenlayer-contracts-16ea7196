@@ -14,6 +14,7 @@ import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/WethStashInvestmentStrategy.sol";
+import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
@@ -126,8 +127,15 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strat.initialize(address(investmentManager), weth);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
+
+        HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
+        temp.initialize(address(investmentManager));
+        strats[0] = temp;
+        temp = new HollowInvestmentStrategy();
+        temp.initialize(address(investmentManager));
+        strats[1] = temp;
+        strats[2] = IInvestmentStrategy(address(strat));
         // WETH strategy added to InvestmentManager
         strategies[0] = IInvestmentStrategy(address(strat));
 

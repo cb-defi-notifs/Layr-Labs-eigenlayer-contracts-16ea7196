@@ -42,6 +42,7 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
      *      Note that the DataLayr can decide for itself how much weight it wants to
      *      give to the ETH that is being used for staking in settlement layer.
      */
+     //TODO: UPDATE THIS FOR RESPECTED STRATEGIES
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
         uint128 amount = uint128(
             delegation.getConsensusLayerEthDelegated(operator) /

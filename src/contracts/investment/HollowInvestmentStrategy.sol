@@ -22,7 +22,7 @@ contract HollowInvestmentStrategy is
     constructor() {
     }
 
-    function initialize(address _investmentManager, IERC20 _weth)
+    function initialize(address _investmentManager)
         public
         initializer
     {
