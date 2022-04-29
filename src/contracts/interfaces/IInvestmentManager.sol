@@ -9,13 +9,6 @@ interface IInvestmentManager {
 
     function proofOfStakingEthStrat() view external returns(IInvestmentStrategy);
 
-    function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
-        external;
-
-    function removeInvestmentStrategies(
-        IInvestmentStrategy[] calldata strategies
-    ) external;
-
     function depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategies,
