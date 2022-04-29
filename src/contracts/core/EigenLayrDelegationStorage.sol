@@ -20,9 +20,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
 
     mapping(address => IInvestmentStrategy[]) public operatorStrats;
 
-    // operator => eth on consensus layer delegated
-    mapping(address => uint256) public consensusLayerEth;
-
     mapping(address => uint256) public eigenDelegated;
 
     // operator => delegation terms contract

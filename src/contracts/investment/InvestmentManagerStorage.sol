@@ -28,7 +28,9 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IServiceFactory public immutable serviceFactory;
     Slasher public slasher;
 
-    uint256 public totalConsensusLayerEthStaked;
+    IInvestmentStrategy public proofOfStakingEthStrat;
+    IInvestmentStrategy public consensusLayerEthStrat;
+
     uint256 public totalEigenStaked;
     address public eigenLayrDepositContract;
     mapping(IInvestmentStrategy => bool) public stratEverApproved;
@@ -37,7 +39,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public investorStratShares;
     mapping(address => IInvestmentStrategy[]) public investorStrats;
-    mapping(address => uint256) public consensusLayerEth;
     mapping(address => uint256) public eigenDeposited;
     // staker => hash of withdrawal inputs => timestamps related to the withdrawal
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;

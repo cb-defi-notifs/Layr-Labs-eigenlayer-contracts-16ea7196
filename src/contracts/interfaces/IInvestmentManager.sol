@@ -4,6 +4,10 @@ pragma solidity ^0.8.9;
 import "./IInvestmentStrategy.sol";
 
 interface IInvestmentManager {
+    function consensusLayerEthStrat() view external returns(IInvestmentStrategy);
+
+    function proofOfStakingEthStrat() view external returns(IInvestmentStrategy);
+
     function addInvestmentStrategies(IInvestmentStrategy[] calldata strategies)
         external;
 
@@ -70,7 +74,6 @@ interface IInvestmentManager {
         returns (
             IInvestmentStrategy[] memory,
             uint256[] memory,
-            uint256,
             uint256
         );
 
