@@ -141,6 +141,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         address governor = address(this);
         investmentManager.initialize(
+            strats,
             slasher,
             governor,
             address(deposit)
