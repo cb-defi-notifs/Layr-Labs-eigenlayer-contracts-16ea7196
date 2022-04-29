@@ -90,14 +90,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint48 prevUpdateDumpNumber
     );
 
-    modifier onlyRepositoryGovernance() {
-        require(
-            address(repository.timelock()) == msg.sender,
-            "only repository governance can call this function"
-        );
-        _;
-    }
-
     modifier onlyRepository() {
         require(address(repository) == msg.sender, "onlyRepository");
         _;
