@@ -280,6 +280,10 @@ contract DelegationTerms is IDelegationTerms {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
+    function onDelegationReceived(
+        address,
+        uint96[] memory
+    ) external {}
 
 //NOTE: the logic in this function currently mimmics that in the 'weightOfEth' function
     /**
