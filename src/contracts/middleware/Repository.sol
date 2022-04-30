@@ -20,21 +20,21 @@ import "./RepositoryStorage.sol";
  */
 contract Repository is Initializable, RepositoryStorage {
 
+    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager)
+    RepositoryStorage(_delegation, _investmentManager) {
+    }
+
     function initialize(
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,
         IRegistrationManager _registrationManager,
-        uint256 _timelockDelay,
-        IEigenLayrDelegation _delegation,
-        IInvestmentManager _investmentManager
+        uint256 _timelockDelay
     ) external initializer {
-        _setVoteWeigher(_voteWeigher);
+        voteWeigher = _voteWeigher;
         serviceManager = _serviceManager;
         registrationManager = _registrationManager;
         Timelock _timelock = new Timelock(address(this), _timelockDelay);
         _setTimelock(_timelock);
-        delegation = _delegation;
-        investmentManager = _investmentManager;
     }
 
     /// @notice sets the service manager for the middleware's repository
@@ -49,10 +49,6 @@ contract Repository is Initializable, RepositoryStorage {
 
     /// @notice sets the vote weigher for the middleware's repository
     function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyTimelock {
-        _setVoteWeigher(_voteWeigher);
-    }
-
-    function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
         voteWeigher = _voteWeigher;
     }
 }

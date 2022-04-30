@@ -42,14 +42,12 @@ contract ServiceFactory is IServiceFactory {
         uint256 timelockDelay
     ) external returns(IRepository) {
         // register a new repository
-        IRepository newRepository = new Repository();
+        IRepository newRepository = new Repository(delegation, investmentManager);
         Repository(payable(address(newRepository))).initialize(
             voteWeigher,
             serviceManager,
             registrationManager,
-            timelockDelay,
-            delegation,
-            investmentManager
+            timelockDelay
         );
 
         // set the existence bit on the repository to true
@@ -60,18 +58,17 @@ contract ServiceFactory is IServiceFactory {
     function createNewService(
         IServiceManager serviceManager,
         uint256 timelockDelay,
-        uint256 _consensusLayerEthToEth
+        uint256 _consensusLayerEthToEth,
+        IInvestmentStrategy[] memory _strategiesConsidered
     ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
-        IRepository repository = new Repository();
-        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, _consensusLayerEthToEth);
+        IRepository repository = new Repository(delegation, investmentManager);
+        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _consensusLayerEthToEth, _strategiesConsidered);
         IRegistrationManager registrationManager = new RegistrationManagerBase(repository);
         Repository(payable(address(repository))).initialize(
             voteWeigher,
             serviceManager,
             registrationManager,
-            timelockDelay,
-            delegation,
-            investmentManager
+            timelockDelay
         );
         // set the existence bit on the repository and registration manager to true
         isRepository[repository] = true;

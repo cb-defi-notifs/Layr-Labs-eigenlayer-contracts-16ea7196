@@ -13,11 +13,14 @@ import "../utils/Timelock_Managed.sol";
  *         within Repository contract.
  */
 abstract contract RepositoryStorage is Timelock_Managed, IRepository {
-    //called when responses are provided by operators
+    IEigenLayrDelegation public immutable delegation;
+    IInvestmentManager public immutable investmentManager;
     IVoteWeigher public voteWeigher;
-    IEigenLayrDelegation public delegation;
-    IInvestmentManager public investmentManager;
     IRegistrationManager public registrationManager;
-    //called when new queries are created. handles payments for queries.
     IServiceManager public serviceManager;
+
+    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
+        delegation = _delegation;
+        investmentManager = _investmentManager;
+    }
 }

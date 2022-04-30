@@ -90,14 +90,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint48 prevUpdateDumpNumber
     );
 
-    modifier onlyRepositoryGovernance() {
-        require(
-            address(repository.timelock()) == msg.sender,
-            "only repository governance can call this function"
-        );
-        _;
-    }
-
     modifier onlyRepository() {
         require(address(repository) == msg.sender, "onlyRepository");
         _;
@@ -106,8 +98,10 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
-        uint256 _consensusLayerEthToEth
-    ) VoteWeigherBase(_repository, _delegation, _consensusLayerEthToEth) {
+        IInvestmentManager _investmentManager,
+        uint256 _consensusLayerEthToEth,
+        IInvestmentStrategy[] memory _strategiesConsidered
+    ) VoteWeigherBase(_repository, _delegation, _investmentManager, _consensusLayerEthToEth, _strategiesConsidered) {
         //initialize the stake object
         stakeHashUpdates.push(0);
         //input is length 24 zero bytes (12 bytes each for ETH & EIGEN totals, which both start at 0)
@@ -555,7 +549,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint8[] calldata registrantTypes,
         string[] calldata sockets,
         uint256[] calldata expiries,
-        // set of all r's for all signers, then set of all vs's for signers
+        // set of all {r, vs} for signers
         bytes32[] calldata signatureData,
         bytes calldata stakes) 
         external
@@ -581,7 +575,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
                 )
             );
             //check validity of signature
-            address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, signatureData[i], signatureData[2 * i]);
+            address recoveredAddress = SignatureCompaction.ecrecoverPacked(digestHash, signatureData[2 * i], signatureData[2 * i + 1]);
             require(recoveredAddress != address(0), "registerOperatorBySignature: bad signature");
             require(recoveredAddress == operators[i], "registerOperatorBySignature: sig not from operator");
 

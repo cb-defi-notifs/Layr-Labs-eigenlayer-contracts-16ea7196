@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
+// import "ds-test/test.sol";
 
 /* TODO:
 Currently, in the EigenLayrDeposit contract, all three function depositEthIntoConsensusLayer ,  proveLegacyConsensusLayerDeposit , and depositPOSProof call the same function on the InvestmentManager contract — depositConsenusLayerEth .
@@ -35,6 +36,7 @@ contract EigenLayrDeposit is
     Initializable,
     EigenLayrDepositStorage,
     IEigenLayrDeposit
+    // ,DSTest
 {
     bytes32 public immutable consensusLayerDepositRoot;
     IProofOfStakingOracle postOracle;
@@ -66,16 +68,18 @@ contract EigenLayrDeposit is
         IERC20 liquidStakeToken,
         IInvestmentStrategy strategy
     ) external payable {
-        require(
-            isAllowedLiquidStakedToken[liquidStakeToken],
-            "This liquid staking token is not permitted in EigenLayr"
-        );
+        // TODO: verify this check is 1000% not needed. I believe InvestmentManager and the Strategy itself should cover this.
+        // require(
+        //     isAllowedLiquidStakedToken[liquidStakeToken],
+        //     "This liquid staking token is not permitted in EigenLayr"
+        // );
 
         // balance of liquidStakeToken before deposit
         uint256 depositAmount = liquidStakeToken.balanceOf(address(this));
 
         // send the ETH deposited to the ERC20 contract for liquidStakeToken
         // this liquidStakeToken is credited to EigenLayrDeposit contract (address(this))
+        
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
 
         // increment in balance of liquidStakeToken
@@ -146,7 +150,7 @@ contract EigenLayrDeposit is
         depositProven[consensusLayerDepositRoot][depositor] = true;
 
         // mark deposited ETH in investment contract
-        investmentManager.depositConsenusLayerEth(depositor, amount);
+        investmentManager.depositProofOfStakingEth(depositor, amount);
     }
 
     /**
@@ -213,6 +217,6 @@ contract EigenLayrDeposit is
         depositProven[depositRoot][depositor] = true;
 
         // mark deposited eth in investment contract
-        investmentManager.depositConsenusLayerEth(depositor, amount);
+        investmentManager.depositProofOfStakingEth(depositor, amount);
     }
 }
