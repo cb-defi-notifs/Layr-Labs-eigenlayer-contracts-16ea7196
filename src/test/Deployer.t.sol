@@ -141,6 +141,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         address governor = address(this);
         investmentManager.initialize(
+            strats,
             slasher,
             governor,
             address(deposit)
@@ -169,8 +170,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
         dlRepository = new Repository(delegation, investmentManager);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
+        // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        // strats[0] = IInvestmentStrategy(address(strat));
         dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
 
         Repository(address(dlRepository)).initialize(
@@ -418,8 +419,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             "0x",
             amount
         );
-        //make sure their cle has updated
-        assertEq(investmentManager.getConsensusLayerEth(depositor), amount);
+        //make sure their proofOfStakingEth has updated
+        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
     }
 
     //checks that it is possible to init a data store

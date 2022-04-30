@@ -65,10 +65,13 @@ contract InvestmentManager is
      *        this investment manager contract   
      */
     function initialize(
+        IInvestmentStrategy[] memory strategies,
         Slasher _slasher,
         address _governor,
         address _eigenLayrDepositContract
     ) external initializer {
+        consensusLayerEthStrat = strategies[0];
+        proofOfStakingEthStrat = strategies[1];
         // make the sender who is initializing the investment manager as the governor
         _transferGovernor(_governor);
         slasher = _slasher;
