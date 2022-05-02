@@ -116,11 +116,10 @@ contract Slasher is Governed {
         address slashed,
         address recipient,
         IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata strategyIndexes,
         uint256[] calldata amounts,
         uint256 maxSlashedAmount
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        investmentManager.slashShares(slashed, recipient, strategies, strategyIndexes, amounts, maxSlashedAmount);
+        investmentManager.slashShares(slashed, recipient, strategies, amounts, maxSlashedAmount);
     }
 }

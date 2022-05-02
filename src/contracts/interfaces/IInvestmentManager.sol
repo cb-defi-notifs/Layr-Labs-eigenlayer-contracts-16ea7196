@@ -24,14 +24,12 @@ interface IInvestmentManager {
     ) external returns (uint256[] memory);
 
     function withdrawFromStrategy(
-        uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
     ) external;
 
     function withdrawFromStrategies(
-        uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
@@ -49,16 +47,6 @@ interface IInvestmentManager {
         external
         returns (uint256);
 
-    function getStrategyShares(address depositor)
-        external
-        view
-        returns (uint256[] memory);
-
-    function getStrategies(address depositor)
-        external
-        view
-        returns (IInvestmentStrategy[] memory);
-
     function getConsensusLayerEth(address depositor)
         external
         view
@@ -66,28 +54,10 @@ interface IInvestmentManager {
 
     function getEigen(address depositor) external view returns (uint256);
 
-    function getDeposits(address depositor)
-        external
-        view
-        returns (
-            IInvestmentStrategy[] memory,
-            uint256[] memory,
-            uint256
-        );
-
     function investorStratShares(address user, IInvestmentStrategy strategy)
         external
         view
         returns (uint256 shares);
-
-    function getUnderlyingEthStaked(address depositor)
-        external
-        returns (uint256);
-
-    function getUnderlyingEthStakedView(address staker)
-        external
-        view
-        returns (uint256);
 
     function getUnderlyingEthOfStrategyShares(
         IInvestmentStrategy[] calldata strats,

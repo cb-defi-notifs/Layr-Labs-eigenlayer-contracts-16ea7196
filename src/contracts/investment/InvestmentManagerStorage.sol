@@ -36,7 +36,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => InvestmentStrategy => num shares
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public investorStratShares;
-    mapping(address => IInvestmentStrategy[]) public investorStrats;
     mapping(address => uint256) public eigenDeposited;
     // staker => hash of withdrawal inputs => timestamps related to the withdrawal
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
