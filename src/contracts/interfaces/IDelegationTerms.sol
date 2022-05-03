@@ -20,6 +20,6 @@ interface IDelegationTerms {
 
     function onDelegationReceived(
         address delegator,
-        uint96[] memory investorShares
+        uint256[] memory investorShares
     ) external;
 }

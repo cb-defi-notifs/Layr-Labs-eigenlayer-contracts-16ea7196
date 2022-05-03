@@ -101,6 +101,15 @@ contract InvestmentManager is
         uint256 amount
     ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        // increase delegated shares accordingly, if applicable
+        address delegatedAddress = delegation.delegation(msg.sender);
+        if (delegatedAddress != msg.sender) {
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                strategy,
+                shares
+            );
+        }
     }
 
     /**
@@ -126,6 +135,15 @@ contract InvestmentManager is
             unchecked {
                 ++i;
             }
+        }
+        // increase delegated shares accordingly, if applicable
+        address delegatedAddress = delegation.delegation(msg.sender);
+        if (delegatedAddress != msg.sender) {
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                strategies,
+                shares
+            );
         }
         return shares;
     }
@@ -195,6 +213,15 @@ contract InvestmentManager is
             unchecked {
                 ++i;
             }
+        }
+        // reduce delegated shares accordingly, if applicable
+        address delegatedAddress = delegation.delegation(msg.sender);
+        if (delegatedAddress != msg.sender) {
+            delegation.reduceOperatorShares(
+                delegatedAddress,
+                strategies,
+                shareAmounts
+            );
         }
     }
 
@@ -283,7 +310,6 @@ contract InvestmentManager is
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
-        uint256[] calldata operatorStrategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
@@ -543,6 +569,15 @@ contract InvestmentManager is
             token,
             shareAmount
         );
+        // reduce delegated shares accordingly, if applicable
+        address delegatedAddress = delegation.delegation(msg.sender);
+        if (delegatedAddress != msg.sender) {
+            delegation.reduceOperatorShares(
+                delegatedAddress,
+                strategy,
+                shareAmount
+            );
+        }
     }
 
     /**
@@ -600,6 +635,24 @@ contract InvestmentManager is
         }
 
         require(slashedAmount <= maxSlashedAmount, "excessive slashing");
+
+        // modify delegated shares accordingly, if applicable
+        address delegatedAddress = delegation.delegation(slashed);
+        if (delegatedAddress != slashed) {
+            delegation.reduceOperatorShares(
+                delegatedAddress,
+                strategies,
+                shareAmounts
+            );
+        }
+        delegatedAddress = delegation.delegation(recipient);
+        if (delegatedAddress != recipient) {
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                strategies,
+                shareAmounts
+            );
+        }
     }
 
     function depositConsenusLayerEth(address depositor, uint256 amount)

@@ -43,6 +43,17 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
+    function isDelegatedToSelf(address operator)
+        external
+        view
+        returns (bool);
+
+    function reduceOperatorShares(
+        address operator,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external;
+    
     // TODO: finalize this function
     function reduceOperatorShares(
         address operator,
@@ -50,8 +61,15 @@ interface IEigenLayrDelegation {
         uint256[] calldata shares
     ) external;
 
-    function isDelegatedToSelf(address operator)
-        external
-        view
-        returns (bool);
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external;
+
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
 }

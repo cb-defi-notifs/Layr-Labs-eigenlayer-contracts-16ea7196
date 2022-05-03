@@ -831,12 +831,6 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.stopPrank();
     }
 
-    function _testAddOperatorStrats(address sender, IInvestmentStrategy[] memory stratsToAdd) internal {
-        cheats.startPrank(sender);
-        delegation.addOperatorStrats(stratsToAdd);
-        cheats.stopPrank();
-    }
-
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
       
@@ -881,21 +875,12 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
         assertTrue(delegation.delegationTerms(sender) == dt, "_testRegisterAsDelegate: delegationTerms not set appropriately");
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
-        for (uint256 i = 0; i < 3; ++i) {
-            strats[i] = strategies[i];
-        }
-        _testAddOperatorStrats(sender, strats);
         cheats.stopPrank();
     }
 
     function _testDelegateToOperator(address sender, address operator) internal {
         cheats.startPrank(sender);
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
-        for (uint256 i = 0; i < 3; ++i) {
-            strats[i] = strategies[i];
-        }
-        delegation.delegateTo(operator, strats);
+        delegation.delegateTo(operator);
         assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
         //TODO: write this properly
         assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
@@ -1010,11 +995,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testDelegateToOperator(acct_0, registrant);
 
 // TODO: update this to work at all again
-        // //delegator-specific information
-        //  (
-        //         IInvestmentStrategy[] memory delegatorStrategies,
-        //         uint256[] memory delegatorShares,
-        //     ) = investmentManager.getDeposits(msg.sender);
+        //delegator-specific information
+        (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) = investmentManager.getDeposits(msg.sender);
 
         // //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
         // for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
@@ -1038,11 +1020,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
     function _testUndelegation(address sender, uint256[] storage strategyIndexes) internal{
         cheats.startPrank(sender);
         cheats.warp(block.timestamp+1000000);
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](strategyIndexes.length);
-        for (uint256 i = 0; i < strategyIndexes.length; ++i) {
-            strats[i] = strategies[strategyIndexes[i]];
-        }
-        delegation.commitUndelegation(strats);
+        delegation.commitUndelegation();
         delegation.finalizeUndelegation();
         cheats.stopPrank();
     }

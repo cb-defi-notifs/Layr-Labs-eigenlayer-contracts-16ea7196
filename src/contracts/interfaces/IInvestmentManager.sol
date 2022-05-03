@@ -80,4 +80,12 @@ interface IInvestmentManager {
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external returns (uint256);
+
+    function getDeposits(address depositor)
+        external
+        view
+        returns (
+            IInvestmentStrategy[] memory,
+            uint256[] memory
+        );
 }
