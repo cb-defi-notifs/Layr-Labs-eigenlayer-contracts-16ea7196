@@ -58,14 +58,20 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
         uint128 amount;
         if (delegation.isDelegatedToSelf(operator)) {
             for (uint256 i = 0; i < stratsLength;) {
-                amount += uint128(investmentManager.investorStratShares(operator, strategiesConsidered[i]));
+                uint256 sharesAmount = investmentManager.investorStratShares(operator, strategiesConsidered[i]);
+                if (sharesAmount > 0) {
+                    amount += uint128(strategiesConsidered[i].underlyingEthValueOfShares(sharesAmount));                    
+                }
                 unchecked {
                     ++i;
                 }
             }
         } else {
             for (uint256 i = 0; i < stratsLength;) {
-                amount += uint128(delegation.getOperatorShares(operator, strategiesConsidered[i]));
+                uint256 sharesAmount = delegation.getOperatorShares(operator, strategiesConsidered[i]);
+                if (sharesAmount > 0) {
+                    amount += uint128(strategiesConsidered[i].underlyingEthValueOfShares(sharesAmount));                                        
+                }
                 unchecked {
                     ++i;
                 }

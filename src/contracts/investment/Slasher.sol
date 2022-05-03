@@ -121,6 +121,5 @@ contract Slasher is Governed {
         uint256 maxSlashedAmount
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        investmentManager.slashShares(slashed, recipient, strategies, strategyIndexes, amounts, maxSlashedAmount);
-    }
+        investmentManager.slashShares(slashed, recipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    }
 }

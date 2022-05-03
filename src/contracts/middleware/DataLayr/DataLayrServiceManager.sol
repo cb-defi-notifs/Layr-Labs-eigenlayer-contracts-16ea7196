@@ -681,6 +681,8 @@ contract DataLayrServiceManager is
         }
     }
 
+// TODO: @Gautham -- fill this in or delete it?
+/*
     function getZeroPolynomialCommitment(uint256 degree, uint256 y)
         internal
         returns (uint256, uint256)
@@ -705,6 +707,7 @@ contract DataLayrServiceManager is
             }
         }
     }
+*/
 
     function getDumpNumberFee(uint48 _dumpNumber)
         public
