@@ -49,8 +49,8 @@ contract DataLayrServiceManager is
 
     event PaymentCommit(
         address operator,
-        uint48 fromDumpNumber,
-        uint48 toDumpNumber,
+        uint32 fromDumpNumber,
+        uint32 toDumpNumber,
         uint256 fee
     );
 
@@ -159,7 +159,7 @@ contract DataLayrServiceManager is
         // verify the signatures that disperser is claiming to be that of DataLayr nodes
         // who have agreed to be in the quorum
         (
-            uint48 dumpNumberToConfirm,
+            uint32 dumpNumberToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -205,7 +205,7 @@ contract DataLayrServiceManager is
         bytes calldata data
     ) external payable {
         (
-            uint48 dumpNumberToConfirm,
+            uint32 dumpNumberToConfirm,
             bytes32 depositFerkleHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -253,7 +253,7 @@ contract DataLayrServiceManager is
     /**
      * @notice
      */
-    function commitPayment(uint48 toDumpNumber, uint120 amount) external {
+    function commitPayment(uint32 toDumpNumber, uint120 amount) external {
         // only registered operators can call
         require(
             IDataLayrVoteWeigher(address(repository.voteWeigher()))
@@ -271,7 +271,7 @@ contract DataLayrServiceManager is
             paymentFraudProofCollateral
         );
 
-        uint48 fromDumpNumber;
+        uint32 fromDumpNumber;
 
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
             // this is the first commitment to a payment and thus, it must be claiming
@@ -433,7 +433,7 @@ contract DataLayrServiceManager is
     ) public {
         //get the dataStore being challenged
         (
-            uint48 dumpNumber,
+            uint32 dumpNumber,
             uint32 initTime,
             uint32 storePeriodLength,
             bool commited
@@ -706,7 +706,7 @@ contract DataLayrServiceManager is
         }
     }
 
-    function getDumpNumberFee(uint48 _dumpNumber)
+    function getDumpNumberFee(uint32 _dumpNumber)
         public
         view
         returns (uint256)
@@ -714,7 +714,7 @@ contract DataLayrServiceManager is
         return dumpNumberToFee[_dumpNumber];
     }
 
-    function getDumpNumberSignatureHash(uint48 _dumpNumber)
+    function getDumpNumberSignatureHash(uint32 _dumpNumber)
         public
         view
         returns (bytes32)

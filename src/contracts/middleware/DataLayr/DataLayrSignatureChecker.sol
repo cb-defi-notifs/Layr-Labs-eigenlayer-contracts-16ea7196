@@ -3,8 +3,10 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./DataLayrServiceManagerStorage.sol";
+import "../RegistrationManagerBaseMinusRepository.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/SignatureCompaction.sol";
+
 // import "ds-test/test.sol";
 
 abstract contract DataLayrSignatureChecker is
@@ -12,6 +14,8 @@ abstract contract DataLayrSignatureChecker is
     // , DSTest
 {
     using BytesLib for bytes;
+    uint256 constant MODULUS =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
     struct SignatoryTotals {
         //total eth stake of the signatories
         uint256 ethStakeSigned;
@@ -59,7 +63,7 @@ abstract contract DataLayrSignatureChecker is
     function checkSignatures(bytes calldata data)
         public
         returns (
-            uint48 dumpNumberToConfirm,
+            uint32 dumpNumberToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 compressedSignatoryRecord
@@ -67,190 +71,138 @@ abstract contract DataLayrSignatureChecker is
     {
         //dumpNumber corresponding to the headerHash
         //number of different signature bins that signatures are being posted from
-        uint32 numberOfSigners;
-        StakesMetaData memory smd;
+        uint32 numberOfNonSigners;
+        uint256 apkIndex;
         assembly {
-            //get the 48 bits immediately after the function signature and length encoding of bytes calldata type
-            dumpNumberToConfirm := shr(208, calldataload(68))
+            //get the 32 bits immediately after the function signature and length encoding of bytes calldata type
+            dumpNumberToConfirm := shr(224, calldataload(68))
             //get the 32 bytes immediately after the above
-            headerHash := calldataload(74)
+            headerHash := calldataload(72)
             //get the next 32 bits
-            numberOfSigners := shr(224, calldataload(106))
-            //store the next 32 bytes in the start of the 'smd' object (i.e. smd.stakesIndex)
-            mstore(smd, calldataload(110))
-            //store the next 32 bytes after the start of the 'smd' object (i.e. smd.stakesLength)
-            mstore(add(smd, 32), calldataload(142))
+            numberOfNonSigners := shr(224, calldataload(104))
+            //get next 32 bits
+            apkIndex := shr(224, calldataload(108))
         }
 
-        bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
-
-        // total bytes read so far is now (6 + 32 + 4 + 64) = 106
-        // load stakes into memory and verify integrity of stake hash
-        smd.stakes = data.slice(106, smd.stakesLength);
-        require(
-            keccak256(smd.stakes) ==
-                IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
-                    smd.stakesIndex,
-                    dumpNumberToConfirm
-                ),
-            "ETH and/or EIGEN stakes are incorrect"
-        );
-
-        // initialize at value that will be used in next calldataload (just after all the already loaded data)
-        // we add 68 to the amount of data we have read here (174 = 106 + 68), since 4 bytes (for function sig) + (32 * 2) bytes is used at start of calldata
-        uint256 pointer = 174 + smd.stakesLength;
-
-        assembly {
-            //fetch the totalEthStake value and store it in memory
-            mstore(
-                //signedTotals.totalEthStake location
-                add(signedTotals, 64),
-                //right-shift by 160 to get just the 96 bits we want
-                shr(
-                    160,
-                    //load data beginning 24 bytes before the end of the 'stakes' object (this is where totalEthStake begins)
-                    calldataload(sub(pointer, 24))                 
-                )
-            )
-            //fetch the totalEigenStake value and store it in memory
-            mstore(
-                //signedTotals.totalEigenStake location
-                add(signedTotals, 96),
-                //right-shift by 160 to get just the 96 bits we want
-                shr(
-                    160,
-                    //load data beginning 12 bytes before the end of the 'stakes' object (this is where totalEigenStake begins)
-                    calldataload(sub(pointer, 12))                 
-                )
-            )
-        }
-
-        //transitory variables to be reused in loop
-        //current signer information
-        SignatureWithInfo memory sigWInfo;
-        //previous signer's address, converted to a uint160. addresses are checked to be in strict numerical order (low => high), so this is initalized as zero
-        uint160 previousSigner;
-
-        //store all signers in memory, to be compressed  into 'compressedSignatoryRecord', along with the ferkle root and the dumpNumberToConfirm
-        address[] memory signers = new address[](numberOfSigners);
-
-        uint32 signatoryCalldataByteLocation;
-
-        //loop for each signatures ends once all signatures have been processed
-        uint256 i;
-
-        while (i < numberOfSigners) {
-
-            assembly {
-                //load r
-                mstore(sigWInfo, calldataload(pointer))
-                //load vs
-                mstore(add(sigWInfo, 32), calldataload(add(pointer, 32)))
-                // signatoryCalldataByteLocation := 
-                //                 add(
-                //                     //get position in calldata for start of stakes object
-                //                     mload(smd),
-                //                             sigWInfo.stakesByteLocation
-                //                 )
-                signatoryCalldataByteLocation := 
-                                add(
-                                    //get position in calldata for start of stakes object
-                                    174,
-                                        mul(
-                                            //gets specified location of signatory in stakes object
-                                            shr(
-                                                224,
-                                                    //64 accounts for length of signature components
-                                                    calldataload(add(pointer, 64)
-                                                )
-                                            ),
-                                            //20 + 12*2 for (address, uint96, uint96)
-                                            44
-                                        )
-                                )
-            }
-
-            sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
-
-            //increase calldataPointer to account for length of signature components + 4 bytes for length of uint32 used to specify index in stakes object
-            unchecked {
-                pointer += 68;                    
-            }
-
-            //verify monotonic increase of address value
-            require(
-                uint160(sigWInfo.signatory) > previousSigner,
-                "bad sig ordering"
+        address dlvwAddress = address(repository.voteWeigher());
+        IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(dlvwAddress);
+        RegistrationManagerBaseMinusRepository dlvwStake = RegistrationManagerBaseMinusRepository(
+                dlvwAddress
             );
-            //store signer info in memory variables
-            previousSigner = uint160(sigWInfo.signatory);
-            signers[i] = sigWInfo.signatory;
+        //compressed public key
+        bytes memory compressed = dlvw.getCorrectCompressedApk(
+            apkIndex,
+            dumpNumberToConfirm
+        );
+        //get apk coordinates
+        (uint256 apk_x, uint256 apk_y) = decompressPublicKey(compressed);
 
+        // we hav read (68 + 4 + 32 + 4 + 4) = 112 bytes
+        uint256 pointer = 112;
+        uint256 prevPubkeyHashInt;
+
+        uint256[] memory input = new uint256[](12);
+
+        SignatoryTotals memory sigTotals;
+
+        //get totals
+        signedTotals.ethStakeSigned = dlvwStake.totalEthStaked();
+        signedTotals.totalEthStake = signedTotals.ethStakeSigned;
+        signedTotals.eigenStakeSigned = dlvwStake.totalEigenStaked();
+        signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
+
+        for (uint i = 0; i < numberOfNonSigners; ) {
+            //load compressed pubkey into memory and the index in the stakes array
+            uint256 stakeIndex;
             assembly {
-                //this block ensures that the recovered signatory address matches the address stored at the specified index in the stakes object
-                //wrap inner part in revert statement (eq will return 0 if *not* equal, in which case, we revert)
-                if iszero(
-                    //check signatory address against address stored at specified index in stakes object
-                    eq(
-                        //gets signatory address
-                        and(
-                            //signatory location in sigWInfo
-                            mload(add(sigWInfo, 64)),
-                            //20 byte mask
-                            0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-                        ),
-                        //pulls address from stakes object
-                        shr(
-                            96,
-                            calldataload(signatoryCalldataByteLocation)
-                        )
-                    )
-                ) {
+                //next 33 bytes are compressed pubkey
+                mstore(compressed, calldataload(pointer))
+                mstore(add(compressed, 1), calldataload(add(pointer, 1)))
+                // next 32 bits are stake index
+                mstore(stakeIndex, shr(224, calldataload(add(pointer, 33))))
+            }
+            //decompress the pubkey
+            (uint256 pk_x, uint256 pk_y) = decompressPublicKey(compressed);
+            //get pubkeyHash, add it to nonSigners
+            bytes32 pubkeyHash = keccak256(abi.encodePacked(pk_x, pk_y));
+
+            (
+                uint32 dumpNumber,
+                uint32 nextDumpNumber,
+                uint96 ethStake,
+                uint96 eigenStake
+            ) = dlvw.pubkeyHashToStakeHistory(pubkeyHash, stakeIndex);
+
+            require(
+                dumpNumber <= dumpNumberToConfirm &&
+                    (nextDumpNumber == 0 ||
+                        nextDumpNumber > dumpNumberToConfirm),
+                "Incorrect stakes index"
+            );
+
+            //subtract validator stakes from totals
+            signedTotals.ethStakeSigned -= ethStake;
+            signedTotals.eigenStakeSigned -= eigenStake;
+
+            //add new public key to non signer pk sum
+            uint256[] memory input = new uint256[](4);
+            input[2] = pk_x;
+            input[3] = pk_y;
+
+            //overwrite first to indexes of input with new sum of non signer public keys
+            assembly {
+                if iszero(call(not(0), 0x06, 0, input, 0x80, input, 0x40)) {
                     revert(0, 0)
                 }
-
-                //update ethStakeSigned (total)
-                mstore(
-                    signedTotals,
-                    add(
-                        mload(signedTotals),
-                        //stake amount is 12 bytes, so right-shift by 160 bits (20 bytes)
-                        shr(
-                            160,
-                            calldataload(
-                                //adding 20 (bytes for signatory address) to previous index gets us index of ethStakeAmount for signatory
-                                add(
-                                    signatoryCalldataByteLocation,
-                                    20
-                                )
-                            )
-                        )
-                    )
-                )
-                //update eigenStakeSigned (total)
-                mstore(
-                    add(signedTotals, 32),
-                    add(
-                        mload(add(signedTotals, 32)),
-                        //stake amount is 16 bytes, so right-shift by 160 bits (20 bits)
-                        shr(
-                            160,
-                            calldataload(
-                                //adding 32 to previous index (20 for signatory, plus 12 for ethStake) gets us index of eigenStakeAmount for signatory
-                                add(signatoryCalldataByteLocation,
-                                    32
-                                )
-                            )
-                        )
-                    )
-                )             
+                //increment pointer
+                mstore(pointer, add(pointer, 37))
             }
 
-            //increment counter at end of loop
             unchecked {
                 ++i;
             }
         }
+
+        //now we have the aggregate non signer key in input[0], input[1]
+        //let's subtract it from the aggregate public key
+
+        //negate aggregate non signer key
+        input[1] = MODULUS - input[1];
+        //put apk in input for addition
+        input[2] = apk_x;
+        input[3] - apk_y;
+        // add apk with negated agg non signer key, to get agg pk for verification
+        assembly {
+            if iszero(call(not(0), 0x06, 0, input, 0x80, input, 0x40)) {
+                revert(0, 0)
+            }
+        }
+
+        //now we check that
+        //e(pk, H(m)) e(-g1, sigma) == 1
+        uint256[4] memory hashOfMessage = hashMessageHashToG2Point(headerHash);
+        input[2] = hashOfMessage[0];
+        input[3] = hashOfMessage[1];
+        input[4] = hashOfMessage[2];
+        input[5] = hashOfMessage[3];
+        //negated g1 coors
+        input[6] = 1;
+        input[7] = MODULUS - 2;
+        
+        assembly {
+            //next in calldata are sigma_x1, sigma_y1, sigma_x2, sigma_y2
+            mstore(add(input, 0x0100), calldataload(pointer))
+            mstore(add(input, 0x0120), calldataload(add(pointer, 0x20)))
+            mstore(add(input, 0x0140), calldataload(add(pointer, 0x40)))
+            mstore(add(input, 0x0160), calldataload(add(pointer, 0x60)))
+            //check the pairing
+            //if incorrect, revert
+            if iszero(call(not(0), 0x07, 0, input, 0xC0, 0x0, 0x0)) {
+                revert(0, 0)
+            }
+        }
+
+        //sig is correct!!!
 
         //set compressedSignatoryRecord variable
         //used for payment fraud proofs
@@ -258,8 +210,6 @@ abstract contract DataLayrSignatureChecker is
             abi.encodePacked(
                 // headerHash,
                 dumpNumberToConfirm,
-                abi.encodePacked(signers),
-                smd.stakes,
                 signedTotals.ethStakeSigned,
                 signedTotals.eigenStakeSigned
             )
@@ -272,5 +222,65 @@ abstract contract DataLayrSignatureChecker is
             signedTotals,
             compressedSignatoryRecord
         );
+    }
+
+    function decompressPublicKey(bytes memory compressed)
+        internal
+        returns (uint256, uint256)
+    {
+        uint256 x;
+        uint256 y;
+        uint256[] memory input;
+        assembly {
+            //x is the first 32 bytes of compressed
+            x := mload(compressed)
+            x := mod(x, MODULUS)
+            // y = x^2 mod m
+            y := mulmod(x, x, MODULUS)
+            // y = x^3 mod m
+            y := mulmod(y, x, MODULUS)
+            // y = x^3 + 3 mod m
+            y := addmod(y, 3, MODULUS)
+            //really the elliptic curve equation is y^2 = x^3 + 3 mod m
+            //so we have y^2 stored as y, so let's find the sqrt
+
+            // (y^2)^((MODULUS + 1)/4) = y
+            // base of exponent is y
+            mstore(
+                input,
+                32 // y is 32 bytes long
+            )
+            // the exponent (MODULUS + 1)/4 is also 32 bytes long
+            mstore(add(input, 0x20), 32)
+            // MODULUS is 32 bytes long
+            mstore(add(input, 0x40), 32)
+            // base is y
+            mstore(add(input, 0x60), y)
+            // exponent is (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
+            mstore(
+                add(input, 0x80),
+                0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
+            )
+            //MODULUS
+            mstore(add(input, 0xA0), MODULUS)
+            //store sqrt(y^2) as y
+            if iszero(call(not(0), 0x05, 0, input, 0x12, y, 0x20)) {
+                revert(0, 0)
+            }
+        }
+        //use 33rd byte as toggle for the sign of sqrt
+        //because y and -y are both solutions
+        if (compressed[32] != 0) {
+            y = MODULUS - y;
+        }
+        return (x, y);
+    }
+
+    function hashMessageHashToG2Point(bytes32 message) public returns(uint256[4] memory) {
+        uint256[] memory point = new uint256[](4);
+        point[0] = 0;
+        point[1] = 0;
+        point[2] = 0;
+        point[3] = 0;
     }
 }

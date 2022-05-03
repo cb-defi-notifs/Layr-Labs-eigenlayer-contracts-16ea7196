@@ -11,8 +11,8 @@ contract DataLayrPaymentChallengeFactory {
     function createDataLayrPaymentChallenge(
         address operator,
         address challenger,
-        uint48 fromDumpNumber,
-        uint48 toDumpNumber,
+        uint32 fromDumpNumber,
+        uint32 toDumpNumber,
         uint120 amount1,
         uint120 amount2
     ) external returns (address) {

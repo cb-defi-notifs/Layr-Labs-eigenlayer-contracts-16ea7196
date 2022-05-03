@@ -15,8 +15,8 @@ contract DataLayrPaymentChallenge {
     struct PaymentChallenge {
         address operator;
         address challenger;
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
+        uint32 fromDumpNumber;
+        uint32 toDumpNumber;
         uint120 amount1;
         uint120 amount2;
         uint32 commitTime; // when commited, used for fraud proof period
@@ -30,13 +30,13 @@ contract DataLayrPaymentChallenge {
         uint96 eigenStake;
     }
 
-    event PaymentBreakdown(uint48 fromDumpNumber, uint48 toDumpNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(uint32 fromDumpNumber, uint32 toDumpNumber, uint120 amount1, uint120 amount2);
 
     constructor(
         address operator,
         address challenger,
-        uint48 fromDumpNumber,
-        uint48 toDumpNumber,
+        uint32 fromDumpNumber,
+        uint32 toDumpNumber,
         uint120 amount1,
         uint120 amount2
     ) {
@@ -70,8 +70,8 @@ contract DataLayrPaymentChallenge {
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
+        uint32 fromDumpNumber;
+        uint32 toDumpNumber;
         if (fromDumpNumber == 0) {
             fromDumpNumber = challenge.fromDumpNumber;
             toDumpNumber = challenge.toDumpNumber;
@@ -79,7 +79,7 @@ contract DataLayrPaymentChallenge {
             fromDumpNumber = challenge.fromDumpNumber;
             toDumpNumber = challenge.toDumpNumber;
         }
-        uint48 diff;
+        uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
@@ -109,7 +109,7 @@ contract DataLayrPaymentChallenge {
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
-    function updateStatus(address operator, uint48 diff)
+    function updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
@@ -181,7 +181,7 @@ contract DataLayrPaymentChallenge {
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint48 challengedDumpNumber = challenge.fromDumpNumber;
+        uint32 challengedDumpNumber = challenge.fromDumpNumber;
         uint8 status = challenge.status;
         address operator = challenge.operator;
         //check sigs

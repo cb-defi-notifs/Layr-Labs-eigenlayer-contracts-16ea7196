@@ -2,11 +2,11 @@
 pragma solidity ^0.8.9;
 
 interface IDataLayrServiceManager {
-    function dumpNumber() external returns (uint48);
+    function dumpNumber() external returns (uint32);
 
-    function getDumpNumberFee(uint48) external returns (uint256);
+    function getDumpNumberFee(uint32) external returns (uint256);
 
-    function getDumpNumberSignatureHash(uint48) external returns (bytes32);
+    function getDumpNumberSignatureHash(uint32) external returns (bytes32);
 
     function resolvePaymentChallenge(address, bool) external;
 
