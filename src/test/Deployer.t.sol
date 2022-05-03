@@ -905,11 +905,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         bytes32 vs;
 
         (r, vs) = SignatureCompaction.packSignature(r, s, v);
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
-        for (uint256 i = 0; i < 3; ++i) {
-            strats[i] = strategies[i];
-        }
-        delegation.delegateToBySignature(sender, operator, 0, 0, r, vs, strats);
+        delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
         assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
         cheats.stopPrank();
 
@@ -998,26 +994,26 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //delegator-specific information
         (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) = investmentManager.getDeposits(msg.sender);
 
-        // //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
-        // for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-        //     initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
-        // }
+        //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
+        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
+            initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
+        }
 
         // //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
         // for (uint256 j = 0; j< delegation.getOperatorStrats(registrant).length; j++){
         //     strategyIndexes.push(j);
         // }
 
-        // _testUndelegation(acct_0, strategyIndexes);
+        _testUndelegation(acct_0);
 
-        // for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-        //     uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
-        //     uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
-        //     assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
-        // }
+        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
+            uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
+            uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
+            assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
+        }
     }
 
-    function _testUndelegation(address sender, uint256[] storage strategyIndexes) internal{
+    function _testUndelegation(address sender) internal{
         cheats.startPrank(sender);
         cheats.warp(block.timestamp+1000000);
         delegation.commitUndelegation();

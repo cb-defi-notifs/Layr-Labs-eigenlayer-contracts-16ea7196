@@ -94,8 +94,7 @@ contract EigenLayrDelegation is
         uint256 nonce,
         uint256 expiry,
         bytes32 r,
-        bytes32 vs,
-        IInvestmentStrategy[] calldata delegatorStrategies
+        bytes32 vs
     ) external {
         require(
             delegationNonces[delegator] == nonce,
