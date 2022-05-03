@@ -425,63 +425,63 @@ contract DataLayrServiceManager is
         }
     }
 
-    function forceDLNToDisclose(
-        bytes32 headerHash,
-        uint256 stakeHashIndex,
-        bytes calldata stakes,
-        uint256 operatorIndex
-    ) public {
-        //get the dataStore being challenged
-        (
-            uint32 dumpNumber,
-            uint32 initTime,
-            uint32 storePeriodLength,
-            bool commited
-        ) = dataLayr.dataStores(headerHash);
-        require(commited, "Dump is not commited yet");
-        bytes32 stakeHash = IDataLayrVoteWeigher(
-            address(repository.voteWeigher())
-        ).getStakesHashUpdateAndCheckIndex(stakeHashIndex, dumpNumber);
+    // function forceDLNToDisclose(
+    //     bytes32 headerHash,
+    //     uint256 stakeHashIndex,
+    //     bytes calldata stakes,
+    //     uint256 operatorIndex
+    // ) public {
+    //     //get the dataStore being challenged
+    //     (
+    //         uint32 dumpNumber,
+    //         uint32 initTime,
+    //         uint32 storePeriodLength,
+    //         bool commited
+    //     ) = dataLayr.dataStores(headerHash);
+    //     require(commited, "Dump is not commited yet");
+    //     bytes32 stakeHash = IDataLayrVoteWeigher(
+    //         address(repository.voteWeigher())
+    //     ).getStakesHashUpdateAndCheckIndex(stakeHashIndex, dumpNumber);
 
-        //hash stakes and make sure preimage is correct
-        require(
-            keccak256(stakes) == stakeHash,
-            "Stakes provided are inconsistent with hashes"
-        );
-        uint256 operatorPointer = 44 * operatorIndex;
-        //make sure pointer is before total stakes and last persons stake amounts
-        require(
-            operatorPointer < stakes.length - 67,
-            "Cannot point to totals or further"
-        );
-        address operator = stakes.toAddress(operatorPointer);
-        require(
-            block.timestamp < initTime + storePeriodLength - 600 ||
-                (block.timestamp <
-                    disclosureForOperator[headerHash][operator].commitTime +
-                        2 *
-                        disclosureFraudProofInterval &&
-                    block.timestamp >
-                    disclosureForOperator[headerHash][operator].commitTime +
-                        disclosureFraudProofInterval),
-            "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
-        );
-        require(
-            disclosureForOperator[headerHash][operator].status == 0,
-            "Operator is already challenged for dump number"
-        );
-        disclosureForOperator[headerHash][operator] = DisclosureChallenge(
-            uint32(block.timestamp),
-            msg.sender, // dumpNumber payment being claimed from
-            address(0), //address of challenge contract if there is one
-            0, //TODO: set degree here
-            1,
-            0,
-            0,
-            bytes32(0)
-        );
-        emit DisclosureChallengeInit(headerHash, operator);
-    }
+    //     //hash stakes and make sure preimage is correct
+    //     require(
+    //         keccak256(stakes) == stakeHash,
+    //         "Stakes provided are inconsistent with hashes"
+    //     );
+    //     uint256 operatorPointer = 44 * operatorIndex;
+    //     //make sure pointer is before total stakes and last persons stake amounts
+    //     require(
+    //         operatorPointer < stakes.length - 67,
+    //         "Cannot point to totals or further"
+    //     );
+    //     address operator = stakes.toAddress(operatorPointer);
+    //     require(
+    //         block.timestamp < initTime + storePeriodLength - 600 ||
+    //             (block.timestamp <
+    //                 disclosureForOperator[headerHash][operator].commitTime +
+    //                     2 *
+    //                     disclosureFraudProofInterval &&
+    //                 block.timestamp >
+    //                 disclosureForOperator[headerHash][operator].commitTime +
+    //                     disclosureFraudProofInterval),
+    //         "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
+    //     );
+    //     require(
+    //         disclosureForOperator[headerHash][operator].status == 0,
+    //         "Operator is already challenged for dump number"
+    //     );
+    //     disclosureForOperator[headerHash][operator] = DisclosureChallenge(
+    //         uint32(block.timestamp),
+    //         msg.sender, // dumpNumber payment being claimed from
+    //         address(0), //address of challenge contract if there is one
+    //         0, //TODO: set degree here
+    //         1,
+    //         0,
+    //         0,
+    //         bytes32(0)
+    //     );
+    //     emit DisclosureChallengeInit(headerHash, operator);
+    // }
 
     function respondToDisclosureInit(
         MultiReveal calldata multireveal,

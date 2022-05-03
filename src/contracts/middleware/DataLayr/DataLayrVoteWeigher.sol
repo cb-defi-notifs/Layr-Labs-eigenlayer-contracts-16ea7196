@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
+import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
@@ -15,7 +16,7 @@ import "ds-test/test.sol";
  * @notice
  */
 
-contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRepository, DSTest {
+contract DataLayrVoteWeigher is IDataLayrVoteWeigher, VoteWeigherBase, RegistrationManagerBaseMinusRepository, DSTest {
     using BytesLib for bytes;
     uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
     /**
@@ -31,7 +32,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         // corresponds to position in registrantList
         uint64 index;
         //
-        uint48 fromDumpNumber;
+        uint32 fromDumpNumber;
         uint32 to;
         uint8 active; //bool
         // socket address of the DataLayr node
@@ -66,13 +67,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
 
     //operators pkh to the history of thier stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
-
-    struct OperatorStake {
-        uint32 dumpNumber;
-        uint32 nextUpdateDumpNumber;
-        uint96 ethStake;
-        uint96 eigenStake;
-    }
 
     //the dump number in which the apk is updated
     APKUpdateMetaData[] public apkUpdates;
@@ -178,7 +172,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
         //clear stake history so cant be subtracted from apk
-        pubkeyHashToStakeHistory[registry[msg.sender].pubkeyHash] = [];
+        // pubkeyHashToStakeHistory[registry[msg.sender].pubkeyHash].length = 0;
 
         emit DeregistrationCommit(msg.sender);
         return true;
@@ -279,7 +273,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
     function getOperatorFromDumpNumber(address operator)
         public
         view
-        returns (uint48)
+        returns (uint32)
     {
         return registry[operator].fromDumpNumber;
     }
@@ -319,7 +313,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         require(dumpNumberToConfirm >= apkUpdate.dumpNumber, "Index too recent");
         //if not last update
         if(index != apkUpdates.length - 1) {
-            require(dumpNumberToConfirm < apkUpdates[index + 1], "Not latest valid apk update");
+            require(dumpNumberToConfirm < apkUpdates[index + 1].dumpNumber, "Not latest valid apk update");
         }
         uint256 apk_x = apkXCoordinates[index];
         bool yParity = apkUpdate.yParity;
@@ -341,6 +335,10 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
             mstore(add(compressed, 32), yParity)
         }
         return compressed;
+    }
+
+    function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index) public view returns(OperatorStake memory) {
+        return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
 
@@ -383,19 +381,22 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
             address(repository.serviceManager())
         ).dumpNumber();
 
-        //verify sig of public key and get pubkeyHash back, slice out compressed apk
-        (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(data);
+        uint256[] memory input = new uint256[](4);
 
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk_x, pk_y));
+        {
+            //verify sig of public key and get pubkeyHash back, slice out compressed apk
+            (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(data);
+            input[0] = pk_x;
+            input[1] = pk_y;
+        }
+
+        bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
 
         //get coors of apk
         bytes memory compressed = getCompressedApk();
         (uint256 apk_x, uint256 apk_y) = decompressPublicKey(compressed);
 
         //add new public key to apk
-        uint256[] memory input = new uint256[](4);
-        input[0] = pk_x;
-        input[1] = pk_y;
         input[2] = apk_x;
         input[3] = apk_y;
 
@@ -418,7 +419,7 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         _operatorStake.dumpNumber = currentDumpNumber;
         
         //store operatorStake in storage
-        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
+        // pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
 
         // slice starting the byte after socket length to construct the details on the 
         // DataLayr node
@@ -529,7 +530,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
         uint256[] memory input;
         assembly {
             //x is the first 32 bytes of compressed
-            x := mload(compressed)
             x := mod(x, MODULUS)
             // y = x^2 mod m
             y := mulmod(x, x, MODULUS)

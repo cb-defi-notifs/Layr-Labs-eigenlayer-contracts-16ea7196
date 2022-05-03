@@ -71,47 +71,42 @@ abstract contract DataLayrSignatureChecker is
     {
         //dumpNumber corresponding to the headerHash
         //number of different signature bins that signatures are being posted from
-        uint32 numberOfNonSigners;
-        uint256 apkIndex;
+        uint256 placeholder;
         assembly {
             //get the 32 bits immediately after the function signature and length encoding of bytes calldata type
             dumpNumberToConfirm := shr(224, calldataload(68))
             //get the 32 bytes immediately after the above
             headerHash := calldataload(72)
             //get the next 32 bits
-            numberOfNonSigners := shr(224, calldataload(104))
-            //get next 32 bits
-            apkIndex := shr(224, calldataload(108))
+            //numberOfSigners
+            placeholder := shr(224, calldataload(104))
         }
 
         address dlvwAddress = address(repository.voteWeigher());
         IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(dlvwAddress);
-        RegistrationManagerBaseMinusRepository dlvwStake = RegistrationManagerBaseMinusRepository(
-                dlvwAddress
-            );
         //compressed public key
-        bytes memory compressed = dlvw.getCorrectCompressedApk(
-            apkIndex,
-            dumpNumberToConfirm
-        );
-        //get apk coordinates
-        (uint256 apk_x, uint256 apk_y) = decompressPublicKey(compressed);
+        bytes memory compressed;
 
         // we hav read (68 + 4 + 32 + 4 + 4) = 112 bytes
         uint256 pointer = 112;
-        uint256 prevPubkeyHashInt;
+        //TODO: DO WE NEED TO MAKE SURE INCREMENTAL PKHs?
+        // uint256 prevPubkeyHashInt;
 
         uint256[] memory input = new uint256[](12);
 
         SignatoryTotals memory sigTotals;
 
         //get totals
-        signedTotals.ethStakeSigned = dlvwStake.totalEthStaked();
+        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(
+            dlvwAddress
+        ).totalEthStaked();
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = dlvwStake.totalEigenStaked();
+        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(
+            dlvwAddress
+        ).totalEigenStaked();
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
-        for (uint i = 0; i < numberOfNonSigners; ) {
+        for (uint i = 0; i < placeholder; ) {
             //load compressed pubkey into memory and the index in the stakes array
             uint256 stakeIndex;
             assembly {
@@ -122,32 +117,37 @@ abstract contract DataLayrSignatureChecker is
                 mstore(stakeIndex, shr(224, calldataload(add(pointer, 33))))
             }
             //decompress the pubkey
-            (uint256 pk_x, uint256 pk_y) = decompressPublicKey(compressed);
+            {
+                (uint256 pk_x, uint256 pk_y) = decompressPublicKey(compressed);
+                input[2] = pk_x;
+                input[3] = pk_y;
+            }
             //get pubkeyHash, add it to nonSigners
-            bytes32 pubkeyHash = keccak256(abi.encodePacked(pk_x, pk_y));
+            bytes32 pubkeyHash = keccak256(
+                abi.encodePacked(input[2], input[3])
+            );
 
-            (
-                uint32 dumpNumber,
-                uint32 nextDumpNumber,
-                uint96 ethStake,
-                uint96 eigenStake
-            ) = dlvw.pubkeyHashToStakeHistory(pubkeyHash, stakeIndex);
+            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
+                .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
             require(
-                dumpNumber <= dumpNumberToConfirm &&
-                    (nextDumpNumber == 0 ||
-                        nextDumpNumber > dumpNumberToConfirm),
-                "Incorrect stakes index"
+                operatorStake.dumpNumber <= dumpNumberToConfirm,
+                "Operator stake index is too early"
+            );
+
+            require(
+                operatorStake.nextUpdateDumpNumber == 0 ||
+                    operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
+                "Operator stake index is too early"
             );
 
             //subtract validator stakes from totals
-            signedTotals.ethStakeSigned -= ethStake;
-            signedTotals.eigenStakeSigned -= eigenStake;
+            signedTotals.ethStakeSigned -= operatorStake.ethStake;
+            signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
 
             //add new public key to non signer pk sum
-            uint256[] memory input = new uint256[](4);
-            input[2] = pk_x;
-            input[3] = pk_y;
+            // input[2] = pk_x;
+            // input[3] = pk_y;
 
             //overwrite first to indexes of input with new sum of non signer public keys
             assembly {
@@ -162,6 +162,19 @@ abstract contract DataLayrSignatureChecker is
                 ++i;
             }
         }
+
+        assembly {
+            //get next 32 bits
+            //now its the apkIndex
+            placeholder := shr(224, calldataload(108))
+        }
+
+        compressed = dlvw.getCorrectCompressedApk(
+            placeholder,
+            dumpNumberToConfirm
+        );
+        //get apk coordinates
+        (uint256 apk_x, uint256 apk_y) = decompressPublicKey(compressed);
 
         //now we have the aggregate non signer key in input[0], input[1]
         //let's subtract it from the aggregate public key
@@ -180,15 +193,19 @@ abstract contract DataLayrSignatureChecker is
 
         //now we check that
         //e(pk, H(m)) e(-g1, sigma) == 1
-        uint256[4] memory hashOfMessage = hashMessageHashToG2Point(headerHash);
-        input[2] = hashOfMessage[0];
-        input[3] = hashOfMessage[1];
-        input[4] = hashOfMessage[2];
-        input[5] = hashOfMessage[3];
+        {
+            uint256[4] memory hashOfMessage = hashMessageHashToG2Point(
+                headerHash
+            );
+            input[2] = hashOfMessage[0];
+            input[3] = hashOfMessage[1];
+            input[4] = hashOfMessage[2];
+            input[5] = hashOfMessage[3];
+        }
         //negated g1 coors
         input[6] = 1;
         input[7] = MODULUS - 2;
-        
+
         assembly {
             //next in calldata are sigma_x1, sigma_y1, sigma_x2, sigma_y2
             mstore(add(input, 0x0100), calldataload(pointer))
@@ -276,7 +293,10 @@ abstract contract DataLayrSignatureChecker is
         return (x, y);
     }
 
-    function hashMessageHashToG2Point(bytes32 message) public returns(uint256[4] memory) {
+    function hashMessageHashToG2Point(bytes32 message)
+        public
+        returns (uint256[4] memory)
+    {
         uint256[] memory point = new uint256[](4);
         point[0] = 0;
         point[1] = 0;
