@@ -136,6 +136,11 @@ contract InvestmentManager is
         IERC20 token,
         uint256 amount
     ) internal returns (uint256 shares) {
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (investorStratShares[depositor][strategy] == 0) {
+            investorStrats[depositor].push(strategy);
+        }
+
         // transfer tokens from the sender to the strategy
         bool success = token.transferFrom(
             msg.sender,
@@ -161,21 +166,31 @@ contract InvestmentManager is
      *      call this function.
      */
     function withdrawFromStrategies(
+        uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
     ) external onlyNotDelegated(msg.sender) {
+        uint256 strategyIndexIndex;
         address depositor = msg.sender;
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
-            // perform withdrawal logic
-            _withdrawFromStrategy(
-                depositor,
-                strategies[i],
-                tokens[i],
-                shareAmounts[i]
-            );
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (
+                _withdrawFromStrategy(
+                    depositor,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    tokens[i],
+                    shareAmounts[i]
+                )
+            ) {
+                unchecked {
+                    ++strategyIndexIndex;
+                }
+            }
             //increment the loop
             unchecked {
                 ++i;
@@ -184,14 +199,18 @@ contract InvestmentManager is
     }
 
     // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
     function _withdrawFromStrategy(
         address depositor,
+        uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) internal {
-        _removeShares(
+    ) internal returns (bool strategyRemovedFromArray) {
+        strategyRemovedFromArray = _removeShares(
             depositor,
+            strategyIndex,
             strategy,
             shareAmount
         );
@@ -200,21 +219,57 @@ contract InvestmentManager is
     }
 
     // reduces the shares that 'depositor' holds in 'strategy' by 'shareAmount'
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
     function _removeShares(
         address depositor,
+        uint256 strategyIndex,
         IInvestmentStrategy strategy,
         uint256 shareAmount
-    ) internal {
+    ) internal returns (bool) {
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
         require(shareAmount <= userShares, "shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
-            investorStratShares[depositor][strategy] = userShares - shareAmount;
+            userShares = userShares - shareAmount;
         }
+        // subtract the shares from the depositor's existing shares for this strategy
+        investorStratShares[depositor][strategy] = userShares;
+        // if no existing shares, remove is from this investors strats
+        if (investorStratShares[depositor][strategy] == 0) {
+            // if the strategy matches with the strategy index provided
+            if (investorStrats[depositor][strategyIndex] == strategy) {
+                // replace the strategy with the last strategy in the list
+                investorStrats[depositor][strategyIndex] = investorStrats[
+                    depositor
+                ][investorStrats[depositor].length - 1];
+            } else {
+                //loop through all of the strategies, find the right one, then replace
+                uint256 stratsLength = investorStrats[depositor].length;
+
+                for (uint256 j = 0; j < stratsLength; ) {
+                    if (investorStrats[depositor][j] == strategy) {
+                        //replace the strategy with the last strategy in the list
+                        investorStrats[depositor][j] = investorStrats[
+                            depositor
+                        ][investorStrats[depositor].length - 1];
+                        break;
+                    }
+                    unchecked {
+                        ++j;
+                    }
+                }
+            }
+
+            // return true in the event that the strategy was removed from investorStrats[depositor]
+            return true;
+        }
+        // return false in the event that the strategy was *not* removed from investorStrats[depositor]
+        return false;
     }
 
-    // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
+   // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
     /**
      * @notice Used to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
      */
@@ -227,6 +282,8 @@ contract InvestmentManager is
      *      to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      */
     function queueWithdrawal(
+        uint256[] calldata strategyIndexes,
+        uint256[] calldata operatorStrategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
@@ -240,6 +297,8 @@ contract InvestmentManager is
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
         }
+        uint256 strategyIndexIndex;
+
         bytes32 withdrawalRoot = keccak256(
             abi.encodePacked(
                 strategies,
@@ -249,27 +308,37 @@ contract InvestmentManager is
             )
         );
 
-        // had to check against this directly rather than store it to solve 'stack too deep' error
-        // address operator = delegation.delegation(msg.sender);
-        // i.e. if the msg.sender is not a self-operator
-        address delegatedAddress = delegation.delegation(msg.sender);
-        if (delegatedAddress != msg.sender) {
-            delegation.reduceOperatorShares(
-                delegatedAddress,
-                strategies,
-                shareAmounts
-            );
+        // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
+        // this solves a 'stack too deep' error on compilation
+        {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            if (delegatedAddress != msg.sender) {
+                delegation.reduceOperatorShares(
+                    delegatedAddress,
+                    strategies,
+                    shareAmounts
+                );
+            }
         }
 
         //TODO: take this nearly identically duplicated code and move it into a function
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
-            // reduce the shares of the msg.sender appropriately
-            _removeShares(
-                msg.sender,
-                strategies[i],
-                shareAmounts[i]
-            );
+        // had to check against this rather than store it to solve 'stack too deep' error
+        // uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategies.length; ) {
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (
+                _removeShares(
+                    msg.sender,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    shareAmounts[i]
+                )
+            ) {
+                unchecked {
+                    ++strategyIndexIndex;
+                }
+            }
 
             //increment the loop
             unchecked {
@@ -462,12 +531,14 @@ contract InvestmentManager is
     //             the challenge period when the staker can get its asset back before
     //             fulfilling its obligations. More details in slack.
     function withdrawFromStrategy(
+        uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
     ) external onlyNotDelegated(msg.sender) {
         _withdrawFromStrategy(
             msg.sender,
+            strategyIndex,
             strategy,
             token,
             shareAmount
@@ -485,25 +556,39 @@ contract InvestmentManager is
         address slashed,
         address recipient,
         IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts,
         uint256 maxSlashedAmount
     ) external {
         require(msg.sender == address(slasher), "Only Slasher");
 
+        uint256 strategyIndexIndex;
         uint256 slashedAmount;
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
+        for (uint256 i = 0; i < strategies.length; ) {
             // add the value of the slashed shares to the total amount slashed
             slashedAmount += strategies[i].underlyingEthValueOfShares(
                 shareAmounts[i]
             );
 
-            // remove shares from the slashed party
-            _removeShares(
-                slashed,
-                strategies[i],
-                shareAmounts[i]
-            );
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (
+                _removeShares(
+                    slashed,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    shareAmounts[i]
+                )
+            ) {
+                unchecked {
+                    ++strategyIndexIndex;
+                }
+            }
+
+            // add investor strats to that of recipient if it has not invested in this strategy yet
+            if (investorStratShares[recipient][strategies[i]] == 0) {
+                investorStrats[recipient].push(strategies[i]);
+            }
 
             // add the slashed shares to that of the recipient
             investorStratShares[recipient][strategies[i]] += shareAmounts[i];
@@ -585,6 +670,40 @@ contract InvestmentManager is
     }
 
     /**
+     * @notice gets depositor's strategies
+     */
+    function getStrategies(address depositor)
+        external
+        view
+        returns (IInvestmentStrategy[] memory)
+    {
+        return investorStrats[depositor];
+    }
+
+    /**
+     * @notice gets depositor's shares in its strategies
+     */
+    function getStrategyShares(address depositor)
+        external
+        view
+        returns (uint256[] memory)
+    {
+        uint256 strategiesLength = investorStrats[depositor].length;
+        uint256[] memory shares = new uint256[](strategiesLength);
+
+        for (uint256 i = 0; i < strategiesLength;) {
+            shares[i] = investorStratShares[depositor][
+                investorStrats[depositor][i]
+            ];
+            unchecked {
+                ++i;
+            }
+        }
+
+        return shares;
+    }
+
+    /**
      * @notice gets depositor's ETH that has been deposited directly to settlement layer
      */
     function getConsensusLayerEth(address depositor)
@@ -608,6 +727,36 @@ contract InvestmentManager is
      */
     function getEigen(address depositor) external view returns (uint256) {
         return eigenDeposited[depositor];
+    }
+
+    /**
+     * @notice get all details on the depositor's investments and shares
+     */
+    /**
+     * @return (depositor's strategies, shares in these strategies)
+     */
+    function getDeposits(address depositor)
+        external
+        view
+        returns (
+            IInvestmentStrategy[] memory,
+            uint256[] memory
+        )
+    {
+        uint256 strategiesLength = investorStrats[depositor].length;
+        uint256[] memory shares = new uint256[](strategiesLength);
+        for (uint256 i = 0; i < strategiesLength;) {
+            shares[i] = investorStratShares[depositor][
+                investorStrats[depositor][i]
+            ];
+            unchecked {
+                ++i;
+            }
+        }
+        return (
+            investorStrats[depositor],
+            shares
+        );
     }
 
     /**
@@ -652,5 +801,14 @@ contract InvestmentManager is
             }
         }
         return stake;
+    }
+
+
+    function investorStratsLength(address investor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStrats[investor].length;
     }
 }

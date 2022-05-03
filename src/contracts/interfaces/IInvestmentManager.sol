@@ -24,16 +24,28 @@ interface IInvestmentManager {
     ) external returns (uint256[] memory);
 
     function withdrawFromStrategy(
+        uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
     ) external;
 
     function withdrawFromStrategies(
+        uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
     ) external;
+
+    function getStrategyShares(address depositor)
+        external
+        view
+        returns (uint256[] memory);
+
+    function getStrategies(address depositor)
+        external
+        view
+        returns (IInvestmentStrategy[] memory);
 
     function depositConsenusLayerEth(address depositor, uint256 amount)
         external

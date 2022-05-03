@@ -370,12 +370,13 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         //TODO: figure out if making this 'expectRevert' work correctly is actually possible
         if (amountDeposited == 0) {
             // cheats.expectRevert(bytes("Index out of bounds."));
-            // investmentManager.withdrawFromStrategy(strat, weth, amountToWithdraw);
+            // investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
             return;
             //trying to withdraw more than the amountDeposited will fail, so we expect a revert and short-circuit if it happens
         } else if (amountToWithdraw > amountDeposited) {
             cheats.expectRevert(bytes("shareAmount too high"));
             investmentManager.withdrawFromStrategy(
+                0,
                 strat,
                 weth,
                 amountToWithdraw
@@ -383,6 +384,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             return;
         } else {
             investmentManager.withdrawFromStrategy(
+                0,
                 strat,
                 weth,
                 amountToWithdraw
