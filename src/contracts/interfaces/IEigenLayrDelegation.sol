@@ -23,15 +23,6 @@ interface IEigenLayrDelegation {
         view
         returns (uint256);
 
-    function getUnderlyingEthDelegated(address operator)
-        external
-        returns (uint256);
-
-    function getUnderlyingEthDelegatedView(address operator)
-        external
-        view
-        returns (uint256);
-
     function getConsensusLayerEthDelegated(address operator)
         external
         view
@@ -41,11 +32,6 @@ interface IEigenLayrDelegation {
         external
         view
         returns (uint256);
-
-    function getControlledEthStake(address operator)
-        external
-        view
-        returns (IInvestmentStrategy[] memory, uint256[] memory);
 
     function isNotDelegated(address staker)
         external
@@ -57,16 +43,33 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
-    // TODO: finalize this function
-    function reduceOperatorShares(
-        address operator,
-        uint256[] calldata operatorStrategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata shares
-    ) external;
-
     function isDelegatedToSelf(address operator)
         external
         view
         returns (bool);
+
+    function reduceOperatorShares(
+        address operator,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external;
+    
+    // TODO: finalize this function
+    function reduceOperatorShares(
+        address operator,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
+
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external;
+
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external;
 }

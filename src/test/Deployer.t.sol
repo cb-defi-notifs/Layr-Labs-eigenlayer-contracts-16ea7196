@@ -132,9 +132,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
         temp.initialize(address(investmentManager));
         strats[0] = temp;
+        strategies[1] = temp;
         temp = new HollowInvestmentStrategy();
         temp.initialize(address(investmentManager));
         strats[1] = temp;
+        strategies[2] = temp;
         strats[2] = IInvestmentStrategy(address(strat));
         // WETH strategy added to InvestmentManager
         strategies[0] = IInvestmentStrategy(address(strat));
@@ -845,9 +847,9 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
         assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
-        IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
-        assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
-        assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+        // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
+        // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
+        // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
     }
 
     function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {
@@ -917,8 +919,8 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
             // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
             strategy.initialize(address(investmentManager), weth);
             // add strategy to InvestmentManager
-            IInvestmentStrategy[] memory stratsToAdd = new IInvestmentStrategy[](1);
-            stratsToAdd[0] = IInvestmentStrategy(address(strategy));
+            // IInvestmentStrategy[] memory stratsToAdd = new IInvestmentStrategy[](1);
+            // stratsToAdd[0] = IInvestmentStrategy(address(strategy));
             //store strategy in mapping
             strategies[i] = IInvestmentStrategy(address(strategy));
         }
@@ -929,9 +931,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         testAddStrategies(numStratsToAdd);
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             _testWethDepositStrat(sender, amountToDeposit, WethStashInvestmentStrategy(address(strategies[i])));
-            assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
+            // removed testing of deprecated functionality
+            // assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
-        assertTrue(investmentManager.investorStratsLength(sender) == numStratsToAdd, "investorStratsLength incorrect");
+        // removed testing of deprecated functionality
+        // assertTrue(investmentManager.investorStratsLength(sender) == numStratsToAdd, "investorStratsLength incorrect");
 
     }
 
@@ -945,6 +949,11 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         DelegationTerms dt = _deployDelegationTerms(registrant);
+// TODO: get all the strategies added to the delegate's 'strategies of interest'
+        // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](numStratsToAdd);
+        // for (uint16 i = 0; i < numStratsToAdd; ++i) {
+        //     strats[i] = strategies[i];
+        // }
         _testRegisterAsDelegate(registrant, dt);
         _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
         _testDepositEigen(acct_0);
@@ -953,21 +962,22 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
         assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
-        IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
-        assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
-        assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+        // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
+        // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
+        // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
 
-        for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            IInvestmentStrategy depositorStrat = investmentManager.investorStrats(acct_0, i);
-            // emit log_named_uint("delegation.operatorShares(registrant, depositorStrat)", delegation.operatorShares(registrant, depositorStrat));
-            // emit log_named_uint("investmentManager.investorStratShares(registrant, depositorStrat)", investmentManager.investorStratShares(acct_0, depositorStrat));
-            assertTrue(
-                delegation.operatorShares(registrant, depositorStrat)
-                ==
-                investmentManager.investorStratShares(acct_0, depositorStrat),
-                "delegate shares not stored properly"
-            );
-        }
+        // TODO: reintroduce similar check
+        // for (uint16 i = 0; i < numStratsToAdd; ++i) {
+        //     IInvestmentStrategy depositorStrat = investmentManager.investorStrats(acct_0, i);
+        //     // emit log_named_uint("delegation.operatorShares(registrant, depositorStrat)", delegation.operatorShares(registrant, depositorStrat));
+        //     // emit log_named_uint("investmentManager.investorStratShares(registrant, depositorStrat)", investmentManager.investorStratShares(acct_0, depositorStrat));
+        //     assertTrue(
+        //         delegation.operatorShares(registrant, depositorStrat)
+        //         ==
+        //         investmentManager.investorStratShares(acct_0, depositorStrat),
+        //         "delegate shares not stored properly"
+        //     );
+        // }
     }
 
 //TODO: add tests for contestDelegationCommit() 
@@ -980,23 +990,21 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
 
+// TODO: update this to work at all again
         //delegator-specific information
-         (
-                IInvestmentStrategy[] memory delegatorStrategies,
-                uint256[] memory delegatorShares,
-            ) = investmentManager.getDeposits(msg.sender);
+        (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
         for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
             initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
         }
 
-        //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
-        for (uint256 j = 0; j< delegation.getOperatorStrats(registrant).length; j++){
-            strategyIndexes.push(j);
-        }
+        // //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
+        // for (uint256 j = 0; j< delegation.getOperatorStrats(registrant).length; j++){
+        //     strategyIndexes.push(j);
+        // }
 
-        _testUndelegation(acct_0, strategyIndexes);
+        _testUndelegation(acct_0);
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
             uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
@@ -1005,10 +1013,10 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         }
     }
 
-    function _testUndelegation(address sender, uint256[] storage strategyIndexes) internal{
+    function _testUndelegation(address sender) internal{
         cheats.startPrank(sender);
         cheats.warp(block.timestamp+1000000);
-        delegation.commitUndelegation(strategyIndexes);
+        delegation.commitUndelegation();
         delegation.finalizeUndelegation();
         cheats.stopPrank();
     }

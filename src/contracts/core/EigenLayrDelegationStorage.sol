@@ -18,7 +18,8 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
 
-    mapping(address => IInvestmentStrategy[]) public operatorStrats;
+    // staker => hash of delegated strategies
+    mapping(address => bytes32) public delegatedStrategiesHash;
 
     mapping(address => uint256) public eigenDelegated;
 
@@ -46,5 +47,4 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) delegationNonces;
-
 }

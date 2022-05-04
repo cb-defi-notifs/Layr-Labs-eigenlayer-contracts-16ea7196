@@ -8,6 +8,7 @@ library SignatureCompaction {
 
     function ecrecoverPacked(bytes32 hash, bytes32 r, bytes32 vs) internal pure returns (address) {
         (address recovered, ECDSA.RecoverError err) = ECDSA.tryRecover(hash, r, vs);
+        require(err == ECDSA.RecoverError.NoError, "error in ecrecoverPacked");
         return recovered;
     }
 

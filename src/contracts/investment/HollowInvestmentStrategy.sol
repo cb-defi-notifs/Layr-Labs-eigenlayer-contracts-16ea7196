@@ -41,8 +41,8 @@ contract HollowInvestmentStrategy is
     }
 
     function withdraw(
-        address depositor,
-        IERC20 token,
+        address,
+        IERC20,
         uint256 shareAmount
     ) external onlyInvestmentManager {
         totalShares -= shareAmount;

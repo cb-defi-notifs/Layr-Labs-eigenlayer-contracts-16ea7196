@@ -25,6 +25,14 @@ contract EigenLayrDelegation is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
+    modifier onlyInvestmentManager() {
+        require(
+            msg.sender == address(investmentManager),
+            "onlyInvestmentManager"
+        );
+        _;
+    }
+
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
@@ -44,15 +52,15 @@ contract EigenLayrDelegation is
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
-    /// @notice This will be called by a staker to register itself as a delegate with respect
-    ///         to a certain operator.
-    /// @param dt is the delegation terms contract that staker has agreed to with the operator.
+    /// @notice This will be called by an operator to register itself as a delegate that stakers
+    ///         can choose to delegate to.
+    /// @param dt is the delegation terms contract that operator has for those who delegate to them.
     function registerAsDelegate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
             "Delegate has already registered"
         );
-        // store the address of the delegation contract that staker has agreed to.
+        // store the address of the delegation contract that operator is providing.
         delegationTerms[msg.sender] = dt;
         // TODO: add this back in once delegating to your own delegationTerms will no longer break things
         // _delegate(msg.sender, msg.sender);
@@ -62,7 +70,7 @@ contract EigenLayrDelegation is
     function delegateToSelf() external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "Staker has already agreed to delegate its assets to some other operator and so cannot be public operator"
+            "Delegate has already registered"
         );
         require(
             isNotDelegated(msg.sender),
@@ -123,8 +131,7 @@ contract EigenLayrDelegation is
 
     // internal function implementing the delegation of 'delegator' to 'operator'
     function _delegate(address delegator, address operator) internal {
-        //TODO: sort out making this possible
-        require(delegator != operator, "delegator cannot match operator");
+        // TODO: specify strategies to look at and add, and store a hash of this array, then require the same hash on undelegation
         require(
             address(delegationTerms[operator]) != address(0),
             "Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
@@ -133,30 +140,6 @@ contract EigenLayrDelegation is
             isNotDelegated(delegator),
             "Staker has existing delegation or pending undelegation commitment"
         );
-        // retrieve list of strategies and their shares from investment manager
-        (
-            IInvestmentStrategy[] memory strategies,
-            uint256[] memory shares,
-            uint256 eigenAmount
-        ) = investmentManager.getDeposits(delegator);
-
-        // add strategy shares to delegate's shares and add strategy to existing strategies
-        for (uint256 i = 0; i < strategies.length; ) {
-            if (operatorShares[operator][strategies[i]] == 0) {
-                // if no asset has been delegated yet to this strategy in the operator's portfolio,
-                // then add it to the portfolio of strategies of the operator
-                operatorStrats[operator].push(strategies[i]);
-            }
-            // update the total share deposited in favor of the startegy in the operator's portfolio
-            operatorShares[operator][strategies[i]] += shares[i];
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // update the total EIGEN deposited with the operator
-        eigenDelegated[operator] += eigenAmount;
 
         // record delegation relation between the delegator and operator
         delegation[delegator] = operator;
@@ -164,19 +147,39 @@ contract EigenLayrDelegation is
         // record that the staker is delegated
         delegated[delegator] = DelegationStatus.DELEGATED;
 
+        // retrieve list of strategies and their shares from investment manager
+        (
+            IInvestmentStrategy[] memory strategies,
+            uint256[] memory shares
+        ) = investmentManager.getDeposits(delegator);
+
+        // add strategy shares to delegate's shares
+        uint256 stratsLength = strategies.length;
+        for (uint256 i = 0; i < stratsLength;) {
+            // update the total share deposited in favor of the strategy in the operator's portfolio
+            operatorShares[operator][strategies[i]] += shares[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // update the total EIGEN deposited with the operator
+        uint256 eigenAmount = investmentManager.getEigen(delegator);
+        eigenDelegated[operator] += eigenAmount;
+
         // call into hook in delegationTerms contract
-        delegationTerms[operator].onDelegationReceived(
-            delegator,
-            strategies,
-            shares
-        );
+        IDelegationTerms dt = delegationTerms[operator];
+        if (address(dt) != operator) {
+            delegationTerms[operator].onDelegationReceived(
+                delegator,
+                shares
+            );
+        }
     }
 
     /// @notice This function is used to notify the system that a delegator wants to stop
     ///         participating in the functioning of EigenLayr.
-    /// @param strategyIndexes is the array of indices whose corresponding strategies in
-    ///        the array "operatorStrats[operator]" has their shares go to zero
-    ///        because of undelegation by the delegator.
+
     /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes:
     ///          Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
     ///          Consider that, as a consequence of undelegation by delegator,
@@ -188,7 +191,7 @@ contract EigenLayrDelegation is
     ///      (2) In order to notify the system that delegator wants to undelegate,
     ///          it is necessary to make sure that delegator is not within challenge
     ///          window for a previous undelegation.
-    function commitUndelegation(uint256[] calldata strategyIndexes) external {
+    function commitUndelegation() external {
         // get the current operator for the delegator (msg.sender)
         address operator = delegation[msg.sender];
         require(
@@ -210,54 +213,20 @@ contract EigenLayrDelegation is
             // retrieve list of strategies and their shares from investment manager
             (
                 IInvestmentStrategy[] memory strategies,
-                uint256[] memory shares,
-                uint256 eigenAmount
+                uint256[] memory shares
             ) = investmentManager.getDeposits(msg.sender);
-
-            // subtract strategy shares from delegate's shares and remove the strategy from delegate's strategy list if no shares remaining
-            uint256 strategyIndex = 0;
-            for (uint256 i = 0; i < strategies.length; ) {
+            // remove strategy shares from delegate's shares
+            uint256 stratsLength = strategies.length;
+            for (uint256 i = 0; i < stratsLength;) {
+                // update the total share deposited in favor of the strategy in the operator's portfolio
                 operatorShares[operator][strategies[i]] -= shares[i];
-                if (operatorShares[operator][strategies[i]] == 0) {
-                    // if the strategy matches with the strategy index provided
-                    if (
-                        operatorStrats[operator][
-                            strategyIndexes[strategyIndex]
-                        ] == strategies[i]
-                    ) {
-                        //replace the strategy with the last strategy in the list
-                        operatorStrats[operator][
-                            strategyIndexes[strategyIndex]
-                        ] = operatorStrats[operator][
-                            operatorStrats[operator].length - 1
-                        ];
-                    } else {
-                        //loop through all of the strategies, find the right one, then replace
-                        uint256 stratsLength = operatorStrats[operator].length;
-                        for (uint256 j = 0; j < stratsLength; ) {
-                            if (operatorStrats[operator][j] == strategies[i]) {
-                                //replace the strategy with the last strategy in the list
-                                operatorStrats[operator][j] = operatorStrats[
-                                    operator
-                                ][operatorStrats[operator].length - 1];
-                                break;
-                            }
-                            unchecked {
-                                ++j;
-                            }
-                        }
-                    }
-                    operatorStrats[operator].pop();
-                    unchecked {
-                        ++strategyIndex;
-                    }
-                }
                 unchecked {
                     ++i;
                 }
             }
 
-            // update the Eigen delegated to the operator
+            // update the total EIGEN deposited with the operator
+            uint256 eigenAmount = investmentManager.getEigen(msg.sender);
             eigenDelegated[operator] -= eigenAmount;
 
             // set that they are no longer delegated to anyone
@@ -276,53 +245,51 @@ contract EigenLayrDelegation is
 
     function reduceOperatorShares(
         address operator,
-        uint256[] calldata operatorStrategyIndexes,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external onlyInvestmentManager {
+        // subtract strategy shares from delegate's shares
+        operatorShares[operator][strategy] -= shares;
+        //TOOD: call into delegationTerms contract as well?
+    }
+
+    function reduceOperatorShares(
+        address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    ) external {
-        require(
-            msg.sender == address(investmentManager),
-            "onlyInvestmentManager"
-        );
-
-        // subtract strategy shares from delegate's shares and remove the strategy from delegate's strategy list if no shares remaining
-        uint256 strategyIndex = 0;
-        for (uint256 i = 0; i < strategies.length; ) {
+    ) external onlyInvestmentManager {
+        // subtract strategy shares from delegate's shares
+        uint256 stratsLength = strategies.length;
+        for (uint256 i = 0; i < stratsLength;) {
+            //TODO: look at list of strategies of interest for operator
             operatorShares[operator][strategies[i]] -= shares[i];
-            if (operatorShares[operator][strategies[i]] == 0) {
-                // if the strategy matches with the strategy index provided
-                if (
-                    operatorStrats[operator][
-                        operatorStrategyIndexes[strategyIndex]
-                    ] == strategies[i]
-                ) {
-                    //replace the strategy with the last strategy in the list
-                    operatorStrats[operator][
-                        operatorStrategyIndexes[strategyIndex]
-                    ] = operatorStrats[operator][
-                        operatorStrats[operator].length - 1
-                    ];
-                } else {
-                    //loop through all of the strategies, find the right one, then replace
-                    uint256 stratsLength = operatorStrats[operator].length;
-                    for (uint256 j = 0; j < stratsLength; ) {
-                        if (operatorStrats[operator][j] == strategies[i]) {
-                            //replace the strategy with the last strategy in the list
-                            operatorStrats[operator][j] = operatorStrats[
-                                operator
-                            ][operatorStrats[operator].length - 1];
-                            break;
-                        }
-                        unchecked {
-                            ++j;
-                        }
-                    }
-                }
-                operatorStrats[operator].pop();
-                unchecked {
-                    ++strategyIndex;
-                }
+            unchecked {
+                ++i;
             }
+        }
+        //TOOD: call into delegationTerms contract as well?
+    }
+
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy strategy,
+        uint256 shares
+    ) external onlyInvestmentManager {
+        // add strategy shares to delegate's shares
+        operatorShares[operator][strategy] += shares;
+        //TOOD: call into delegationTerms contract as well?
+    }
+
+    function increaseOperatorShares(
+        address operator,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external onlyInvestmentManager {
+        // add strategy shares to delegate's shares
+        uint256 stratsLength = strategies.length;
+        for (uint256 i = 0; i < stratsLength;) {
+            //TODO: look at list of strategies of interest for operator
+            operatorShares[operator][strategies[i]] += shares[i];
             unchecked {
                 ++i;
             }
@@ -429,15 +396,6 @@ contract EigenLayrDelegation is
         return delegationTerms[operator];
     }
 
-    /// @notice returns the strategies that are being used by the delegators of this operator
-    function getOperatorStrats(address operator)
-        public
-        view
-        returns (IInvestmentStrategy[] memory)
-    {
-        return operatorStrats[operator];
-    }
-
     /**
      * @notice returns the shares in a specified strategy being used by the delegator of this operator
      **/
@@ -447,138 +405,6 @@ contract EigenLayrDelegation is
         IInvestmentStrategy investmentStrategy
     ) public view returns (uint256) {
         return operatorShares[operator][investmentStrategy];
-    }
-
-    /**
-     * @notice Returns the investment strategies, corresponding shares and the total ETH
-     *         deposited with the operator.
-     */
-    function getControlledEthStake(address operator)
-        external
-        view
-        returns (
-            IInvestmentStrategy[] memory,
-            uint256[] memory
-        )
-    {
-        if (delegation[operator] == operator) {
-            /**
-             * @dev Under scenario where a delegator has delegated its asset to itself and
-             * acting as its own operator. This would be because the staker called
-             * delegateToSelf() for delegating its stake to itself.
-             */
-            (
-                IInvestmentStrategy[] memory strats,
-                uint256[] memory shares,
-            ) = investmentManager.getDeposits(operator);
-            return (strats, shares);
-        } else {
-            /**
-             * @dev Under scenario where operator is being delegated assets by delegators.
-             */
-            // CRITIC: we are assuming here that delegation[operator] != operator which would
-            // imply that operator is not actually an operator. Should there be a condition to check
-            // whether operator is actually an operator or not? Like calling getOperatorType() in
-            // Repository.sol and check it is non-zero?
-            uint256[] memory shares = new uint256[](
-                operatorStrats[operator].length
-            );
-            for (uint256 i = 0; i < shares.length; i++) {
-                shares[i] = operatorShares[operator][
-                    operatorStrats[operator][i]
-                ];
-            }
-            return (operatorStrats[operator], shares);
-        }
-    }
-
-    /// @notice Returns the total ETH value of the shares that have been deposited by the
-    //          delegators with operator while using investment strategies
-    function getUnderlyingEthDelegated(address operator)
-        external
-        returns (uint256)
-    {
-        uint256 weight;
-
-        if (delegation[operator] == operator) {
-            // when the operator has delegated to self
-
-            //  get all strategies
-            IInvestmentStrategy[] memory investorStrats = investmentManager
-                .getStrategies(operator);
-
-            //  get shares of all strategies
-            uint256[] memory investorShares = investmentManager
-                .getStrategyShares(operator);
-
-            // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length; ) {
-                weight += investorStrats[i].underlyingEthValueOfShares(
-                    investorShares[i]
-                );
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            // when the operator hasn't delegated to itself but other stakers
-            // have delegated
-            // CRITIC: same problem as in getControlledEthStake, with calling
-            // operatorStrats[operator] for the case "delegation[operator] != operator"
-
-            // get all the investment strategies that is being used by any delegator
-            IInvestmentStrategy[] memory investorStrats = operatorStrats[
-                operator
-            ];
-
-            // get cumulative ETH value of all shares
-            for (uint256 i = 0; i < investorStrats.length; ) {
-                weight += investorStrats[i].underlyingEthValueOfShares(
-                    operatorShares[operator][investorStrats[i]]
-                );
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-        return weight;
-    }
-
-    function getUnderlyingEthDelegatedView(address operator)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 weight;
-        if (delegation[operator] == operator) {
-            IInvestmentStrategy[] memory investorStrats = investmentManager
-                .getStrategies(operator);
-            uint256[] memory investorShares = investmentManager
-                .getStrategyShares(operator);
-            for (uint256 i = 0; i < investorStrats.length; ) {
-                weight += investorStrats[i].underlyingEthValueOfSharesView(
-                    investorShares[i]
-                );
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            // CRITIC: same problem as in getControlledEthStake, with calling
-            // operatorStrats[operator] for the case "delegation[operator] != operator"
-            IInvestmentStrategy[] memory investorStrats = operatorStrats[
-                operator
-            ];
-            for (uint256 i = 0; i < investorStrats.length; ) {
-                weight += investorStrats[i].underlyingEthValueOfSharesView(
-                    operatorShares[operator][investorStrats[i]]
-                );
-                unchecked {
-                    ++i;
-                }
-            }
-        }
-        return weight;
     }
 
     /// @notice returns the total ETH delegated by delegators with this operator

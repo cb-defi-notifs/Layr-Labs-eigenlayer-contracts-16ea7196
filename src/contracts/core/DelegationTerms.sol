@@ -280,6 +280,10 @@ contract DelegationTerms is IDelegationTerms {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
+    function onDelegationReceived(
+        address,
+        uint256[] memory
+    ) external {}
 
 //NOTE: the logic in this function currently mimmics that in the 'weightOfEth' function
     /**
@@ -470,25 +474,26 @@ contract DelegationTerms is IDelegationTerms {
      *       it needs to call that investment strategy's "underlyingEthValueOfShares" function
      *       to determine the value of delegator's shares in that investment strategy in ETH.        
      */ 
-    function weightOfEth(address delegator) public returns(uint256) {
+    function weightOfEth(address delegator) public view returns(uint256) {
         // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
         uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
-        
-        // get the strategies where delegator's assets has been staked
-        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
 
-        // get the shares in the strategies where delegator's assets has been staked
-        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+// TODO: fix this broken logic
+        // // get the strategies where delegator's assets has been staked
+        // IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
 
-        uint256 investorStratsLength = investorStrats.length;
-        for (uint256 i; i < investorStratsLength;) {
-            // get the underlying ETH value of the shares
-            // each investment strategy have their own description of ETH value per share.
-            weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
-            unchecked {
-                ++i;
-            }
-        }
+        // // get the shares in the strategies where delegator's assets has been staked
+        // uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+
+        // uint256 investorStratsLength = investorStrats.length;
+        // for (uint256 i; i < investorStratsLength;) {
+        //     // get the underlying ETH value of the shares
+        //     // each investment strategy have their own description of ETH value per share.
+        //     weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
 
         return weight;
     }
@@ -497,21 +502,22 @@ contract DelegationTerms is IDelegationTerms {
         // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
         uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
         
-        // get the strategies where delegator's assets has been staked
-        IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
+// TODO: fix this broken logic
+        // // get the strategies where delegator's assets has been staked
+        // IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
 
-        // get the shares in the strategies where delegator's assets has been staked
-        uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
+        // // get the shares in the strategies where delegator's assets has been staked
+        // uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
 
-        uint256 investorStratsLength = investorStrats.length;
-        for (uint256 i; i < investorStratsLength;) {
-            // get the underlying ETH value of the shares
-            // each investment strategy have their own description of ETH value per share.
-            weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
-            unchecked {
-                ++i;
-            }
-        }
+        // uint256 investorStratsLength = investorStrats.length;
+        // for (uint256 i; i < investorStratsLength;) {
+        //     // get the underlying ETH value of the shares
+        //     // each investment strategy have their own description of ETH value per share.
+        //     weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
 
         return weight;
     }
