@@ -19,7 +19,6 @@ contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     uint shares;
     address[2] public delegators;
-<<<<<<< HEAD
     ServiceManagerBase serviceManager;
     VoteWeigherBase voteWeigher;
     Repository repository;
@@ -28,9 +27,8 @@ contract Delegator is EigenLayrDeployer {
     IRegistrationManager regManager;
     DelegationTerms dt;
 
-=======
-    DelegationTerms public dt;
->>>>>>> c28e4aa7717b83c248edcb9b156302b437fc963f
+    uint256 amountEigenToDeposit = 50;
+    uint256 amountEthToDeposit = 40;
 
     constructor(){
         delegators = [acct_0, acct_1];
@@ -141,7 +139,7 @@ contract Delegator is EigenLayrDeployer {
         _testinitiateDelegation(1e1);
 
         //servicemanager pays out rewards
-        _payRewards(60);
+        _payRewards();
         
         //withdraw rewards
         // uint32[] memory indices = [0];
@@ -169,9 +167,9 @@ contract Delegator is EigenLayrDeployer {
 
         for(uint i; i < delegators.length; i++){
             //initialize weth, eigen and eth balances for delegator
-            eigen.safeTransferFrom(address(this), delegators[i], 0, amountToDeposit, "0x");
+            eigen.safeTransferFrom(address(this), delegators[i], 0, amountEigenToDeposit, "0x");
             weth.transfer(delegators[i], amountToDeposit);
-            cheats.deal(delegators[i], amountToDeposit);
+            cheats.deal(delegators[i], amountEthToDeposit);
 
             cheats.startPrank(delegators[i]);
 
@@ -207,7 +205,7 @@ contract Delegator is EigenLayrDeployer {
 
     }
 
-    function _payRewards(uint256 amount) internal {
+    function _payRewards() internal {
 
         emit log_named_uint("hello", dlsm.dumpNumber());
 
@@ -238,8 +236,6 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(registrant);
         weth.approve(address(dlsm), type(uint256).max);
         dlsm.commitPayment(dataStoreDumpNumber, 10);
-        emit log_uint(block.timestamp);
-        emit log_named_uint("nm", dlsm.paymentFraudProofInterval());
         cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
         dlsm.redeemPayment();
         cheats.stopPrank();
