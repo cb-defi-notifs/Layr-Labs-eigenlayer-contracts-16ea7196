@@ -9,6 +9,8 @@ import "../test/Deployer.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
+import "../contracts/middleware/ServiceManagerBase.sol";
+
 import "ds-test/test.sol";
 
 import "./CheatCodes.sol";
@@ -17,21 +19,165 @@ contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     uint shares;
     address[2] public delegators;
+    ServiceManagerBase serviceManager;
+    VoteWeigherBase voteWeigher;
+    Repository repository;
+    IRepository newRepository;
+    ServiceFactory factory;
+    IRegistrationManager regManager;
 
     constructor(){
         delegators = [acct_0, acct_1];
     }
 
+       function setUp() override public  {
+        eigenLayrProxyAdmin = new ProxyAdmin();
 
-    function _init() public {
+        //eth2 deposit contract
+        depositContract = new DepositContract();
+        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
+        eigen = new Eigen(address(this));
+
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
+        deposit = EigenLayrDeposit(address(new TransparentUpgradeableProxy(address(deposit), address(eigenLayrProxyAdmin), "")));
+        //do stuff this eigen token here
+        delegation = new EigenLayrDelegation();
+        delegation = EigenLayrDelegation(address(new TransparentUpgradeableProxy(address(delegation), address(eigenLayrProxyAdmin), "")));
+        slasher = new Slasher(investmentManager, address(this));
+        serviceFactory = new ServiceFactory(investmentManager, delegation);
+        investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
+        investmentManager = InvestmentManager(address(new TransparentUpgradeableProxy(address(investmentManager), address(eigenLayrProxyAdmin), "")));
+        //used in the one investment strategy
+        weth = new ERC20PresetFixedSupply(
+            "weth",
+            "WETH",
+            wethInitialSupply,
+            address(this)
+        );
+        //do stuff with weth
+        strat = new WethStashInvestmentStrategy();
+        strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
+        strat.initialize(address(investmentManager), weth);
+
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
+
+        HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
+        temp.initialize(address(investmentManager));
+        strats[0] = temp;
+        temp = new HollowInvestmentStrategy();
+        temp.initialize(address(investmentManager));
+        strats[1] = temp;
+        strats[2] = IInvestmentStrategy(address(strat));
+        // WETH strategy added to InvestmentManager
+        strategies[0] = IInvestmentStrategy(address(strat));
+
+        address governor = address(this);
+        investmentManager.initialize(
+            strats,
+            slasher,
+            governor,
+            address(deposit)
+        );
+
+        delegation.initialize(
+            investmentManager,
+            serviceFactory,
+            slasher,
+            undelegationFraudProofInterval
+        );
+
+        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
+        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+
+        uint256 feePerBytePerTime = 1;
+        dlsm = new DataLayrServiceManager(
+            delegation,
+            weth,
+            weth,
+            feePerBytePerTime,
+            dataLayrPaymentChallengeFactory,
+            dataLayrDisclosureChallengeFactory
+        );
+        dl = new DataLayr();
+
+        dlRepository = new Repository(delegation, investmentManager);
+
+        // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        // strats[0] = IInvestmentStrategy(address(strat));
+        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
+
+        Repository(address(dlRepository)).initialize(
+            dlRegVW,
+            dlsm,
+            dlRegVW,
+            timelockDelay
+        );
+
+        dl.setRepository(dlRepository);
+        dlsm.setRepository(dlRepository);
+        dlsm.setDataLayr(dl);
+
+        deposit.initialize(depositContract, investmentManager, dlsm);
+
+        liquidStakingMockToken = new WETH();
+        liquidStakingMockStrat = new WethStashInvestmentStrategy();
+        liquidStakingMockStrat.initialize(address(investmentManager), IERC20(address(liquidStakingMockToken)));
+
+        //loads hardcoded signer set
+        _setSigners();
+    }
+
+
+    function _initializeServiceManager() public {
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        strats[0] = IInvestmentStrategy(address(strat));
+
+        factory = new ServiceFactory(
+            investmentManager,
+            delegation
+        );
+
+        newRepository = factory.createNewRepository(
+            serviceManager, 
+            voteWeigher, 
+            regManager, 
+            1000000
+        );
+        voteWeigher = new VoteWeigherBase(
+            newRepository, 
+            delegation, 
+            investmentManager, 
+            consensusLayerEthToEth, 
+            strats
+
+        );
+        serviceManager = new ServiceManagerBase(
+            weth,
+            weth,
+            newRepository,
+            voteWeigher
+        );
+
+        regManager = new RegistrationManagerBase(
+            newRepository
+        );
+
+        assertTrue(address(serviceManager) != address(0));
+    
+        //Repository(payable(address(newRepository))).setServiceManager(serviceManager);
+        //newRepository.setServiceManager(serviceManager);
+       
+
 
     }
     function testinitiateDelegation() public {
-        setUp();
+
+        //_initializeServiceManager();
+        
         _testinitiateDelegation(1e12);
 
         //servicemanager pays out rewards
-        //_payRewards(50);
+        _payRewards(50);
         
         //withdraw rewards
         // uint32[] memory indices = [0];
@@ -49,6 +195,7 @@ contract Delegator is EigenLayrDeployer {
     }
     function _testinitiateDelegation(uint256 amountToDeposit) public {
 
+        emit log_named_address("DLSM", address(dlsm));
         //setting up operator's delegation terms
         cheats.startPrank(registrant);
         dt = _setDelegationTerms(registrant);
@@ -82,26 +229,53 @@ contract Delegator is EigenLayrDeployer {
             delegation.delegateTo(registrant);
             cheats.stopPrank();
         }
+
+        cheats.startPrank(registrant);
+        uint8 registrantType = 3;
+        string memory socket = "fe";
+        weth.transfer(registrant, amountToDeposit);
+        dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
+        cheats.stopPrank();
+
     }
 
     function _payRewards(uint256 amount) internal {
-        dlRepository = new Repository(delegation, investmentManager);
-        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
 
-        uint256 feePerBytePerTime = 1;
-        // dlsm = new DataLayrServiceManager(
-        //     delegation,
-        //     weth,
-        //     weth,
-        //     feePerBytePerTime,
-        //     dataLayrPaymentChallengeFactory,
-        //     dataLayrDisclosureChallengeFactory
-        // );
+        emit log_named_uint("hello", dlsm.dumpNumber());
 
-        cheats.startPrank(address(dlsm));
-        dt.payForService(weth, amount);
+        bytes memory header = bytes(
+            "0x0102030405060708091011121314151617181920"
+        );
+
+        weth.transfer(storer, 10e10);
+        cheats.prank(storer);
+        weth.approve(address(dlsm), type(uint256).max);
+        cheats.prank(storer);
+
+        dlsm.initDataStore(
+            header,
+            1e6,
+            600
+        );
+
+        bytes32 headerHash = keccak256(header);
+        (
+            uint48 dataStoreDumpNumber,
+            uint32 dataStoreInitTime,
+            uint32 dataStorePeriodLength,
+            bool dataStoreCommitted
+        ) = dl.dataStores(headerHash);
+
+        
+
+        emit log_uint(dataStoreDumpNumber);
+
+        cheats.startPrank(registrant);
+        dlsm.commitPayment(dataStoreDumpNumber, 10);
         cheats.stopPrank();
+
+
+
     }
 
     function _setDelegationTerms(address operator) internal returns (DelegationTerms){
@@ -121,7 +295,7 @@ contract Delegator is EigenLayrDeployer {
                 operator,
                 investmentManager,
                 paymentTokens,
-                serviceFactory,
+                factory,
                 address(delegation),
                 _MAX_OPERATOR_FEE_BIPS,
                 _operatorFeeBips
