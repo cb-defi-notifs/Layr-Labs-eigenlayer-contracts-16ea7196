@@ -17,6 +17,7 @@ contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     uint shares;
     address[2] public delegators;
+    DelegationTerms public dt;
 
     constructor(){
         delegators = [acct_0, acct_1];
@@ -105,7 +106,6 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function _setDelegationTerms(address operator) internal returns (DelegationTerms){
-
         dt = _initializeDelegationTerms(operator);
         return dt;
 
@@ -116,7 +116,7 @@ contract Delegator is EigenLayrDeployer {
         paymentTokens[0] = address(weth);
         uint16 _MAX_OPERATOR_FEE_BIPS = 500;
         uint16 _operatorFeeBips = 500;
-        DelegationTerms dt = 
+        dt = 
             new DelegationTerms(
                 operator,
                 investmentManager,
