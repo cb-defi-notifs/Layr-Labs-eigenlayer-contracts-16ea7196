@@ -98,7 +98,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
 
 
     //performs basic deployment before each test
-    function setUp() public  {
+    function setUp() virtual public  {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract

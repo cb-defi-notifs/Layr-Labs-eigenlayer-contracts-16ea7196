@@ -172,6 +172,7 @@ contract EigenLayrDelegation is
         if (address(dt) != operator) {
             delegationTerms[operator].onDelegationReceived(
                 delegator,
+                strategies,
                 shares
             );
         }

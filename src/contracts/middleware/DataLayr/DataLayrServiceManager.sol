@@ -12,12 +12,15 @@ import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 
+import "ds-test/test.sol";
+
 /**
  * @notice
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
-    IProofOfStakingOracle
+    IProofOfStakingOracle,
+    DSTest
 {
     using BytesLib for bytes;
     /**
@@ -261,10 +264,13 @@ contract DataLayrServiceManager is
             "Only registered operators can call this function"
         );
 
+
+
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
 
         // operator puts up collateral which can be slashed in case of wrongful
         // payment claim
+        emit log_named_uint("YO", paymentFraudProofCollateral);
         collateralToken.transferFrom(
             msg.sender,
             address(this),
@@ -341,6 +347,7 @@ contract DataLayrServiceManager is
             operatorToPayment[msg.sender].collateral
         );
 
+
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
         IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(
@@ -352,6 +359,7 @@ contract DataLayrServiceManager is
             // transfer the amount due in the payment claim of the operator to its delegation
             // terms contract, where the delegators can withdraw their rewards.
             paymentToken.transfer(address(dt), amount);
+
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);

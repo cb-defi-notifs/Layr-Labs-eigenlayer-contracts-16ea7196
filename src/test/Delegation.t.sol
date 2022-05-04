@@ -137,7 +137,7 @@ contract Delegator is EigenLayrDeployer {
         _testinitiateDelegation(1e1);
 
         //servicemanager pays out rewards
-        _payRewards(50);
+        _payRewards(60);
         
         //withdraw rewards
         // uint32[] memory indices = [0];
@@ -234,9 +234,11 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(registrant);
         weth.approve(address(dlsm), type(uint256).max);
         dlsm.commitPayment(dataStoreDumpNumber, 10);
+        emit log_uint(block.timestamp);
+        emit log_named_uint("nm", dlsm.paymentFraudProofInterval());
+        cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
+        dlsm.redeemPayment();
         cheats.stopPrank();
-
-
 
     }
 

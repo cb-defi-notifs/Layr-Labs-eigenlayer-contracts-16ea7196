@@ -6,6 +6,8 @@ import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRegistrationManager.sol";
 
+import "ds-test/test.sol";
+
 // TODO: dealing with pending payments to the contract at time of deposit / delegation (or deciding this design is acceptable)
 
 /**
@@ -63,7 +65,7 @@ import "../interfaces/IRegistrationManager.sol";
  *          its ETH or Eigen stake, it has to retrieve its reward. However, other delegators whose delegated ETH or 
  *          Eigen hasn't updated, they can continue to use the above formula.          
  */
-contract DelegationTerms is IDelegationTerms {
+contract DelegationTerms is IDelegationTerms, DSTest {
     /// @notice Stored for each delegator that have accepted this delegation terms from the operator
     struct DelegatorStatus {
         // value of delegator's shares in different strategies in ETH
@@ -233,13 +235,13 @@ contract DelegationTerms is IDelegationTerms {
     function payForService(IERC20 token, uint256 amount) external payable {
         // determine the repository associated with the service manager
         IRepository repository = IServiceManager(msg.sender).repository();
-
         // only the service manager can call this function
         require(msg.sender == address(repository.serviceManager()), "only ServiceManagers");
 
         // check if the repository exists
-        require(serviceFactory.isRepository(repository), "illegitimate repository");
-
+        //TODO: fix this check
+        //require(serviceFactory.isRepository(repository), "illegitimate repository");
+ 
         TokenPayment memory updatedEarnings;
         if (paymentsHistory[address(token)].length > 0) {
             // get the most recent payment made to the operator in this token
@@ -248,11 +250,13 @@ contract DelegationTerms is IDelegationTerms {
 
         // obtain the earning that the operator is eligible for out of the total rewards
         if (operatorFeeBips > 0) {
-            uint256 operatorEarnings = (amount * operatorFeeBips) / MAX_BIPS;
+            uint256 operatorEarnings = ((amount * operatorFeeBips) / MAX_BIPS);
             operatorPendingEarnings[address(token)] += operatorEarnings;
             // obtain the remaining reward after deducting the operator's part
             amount -= operatorEarnings;
         }
+
+        
 
         /*
         // find the multiple of the amount earned by delegators holding EIGEN vs the amount earned by delegators holding ETH. this should be equal to:
@@ -269,6 +273,13 @@ contract DelegationTerms is IDelegationTerms {
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 
+        emit log_uint(totalEigenStaked);
+        emit log_uint(totalEthStaked);
+        emit log_uint(operatorEigenStaked);
+        emit log_uint(operatorEthStaked);
+
+
+
         // update the multiplying factors, scaled by REWARD_SCALING 
         updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount - amountToEigenHolders) * REWARD_SCALING) / totalWeightEth);
         updatedEarnings.earnedPerWeightAllTimeEigen += uint112((amountToEigenHolders * REWARD_SCALING) / totalWeightEigen);
@@ -280,10 +291,10 @@ contract DelegationTerms is IDelegationTerms {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
-    function onDelegationReceived(
-        address,
-        uint256[] memory
-    ) external {}
+    // function onDelegationReceived(
+    //     address,
+    //     uint256[] memory
+    // ) external {}
 
 //NOTE: the logic in this function currently mimmics that in the 'weightOfEth' function
     /**
@@ -306,6 +317,8 @@ contract DelegationTerms is IDelegationTerms {
                 ++i;
             }
         }
+        emit log_named_uint("weight", weight);
+        emit log_named_uint("total", totalWeightEth);
         delegatorUpdate.weightEth = uint112(weight);
         delegatorUpdate.weightEigen = uint112(weightOfEigen(delegator));
         delegatorUpdate.lastClaimedRewards = uint32(block.timestamp);

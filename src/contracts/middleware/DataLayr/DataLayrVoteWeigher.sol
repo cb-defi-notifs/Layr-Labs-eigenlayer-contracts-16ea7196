@@ -388,20 +388,6 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     function registerOperator(uint8 registrantType, string calldata socket, bytes calldata stakes) public {
         _registerOperator(msg.sender, registrantType, socket, stakes);
     }
@@ -445,6 +431,8 @@ contract DataLayrVoteWeigher is VoteWeigherBase, RegistrationManagerBaseMinusRep
             registry[operator].active == 0,
             "Operator is already registered"
         );
+
+        
 
         // TODO: shared struct type for this + registrantType, also used in Repository?
         EthAndEigenAmounts memory _operatorStake;
