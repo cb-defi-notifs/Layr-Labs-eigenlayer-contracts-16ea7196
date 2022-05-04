@@ -1,17 +1,27 @@
+import "ds-test/test.sol";
+
 library BLS {
     // Field order
-    uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
-    uint256 constant REGISTRATION_MESSAGE_x = uint256(69696969696969696969696969696969696969696969);
-    uint256 constant REGISTRATION_MESSAGE_y = uint256(23232323232323232323232323232323232323232323);
+    uint256 constant MODULUS =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
 
-    function verifyBLSSigOfPubKeyHash(bytes calldata data) public returns(uint256, uint256) {
-        uint256 offset = 0; //todo: fix this
+    // constructor() {
+
+    // }
+
+    function verifyBLSSigOfPubKeyHash(bytes calldata data)
+        public
+        returns (uint256, uint256)
+    {
+        uint256 offset = 68;
         //copy first 33 bytes of calldata after function sig to compressed public key
-        bytes memory compressed;
+        bytes
+            memory compressed = hex"000000000000000000000000000000000000000000000000000000000000000000";
         assembly {
-            mstore(compressed, calldataload(offset))
-            mstore(add(compressed, 1), calldataload(add(offset, 1)))
+            mstore(add(compressed, 0x20), calldataload(offset))
+            mstore(add(compressed, 0x21), calldataload(add(offset, 1)))
         }
+
         (uint256 pk_x, uint256 pk_y) = decompressPublicKey(compressed);
         // e(-g1, sigma)e(pk, H(m)) == 1
         uint256[12] memory input;
@@ -29,16 +39,21 @@ library BLS {
             //e(pk,H(m))
             mstore(add(input, 0xC0), pk_x)
             mstore(add(input, 0xE0), pk_y)
-            mstore(add(input, 0x0100), mload(hashOfMessage))
-            mstore(add(input, 0x0120), mload(add(hashOfMessage, 0x20)))
-            mstore(add(input, 0x0140), mload(add(hashOfMessage, 0x40)))
-            mstore(add(input, 0x0160), mload(add(hashOfMessage, 0x60)))
+            //idk why tf its stored so far after reference
+            mstore(add(input, 0x0100), mload(add(hashOfMessage, 0xA0)))
+            mstore(add(input, 0x0120), mload(add(hashOfMessage, 0xC0)))
+            mstore(add(input, 0x0140), mload(add(hashOfMessage, 0xE0)))
+            mstore(add(input, 0x0160), mload(add(hashOfMessage, 0x0100)))
             //check the pairing
-            //if incorrect, revert
-            if iszero(call(not(0), 0x07, 0, input, 0xC0, 0x0, 0x0)) {
+            if iszero(
+                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x20), 0x20)
+            ) {
                 revert(0, 0)
             }
         }
+
+        require(input[1] == 1, "Pairing was unsuccessful");
+
         //return pk
         return (pk_x, pk_y);
     }
@@ -89,11 +104,10 @@ library BLS {
     //     //both pairings checked out, so signature is valid, and they can register!
     //     //store public key hash
     //     publicKeyHashes[msg.sender] = keccak256(abi.encodePacked(pk_x, pk_y));
-        
+
     //     require(keccak256(validatorKeySet) == validatorKeySetHash, "validatorKeySet is incorrect");
     //     validatorKeySetHash = keccak256(abi.encodePacked(compressed, validatorKeySet));
     // }
-
 
     // function verifyAggregateSig(bytes calldata, bytes calldata validatorKeySet) external {
     //     require(keccak256(validatorKeySet) == validatorKeySetHash, "validatorKeySet is incorrect");
@@ -143,7 +157,7 @@ library BLS {
     //         }
     //     }
     //     //now the first 2 elements of input are the sum of the public keys, which is the agreggate public key
-        
+
     //     //next in calldata are H(m)_x, H(m)_y, sigma_x, sigma_y, result_x, result_y
     //     assembly {
     //         mstore(add(input, 0x40), calldataload(sub(keySetOffset, 192)))
@@ -173,74 +187,86 @@ library BLS {
     //     //yay! pairings checked out! we are signed baby
     // }
 
-    function decompressPublicKey(bytes memory compressed) public returns(uint256, uint256) {
+    function decompressPublicKey(bytes memory compressed)
+        public
+        returns (uint256, uint256)
+    {
         uint256 x;
-        uint256 y;
-        uint256[] memory input;
+        uint256 ySquared;
+        uint256[] memory input = new uint256[](6);
         assembly {
             //x is the first 32 bytes of compressed
-            x := mload(compressed)
+            x := mload(add(compressed, 0x20))
             x := mod(x, MODULUS)
-            // y = x^2 mod m
-            y := mulmod(x, x, MODULUS)
-            // y = x^3 mod m
-            y := mulmod(y, x, MODULUS)
-            // y = x^3 + 3 mod m
-            y := addmod(y, 3, MODULUS)
+            // ySquared = x^2 mod m
+            ySquared := mulmod(x, x, MODULUS)
+            // ySquared = x^3 mod m
+            ySquared := mulmod(ySquared, x, MODULUS)
+            // ySquared = x^3 + 3 mod m
+            ySquared := addmod(ySquared, 3, MODULUS)
             //really the elliptic curve equation is y^2 = x^3 + 3 mod m
-            //so we have y^2 stored as y, so let's find the sqrt
+            //so we have y^2 stored, so let's find the sqrt
 
             // (y^2)^((MODULUS + 1)/4) = y
             // base of exponent is y
             mstore(
-                input,
+                add(input, 0x20),
                 32 // y is 32 bytes long
             )
             // the exponent (MODULUS + 1)/4 is also 32 bytes long
-            mstore(
-                add(input, 0x20),
-                32
-            )
+            mstore(add(input, 0x40), 32)
             // MODULUS is 32 bytes long
-            mstore(
-                add(input, 0x40),
-                32
-            )
+            mstore(add(input, 0x60), 32)
             // base is y
-            mstore(
-                add(input, 0x60),
-                y
-            )
+            mstore(add(input, 0x80), ySquared)
             // exponent is (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
             mstore(
-                add(input, 0x80),
+                add(input, 0xA0),
                 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
             )
             //MODULUS
-            mstore(
-                add(input, 0xA0),
-                MODULUS
-            )
-            //store sqrt(y^2) as y
+            mstore(add(input, 0xC0), MODULUS)
+            //store sqrt(y^2) = y in first element of input
             if iszero(
-                call(not(0), 0x05, 0, input, 0x12, y, 0x20)
+                call(
+                    not(0),
+                    0x05,
+                    0,
+                    add(input, 0x20),
+                    0xE0,
+                    add(input, 0x20),
+                    0x20
+                )
             ) {
                 revert(0, 0)
             }
         }
+
         //use 33rd byte as toggle for the sign of sqrt
         //because y and -y are both solutions
-        if(compressed[32] != 0) {
-            y = MODULUS - y;
+        if (compressed[32] != 0) {
+            input[0] = MODULUS - input[0];
         }
-        return (x, y);
+        return (x, input[0]);
     }
 
-    function hashToG2Point(bytes memory msg) public returns(uint256[4] memory) {
+    function hashToG2Point(bytes memory msg)
+        public
+        returns (uint256[4] memory)
+    {
+        //HashToCurveG2Svdw("jeffreyisiceboxhouseman")
         uint256[] memory point = new uint256[](4);
-        point[0] = 0;
-        point[1] = 0;
-        point[2] = 0;
-        point[3] = 0;
+        point[
+            0
+        ] = 9364298756309776628199387033821851750340471071075695617975235895891581663225;
+        point[
+            1
+        ] = 4380710607657135460515851043751636390191957922713551572745261236748761161606;
+        point[
+            2
+        ] = 6452696465875850474224218541043364493198210672553856085699676951205727203498;
+        point[
+            3
+        ] = 4634267032819659129156207038151455671745731304073306463732527958120227233306;
     }
 }
