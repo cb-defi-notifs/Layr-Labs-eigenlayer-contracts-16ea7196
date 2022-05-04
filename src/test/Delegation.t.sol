@@ -136,7 +136,7 @@ contract Delegator is EigenLayrDeployer {
 
         //_initializeServiceManager();
         
-        _testinitiateDelegation(1e1);
+        _testinitiateDelegation(1e10);
 
         //servicemanager pays out rewards
         _payRewards();
@@ -164,22 +164,24 @@ contract Delegator is EigenLayrDeployer {
         dt = _setDelegationTerms(registrant);
         delegation.registerAsDelegate(dt);
         cheats.stopPrank();
-
+        
         for(uint i; i < delegators.length; i++){
             //initialize weth, eigen and eth balances for delegator
             eigen.safeTransferFrom(address(this), delegators[i], 0, amountEigenToDeposit, "0x");
             weth.transfer(delegators[i], amountToDeposit);
             cheats.deal(delegators[i], amountEthToDeposit);
+            
+
 
             cheats.startPrank(delegators[i]);
 
             //depositing delegator's eth into consensus layer
-            deposit.depositEthIntoConsensusLayer{value: amountToDeposit}("0x", "0x", depositContract.get_deposit_root());
+            deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}("0x", "0x", depositContract.get_deposit_root());
 
             //deposit delegator's eigen into investment manager
             eigen.setApprovalForAll(address(investmentManager), true);
-            investmentManager.depositEigen(amountToDeposit);
-              
+            investmentManager.depositEigen(amountEigenToDeposit);
+            
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
             investmentManager.depositIntoStrategy(
@@ -192,8 +194,10 @@ contract Delegator is EigenLayrDeployer {
             delegation.delegateTo(registrant);
             cheats.stopPrank();
         }
+        emit log("yup");
 
         cheats.startPrank(registrant);
+        emit log("yup34"); 
         uint8 registrantType = 3;
         string memory socket = "fe";
 
@@ -235,9 +239,22 @@ contract Delegator is EigenLayrDeployer {
        
         cheats.startPrank(registrant);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.commitPayment(dataStoreDumpNumber, 10);
+
+        uint256 currBalance = weth.balanceOf(address(dt));
+        uint120 amountRewards = 10;
+
+        dlsm.commitPayment(dataStoreDumpNumber, amountRewards);
         cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
         dlsm.redeemPayment();
+
+        assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
+
+        emit log_named_uint("operator balance before", weth.balanceOf(registrant));
+        dt.operatorWithdrawal();
+        emit log_named_uint("operator balance after", weth.balanceOf(registrant));
+
+
+
         cheats.stopPrank();
 
     }
