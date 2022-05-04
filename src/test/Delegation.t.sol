@@ -25,6 +25,8 @@ contract Delegator is EigenLayrDeployer {
     IRepository newRepository;
     ServiceFactory factory;
     IRegistrationManager regManager;
+    DelegationTerms dt;
+
 
     constructor(){
         delegators = [acct_0, acct_1];
@@ -128,53 +130,11 @@ contract Delegator is EigenLayrDeployer {
     }
 
 
-    function _initializeServiceManager() public {
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
-
-        factory = new ServiceFactory(
-            investmentManager,
-            delegation
-        );
-
-        newRepository = factory.createNewRepository(
-            serviceManager, 
-            voteWeigher, 
-            regManager, 
-            1000000
-        );
-        voteWeigher = new VoteWeigherBase(
-            newRepository, 
-            delegation, 
-            investmentManager, 
-            consensusLayerEthToEth, 
-            strats
-
-        );
-        serviceManager = new ServiceManagerBase(
-            weth,
-            weth,
-            newRepository,
-            voteWeigher
-        );
-
-        regManager = new RegistrationManagerBase(
-            newRepository
-        );
-
-        assertTrue(address(serviceManager) != address(0));
-    
-        //Repository(payable(address(newRepository))).setServiceManager(serviceManager);
-        //newRepository.setServiceManager(serviceManager);
-       
-
-
-    }
     function testinitiateDelegation() public {
 
         //_initializeServiceManager();
         
-        _testinitiateDelegation(1e12);
+        _testinitiateDelegation(1e1);
 
         //servicemanager pays out rewards
         _payRewards(50);
@@ -197,6 +157,7 @@ contract Delegator is EigenLayrDeployer {
 
         emit log_named_address("DLSM", address(dlsm));
         //setting up operator's delegation terms
+        weth.transfer(registrant, 1e5);
         cheats.startPrank(registrant);
         dt = _setDelegationTerms(registrant);
         delegation.registerAsDelegate(dt);
@@ -233,7 +194,10 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(registrant);
         uint8 registrantType = 3;
         string memory socket = "fe";
-        weth.transfer(registrant, amountToDeposit);
+
+        emit log_uint(weth.totalSupply());
+
+        //register operator with vote weigher so they can get payment
         dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
         cheats.stopPrank();
 
@@ -266,11 +230,9 @@ contract Delegator is EigenLayrDeployer {
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
 
-        
-
-        emit log_uint(dataStoreDumpNumber);
-
+       
         cheats.startPrank(registrant);
+        weth.approve(address(dlsm), type(uint256).max);
         dlsm.commitPayment(dataStoreDumpNumber, 10);
         cheats.stopPrank();
 
