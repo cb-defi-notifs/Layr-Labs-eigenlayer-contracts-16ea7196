@@ -266,8 +266,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function _initializeDelegationTerms(address operator) internal returns (DelegationTerms) {
-        address[] memory paymentTokens = new address[](1);
-        paymentTokens[0] = address(weth);
+        address[] memory paymentTokens = new address[](0);
         uint16 _MAX_OPERATOR_FEE_BIPS = 500;
         uint16 _operatorFeeBips = 500;
         dt = 
@@ -281,6 +280,7 @@ contract Delegator is EigenLayrDeployer {
                 _operatorFeeBips
             );
         assertTrue(address(dt) != address(0), "_deployDelegationTerms: DelegationTerms failed to deploy");
+        dt.addPaymentToken(address(weth));
         return dt;
 
     }
