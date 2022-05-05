@@ -8,6 +8,8 @@ import "../interfaces/IServiceFactory.sol";
 import "../investment/Slasher.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
+    address public constant SELF_DELEGATION_ADDRESS = address(1);
+
     IInvestmentManager public investmentManager;
 
     IServiceFactory public serviceFactory;
@@ -38,13 +40,21 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // fraud proof interval for undelegation
     uint256 public undelegationFraudProofInterval;
 
-    // TODO: decide if these DOMAIN_TYPEHASH and DELEGATION_TYPEHASHes are acceptable/appropriate
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
 
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
+
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) delegationNonces;
+
+    constructor() {
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
+        );
+    }
 }

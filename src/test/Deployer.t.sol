@@ -501,7 +501,7 @@ contract EigenLayrDeployer is DSTest, ERC165_Universal, ERC1155TokenReceiver, Si
         cheats.prank(sender);
         delegation.delegateToSelf();
         assertTrue(
-            delegation.delegation(sender) == sender,
+            delegation.isSelfOperator(sender),
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(

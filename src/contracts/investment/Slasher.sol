@@ -22,6 +22,7 @@ contract Slasher is Governed {
     constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance) {
         _transferGovernor(_eigenLayrGovernance);
         investmentManager = _investmentManager;
+        // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
     }
 
     /**

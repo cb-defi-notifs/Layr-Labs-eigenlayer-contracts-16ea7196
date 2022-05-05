@@ -56,7 +56,7 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
     function weightOfOperatorEth(address operator) public virtual returns (uint128) {
         uint256 stratsLength = strategiesConsideredLength();
         uint128 amount;
-        if (delegation.isDelegatedToSelf(operator)) {
+        if (delegation.isSelfOperator(operator)) {
             for (uint256 i = 0; i < stratsLength;) {
                 uint256 sharesAmount = investmentManager.investorStratShares(operator, strategiesConsidered[i]);
                 if (sharesAmount > 0) {

@@ -22,21 +22,12 @@ contract EigenLayrDelegation is
     Governed,
     EigenLayrDelegationStorage
 {
-    /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     modifier onlyInvestmentManager() {
         require(
             msg.sender == address(investmentManager),
             "onlyInvestmentManager"
         );
         _;
-    }
-
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
-        );
     }
 
     function initialize(
@@ -62,8 +53,7 @@ contract EigenLayrDelegation is
         );
         // store the address of the delegation contract that operator is providing.
         delegationTerms[msg.sender] = dt;
-        // TODO: add this back in once delegating to your own delegationTerms will no longer break things
-        // _delegate(msg.sender, msg.sender);
+        _delegate(msg.sender, msg.sender);
     }
 
     /// @notice This will be called by a staker if it wants to act as its own operator.
@@ -76,8 +66,8 @@ contract EigenLayrDelegation is
             isNotDelegated(msg.sender),
             "Staker has existing delegation or pending undelegation commitment"
         );
-        // store delegation relation that the staker (msg.sender) is its own operator (msg.sender)
-        delegation[msg.sender] = msg.sender;
+        // store delegation relation that the staker (msg.sender) is its own operator
+        delegation[msg.sender] = SELF_DELEGATION_ADDRESS;
         // store the flag that the staker is delegated
         delegated[msg.sender] = DelegationStatus.DELEGATED;
     }
@@ -131,7 +121,6 @@ contract EigenLayrDelegation is
 
     // internal function implementing the delegation of 'delegator' to 'operator'
     function _delegate(address delegator, address operator) internal {
-        // TODO: specify strategies to look at and add, and store a hash of this array, then require the same hash on undelegation
         require(
             address(delegationTerms[operator]) != address(0),
             "Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
@@ -210,7 +199,7 @@ contract EigenLayrDelegation is
         );
 
         // if not delegated to self
-        if (operator != msg.sender) {
+        if (operator != SELF_DELEGATION_ADDRESS) {
             // retrieve list of strategies and their shares from investment manager
             (
                 IInvestmentStrategy[] memory strategies,
@@ -262,7 +251,6 @@ contract EigenLayrDelegation is
         // subtract strategy shares from delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
-            //TODO: look at list of strategies of interest for operator
             operatorShares[operator][strategies[i]] -= shares[i];
             unchecked {
                 ++i;
@@ -289,7 +277,6 @@ contract EigenLayrDelegation is
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
-            //TODO: look at list of strategies of interest for operator
             operatorShares[operator][strategies[i]] += shares[i];
             unchecked {
                 ++i;
@@ -323,16 +310,17 @@ contract EigenLayrDelegation is
 
     /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
-    /// @param staker is the delegator against whom challenge is being raised,
-    /// @param repository is the contract with whom the query for which delegator hasn't finished
-    ///        its obligation yet, was deployed,
-    /// @param serviceObjectHash is the hash of the query for whom staker hasn't finished its obligations
+    /// @param staker is the delegator against whom challenge is being raised
+    /// @param serviceObjectHash is the hash of the serviceObject for which staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
         bytes32 serviceObjectHash,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager
+        IRegistrationManager registrationManager,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata strategyIndexes,
+        uint256[] calldata amounts
     ) external {
         address operator = delegation[staker];
 
@@ -372,7 +360,20 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
 
-        //TODO: slash here
+        //TODO: set recipient and maxSlashedAmount appropriately
+
+        // function slashShares(
+        //     address slashed,
+        //     address recipient,
+        //     IInvestmentStrategy[] calldata strategies,
+        //     uint256[] calldata strategyIndexes,
+        //     uint256[] calldata amounts,
+        //     uint256 maxSlashedAmount
+        // )
+
+        slasher.slashShares(staker, address(this), strategies, strategyIndexes, amounts, 0); 
+
+        // TODO: reset status of staker to having not committed to de-delegation?
     }
 
     /// @notice checks whether a staker is currently undelegated and not
@@ -433,16 +434,16 @@ contract EigenLayrDelegation is
         // CRITIC: same problem as in getControlledEthStake, with calling
         // operatorStrats[operator] for the case "delegation[operator] != operator
         return
-            delegation[operator] == operator
+            isSelfOperator(operator)
                 ? investmentManager.getEigen(operator)
                 : eigenDelegated[operator];
     }
 
-    function isDelegatedToSelf(address operator)
-        external
+    function isSelfOperator(address operator)
+        public
         view
         returns (bool)
     {
-        return (delegation[operator] == operator);
+        return (delegation[operator] == SELF_DELEGATION_ADDRESS);
     }
 }
