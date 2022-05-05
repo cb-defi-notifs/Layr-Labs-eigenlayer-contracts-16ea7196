@@ -188,6 +188,8 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
         paymentTokens.push(token);
+        // push empty token payment to array
+        paymentsHistory[token].push(TokenPayment({earnedPerWeightAllTimeEth:0, earnedPerWeightAllTimeEigen:0, paymentTimestamp:0}));
     }
 
     /// @notice Remove an existing payment token from the array of payment tokens
@@ -242,11 +244,8 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         //TODO: fix this check
         //require(serviceFactory.isRepository(repository), "illegitimate repository");
  
-        TokenPayment memory updatedEarnings;
-        if (paymentsHistory[address(token)].length > 0) {
-            // get the most recent payment made to the operator in this token
-            updatedEarnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
-        }
+        // copy most recent payment made to the operator in this token to memory
+        TokenPayment memory updatedEarnings = paymentsHistory[address(token)][paymentsHistory[address(token)].length - 1];
 
         // obtain the earning that the operator is eligible for out of the total rewards
         if (operatorFeeBips > 0) {
@@ -267,8 +266,8 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-       (uint96 totalEigenStaked, uint96 totalEthStaked) = IRegistrationManager(repository.registrationManager()).totalStake();
-       (uint96 operatorEigenStaked, uint96 operatorEthStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(operator);
+       (uint96 totalEthStaked, uint96 totalEigenStaked) = IRegistrationManager(repository.registrationManager()).totalStake();
+       (uint96 operatorEthStaked, uint96 operatorEigenStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(operator);
        multipleToEigenHolders = ((((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked) / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
@@ -462,13 +461,13 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         uint256 earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEth - pastEarnings.earnedPerWeightAllTimeEth;
         
         // calculate the pending reward for the delegator due to its delegation of ETH to the operator
-        uint256 pending = (earningsPerWeightDelta * delegator.weightEth) / (totalWeightEth * REWARD_SCALING);
+        uint256 pending = (earningsPerWeightDelta * delegator.weightEth) / REWARD_SCALING;
         
         // compute the multiplying weight used for evaluating the reward for Eigen stake
         earningsPerWeightDelta = earnings.earnedPerWeightAllTimeEigen - pastEarnings.earnedPerWeightAllTimeEigen;
         
         // calculate the pending reward for the delegator due to its delegation of Eigen to the operator
-        pending += (earningsPerWeightDelta * delegator.weightEigen) / (totalWeightEigen * REWARD_SCALING);
+        pending += (earningsPerWeightDelta * delegator.weightEigen) / REWARD_SCALING;
         
         // transfer the pending rewards for token
         if (pending > 0) {
