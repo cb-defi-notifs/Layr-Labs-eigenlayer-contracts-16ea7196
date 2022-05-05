@@ -347,7 +347,7 @@ contract DataLayrVoteWeigher is
 
     function getCorrectCompressedApk(uint256 index, uint32 dumpNumberToConfirm)
         public
-        view
+        // view
         returns (bytes memory)
     {
         APKUpdateMetaData memory apkUpdate = apkUpdates[index];
@@ -355,6 +355,7 @@ contract DataLayrVoteWeigher is
             dumpNumberToConfirm >= apkUpdate.dumpNumber,
             "Index too recent"
         );
+
         //if not last update
         if (index != apkUpdates.length - 1) {
             require(
@@ -364,10 +365,11 @@ contract DataLayrVoteWeigher is
         }
         uint256 apk_x = apkXCoordinates[index];
         bool yParity = apkUpdate.yParity;
-        bytes memory compressed;
+        bytes
+            memory compressed = hex"000000000000000000000000000000000000000000000000000000000000000000";
         assembly {
-            mstore(compressed, apk_x)
-            mstore(add(compressed, 32), yParity)
+            mstore(add(compressed, 0x20), apk_x)
+            mstore(add(compressed, 0x40), shl(yParity, 248))
         }
         return compressed;
     }
@@ -379,8 +381,8 @@ contract DataLayrVoteWeigher is
         bytes
             memory compressed = hex"000000000000000000000000000000000000000000000000000000000000000000";
         assembly {
+            mstore(add(compressed, 0x21), yParity)
             mstore(add(compressed, 0x20), apk_x)
-            mstore(add(compressed, 0x40), yParity)
         }
         return compressed;
     }
@@ -479,6 +481,10 @@ contract DataLayrVoteWeigher is
                 revert(0, 0)
             }
         }
+
+        // emit log_bytes(getCompressedApk());
+        // emit log_named_uint("x", input[0]);
+        // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
         // update apk coordinates
         apkUpdates.push(
@@ -650,7 +656,7 @@ contract DataLayrVoteWeigher is
 
         //use 33rd byte as toggle for the sign of sqrt
         //because y and -y are both solutions
-        //is yExpected +y, then true, false if -y
-        return input[0] == yExpected;
+        //is yExpected -y, then true, false if y
+        return input[0] != yExpected;
     }
 }

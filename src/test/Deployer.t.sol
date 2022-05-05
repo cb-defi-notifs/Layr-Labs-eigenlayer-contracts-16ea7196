@@ -77,6 +77,8 @@ contract EigenLayrDeployer is
     WETH public liquidStakingMockToken;
     WethStashInvestmentStrategy public liquidStakingMockStrat;
 
+    bytes[] registrationData;
+
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
@@ -247,6 +249,21 @@ contract EigenLayrDeployer is
 
         //loads hardcoded signer set
         _setSigners();
+        registrationData.push(hex"0a94806675ea2f011a001d18e7a261ea7c8d1f902884e647e637e5e577fcd66400217cf55fa5e35ade042501f1486966ecd482b53f14d9dc3c001e2fa484c449962a85c5c465244cfc5163c9f14d8bdb56dbea1ff8685e99636e9076df87117a201c4a79e305e295d9bf9a61becbf95e76262fffc88888f2bcf83876c86431cf462864d48f11719fab32967a3b6d547124a6bcfcfb0891887a282b6688ba4158d7");
+        registrationData.push(hex"2ffd6171073c0e545073a9bc7c452d2677974f29540ed71fd1933dfc02629a660021ebaab8a762a1beaecd9e378bcc6525ab53aeed4f9a5d21c27aea78f413ea461d4aa348699d79e54916f5c7b545bc95c556b91a923596928c52035658bbeb88181fb59de5e8a87ed94a7757e79f64c947b62b1bf7d08e2fe4c4fd88f68180fb03c0035a93e7dadda09303a1e4e7be8018dfcc67919d7f82a79fc4e3e3138f45");
+        registrationData.push(hex"06cb60fa77995fef4c3f56ee5b74a6963c9b53e8dd91937fdef6574f9b5db56b0105e4c920e32a0469ba7e00f873e9cf2e0848aff1bb1fe80a4923aeadcde7c2592c5defc05811861e09e7cd10cf5042da406d11d8af66a3e3e3b4c5c31507be3413b340fa427dbacbe981d02c850a58ffa5af850b9d2e53bb5b99c6c235fa4c0208d3d99d5bec30411c822eb592302427507296c86c94660d9fc129c2bad333b3");
+        registrationData.push(hex"174f94b12b5628c554319f4871093e6657c57247416611804006d6cbbc3f47d3010916b81be3ae37e2bc6eff35a081317de6e88eb5b245af3e3cc8e8cf1410b33d07bc410121cea80da157a2ad7082c8d849c48bf430f4c5dc92a86ce201b39b7c2c4478ce29f331128e1005d53924cdde59fcac805210b620ecac33db87765ed11a10157f4ae7a30b5fd4c122a6bd3ee6a04f1f717a76b325bd51e0a1e9aec3c4");
+        registrationData.push(hex"209fe56fe29a93e108d735b086b7de6a932d1abd6d70d15689785e0538ce43910029469c20b0a16654a0215bbad542c5210550c85c021cc0842378eff0dac80fa2130c9d145baaad1a6251c221dd991fb90ed0dad3fd4203780bdb25a0cb8c346e2acca2648ab1886db2a65052a3075cc0993c5052d7c4b84e4eda218637db18710c3567986dea2ed30016a418725fb3d21e60fb072618851f14f5c38077346c16");
+        registrationData.push(hex"1a826a2953682088a2f84b2295d729d22aef96a2b543cfb8341802764482d543002dfcabd0075583de7305a61e14b07c314b6184f454faf213a3e8504608a23d2402e1d6824dd1a30ea7398ec95b4877979b6a176269a1b5d213f4cce668c5655e02452456e3bcea2666a50b06e030a9bad2caa028313b2b8cbca35303624c99fc1e2e7300b8d2c79933ca478bc764ef09f4d9eea5d864550984d978280e3f30bc");
+        registrationData.push(hex"20043c208cc8d16d1648eb160bc5a9a69d97def0778700bd93342265c8e1fe8b010c6a6cc438514f3579d4241c3404eb2c57fef6f84eeafc10669c6a42b9ef2e261eac24d04dfa7e1fffb07865288ffdebe24094acf1a15f2b57af3d11e1798c5a28ac16141b09b94d90cd23e7db07cc2c759d52d94b5746921d491b031ddb8c1123710005ed7788a843df024bd5b7253fcde14a944c02cddccb7e204759c3a402");
+        registrationData.push(hex"266356b759998d7865cc43666979a4e55443a31d6f79a95db4c63aaa0feb53d60000f9f42f10116d3b616748406dafce11814d424a9e6b55c518dc2d4b8482815819997da97fc609e4a9a3b48b4a6aeaf74ed5c975ab34179565664e9af13ddec802cce476dc270b74cf01aa69fbc0853850c9897e6dd2ca365d7fb3668be30b8c0312c1aeb59e0e72a1258237bb40e9cdec653ce8480ae9f0a24083c91de290cd");
+        registrationData.push(hex"05afc73ebe6ad85b90e238ba92a25533db875eb09c8ea0ea84c33fa27349d15e01148f603a5c8b70d271ca089645f1edba811f8ad1ea0e461364d0756172f194131cabf63a23857d1c982d35fa61aef6b33d6b9a817b36cb22595347afd1a283001f3021d6fd579bd350584abe31237e0e523d2f0102e9733830d9adbe4bf8d7c80cd61ebdf2df7d6d77fdc254fda89de607187bfc42cdbc77e6fb3cac3bec5a1f");
+        registrationData.push(hex"1f7eb3a98e544d6d86bd517d83cde98494ff22ed4bc2adb13c32819920d267dd00216fe46ac550db4f5a9afd82bcdeac529076206fccdf4a56ea43a41131400d6a1d6236e1a788ccba2f0d7517111612573384f77f16e24870175ed4757a45c7f125b04215fa6035599709911783275196ee4bebdb41ab81af9e7e0198ab6650e70484bf5d5c79ed47a65f77f7ef8265bb35024d3dcfd12cd30fe62815a10ce979");
+        registrationData.push(hex"1d77b2a20afed3a528a4dee6b3bffc1fd9d7a1385093161c4327394b02f5487201227e01159f9e9c2ad6186452037bc393344fed31b7bce64b88858663c92bc53f2910d6491e9cd6eafb4e49bef78477a6de2f16b2d2257ca91dc8f46672f1924312d6e03fe3ced2051b262bedd8bef32e8afebdce64ce03ac57da5d1eac4adfd20ab9cf5972ae412593ef4a61a7fb0d46d820a2ed0982cdc3ea997fee8644ba1b");
+        registrationData.push(hex"2984f278d7240ec84524ec7b0d1ab198150c1ac0921fea5412a039a75d71f7d2012ca7448feb6c1a66f6a10df59426ddaddb504518a28ffc092f84fa0ac141aae006b14859c56f012d4b484121e15a8ed14b17a9f30f190a71f2fe8219a2734db72d8d9d516d61e02cbb653efc46953672161c79332261e42f0982b59229b9f4be2641e670866e49142f85fb104b07f14848d7c68c74024fc32f0b2ce7a88c1835");
+        registrationData.push(hex"0b959fb5a7e444f81bc7f64146b7a01a029a323d4d2cea12f323a26b714b14d90123f84391d1838688da2c8e7aa1e5162b63ecfaf76690f53fca17c23fe66848e12ce535322df1c220239216b39bb1cd3f45d29185d3203b5314eec420b10583ad013ba8092d0e24ab77da734dfd1761dd7ea9af4c058431c51fb7b046b0a332b42a73d9818b2b53f22c8f3cc0c44a5bf497b76f045bccbd0b4f414146dfdf4d39");
+        registrationData.push(hex"2833747188c0471f00de01fbc7195022b541d562ced648a86f149cf7aec3d543002ef9a05caa70028a4b99ed0cba3341fb4f6773570a27147a4f5619dca46e266611f7ea600a3511ba61ff4e171167f9c088c5869615d4b7d1a85b03dd4f68aef82c876b9dabe12d4a972b15bcd4d374efd667f4e2324dcd07e861416b726ad8c31df8bc4410b6a2b0255c5c8c19a3902d48c8bf82ee7cd5e5714ea00f8bf3c3d8");
+        registrationData.push(hex"1e53397e7a398cd41a04a103394592d878fe3a93bf3fa750590ba89cae512fcf000f396f1a8d944b1fcbe2877b3e99a2da9f540641afadd0a0abc8023c935b1303265760a58d2fe92c8088312fae0a1f14a8716b179de670e1aa864a8e4de97e5b20407dbcf523ae4171eee01357f92eb407a30a4b30f372cd9f6266e6650d3b0a03c15c863f3a591d76bd6b9ab62a8300fc71a2325a7b400cf7319efeec849d01");
     }
 
     function testDeploymentSuccessful() public {
@@ -292,24 +309,7 @@ contract EigenLayrDeployer is
     }
 
     function testaaaaaaaaaaaaaaaaaaaaaaaaaaaa() public {
-        bytes
-            memory data = hex"0a94806675ea2f011a001d18e7a261ea7c8d1f902884e647e637e5e577fcd66400";
-        data = abi.encodePacked(
-            data,
-            uint256(
-                15147106545800264067608835335271066960989349150098866919007123426269653649814
-            ),
-            uint256(
-                19233495238944052640762557501614258812590512497248730279340941639743133809184
-            ),
-            uint256(
-                12796347674960687682684951951909549633157711233527596969944043911680334352198
-            ),
-            uint256(
-                18270665677143438009839362449299669393575189918774070435536785515528084084951
-            )
-        );
-        (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(data);
+        (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(registrationData[0]);
     }
 
     //verifies that depositing WETH works
@@ -511,50 +511,50 @@ contract EigenLayrDeployer is
         assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
     }
 
-    //     //checks that it is possible to init a data store
-    //     function testInitDataStore() public returns (bytes32) {
-    //         return _testInitDataStore();
-    //     }
+    //checks that it is possible to init a data store
+    function testInitDataStore() public returns (bytes32) {
+        return _testInitDataStore();
+    }
 
-    //     //initiates a data store
-    //     //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
-    //     function _testInitDataStore() internal returns (bytes32) {
-    //         bytes memory header = bytes(
-    //             "0x0102030405060708091011121314151617181920"
-    //         );
-    //         uint32 totalBytes = 1e6;
-    //         uint32 storePeriodLength = 600;
+    //initiates a data store
+    //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
+    function _testInitDataStore() internal returns (bytes32) {
+        bytes memory header = bytes(
+            "0x0102030405060708091011121314151617181920"
+        );
+        uint32 totalBytes = 1e6;
+        uint32 storePeriodLength = 600;
 
-    //         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-    //         weth.transfer(storer, 10e10);
-    //         cheats.prank(storer);
-    //         weth.approve(address(dlsm), type(uint256).max);
-    //         cheats.prank(storer);
-    //         dlsm.initDataStore(
-    //             header,
-    //             totalBytes,
-    //             storePeriodLength
-    //         );
-    //         uint48 dumpNumber = 1;
-    //         bytes32 headerHash = keccak256(header);
-    //         (
-    //             uint48 dataStoreDumpNumber,
-    //             uint32 dataStoreInitTime,
-    //             uint32 dataStorePeriodLength,
-    //             bool dataStoreCommitted
-    //         ) = dl.dataStores(headerHash);
-    //         assertTrue(dataStoreDumpNumber == dumpNumber, "_testInitDataStore: wrong dumpNumber");
-    //         assertTrue(
-    //             dataStoreInitTime == uint32(block.timestamp),
-    //             "_testInitDataStore: wrong initTime"
-    //         );
-    //         assertTrue(
-    //             dataStorePeriodLength == storePeriodLength,
-    //             "_testInitDataStore: wrong storePeriodLength"
-    //         );
-    //         assertTrue(dataStoreCommitted == false, "_testInitDataStore: wrong committed status");
-    //         return headerHash;
-    //     }
+        //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 10e10);
+        cheats.prank(storer);
+        weth.approve(address(dlsm), type(uint256).max);
+        cheats.prank(storer);
+        dlsm.initDataStore(
+            header,
+            totalBytes,
+            storePeriodLength
+        );
+        uint48 dumpNumber = 1;
+        bytes32 headerHash = keccak256(header);
+        (
+            uint48 dataStoreDumpNumber,
+            uint32 dataStoreInitTime,
+            uint32 dataStorePeriodLength,
+            bool dataStoreCommitted
+        ) = dl.dataStores(headerHash);
+        assertTrue(dataStoreDumpNumber == dumpNumber, "_testInitDataStore: wrong dumpNumber");
+        assertTrue(
+            dataStoreInitTime == uint32(block.timestamp),
+            "_testInitDataStore: wrong initTime"
+        );
+        assertTrue(
+            dataStorePeriodLength == storePeriodLength,
+            "_testInitDataStore: wrong storePeriodLength"
+        );
+        assertTrue(dataStoreCommitted == false, "_testInitDataStore: wrong committed status");
+        return headerHash;
+    }
 
     //verifies that it is possible to deposit eigen
     function testDepositEigen() public {
@@ -597,34 +597,19 @@ contract EigenLayrDeployer is
         );
     }
 
-    function testSelfOperatorRegisterssssssssssssssssssssssssssssssss() public returns (bytes memory) {
+    function testSelfOperatorRegister()
+        public
+        returns (bytes memory)
+    {
         // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-        bytes
-            memory data = hex"0a94806675ea2f011a001d18e7a261ea7c8d1f902884e647e637e5e577fcd66400";
-        data = abi.encodePacked(
-            data,
-            uint256(
-                15147106545800264067608835335271066960989349150098866919007123426269653649814
-            ),
-            uint256(
-                19233495238944052640762557501614258812590512497248730279340941639743133809184
-            ),
-            uint256(
-                12796347674960687682684951951909549633157711233527596969944043911680334352198
-            ),
-            uint256(
-                18270665677143438009839362449299669393575189918774070435536785515528084084951
-            )
-        );
-        _testRegisterAdditionalSelfOperator(registrant, data);
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
     }
 
-    // function testTwoSelfOperatorsRegister() internal returns (bytes memory)
-    // {
-    //     (bytes memory stakesPrev) = testSelfOperatorRegister();
-    //     address sender = acct_0;
-    //     return _testRegisterAdditionalSelfOperator(sender, stakesPrev);
-    // }
+    function testTwoSelfOperatorsRegistersssssssssssssssssssssssssssssssssssss() public
+    {
+        address sender = acct_0;
+        _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
+    }
 
     function _testRegisterAdditionalSelfOperator(
         address sender,
@@ -644,276 +629,84 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    //     function testSelfOperatorRegisterBySignature()
-    //         public
-    //         returns (bytes memory)
-    //     {
-    //         // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-    //         bytes memory emptyStakes = abi.encodePacked(bytes24(0));
-    //         return _testRegisterAdditionalSelfOperatorBySignature(uint256(priv_key_0), emptyStakes);
-    //     }
+    //verifies that it is possible to confirm a data store
+    //checks that the store is marked as committed
+    function testConfirmDataStoreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee() public {
+        _testConfirmDataStoreSelfOperators(15);
+    }
 
-    //     // TODO: clean up this really ugly test
-    //     function _testRegisterAdditionalSelfOperatorBySignature(uint256 privKey, bytes memory stakesPrev) internal returns (bytes memory) {
-    //         // uint256 expiry = 0;
+    // function testConfirmDataStoreTwoOperators() public {
+    //     testConfirmDataStoreSelfOperators(2);
+    // }
 
-    //         address sender = cheats.addr(privKey);
-    //         //register as both ETH and EIGEN operator
-    //         // uint8 registrantType = 3;
-    //         _testWethDeposit(sender, 1e18);
-    //         _testDepositEigen(sender);
-    //         _testSelfOperatorDelegate(sender);
-    //         // string memory socket = "fe";
+    // function testConfirmDataStoreTwelveOperators() public {
+    //     testConfirmDataStoreSelfOperators(12);
+    // }
 
-    //         // calculate hash to sign, imitating logic in DataLayrVoteWeigher
-    //         bytes32 digestHash = keccak256(
-    //             abi.encode(
-    //                 dlRegVW.REGISTRATION_TYPEHASH(),
-    //                 sender,
-    //                 address(dlRegVW),
-    //                 // expiry
-    //                 uint256(0)
-    //             )
-    //         );
-    //         digestHash = keccak256(
-    //             abi.encodePacked(
-    //                 "\x19\x01",
-    //                 dlRegVW.DOMAIN_SEPARATOR(),
-    //                 digestHash
-    //             )
-    //         );
-    //         // get signature
-    //         (uint8 v, bytes32 r, bytes32 vs) = cheats.sign(privKey, digestHash);
-    //         // sanity check signature
-    //         address recoveredAddress = ecrecover(digestHash, v, r, vs);
-    //         if (recoveredAddress != sender) {
-    //             emit log_named_address("bad signature from", recoveredAddress);
-    //             emit log_named_address("expected signature from", sender);
-    //         }
-    //         vs = SignatureCompaction.packVS(vs,v);
-    //     // function registerOperatorBySignature(
-    //     //     address operator,
-    //     //     uint8 registrantType,
-    //     //     string calldata socket,
-    //     //     uint256 expiry,
-    //     //     bytes32 r,
-    //     //     bytes32 vs,
-    //     //     bytes calldata stakes
-    //         dlRegVW.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
+    function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
+        cheats.assume(signersInput > 0 && signersInput <= 15);
 
-    //         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-    //         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
-    //         uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
-    //         bytes memory stakes = abi.encodePacked(
-    //             stakesPrev.slice(0,stakesPrev.length - 24),
-    //             sender
-    //         );
-    //         stakes = abi.encodePacked(
-    //             stakes,
-    //             weightOfOperatorEth,
-    //             weightOfOperatorEigen
-    //         );
-    //         stakes = abi.encodePacked(
-    //             stakes,
-    //             weightOfOperatorEth + (stakesPrev.toUint96(stakesPrev.length - 24)),
-    //             weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
-    //         );
-    //         bytes32 hashOfStakes = keccak256(stakes);
-    //         assertTrue(
-    //             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-    //             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
-    //         );
+        uint32 numberOfSigners = uint32(signersInput);
 
-    //         return (stakes);
-    //     }
+        //register all the operators
+        for (uint256 i = 0; i < numberOfSigners; ++i) {
+            // emit log_named_uint("i", i);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+        }
+        bytes32 headerHash = _testInitDataStore();
+        // uint48 dumpNumber,
+        // bytes32 headerHash,
+        // uint32 numberOfNonSigners,
+        // bytes33[] compressedPubKeys of nonsigners
+        // uint32 apkIndex
+        // uint256[4] sigma
 
-    //     function testSelfOperatorsRegisterBySignatureSameTimeInputTen()
-    //         public
-    //         returns (bytes memory)
-    //     {
-    //         uint8 numOperators = 10;
-    //         // emit log_named_uint("numOperators", numOperators);
-    //         return testSelfOperatorsRegisterBySignatureSameTime(numOperators);
-    //     }
+        uint32 currentDumpNumber = dlsm.dumpNumber();
 
-    // // we need this struct to avoid stack too deep errors in the below test
-    //     struct SignerData {
-    //         address[] operators;
-    //         uint8[] registrantTypes;
-    //         string[] sockets;
-    //         uint256[] expiries;
-    //         bytes32[] signatureData;
-    //     }
+        // //start forming the data object
+        bytes memory data = abi.encodePacked(
+            currentDumpNumber,
+            headerHash,
+            uint32(0),
+            uint32(15),
+            uint256(11509234998032783125480266028213992619847908725038453197451386571405359529652),
+            uint256(4099696940551850412667065443628214990719002449715926250279745743126938401735),
+            uint256(19060191254988907833052035421850065496347936631097225966803157637464336346786),
+            uint256(16129402215257578064845163124174157135534373400489420174780024516864802406908)
+        );
 
-    //     // TODO: clean up this really ugly test
-    //     function testSelfOperatorsRegisterBySignatureSameTime(uint8 numOperators) public returns (bytes memory) {
-    //         // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-    //         bytes memory stakesPrev = abi.encodePacked(bytes24(0));
-    //         bytes memory initStakes = stakesPrev;
+        // //sign the headerHash with each signer, and append the signature to the data object
+        // for (uint256 j = 0; j < numberOfSigners; ++j) {
+        //     (uint8 v, bytes32 r, bytes32 s) = cheats.sign(keys[j], signedHash);
+        //     // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));
+        //     address recoveredAddress = ecrecover(signedHash, v, r, s);
+        //     if (recoveredAddress != signers[j]) {
+        //         emit log_named_address("bad signature from", recoveredAddress);
+        //         emit log_named_address("expected signature from", signers[j]);
+        //     }
+        //     bytes32 vs = SignatureCompaction.packVS(s,v);
+        //     data = abi.encodePacked(
+        //         data,
+        //         r,
+        //         vs,
+        //         //signatory's index in stakes object
+        //         uint32(j)
+        //     );
+        // }
 
-    //         // sanity check on input
-    //         cheats.assume(numOperators <= 12);
+        // // emit log_named_bytes("stakes", stakes);
+        // emit log_named_bytes("data", data);
+        // cheats.prank(storer);
 
-    //         SignerData memory signerData;
-    //         signerData.operators = new address[](numOperators);
-    //         signerData.registrantTypes = new uint8[](numOperators);
-    //         signerData.sockets = new string[](numOperators);
-    //         signerData.expiries = new uint256[](numOperators);
-    //         signerData.signatureData = new bytes32[](numOperators * 2);
-    //         for (uint256 i; i < numOperators; ++i) {
-    //             //register as both ETH and EIGEN operator
-    //             // uint8 registrantType = 3;
-    //             _testWethDeposit(signers[i], 1e18);
-    //             _testDepositEigen(signers[i]);
-    //             _testSelfOperatorDelegate(signers[i]);
-    //             // string memory socket = "fe";
+        uint256 gasbefore = gasleft();
+        dlsm.confirmDataStore(data);
+        emit log_named_uint("gas spent on confirm, testConfirmDataStoreSelfOperators()", gasbefore - gasleft());
+        emit log_named_uint("number of operators", numberOfSigners);
 
-    //             // calculate hash to sign, imitating logic in DataLayrVoteWeigher
-    //             bytes32 digestHash = keccak256(
-    //                 abi.encode(
-    //                     dlRegVW.REGISTRATION_TYPEHASH(),
-    //                     signers[i],
-    //                     address(dlRegVW),
-    //                     // expiry
-    //                     uint256(0)
-    //                 )
-    //             );
-    //             digestHash = keccak256(
-    //                 abi.encodePacked(
-    //                     "\x19\x01",
-    //                     dlRegVW.DOMAIN_SEPARATOR(),
-    //                     digestHash
-    //                 )
-    //             );
-
-    //             // get signature
-    //             (uint8 v, bytes32 r, bytes32 vs) = cheats.sign(keys[i], digestHash);
-    //             // sanity check signature
-    //             if (ecrecover(digestHash, v, r, vs) != signers[i]) {
-    //                 emit log_named_address("bad signature from", ecrecover(digestHash, v, r, vs));
-    //                 emit log_named_address("expected signature from", signers[i]);
-    //             }
-    //             vs = SignatureCompaction.packVS(vs,v);
-    //             signerData.operators[i] = signers[i];
-    //             signerData.registrantTypes[i] = uint8(3);
-    //             signerData.sockets[i] = string("TEST");
-    //             signerData.expiries[i] = uint256(0);
-    //             signerData.signatureData[2 * i] = r;
-    //             signerData.signatureData[2 * i + 1] = vs;
-
-    //             uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(signers[i]));
-    //             uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(signers[i]));
-
-    //             bytes memory stakes = abi.encodePacked(
-    //                 stakesPrev.slice(0,stakesPrev.length - 24),
-    //                 signers[i]
-    //             );
-    //             stakes = abi.encodePacked(
-    //                 stakes,
-    //                 weightOfOperatorEth,
-    //                 weightOfOperatorEigen
-    //             );
-    //             stakes = abi.encodePacked(
-    //                 stakes,
-    //                 weightOfOperatorEth + (stakesPrev.toUint96(stakesPrev.length - 24)),
-    //                 weightOfOperatorEigen + (stakesPrev.toUint96(stakesPrev.length - 12))
-    //             );
-
-    //             stakesPrev = stakes;
-    //         }
-    //     // function registerOperatorsBySignatures(
-    //     // address[] calldata operators,
-    //     // uint8[] calldata registrantTypes,
-    //     // string[] calldata sockets,
-    //     // uint256[] calldata expiries,
-    //     //  // set of all {r, vs} for signers
-    //     // bytes32[] calldata signatureData,
-    //     // bytes calldata stakes)
-    //         dlRegVW.registerOperatorsBySignatures(signerData.operators, signerData.registrantTypes, signerData.sockets, signerData.expiries, signerData.signatureData, initStakes);
-
-    //         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-
-    //         bytes32 hashOfStakes = keccak256(stakesPrev);
-    //         assertTrue(
-    //             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
-    //             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
-    //         );
-    //         return (stakesPrev);
-    //     }
-
-    //     //verifies that it is possible to confirm a data store
-    //     //checks that the store is marked as committed
-    //     function testConfirmDataStore() public {
-    //         testConfirmDataStoreSelfOperators(1);
-    //     }
-
-    //     function testConfirmDataStoreTwoOperators() public {
-    //         testConfirmDataStoreSelfOperators(2);
-    //     }
-
-    //     function testConfirmDataStoreTwelveOperators() public {
-    //         testConfirmDataStoreSelfOperators(12);
-    //     }
-
-    //     function testConfirmDataStoreSelfOperators(uint8 signersInput) public {
-    //         cheats.assume(signersInput > 0 && signersInput <= 12);
-
-    //         uint32 numberOfSigners = uint32(signersInput);
-
-    //         //initial stakes is 24 zero bytes
-    //         bytes memory stakes = abi.encodePacked(bytes24(0));
-
-    //         //register all the operators
-    //         for (uint256 i = 0; i < numberOfSigners; ++i) {
-    //             // emit log_named_uint("i", i);
-    //             stakes = _testRegisterAdditionalSelfOperator(signers[i], stakes);
-    //         }
-
-    //         bytes32 headerHash = _testInitDataStore();
-    //         bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
-    //         uint48 currentDumpNumber = dlsm.dumpNumber();
-    //         //start forming the data object
-    //         bytes memory data = abi.encodePacked(
-    //             currentDumpNumber,
-    //             headerHash,
-    //             numberOfSigners,
-    //             uint256(dlRegVW.getStakesHashUpdateLength() - 1),
-    //             stakes.length,
-    //             stakes
-    //         );
-
-    //         //sign the headerHash with each signer, and append the signature to the data object
-    //         for (uint256 j = 0; j < numberOfSigners; ++j) {
-    //             (uint8 v, bytes32 r, bytes32 s) = cheats.sign(keys[j], signedHash);
-    //             // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));
-    //             address recoveredAddress = ecrecover(signedHash, v, r, s);
-    //             if (recoveredAddress != signers[j]) {
-    //                 emit log_named_address("bad signature from", recoveredAddress);
-    //                 emit log_named_address("expected signature from", signers[j]);
-    //             }
-    //             bytes32 vs = SignatureCompaction.packVS(s,v);
-    //             data = abi.encodePacked(
-    //                 data,
-    //                 r,
-    //                 vs,
-    //                 //signatory's index in stakes object
-    //                 uint32(j)
-    //             );
-    //         }
-
-    //         // emit log_named_bytes("stakes", stakes);
-    //         // emit log_named_bytes("data", data);
-    //         cheats.prank(storer);
-
-    //         uint256 gasbefore = gasleft();
-    //         dlsm.confirmDataStore(data);
-    //         emit log_named_uint("gas spent on confirm, testConfirmDataStoreSelfOperators()", gasbefore - gasleft());
-    //         emit log_named_uint("number of operators", numberOfSigners);
-
-    //         (, , ,bool committed) = dl.dataStores(headerHash);
-    //         assertTrue(committed, "Data store not committed");
-    //         cheats.stopPrank();
-    //     }
+        (, , ,bool committed) = dl.dataStores(headerHash);
+        // assertTrue(committed, "Data store not committed");
+        cheats.stopPrank();
+    }
 
     //     function _testAddOperatorStrats(address sender, IInvestmentStrategy[] memory stratsToAdd) internal {
     //         cheats.startPrank(sender);

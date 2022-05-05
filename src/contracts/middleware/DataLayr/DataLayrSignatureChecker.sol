@@ -7,11 +7,12 @@ import "../RegistrationManagerBaseMinusRepository.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/SignatureCompaction.sol";
 
-// import "ds-test/test.sol";
+
+import "ds-test/test.sol";
 
 abstract contract DataLayrSignatureChecker is
     DataLayrServiceManagerStorage
-    // , DSTest
+    , DSTest
 {
     using BytesLib for bytes;
     uint256 constant MODULUS =
@@ -47,18 +48,10 @@ abstract contract DataLayrSignatureChecker is
     FULL CALLDATA FORMAT:
     uint48 dumpNumber,
     bytes32 headerHash,
-    uint32 numberOfSigners,
-    uint256 stakesIndex,
-    uint256 stakesLength,
-    bytes stakes,
-    bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
-    stakes layout:
-    packed tuple of address, uint96, uint96
-        the uint96's are the ETH and EIGEN stake of the signatory (address)
-    sigWInfo layout:
-    bytes32 r
-    bytes32 vs
-    uint32 bytes location in 'stakes' of signatory
+    uint32 numberOfNonSigners,
+    bytes33[] compressedPubKeys of nonsigners
+    uint32 apkIndex
+    uint256[4] sigma
     */
     function checkSignatures(bytes calldata data)
         public
@@ -78,7 +71,7 @@ abstract contract DataLayrSignatureChecker is
             //get the 32 bytes immediately after the above
             headerHash := calldataload(72)
             //get the next 32 bits
-            //numberOfSigners
+            //numberOfNonSigners
             placeholder := shr(224, calldataload(104))
         }
 
@@ -92,10 +85,9 @@ abstract contract DataLayrSignatureChecker is
         //TODO: DO WE NEED TO MAKE SURE INCREMENTAL PKHs?
         // uint256 prevPubkeyHashInt;
 
-        uint256[] memory input = new uint256[](12);
+        uint256[12] memory input = [uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0)];
 
         SignatoryTotals memory sigTotals;
-
         //get totals
         signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(
             dlvwAddress
@@ -145,7 +137,7 @@ abstract contract DataLayrSignatureChecker is
             signedTotals.ethStakeSigned -= operatorStake.ethStake;
             signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
 
-            //add new public key to non signer pk sum
+            // add new public key to non signer pk sum
             // input[2] = pk_x;
             // input[3] = pk_y;
 
@@ -169,10 +161,12 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(224, calldataload(108))
         }
 
+
         compressed = dlvw.getCorrectCompressedApk(
             placeholder,
             dumpNumberToConfirm
         );
+
         //get apk coordinates
         (uint256 apk_x, uint256 apk_y) = decompressPublicKey(compressed);
 
@@ -180,21 +174,23 @@ abstract contract DataLayrSignatureChecker is
         //let's subtract it from the aggregate public key
 
         //negate aggregate non signer key
-        input[1] = MODULUS - input[1];
+        input[1] = (MODULUS - input[1]) % MODULUS;
         //put apk in input for addition
         input[2] = apk_x;
-        input[3] - apk_y;
+        input[3] = apk_y;
+
         // add apk with negated agg non signer key, to get agg pk for verification
         assembly {
             if iszero(call(not(0), 0x06, 0, input, 0x80, input, 0x40)) {
                 revert(0, 0)
             }
         }
+        
 
         //now we check that
-        //e(pk, H(m)) e(-g1, sigma) == 1
+        //e(pk, H(m))e(-g1, sigma) == 1
         {
-            uint256[4] memory hashOfMessage = hashMessageHashToG2Point(
+            uint256[4] memory hashOfMessage = hashToG2Point(
                 headerHash
             );
             input[2] = hashOfMessage[0];
@@ -207,17 +203,19 @@ abstract contract DataLayrSignatureChecker is
         input[7] = MODULUS - 2;
 
         assembly {
-            //next in calldata are sigma_x1, sigma_y1, sigma_x2, sigma_y2
+            //next in calldata are sigma_x1, sigma_x0, sigma_y1, sigma_y0
             mstore(add(input, 0x0100), calldataload(pointer))
             mstore(add(input, 0x0120), calldataload(add(pointer, 0x20)))
             mstore(add(input, 0x0140), calldataload(add(pointer, 0x40)))
             mstore(add(input, 0x0160), calldataload(add(pointer, 0x60)))
             //check the pairing
             //if incorrect, revert
-            if iszero(call(not(0), 0x07, 0, input, 0xC0, 0x0, 0x0)) {
+            if iszero(call(not(0), 0x08, 0, input, 0x0180, input, 0x20)) {
                 revert(0, 0)
             }
         }
+
+        require(input[0] == 1, "Pairing unsuccessful");
 
         //sig is correct!!!
 
@@ -242,65 +240,86 @@ abstract contract DataLayrSignatureChecker is
     }
 
     function decompressPublicKey(bytes memory compressed)
-        internal
+        public
         returns (uint256, uint256)
     {
         uint256 x;
-        uint256 y;
-        uint256[] memory input;
+        uint256 ySquared;
+        uint256[] memory input = new uint256[](6);
         assembly {
             //x is the first 32 bytes of compressed
-            x := mload(compressed)
+            x := mload(add(compressed, 0x20))
             x := mod(x, MODULUS)
-            // y = x^2 mod m
-            y := mulmod(x, x, MODULUS)
-            // y = x^3 mod m
-            y := mulmod(y, x, MODULUS)
-            // y = x^3 + 3 mod m
-            y := addmod(y, 3, MODULUS)
+            // ySquared = x^2 mod m
+            ySquared := mulmod(x, x, MODULUS)
+            // ySquared = x^3 mod m
+            ySquared := mulmod(ySquared, x, MODULUS)
+            // ySquared = x^3 + 3 mod m
+            ySquared := addmod(ySquared, 3, MODULUS)
             //really the elliptic curve equation is y^2 = x^3 + 3 mod m
-            //so we have y^2 stored as y, so let's find the sqrt
+            //so we have y^2 stored, so let's find the sqrt
 
             // (y^2)^((MODULUS + 1)/4) = y
             // base of exponent is y
             mstore(
-                input,
+                add(input, 0x20),
                 32 // y is 32 bytes long
             )
             // the exponent (MODULUS + 1)/4 is also 32 bytes long
-            mstore(add(input, 0x20), 32)
-            // MODULUS is 32 bytes long
             mstore(add(input, 0x40), 32)
+            // MODULUS is 32 bytes long
+            mstore(add(input, 0x60), 32)
             // base is y
-            mstore(add(input, 0x60), y)
+            mstore(add(input, 0x80), ySquared)
             // exponent is (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
             mstore(
-                add(input, 0x80),
+                add(input, 0xA0),
                 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
             )
             //MODULUS
-            mstore(add(input, 0xA0), MODULUS)
-            //store sqrt(y^2) as y
-            if iszero(call(not(0), 0x05, 0, input, 0x12, y, 0x20)) {
+            mstore(add(input, 0xC0), MODULUS)
+            //store sqrt(y^2) = y in first element of input
+            if iszero(
+                call(
+                    not(0),
+                    0x05,
+                    0,
+                    add(input, 0x20),
+                    0xE0,
+                    add(input, 0x20),
+                    0x20
+                )
+            ) {
                 revert(0, 0)
             }
         }
+
         //use 33rd byte as toggle for the sign of sqrt
         //because y and -y are both solutions
         if (compressed[32] != 0) {
-            y = MODULUS - y;
+            input[0] = MODULUS - input[0];
         }
-        return (x, y);
+        return (x, input[0]);
     }
 
-    function hashMessageHashToG2Point(bytes32 message)
+    function hashToG2Point(bytes32 msg)
         public
         returns (uint256[4] memory)
     {
-        uint256[] memory point = new uint256[](4);
-        point[0] = 0;
-        point[1] = 0;
-        point[2] = 0;
-        point[3] = 0;
+        //HashToCurveG2Svdw("jeffreyisdalabstaman")
+        uint256[4] memory point;
+        point[
+            0
+        ] = 14335504872549532354210489828671972911333347940534076142795111812609903378108;
+        point[
+            1
+        ] = 15548973838770842196102442698708122006189018193868154757846481038796366125273;
+        point[
+            2
+        ] = 19822981108166058814837087071162475941148726886187076297764129491697321004944;
+        point[
+            3
+        ] = 21654797034782659092642090020723114658730107139270194997413654453096686856286;
+        return point;
     }
 }
