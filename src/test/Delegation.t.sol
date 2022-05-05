@@ -106,8 +106,8 @@ contract Delegator is EigenLayrDeployer {
         emit log_uint(weth.totalSupply());
 
         //register operator with vote weigher so they can get payment
-// TODO: fix this to work with updates
-        // dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
+        bytes memory data = registrationData[0];
+        dlRegVW.registerOperator(registrantType, data, socket);
         cheats.stopPrank();
 
     }

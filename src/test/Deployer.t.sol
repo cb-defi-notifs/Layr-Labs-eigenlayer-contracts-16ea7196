@@ -632,19 +632,19 @@ contract EigenLayrDeployer is
     //verifies that it is possible to confirm a data store
     //checks that the store is marked as committed
     function testConfirmDataStore() public {
-        testConfirmDataStoreSelfOperators(15);
+        _testConfirmDataStoreSelfOperators(15);
     }
 
     // function testConfirmDataStoreTwoOperators() public {
-    //     testConfirmDataStoreSelfOperators(2);
+    //     _testConfirmDataStoreSelfOperators(2);
     // }
 
     // function testConfirmDataStoreTwelveOperators() public {
-    //     testConfirmDataStoreSelfOperators(12);
+    //     _testConfirmDataStoreSelfOperators(12);
     // }
 
-// TODO: fix this to work with a variable number again
-    function testConfirmDataStoreSelfOperators(uint8 signersInput) public {
+// TODO: fix this to work with a variable number again, if possible
+    function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
         uint32 numberOfSigners = uint32(signersInput);
@@ -664,7 +664,17 @@ contract EigenLayrDeployer is
 
         uint32 currentDumpNumber = dlsm.dumpNumber();
 
-        // //start forming the data object
+        // form the data object
+    /*
+    From DataLayrSignatureChecker.sol:
+    FULL CALLDATA FORMAT:
+    uint48 dumpNumber,
+    bytes32 headerHash,
+    uint32 numberOfNonSigners,
+    bytes33[] compressedPubKeys of nonsigners
+    uint32 apkIndex
+    uint256[4] sigma
+    */
         bytes memory data = abi.encodePacked(
             currentDumpNumber,
             headerHash,
@@ -675,29 +685,6 @@ contract EigenLayrDeployer is
             uint256(19060191254988907833052035421850065496347936631097225966803157637464336346786),
             uint256(16129402215257578064845163124174157135534373400489420174780024516864802406908)
         );
-
-        // //sign the headerHash with each signer, and append the signature to the data object
-        // for (uint256 j = 0; j < numberOfSigners; ++j) {
-        //     (uint8 v, bytes32 r, bytes32 s) = cheats.sign(keys[j], signedHash);
-        //     // emit log_named_address("recovered address", ecrecover(signedHash, v, r, s));
-        //     address recoveredAddress = ecrecover(signedHash, v, r, s);
-        //     if (recoveredAddress != signers[j]) {
-        //         emit log_named_address("bad signature from", recoveredAddress);
-        //         emit log_named_address("expected signature from", signers[j]);
-        //     }
-        //     bytes32 vs = SignatureCompaction.packVS(s,v);
-        //     data = abi.encodePacked(
-        //         data,
-        //         r,
-        //         vs,
-        //         //signatory's index in stakes object
-        //         uint32(j)
-        //     );
-        // }
-
-        // // emit log_named_bytes("stakes", stakes);
-        // emit log_named_bytes("data", data);
-        // cheats.prank(storer);
 
         uint256 gasbefore = gasleft();
         dlsm.confirmDataStore(data);
