@@ -308,7 +308,7 @@ contract EigenLayrDeployer is
         );
     }
 
-    function testaaaaaaaaaaaaaaaaaaaaaaaaaaaa() public {
+    function testBLS_Basic() public {
         (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(registrationData[0]);
     }
 
@@ -605,7 +605,7 @@ contract EigenLayrDeployer is
         _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
     }
 
-    function testTwoSelfOperatorsRegistersssssssssssssssssssssssssssssssssssss() public
+    function testTwoSelfOperatorsRegister() public
     {
         address sender = acct_0;
         _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
@@ -631,8 +631,8 @@ contract EigenLayrDeployer is
 
     //verifies that it is possible to confirm a data store
     //checks that the store is marked as committed
-    function testConfirmDataStoreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee() public {
-        _testConfirmDataStoreSelfOperators(15);
+    function testConfirmDataStore() public {
+        testConfirmDataStoreSelfOperators(15);
     }
 
     // function testConfirmDataStoreTwoOperators() public {
@@ -643,7 +643,8 @@ contract EigenLayrDeployer is
     //     testConfirmDataStoreSelfOperators(12);
     // }
 
-    function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
+// TODO: fix this to work with a variable number again
+    function testConfirmDataStoreSelfOperators(uint8 signersInput) public {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
         uint32 numberOfSigners = uint32(signersInput);
@@ -718,7 +719,8 @@ contract EigenLayrDeployer is
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
-        _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
+// TODO: fix or remove this
+        // _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
     
         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));

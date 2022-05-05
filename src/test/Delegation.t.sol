@@ -204,7 +204,8 @@ contract Delegator is EigenLayrDeployer {
         emit log_uint(weth.totalSupply());
 
         //register operator with vote weigher so they can get payment
-        dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
+// TODO: fix this to work with updates
+        // dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
         cheats.stopPrank();
 
     }
@@ -230,7 +231,7 @@ contract Delegator is EigenLayrDeployer {
 
         bytes32 headerHash = keccak256(header);
         (
-            uint48 dataStoreDumpNumber,
+            uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted

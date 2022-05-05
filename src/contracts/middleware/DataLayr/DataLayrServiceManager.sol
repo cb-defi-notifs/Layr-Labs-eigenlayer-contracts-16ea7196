@@ -19,8 +19,8 @@ import "ds-test/test.sol";
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
-    IProofOfStakingOracle,
-    DSTest
+    IProofOfStakingOracle
+    // ,DSTest
 {
     using BytesLib for bytes;
     /**
