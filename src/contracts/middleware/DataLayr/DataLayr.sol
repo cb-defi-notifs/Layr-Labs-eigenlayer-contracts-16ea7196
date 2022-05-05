@@ -35,7 +35,7 @@ contract DataLayr is Ownable, IDataLayr {
     uint128 public ethSignedThresholdPercentage = 90;
 
     event InitDataStore(
-        uint48 dumpNumber,
+        uint32 dumpNumber,
         bytes32 headerHash,
         uint32 totalBytes,        
         uint32 initTime,
@@ -43,7 +43,7 @@ contract DataLayr is Ownable, IDataLayr {
     );
 
     event ConfirmDataStore(
-        uint48 dumpNumber,
+        uint32 dumpNumber,
         bytes32 headerHash
     );
 
@@ -52,7 +52,7 @@ contract DataLayr is Ownable, IDataLayr {
      *         into the DataLayr 
      */
     struct DataStore {
-        uint48 dumpNumber;
+        uint32 dumpNumber;
 
         // time when this store was initiated
         uint32 initTime; 
@@ -93,7 +93,7 @@ contract DataLayr is Ownable, IDataLayr {
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
-        uint48 dumpNumber,
+        uint32 dumpNumber,
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength
@@ -133,7 +133,7 @@ contract DataLayr is Ownable, IDataLayr {
      *                        in DataLayr.  
      */
     function confirm(
-        uint48 dumpNumber,
+        uint32 dumpNumber,
         bytes32 headerHash,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,

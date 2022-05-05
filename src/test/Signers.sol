@@ -116,5 +116,21 @@ abstract contract Signers {
         keys[i] = 57896044618658097711785492504343953926634992332820282019728792003956564819981;
         addr_val[i] = 1301616763218388506134703593487326617849592305675;
         ++i;
+
+        signers[i] = 0x7e32bDd5Ba50eB8D5E5Bd7D3EeF1e8Bb7f0177F0;
+        keys[i] = uint256(0x2176b41cb367a9a26d283feb89e6752eda3ff637515757a58d703e277fddb700);
+        i++;
+        signers[i] = 0x90A89f27673E9B99001D25c5328Ea7b248341AEe;
+        keys[i] = uint256(0x2176b41cb367a9a26d283feb89e6752eda3ff637515757a58d703e277fddb701);
+        i++;
+        signers[i] = 0x8D26aFA6847f837D05C1Bad6E9F87C7AC1Be1566;
+        keys[i] = uint256(0x2176b41cb367a9a26d283feb89e6752eda3ff637515757a58d703e277fddb702);
+        i++;
+        signers[i] = 0x415e7f5066DA01541900E76a1b189C7231D67E55;
+        keys[i] = uint256(0x2176b41cb367a9a26d283feb89e6752eda3ff637515757a58d703e277fddb703);
+        i++;
+        signers[i] = 0xb7d336F51A613AE906E43BC900D07084551f4C65;
+        keys[i] = uint256(0x2176b41cb367a9a26d283feb89e6752eda3ff637515757a58d703e277fddb704);
+        i++;
     }
 }

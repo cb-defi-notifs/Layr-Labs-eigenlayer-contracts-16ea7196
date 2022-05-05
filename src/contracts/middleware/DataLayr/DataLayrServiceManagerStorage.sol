@@ -12,8 +12,8 @@ import "./DataLayrPaymentChallengeFactory.sol";
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
     // Payment
     struct Payment {
-        uint48 fromDumpNumber; // dumpNumber payment being claimed from
-        uint48 toDumpNumber; // dumpNumber payment being claimed to exclusive
+        uint32 fromDumpNumber; // dumpNumber payment being claimed from
+        uint32 toDumpNumber; // dumpNumber payment being claimed to exclusive
         // payment for range [fromDumpNumber, toDumpNumber)
         uint32 commitTime; // when commited, used for fraud proof period
         uint120 amount; // max 1.3e36, keep in mind for token decimals
@@ -23,8 +23,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     struct PaymentChallenge {
         address challenger;
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
+        uint32 fromDumpNumber;
+        uint32 toDumpNumber;
         uint120 amount1;
         uint120 amount2;
     }
@@ -81,7 +81,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint256 public paymentFraudProofCollateral = 1 wei;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
-    uint48 public dumpNumber;
+    uint32 public dumpNumber;
     
     uint256 public constant disclosureFraudProofInterval = 7 days;
     uint256 disclosurePaymentPerByte;
