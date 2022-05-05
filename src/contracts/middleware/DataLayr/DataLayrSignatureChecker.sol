@@ -98,6 +98,8 @@ abstract contract DataLayrSignatureChecker is
         ).totalEigenStaked();
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
+        bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
+
         for (uint i = 0; i < placeholder; ) {
             //load compressed pubkey into memory and the index in the stakes array
             uint256 stakeIndex;
@@ -118,6 +120,8 @@ abstract contract DataLayrSignatureChecker is
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(input[2], input[3])
             );
+
+            pubkeyHashes[i] = pubkeyHash;
 
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
@@ -226,7 +230,8 @@ abstract contract DataLayrSignatureChecker is
                 // headerHash,
                 dumpNumberToConfirm,
                 signedTotals.ethStakeSigned,
-                signedTotals.eigenStakeSigned
+                signedTotals.eigenStakeSigned,
+                pubkeyHashes
             )
         );
 
