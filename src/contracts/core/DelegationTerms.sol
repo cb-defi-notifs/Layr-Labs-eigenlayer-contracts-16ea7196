@@ -187,6 +187,11 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     ///         in this delegation terms contract.   
     function addPaymentToken(address token) external onlyOperator {
         require(paymentTokens.length < MAX_PAYMENT_TOKENS, "too many payment tokens");
+
+        for (uint i = 0; i < paymentTokens.length; i++){
+            require(token != paymentTokens[i], "token already added to delegation terms");
+        }
+        
         paymentTokens.push(token);
         // push empty token payment to array
         paymentsHistory[token].push(TokenPayment({earnedPerWeightAllTimeEth:0, earnedPerWeightAllTimeEigen:0, paymentTimestamp:0}));
