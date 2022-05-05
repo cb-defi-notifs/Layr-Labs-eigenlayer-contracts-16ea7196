@@ -107,7 +107,7 @@ contract EigenLayrDeployer is
     address acct_1 = cheats.addr(uint256(priv_key_1));
 
     //performs basic deployment before each test
-    function setUp() virtual public  {
+    function setUp() public  {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
