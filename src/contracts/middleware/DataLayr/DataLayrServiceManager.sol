@@ -427,9 +427,10 @@ contract DataLayrServiceManager is
 
     // function forceDLNToDisclose(
     //     bytes32 headerHash,
-    //     uint256 stakeHashIndex,
-    //     bytes calldata stakes,
-    //     uint256 operatorIndex
+    //     uint256 nonSignerIndex,
+    //     bytes32[] memory nonSignerPubkeyHashes,
+    //     uint256 totalEthStakeSigned,
+    //     uint256 totalEigenStakeSigned
     // ) public {
     //     //get the dataStore being challenged
     //     (

@@ -82,8 +82,6 @@ abstract contract DataLayrSignatureChecker is
 
         // we hav read (68 + 4 + 32 + 4 + 4) = 112 bytes
         uint256 pointer = 112;
-        //TODO: DO WE NEED TO MAKE SURE INCREMENTAL PKHs?
-        // uint256 prevPubkeyHashInt;
 
         uint256[12] memory input = [uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0),uint256(0)];
 
@@ -121,6 +119,11 @@ abstract contract DataLayrSignatureChecker is
                 abi.encodePacked(input[2], input[3])
             );
 
+            if(i > 0) {
+                //pubkeys should be ordered in scending order of hash to make proofs of signing or non signing constant time
+                require(uint256(pubkeyHash) > uint256(pubkeyHashes[i-1]), "Pubkey hashes must be in ascending order");
+            }
+
             pubkeyHashes[i] = pubkeyHash;
 
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
@@ -140,10 +143,6 @@ abstract contract DataLayrSignatureChecker is
             //subtract validator stakes from totals
             signedTotals.ethStakeSigned -= operatorStake.ethStake;
             signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
-
-            // add new public key to non signer pk sum
-            // input[2] = pk_x;
-            // input[3] = pk_y;
 
             //overwrite first to indexes of input with new sum of non signer public keys
             assembly {

@@ -387,7 +387,7 @@ contract DataLayrVoteWeigher is
         return compressed;
     }
 
-    function getOperatorPubkeyHash(address operator) public returns(bytes32) {
+    function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }
 

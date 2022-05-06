@@ -308,7 +308,7 @@ contract EigenLayrDeployer is
         );
     }
 
-    function testaaaaaaaaaaaaaaaaaaaaaaaaaaaaa() public {
+    function testaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa() public {
         (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(registrationData[0]);
     }
 
