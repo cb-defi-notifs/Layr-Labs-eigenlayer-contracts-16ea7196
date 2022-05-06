@@ -26,23 +26,6 @@ abstract contract DataLayrSignatureChecker is
         uint256 totalEigenStake;
     }
 
-    struct SignatureWithInfo {
-        bytes32 r;
-        bytes32 vs;
-        address signatory;
-        //fills the 32-byte memory slot (prevents overwriting anything important in dirty-write of 'signatory')
-        uint96 garbageData;
-    }
-
-    struct StakesMetaData {
-        //index of stakeHashUpdate
-        uint256 stakesIndex;
-        //length of stakes object
-        uint256 stakesLength;
-        //stakes object
-        bytes stakes;
-    }
-
     //NOTE: this assumes length 64 signatures
     /*
     FULL CALLDATA FORMAT:
