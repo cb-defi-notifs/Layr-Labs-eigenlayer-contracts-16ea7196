@@ -288,6 +288,9 @@ contract DataLayrServiceManager is
                 address(repository.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
 
+
+
+
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
             // record the payment information for the operator
@@ -391,6 +394,7 @@ contract DataLayrServiceManager is
             .createDataLayrPaymentChallenge(
                 operator,
                 msg.sender,
+                address(this),
                 operatorToPayment[operator].fromDumpNumber,
                 operatorToPayment[operator].toDumpNumber,
                 amount1,

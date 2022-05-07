@@ -8,13 +8,16 @@ import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
 
-contract DataLayrPaymentChallenge {
+import "ds-test/test.sol";
+
+contract DataLayrPaymentChallenge is DSTest{
     IDataLayrServiceManager public dlsm;
     PaymentChallenge public challenge;
 
     struct PaymentChallenge {
         address operator;
         address challenger;
+        address serviceManager;
         uint48 fromDumpNumber;
         uint48 toDumpNumber;
         uint120 amount1;
@@ -35,6 +38,7 @@ contract DataLayrPaymentChallenge {
     constructor(
         address operator,
         address challenger,
+        address serviceManager,
         uint48 fromDumpNumber,
         uint48 toDumpNumber,
         uint120 amount1,
@@ -43,6 +47,7 @@ contract DataLayrPaymentChallenge {
         challenge = PaymentChallenge(
             operator,
             challenger,
+            serviceManager,
             fromDumpNumber,
             toDumpNumber,
             amount1,
@@ -50,7 +55,7 @@ contract DataLayrPaymentChallenge {
             uint32(block.timestamp),
             2
         );
-        dlsm = IDataLayrServiceManager(msg.sender);
+        dlsm = IDataLayrServiceManager(serviceManager);
     }
 
     //challenger challenges a particular half of the payment
@@ -59,17 +64,29 @@ contract DataLayrPaymentChallenge {
         uint120 amount1,
         uint120 amount2
     ) external {
+
+        emit log("KLKLKL");
         uint8 status = challenge.status;
         require(
             (status == 3 && challenge.challenger == msg.sender) ||
                 (status == 2 && challenge.operator == msg.sender),
-            "Must be challenger and thier turn or operator and their turn"
+            "Must be challenger and their turn or operator and their turn"
         );
+        emit log("HELOOO");
+
+        emit log_uint(block.timestamp);
+        emit log_uint(challenge.commitTime);
+        emit log_named_address("YO adress HAPPENING", address(dlsm));
+
+        emit log_named_uint("YO WHATS HAPPENING", dlsm.paymentFraudProofInterval());
+
         require(
             block.timestamp <
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
+
+       
         uint48 fromDumpNumber;
         uint48 toDumpNumber;
         if (fromDumpNumber == 0) {
@@ -80,10 +97,12 @@ contract DataLayrPaymentChallenge {
             toDumpNumber = challenge.toDumpNumber;
         }
         uint48 diff;
+
+        
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //                                                      or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+        //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
             diff = (toDumpNumber - fromDumpNumber) / 2;
             challenge.fromDumpNumber = fromDumpNumber + diff;

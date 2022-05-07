@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 
+import "../contracts/interfaces/IDataLayrPaymentChallenge.sol";
 import "../test/Deployer.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
@@ -26,15 +27,18 @@ contract Delegator is EigenLayrDeployer {
     ServiceFactory factory;
     IRegistrationManager regManager;
     DelegationTerms dt;
+    uint120 amountRewards;
 
-    uint256 amountEigenToDeposit = 50;
-    uint256 amountEthToDeposit = 40;
+    uint256 amountEigenToDeposit = 20;
+    uint256 amountEthToDeposit = 2e19;
+    address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
+    address challengeContract;
 
     constructor(){
         delegators = [acct_0, acct_1];
     }
 
-       function setUp() override public  {
+    function setUp() override public  {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
@@ -138,28 +142,25 @@ contract Delegator is EigenLayrDeployer {
         
         _testinitiateDelegation(1e10);
 
-        //servicemanager pays out rewards
+        //servicemanager pays out rewards to delegate and delegators
         _payRewards();
         
-        //withdraw rewards
-        // uint32[] memory indices = [0];
-        // dt.withdrawPendingRewards(indices);
-        // (
-        //     IInvestmentStrategy[] memory strategies,
-        //     uint256[] memory shares,
-        //     uint256 eigenAmount
-        // ) = investmentManager.getDeposits(delegator);
+        
 
         // for(uint i; i < delegators.length; i++){
+        //     (
+        //     IInvestmentStrategy[] memory strategies,
+        //     uint256[] memory shares
+        // ) = investmentManager.getDeposits(delegators[i]);
         //     dt.onDelegationWithdrawn(delegators[i], strategies, shares);
         // }
 
     }
     function _testinitiateDelegation(uint256 amountToDeposit) public {
 
-        emit log_named_address("DLSM", address(dlsm));
         //setting up operator's delegation terms
         weth.transfer(registrant, 1e5);
+        weth.transfer(challenger, 1e5);
         cheats.startPrank(registrant);
         dt = _setDelegationTerms(registrant);
         delegation.registerAsDelegate(dt);
@@ -194,14 +195,10 @@ contract Delegator is EigenLayrDeployer {
             delegation.delegateTo(registrant);
             cheats.stopPrank();
         }
-        emit log("yup");
 
         cheats.startPrank(registrant);
-        emit log("yup34"); 
         uint8 registrantType = 3;
         string memory socket = "fe";
-
-        emit log_uint(weth.totalSupply());
 
         //register operator with vote weigher so they can get payment
         dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
@@ -210,24 +207,89 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function _payRewards() internal {
+        amountRewards = 10;
 
-        emit log_named_uint("hello", dlsm.dumpNumber());
+        //Operator submits claim to rewards
+        _testCommitPayment(amountRewards);
 
+        //Challenge payment test
+        _testPaymentChallenge(registrant, 5,4);
+
+
+        // cheats.startPrank(registrant);
+        // cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
+        // dlsm.redeemPayment();
+
+        
+
+        // uint prevBalance =  weth.balanceOf(registrant);
+        // dt.operatorWithdrawal();
+        // //assertTrue(weth.balanceOf(registrant) > prevBalance, "operator not paid");
+        // cheats.stopPrank();
+
+    }
+   
+    //Challenger initiates the challenge to operator's claim
+    // challenge status:  0: commited, 1: redeemed, 2: operator turn (dissection), 3: challenger turn (dissection)
+    // 4: operator turn (one step), 5: challenger turn (one step)
+    function _testPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal{
+        challengeContract = _testInitPaymentChallenge(operator, amount1, amount2);
+
+        //The challenger has initiated a challenge to the payment commit of the operator
+        //The next step is for the operator to respond to the proposed split of the challenger
+        //This back and forth continues until there is resolution
+
+        _operatorDisputesChallenger(operator, amount1, amount2);
+
+        
+    }
+
+    function _operatorDisputesChallenger(address operator, uint120 amount1, uint120 amount2) internal{
+        cheats.startPrank(operator);
+        IDataLayrPaymentChallenge(challengeContract).challengePaymentHalf(true, amount1, amount2);
+        cheats.stopPrank();
+    }
+
+    function _challengerDisputesOperator(address operator, uint120 amount1, uint120 amount2) internal{
+
+    }
+
+    //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
+    function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal returns(address){
+        cheats.startPrank(challenger);
+        weth.approve(address(dlsm), type(uint256).max);
+
+        //challenger initiates challenge
+        dlsm.challengePaymentInit(operator, amount1, amount2);
+        address challengeContract = dlsm.operatorToPaymentChallenge(operator);
+        cheats.stopPrank();
+
+        return challengeContract;
+    }
+
+
+
+     //Operator submits claim or commit for a payment amount
+    function _testCommitPayment(uint120 amountRewards) internal {
         bytes memory header = bytes(
             "0x0102030405060708091011121314151617181920"
         );
 
-        weth.transfer(storer, 10e10);
-        cheats.prank(storer);
-        weth.approve(address(dlsm), type(uint256).max);
-        cheats.prank(storer);
 
-        dlsm.initDataStore(
-            header,
-            1e6,
-            600
-        );
+        //make 40 different data commits to DL
+        for (uint i=0; i<40; i++){
+            weth.transfer(storer, 10e10);
+            cheats.prank(storer);
+            weth.approve(address(dlsm), type(uint256).max);
+            cheats.prank(storer);
 
+            dlsm.initDataStore(
+                header,
+                1e6,
+                600
+            );
+        }
+        
         bytes32 headerHash = keccak256(header);
         (
             uint48 dataStoreDumpNumber,
@@ -236,36 +298,18 @@ contract Delegator is EigenLayrDeployer {
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
 
-       
         cheats.startPrank(registrant);
         weth.approve(address(dlsm), type(uint256).max);
 
         uint256 currBalance = weth.balanceOf(address(dt));
-        uint120 amountRewards = 10;
-
         dlsm.commitPayment(dataStoreDumpNumber, amountRewards);
-        cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
-        dlsm.redeemPayment();
-
-        assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
-
-        emit log_named_uint("operator balance before", weth.balanceOf(registrant));
-        dt.operatorWithdrawal();
-        emit log_named_uint("operator balance after", weth.balanceOf(registrant));
-
-
-
         cheats.stopPrank();
 
+        //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
 
-    function _setDelegationTerms(address operator) internal returns (DelegationTerms){
-        dt = _initializeDelegationTerms(operator);
-        return dt;
-
-    }
-
-    function _initializeDelegationTerms(address operator) internal returns (DelegationTerms) {
+    //initialize delegation terms contract
+    function _setDelegationTerms(address operator) internal returns (DelegationTerms) {
         address[] memory paymentTokens = new address[](0);
         uint16 _MAX_OPERATOR_FEE_BIPS = 500;
         uint16 _operatorFeeBips = 500;
