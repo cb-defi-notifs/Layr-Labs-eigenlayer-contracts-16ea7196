@@ -100,7 +100,7 @@ contract DataLayrPaymentChallenge is DSTest{
         if (half) {
             diff = (toDumpNumber - fromDumpNumber) / 2;
             emit log_named_uint("DIFF", diff);
-            emit log("********************************");
+            emit log("**************MLM*****************");
             challenge.fromDumpNumber = fromDumpNumber + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
@@ -122,6 +122,7 @@ contract DataLayrPaymentChallenge is DSTest{
             updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
+        emit log_named_uint("STATUS", challenge.status);
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
@@ -147,16 +148,12 @@ contract DataLayrPaymentChallenge is DSTest{
         uint120 amount2
     ) internal {
         if (disectionType == 1) {
-            emit log_uint(amount1);
-            emit log_uint(amount2);
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != challenge.amount1,
                 "Invalid amount bbbreakdown"
             );
         } else if (disectionType == 3) {
-            
-
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != challenge.amount2,
@@ -300,5 +297,8 @@ contract DataLayrPaymentChallenge is DSTest{
     }
     function getFromDumpNumber() external returns (uint48){
         return challenge.fromDumpNumber;
+    }
+    function getDiff() external returns (uint48){
+        return challenge.toDumpNumber - challenge.fromDumpNumber;
     }
 }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
 import "../contracts/interfaces/IDataLayrPaymentChallenge.sol";
@@ -18,6 +19,7 @@ import "./CheatCodes.sol";
 
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
+    using Math for uint;
     uint shares;
     address[2] public delegators;
     ServiceManagerBase serviceManager;
@@ -120,12 +122,24 @@ contract Delegator is EigenLayrDeployer {
         _testCommitPayment(amountRewards);
 
         //initiate challenge
-        challengeContract = _testInitPaymentChallenge(registrant, 5, 4);
+        challengeContract = _testInitPaymentChallenge(registrant, 5, 3);
         dlpc = IDataLayrPaymentChallenge(challengeContract);
+
+        bool half = true;
 
 
         //Challenge payment test
-        _testPaymentChallenge(registrant, 5, 5, 5, 4);
+        _operatorDisputesChallenger(registrant, half, 2, 3);
+        _challengerDisputesOperator(registrant, half, 1, 1);
+        _operatorDisputesChallenger(registrant, half, 1, 1);
+        emit log_uint(dlpc.getDiff());
+        emit log("c");
+
+
+        //dlpc.respondToPaymentChallengeFinal();
+        //dlpc.resolveChallenge();
+
+        //_testPaymentChallenge(registrant, 5, 5, 5, 3);
 
     }
    
@@ -151,37 +165,28 @@ contract Delegator is EigenLayrDeployer {
 
         bool half = operatorAmount1 != challengerAmount1 ? false : true;
 
-
-
-        _operatorDisputesChallenger(operator, half, operatorAmount1, operatorAmount2);
-
-        
     }
 
+    function _operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) internal{
 
-    function _operatorDisputesChallenger(address operator, bool half, uint120 operatorAmount1, uint120 operatorAmount2) internal{
         cheats.startPrank(operator);
-        if(half){
-            uint120 disputedAmount =  dlpc.getAmount2();
-            emit log_named_uint("disputed amount", disputedAmount); //4 //real amount is 5
-
-            uint120 newAmount1 = disputedAmount/2;
-            uint120 newAmount2 = operatorAmount2 - disputedAmount/2;
-
-            emit log_named_uint("challenge amount 1 bfroe", dlpc.getAmount1());
-            emit log_named_uint("challenge amount 2 before", dlpc.getAmount2());
-            dlpc.challengePaymentHalf(half, newAmount1, newAmount2);
-            emit log_named_uint("challenge amount 1 after", dlpc.getAmount1());
-            emit log_named_uint("challenge amount 2 after", dlpc.getAmount2());
-            emit log_uint(dlpc.getFromDumpNumber());
-            emit log_uint(dlpc.getToDumpNumber());
-            
+        if (dlpc.getDiff() == 1){
+            emit log("HIT OPERATOR DIFF 1");
+            return;
         }
+
+        dlpc.challengePaymentHalf(half, amount1, amount2);
         cheats.stopPrank();
+
+        //Now we calculate the challenger's response amounts
     }
 
-    function _challengerDisputesOperator(bool half, uint120 amount1, uint120 amount2) internal{
+    function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
         cheats.startPrank(challenger);
+        if (dlpc.getDiff() == 1){
+            emit log("HIT OPERChallenger ATOR DIFF1");
+            return;
+        }
         dlpc.challengePaymentHalf(half, amount1, amount2);
         cheats.stopPrank();
 
@@ -261,77 +266,5 @@ contract Delegator is EigenLayrDeployer {
         return dt;
 
     }
-
-
-    //if half=true, then we are looking at the second half
-    // function _recursiveHelper(
-    //     address operator, 
-    //     bool half,
-    //     uint120 operatorAmount1, 
-    //     uint120 operatorAmount2, 
-    //     uint120 challengerAmount1, 
-    //     uint120 challengerAmount2
-    //     ) internal{
-    //         emit log("WHAT??");
-    //         uint8 status = IDataLayrPaymentChallenge(challengeContract).getChallengeStatus();
-    //         if(status==4 || status==5){
-    //             emit log("REACHED");
-    //             return;
-    //         }
-
-    //         if (half){
-    //             uint120 newChallengerAmount2 = challengerAmount2/2;
-    //             if(challengerAmount2 % 2 == 0){
-    //                 _challengerDisputesOperator(half, newChallengerAmount2, newChallengerAmount2);
-    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2);
-    //                 _recursiveHelper(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2, newChallengerAmount2, newChallengerAmount2);
-
-    //             }
-    //             else{
-    //                 _challengerDisputesOperator(half, newChallengerAmount2, newChallengerAmount2+1);
-    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2);
-    //                 _recursiveHelper(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2, newChallengerAmount2, newChallengerAmount2+1);
-    //             }
-    //         }
-    //         else{
-    //             uint120 newChallengerAmount1 = challengerAmount1/2;
-    //             if(challengerAmount2 % 2 == 0){
-    //                 _challengerDisputesOperator(half, newChallengerAmount1, newChallengerAmount1);
-    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1);
-    //                 _recursiveHelper(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1, newChallengerAmount1, newChallengerAmount1);
-
-    //             }
-    //             else{
-    //                 _challengerDisputesOperator(half, newChallengerAmount1, newChallengerAmount1+1);
-    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1);
-    //                 _recursiveHelper(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1, newChallengerAmount1, newChallengerAmount1+1);
-    //             }
-
-    //         }
-
-            
-
-
-    // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 }
