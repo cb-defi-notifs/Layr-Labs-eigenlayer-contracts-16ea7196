@@ -107,7 +107,7 @@ contract EigenLayrDeployer is
     address acct_1 = cheats.addr(uint256(priv_key_1));
 
     //performs basic deployment before each test
-    function setUp() public  {
+    function setUp() public {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
@@ -249,21 +249,21 @@ contract EigenLayrDeployer is
 
         //loads hardcoded signer set
         _setSigners();
-        registrationData.push(hex"0a94806675ea2f011a001d18e7a261ea7c8d1f902884e647e637e5e577fcd66400217cf55fa5e35ade042501f1486966ecd482b53f14d9dc3c001e2fa484c449962a85c5c465244cfc5163c9f14d8bdb56dbea1ff8685e99636e9076df87117a201c4a79e305e295d9bf9a61becbf95e76262fffc88888f2bcf83876c86431cf462864d48f11719fab32967a3b6d547124a6bcfcfb0891887a282b6688ba4158d7");
-        registrationData.push(hex"2ffd6171073c0e545073a9bc7c452d2677974f29540ed71fd1933dfc02629a660021ebaab8a762a1beaecd9e378bcc6525ab53aeed4f9a5d21c27aea78f413ea461d4aa348699d79e54916f5c7b545bc95c556b91a923596928c52035658bbeb88181fb59de5e8a87ed94a7757e79f64c947b62b1bf7d08e2fe4c4fd88f68180fb03c0035a93e7dadda09303a1e4e7be8018dfcc67919d7f82a79fc4e3e3138f45");
-        registrationData.push(hex"06cb60fa77995fef4c3f56ee5b74a6963c9b53e8dd91937fdef6574f9b5db56b0105e4c920e32a0469ba7e00f873e9cf2e0848aff1bb1fe80a4923aeadcde7c2592c5defc05811861e09e7cd10cf5042da406d11d8af66a3e3e3b4c5c31507be3413b340fa427dbacbe981d02c850a58ffa5af850b9d2e53bb5b99c6c235fa4c0208d3d99d5bec30411c822eb592302427507296c86c94660d9fc129c2bad333b3");
-        registrationData.push(hex"174f94b12b5628c554319f4871093e6657c57247416611804006d6cbbc3f47d3010916b81be3ae37e2bc6eff35a081317de6e88eb5b245af3e3cc8e8cf1410b33d07bc410121cea80da157a2ad7082c8d849c48bf430f4c5dc92a86ce201b39b7c2c4478ce29f331128e1005d53924cdde59fcac805210b620ecac33db87765ed11a10157f4ae7a30b5fd4c122a6bd3ee6a04f1f717a76b325bd51e0a1e9aec3c4");
-        registrationData.push(hex"209fe56fe29a93e108d735b086b7de6a932d1abd6d70d15689785e0538ce43910029469c20b0a16654a0215bbad542c5210550c85c021cc0842378eff0dac80fa2130c9d145baaad1a6251c221dd991fb90ed0dad3fd4203780bdb25a0cb8c346e2acca2648ab1886db2a65052a3075cc0993c5052d7c4b84e4eda218637db18710c3567986dea2ed30016a418725fb3d21e60fb072618851f14f5c38077346c16");
-        registrationData.push(hex"1a826a2953682088a2f84b2295d729d22aef96a2b543cfb8341802764482d543002dfcabd0075583de7305a61e14b07c314b6184f454faf213a3e8504608a23d2402e1d6824dd1a30ea7398ec95b4877979b6a176269a1b5d213f4cce668c5655e02452456e3bcea2666a50b06e030a9bad2caa028313b2b8cbca35303624c99fc1e2e7300b8d2c79933ca478bc764ef09f4d9eea5d864550984d978280e3f30bc");
-        registrationData.push(hex"20043c208cc8d16d1648eb160bc5a9a69d97def0778700bd93342265c8e1fe8b010c6a6cc438514f3579d4241c3404eb2c57fef6f84eeafc10669c6a42b9ef2e261eac24d04dfa7e1fffb07865288ffdebe24094acf1a15f2b57af3d11e1798c5a28ac16141b09b94d90cd23e7db07cc2c759d52d94b5746921d491b031ddb8c1123710005ed7788a843df024bd5b7253fcde14a944c02cddccb7e204759c3a402");
-        registrationData.push(hex"266356b759998d7865cc43666979a4e55443a31d6f79a95db4c63aaa0feb53d60000f9f42f10116d3b616748406dafce11814d424a9e6b55c518dc2d4b8482815819997da97fc609e4a9a3b48b4a6aeaf74ed5c975ab34179565664e9af13ddec802cce476dc270b74cf01aa69fbc0853850c9897e6dd2ca365d7fb3668be30b8c0312c1aeb59e0e72a1258237bb40e9cdec653ce8480ae9f0a24083c91de290cd");
-        registrationData.push(hex"05afc73ebe6ad85b90e238ba92a25533db875eb09c8ea0ea84c33fa27349d15e01148f603a5c8b70d271ca089645f1edba811f8ad1ea0e461364d0756172f194131cabf63a23857d1c982d35fa61aef6b33d6b9a817b36cb22595347afd1a283001f3021d6fd579bd350584abe31237e0e523d2f0102e9733830d9adbe4bf8d7c80cd61ebdf2df7d6d77fdc254fda89de607187bfc42cdbc77e6fb3cac3bec5a1f");
-        registrationData.push(hex"1f7eb3a98e544d6d86bd517d83cde98494ff22ed4bc2adb13c32819920d267dd00216fe46ac550db4f5a9afd82bcdeac529076206fccdf4a56ea43a41131400d6a1d6236e1a788ccba2f0d7517111612573384f77f16e24870175ed4757a45c7f125b04215fa6035599709911783275196ee4bebdb41ab81af9e7e0198ab6650e70484bf5d5c79ed47a65f77f7ef8265bb35024d3dcfd12cd30fe62815a10ce979");
-        registrationData.push(hex"1d77b2a20afed3a528a4dee6b3bffc1fd9d7a1385093161c4327394b02f5487201227e01159f9e9c2ad6186452037bc393344fed31b7bce64b88858663c92bc53f2910d6491e9cd6eafb4e49bef78477a6de2f16b2d2257ca91dc8f46672f1924312d6e03fe3ced2051b262bedd8bef32e8afebdce64ce03ac57da5d1eac4adfd20ab9cf5972ae412593ef4a61a7fb0d46d820a2ed0982cdc3ea997fee8644ba1b");
-        registrationData.push(hex"2984f278d7240ec84524ec7b0d1ab198150c1ac0921fea5412a039a75d71f7d2012ca7448feb6c1a66f6a10df59426ddaddb504518a28ffc092f84fa0ac141aae006b14859c56f012d4b484121e15a8ed14b17a9f30f190a71f2fe8219a2734db72d8d9d516d61e02cbb653efc46953672161c79332261e42f0982b59229b9f4be2641e670866e49142f85fb104b07f14848d7c68c74024fc32f0b2ce7a88c1835");
-        registrationData.push(hex"0b959fb5a7e444f81bc7f64146b7a01a029a323d4d2cea12f323a26b714b14d90123f84391d1838688da2c8e7aa1e5162b63ecfaf76690f53fca17c23fe66848e12ce535322df1c220239216b39bb1cd3f45d29185d3203b5314eec420b10583ad013ba8092d0e24ab77da734dfd1761dd7ea9af4c058431c51fb7b046b0a332b42a73d9818b2b53f22c8f3cc0c44a5bf497b76f045bccbd0b4f414146dfdf4d39");
-        registrationData.push(hex"2833747188c0471f00de01fbc7195022b541d562ced648a86f149cf7aec3d543002ef9a05caa70028a4b99ed0cba3341fb4f6773570a27147a4f5619dca46e266611f7ea600a3511ba61ff4e171167f9c088c5869615d4b7d1a85b03dd4f68aef82c876b9dabe12d4a972b15bcd4d374efd667f4e2324dcd07e861416b726ad8c31df8bc4410b6a2b0255c5c8c19a3902d48c8bf82ee7cd5e5714ea00f8bf3c3d8");
-        registrationData.push(hex"1e53397e7a398cd41a04a103394592d878fe3a93bf3fa750590ba89cae512fcf000f396f1a8d944b1fcbe2877b3e99a2da9f540641afadd0a0abc8023c935b1303265760a58d2fe92c8088312fae0a1f14a8716b179de670e1aa864a8e4de97e5b20407dbcf523ae4171eee01357f92eb407a30a4b30f372cd9f6266e6650d3b0a03c15c863f3a591d76bd6b9ab62a8300fc71a2325a7b400cf7319efeec849d01");
+        registrationData.push(hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f20fd9f812e64d2be18573054ece7aef8a3fae1618068b08cfdc9722d4254a5c1c1c3241bc604d574aef221cfa3e7abd0334554fdae446fa2258a36c1bb725110d");
+        registrationData.push(hex"2669082021fd1033646a940aabe3f459e7b7a808d959c392af45c91b3fe064960bce92bfb1a54bc1af73b41a1edb13bd9e5006471c5d4708f77ea530f1045b7a0914646c43c0b404345c7864daa76091996c36227ac5b2ad5a7468ab49ebaf7b13357d53c87adfee0aa3b2c7dbca5d00660c4c5ed1acbeebb4c9202101dab4f01d21849e7ec98d09ba242b6f5ca31407f9819acd40f4aa036e7bbacbdd3af2d42f0a64cc4b8ee3af7a898ca674219743ca599d7b0506a371ba79161524fad80d");
+        registrationData.push(hex"142b758de8ad4c74e8167d71b3667cf75e982f006480ecafdde2a403748e7d1b2dd77f6eac473a31fddba53321584cd0aa296f14d14f098093937a5b93dd61c90cc3e0a7657c894d178a7ff41ae51b5ccc4c697684c599015b003aceeb2fec641863a130465043a63a1acf5494ee76895779044613264c5f65a106834b6615901ac1b422373760d0769efe667a1af135e7447a97b906dc3b4b3d56546eb8ecc31a25249cfff25b5a742b3690ba9c88cdeba85b6b20d0c77353fe7a548efdfc8a");
+        registrationData.push(hex"2af2ac3833ce14949c9ef3fbccf620e3a13c9df686687634f9546a76ec5899f7219bfb0cf2f2817525cd89082302218c3cf83b3beae6c4fbe25ae4a790e948d307d64b5418c89567b5956590d6232c4ed95afd9d06d5a13b1f9c0c306a9260fe04783304a0c560710cb4f1bdc8096e7a67e39be589513dc644845b2e66fc19dd084bba4c75ba9dafb4e83e6c8de24ae1dff9ec06812c211321df381d09aa44691e4c3d98475d044e547281470e5dc33098943c018299e08ab3c89b70d452926a");
+        registrationData.push(hex"2c63a558d2384cf3f387db39c48c3b72595ef13adbc3ca7689bc90bae7e4ab060620e82d1bb6c52977529ece1fe1d31b0521492a06c661e06363b3be8306acd10746c80e9dacb5731c65232cf5fb5a2450e4f2e44d44fbc9d6cbf19dd30db776226488c51bfacbf7704d12065eb3ad1b9a707a4f61d41effdcb2ced3e01c4269147423e6e542b715c56e5e0b005348a71e3375e5301710c58017b78919a3c10707a9573924f2b6f5044a231d2a70a61b8b064fc97ec29f072d862f5d399a1476");
+        registrationData.push(hex"0076c0c034a6916e712bb41ed97530c4475c78c89f916137511d03ee94b670691a904a8de426166c9a7e6e3e36260973db56b218336dc89c68e2710026abe9e61612d3f5da47c52b552d66322623d688f5046baa625e4f66556cafed25c61980017458bcef061aafd36e998f0f5958439f175df8ffd3a286bc4986eafdb6d4701c07ff8c6632b0d251c106f434171de8ea44271f0e68a2b5e070376ae35aecfe1f4bde7af27b8dee86137ccf31685ec72185a52154a719087a363326a81713db");
+        registrationData.push(hex"1fb489ea26c1b85899bad2104702946ef256a7e59f26080bfddce2a64e94e3991947cd387f975963abc04838968f3eb128263b73c57c6820107395eca138fd98100bcb4ba69885f5020187520c35df6ff5b991b01bab7b83ad63c23af7e03b0c1efe7165964b7e66443b25b76fe6717739760afae192948aed7ae74f81564255190add561a44c0bd1234f01bad469e63dfd915eb9da9e49ee2f71f72cf554f021ef6b31132d974049e139f4389ec34a2b7404b67e55db7da768907d10801069a");
+        registrationData.push(hex"0e7fc7b5bca43de3fab4acc5a7a014bb9bb5aff171cb26ae31bffe2bc529db0f1269f9809e4069bddf06aaf88187192e241fb817a6c8bbb5aff3836a0520e6b61aca04d4cc4f83d755ac2e9e083197afee1ea77d42e9429fa4b3fb64276f78001e7951e39e5de9c4c89e41fc0fbcf8f59438e85a60d1ac40293ab862f1b4c3bd1182464e8fd0d33351275c3e02d0adbb593d6fc34c7b251becca6ef19e70d91025d14a460697676e73f4c259be24d71b6d59dc5f5ec3026ad9ce50f0c314af65");
+        registrationData.push(hex"18b1f796356a80ea2cc1c0e23a3e7331a97a417473cf83a5f6942ecf9a84cc351a187ceef1a2436db814c6d5a83b16b6dd48f69b23d07f7e3544cf9f3a4edd8a031b8f1c6711edff8267eb49c6a9ecd2de39eaea18621db1f601186b6c8b56ee1a7bb20411a152aaac50010240dad6f82a7dc818fe6565db4132350d69eaeec60b0306663891836f6d11cde6af281687d4703b3c45abb1b3c18519491b1986f30d38c69d223be9fb4733b490f4da70c9694bc73496b341e5fa428f1ed59ba41d");
+        registrationData.push(hex"15ba1ac04f35335cfd1c9c1fcaac012871e3543bb7876b38be193e3f07592aab0323619b00d87f3c03d4bab25c91b8bc4b7aa96818930f2b4684ae8f6e92464b30298b441eaadcfb3b86e0b3f0e41250060dbb89e34c2d67acef7ed9a2590db42108f4f14af5ff87b2b9b7d766c4be119b790f34c9b3b1a62d16f6a95935d2e01ea7023966c26530c81055e0a50c5062918357effe2eb0b9e9c5662d62ed92ce01c43aa265da0850a4b60dd33b66cc9a9ad3037c7dd2a6a0a9611a698f227d3c");
+        registrationData.push(hex"0822ccd871333690ea42c6e7fa1b594c785d8296fc8bacc8a10ddda8f3378ebb0d68db879257ec3f74d4fc1cffd17a9f1b6db08b7c421753dbce0751d6d7d23a07873fdb87a38f72a537da1cc20b48d1186594430718e15ec5e195ab3c65f8102f6a351c01b3cfc217c9ab936382a53b9a350851ecbaf43e6a0f086bf8ec395401693e8f639b1d98d81719c2f9fcdb45ba37bba1ecc4343c8daaf3e44d5f2e8e20acc7c63d987f4a5fe894c3f205b9e2425433fe6b5278d53351f8b4bd6aa705");
+        registrationData.push(hex"1a6962a7170cf4ea2ad4bd0bf9a95c4e6bf96e9302e345b9d12bfbf6fb86dc911733c8198257dc9003ba0163d217b48fdb14e6ce91691242064ae21d821980481ad1e21ac4adc2eebad1e279e490b307aafafcf43a3e63decb19f7dac7d5a26c1fa208243839cf96ee3218652239dc06119770cebe08776c1bd92af9626f04d01a0f55e82e7c08ea1d868630d37e874ba7ad3038264a13b7a5ca0939973502cb191aacc894a8abb566cd982f607deb0c18f3abf846fc3eb6843cbbaa9738d588");
+        registrationData.push(hex"13185695a1abc17847ce6a90edc65eb04c0ebd218156f122ef689674e82ebb331ad5be86a500c6b0b490cbe70610356448aa2b06442f364b138fe7cd0df5efa9294cbc1ccb8c6afdbc05938f368521351328222ac99388e7a26c4f9d51ad1024042a5a5286bbcc22f94e95555be8a193731c2c265b64aa25fde8a047202a6d95051ae01267d28a2fd5e0b1b150709f5ea825727bd6e458223ada31fa2cce53181428260faa6fc03cdde9a77b82eaece16808ff3bc767ab159adb2047081f233c");
+        registrationData.push(hex"1db8d40c46e9992c0e020568b3f1c02fa4aef44c5db1610325093280218f2ab014c3ab56f0d82ad9ff275fae94e51a17c613302e5aa2f2de7001ae181727f8d4053c3d457ad36273361e3b35d02cea6c93879a55f0d086a77e58dc0d5805c6b428fc018be860797143a2b0296ed35113addbf3c0e8aaf6ea93c0acb3db78bae105d176cce68e50136fb116ad9eb04ddf0d810bf07c2e2bf39c56dea317744fa20eb7fc03d877c15b1e6a4c021c604ce4b629a475678c3888a997a398551813b0");
+        registrationData.push(hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a414b5c501b3a03cd83ef2c1d31e0d46f6087f498b508aab54710fe6bcb7922a5a103bc846a08ed3768a9542b7293bf0d254134427070a9f2f88d47e566a21c741");
     }
 
     function testDeploymentSuccessful() public {
@@ -308,8 +308,65 @@ contract EigenLayrDeployer is
         );
     }
 
+    // function testE2() public {
+    //     uint256 gas0 = gasleft();
+    //     E2.addJac(
+    //         [
+    //             16940785324452348635992944982086905647516261030288644621829277832435093717162,
+    //             8401401490756564420272172490354616701629587303716804186731922457199553655742,
+    //             2200354257610182565441132732833438202174557018186746499397198993370265236514,
+    //             17095333892345298111161738825425230498463317863159444866557946136283431204362,
+    //             14785826602540123512392148344509005496249192475307252199759965538807164193833,
+    //             9189660566391726585332029637137298967388607370887228656340655906244808497020
+    //         ],
+    //         [
+    //             8608946071402414754779647538809012881798658144764473110808718496782042055227,
+    //             19459316801049918887468319268321135760886708051969582642264761971195775635187,
+    //             14283736377967057699345761116067961584816287250338548158996741478515831505730,
+    //             19965855455731552503348993691856470574147482301480743704692714658398376561253,
+    //             8870333478013170162127933423632957954153017927683413088478188690883867400508,
+    //             20970188582830179325192502629380520565320228575180745883239595974499081486845
+    //         ]
+    //     );
+    //     uint256 gas1 = gasleft();
+    //     for (uint i = 0; i < 10; i++) {
+    //         E2.addJac(
+    //             [
+    //                 16940785324452348635992944982086905647516261030288644621829277832435093717162,
+    //                 8401401490756564420272172490354616701629587303716804186731922457199553655742,
+    //                 2200354257610182565441132732833438202174557018186746499397198993370265236514,
+    //                 17095333892345298111161738825425230498463317863159444866557946136283431204362,
+    //                 14785826602540123512392148344509005496249192475307252199759965538807164193833,
+    //                 9189660566391726585332029637137298967388607370887228656340655906244808497020
+    //             ],
+    //             [
+    //                 8608946071402414754779647538809012881798658144764473110808718496782042055227,
+    //                 19459316801049918887468319268321135760886708051969582642264761971195775635187,
+    //                 14283736377967057699345761116067961584816287250338548158996741478515831505730,
+    //                 19965855455731552503348993691856470574147482301480743704692714658398376561253,
+    //                 8870333478013170162127933423632957954153017927683413088478188690883867400508,
+    //                 20970188582830179325192502629380520565320228575180745883239595974499081486845
+    //             ]
+    //         );
+    //     }
+    //     uint256 gas11 = gasleft();
+    //     for (uint i = 0; i < 10; i++) {
+    //         E2.addJac(
+    //             [13506727255773795144315680029704080214342843760127900558694278035844711794885,860777676355831110273799363891754093645878892944028645123888749647573809879,15267756830832320657395337524493875300654959775089810802936792127399318210629,10639898247497145090326046495696235139127036347688130755236390521164948859094,1,0],
+    //             [5383953684893666017772726539111703322102615374017331155756544245098562797288,316269460602238916553457473369605945672938555548735193235768375330608440731,7318401266095658276660502776426314357535095760928025610265551016835940218097,11801648757969528274474441051262602082523509772031359996597572164316927345785,8647270789825366092544269303730475512613608392881797943184546360153410212675,21279796494994290180652092991392470278254072695376261510472781042329897718188]
+    //         );
+    //     }
+    //     uint256 gas21 = gasleft();
+
+    //     emit log_named_uint("1 addition", gas0 - gas1);
+    //     emit log_named_uint("10 addition", gas1 - gas11);
+    //     emit log_named_uint("10 addition more", gas11 - gas21);
+    // }
+
     function testBLS_Basic() public {
-        (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(registrationData[0]);
+        BLS.verifyBLSSigOfPubKeyHash(
+            registrationData[0]
+        );
     }
 
     //verifies that depositing WETH works
@@ -519,9 +576,7 @@ contract EigenLayrDeployer is
     //initiates a data store
     //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
     function _testInitDataStore() internal returns (bytes32) {
-        bytes memory header = bytes(
-            "0x0102030405060708091011121314151617181920"
-        );
+        bytes memory header = hex"0102030405060708091011121314151617181920";
         uint32 totalBytes = 1e6;
         uint32 storePeriodLength = 600;
 
@@ -530,11 +585,7 @@ contract EigenLayrDeployer is
         cheats.prank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         cheats.prank(storer);
-        dlsm.initDataStore(
-            header,
-            totalBytes,
-            storePeriodLength
-        );
+        dlsm.initDataStore(header, totalBytes, storePeriodLength);
         uint48 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         (
@@ -543,7 +594,10 @@ contract EigenLayrDeployer is
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
-        assertTrue(dataStoreDumpNumber == dumpNumber, "_testInitDataStore: wrong dumpNumber");
+        assertTrue(
+            dataStoreDumpNumber == dumpNumber,
+            "_testInitDataStore: wrong dumpNumber"
+        );
         assertTrue(
             dataStoreInitTime == uint32(block.timestamp),
             "_testInitDataStore: wrong initTime"
@@ -552,7 +606,10 @@ contract EigenLayrDeployer is
             dataStorePeriodLength == storePeriodLength,
             "_testInitDataStore: wrong storePeriodLength"
         );
-        assertTrue(dataStoreCommitted == false, "_testInitDataStore: wrong committed status");
+        assertTrue(
+            dataStoreCommitted == false,
+            "_testInitDataStore: wrong committed status"
+        );
         return headerHash;
     }
 
@@ -597,17 +654,14 @@ contract EigenLayrDeployer is
         );
     }
 
-    function testSelfOperatorRegister()
-        public
-        returns (bytes memory)
-    {
+    function testSelfOperatorRegister() public {
         // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
         _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
     }
 
-    function testTwoSelfOperatorsRegister() public
-    {
+    function testTwoSelfOperatorsRegister() public {
         address sender = acct_0;
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
         _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
     }
 
@@ -643,7 +697,7 @@ contract EigenLayrDeployer is
     //     _testConfirmDataStoreSelfOperators(12);
     // }
 
-// TODO: fix this to work with a variable number again, if possible
+    // TODO: fix this to work with a variable number again, if possible
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
@@ -652,7 +706,10 @@ contract EigenLayrDeployer is
         //register all the operators
         for (uint256 i = 0; i < numberOfSigners; ++i) {
             // emit log_named_uint("i", i);
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(
+                signers[i],
+                registrationData[i]
+            );
         }
         bytes32 headerHash = _testInitDataStore();
         // uint48 dumpNumber,
@@ -665,96 +722,134 @@ contract EigenLayrDeployer is
         uint32 currentDumpNumber = dlsm.dumpNumber();
 
         // form the data object
-    /*
-    From DataLayrSignatureChecker.sol:
-    FULL CALLDATA FORMAT:
-    uint48 dumpNumber,
-    bytes32 headerHash,
-    uint32 numberOfNonSigners,
-    bytes33[] compressedPubKeys of nonsigners
-    uint32 apkIndex
-    uint256[4] sigma
-    */
+        /*
+        From DataLayrSignatureChecker.sol:
+        FULL CALLDATA FORMAT:
+        uint48 dumpNumber,
+        bytes32 headerHash,
+        uint32 numberOfNonSigners,
+        bytes33[] compressedPubKeys of nonsigners
+        uint32 apkIndex
+        uint256[2] sigma
+        */
         bytes memory data = abi.encodePacked(
             currentDumpNumber,
             headerHash,
             uint32(0),
-            uint32(15),
-            uint256(11509234998032783125480266028213992619847908725038453197451386571405359529652),
-            uint256(4099696940551850412667065443628214990719002449715926250279745743126938401735),
-            uint256(19060191254988907833052035421850065496347936631097225966803157637464336346786),
-            uint256(16129402215257578064845163124174157135534373400489420174780024516864802406908)
+            uint32(14),
+            uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
+            uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
+            uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
+            uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672),
+            uint256(
+                7155561537864411538991615376457474334371827900888029310878886991084477170996
+            ),
+            uint256(
+                10352977531892356631551102769773992282745949082157652335724669165983475588346
+            )
         );
 
         uint256 gasbefore = gasleft();
         dlsm.confirmDataStore(data);
-        emit log_named_uint("gas spent on confirm, testConfirmDataStoreSelfOperators()", gasbefore - gasleft());
+        emit log_named_uint(
+            "gas spent on confirm, testConfirmDataStoreSelfOperators()",
+            gasbefore - gasleft()
+        );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        (, , ,bool committed) = dl.dataStores(headerHash);
+        (, , , bool committed) = dl.dataStores(headerHash);
         // assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
-      
-        uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
-        uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        uint96 registrantEthWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
         DelegationTerms dt = _deployDelegationTerms(registrant);
         _testRegisterAsDelegate(registrant, dt);
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
-// TODO: fix or remove this
+        // TODO: fix or remove this
         // _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
-    
-        uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
-        uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
-        assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
-        assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
+
+        uint96 registrantEthWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
+        assertTrue(
+            registrantEthWeightAfter > registrantEthWeightBefore,
+            "testDelegation: registrantEthWeight did not increase!"
+        );
+        assertTrue(
+            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            "testDelegation: registrantEigenWeight did not increase!"
+        );
         // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
         // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
         // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
-
     }
 
-    function _testRegisterAsDelegate(address sender, DelegationTerms dt) internal {
+    function _testRegisterAsDelegate(address sender, DelegationTerms dt)
+        internal
+    {
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
-        assertTrue(delegation.delegationTerms(sender) == dt, "_testRegisterAsDelegate: delegationTerms not set appropriately");
+        assertTrue(
+            delegation.delegationTerms(sender) == dt,
+            "_testRegisterAsDelegate: delegationTerms not set appropriately"
+        );
         cheats.stopPrank();
     }
 
-    function _deployDelegationTerms(address operator) internal returns (DelegationTerms) {
+    function _deployDelegationTerms(address operator)
+        internal
+        returns (DelegationTerms)
+    {
         address[] memory paymentTokens = new address[](1);
         paymentTokens[0] = address(weth);
         uint16 _MAX_OPERATOR_FEE_BIPS = 500;
         uint16 _operatorFeeBips = 500;
-        DelegationTerms dt =
-            new DelegationTerms(
-                operator,
-                investmentManager,
-                paymentTokens,
-                serviceFactory,
-                address(delegation),
-                _MAX_OPERATOR_FEE_BIPS,
-                _operatorFeeBips
-            );
-        assertTrue(address(dt) != address(0), "_deployDelegationTerms: DelegationTerms failed to deploy");
+        DelegationTerms dt = new DelegationTerms(
+            operator,
+            investmentManager,
+            paymentTokens,
+            serviceFactory,
+            address(delegation),
+            _MAX_OPERATOR_FEE_BIPS,
+            _operatorFeeBips
+        );
+        assertTrue(
+            address(dt) != address(0),
+            "_deployDelegationTerms: DelegationTerms failed to deploy"
+        );
         return dt;
     }
 
-
-     function _testDelegateToOperator(address sender, address operator) internal {
-         cheats.startPrank(sender);
-         delegation.delegateTo(operator);
-         assertTrue(delegation.delegation(sender) == operator, "_testDelegateToOperator: delegated address not set appropriately");
-         //TODO: write this properly
-         assertTrue(uint8(delegation.delegated(sender)) == 1, "_testDelegateToOperator: delegated status not set appropriately");
-         // TODO: add more checks?
-         cheats.stopPrank();
-     }
+    function _testDelegateToOperator(address sender, address operator)
+        internal
+    {
+        cheats.startPrank(sender);
+        delegation.delegateTo(operator);
+        assertTrue(
+            delegation.delegation(sender) == operator,
+            "_testDelegateToOperator: delegated address not set appropriately"
+        );
+        //TODO: write this properly
+        assertTrue(
+            uint8(delegation.delegated(sender)) == 1,
+            "_testDelegateToOperator: delegated status not set appropriately"
+        );
+        // TODO: add more checks?
+        cheats.stopPrank();
+    }
 
     //     function _testDelegateToBySignature(address sender, address operator, uint256 priv_key) internal {
     //         cheats.startPrank(sender);
@@ -791,11 +886,19 @@ contract EigenLayrDeployer is
         }
     }
 
-    function _testDepositStrategies(address sender, uint256 amountToDeposit, uint16 numStratsToAdd) internal {
+    function _testDepositStrategies(
+        address sender,
+        uint256 amountToDeposit,
+        uint16 numStratsToAdd
+    ) internal {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         testAddStrategies(numStratsToAdd);
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            _testWethDepositStrat(sender, amountToDeposit, WethStashInvestmentStrategy(address(strategies[i])));
+            _testWethDepositStrat(
+                sender,
+                amountToDeposit,
+                WethStashInvestmentStrategy(address(strategies[i]))
+            );
             // removed testing of deprecated functionality
             // assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
@@ -803,24 +906,37 @@ contract EigenLayrDeployer is
 
     function testDepositStrategies(uint16 numStratsToAdd) public {
         _testDepositStrategies(registrant, 1e18, numStratsToAdd);
-
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
-        uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+        uint96 registrantEthWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
         DelegationTerms dt = _deployDelegationTerms(registrant);
 
         _testRegisterAsDelegate(registrant, dt);
         _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
-        uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
-        uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
-        assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
-        assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
+        uint96 registrantEthWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
+        assertTrue(
+            registrantEthWeightAfter > registrantEthWeightBefore,
+            "testDelegation: registrantEthWeight did not increase!"
+        );
+        assertTrue(
+            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            "testDelegation: registrantEigenWeight did not increase!"
+        );
         // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
         // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
         // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
@@ -840,10 +956,8 @@ contract EigenLayrDeployer is
         // }
     }
 
-
-//TODO: add tests for contestDelegationCommit() 
+    //TODO: add tests for contestDelegationCommit()
     function testUndelegation() public {
-
         //delegate
         DelegationTerms dt = _deployDelegationTerms(registrant);
         _testRegisterAsDelegate(registrant, dt);
@@ -851,13 +965,17 @@ contract EigenLayrDeployer is
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
 
-// TODO: update this to work at all again
+        // TODO: update this to work at all again
         //delegator-specific information
-        (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) = investmentManager.getDeposits(msg.sender);
+        (
+            IInvestmentStrategy[] memory delegatorStrategies,
+            uint256[] memory delegatorShares
+        ) = investmentManager.getDeposits(msg.sender);
 
         //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
-        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-            initialOperatorShares[delegatorStrategies[k]] = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            initialOperatorShares[delegatorStrategies[k]] = delegation
+                .getOperatorShares(registrant, delegatorStrategies[k]);
         }
 
         // //TODO: maybe wanna test with multple strats and exclude some? strategyIndexes are strategies the delegator wants to undelegate from
@@ -867,16 +985,23 @@ contract EigenLayrDeployer is
 
         _testUndelegation(acct_0);
 
-        for (uint256 k = 0; k < delegatorStrategies.length; k++ ){
-            uint256 operatorSharesBefore = initialOperatorShares[delegatorStrategies[k]];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(registrant, delegatorStrategies[k]);
-            assertTrue(delegatorShares[k] == operatorSharesAfter - operatorSharesBefore);
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            uint256 operatorSharesBefore = initialOperatorShares[
+                delegatorStrategies[k]
+            ];
+            uint256 operatorSharesAfter = delegation.getOperatorShares(
+                registrant,
+                delegatorStrategies[k]
+            );
+            assertTrue(
+                delegatorShares[k] == operatorSharesAfter - operatorSharesBefore
+            );
         }
     }
 
-    function _testUndelegation(address sender) internal{
+    function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
-        cheats.warp(block.timestamp+1000000);
+        cheats.warp(block.timestamp + 1000000);
         delegation.commitUndelegation();
         delegation.finalizeUndelegation();
         cheats.stopPrank();

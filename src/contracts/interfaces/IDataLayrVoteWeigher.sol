@@ -21,5 +21,5 @@ interface IDataLayrVoteWeigher {
 
     function getStakeFromPubkeyHashAndIndex(bytes32, uint256) external view returns (OperatorStake memory);
 
-    function getCorrectCompressedApk(uint256, uint32) external returns(bytes memory);
+    function getCorrectApkHash(uint256, uint32) external returns(bytes32);
 }
