@@ -270,7 +270,6 @@ contract DataLayrServiceManager is
 
         // operator puts up collateral which can be slashed in case of wrongful
         // payment claim
-        emit log_named_uint("YO", paymentFraudProofCollateral);
         collateralToken.transferFrom(
             msg.sender,
             address(this),

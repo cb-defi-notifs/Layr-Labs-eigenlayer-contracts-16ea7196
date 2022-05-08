@@ -26,6 +26,7 @@ contract Delegator is EigenLayrDeployer {
     IRepository newRepository;
     ServiceFactory factory;
     IRegistrationManager regManager;
+    IDataLayrPaymentChallenge dlpc;
     DelegationTerms dt;
     uint120 amountRewards;
 
@@ -34,105 +35,11 @@ contract Delegator is EigenLayrDeployer {
     address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     address challengeContract;
 
+
+
     constructor(){
         delegators = [acct_0, acct_1];
-    }
-
-    function setUp() override public  {
-        eigenLayrProxyAdmin = new ProxyAdmin();
-
-        //eth2 deposit contract
-        depositContract = new DepositContract();
-        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        eigen = new Eigen(address(this));
-
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
-        deposit = EigenLayrDeposit(address(new TransparentUpgradeableProxy(address(deposit), address(eigenLayrProxyAdmin), "")));
-        //do stuff this eigen token here
-        delegation = new EigenLayrDelegation();
-        delegation = EigenLayrDelegation(address(new TransparentUpgradeableProxy(address(delegation), address(eigenLayrProxyAdmin), "")));
-        slasher = new Slasher(investmentManager, address(this));
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
-        investmentManager = new InvestmentManager(eigen, delegation, serviceFactory);
-        investmentManager = InvestmentManager(address(new TransparentUpgradeableProxy(address(investmentManager), address(eigenLayrProxyAdmin), "")));
-        //used in the one investment strategy
-        weth = new ERC20PresetFixedSupply(
-            "weth",
-            "WETH",
-            wethInitialSupply,
-            address(this)
-        );
-        //do stuff with weth
-        strat = new WethStashInvestmentStrategy();
-        strat = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strat.initialize(address(investmentManager), weth);
-
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
-
-        HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
-        strats[0] = temp;
-        temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
-        strats[1] = temp;
-        strats[2] = IInvestmentStrategy(address(strat));
-        // WETH strategy added to InvestmentManager
-        strategies[0] = IInvestmentStrategy(address(strat));
-
-        address governor = address(this);
-        investmentManager.initialize(
-            strats,
-            slasher,
-            governor,
-            address(deposit)
-        );
-
-        delegation.initialize(
-            investmentManager,
-            serviceFactory,
-            slasher,
-            undelegationFraudProofInterval
-        );
-
-        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
-
-        uint256 feePerBytePerTime = 1;
-        dlsm = new DataLayrServiceManager(
-            delegation,
-            weth,
-            weth,
-            feePerBytePerTime,
-            dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory
-        );
-        dl = new DataLayr();
-
-        dlRepository = new Repository(delegation, investmentManager);
-
-        // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        // strats[0] = IInvestmentStrategy(address(strat));
-        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
-
-        Repository(address(dlRepository)).initialize(
-            dlRegVW,
-            dlsm,
-            dlRegVW,
-            timelockDelay
-        );
-
-        dl.setRepository(dlRepository);
-        dlsm.setRepository(dlRepository);
-        dlsm.setDataLayr(dl);
-
-        deposit.initialize(depositContract, investmentManager, dlsm);
-
-        liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new WethStashInvestmentStrategy();
-        liquidStakingMockStrat.initialize(address(investmentManager), IERC20(address(liquidStakingMockToken)));
-
-        //loads hardcoded signer set
-        _setSigners();
+        setUp();
     }
 
 
@@ -212,45 +119,71 @@ contract Delegator is EigenLayrDeployer {
         //Operator submits claim to rewards
         _testCommitPayment(amountRewards);
 
+        //initiate challenge
+        challengeContract = _testInitPaymentChallenge(registrant, 5, 4);
+        dlpc = IDataLayrPaymentChallenge(challengeContract);
+
+
         //Challenge payment test
-        _testPaymentChallenge(registrant, 5,4);
-
-
-        // cheats.startPrank(registrant);
-        // cheats.warp(block.timestamp + dlsm.paymentFraudProofInterval()+1);
-        // dlsm.redeemPayment();
-
-        
-
-        // uint prevBalance =  weth.balanceOf(registrant);
-        // dt.operatorWithdrawal();
-        // //assertTrue(weth.balanceOf(registrant) > prevBalance, "operator not paid");
-        // cheats.stopPrank();
+        _testPaymentChallenge(registrant, 5, 5, 5, 4);
 
     }
    
     //Challenger initiates the challenge to operator's claim
     // challenge status:  0: commited, 1: redeemed, 2: operator turn (dissection), 3: challenger turn (dissection)
     // 4: operator turn (one step), 5: challenger turn (one step)
-    function _testPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal{
-        challengeContract = _testInitPaymentChallenge(operator, amount1, amount2);
+    function _testPaymentChallenge(
+        address operator, 
+        uint120 operatorAmount1, 
+        uint120 operatorAmount2, 
+        uint120 challengerAmount1, 
+        uint120 challengerAmount2
+        ) internal{
+
+        
 
         //The challenger has initiated a challenge to the payment commit of the operator
         //The next step is for the operator to respond to the proposed split of the challenger
         //This back and forth continues until there is resolution
 
-        _operatorDisputesChallenger(operator, amount1, amount2);
+        uint120 challengerTotal = challengerAmount1 + challengerAmount2;
+        uint120 operatorTotal = operatorAmount1 + operatorAmount2;
+
+        bool half = operatorAmount1 != challengerAmount1 ? false : true;
+
+
+
+        _operatorDisputesChallenger(operator, half, operatorAmount1, operatorAmount2);
 
         
     }
 
-    function _operatorDisputesChallenger(address operator, uint120 amount1, uint120 amount2) internal{
+
+    function _operatorDisputesChallenger(address operator, bool half, uint120 operatorAmount1, uint120 operatorAmount2) internal{
         cheats.startPrank(operator);
-        IDataLayrPaymentChallenge(challengeContract).challengePaymentHalf(true, amount1, amount2);
+        if(half){
+            uint120 disputedAmount =  dlpc.getAmount2();
+            emit log_named_uint("disputed amount", disputedAmount); //4 //real amount is 5
+
+            uint120 newAmount1 = disputedAmount/2;
+            uint120 newAmount2 = operatorAmount2 - disputedAmount/2;
+
+            emit log_named_uint("challenge amount 1 bfroe", dlpc.getAmount1());
+            emit log_named_uint("challenge amount 2 before", dlpc.getAmount2());
+            dlpc.challengePaymentHalf(half, newAmount1, newAmount2);
+            emit log_named_uint("challenge amount 1 after", dlpc.getAmount1());
+            emit log_named_uint("challenge amount 2 after", dlpc.getAmount2());
+            emit log_uint(dlpc.getFromDumpNumber());
+            emit log_uint(dlpc.getToDumpNumber());
+            
+        }
         cheats.stopPrank();
     }
 
-    function _challengerDisputesOperator(address operator, uint120 amount1, uint120 amount2) internal{
+    function _challengerDisputesOperator(bool half, uint120 amount1, uint120 amount2) internal{
+        cheats.startPrank(challenger);
+        dlpc.challengePaymentHalf(half, amount1, amount2);
+        cheats.stopPrank();
 
     }
 
@@ -277,7 +210,7 @@ contract Delegator is EigenLayrDeployer {
 
 
         //make 40 different data commits to DL
-        for (uint i=0; i<40; i++){
+        for (uint i=0; i<9; i++){
             weth.transfer(storer, 10e10);
             cheats.prank(storer);
             weth.approve(address(dlsm), type(uint256).max);
@@ -328,6 +261,58 @@ contract Delegator is EigenLayrDeployer {
         return dt;
 
     }
+
+
+    //if half=true, then we are looking at the second half
+    // function _recursiveHelper(
+    //     address operator, 
+    //     bool half,
+    //     uint120 operatorAmount1, 
+    //     uint120 operatorAmount2, 
+    //     uint120 challengerAmount1, 
+    //     uint120 challengerAmount2
+    //     ) internal{
+    //         emit log("WHAT??");
+    //         uint8 status = IDataLayrPaymentChallenge(challengeContract).getChallengeStatus();
+    //         if(status==4 || status==5){
+    //             emit log("REACHED");
+    //             return;
+    //         }
+
+    //         if (half){
+    //             uint120 newChallengerAmount2 = challengerAmount2/2;
+    //             if(challengerAmount2 % 2 == 0){
+    //                 _challengerDisputesOperator(half, newChallengerAmount2, newChallengerAmount2);
+    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2);
+    //                 _recursiveHelper(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2, newChallengerAmount2, newChallengerAmount2);
+
+    //             }
+    //             else{
+    //                 _challengerDisputesOperator(half, newChallengerAmount2, newChallengerAmount2+1);
+    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2);
+    //                 _recursiveHelper(operator, half, newChallengerAmount2, operatorAmount2 - newChallengerAmount2, newChallengerAmount2, newChallengerAmount2+1);
+    //             }
+    //         }
+    //         else{
+    //             uint120 newChallengerAmount1 = challengerAmount1/2;
+    //             if(challengerAmount2 % 2 == 0){
+    //                 _challengerDisputesOperator(half, newChallengerAmount1, newChallengerAmount1);
+    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1);
+    //                 _recursiveHelper(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1, newChallengerAmount1, newChallengerAmount1);
+
+    //             }
+    //             else{
+    //                 _challengerDisputesOperator(half, newChallengerAmount1, newChallengerAmount1+1);
+    //                 _operatorDisputesChallenger(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1);
+    //                 _recursiveHelper(operator, half, newChallengerAmount1, operatorAmount1 - newChallengerAmount1, newChallengerAmount1, newChallengerAmount1+1);
+    //             }
+
+    //         }
+
+            
+
+
+    // }
 
 
 

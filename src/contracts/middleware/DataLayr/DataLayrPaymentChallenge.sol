@@ -55,6 +55,7 @@ contract DataLayrPaymentChallenge is DSTest{
             uint32(block.timestamp),
             2
         );
+
         dlsm = IDataLayrServiceManager(serviceManager);
     }
 
@@ -64,21 +65,13 @@ contract DataLayrPaymentChallenge is DSTest{
         uint120 amount1,
         uint120 amount2
     ) external {
-
-        emit log("KLKLKL");
         uint8 status = challenge.status;
         require(
             (status == 3 && challenge.challenger == msg.sender) ||
                 (status == 2 && challenge.operator == msg.sender),
             "Must be challenger and their turn or operator and their turn"
         );
-        emit log("HELOOO");
 
-        emit log_uint(block.timestamp);
-        emit log_uint(challenge.commitTime);
-        emit log_named_address("YO adress HAPPENING", address(dlsm));
-
-        emit log_named_uint("YO WHATS HAPPENING", dlsm.paymentFraudProofInterval());
 
         require(
             block.timestamp <
@@ -97,6 +90,7 @@ contract DataLayrPaymentChallenge is DSTest{
             toDumpNumber = challenge.toDumpNumber;
         }
         uint48 diff;
+    
 
         
         //change interval to the one challenger cares about
@@ -105,12 +99,15 @@ contract DataLayrPaymentChallenge is DSTest{
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
             diff = (toDumpNumber - fromDumpNumber) / 2;
+            emit log_named_uint("DIFF", diff);
+            emit log("********************************");
             challenge.fromDumpNumber = fromDumpNumber + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
                 challenge.toDumpNumber = toDumpNumber;
             }
-            updateChallengeAmounts(1, amount1, amount2);
+            //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
+            updateChallengeAmounts(3, amount1, amount2);
         } else {
             diff = (toDumpNumber - fromDumpNumber);
             if (diff % 2 == 1) {
@@ -122,7 +119,7 @@ contract DataLayrPaymentChallenge is DSTest{
                 challenge.toDumpNumber = toDumpNumber - diff;
                 challenge.fromDumpNumber = fromDumpNumber;
             }
-            updateChallengeAmounts(2, amount1, amount2);
+            updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
@@ -150,12 +147,16 @@ contract DataLayrPaymentChallenge is DSTest{
         uint120 amount2
     ) internal {
         if (disectionType == 1) {
+            emit log_uint(amount1);
+            emit log_uint(amount2);
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != challenge.amount1,
-                "Invalid amount breakdown"
+                "Invalid amount bbbreakdown"
             );
         } else if (disectionType == 3) {
+            
+
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != challenge.amount2,
@@ -282,5 +283,22 @@ contract DataLayrPaymentChallenge is DSTest{
     function resolve(bool challengeSuccessful) internal {
         dlsm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
+    }
+
+    function getChallengeStatus() external returns(uint8){
+        return challenge.status;
+    }
+
+    function getAmount1() external returns (uint120){
+        return challenge.amount1;
+    }
+    function getAmount2() external returns (uint120){
+        return challenge.amount2;
+    }
+    function getToDumpNumber() external returns (uint48){
+        return challenge.toDumpNumber;
+    }
+    function getFromDumpNumber() external returns (uint48){
+        return challenge.fromDumpNumber;
     }
 }
