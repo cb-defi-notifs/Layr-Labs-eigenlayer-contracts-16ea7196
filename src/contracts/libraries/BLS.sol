@@ -22,6 +22,14 @@ library BLS {
 
     // }
 
+
+    /**
+     @notice verification of BLS signature with the message being pubkey hash
+     */
+    /**
+     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @return pubkey is the pubkey
+     */ 
     function verifyBLSSigOfPubKeyHash(bytes calldata data)
         public
         returns (uint256, uint256, uint256, uint256)
@@ -48,13 +56,13 @@ library BLS {
             mstore(add(input, 0x160), nG2y0)
         }
 
-        //calculate H(m) = H(pk)
+        // calculate H(m) = H(pk)
         (input[0], input[1]) = hashToG1(
             keccak256(abi.encodePacked(input[2], input[3], input[4], input[5]))
         );
 
         assembly {
-            //check the pairing
+            // check the pairing
             if iszero(
                 call(not(0), 0x08, 0, input, 0x0180, add(input, 0x20), 0x20)
             ) {
@@ -64,10 +72,15 @@ library BLS {
 
         require(input[1] == 1, "Pairing was unsuccessful");
 
-        //return pk
+        // return pk
         return (input[3], input[2], input[5], input[4]);
     }
 
+
+
+    /**
+     @notice same function as AddAssign in https://github.com/ConsenSys/gnark-crypto/blob/master/ecc/bn254/g2.go
+     */
     function addJac(uint256[6] memory jac1, uint256[6] memory jac2)
         public
         pure
@@ -77,9 +90,12 @@ library BLS {
         //ALL 2 ELEMENTS EACH
         // var XX, YY, YYYY, ZZ, S, M, T fptower.E2
 
+
         if (jac1[4] == 0 && jac1[5] == 0) {
+            // on point 1 being a point at infinity
             return jac2;
         } else if (jac2[4] == 0 && jac2[5] == 0) {
+            // on point 2 being a point at infinity
             return jac1;
         }
 
@@ -289,6 +305,10 @@ library BLS {
         return jac1;
     }
 
+
+    /**
+     @notice used for squaring a Fq2 element - (x0 + ix1)
+     */
     function square(uint256 x0, uint256 x1)
         internal
         pure
@@ -307,6 +327,7 @@ library BLS {
         }
         return (z[2], z[3]);
     }
+
 
     function jacToAff(uint256[6] memory jac) public view returns(uint256[4] memory) {
         if (jac[4] == 0 && jac[5] == 0) {
@@ -366,6 +387,10 @@ library BLS {
         return (t[0], MODULUS - t[1]);
     }
 
+
+    /**
+     @notice used for multiplying two Fq2 elements - (x0 + ix1) and (y0 + iy1).
+     */
     function mul(
         uint256 x0,
         uint256 x1,
