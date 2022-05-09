@@ -23,7 +23,7 @@ library BLS {
     // }
 
     function verifyBLSSigOfPubKeyHash(bytes calldata data)
-        public
+        internal
         returns (uint256, uint256, uint256, uint256)
     {
         uint256 offset = 68;
@@ -69,7 +69,7 @@ library BLS {
     }
 
     function addJac(uint256[6] memory jac1, uint256[6] memory jac2)
-        public
+        internal
         pure
         returns (uint256[6] memory)
     {
@@ -308,7 +308,7 @@ library BLS {
         return (z[2], z[3]);
     }
 
-    function jacToAff(uint256[6] memory jac) public view returns(uint256[4] memory) {
+    function jacToAff(uint256[6] memory jac) internal view returns(uint256[4] memory) {
         if (jac[4] == 0 && jac[5] == 0) {
             return [uint256(0), uint256(0), uint256(0), uint256(0)];
         }
@@ -327,7 +327,7 @@ library BLS {
         return aff;
     }
 
-    function inverse(uint256 x0, uint256 x1) public view returns(uint256, uint256) {
+    function inverse(uint256 x0, uint256 x1) internal view returns(uint256, uint256) {
         uint256[2] memory t;
         assembly {
             mstore(t, mulmod(x0, x0, MODULUS))
