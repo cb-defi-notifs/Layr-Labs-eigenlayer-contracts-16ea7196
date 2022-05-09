@@ -270,7 +270,6 @@ contract DataLayrServiceManager is
 
         // operator puts up collateral which can be slashed in case of wrongful
         // payment claim
-        emit log_named_uint("YO", paymentFraudProofCollateral);
         collateralToken.transferFrom(
             msg.sender,
             address(this),
@@ -287,6 +286,9 @@ contract DataLayrServiceManager is
             fromDumpNumber = IDataLayrVoteWeigher(
                 address(repository.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
+
+
+
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
@@ -391,6 +393,7 @@ contract DataLayrServiceManager is
             .createDataLayrPaymentChallenge(
                 operator,
                 msg.sender,
+                address(this),
                 operatorToPayment[operator].fromDumpNumber,
                 operatorToPayment[operator].toDumpNumber,
                 amount1,

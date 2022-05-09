@@ -79,17 +79,14 @@ contract DataLayrVoteWeigher is
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
     //the dump number in which the apk is updated
-    APKUpdateMetaData[] public apkUpdates;
+    uint32[] public apkUpdates;
 
-    struct APKUpdateMetaData {
-        // true  if y =  sqrt(y^2)
-        // false if y = -sqrt(y^2)
-        bool yParity;
-        uint32 dumpNumber;
-    }
+    //list of keccak256(apk_x1, apk_x0, apk_y1, apk_y0)
+    bytes32[] public apkHashes;
+    //the current aggregate public key, used for uncoordinated registration
+    uint256[4] public apk = [10857046999023057135944570762232829481370756359578518086990519993285655852781,11559732032986387107991004021392285783925812861821192530917403151452391805634,8495653923123431417604973247489272438418190587263600148770280649306958101930,4082367875863433681332203403145435568316851327593401208105741076214120093531];
 
-    //list of keccak256(apk_x, apk_y) at update times
-    uint256[] public apkXCoordinates;
+    
 
     // EVENTS
     event StakeAdded(
@@ -136,9 +133,7 @@ contract DataLayrVoteWeigher is
             _strategiesConsidered
         )
     {
-        //apk_0 = 0
-        apkUpdates.push(APKUpdateMetaData(false, 0));
-        apkXCoordinates.push(1);
+        //apk_0 = g2Gen
         //initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
@@ -345,46 +340,24 @@ contract DataLayrVoteWeigher is
         return registry[operator].active;
     }
 
-    function getCorrectCompressedApk(uint256 index, uint32 dumpNumberToConfirm)
+    function getCorrectApkHash(uint256 index, uint32 dumpNumberToConfirm)
         public
         // view
-        returns (bytes memory)
+        returns (bytes32)
     {
-        APKUpdateMetaData memory apkUpdate = apkUpdates[index];
         require(
-            dumpNumberToConfirm >= apkUpdate.dumpNumber,
+            dumpNumberToConfirm >= apkUpdates[index],
             "Index too recent"
         );
 
         //if not last update
         if (index != apkUpdates.length - 1) {
             require(
-                dumpNumberToConfirm < apkUpdates[index + 1].dumpNumber,
+                dumpNumberToConfirm < apkUpdates[index + 1],
                 "Not latest valid apk update"
             );
         }
-        uint256 apk_x = apkXCoordinates[index];
-        bool yParity = apkUpdate.yParity;
-        bytes
-            memory compressed = hex"000000000000000000000000000000000000000000000000000000000000000000";
-        assembly {
-            mstore(add(compressed, 0x20), apk_x)
-            mstore(add(compressed, 0x40), shl(yParity, 248))
-        }
-        return compressed;
-    }
-
-    function getCompressedApk() public returns (bytes memory) {
-        uint256 updateLastIndex = apkUpdates.length - 1;
-        uint256 apk_x = apkXCoordinates[updateLastIndex];
-        bool yParity = apkUpdates[updateLastIndex].yParity;
-        bytes
-            memory compressed = hex"000000000000000000000000000000000000000000000000000000000000000000";
-        assembly {
-            mstore(add(compressed, 0x21), yParity)
-            mstore(add(compressed, 0x20), apk_x)
-        }
-        return compressed;
+        return apkHashes[index];
     }
 
     function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
@@ -455,37 +428,23 @@ contract DataLayrVoteWeigher is
             address(repository.serviceManager())
         ).dumpNumber();
 
-        uint256[4] memory input;
+        uint256[4] memory newApk;
+        uint256[4] memory pk;
 
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (uint256 pk_x, uint256 pk_y) = BLS.verifyBLSSigOfPubKeyHash(data);
-            assembly {
-                mstore(input, pk_x)
-                mstore(add(input, 0x20), pk_y)
-            }
+            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data);
+            //add pk to apk
+            uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
+            newApk = BLS.jacToAff(newApkJac);
+            apk = newApk;
         }
 
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
+        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
-        {
-            //get coors of apk
-            (uint256 apk_x, uint256 apk_y) = decompressPublicKey(
-                getCompressedApk()
-            );
-
-            //add new public key to apk
-            assembly {
-                mstore(add(input, 0x40), apk_x)
-                mstore(add(input, 0x60), apk_y)
-            }
-        }
-
-        //overwrite first to indexes of input with new apk
-        assembly {
-            if iszero(call(not(0), 0x06, 0, input, 0x80, input, 0x40)) {
-                revert(0, 0)
-            }
+        if(apkUpdates.length != 0) {
+            //addition doesn't work in this case
+            require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
         // emit log_bytes(getCompressedApk());
@@ -493,13 +452,9 @@ contract DataLayrVoteWeigher is
         // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
         // update apk coordinates
-        apkUpdates.push(
-            APKUpdateMetaData(
-                getYParity(input[0], input[1]),
-                currentDumpNumber
-            )
-        );
-        apkXCoordinates.push(input[0]);
+        apkUpdates.push(currentDumpNumber);
+        //store hashed apk
+        apkHashes.push(keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3])));
 
         _operatorStake.dumpNumber = currentDumpNumber;
 
@@ -547,124 +502,5 @@ contract DataLayrVoteWeigher is
         }
 
         emit Registration(operator);
-    }
-
-    function decompressPublicKey(bytes memory compressed)
-        public
-        returns (uint256, uint256)
-    {
-        uint256 x;
-        uint256 ySquared;
-        uint256[] memory input = new uint256[](6);
-        assembly {
-            //x is the first 32 bytes of compressed
-            x := mload(add(compressed, 0x20))
-            x := mod(x, MODULUS)
-            // ySquared = x^2 mod m
-            ySquared := mulmod(x, x, MODULUS)
-            // ySquared = x^3 mod m
-            ySquared := mulmod(ySquared, x, MODULUS)
-            // ySquared = x^3 + 3 mod m
-            ySquared := addmod(ySquared, 3, MODULUS)
-            //really the elliptic curve equation is y^2 = x^3 + 3 mod m
-            //so we have y^2 stored, so let's find the sqrt
-
-            // (y^2)^((MODULUS + 1)/4) = y
-            // base of exponent is y
-            mstore(
-                add(input, 0x20),
-                32 // y is 32 bytes long
-            )
-            // the exponent (MODULUS + 1)/4 is also 32 bytes long
-            mstore(add(input, 0x40), 32)
-            // MODULUS is 32 bytes long
-            mstore(add(input, 0x60), 32)
-            // base is y
-            mstore(add(input, 0x80), ySquared)
-            // exponent is (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            mstore(
-                add(input, 0xA0),
-                0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            )
-            //MODULUS
-            mstore(add(input, 0xC0), MODULUS)
-            //store sqrt(y^2) = y in first element of input
-            if iszero(
-                call(
-                    not(0),
-                    0x05,
-                    0,
-                    add(input, 0x20),
-                    0xE0,
-                    add(input, 0x20),
-                    0x20
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        //use 33rd byte as toggle for the sign of sqrt
-        //because y and -y are both solutions
-        if (compressed[32] != 0) {
-            input[0] = MODULUS - input[0];
-        }
-        return (x, input[0]);
-    }
-
-    function getYParity(uint256 x, uint256 yExpected) public returns (bool) {
-        uint256 ySquared;
-        uint256[] memory input = new uint256[](6);
-        assembly {
-            //x is the first 32 bytes of compressed
-            x := mod(x, MODULUS)
-            // ySquared = x^2 mod m
-            ySquared := mulmod(x, x, MODULUS)
-            // ySquared = x^3 mod m
-            ySquared := mulmod(ySquared, x, MODULUS)
-            // ySquared = x^3 + 3 mod m
-            ySquared := addmod(ySquared, 3, MODULUS)
-            //really the elliptic curve equation is y^2 = x^3 + 3 mod m
-            //so we have y^2 stored, so let's find the sqrt
-
-            // (y^2)^((MODULUS + 1)/4) = y
-            // base of exponent is y
-            mstore(
-                add(input, 0x20),
-                32 // y is 32 bytes long
-            )
-            // the exponent (MODULUS + 1)/4 is also 32 bytes long
-            mstore(add(input, 0x40), 32)
-            // MODULUS is 32 bytes long
-            mstore(add(input, 0x60), 32)
-            // base is y
-            mstore(add(input, 0x80), ySquared)
-            // exponent is (N + 1) / 4 = 0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            mstore(
-                add(input, 0xA0),
-                0xc19139cb84c680a6e14116da060561765e05aa45a1c72a34f082305b61f3f52
-            )
-            //MODULUS
-            mstore(add(input, 0xC0), MODULUS)
-            //store sqrt(y^2) = y in first element of input
-            if iszero(
-                call(
-                    not(0),
-                    0x05,
-                    0,
-                    add(input, 0x20),
-                    0xE0,
-                    add(input, 0x20),
-                    0x20
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        //use 33rd byte as toggle for the sign of sqrt
-        //because y and -y are both solutions
-        //is yExpected -y, then true, false if y
-        return input[0] != yExpected;
     }
 }
