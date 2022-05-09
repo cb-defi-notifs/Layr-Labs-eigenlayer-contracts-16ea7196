@@ -22,6 +22,7 @@ contract Delegator is EigenLayrDeployer {
     using Math for uint;
     uint shares;
     address[2] public delegators;
+    bytes[] headers;
     ServiceManagerBase serviceManager;
     VoteWeigherBase voteWeigher;
     Repository repository;
@@ -37,11 +38,24 @@ contract Delegator is EigenLayrDeployer {
     address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     address challengeContract;
 
+    
+
 
 
     constructor(){
         delegators = [acct_0, acct_1];
         setUp();
+        headers.push(bytes("0x0102030405060708091011121314151617184567"));
+        headers.push(bytes("0x0102030405060708091011121314151617182167"));
+        headers.push(bytes("0x0102030405060708091011121314151617181920"));
+        headers.push(bytes("0x0102030405060708091011121314151617181934"));
+        headers.push(bytes("0x0102030405060708091011121314151617181956"));
+        headers.push(bytes("0x0102030405060708091011121314151617181967"));
+        headers.push(bytes("0x0102030405060708091011121314151617181909"));
+        headers.push(bytes("0x0102030405060708091011121314151617181944"));
+        headers.push(bytes("0x0102030405060708091011121314151617145620"));
+
+
     }
 
     function testinitiateDelegation() public {
@@ -65,15 +79,13 @@ contract Delegator is EigenLayrDeployer {
 
     }
     function _testinitiateDelegation(uint256 amountToDeposit) public {
-
         //setting up operator's delegation terms
         weth.transfer(registrant, 1e5);
         weth.transfer(challenger, 1e5);
         cheats.startPrank(registrant);
         dt = _setDelegationTerms(registrant);
         delegation.registerAsDelegate(dt);
-        cheats.stopPrank();
-        
+        cheats.stopPrank();        
         for(uint i; i < delegators.length; i++){
             //initialize weth, eigen and eth balances for delegator
             eigen.safeTransferFrom(address(this), delegators[i], 0, amountEigenToDeposit, "0x");
@@ -120,6 +132,7 @@ contract Delegator is EigenLayrDeployer {
 
         //Operator submits claim to rewards
         _testCommitPayment(amountRewards);
+
 
         //initiate challenge
         challengeContract = _testInitPaymentChallenge(registrant, 5, 3);
@@ -209,9 +222,6 @@ contract Delegator is EigenLayrDeployer {
 
      //Operator submits claim or commit for a payment amount
     function _testCommitPayment(uint120 amountRewards) internal {
-        bytes memory header = bytes(
-            "0x0102030405060708091011121314151617181920"
-        );
 
 
         //make 40 different data commits to DL
@@ -222,26 +232,30 @@ contract Delegator is EigenLayrDeployer {
             cheats.prank(storer);
 
             dlsm.initDataStore(
-                header,
+                headers[i],
                 1e6,
                 600
             );
+
+            bytes storage data = registrationData[0];
+            bytes32 headerHash = keccak256(headers[i]);
+            (
+                uint32 dataStoreDumpNumber,
+                uint32 dataStoreInitTime,
+                uint32 dataStorePeriodLength,
+                bool dataStoreCommitted
+            ) = dl.dataStores(headerHash);
+            cheats.startPrank(registrant);
+            weth.approve(address(dlsm), type(uint256).max);
+
+            uint256 currBalance = weth.balanceOf(address(dt));
+            dlsm.commitPayment(dataStoreDumpNumber, amountRewards);
+            cheats.stopPrank();
         }
         
-        bytes32 headerHash = keccak256(header);
-        (
-            uint32 dataStoreDumpNumber,
-            uint32 dataStoreInitTime,
-            uint32 dataStorePeriodLength,
-            bool dataStoreCommitted
-        ) = dl.dataStores(headerHash);
+       
 
-        cheats.startPrank(registrant);
-        weth.approve(address(dlsm), type(uint256).max);
-
-        uint256 currBalance = weth.balanceOf(address(dt));
-        dlsm.commitPayment(dataStoreDumpNumber, amountRewards);
-        cheats.stopPrank();
+        
 
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
