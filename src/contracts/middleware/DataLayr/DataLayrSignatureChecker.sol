@@ -35,6 +35,14 @@ abstract contract DataLayrSignatureChecker is
         uint256 totalEigenStake;
     }
 
+    event SignatoryRecord(
+        bytes32 headerHash,
+        uint32 dumpNumber,
+        uint256 ethStakeSigned,
+        uint256 eigenStakeSigned,
+        bytes32[] pubkeyHashes
+    );
+
     //NOTE: this assumes length 64 signatures
     /*
     FULL CALLDATA FORMAT:
@@ -297,6 +305,14 @@ abstract contract DataLayrSignatureChecker is
         require(input[0] == 1, "Pairing unsuccessful");
 
         //sig is correct!!!
+
+        emit SignatoryRecord(
+            headerHash,
+            dumpNumberToConfirm,
+            signedTotals.ethStakeSigned,
+            signedTotals.eigenStakeSigned,
+            pubkeyHashes
+        );
 
         //set compressedSignatoryRecord variable
         //used for payment fraud proofs
