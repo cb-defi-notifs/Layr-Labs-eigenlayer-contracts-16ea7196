@@ -264,8 +264,6 @@ contract DataLayrServiceManager is
             "Only registered operators can call this function"
         );
 
-
-
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
 
         // operator puts up collateral which can be slashed in case of wrongful
@@ -346,7 +344,6 @@ contract DataLayrServiceManager is
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
-
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
@@ -433,68 +430,95 @@ contract DataLayrServiceManager is
         }
     }
 
-    // function forceDLNToDisclose(
-    //     bytes32 headerHash,
-    //     uint256 nonSignerIndex,
-    //     bytes32[] memory nonSignerPubkeyHashes,
-    //     uint256 totalEthStakeSigned,
-    //     uint256 totalEigenStakeSigned
-    // ) public {
-    //     //get the dataStore being challenged
-    //     (
-    //         uint32 dumpNumber,
-    //         uint32 initTime,
-    //         uint32 storePeriodLength,
-    //         bool commited
-    //     ) = dataLayr.dataStores(headerHash);
-    //     require(commited, "Dump is not commited yet");
-    //     bytes32 stakeHash = IDataLayrVoteWeigher(
-    //         address(repository.voteWeigher())
-    //     ).getStakesHashUpdateAndCheckIndex(stakeHashIndex, dumpNumber);
+    function forceOperatorToDisclose(
+        bytes32 headerHash,
+        address operator,
+        uint256 nonSignerIndex,
+        bytes32[] calldata nonSignerPubkeyHashes,
+        uint256 totalEthStakeSigned,
+        uint256 totalEigenStakeSigned
+    ) public {
+        //get the dataStore being challenged
+        (
+            uint32 dumpNumber,
+            uint32 initTime,
+            uint32 storePeriodLength,
+            bool commited
+        ) = dataLayr.dataStores(headerHash);
+        require(commited, "Dump is not commited yet");
+        bytes32 signatoryHash = dumpNumberToSignatureHash[dumpNumber];
 
-    //     //hash stakes and make sure preimage is correct
-    //     require(
-    //         keccak256(stakes) == stakeHash,
-    //         "Stakes provided are inconsistent with hashes"
-    //     );
-    //     uint256 operatorPointer = 44 * operatorIndex;
-    //     //make sure pointer is before total stakes and last persons stake amounts
-    //     require(
-    //         operatorPointer < stakes.length - 67,
-    //         "Cannot point to totals or further"
-    //     );
-    //     address operator = stakes.toAddress(operatorPointer);
-    //     require(
-    //         block.timestamp < initTime + storePeriodLength - 600 ||
-    //             (block.timestamp <
-    //                 disclosureForOperator[headerHash][operator].commitTime +
-    //                     2 *
-    //                     disclosureFraudProofInterval &&
-    //                 block.timestamp >
-    //                 disclosureForOperator[headerHash][operator].commitTime +
-    //                     disclosureFraudProofInterval),
-    //         "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
-    //     );
-    //     require(
-    //         disclosureForOperator[headerHash][operator].status == 0,
-    //         "Operator is already challenged for dump number"
-    //     );
-    //     disclosureForOperator[headerHash][operator] = DisclosureChallenge(
-    //         uint32(block.timestamp),
-    //         msg.sender, // dumpNumber payment being claimed from
-    //         address(0), //address of challenge contract if there is one
-    //         0, //TODO: set degree here
-    //         1,
-    //         0,
-    //         0,
-    //         bytes32(0)
-    //     );
-    //     emit DisclosureChallengeInit(headerHash, operator);
-    // }
+        //check sigs
+        require(
+            getDumpNumberSignatureHash(dumpNumber) ==
+                keccak256(
+                    abi.encodePacked(
+                        dumpNumber,
+                        nonSignerPubkeyHashes,
+                        totalEthStakeSigned,
+                        totalEigenStakeSigned
+                    )
+                ),
+            "Sig record does not match hash"
+        );
+        {
+            IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(
+                address(
+                    repository.registrationManager()
+                )
+            );
+
+            bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
+
+            //require that the index is before where operatorpubkey hash would be
+            require(
+                uint256(nonSignerPubkeyHashes[nonSignerIndex]) <
+                    uint256(operatorPubkeyHash),
+                "Wrong index"
+            );
+
+            if (nonSignerIndex == nonSignerPubkeyHashes.length - 1) {
+                //require that the index+1 is before where operatorpubkey hash would be
+                require(
+                    uint256(nonSignerPubkeyHashes[nonSignerIndex + 1]) >
+                        uint256(operatorPubkeyHash),
+                    "Wrong index"
+                );
+            }
+        }
+        require(
+            block.timestamp < initTime + storePeriodLength - 600 ||
+                (block.timestamp <
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        2 *
+                        disclosureFraudProofInterval &&
+                    block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval),
+            "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
+        );
+        require(
+            disclosureForOperator[headerHash][operator].status == 0,
+            "Operator is already challenged for dump number"
+        );
+        disclosureForOperator[headerHash][operator] = DisclosureChallenge(
+            uint32(block.timestamp),
+            msg.sender, // dumpNumber payment being claimed from
+            address(0), //address of challenge contract if there is one
+            0, //TODO: set degree here
+            1,
+            0,
+            0,
+            bytes32(0)
+        );
+        emit DisclosureChallengeInit(headerHash, operator);
+    }
 
     function respondToDisclosureInit(
-        MultiReveal calldata multireveal,
+        uint256[4] calldata multireveal,
         bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof,
         bytes calldata header
     ) external {
         bytes32 headerHash = keccak256(header);
@@ -508,62 +532,96 @@ contract DataLayrServiceManager is
             disclosureForOperator[headerHash][msg.sender].status == 1,
             "Not in operator initial response phase"
         );
+
+        //get the commitment to the entire data polynomial, and the degree of the polynomial itself
         (
             uint256[2] memory c,
             uint48 degree
         ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
         require(
             degree * 32 == poly.length,
-            "Polynomial mus have a 256 bit coefficient for each term"
+            "Polynomial must have a 256 bit coefficient for each term"
         );
-        //get the commitment to the zero polynomial of multireveal degree
-        // e(pi, z) = pairing
-        uint256[6] memory lhs_coors;
-        lhs_coors[0] = multireveal.pi_x;
-        lhs_coors[1] = multireveal.pi_y;
-        lhs_coors[2] = zeroPolynomialCommitments[degree].x;
-        lhs_coors[3] = zeroPolynomialCommitments[degree].y;
-        lhs_coors[4] = multireveal.pairing_x;
-        lhs_coors[5] = multireveal.pairing_y;
-        //get coordinates in memory
-        uint256[8] memory rhs_coors;
-        rhs_coors[0] = multireveal.i_x;
-        rhs_coors[1] = multireveal.i_y;
-        rhs_coors[2] = multireveal.c_minus_i_x;
-        rhs_coors[3] = multireveal.c_minus_i_y;
-        uint256[2] memory i_plus_c_minus_i;
-        assembly {
-            if iszero(
-                call(not(0), 0x06, 0, rhs_coors, 0x80, i_plus_c_minus_i, 0x40)
-            ) {
-                revert(0, 0)
-            }
-        }
+
+        //deterministic assignment of "y" here
+        uint256 chunkNumber = 0; //f(operator, header);
+        //prove the zero polynomial commitment from here
         require(
-            i_plus_c_minus_i[0] == c[0] && i_plus_c_minus_i[1] == c[1],
-            "c_minus_i is not correct"
+            checkMembership(
+                keccak256(
+                    abi.encodePacked(
+                        zeroPoly[0],
+                        zeroPoly[1],
+                        zeroPoly[2],
+                        zeroPoly[3]
+                    )
+                ),
+                chunkNumber,
+                zeroPolynomialCommitmentMerlkeRoots[degree],
+                zeroPolyProof
+            ),
+            "Incorrect zero poly merkle proof"
         );
-        //TODO: Bowen what is coordinates of H?
-        rhs_coors[4] = 1;
-        rhs_coors[5] = 1;
-        rhs_coors[6] = multireveal.pairing_x;
-        rhs_coors[7] = multireveal.pairing_y;
-        //e(pi, z) = e(c_minus_i, H)
+
+        //get the commitment to the zero polynomial of multireveal degree
+        // e(pi, z)e(C - I, -g2)
+        uint256[12] memory pairingInput;
         assembly {
-            //check the lhs paring
-            if iszero(call(not(0), 0x07, 0, lhs_coors, 0xC0, 0x0, 0x0)) {
-                revert(0, 0)
-            }
-            //check the rhs paring
+            //set pi
+            mstore(pairingInput, mload(multireveal))
+            mstore(add(pairingInput, 0x20), mload(add(multireveal, 0x20)))
+            // set z
+            mstore(add(pairingInput, 0x40), mload(zeroPoly))
+            mstore(add(pairingInput, 0x60), mload(add(zeroPoly, 0x20)))
+            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x40)))
+            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x60)))
+            //set C
+            mstore(add(pairingInput, 0xC0), mload(c))
+            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
+            //set -I
+            mstore(add(pairingInput, 0x100), mload(add(multireveal, 0x40)))
+            //-I.y to get -I
+            mstore(
+                add(pairingInput, 0x120),
+                addmod(0, sub(MODULUS, mload(add(multireveal, 0x60))), MODULUS)
+            )
+        }
+        assembly {
+            //overwrite C with C-I
             if iszero(
-                call(not(0), 0x07, 0, add(rhs_coors, 0x40), 0xC0, 0x0, 0x0)
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    add(pairingInput, 0x100),
+                    0x80,
+                    add(pairingInput, 0x100),
+                    0x40
+                )
             ) {
                 revert(0, 0)
             }
         }
+        // e(pi, z)e(C - I, -g2) == 1
+        assembly {
+            //store -g2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+            //check the lhs paring
+            if iszero(
+                call(not(0), 0x08, 0, pairingInput, 0x180, pairingInput, 0x20)
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        require(pairingInput[0] == 1, "Pairing unsuccessful");
+
         //update disclosure to add commitment point, hash of poly, and degree
-        disclosureForOperator[headerHash][msg.sender].x = multireveal.i_x;
-        disclosureForOperator[headerHash][msg.sender].y = multireveal.i_y;
+        disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
+        disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
         disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
             poly
         );
@@ -577,10 +635,7 @@ contract DataLayrServiceManager is
     function initInterpolatingPolynomialFraudProof(
         bytes32 headerHash,
         address operator,
-        uint256 x_low,
-        uint256 y_low,
-        uint256 x_high,
-        uint256 y_high
+        uint256[4] memory coors
     ) public {
         require(
             disclosureForOperator[headerHash][operator].challenger ==
@@ -591,38 +646,39 @@ contract DataLayrServiceManager is
             disclosureForOperator[headerHash][operator].status == 2,
             "Not in post operator response phase"
         );
+        //update commit time
         disclosureForOperator[headerHash][operator].commitTime = uint32(
             block.timestamp
         );
+        // update status to challenged
         disclosureForOperator[headerHash][operator].status = 3;
-        uint256[6] memory coors;
-        coors[0] = x_low;
-        coors[1] = y_low;
-        coors[2] = x_high;
-        coors[3] = y_high;
+        // make sure the dissection is not commiting to the same polynomial as the DLN
+        uint256[2] memory res;
+
         assembly {
             if iszero(
-                call(not(0), 0x06, 0, coors, 0x80, add(coors, 0x80), 0x40)
+                call(not(0), 0x06, 0, coors, 0x80, res, 0x40)
             ) {
                 revert(0, 0)
             }
         }
         require(
-            coors[4] != disclosureForOperator[headerHash][operator].x ||
-                coors[5] != disclosureForOperator[headerHash][operator].y,
+            res[0] != disclosureForOperator[headerHash][operator].x ||
+                res[0] != disclosureForOperator[headerHash][operator].y,
             "Cannot commit to same polynomial as DLN"
         );
-        uint48 temp = disclosureForOperator[headerHash][operator].degree / 2;
+        //the degree has been narrowed down by half every dissection
+        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree / 2;
         disclosureForOperator[headerHash][operator].challenge = address(
             dataLayrDisclosureChallengeFactory
                 .createDataLayrDisclosureChallenge(
                     operator,
                     msg.sender,
-                    x_low,
-                    y_low,
-                    x_high,
-                    y_high,
-                    temp
+                    coors[0],
+                    coors[1],
+                    coors[2],
+                    coors[3],
+                    halfDegree
                 )
         );
     }
@@ -635,6 +691,41 @@ contract DataLayrServiceManager is
         // then return degree of multireveal polynomial
         uint256[2] memory point = [uint256(0), uint256(0)];
         return (point, 0);
+    }
+
+    //copied from
+    function checkMembership(
+        bytes32 leaf,
+        uint256 index,
+        bytes32 rootHash,
+        bytes memory proof
+    ) internal pure returns (bool) {
+        require(proof.length % 32 == 0, "Invalid proof length");
+        uint256 proofHeight = proof.length / 32;
+        // Proof of size n means, height of the tree is n+1.
+        // In a tree of height n+1, max #leafs possible is 2 ^ n
+        require(index < 2**proofHeight, "Leaf index is too big");
+
+        bytes32 proofElement;
+        bytes32 computedHash = leaf;
+        for (uint256 i = 32; i <= proof.length; i += 32) {
+            assembly {
+                proofElement := mload(add(proof, i))
+            }
+
+            if (index % 2 == 0) {
+                computedHash = keccak256(
+                    abi.encodePacked(computedHash, proofElement)
+                );
+            } else {
+                computedHash = keccak256(
+                    abi.encodePacked(proofElement, computedHash)
+                );
+            }
+
+            index = index / 2;
+        }
+        return computedHash == rootHash;
     }
 
     function resolveDisclosureChallenge(
@@ -689,34 +780,6 @@ contract DataLayrServiceManager is
             );
         }
     }
-
-// TODO: @Gautham -- fill this in or delete it?
-/*
-    function getZeroPolynomialCommitment(uint256 degree, uint256 y)
-        internal
-        returns (uint256, uint256)
-    {
-        // calculate y^degree mod p
-        bytes memory input;
-        uint256 y_to_the_degree;
-        assembly {
-            mstore(input, 4) //max 4 bytes worth of operators 2^32
-            mstore(add(input, 32), 4) //2^32 is the biggest power and smallest root of unity
-            mstore(add(input, 64), 32) //bn254's modulus is 254 bits!
-            mstore(add(input, 96), shl(224, y)) //y is the base
-            mstore(add(input, 100), shl(224, degree)) //degree is the power
-            mstore(
-                add(input, 104),
-                21888242871839275222246405745257275088696311157297823662689037894645226208583
-            ) //the modulus of bn254
-            if iszero(
-                call(not(0), 0x05, 0, input, 0x12, y_to_the_degree, 0x20)
-            ) {
-                revert(0, 0)
-            }
-        }
-    }
-*/
 
     function getDumpNumberFee(uint32 _dumpNumber)
         public
