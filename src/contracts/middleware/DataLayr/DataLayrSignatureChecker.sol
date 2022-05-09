@@ -140,11 +140,13 @@ abstract contract DataLayrSignatureChecker is
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
+            // check that the stake returned from the specified index is recent enough
             require(
                 operatorStake.dumpNumber <= dumpNumberToConfirm,
                 "Operator stake index is too early"
             );
 
+            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
             require(
                 operatorStake.nextUpdateDumpNumber == 0 ||
                     operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
@@ -204,11 +206,13 @@ abstract contract DataLayrSignatureChecker is
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
+            // check that the stake returned from the specified index is recent enough
             require(
                 operatorStake.dumpNumber <= dumpNumberToConfirm,
                 "Operator stake index is too early"
             );
 
+            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
             require(
                 operatorStake.nextUpdateDumpNumber == 0 ||
                     operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
