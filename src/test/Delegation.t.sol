@@ -44,7 +44,6 @@ contract Delegator is EigenLayrDeployer {
         setUp();
     }
 
-
     function testinitiateDelegation() public {
 
         //_initializeServiceManager();
@@ -110,7 +109,8 @@ contract Delegator is EigenLayrDeployer {
         string memory socket = "fe";
 
         //register operator with vote weigher so they can get payment
-        dlRegVW.registerOperator(registrantType, socket, abi.encodePacked(bytes24(0)));
+        bytes memory data = registrationData[0];
+        dlRegVW.registerOperator(registrantType, data, socket);
         cheats.stopPrank();
 
     }
@@ -230,7 +230,7 @@ contract Delegator is EigenLayrDeployer {
         
         bytes32 headerHash = keccak256(header);
         (
-            uint48 dataStoreDumpNumber,
+            uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted

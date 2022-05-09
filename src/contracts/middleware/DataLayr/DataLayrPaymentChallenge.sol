@@ -18,8 +18,9 @@ contract DataLayrPaymentChallenge is DSTest{
         address operator;
         address challenger;
         address serviceManager;
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
+        uint32 fromDumpNumber;
+        uint32 toDumpNumber;
+
         uint120 amount1;
         uint120 amount2;
         uint32 commitTime; // when commited, used for fraud proof period
@@ -33,14 +34,14 @@ contract DataLayrPaymentChallenge is DSTest{
         uint96 eigenStake;
     }
 
-    event PaymentBreakdown(uint48 fromDumpNumber, uint48 toDumpNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(uint32 fromDumpNumber, uint32 toDumpNumber, uint120 amount1, uint120 amount2);
 
     constructor(
         address operator,
         address challenger,
         address serviceManager,
-        uint48 fromDumpNumber,
-        uint48 toDumpNumber,
+        uint32 fromDumpNumber,
+        uint32 toDumpNumber,
         uint120 amount1,
         uint120 amount2
     ) {
@@ -79,9 +80,9 @@ contract DataLayrPaymentChallenge is DSTest{
             "Fraud proof interval has passed"
         );
 
-       
-        uint48 fromDumpNumber;
-        uint48 toDumpNumber;
+        uint32 fromDumpNumber;
+        uint32 toDumpNumber;
+
         if (fromDumpNumber == 0) {
             fromDumpNumber = challenge.fromDumpNumber;
             toDumpNumber = challenge.toDumpNumber;
@@ -89,10 +90,7 @@ contract DataLayrPaymentChallenge is DSTest{
             fromDumpNumber = challenge.fromDumpNumber;
             toDumpNumber = challenge.toDumpNumber;
         }
-        uint48 diff;
-    
-
-        
+        uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
@@ -126,7 +124,7 @@ contract DataLayrPaymentChallenge is DSTest{
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
-    function updateStatus(address operator, uint48 diff)
+    function updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
@@ -185,11 +183,9 @@ contract DataLayrPaymentChallenge is DSTest{
 
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
-        uint256 stakeOffset,
-        uint256 signerIndex,
-        address[] calldata signers,
-        uint32 stakesIndex,
-        bytes calldata stakes,
+        uint256 stakeIndex,
+        uint48 nonSignerIndex,
+        bytes32[] memory nonSignerPubkeyHashes,
         uint256 totalEthStakeSigned,
         uint256 totalEigenStakeSigned
     ) external {
@@ -198,7 +194,7 @@ contract DataLayrPaymentChallenge is DSTest{
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint48 challengedDumpNumber = challenge.fromDumpNumber;
+        uint32 challengedDumpNumber = challenge.fromDumpNumber;
         uint8 status = challenge.status;
         address operator = challenge.operator;
         //check sigs
@@ -207,8 +203,7 @@ contract DataLayrPaymentChallenge is DSTest{
                 keccak256(
                     abi.encodePacked(
                         challengedDumpNumber,
-                        signers,
-                        stakes,
+                        nonSignerPubkeyHashes,
                         totalEthStakeSigned,
                         totalEigenStakeSigned
                     )
@@ -216,54 +211,51 @@ contract DataLayrPaymentChallenge is DSTest{
             "Sig record does not match hash"
         );
 
-        //calculate the true amount deserved
+        IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
+
+        bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
+
+        // //calculate the true amount deserved
         uint120 trueAmount;
 
         //2^32 is an impossible index because it is more than the max number of registrants
         //the challenger marks 2^32 as the index to show that operator has not signed
-        if (signerIndex == 1 << 32) {
-            for (uint256 i = 0; i < signers.length; ) {
-                require(signers[i] != operator, "Operator was a signatory");
+        if (nonSignerIndex == 1 << 32) {
+            for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
+                require(nonSignerPubkeyHashes[nonSignerIndex] != operatorPubkeyHash, "Operator was not a signatory");
 
                 unchecked {
-                    i += 2;
+                    ++i;
                 }
             }
-        } else {
-            require(
-                signers[signerIndex] == operator,
-                "Signer index is incorrect"
-            );
             //TODO: Change this
             uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
-            SignerMetadata memory signerMetadata;
-            assembly {
-                //skip 44 bytes per person, load 32 bytes, shr 96 bit because only first 20 bytes
-                mstore(signerMetadata, calldataload(add(stakeOffset, mul(44, stakesIndex))))
-                    
-                //skip 44 bytes per person, then 20 bytes for the persons address, load 32 bytes
-                // shr 160 bit because only first 12 bytes
-                mstore(add(signerMetadata, 20), 
-                    calldataload(
-                        add(stakeOffset, add(mul(44, stakesIndex), 20))
-                    ))
+            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
-                //skip 44 bytes per person, then 20 bytes for the persons address, 12 bytes for ethStake, load 32 bytes,
-                // shr 160 bit because only first 12 bytes
-                mstore(add(signerMetadata, 32), 
-                    calldataload(
-                        add(stakeOffset, add(mul(44, stakesIndex), 32))
-                    ))
-            }
-            require(signerMetadata.signer == operator, "Incorrect signer index");
+            require(
+                operatorStake.dumpNumber <= challengedDumpNumber,
+                "Operator stake index is too early"
+            );
+
+            require(
+                operatorStake.nextUpdateDumpNumber == 0 ||
+                    operatorStake.nextUpdateDumpNumber > challengedDumpNumber,
+                "Operator stake index is too early"
+            );
+
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
-                (fee * signerMetadata.ethStake) /
+                (fee * operatorStake.ethStake) /
                     totalEthStakeSigned /
                     2 +
-                    (fee * signerMetadata.eigenStake) /
+                    (fee * operatorStake.eigenStake) /
                     totalEigenStakeSigned /
                     2
+            );
+        } else {
+            require(
+                nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash,
+                "Signer index is incorrect"
             );
         }
 
