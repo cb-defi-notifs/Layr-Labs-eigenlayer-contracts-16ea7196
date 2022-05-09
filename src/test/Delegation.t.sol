@@ -272,6 +272,7 @@ contract Delegator is EigenLayrDeployer {
                 paymentTokens,
                 factory,
                 address(delegation),
+                dlRepository,
                 _MAX_OPERATOR_FEE_BIPS,
                 _operatorFeeBips
             );
