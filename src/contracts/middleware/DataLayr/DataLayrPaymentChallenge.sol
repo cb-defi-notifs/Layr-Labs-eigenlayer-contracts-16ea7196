@@ -8,15 +8,19 @@ import "../../interfaces/IDataLayrVoteWeigher.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
 
-contract DataLayrPaymentChallenge {
+import "ds-test/test.sol";
+
+contract DataLayrPaymentChallenge is DSTest{
     IDataLayrServiceManager public dlsm;
     PaymentChallenge public challenge;
 
     struct PaymentChallenge {
         address operator;
         address challenger;
+        address serviceManager;
         uint32 fromDumpNumber;
         uint32 toDumpNumber;
+
         uint120 amount1;
         uint120 amount2;
         uint32 commitTime; // when commited, used for fraud proof period
@@ -35,6 +39,7 @@ contract DataLayrPaymentChallenge {
     constructor(
         address operator,
         address challenger,
+        address serviceManager,
         uint32 fromDumpNumber,
         uint32 toDumpNumber,
         uint120 amount1,
@@ -43,6 +48,7 @@ contract DataLayrPaymentChallenge {
         challenge = PaymentChallenge(
             operator,
             challenger,
+            serviceManager,
             fromDumpNumber,
             toDumpNumber,
             amount1,
@@ -50,7 +56,8 @@ contract DataLayrPaymentChallenge {
             uint32(block.timestamp),
             2
         );
-        dlsm = IDataLayrServiceManager(msg.sender);
+
+        dlsm = IDataLayrServiceManager(serviceManager);
     }
 
     //challenger challenges a particular half of the payment
@@ -63,15 +70,19 @@ contract DataLayrPaymentChallenge {
         require(
             (status == 3 && challenge.challenger == msg.sender) ||
                 (status == 2 && challenge.operator == msg.sender),
-            "Must be challenger and thier turn or operator and their turn"
+            "Must be challenger and their turn or operator and their turn"
         );
+
+
         require(
             block.timestamp <
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
+
         uint32 fromDumpNumber;
         uint32 toDumpNumber;
+
         if (fromDumpNumber == 0) {
             fromDumpNumber = challenge.fromDumpNumber;
             toDumpNumber = challenge.toDumpNumber;
@@ -83,15 +94,18 @@ contract DataLayrPaymentChallenge {
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //                                                      or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+        //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
             diff = (toDumpNumber - fromDumpNumber) / 2;
+            emit log_named_uint("DIFF", diff);
+            emit log("**************MLM*****************");
             challenge.fromDumpNumber = fromDumpNumber + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
                 challenge.toDumpNumber = toDumpNumber;
             }
-            updateChallengeAmounts(1, amount1, amount2);
+            //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
+            updateChallengeAmounts(3, amount1, amount2);
         } else {
             diff = (toDumpNumber - fromDumpNumber);
             if (diff % 2 == 1) {
@@ -103,9 +117,10 @@ contract DataLayrPaymentChallenge {
                 challenge.toDumpNumber = toDumpNumber - diff;
                 challenge.fromDumpNumber = fromDumpNumber;
             }
-            updateChallengeAmounts(2, amount1, amount2);
+            updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
+        emit log_named_uint("STATUS", challenge.status);
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
@@ -134,7 +149,7 @@ contract DataLayrPaymentChallenge {
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != challenge.amount1,
-                "Invalid amount breakdown"
+                "Invalid amount bbbreakdown"
             );
         } else if (disectionType == 3) {
             //if second half is challenged, break the second half of the payment into two halves
@@ -257,5 +272,25 @@ contract DataLayrPaymentChallenge {
     function resolve(bool challengeSuccessful) internal {
         dlsm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
+    }
+
+    function getChallengeStatus() external returns(uint8){
+        return challenge.status;
+    }
+
+    function getAmount1() external returns (uint120){
+        return challenge.amount1;
+    }
+    function getAmount2() external returns (uint120){
+        return challenge.amount2;
+    }
+    function getToDumpNumber() external returns (uint48){
+        return challenge.toDumpNumber;
+    }
+    function getFromDumpNumber() external returns (uint48){
+        return challenge.fromDumpNumber;
+    }
+    function getDiff() external returns (uint48){
+        return challenge.toDumpNumber - challenge.fromDumpNumber;
     }
 }
