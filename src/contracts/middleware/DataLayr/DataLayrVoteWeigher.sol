@@ -391,8 +391,6 @@ contract DataLayrVoteWeigher is
             "Operator is already registered"
         );
 
-        
-
         // TODO: shared struct type for this + registrantType, also used in Repository?
         OperatorStake memory _operatorStake;
 
