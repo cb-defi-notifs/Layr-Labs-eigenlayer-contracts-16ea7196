@@ -545,6 +545,8 @@ contract DataLayrVoteWeigher is
         unchecked {
             ++numRegistrants;
         }
+
+        emit Registration(operator);
     }
 
     function decompressPublicKey(bytes memory compressed)

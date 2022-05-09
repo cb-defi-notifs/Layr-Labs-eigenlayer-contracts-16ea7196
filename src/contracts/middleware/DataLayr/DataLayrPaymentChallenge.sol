@@ -70,15 +70,8 @@ contract DataLayrPaymentChallenge {
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint32 fromDumpNumber;
-        uint32 toDumpNumber;
-        if (fromDumpNumber == 0) {
-            fromDumpNumber = challenge.fromDumpNumber;
-            toDumpNumber = challenge.toDumpNumber;
-        } else {
-            fromDumpNumber = challenge.fromDumpNumber;
-            toDumpNumber = challenge.toDumpNumber;
-        }
+        uint32 fromDumpNumber = challenge.fromDumpNumber;
+        uint32 toDumpNumber = challenge.toDumpNumber;
         uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
@@ -207,7 +200,7 @@ contract DataLayrPaymentChallenge {
         //the challenger marks 2^32 as the index to show that operator has not signed
         if (nonSignerIndex == 1 << 32) {
             for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
-                require(nonSignerPubkeyHashes[nonSignerIndex] != operatorPubkeyHash, "Operator was not a signatory");
+                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "Operator was not a signatory");
 
                 unchecked {
                     ++i;
