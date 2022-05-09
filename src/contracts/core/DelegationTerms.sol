@@ -5,6 +5,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRegistrationManager.sol";
+import "../interfaces/IRepository.sol";
 
 import "ds-test/test.sol";
 
@@ -137,6 +138,8 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     address public immutable eigenLayrDelegation;
     //used for weighting of delegated ETH & EIGEN
     IInvestmentManager public immutable investmentManager;
+    // used for fetching weights
+    IRepository public immutable repository;
 
     //NOTE: copied from 'DataLayrVoteWeigher.sol'
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
@@ -165,6 +168,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         address[] memory _paymentTokens,
         IServiceFactory _serviceFactory,
         address _eigenLayrDelegation,
+        IRepository _repository,
         uint16 _MAX_OPERATOR_FEE_BIPS,
         uint16 _operatorFeeBips
     ){
@@ -173,6 +177,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         paymentTokens = _paymentTokens;
         serviceFactory = _serviceFactory;
         eigenLayrDelegation = _eigenLayrDelegation;
+        repository = _repository;
         require(_MAX_OPERATOR_FEE_BIPS <= MAX_BIPS, "MAX_OPERATOR_FEE_BIPS cannot be above MAX_BIPS");
         MAX_OPERATOR_FEE_BIPS = _MAX_OPERATOR_FEE_BIPS;
         _setOperatorFeeBips(_operatorFeeBips);
@@ -245,9 +250,9 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      */
     function payForService(IERC20 token, uint256 amount) external payable {
         // determine the repository associated with the service manager
-        IRepository repository = IServiceManager(msg.sender).repository();
+        IRepository _repository = IServiceManager(msg.sender).repository();
         // only the service manager can call this function
-        require(msg.sender == address(repository.serviceManager()), "only ServiceManagers");
+        require(msg.sender == address(_repository.serviceManager()), "only ServiceManagers");
 
         // check if the repository exists
         //TODO: fix this check
@@ -495,54 +500,14 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      *       it needs to call that investment strategy's "underlyingEthValueOfShares" function
      *       to determine the value of delegator's shares in that investment strategy in ETH.        
      */ 
-    function weightOfEth(address delegator) public view returns(uint256) {
-        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
-        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
-
-// TODO: fix this broken logic
-        // // get the strategies where delegator's assets has been staked
-        // IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
-
-        // // get the shares in the strategies where delegator's assets has been staked
-        // uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
-
-        // uint256 investorStratsLength = investorStrats.length;
-        // for (uint256 i; i < investorStratsLength;) {
-        //     // get the underlying ETH value of the shares
-        //     // each investment strategy have their own description of ETH value per share.
-        //     weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
-        //     unchecked {
-        //         ++i;
-        //     }
-        // }
-
+    function weightOfEth(address delegator) public returns(uint256) {
+        // TODO: make this work better. right now I believe this is broken if delegator falls below DLVW threshold
+        uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEth(delegator));
         return weight;
     }
-    /// @notice similar to 'weightOfEth' but restricted to not modifying state
-    function weightOfEthView(address delegator) public view returns(uint256) {
-        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
-        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
-        
-// TODO: fix this broken logic
-        // // get the strategies where delegator's assets has been staked
-        // IInvestmentStrategy[] memory investorStrats = investmentManager.getStrategies(delegator);
-
-        // // get the shares in the strategies where delegator's assets has been staked
-        // uint256[] memory investorShares = investmentManager.getStrategyShares(delegator);
-
-        // uint256 investorStratsLength = investorStrats.length;
-        // for (uint256 i; i < investorStratsLength;) {
-        //     // get the underlying ETH value of the shares
-        //     // each investment strategy have their own description of ETH value per share.
-        //     weight += investorStrats[i].underlyingEthValueOfSharesView(investorShares[i]);
-        //     unchecked {
-        //         ++i;
-        //     }
-        // }
-
+    function weightOfEigen(address delegator) public returns(uint256) {
+        // TODO: make this work better. right now I believe this is broken if delegator falls below DLVW threshold
+        uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEigen(delegator));
         return weight;
     }
-    function weightOfEigen(address user) public view returns(uint256) {
-        return investmentManager.getEigen(user);
-    } 
 }

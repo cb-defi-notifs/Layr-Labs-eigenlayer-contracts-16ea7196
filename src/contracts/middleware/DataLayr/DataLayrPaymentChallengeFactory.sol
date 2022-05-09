@@ -11,6 +11,7 @@ contract DataLayrPaymentChallengeFactory {
     function createDataLayrPaymentChallenge(
         address operator,
         address challenger,
+        address serviceManager,
         uint32 fromDumpNumber,
         uint32 toDumpNumber,
         uint120 amount1,
@@ -21,6 +22,7 @@ contract DataLayrPaymentChallengeFactory {
             new DataLayrPaymentChallenge(
                 operator,
                 challenger,
+                serviceManager,
                 fromDumpNumber,
                 toDumpNumber,
                 amount1,
