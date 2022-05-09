@@ -498,5 +498,7 @@ contract DataLayrVoteWeigher is
         unchecked {
             ++numRegistrants;
         }
+
+        emit Registration(operator);
     }
 }

@@ -42,10 +42,10 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 storePeriodLength
     );
 
-    event ConfirmDataStore(
-        uint32 dumpNumber,
-        bytes32 headerHash
-    );
+    // event ConfirmDataStore(
+    //     uint32 dumpNumber,
+    //     bytes32 headerHash
+    // );
 
     /**
      * @notice data structure for storing metadata on a particular assertion of data 
@@ -164,7 +164,7 @@ contract DataLayr is Ownable, IDataLayr {
         // record that quorum has been achieved 
         dataStores[headerHash].commited = true;
 
-        emit ConfirmDataStore(dumpNumber, headerHash);
+        // emit ConfirmDataStore(dumpNumber, headerHash);
     }
     
     
