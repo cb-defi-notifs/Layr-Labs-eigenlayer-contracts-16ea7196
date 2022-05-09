@@ -348,6 +348,9 @@ library BLS {
         return aff;
     }
 
+    /**
+     @notice same function as Inverse in https://github.com/ConsenSys/gnark-crypto/blob/528300a94e8717cb98d124ebf7de96dddca373ea/ecc/bn254/internal/fptower/e2_bn254.go#L73
+     */
     function inverse(uint256 x0, uint256 x1) public view returns(uint256, uint256) {
         uint256[2] memory t;
         assembly {
@@ -384,7 +387,7 @@ library BLS {
             mstore(add(t, 0x20), mulmod(x1, mload(add(t, 0x20)), MODULUS))
         }
 
-        return (t[0], MODULUS - t[1]);
+        return (t[0], (MODULUS - t[1]) % MODULUS);
     }
 
 
@@ -431,6 +434,10 @@ library BLS {
         return (z[3], z[4]);
     }
 
+
+    /**
+     @notice same as hashToPoint function in https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
+     */
     function hashToG1(bytes32 _x)
         internal
         view
