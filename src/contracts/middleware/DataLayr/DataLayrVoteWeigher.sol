@@ -496,7 +496,7 @@ contract DataLayrVoteWeigher is
 
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data);
+            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
             //add pk to apk
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
             newApk = BLS.jacToAff(newApkJac);

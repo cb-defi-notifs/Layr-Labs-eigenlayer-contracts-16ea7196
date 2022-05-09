@@ -30,11 +30,11 @@ library BLS {
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @return pubkey is the pubkey
      */ 
-    function verifyBLSSigOfPubKeyHash(bytes calldata data)
-        public
+    function verifyBLSSigOfPubKeyHash(bytes calldata data, uint256 offset)
+        internal
         returns (uint256, uint256, uint256, uint256)
     {
-        uint256 offset = 68;
+        // uint256 offset = 68;
         // e(H(m), pk)e(sigma, -g2) = e(H(m), pk)(e(sigma, g2)^-1) == 1?
         // is the same as
         // e(H(m), pk) == e(sigma, g2)?
@@ -82,7 +82,7 @@ library BLS {
      @notice same function as AddAssign in https://github.com/ConsenSys/gnark-crypto/blob/master/ecc/bn254/g2.go
      */
     function addJac(uint256[6] memory jac1, uint256[6] memory jac2)
-        public
+        internal
         pure
         returns (uint256[6] memory)
     {
@@ -329,7 +329,7 @@ library BLS {
     }
 
 
-    function jacToAff(uint256[6] memory jac) public view returns(uint256[4] memory) {
+    function jacToAff(uint256[6] memory jac) internal view returns(uint256[4] memory) {
         if (jac[4] == 0 && jac[5] == 0) {
             return [uint256(0), uint256(0), uint256(0), uint256(0)];
         }
@@ -351,7 +351,7 @@ library BLS {
     /**
      @notice same function as Inverse in https://github.com/ConsenSys/gnark-crypto/blob/528300a94e8717cb98d124ebf7de96dddca373ea/ecc/bn254/internal/fptower/e2_bn254.go#L73
      */
-    function inverse(uint256 x0, uint256 x1) public view returns(uint256, uint256) {
+    function inverse(uint256 x0, uint256 x1) internal view returns(uint256, uint256) {
         uint256[2] memory t;
         assembly {
             mstore(t, mulmod(x0, x0, MODULUS))
