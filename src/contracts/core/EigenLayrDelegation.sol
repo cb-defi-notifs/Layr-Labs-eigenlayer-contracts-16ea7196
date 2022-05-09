@@ -371,7 +371,7 @@ contract EigenLayrDelegation is
         //     uint256 maxSlashedAmount
         // )
 
-        slasher.slashShares(staker, address(this), strategies, strategyIndexes, amounts, 0); 
+        slasher.slashShares(staker, strategies, strategyIndexes, amounts, 0); 
 
         // TODO: reset status of staker to having not committed to de-delegation?
     }

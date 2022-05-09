@@ -136,7 +136,8 @@ contract EigenLayrDeployer is
                 )
             )
         );
-        slasher = new Slasher(investmentManager, address(this));
+        address slashingRecipient = address(this);
+        slasher = new Slasher(investmentManager, address(this), slashingRecipient);
         serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(
             eigen,
