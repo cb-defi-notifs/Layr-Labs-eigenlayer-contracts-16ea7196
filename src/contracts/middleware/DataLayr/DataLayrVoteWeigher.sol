@@ -179,10 +179,10 @@ contract DataLayrVoteWeigher is
     }
 
     /**
-     * @notice Used for notifying that operator wants to deregister from being
-     *         a DataLayr node
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    function commitDeregistration() external returns (bool) {
+     // function input is the sender's pubkey in affine coordinates
+    function commitDeregistration(uint256[4] memory pubkeyToRemoveAff) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -193,43 +193,107 @@ contract DataLayrVoteWeigher is
 
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
-        //clear stake history so cant be subtracted from apk
-        // pubkeyHashToStakeHistory[registry[msg.sender].pubkeyHash].length = 0;
 
-        emit DeregistrationCommit(msg.sender);
-        return true;
-    }
-
-    /**
-     * @notice Used by an operator to de-register itself from providing service to the middleware.
-     */
-    // TODO: decide if address input is necessary for the standard
-    // TODO: JEFFC -- delete operator out of stakes object (replace them with the last person & pop off the data)
-    function deregisterOperator(address, bytes calldata)
-        external
-        returns (bool)
-    {
-        address operator = msg.sender;
-        // TODO: verify this check is adequate
-        require(
-            registry[operator].to != 0 ||
-                registry[operator].to < block.timestamp,
-            "Operator is already registered"
+        // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
+        // get current dump number from DataLayrServiceManager
+        uint32 currentDumpNumber = IDataLayrServiceManager(
+            address(repository.serviceManager())
+        ).dumpNumber();        
+        // get operator's stored pubkeyHash and verify that it matches the 'pubkeyToRemoveAff' input
+        bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
+        bytes32 pubkeyHashFromInput = keccak256(
+            abi.encodePacked(
+                pubkeyToRemoveAff[0],
+                pubkeyToRemoveAff[1],
+                pubkeyToRemoveAff[2],
+                pubkeyToRemoveAff[3]
+            )
         );
+        require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
+        // determine current stakes
+        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
+            pubkeyHash
+        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+
+        // determine new stakes
+        OperatorStake memory newStakes;
+
+        newStakes.dumpNumber = currentDumpNumber;
+        newStakes.ethStake = uint96(0);
+        newStakes.eigenStake = uint96(0);
+
+        //set next dump number in prev stakes
+        pubkeyHashToStakeHistory[pubkeyHash][
+            pubkeyHashToStakeHistory[pubkeyHash].length - 1
+        ].nextUpdateDumpNumber = currentDumpNumber;
+        // push new stake to storage
+        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // subtract the staked Eigen and ETH of the operator that is getting deregistered
         // from the total stake securing the middleware
-        totalStake.ethAmount -= operatorStakes[operator].ethAmount;
-        totalStake.eigenAmount -= operatorStakes[operator].eigenAmount;
+        totalStake.ethAmount -= operatorStakes[msg.sender].ethAmount;
+        totalStake.eigenAmount -= operatorStakes[msg.sender].eigenAmount;
 
         // clear the staked Eigen and ETH of the operator which is getting deregistered
-        operatorStakes[operator].ethAmount = 0;
-        operatorStakes[operator].eigenAmount = 0;
+        operatorStakes[msg.sender].ethAmount = 0;
+        operatorStakes[msg.sender].eigenAmount = 0;
 
         //decrement number of registrants
         unchecked {
             --numRegistrants;
         }
+
+        // get existing aggregate public key
+        uint256[4] memory pk = apk;
+        // remove signer's pubkey from aggregate public key
+        pk = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
+        // update stored aggregate public key
+        apk = pk;
+
+        // update apk coordinates
+        apkUpdates.push(currentDumpNumber);
+        //store hashed apk
+        apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
+
+        emit DeregistrationCommit(msg.sender);
+        return true;
+    }
+
+    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal returns (uint256[4] memory) {
+        uint256[6] memory pubkeyToRemoveJac;
+        uint256[6] memory existingAggPubkeyJac;
+        for (uint256 i = 0; i < 4;) {
+            pubkeyToRemoveJac[i] = pubkeyToRemoveAff[i];
+            existingAggPubkeyJac[i] = existingAggPubkeyAff[i];
+            unchecked {
+                ++i;
+            }
+        }
+        pubkeyToRemoveJac[4] = 1;
+        existingAggPubkeyJac[4] = 1;
+
+        //subtract pubkeyToRemoveJac from the aggregate pubkey
+        //to do this, negate pubkeyToRemoveJac first, then add the negation to existingAggPubkeyJac
+        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
+        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
+        BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
+        // 'addJac' function above modifies the first input in memory, so now we can just return it (but first transform it back to affine)
+        return (BLS.jacToAff(existingAggPubkeyJac));
+    }
+
+    /**
+     * @notice Used by an operator to complete the deregistration process
+     */
+    function deregisterOperator()
+        external
+        returns (bool)
+    {
+        require(
+            registry[msg.sender].to != 0 &&
+                registry[msg.sender].to < block.timestamp,
+            "Operator has not yet commited deregistration, or still has active commitments"
+        );
+        // TODO: REMOVE ABILITY TO SLASH THE OPERATOR ANY MORE
 
         return true;
     }
@@ -251,6 +315,7 @@ contract DataLayrVoteWeigher is
 
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+            // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
             // determine current stakes
             OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
@@ -431,7 +496,7 @@ contract DataLayrVoteWeigher is
 
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data);
+            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
             //add pk to apk
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
             newApk = BLS.jacToAff(newApkJac);
@@ -440,7 +505,7 @@ contract DataLayrVoteWeigher is
 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
-        if(apkUpdates.length != 0) {
+        if (apkUpdates.length != 0) {
             //addition doesn't work in this case
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }

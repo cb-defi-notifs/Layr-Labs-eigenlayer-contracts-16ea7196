@@ -77,6 +77,7 @@ contract Slasher is Governed {
         }
     }
 
+// TODO: make it so a repository contract can revoke its ability to slash your funds
     // give the contract permission to slash your funds
     function allowToSlash(address repository) external {
         optedIntoSlashing[msg.sender][repository] = true;

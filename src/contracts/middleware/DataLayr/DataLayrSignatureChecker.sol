@@ -26,15 +26,24 @@ abstract contract DataLayrSignatureChecker is
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
+
     struct SignatoryTotals {
-        //total eth stake of the signatories
+        // total eth stake of the signatories
         uint256 ethStakeSigned;
-        //total eigen stake of the signatories
+
+        // total eigen stake of the signatories
         uint256 eigenStakeSigned;
+
+        // total ETH staked by all DataLayr nodes (including non-signers)
         uint256 totalEthStake;
+
+        // total Eigen staked by all DataLayr nodes (including non-signers)
         uint256 totalEigenStake;
     }
 
+    /**
+     @notice 
+     */
     event SignatoryRecord(
         bytes32 headerHash,
         uint32 dumpNumber,
