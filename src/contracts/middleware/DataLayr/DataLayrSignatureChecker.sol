@@ -53,16 +53,19 @@ abstract contract DataLayrSignatureChecker is
     );
 
     //NOTE: this assumes length 64 signatures
-    /*
-    FULL CALLDATA FORMAT:
-    uint48 dumpNumber,
-    bytes32 headerHash,
-    uint32 numberOfNonSigners,
-    uint256[numberOfSigners][4] pubkeys of nonsigners,
-    uint32 apkIndex,
-    uint256[4] apk,
-    uint256[2] sigma
-    */
+    /**
+     @notice    
+     */
+    /** 
+     @dev Full calldata format:
+                uint32 dumpNumber,
+                bytes32 headerHash,
+                uint32 numberOfNonSigners,
+                uint256[numberOfSigners][4] pubkeys of nonsigners,
+                uint32 apkIndex,
+                uint256[4] apk,
+                uint256[2] sigma
+     */
     function checkSignatures(bytes calldata data)
         public
         returns (
@@ -75,11 +78,14 @@ abstract contract DataLayrSignatureChecker is
         //dumpNumber corresponding to the headerHash
         //number of different signature bins that signatures are being posted from
         uint256 placeholder;
+
         assembly {
             //get the 32 bits immediately after the function signature and length encoding of bytes calldata type
             dumpNumberToConfirm := shr(224, calldataload(68))
+
             //get the 32 bytes immediately after the above
             headerHash := calldataload(72)
+
             //get the next 32 bits
             //numberOfNonSigners
             placeholder := shr(224, calldataload(104))
@@ -107,14 +113,11 @@ abstract contract DataLayrSignatureChecker is
         uint256[6] memory aggNonSignerPubkey;
 
         SignatoryTotals memory sigTotals;
-        //get totals
-        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(
-            address(repository.voteWeigher())
-        ).totalEthStaked();
+
+        // get totals
+        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEthStaked();
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(
-            address(repository.voteWeigher())
-        ).totalEigenStaked();
+        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEigenStaked();
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
