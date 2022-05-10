@@ -18,10 +18,14 @@ contract Slasher is Governed {
     mapping(address => bool) public serviceFactories;
     // user => contract => if that contract can slash the user
     mapping(address => mapping(address => bool)) public optedIntoSlashing;
+    // address that receives the slashed funds
+    // TODO: allow changing this by governance
+    address public slashingRecipient;
 
-    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance) {
+    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance, address _slashingRecipient) {
         _transferGovernor(_eigenLayrGovernance);
         investmentManager = _investmentManager;
+        slashingRecipient = _slashingRecipient;
         // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
     }
 
@@ -73,6 +77,7 @@ contract Slasher is Governed {
         }
     }
 
+// TODO: make it so a repository contract can revoke its ability to slash your funds
     // give the contract permission to slash your funds
     function allowToSlash(address repository) external {
         optedIntoSlashing[msg.sender][repository] = true;
@@ -115,12 +120,11 @@ contract Slasher is Governed {
      */
     function slashShares(
         address slashed,
-        address recipient,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata strategyIndexes,
         uint256[] calldata amounts,
         uint256 maxSlashedAmount
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        investmentManager.slashShares(slashed, recipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    }
+        investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    }
 }

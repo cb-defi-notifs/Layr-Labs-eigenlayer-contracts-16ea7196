@@ -26,26 +26,46 @@ abstract contract DataLayrSignatureChecker is
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
+
     struct SignatoryTotals {
-        //total eth stake of the signatories
+        // total eth stake of the signatories
         uint256 ethStakeSigned;
-        //total eigen stake of the signatories
+
+        // total eigen stake of the signatories
         uint256 eigenStakeSigned;
+
+        // total ETH staked by all DataLayr nodes (including non-signers)
         uint256 totalEthStake;
+
+        // total Eigen staked by all DataLayr nodes (including non-signers)
         uint256 totalEigenStake;
     }
 
+    /**
+     @notice 
+     */
+    event SignatoryRecord(
+        bytes32 headerHash,
+        uint32 dumpNumber,
+        uint256 ethStakeSigned,
+        uint256 eigenStakeSigned,
+        bytes32[] pubkeyHashes
+    );
+
     //NOTE: this assumes length 64 signatures
-    /*
-    FULL CALLDATA FORMAT:
-    uint48 dumpNumber,
-    bytes32 headerHash,
-    uint32 numberOfNonSigners,
-    uint256[numberOfSigners][4] pubkeys of nonsigners,
-    uint32 apkIndex,
-    uint256[4] apk,
-    uint256[2] sigma
-    */
+    /**
+     @notice    
+     */
+    /** 
+     @dev Full calldata format:
+                uint32 dumpNumber,
+                bytes32 headerHash,
+                uint32 numberOfNonSigners,
+                uint256[numberOfSigners][4] pubkeys of nonsigners,
+                uint32 apkIndex,
+                uint256[4] apk,
+                uint256[2] sigma
+     */
     function checkSignatures(bytes calldata data)
         public
         returns (
@@ -58,11 +78,14 @@ abstract contract DataLayrSignatureChecker is
         //dumpNumber corresponding to the headerHash
         //number of different signature bins that signatures are being posted from
         uint256 placeholder;
+
         assembly {
             //get the 32 bits immediately after the function signature and length encoding of bytes calldata type
             dumpNumberToConfirm := shr(224, calldataload(68))
+
             //get the 32 bytes immediately after the above
             headerHash := calldataload(72)
+
             //get the next 32 bits
             //numberOfNonSigners
             placeholder := shr(224, calldataload(104))
@@ -90,14 +113,11 @@ abstract contract DataLayrSignatureChecker is
         uint256[6] memory aggNonSignerPubkey;
 
         SignatoryTotals memory sigTotals;
-        //get totals
-        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(
-            address(repository.voteWeigher())
-        ).totalEthStaked();
+
+        // get totals
+        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEthStaked();
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(
-            address(repository.voteWeigher())
-        ).totalEigenStaked();
+        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEigenStaked();
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -141,11 +161,13 @@ abstract contract DataLayrSignatureChecker is
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
+            // check that the stake returned from the specified index is recent enough
             require(
                 operatorStake.dumpNumber <= dumpNumberToConfirm,
                 "Operator stake index is too early"
             );
 
+            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
             require(
                 operatorStake.nextUpdateDumpNumber == 0 ||
                     operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
@@ -212,11 +234,13 @@ abstract contract DataLayrSignatureChecker is
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
+            // check that the stake returned from the specified index is recent enough
             require(
                 operatorStake.dumpNumber <= dumpNumberToConfirm,
                 "Operator stake index is too early"
             );
 
+            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
             require(
                 operatorStake.nextUpdateDumpNumber == 0 ||
                     operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
@@ -305,6 +329,14 @@ abstract contract DataLayrSignatureChecker is
         require(input[0] == 1, "Pairing unsuccessful");
 
         //sig is correct!!!
+
+        emit SignatoryRecord(
+            headerHash,
+            dumpNumberToConfirm,
+            signedTotals.ethStakeSigned,
+            signedTotals.eigenStakeSigned,
+            pubkeyHashes
+        );
 
         //set compressedSignatoryRecord variable
         //used for payment fraud proofs

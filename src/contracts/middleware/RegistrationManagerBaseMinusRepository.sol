@@ -72,7 +72,9 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
     /**
      * @notice
      */
-    event Registration();
+    event Registration(
+        address registrant
+    );
 
     event DeregistrationCommit(
         address registrant // who started

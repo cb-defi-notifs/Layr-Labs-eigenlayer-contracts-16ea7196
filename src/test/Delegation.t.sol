@@ -195,7 +195,8 @@ contract Delegator is EigenLayrDeployer {
         //Now we calculate the challenger's response amounts
     }
 
-    function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
+    // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
+    function _challengerDisputesOperator(address, bool half, uint120 amount1, uint120 amount2) internal{
         cheats.startPrank(challenger);
         if (dlpc.getDiff() == 1){
             emit log("HIT OPERChallenger ATOR DIFF1");
@@ -213,16 +214,16 @@ contract Delegator is EigenLayrDeployer {
 
         //challenger initiates challenge
         dlsm.challengePaymentInit(operator, amount1, amount2);
-        address challengeContract = dlsm.operatorToPaymentChallenge(operator);
+        address _challengeContract = dlsm.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
 
-        return challengeContract;
+        return _challengeContract;
     }
 
 
 
      //Operator submits claim or commit for a payment amount
-    function _testCommitPayment(uint120 amountRewards) internal {
+    function _testCommitPayment(uint120 _amountRewards) internal {
 
 
         //make 10 different data commits to DL
@@ -273,17 +274,18 @@ contract Delegator is EigenLayrDeployer {
 
             (
                 uint32 dataStoreDumpNumber,
-                uint32 dataStoreInitTime,
-                uint32 dataStorePeriodLength,
-                bool dataStoreCommitted
+                ,
+                ,
+                
             ) = dl.dataStores(headerHash);
 
             
             cheats.startPrank(registrant);
             weth.approve(address(dlsm), type(uint256).max);
 
-            uint256 currBalance = weth.balanceOf(address(dt));
-            dlsm.commitPayment(dataStoreDumpNumber, amountRewards);
+            // removed this declaration to silence a compiler warning for unused local variable
+            // uint256 currBalance = weth.balanceOf(address(dt));
+            dlsm.commitPayment(dataStoreDumpNumber, _amountRewards);
             cheats.stopPrank();
         }
         
@@ -306,6 +308,7 @@ contract Delegator is EigenLayrDeployer {
                 paymentTokens,
                 factory,
                 address(delegation),
+                dlRepository,
                 _MAX_OPERATOR_FEE_BIPS,
                 _operatorFeeBips
             );

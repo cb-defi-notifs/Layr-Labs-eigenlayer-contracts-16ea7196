@@ -22,11 +22,19 @@ library BLS {
 
     // }
 
-    function verifyBLSSigOfPubKeyHash(bytes calldata data)
-        public
+
+    /**
+     @notice verification of BLS signature with the message being pubkey hash
+     */
+    /**
+     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @return pubkey is the pubkey
+     */ 
+    function verifyBLSSigOfPubKeyHash(bytes calldata data, uint256 offset)
+        internal
         returns (uint256, uint256, uint256, uint256)
     {
-        uint256 offset = 68;
+        // uint256 offset = 68;
         // e(H(m), pk)e(sigma, -g2) = e(H(m), pk)(e(sigma, g2)^-1) == 1?
         // is the same as
         // e(H(m), pk) == e(sigma, g2)?
@@ -48,13 +56,13 @@ library BLS {
             mstore(add(input, 0x160), nG2y0)
         }
 
-        //calculate H(m) = H(pk)
+        // calculate H(m) = H(pk)
         (input[0], input[1]) = hashToG1(
             keccak256(abi.encodePacked(input[2], input[3], input[4], input[5]))
         );
 
         assembly {
-            //check the pairing
+            // check the pairing
             if iszero(
                 call(not(0), 0x08, 0, input, 0x0180, add(input, 0x20), 0x20)
             ) {
@@ -64,12 +72,17 @@ library BLS {
 
         require(input[1] == 1, "Pairing was unsuccessful");
 
-        //return pk
+        // return pk
         return (input[3], input[2], input[5], input[4]);
     }
 
+
+
+    /**
+     @notice same function as AddAssign in https://github.com/ConsenSys/gnark-crypto/blob/master/ecc/bn254/g2.go
+     */
     function addJac(uint256[6] memory jac1, uint256[6] memory jac2)
-        public
+        internal
         pure
         returns (uint256[6] memory)
     {
@@ -77,9 +90,12 @@ library BLS {
         //ALL 2 ELEMENTS EACH
         // var XX, YY, YYYY, ZZ, S, M, T fptower.E2
 
+
         if (jac1[4] == 0 && jac1[5] == 0) {
+            // on point 1 being a point at infinity
             return jac2;
         } else if (jac2[4] == 0 && jac2[5] == 0) {
+            // on point 2 being a point at infinity
             return jac1;
         }
 
@@ -289,6 +305,10 @@ library BLS {
         return jac1;
     }
 
+
+    /**
+     @notice used for squaring a Fq2 element - (x0 + ix1)
+     */
     function square(uint256 x0, uint256 x1)
         internal
         pure
@@ -308,7 +328,8 @@ library BLS {
         return (z[2], z[3]);
     }
 
-    function jacToAff(uint256[6] memory jac) public view returns(uint256[4] memory) {
+
+    function jacToAff(uint256[6] memory jac) internal view returns(uint256[4] memory) {
         if (jac[4] == 0 && jac[5] == 0) {
             return [uint256(0), uint256(0), uint256(0), uint256(0)];
         }
@@ -327,7 +348,10 @@ library BLS {
         return aff;
     }
 
-    function inverse(uint256 x0, uint256 x1) public view returns(uint256, uint256) {
+    /**
+     @notice same function as Inverse in https://github.com/ConsenSys/gnark-crypto/blob/528300a94e8717cb98d124ebf7de96dddca373ea/ecc/bn254/internal/fptower/e2_bn254.go#L73
+     */
+    function inverse(uint256 x0, uint256 x1) internal view returns(uint256, uint256) {
         uint256[2] memory t;
         assembly {
             mstore(t, mulmod(x0, x0, MODULUS))
@@ -363,9 +387,13 @@ library BLS {
             mstore(add(t, 0x20), mulmod(x1, mload(add(t, 0x20)), MODULUS))
         }
 
-        return (t[0], MODULUS - t[1]);
+        return (t[0], (MODULUS - t[1]) % MODULUS);
     }
 
+
+    /**
+     @notice used for multiplying two Fq2 elements - (x0 + ix1) and (y0 + iy1).
+     */
     function mul(
         uint256 x0,
         uint256 x1,
@@ -406,6 +434,10 @@ library BLS {
         return (z[3], z[4]);
     }
 
+
+    /**
+     @notice same as hashToPoint function in https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
+     */
     function hashToG1(bytes32 _x)
         internal
         view
