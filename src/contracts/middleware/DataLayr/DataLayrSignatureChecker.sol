@@ -46,7 +46,7 @@ abstract contract DataLayrSignatureChecker is
     //NOTE: this assumes length 64 signatures
     /*
     FULL CALLDATA FORMAT:
-    uint48 dumpNumber,
+    uint32 dumpNumber,
     bytes32 headerHash,
     uint32 numberOfNonSigners,
     uint256[numberOfSigners][4] pubkeys of nonsigners,
