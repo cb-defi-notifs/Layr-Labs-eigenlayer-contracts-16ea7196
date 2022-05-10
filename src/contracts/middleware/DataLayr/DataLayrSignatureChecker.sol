@@ -119,21 +119,6 @@ abstract contract DataLayrSignatureChecker is
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(address(repository.voteWeigher()));
 
-        
-        uint256[12] memory input = [
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0)
-        ];
 
         // to be used for holding the aggregated pub key of all DataLayr operators 
         // that aren't part of the quorum
@@ -364,7 +349,7 @@ abstract contract DataLayrSignatureChecker is
 
         pointer += 132;
 
-        //make sure they have provided the correct aggPubKey
+        // make sure they have provided the correct aggPubKey
         require(dlvw.getCorrectApkHash(placeholder, dumpNumberToConfirm) == keccak256(
                 abi.encodePacked(
                     pk[0],
@@ -374,9 +359,31 @@ abstract contract DataLayrSignatureChecker is
                 )
             ), "Incorrect apk provided");
 
+
+        // input to call to ecPairing precomplied contract
+        uint256[12] memory input = [
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0),
+            uint256(0)
+        ];
+
+
+
         //if aggNonSignerPubkey != 0. Is this the right condition? need to check all indexes?
         if(aggNonSignerPubkey[0] == 0 && aggNonSignerPubkey[1] == 0) {
-            //let's subtract aggNonSignerPubkey from the apk
+            /**
+             @notice need to subtract aggNonSignerPubkey from the apk to get aggregate signature of all
+                     DataLayr operators that are part of the    
+             */
             //negate aggNonSignerPubkey
             aggNonSignerPubkey[2] = (MODULUS - aggNonSignerPubkey[2]) % MODULUS;
             aggNonSignerPubkey[3] = (MODULUS - aggNonSignerPubkey[3]) % MODULUS;
