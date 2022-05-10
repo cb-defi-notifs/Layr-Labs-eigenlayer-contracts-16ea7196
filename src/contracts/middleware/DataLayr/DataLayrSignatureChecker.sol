@@ -41,19 +41,19 @@ abstract contract DataLayrSignatureChecker is
     // Data structures
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
-             DataLayr noded and those nodes who are part of the quorum for a particular dumpNumber
+             DataLayr operators and those operators who are part of the quorum for a particular dumpNumber
      */
     struct SignatoryTotals {
-        // total ETH stake of the DataLayr nodes who are in the quorum
+        // total ETH stake of the DataLayr operators who are in the quorum
         uint256 ethStakeSigned;
 
-        // total Eigen stake of the DataLayr nodes who are in the quorum
+        // total Eigen stake of the DataLayr operators who are in the quorum
         uint256 eigenStakeSigned;
 
-        // total ETH staked by all DataLayr nodes (irrespective of whether they are in quorum or not)
+        // total ETH staked by all DataLayr operators (irrespective of whether they are in quorum or not)
         uint256 totalEthStake;
 
-        // total Eigen staked by all DataLayr nodes (irrespective of whether they are in quorum or not)
+        // total Eigen staked by all DataLayr operators (irrespective of whether they are in quorum or not)
         uint256 totalEigenStake;
     }
 
@@ -108,7 +108,7 @@ abstract contract DataLayrSignatureChecker is
             headerHash := calldataload(72)
 
             // get the 4 bytes immediately after thr above, which would represent the
-            // number of DataLayr nodes that aren't present in the quorum
+            // number of DataLayr operators that aren't present in the quorum
             placeholder := shr(224, calldataload(104))
         }
 
@@ -135,10 +135,10 @@ abstract contract DataLayrSignatureChecker is
             uint256(0)
         ];
 
-        // to be used for holding the aggregated pub key of all DataLayr nodes 
+        // to be used for holding the aggregated pub key of all DataLayr operators 
         // that aren't part of the quorum
         /**
-         @dev we would be storing points in G2 using Jacobian coordinates - 
+         @dev we would be storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
          */
         uint256[6] memory aggNonSignerPubkey;
 
@@ -151,20 +151,19 @@ abstract contract DataLayrSignatureChecker is
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
 
-        // to be used for holding the pub key hashes of the DataLayr nodes that aren't part of the quorum
+        // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
         emit log("stupid");
 
 
         /**
-         @notice next step involves computing the aggregated pub key of all the DataLayr nodes
+         @notice next step involves computing the aggregated pub key of all the DataLayr operators
                  that are not part of the quorum for this specific dumpNumber. We use this aggregated
-                 pubkey to get aggregated pub key of all the DataLayr nodes that are part of this quorum.
+                 pubkey to get aggregated pub key of all the DataLayr operators that are part of this quorum.
          */
-         
+
         /**
-         @dev loading pubkey for the first DataLayr node that is not part of the quorum as listed in the 
-              calldata into aggNonSignerPubkey; 
+         @dev loading pubkey for the first DataLayr operator that is not part of the quorum as listed in the calldata; 
               Note that this need not be a special case and can be subsumed in the for loop below.    
          */
         if (placeholder > 0) {
@@ -172,7 +171,7 @@ abstract contract DataLayrSignatureChecker is
 
             assembly {
                 /** 
-                 @dev retrieving the pubkey of the DataLayr node in Jacobian coordinates
+                 @notice retrieving the pubkey of the DataLayr node in Jacobian coordinates
                  */ 
                 // sigma_x0
                 mstore(aggNonSignerPubkey, calldataload(pointer))
@@ -196,6 +195,7 @@ abstract contract DataLayrSignatureChecker is
                 )
 
                 // converting Affine coordinates to Jacobian coordinates
+                // [(x_0, x_1), (y_0, y_1)] => [(x_0, x_1), (y_0, y_1), (1,0)]
                 // source: https://crypto.stackexchange.com/questions/19598/how-can-convert-affine-to-jacobian-coordinates
                 // sigma_z0
                 mstore(add(aggNonSignerPubkey, 0x80), 1)
@@ -204,7 +204,8 @@ abstract contract DataLayrSignatureChecker is
 
 
                 /** 
-                 @dev the index of this DataLayr node at the time of pre-commit   
+                 @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
+                         DataLayrVoteWeigher.sol that was recorded at the time of pre-commit.
                  */ 
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
@@ -213,7 +214,7 @@ abstract contract DataLayrSignatureChecker is
             // Update pointer.
             pointer += 132;
 
-            // get pubkeyHash and add it to pubkeyHashes of DataLayr nodes that aren't part of the quorum. 
+            // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum. 
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(
                     aggNonSignerPubkey[0],
@@ -225,9 +226,11 @@ abstract contract DataLayrSignatureChecker is
             pubkeyHashes[0] = pubkeyHash;
 
 
-            // querying the 
+            // querying the VoteWeigher for getting information on the DataLayr operator's stake
+            // at the time of pre-commit
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+
 
             // check that the stake returned from the specified index is recent enough
             require(
@@ -235,30 +238,36 @@ abstract contract DataLayrSignatureChecker is
                 "Operator stake index is too early"
             );
 
-            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
+            /** 
+              check that stake is either the most recent update for the operator, 
+              or latest before the dumpNumberToConfirm
+             */
             require(
                 operatorStake.nextUpdateDumpNumber == 0 ||
                     operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
                 "Operator stake index is too early"
             );
 
-            //subtract validator stakes from totals
+            // subtract operator stakes from totals
             signedTotals.ethStakeSigned -= operatorStake.ethStake;
             signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
-
-            
         }
 
+        // temporary variable for storing the pubkey of DataLayr operators in Jacobian coordinates
         uint256[6] memory pk;
         pk[4] = 1;
 
         emit log_uint(placeholder);
+
+
         for (uint i = 1; i < placeholder; ) {
             emit log("stupid");
             //load compressed pubkey into memory and the index in the stakes array
             uint256 stakeIndex;
             emit log("stupiddd");
+
             assembly {
+                /// @notice retrieving the pubkey of the DataLayr operator that is not part of the quorum
                 mstore(pk, calldataload(pointer))
                 mstore(
                     add(pk, 0x20),
@@ -272,11 +281,18 @@ abstract contract DataLayrSignatureChecker is
                     add(pk, 0x60),
                     calldataload(add(pointer, 96))
                 )
+
+                /**
+                 @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
+                         DataLayrVoteWeigher.sol that was recorded at the time of pre-commit.
+                 */
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
+            // CRITIC: pointer update needed
+
             emit log("stupid");
 
-            //get pubkeyHash, add it to nonSigners
+            // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(
                     pk[0],
@@ -287,17 +303,18 @@ abstract contract DataLayrSignatureChecker is
             );
 
             if (i > 0) {
-                //pubkeys should be ordered in scending order of hash to make proofs of signing or non signing constant time
+                // pubkeys should be ordered in ascending order of hash to make proofs of signing or non signing constant time
                 require(
                     uint256(pubkeyHash) > uint256(pubkeyHashes[i - 1]),
                     "Pubkey hashes must be in ascending order"
                 );
             }
 
-            
-
+            // recording the pubkey hash
             pubkeyHashes[i] = pubkeyHash;
 
+            // querying the VoteWeigher for getting information on the DataLayr operator's stake
+            // at the time of pre-commit
             IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
@@ -318,7 +335,7 @@ abstract contract DataLayrSignatureChecker is
             signedTotals.ethStakeSigned -= operatorStake.ethStake;
             signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
 
-            //aggNonSignerPubkey = aggNonSignerPubkey + tmp
+            // add the pubkey of the DataLayr operator to the aggregate pubkeys in Jacobian coordinate system.
             addJac(aggNonSignerPubkey, pk);
             unchecked {
                 ++i;
