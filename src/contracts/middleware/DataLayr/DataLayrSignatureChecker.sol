@@ -101,6 +101,7 @@ abstract contract DataLayrSignatureChecker is
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
+        emit log("stupid");
 
         //load first nonSignersKey in aggNonSignerPubkey
         if (placeholder > 0) {
@@ -161,9 +162,13 @@ abstract contract DataLayrSignatureChecker is
 
         uint256[6] memory pk;
         pk[4] = 1;
+
+        emit log_uint(placeholder);
         for (uint i = 1; i < placeholder; ) {
+            emit log("stupid");
             //load compressed pubkey into memory and the index in the stakes array
             uint256 stakeIndex;
+            emit log("stupiddd");
             assembly {
                 mstore(pk, calldataload(pointer))
                 mstore(
@@ -180,6 +185,7 @@ abstract contract DataLayrSignatureChecker is
                 )
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
+            emit log("stupid");
 
             //get pubkeyHash, add it to nonSigners
             bytes32 pubkeyHash = keccak256(
@@ -198,6 +204,8 @@ abstract contract DataLayrSignatureChecker is
                     "Pubkey hashes must be in ascending order"
                 );
             }
+
+            
 
             pubkeyHashes[i] = pubkeyHash;
 

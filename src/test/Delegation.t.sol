@@ -63,6 +63,7 @@ contract Delegator is EigenLayrDeployer {
         //_initializeServiceManager();
         
         _testinitiateDelegation(1e10);
+        emit log("c");
 
         //servicemanager pays out rewards to delegate and delegators
         _payRewards();
@@ -224,7 +225,7 @@ contract Delegator is EigenLayrDeployer {
     function _testCommitPayment(uint120 amountRewards) internal {
 
 
-        //make 40 different data commits to DL
+        //make 10 different data commits to DL
         for (uint i=0; i<9; i++){
             weth.transfer(storer, 10e10);
             cheats.prank(storer);
@@ -237,14 +238,47 @@ contract Delegator is EigenLayrDeployer {
                 600
             );
 
-            bytes storage data = registrationData[0];
+            // form the data object
+            /*
+            From DataLayrSignatureChecker.sol:
+            FULL CALLDATA FORMAT:
+            uint48 dumpNumber,
+            bytes32 headerHash,
+            uint32 numberOfNonSigners,
+            bytes33[] compressedPubKeys of nonsigners
+            uint32 apkIndex
+            uint256[2] sigma
+            */
             bytes32 headerHash = keccak256(headers[i]);
+            uint32 currentDumpNumber = dlsm.dumpNumber();
+            bytes memory data = abi.encodePacked(
+                currentDumpNumber,
+                headerHash,
+                uint32(0),
+                uint32(14),
+                uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
+                uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
+                uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
+                uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672),
+                uint256(
+                    7155561537864411538991615376457474334371827900888029310878886991084477170996
+                ),
+                uint256(
+                    10352977531892356631551102769773992282745949082157652335724669165983475588346
+                )
+            );
+
+            dlsm.confirmDataStore(data);
+
+
             (
                 uint32 dataStoreDumpNumber,
                 uint32 dataStoreInitTime,
                 uint32 dataStorePeriodLength,
                 bool dataStoreCommitted
             ) = dl.dataStores(headerHash);
+
+            
             cheats.startPrank(registrant);
             weth.approve(address(dlsm), type(uint256).max);
 

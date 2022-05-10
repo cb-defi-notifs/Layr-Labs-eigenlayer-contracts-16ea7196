@@ -168,6 +168,8 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        emit log("stupid");
+
         /**
          * @dev Checks that there is no need for posting a deposit root required for proving
          * the new staking of ETH into settlement layer after the launch of EigenLayr. For
