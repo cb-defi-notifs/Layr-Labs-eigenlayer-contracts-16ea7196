@@ -305,12 +305,12 @@ contract DataLayrRegistry is
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         // copy total stake to memory
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        totalStake.ethStake -= currentStakes.ethStake;
-        totalStake.eigenStake -= currentStakes.eigenStake;
-        totalStake.dumpNumber = currentDumpNumber;
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake -= currentStakes.ethStake;
+        _totalStake.eigenStake -= currentStakes.eigenStake;
+        _totalStake.dumpNumber = currentDumpNumber;
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
-        totalStakeHistory.push(totalStake);
+        totalStakeHistory.push(_totalStake);
 
         //decrement number of registrants
         unchecked {
@@ -399,7 +399,7 @@ contract DataLayrRegistry is
         uint256 operatorsLength = operators.length;
 
         // copy total stake to memory
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
@@ -436,8 +436,8 @@ contract DataLayrRegistry is
              * update total Eigen and ETH that are being employed by the operator for securing
              * the queries from middleware via EigenLayr
              */
-            totalStake.ethStake = totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-            totalStake.eigenStake = totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
+            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
 
             emit StakeUpdate(
                 operators[i],
@@ -452,9 +452,9 @@ contract DataLayrRegistry is
         }
 
         // update storage of total stake
-        totalStake.dumpNumber = currentDumpNumber;
+        _totalStake.dumpNumber = currentDumpNumber;
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
-        totalStakeHistory.push(totalStake);
+        totalStakeHistory.push(_totalStake);
     }
 
     function getOperatorFromDumpNumber(address operator)
@@ -646,17 +646,17 @@ contract DataLayrRegistry is
         }
 
         // copy total stake to memory
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         /**
          * update total Eigen and ETH that are being employed by the operator for securing
          * the queries from middleware via EigenLayr
          */
-        totalStake.ethStake += _operatorStake.ethStake;
-        totalStake.eigenStake += _operatorStake.eigenStake;
-        totalStake.dumpNumber = currentDumpNumber;
+        _totalStake.ethStake += _operatorStake.ethStake;
+        _totalStake.eigenStake += _operatorStake.eigenStake;
+        _totalStake.dumpNumber = currentDumpNumber;
         // update storage of total stake
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
-        totalStakeHistory.push(totalStake);
+        totalStakeHistory.push(_totalStake);
 
         //TODO: do we need this variable at all?
         //increment number of registrants
@@ -700,18 +700,18 @@ contract DataLayrRegistry is
     }
 
     function totalEthStaked() external view returns (uint96) {
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return totalStake.ethStake;
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return _totalStake.ethStake;
     }
 
     function totalEigenStaked() external view returns (uint96) {
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return totalStake.eigenStake;
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return _totalStake.eigenStake;
     }
 
     function totalStake() external view returns (uint96, uint96) {
-        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return (totalStake.ethStake, totalStake.eigenStake);
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return (_totalStake.ethStake, _totalStake.eigenStake);
     }
 
     function getLengthOfPubkeyHashStakeHistory(bytes32 pubkeyHash) external view returns (uint256) {
