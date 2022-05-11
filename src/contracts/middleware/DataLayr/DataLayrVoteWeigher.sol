@@ -254,29 +254,32 @@ contract DataLayrVoteWeigher is
 
 
         /**
-         @notice recording the information pertaining to change in stake for this 
-                 DataLayr operator in the history
+         @notice recording the information pertaining to change in stake for this DataLayr operator in the history
          */
         // determine new stakes
         OperatorStake memory newStakes;
         // recording the current dump number where the operator stake got updated 
         newStakes.dumpNumber = currentDumpNumber;
 
+
         // setting total staked ETH for the DataLayr operator to 0
         newStakes.ethStake = uint96(0);
         // setting total staked Eigen for the DataLayr operator to 0
         newStakes.eigenStake = uint96(0);
+
 
         //set next dump number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateDumpNumber = currentDumpNumber;
 
+
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
 
         /**
+         @notice   
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered
         // from the total stake securing the middleware
