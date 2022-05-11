@@ -89,7 +89,7 @@ abstract contract DataLayrSignatureChecker is
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
     /** 
-     @param data This calldata is of the format:
+     @dev This calldata is of the format:
             <
              uint32 dumpNumber,
              bytes32 headerHash,
@@ -102,7 +102,7 @@ abstract contract DataLayrSignatureChecker is
             >
      */
     //NOTE: this assumes length 64 signatures
-    function checkSignatures(bytes calldata data)
+    function checkSignatures(bytes calldata)
         public
         returns (
             uint32 dumpNumberToConfirm,
@@ -146,7 +146,6 @@ abstract contract DataLayrSignatureChecker is
 
 
         // get information on total stakes
-        SignatoryTotals memory sigTotals;
         IDataLayrRegistry.OperatorStake memory totalStake = dlRegistry.getTotalStakeFromIndex(placeholder);
 
         // check that the stake returned from the specified index is recent enough

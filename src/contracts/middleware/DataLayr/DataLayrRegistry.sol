@@ -182,8 +182,8 @@ contract DataLayrRegistry is
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
         );
         // push an empty OperatorStake object to the total stake history
-        OperatorStake memory totalStake;
-        totalStakeHistory.push(totalStake);
+        OperatorStake memory _totalStake;
+        totalStakeHistory.push(_totalStake);
     }
 
     /**
