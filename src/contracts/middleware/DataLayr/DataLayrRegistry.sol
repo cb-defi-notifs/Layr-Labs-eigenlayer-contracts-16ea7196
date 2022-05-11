@@ -61,6 +61,7 @@ contract DataLayrRegistry is
 
         uint32 to;
 
+        // indicates whether the DataLayr operator is actively registered for storing data or not 
         uint8 active; //bool
 
         // socket address of the DataLayr node
@@ -169,7 +170,7 @@ contract DataLayrRegistry is
      * @notice returns the total Eigen delegated by delegators with this operator
      */
     /**
-     * @dev minimum delegation limit has to be satisfied.
+     * @dev minimum delegation limit of dlnEigenStake has to be satisfied.
      */
     function weightOfOperatorEigen(address operator)
         public
@@ -184,13 +185,14 @@ contract DataLayrRegistry is
     }
 
     /**
-     * @notice returns the total ETH delegated by delegators with this operator.
+        @notice returns the total ETH delegated by delegators with this operator.
+                Accounts for both ETH used for staking in settlement layer (via operator)
+                and the ETH-denominated value of the shares in the investment strategies.
+                Note that the DataLayr can decide for itself how much weight it wants to
+                give to the ETH that is being used for staking in settlement layer.
      */
     /**
-     * @dev Accounts for both ETH used for staking in settlement layer (via operator)
-     *      and the ETH-denominated value of the shares in the investment strategies.
-     *      Note that the DataLayr can decide for itself how much weight it wants to
-     *      give to the ETH that is being used for staking in settlement layer.
+     * @dev minimum delegation limit of dlnEthStake has to be satisfied.
      */
     function weightOfOperatorEth(address operator)
         public
@@ -204,27 +206,39 @@ contract DataLayrRegistry is
     }
 
     /**
-     * @notice Used by an operator to de-register itself from providing service to the middleware.
+      @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-     // function input is the sender's pubkey in affine coordinates
+    /** 
+      @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     */
     function commitDeregistration(uint256[4] memory pubkeyToRemoveAff) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
         );
 
-        // they must store till the latest time a dump expires
+
+        // must store till the latest time a dump expires
+        /**
+         @notice this info is used in forced disclosure
+         */
         registry[msg.sender].to = latestTime;
+
 
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
 
+
+
         // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
         // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();        
-        // get operator's stored pubkeyHash and verify that it matches the 'pubkeyToRemoveAff' input
+        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();        
+        
+
+        /**
+         @notice verify that the sender is a DataLayr operator that is doing deregistration for itself 
+         */
+        // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
         bytes32 pubkeyHashFromInput = keccak256(
             abi.encodePacked(
@@ -234,26 +248,36 @@ contract DataLayrRegistry is
                 pubkeyToRemoveAff[3]
             )
         );
+        // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
-        // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-            pubkeyHash
-        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
+
+
+        /**
+         @notice recording the information pertaining to change in stake for this 
+                 DataLayr operator in the history
+         */
         // determine new stakes
         OperatorStake memory newStakes;
-
+        // recording the current dump number where the operator stake got updated 
         newStakes.dumpNumber = currentDumpNumber;
+
+        // setting total staked ETH for the DataLayr operator to 0
         newStakes.ethStake = uint96(0);
+        // setting total staked Eigen for the DataLayr operator to 0
         newStakes.eigenStake = uint96(0);
 
         //set next dump number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateDumpNumber = currentDumpNumber;
+
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
+
+        /**
+         */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered
         // from the total stake securing the middleware
         totalStake.ethAmount -= operatorStakes[msg.sender].ethAmount;
