@@ -279,7 +279,7 @@ contract DataLayrRegistry is
 
 
         /**
-         @notice   
+         @notice  update info on ETH and Eigen staked with DataLayr
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered
         // from the total stake securing the middleware
@@ -290,11 +290,19 @@ contract DataLayrRegistry is
         operatorStakes[msg.sender].ethAmount = 0;
         operatorStakes[msg.sender].eigenAmount = 0;
 
+
+
+
         //decrement number of registrants
         unchecked {
             --numRegistrants;
         }
 
+
+        /**
+         @notice update the aggregated public key of all registered DataLayr operators and record
+                 this update in history
+         */
         // get existing aggregate public key
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
@@ -302,18 +310,35 @@ contract DataLayrRegistry is
         // update stored aggregate public key
         apk = pk;
 
-        // update apk coordinates
+        // update aggregated pubkey coordinates
         apkUpdates.push(currentDumpNumber);
-        //store hashed apk
+
+        // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
         emit DeregistrationCommit(msg.sender);
         return true;
     }
 
+
+    /**
+     @notice This function is for removing a pubkey from aggregated pubkey. The thesis of this operation:
+              - conversion to Jacobian coordinates,
+              - do the subtraction of pubkey from aggregated pubkey,
+              - convert the updated aggregated pubkey back to affine coordinates.   
+     */
+    /**
+     @param pubkeyToRemoveAff is the pubkey that is to be removed,
+     @param existingAggPubkeyAff is the aggregated pubkey.
+     */
+    /**
+     @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
+     */ 
     function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal returns (uint256[4] memory) {
         uint256[6] memory pubkeyToRemoveJac;
         uint256[6] memory existingAggPubkeyJac;
+
+        // get x0, x1, y0, y1 from affine coordinates
         for (uint256 i = 0; i < 4;) {
             pubkeyToRemoveJac[i] = pubkeyToRemoveAff[i];
             existingAggPubkeyJac[i] = existingAggPubkeyAff[i];
@@ -321,17 +346,26 @@ contract DataLayrRegistry is
                 ++i;
             }
         }
+        // set z0 = 1
         pubkeyToRemoveJac[4] = 1;
         existingAggPubkeyJac[4] = 1;
 
-        //subtract pubkeyToRemoveJac from the aggregate pubkey
-        //to do this, negate pubkeyToRemoveJac first, then add the negation to existingAggPubkeyJac
+
+        /**
+         @notice subtract pubkeyToRemoveJac from the aggregate pubkey
+         */
+        // negate pubkeyToRemoveJac  
         pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
         pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
+        // add the negation to existingAggPubkeyJac
         BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
+
         // 'addJac' function above modifies the first input in memory, so now we can just return it (but first transform it back to affine)
         return (BLS.jacToAff(existingAggPubkeyJac));
     }
+
+
+
 
     /**
      * @notice Used by an operator to complete the deregistration process
