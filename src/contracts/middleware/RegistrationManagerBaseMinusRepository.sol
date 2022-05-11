@@ -59,16 +59,6 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
         return operatorStakes[operator].eigenAmount;
     }
 
-    /// @notice get both total ETH and Eigen staked by delegators of the operator
-    function ethAndEigenStakedForOperator(address operator)
-        public
-        view
-        returns (uint96, uint96)
-    {
-        EthAndEigenAmounts memory opStake = operatorStakes[operator];
-        return (opStake.ethAmount, opStake.eigenAmount);
-    }
-
     /**
      * @notice
      */
