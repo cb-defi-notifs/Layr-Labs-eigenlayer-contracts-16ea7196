@@ -59,6 +59,8 @@ contract DataLayrRegistry is
         //
         uint32 fromDumpNumber;
 
+        // time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
+        // set only when committing to deregistration
         uint32 to;
 
         // indicates whether the DataLayr operator is actively registered for storing data or not 
@@ -77,7 +79,13 @@ contract DataLayrRegistry is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /// @notice the latest UTC timestamp at which a DataStore expires
+    /** 
+      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
+              updated at every call to initDataStore in DataLayrServiceManager.sol  
+
+              This would be used for recording the time until which a DataLayr operator is obligated
+              to serve while committing deregistration.
+     */
     uint32 public latestTime;
 
 
@@ -479,25 +487,38 @@ contract DataLayrRegistry is
         dlnEthStake = _dlnEthStake;
     }
 
+
+    /**
+     @notice sets the latest time until which any of the active DataLayr operators that haven't committed
+             yet to deregistration are supposed to serve.
+     */
     function setLatestTime(uint32 _latestTime) public {
         require(
             address(repository.serviceManager()) == msg.sender,
-            "service manager can only call this"
+            "only service manager can call this"
         );
         if (_latestTime > latestTime) {
             latestTime = _latestTime;
         }
     }
 
+
+    /// @notice returns the unique ID of the specified DataLayr operator 
     function getOperatorId(address operator) public view returns (uint32) {
         return registry[operator].id;
     }
 
-    /// @notice returns the type for the specified operator
+
+    /// @notice returns the active status for the specified DataLayr operator
     function getOperatorType(address operator) public view returns (uint8) {
         return registry[operator].active;
     }
 
+
+    /**
+     @notice get hash of a historical aggregated public key corresponding to a given index;
+             called by checkSignatures in DataLayrSignatureChecker.sol.
+     */
     function getCorrectApkHash(uint256 index, uint32 dumpNumberToConfirm)
         public
         // view
@@ -508,19 +529,22 @@ contract DataLayrRegistry is
             "Index too recent"
         );
 
-        //if not last update
+        // if not last update
         if (index != apkUpdates.length - 1) {
             require(
                 dumpNumberToConfirm < apkUpdates[index + 1],
                 "Not latest valid apk update"
             );
         }
+
         return apkHashes[index];
     }
+
 
     function getApkUpdatesLength() public view returns (uint256) {
         return apkUpdates.length;
     }
+
 
     function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
@@ -534,6 +558,11 @@ contract DataLayrRegistry is
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
+
+
+    /**
+     @notice called for registering as a DataLayr operator
+     */
     function registerOperator(
         uint8 registrantType,
         bytes calldata data,
@@ -555,6 +584,8 @@ contract DataLayrRegistry is
 
         // TODO: shared struct type for this + registrantType, also used in Repository?
         OperatorStake memory _operatorStake;
+
+
 
         //if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
