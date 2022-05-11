@@ -39,6 +39,8 @@ contract DataLayrRegistry is
         );
 
 
+
+
     // DATA STRUCTURES 
     /**
      * @notice  Data structure for storing info on DataLayr operators that would be used for:
@@ -59,6 +61,7 @@ contract DataLayrRegistry is
         // dumpNumber when the DataLayr operator registered
         uint32 fromDumpNumber;
 
+        // time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
         uint32 to;
 
         // indicates whether the DataLayr operator is actively registered for storing data or not 
@@ -70,13 +73,17 @@ contract DataLayrRegistry is
 
   
 
+
     uint128 public dlnEthStake = 1 wei;
     uint128 public dlnEigenStake = 1 wei;
     
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /// @notice the latest UTC timestamp at which a DataStore expires
+    /** 
+      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
+              updated at every call to initDataStore in DataLayrServiceManager.sol  
+     */
     uint32 public latestTime;
 
 
@@ -368,7 +375,7 @@ contract DataLayrRegistry is
 
 
     /**
-     * @notice Used by an operator to complete the deregistration process
+     * @notice Used by an operator to complete the deregistration process.
      */
     function deregisterOperator()
         external
@@ -472,7 +479,9 @@ contract DataLayrRegistry is
     }
 
 
-
+    /**
+     @notice returns the dump number when DataLayr operator registered
+     */
     function getDumpNumberOfOperator(address operator)
         public
         view
@@ -481,6 +490,10 @@ contract DataLayrRegistry is
         return registry[operator].fromDumpNumber;
     }
 
+
+    /**
+     @notice sets the minimum Eigen stake requirements
+     */
     function setDlnEigenStake(uint128 _dlnEigenStake)
         public
         onlyRepositoryGovernance
@@ -488,6 +501,10 @@ contract DataLayrRegistry is
         dlnEigenStake = _dlnEigenStake;
     }
 
+
+    /**
+     @notice sets the minimum ETH stake requirements
+     */
     function setDlnEthStake(uint128 _dlnEthStake)
         public
         onlyRepositoryGovernance
@@ -495,6 +512,10 @@ contract DataLayrRegistry is
         dlnEthStake = _dlnEthStake;
     }
 
+
+    /**
+     @notice sets the latest time when a given asserted 
+     */
     function setLatestTime(uint32 _latestTime) public {
         require(
             address(repository.serviceManager()) == msg.sender,
