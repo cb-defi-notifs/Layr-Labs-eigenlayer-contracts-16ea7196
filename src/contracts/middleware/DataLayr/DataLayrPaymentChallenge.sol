@@ -265,23 +265,23 @@ contract DataLayrPaymentChallenge is DSTest{
         selfdestruct(payable(0));
     }
 
-    function getChallengeStatus() external returns(uint8){
+    function getChallengeStatus() external view returns(uint8){
         return challenge.status;
     }
 
-    function getAmount1() external returns (uint120){
+    function getAmount1() external view returns (uint120){
         return challenge.amount1;
     }
-    function getAmount2() external returns (uint120){
+    function getAmount2() external view returns (uint120){
         return challenge.amount2;
     }
-    function getToDumpNumber() external returns (uint48){
+    function getToDumpNumber() external view returns (uint48){
         return challenge.toDumpNumber;
     }
-    function getFromDumpNumber() external returns (uint48){
+    function getFromDumpNumber() external view returns (uint48){
         return challenge.fromDumpNumber;
     }
-    function getDiff() external returns (uint48){
+    function getDiff() external view returns (uint48){
         return challenge.toDumpNumber - challenge.fromDumpNumber;
     }
 }

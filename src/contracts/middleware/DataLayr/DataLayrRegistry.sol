@@ -361,7 +361,7 @@ contract DataLayrRegistry is
     /**
      @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
      */ 
-    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal returns (uint256, uint256, uint256, uint256) {
+    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal view returns (uint256, uint256, uint256, uint256) {
         uint256[6] memory pubkeyToRemoveJac;
         uint256[6] memory existingAggPubkeyJac;
 
@@ -521,7 +521,7 @@ contract DataLayrRegistry is
      */
     function getCorrectApkHash(uint256 index, uint32 dumpNumberToConfirm)
         public
-        // view
+        view
         returns (bytes32)
     {
         require(

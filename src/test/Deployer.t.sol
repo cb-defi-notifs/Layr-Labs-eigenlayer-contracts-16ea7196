@@ -640,7 +640,7 @@ contract EigenLayrDeployer is
         emit log_named_uint("number of operators", numberOfSigners);
 
         (, , , bool committed) = dl.dataStores(headerHash);
-        // assertTrue(committed, "Data store not committed");
+        assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
     }
 

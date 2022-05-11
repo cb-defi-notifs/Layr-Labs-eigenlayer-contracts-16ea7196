@@ -198,7 +198,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         bool[] calldata leftRightFlags,
         bytes32 nodeToProve,
         bytes32[] calldata proof
-    ) public returns (uint48) {
+    ) public pure returns (uint48) {
         //prove first level of tree
         uint256 len = leftRightFlags.length;
         // -1 because proved first level
@@ -247,7 +247,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         return degree;
     }
 
-    function resolve(bytes32 headerHash, bool challengeSuccessful) internal {
+    function resolve(bytes32, bool challengeSuccessful) internal {
         emit Resolved(challengeSuccessful);
         // emit log_uint(challengeSuccessful ? 1 : 2);
         selfdestruct(payable(0));
