@@ -499,10 +499,10 @@ contract EigenLayrDeployer is
         weth.approve(address(dlsm), type(uint256).max);
         cheats.prank(storer);
         dlsm.initDataStore(header, totalBytes, storePeriodLength);
-        uint48 dumpNumber = 1;
+        uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         (
-            uint48 dataStoreDumpNumber,
+            uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted

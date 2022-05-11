@@ -77,7 +77,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint256 public paymentFraudProofCollateral = 1 wei;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
-    uint32 public dumpNumber;
+    uint32 public dumpNumber = 1;
     
     uint256 public constant disclosureFraudProofInterval = 7 days;
     uint256 disclosurePaymentPerByte;
