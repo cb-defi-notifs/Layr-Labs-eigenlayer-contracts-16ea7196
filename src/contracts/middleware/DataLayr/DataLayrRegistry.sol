@@ -56,7 +56,7 @@ contract DataLayrRegistry is
         // corresponds to position in registrantList
         uint64 index;
 
-        //
+        // dumpNumber when the DataLayr operator registered
         uint32 fromDumpNumber;
 
         uint32 to;
@@ -64,7 +64,7 @@ contract DataLayrRegistry is
         // indicates whether the DataLayr operator is actively registered for storing data or not 
         uint8 active; //bool
 
-        // socket address of the DataLayr node
+        // socket address of the DataLayr operator
         string socket;
     }
 
@@ -471,7 +471,9 @@ contract DataLayrRegistry is
         }
     }
 
-    function getOperatorFromDumpNumber(address operator)
+
+
+    function getDumpNumberOfOperator(address operator)
         public
         view
         returns (uint32)

@@ -20,13 +20,13 @@ interface IDataLayrRegistry {
         // updated Eigen stake
         uint96 eigenStake;
     }
-    
+
 
     function setLatestTime(uint32) external;
 
     function getOperatorId(address) external returns (uint32);
 
-    function getOperatorFromDumpNumber(address) external view returns (uint32);
+    function getDumpNumberOfOperator(address) external view returns (uint32);
         
     function getOperatorPubkeyHash(address) external view returns (bytes32);
 
