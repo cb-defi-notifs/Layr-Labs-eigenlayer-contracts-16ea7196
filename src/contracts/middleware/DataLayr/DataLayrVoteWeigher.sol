@@ -93,7 +93,6 @@ contract DataLayrVoteWeigher is
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
-ß
 
     /// @notice the dump numbers in which the aggregated pubkeys are updated
     uint32[] public apkUpdates;
