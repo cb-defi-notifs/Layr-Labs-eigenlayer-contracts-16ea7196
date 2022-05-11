@@ -532,7 +532,7 @@ contract Governor is Timelock_Managed {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(REPOSITORY.registrationManager()).ethAndEigenStakedForOperator(user);
+        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(REPOSITORY.registrationManager()).operatorStakes(user);
         return (ethStaked, eigenStaked);
     }
 }

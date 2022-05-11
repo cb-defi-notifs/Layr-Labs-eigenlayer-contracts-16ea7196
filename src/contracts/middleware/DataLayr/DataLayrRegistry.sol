@@ -19,7 +19,7 @@ import "ds-test/test.sol";
 contract DataLayrRegistry is
     IDataLayrRegistry,
     VoteWeigherBase,
-    RegistrationManagerBaseMinusRepository,
+    IRegistrationManager,
     DSTest
 {
     using BytesLib for bytes;
@@ -68,7 +68,8 @@ contract DataLayrRegistry is
         string socket;
     }
 
-  
+    // number of registrants of this service
+    uint64 public numRegistrants;  
 
     uint128 public dlnEthStake = 1 wei;
     uint128 public dlnEigenStake = 1 wei;
@@ -90,6 +91,14 @@ contract DataLayrRegistry is
     /// @notice used for storing the list of current and past registered DataLayr operators 
     address[] public registrantList;
 
+    // struct OperatorStake {
+    //     uint32 dumpNumber;
+    //     uint32 nextUpdateDumpNumber;
+    //     uint96 ethStake;
+    //     uint96 eigenStake;
+    // }
+    /// @notice array of the history of the total stakes
+    OperatorStake[] public totalStakeHistory;
 
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
@@ -130,11 +139,19 @@ contract DataLayrRegistry is
         uint32 dumpNumber,
         uint32 prevUpdateDumpNumber
     );
-    event EigenStakeUpdate(
-        address operator,
-        uint128 stake,
-        uint32 dumpNumber,
-        uint32 prevUpdateDumpNumber
+
+    /**
+     * @notice
+     */
+    event Registration(
+        address registrant,
+        uint256[4] pk,
+        uint32 apkHashIndex,
+        bytes32 apkHash
+    );
+
+    event Deregistration(
+        address registrant
     );
 
     // MODIFIERS
@@ -164,6 +181,9 @@ contract DataLayrRegistry is
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
         );
+        // push an empty OperatorStake object to the total stake history
+        OperatorStake memory totalStake;
+        totalStakeHistory.push(totalStake);
     }
 
     /**
@@ -211,7 +231,7 @@ contract DataLayrRegistry is
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
-    function commitDeregistration(uint256[4] memory pubkeyToRemoveAff) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -251,7 +271,10 @@ contract DataLayrRegistry is
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
 
-
+        // determine current stakes
+        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
+            pubkeyHash
+        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
         /**
          @notice recording the information pertaining to change in stake for this DataLayr operator in the history
@@ -260,7 +283,6 @@ contract DataLayrRegistry is
         OperatorStake memory newStakes;
         // recording the current dump number where the operator stake got updated 
         newStakes.dumpNumber = currentDumpNumber;
-
 
         // setting total staked ETH for the DataLayr operator to 0
         newStakes.ethStake = uint96(0);
@@ -281,17 +303,14 @@ contract DataLayrRegistry is
         /**
          @notice  update info on ETH and Eigen staked with DataLayr
          */
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered
-        // from the total stake securing the middleware
-        totalStake.ethAmount -= operatorStakes[msg.sender].ethAmount;
-        totalStake.eigenAmount -= operatorStakes[msg.sender].eigenAmount;
-
-        // clear the staked Eigen and ETH of the operator which is getting deregistered
-        operatorStakes[msg.sender].ethAmount = 0;
-        operatorStakes[msg.sender].eigenAmount = 0;
-
-
-
+        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
+        // copy total stake to memory
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        totalStake.ethStake -= currentStakes.ethStake;
+        totalStake.eigenStake -= currentStakes.eigenStake;
+        totalStake.dumpNumber = currentDumpNumber;
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        totalStakeHistory.push(totalStake);
 
         //decrement number of registrants
         unchecked {
@@ -316,7 +335,7 @@ contract DataLayrRegistry is
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
-        emit DeregistrationCommit(msg.sender);
+        emit Deregistration(msg.sender);
         return true;
     }
 
@@ -364,26 +383,6 @@ contract DataLayrRegistry is
         return (BLS.jacToAff(existingAggPubkeyJac));
     }
 
-
-
-
-    /**
-     * @notice Used by an operator to complete the deregistration process
-     */
-    function deregisterOperator()
-        external
-        returns (bool)
-    {
-        require(
-            registry[msg.sender].to != 0 &&
-                registry[msg.sender].to < block.timestamp,
-            "Operator has not yet commited deregistration, or still has active commitments"
-        );
-        // TODO: REMOVE ABILITY TO SLASH THE OPERATOR ANY MORE
-
-        return true;
-    }
-
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes.
      */
@@ -398,6 +397,9 @@ contract DataLayrRegistry is
         ).dumpNumber();
 
         uint256 operatorsLength = operators.length;
+
+        // copy total stake to memory
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
@@ -428,15 +430,15 @@ contract DataLayrRegistry is
             ].nextUpdateDumpNumber = currentDumpNumber;
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-            // update the total stake
-            totalStake.ethAmount =
-                totalStake.ethAmount +
-                newStakes.ethStake -
-                currentStakes.eigenStake;
-            totalStake.eigenAmount =
-                totalStake.eigenAmount +
-                newStakes.ethStake -
-                currentStakes.eigenStake;
+
+
+            /**
+             * update total Eigen and ETH that are being employed by the operator for securing
+             * the queries from middleware via EigenLayr
+             */
+            totalStake.ethStake = totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
+            totalStake.eigenStake = totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+
             emit StakeUpdate(
                 operators[i],
                 newStakes.ethStake,
@@ -448,6 +450,11 @@ contract DataLayrRegistry is
                 ++i;
             }
         }
+
+        // update storage of total stake
+        totalStake.dumpNumber = currentDumpNumber;
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        totalStakeHistory.push(totalStake);
     }
 
     function getOperatorFromDumpNumber(address operator)
@@ -639,15 +646,17 @@ contract DataLayrRegistry is
         }
 
         // copy total stake to memory
-        EthAndEigenAmounts memory _totalStake = totalStake;
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         /**
          * update total Eigen and ETH that are being employed by the operator for securing
          * the queries from middleware via EigenLayr
          */
-        _totalStake.ethAmount += _operatorStake.ethStake;
-        _totalStake.eigenAmount += _operatorStake.eigenStake;
+        totalStake.ethStake += _operatorStake.ethStake;
+        totalStake.eigenStake += _operatorStake.eigenStake;
+        totalStake.dumpNumber = currentDumpNumber;
         // update storage of total stake
-        totalStake = _totalStake;
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        totalStakeHistory.push(totalStake);
 
         //TODO: do we need this variable at all?
         //increment number of registrants
@@ -656,5 +665,64 @@ contract DataLayrRegistry is
         }
 
         emit Registration(operator, pk, uint32(apkHashes.length), newApkHash);
+    }
+
+    function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
+        OperatorStake memory opStake;
+        if (historyLength == 0) {
+            return opStake;
+        } else {
+            opStake = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            return opStake;
+        }
+    }
+
+    function ethStakedByOperator(address operator) external view returns (uint96) {
+        OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
+        return opStake.ethStake;
+    }
+
+    function eigenStakedByOperator(address operator) external view returns (uint96) {
+        OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
+        return opStake.eigenStake;
+    }
+
+    function operatorStakes(address operator) public view returns (uint96, uint96) {
+        OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
+        return (opStake.ethStake, opStake.eigenStake);
+    }
+
+    function isRegistered(address operator) external view returns (bool) {
+        (uint96 ethStake, uint96 eigenStake) = operatorStakes(operator);
+        return (ethStake > 0 || eigenStake > 0);
+    }
+
+    function totalEthStaked() external view returns (uint96) {
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return totalStake.ethStake;
+    }
+
+    function totalEigenStaked() external view returns (uint96) {
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return totalStake.eigenStake;
+    }
+
+    function totalStake() external view returns (uint96, uint96) {
+        OperatorStake memory totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        return (totalStake.ethStake, totalStake.eigenStake);
+    }
+
+    function getLengthOfPubkeyHashStakeHistory(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToStakeHistory[pubkeyHash].length;
+    }
+
+    function getLengthOfTotalStakeHistory() external view returns (uint256) {
+        return totalStakeHistory.length;
+    }
+
+    function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
+        return totalStakeHistory[index];
     }
 }

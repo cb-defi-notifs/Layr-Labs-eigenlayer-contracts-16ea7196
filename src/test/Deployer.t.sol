@@ -600,20 +600,23 @@ contract EigenLayrDeployer is
 
         uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
 
-        // form the data object
-        /*
-        From DataLayrSignatureChecker.sol:
-        FULL CALLDATA FORMAT:
-        uint48 dumpNumber,
-        bytes32 headerHash,
-        uint32 numberOfNonSigners,
-        bytes33[] compressedPubKeys of nonsigners
-        uint32 apkIndex
-        uint256[2] sigma
-        */
+    /** 
+     @param data This calldata is of the format:
+            <
+             uint32 dumpNumber,
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
+     */
         bytes memory data = abi.encodePacked(
             currentDumpNumber,
             headerHash,
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             uint32(0),
             uint32(dlReg.getApkUpdatesLength() - 1),
             uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),

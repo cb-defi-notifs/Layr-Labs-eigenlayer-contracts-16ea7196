@@ -92,6 +92,7 @@ abstract contract DataLayrSignatureChecker is
             <
              uint32 dumpNumber,
              bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -122,17 +123,17 @@ abstract contract DataLayrSignatureChecker is
             // get the 32 bytes immediately after the above
             headerHash := calldataload(72)
 
-            // get the 4 bytes immediately after thr above, which would represent the
-            // number of DataLayr operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(104))
+            // get the 6 bytes immediately after the above, which would represent the
+            // index of the totalStake in the 'totalStakeHistory' array
+            placeholder := shr(208, calldataload(104))
         }
 
-        // we have read (68 + 4 + 32 + 4) = 108 bytes of calldata
-        uint256 pointer = 108;
+        // we have read (68 + 4 + 32 + 4 + 6) = 114 bytes of calldata
+        uint256 pointer = 114;
 
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
-        IDataLayrRegistry dlvw = IDataLayrRegistry(address(repository.voteWeigher()));
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
 
 
         // to be used for holding the aggregated pub key of all DataLayr operators
@@ -145,12 +146,34 @@ abstract contract DataLayrSignatureChecker is
 
         // get information on total stakes
         SignatoryTotals memory sigTotals;
-        signedTotals.ethStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEthStaked();
+        IDataLayrRegistry.OperatorStake memory totalStake = dlRegistry.getTotalStakeFromIndex(placeholder);
+
+        // check that the stake returned from the specified index is recent enough
+        require(
+            totalStake.dumpNumber <= dumpNumberToConfirm,
+            "Total stake index is too early"
+        );
+
+        /** 
+          check that stake is either the most recent update for the total stake, 
+          or latest before the dumpNumberToConfirm
+         */
+        require(
+            totalStake.nextUpdateDumpNumber == 0 ||
+                totalStake.nextUpdateDumpNumber > dumpNumberToConfirm,
+            "Total stake index is too early"
+        );
+
+        signedTotals.ethStakeSigned = totalStake.ethStake;
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = RegistrationManagerBaseMinusRepository(address(repository.voteWeigher())).totalEigenStaked();
+        signedTotals.eigenStakeSigned = totalStake.eigenStake;
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
-
+        assembly {
+            // get the 4 bytes immediately after the above, which would represent the
+            // number of DataLayr operators that aren't present in the quorum
+            placeholder := shr(224, calldataload(110))
+        }
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -224,7 +247,7 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
             // check that the stake returned from the specified index is recent enough
@@ -297,7 +320,7 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
 
             // check that the stake returned from the specified index is recent enough
@@ -350,7 +373,7 @@ abstract contract DataLayrSignatureChecker is
 
         // make sure they have provided the correct aggPubKey
         require(
-            dlvw.getCorrectApkHash(placeholder, dumpNumberToConfirm) == keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
+            dlRegistry.getCorrectApkHash(placeholder, dumpNumberToConfirm) == keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
             "Incorrect apk provided"
         );
 
