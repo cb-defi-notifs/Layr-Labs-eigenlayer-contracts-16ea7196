@@ -143,7 +143,6 @@ contract DataLayrDisclosureChallenge is DSTest {
             challenge.oneStepDegree == degree,
             "Correct degree was not proven"
         );
-        bytes32 pointRoot;
         uint256[3] memory contest_point;
         if (half) {
             //left leaf
