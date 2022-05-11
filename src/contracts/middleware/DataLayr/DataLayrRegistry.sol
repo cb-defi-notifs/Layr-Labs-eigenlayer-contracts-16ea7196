@@ -385,17 +385,15 @@ contract DataLayrRegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes.
+     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr operators.
      */
     /**
-     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
+     * @param operators are the DataLayr operators whose information on their ETH and EIGEN deposits
      *        getting updated
      */
     function updateStakes(address[] calldata operators) public {
         // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();
+        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
 
         uint256 operatorsLength = operators.length;
 

@@ -2,12 +2,25 @@
 pragma solidity ^0.8.9;
 
 interface IDataLayrRegistry {
+
+    /**
+     @notice used for recording the event whenever DataLayr operator stakes for the first time or updates its stake.
+             Primarily used in DataLayrRegistry.sol
+     */
     struct OperatorStake {
+        // dump number where this stake was updated
         uint32 dumpNumber;
+
+        // dump nuber where next update to the stake happened
         uint32 nextUpdateDumpNumber;
+
+        // updated ETH stake
         uint96 ethStake;
+
+        // updated Eigen stake
         uint96 eigenStake;
     }
+    
 
     function setLatestTime(uint32) external;
 
