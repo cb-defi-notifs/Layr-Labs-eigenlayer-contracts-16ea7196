@@ -40,8 +40,8 @@ import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/SignatureCompaction.sol";
 
-import "./CheatCodes.sol";
-import "./Signers.sol";
+import "./utils/CheatCodes.sol";
+import "./utils/Signers.sol";
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
@@ -802,82 +802,6 @@ contract PublicTests is
         );
     }
 
-    //verifies that depositing WETH works
-    function testWethDeposit(uint256 amountToDeposit)
-        public
-        returns (uint256 amountDeposited)
-    {
-        return _testWethDeposit(registrant, amountToDeposit);
-    }
-
-    //Testing deposits in Eigen Layr Contracts - check msg.value
-    function testDepositETHIntoConsensusLayer()
-        public
-        returns (uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoConsensusLayer(
-            registrant,
-            amountDeposited
-        );
-    }
-
-    function testDepositETHIntoLiquidStaking()
-        public
-        returns (uint256 amountDeposited)
-    {
-        return
-            _testDepositETHIntoLiquidStaking(
-                registrant,
-                1e18,
-                liquidStakingMockToken,
-                liquidStakingMockStrat
-            );
-    }
-
-    //checks that it is possible to withdraw WETH
-    function testWethWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
-    ) public {
-        _testWethWithdrawal(registrant, amountToDeposit, amountToWithdraw);
-    }
-
-
-    //checks that it is possible to prove a consensus layer deposit
-    function testCleProof() public {
-        address depositor = address(0x1234123412341234123412341234123412341235);
-        uint256 amount = 100;
-        bytes32[] memory proof = new bytes32[](3);
-        proof[0] = bytes32(
-            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
-        );
-        proof[1] = bytes32(
-            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
-        );
-        proof[2] = bytes32(
-            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
-        );
-        cheats.prank(depositor);
-        deposit.proveLegacyConsensusLayerDeposit(
-            proof,
-            address(0),
-            "0x",
-            amount
-        );
-        //make sure their proofOfStakingEth has updated
-        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
-    }
-
-    //checks that it is possible to init a data store
-    function testInitDataStore() public returns (bytes32) {
-        return _testInitDataStore();
-    }
-
-    //verifies that it is possible to deposit eigen
-    function testDepositEigen() public {
-        _testDepositEigen(registrant);
-    }
-
     function testSelfOperatorDelegate() public {
         _testSelfOperatorDelegate(registrant);
     }
@@ -892,20 +816,6 @@ contract PublicTests is
         _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
         _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
     }
-    
-    //verifies that it is possible to confirm a data store
-    //checks that the store is marked as committed
-    function testConfirmDataStore() public {
-        _testConfirmDataStoreSelfOperators(15);
-    }
-
-    // function testConfirmDataStoreTwoOperators() public {
-    //     _testConfirmDataStoreSelfOperators(2);
-    // }
-
-    // function testConfirmDataStoreTwelveOperators() public {
-    //     _testConfirmDataStoreSelfOperators(12);
-    // }
     
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
@@ -940,15 +850,6 @@ contract PublicTests is
         // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
         // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
         // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
-    }
-
-    function testAddStrategies(uint16 numStratsToAdd) public {
-        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        _testAddStrategies(numStratsToAdd);
-    }
-    
-    function testDepositStrategies(uint16 numStratsToAdd) public {
-        _testDepositStrategies(registrant, 1e18, numStratsToAdd);
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly

@@ -6,7 +6,7 @@ import "./mocks/DisclosureChallenge.sol";
 import "ds-test/test.sol";
 import "./mocks/Multiplication.sol";
 
-import "./CheatCodes.sol";
+import "./utils/CheatCodes.sol";
 
 contract DisclosureDeployer is DSTest {
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
