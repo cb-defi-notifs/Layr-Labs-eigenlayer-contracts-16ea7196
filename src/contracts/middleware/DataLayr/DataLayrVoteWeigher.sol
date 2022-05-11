@@ -450,6 +450,10 @@ contract DataLayrVoteWeigher is
         return apkHashes[index];
     }
 
+    function getApkUpdatesLength() public view returns (uint256) {
+        return apkUpdates.length;
+    }
+
     function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }

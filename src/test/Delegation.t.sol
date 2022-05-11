@@ -44,7 +44,6 @@ contract Delegator is EigenLayrDeployer {
 
     constructor(){
         delegators = [acct_0, acct_1];
-        setUp();
         headers.push(bytes("0x0102030405060708091011121314151617184567"));
         headers.push(bytes("0x0102030405060708091011121314151617182167"));
         headers.push(bytes("0x0102030405060708091011121314151617181920"));
@@ -54,8 +53,6 @@ contract Delegator is EigenLayrDeployer {
         headers.push(bytes("0x0102030405060708091011121314151617181909"));
         headers.push(bytes("0x0102030405060708091011121314151617181944"));
         headers.push(bytes("0x0102030405060708091011121314151617145620"));
-
-
     }
 
     function testinitiateDelegation() public {
