@@ -329,9 +329,9 @@ library BLS {
     }
 
 
-    function jacToAff(uint256[6] memory jac) internal view returns(uint256[4] memory) {
+    function jacToAff(uint256[6] memory jac) internal view returns(uint256, uint256, uint256, uint256) {
         if (jac[4] == 0 && jac[5] == 0) {
-            return [uint256(0), uint256(0), uint256(0), uint256(0)];
+            return (uint256(0), uint256(0), uint256(0), uint256(0));
         }
 
         (jac[4], jac[5]) = inverse(jac[4], jac[5]);
@@ -339,13 +339,8 @@ library BLS {
         (jac[0], jac[1]) = mul(jac[0], jac[1], b0, b1);
         (jac[2], jac[3]) = mul(jac[2], jac[3], b0, b1);
         (jac[2], jac[3]) = mul(jac[2], jac[3], jac[4], jac[5]);
-        
-        uint256[4] memory aff;
-        aff[0] = jac[0];
-        aff[1] = jac[1];
-        aff[2] = jac[2];
-        aff[3] = jac[3];
-        return aff;
+
+        return (jac[0], jac[1], jac[2], jac[3]);
     }
 
     /**

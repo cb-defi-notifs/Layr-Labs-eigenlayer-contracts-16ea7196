@@ -325,7 +325,7 @@ contract DataLayrRegistry is
         // get existing aggregate public key
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
-        pk = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
+        (pk[0], pk[1], pk[2], pk[3]) = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
         // update stored aggregate public key
         apk = pk;
 
@@ -353,7 +353,7 @@ contract DataLayrRegistry is
     /**
      @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
      */ 
-    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal returns (uint256[4] memory) {
+    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal returns (uint256, uint256, uint256, uint256) {
         uint256[6] memory pubkeyToRemoveJac;
         uint256[6] memory existingAggPubkeyJac;
 
@@ -596,7 +596,7 @@ contract DataLayrRegistry is
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
             //add pk to apk
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
-            newApk = BLS.jacToAff(newApkJac);
+            (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
             apk = newApk;
         }
 
