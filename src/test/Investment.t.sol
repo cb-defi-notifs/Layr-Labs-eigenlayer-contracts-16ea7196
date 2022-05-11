@@ -60,6 +60,21 @@ contract InvestmentTests is
         _testDepositEigen(registrant);
     }
 
+    //verifies that it is possible to deposit eigen and then withdraw it
+    function testDepositAndWithdrawEigen() public {
+        uint256 toDeposit = 1e16;
+        uint256 amountToWithdraw = 1e16;
+        _testDepositEigen(registrant);
+        uint256 eigenBeforeWithdrawal = eigen.balanceOf(registrant, eigenTokenId);
+
+        cheats.startPrank(registrant);
+        investmentManager.withdrawEigen(amountToWithdraw);
+        cheats.stopPrank();
+
+        uint256 eigenAfterWithdrawal = eigen.balanceOf(registrant, eigenTokenId);
+        assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
+    }
+
     //checks that it is possible to prove a consensus layer deposit
     function testCleProof() public {
         address depositor = address(0x1234123412341234123412341234123412341235);
