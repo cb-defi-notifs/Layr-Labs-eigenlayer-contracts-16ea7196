@@ -285,7 +285,7 @@ contract DataLayrServiceManager is
             // get the dumpNumber in the DataLayr when the operator registered
             fromDumpNumber = IDataLayrRegistry(
                 address(repository.voteWeigher())
-            ).getOperatorFromDumpNumber(msg.sender);
+            ).getDumpNumberOfOperator(msg.sender);
 
 
 
