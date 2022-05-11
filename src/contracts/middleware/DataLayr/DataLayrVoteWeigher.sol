@@ -23,67 +23,91 @@ contract DataLayrVoteWeigher is
     DSTest
 {
     using BytesLib for bytes;
+
+    // CONSTANTS
     uint256 constant MODULUS =
         21888242871839275222246405745257275088696311157297823662689037894645226208583;
-    /**
-     * @notice  Details on DataLayr nodes that would be used for -
-     *           - sending data by the sequencer
-     *           - querying by any challenger/retriever
-     *           - payment and associated challenges
-     */
-    struct Registrant {
-        bytes32 pubkeyHash;
-        // id is always unique
-        uint32 id;
-        // corresponds to position in registrantList
-        uint64 index;
-        //
-        uint32 fromDumpNumber;
-        uint32 to;
-        uint8 active; //bool
-        // socket address of the DataLayr node
-        string socket;
-    }
-
-    /**
-     * @notice pack two uint48's into a storage slot
-     */
-    struct Uint48xUint48 {
-        uint48 a;
-        uint48 b;
-    }
 
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId)");
+
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant REGISTRATION_TYPEHASH =
         keccak256(
             "Registration(address operator,address registrationContract,uint256 expiry)"
         );
+
+
+    // DATA STRUCTURES 
+    /**
+     * @notice  Data structure for storing info on DataLayr operators that would be used for:
+     *           - sending data by the sequencer
+     *           - querying by any challenger/retriever
+     *           - payment and associated challenges
+     */
+    struct Registrant {
+        // hash of pubkey of the DataLayr operator
+        bytes32 pubkeyHash;
+
+        // id is always unique
+        uint32 id;
+
+        // corresponds to position in registrantList
+        uint64 index;
+
+        //
+        uint32 fromDumpNumber;
+
+        uint32 to;
+
+        uint8 active; //bool
+
+        // socket address of the DataLayr node
+        string socket;
+    }
+
+  
+
+    uint128 public dlnEthStake = 1 wei;
+    uint128 public dlnEigenStake = 1 wei;
+    
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    // the latest UTC timestamp at which a DataStore expires
+    /// @notice the latest UTC timestamp at which a DataStore expires
     uint32 public latestTime;
 
-    uint32 public nextRegistrantId;
-    uint128 public dlnEthStake = 1 wei;
-    uint128 public dlnEigenStake = 1 wei;
 
-    // Register, everyone is active in the list
+    /// @notice a sequential counter that is incremented whenver new operator registers
+    uint32 public nextRegistrantId;
+
+
+    /// @notice used for storing Registrant info on each DataLayr operator while registration
     mapping(address => Registrant) public registry;
+
+    /// @notice used for storing the list of current and past registered DataLayr operators 
     address[] public registrantList;
 
-    //operators pkh to the history of thier stake updates
+
+    /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
-    //the dump number in which the apk is updated
+ß
+
+    /// @notice the dump numbers in which the aggregated pubkeys are updated
     uint32[] public apkUpdates;
 
-    //list of keccak256(apk_x1, apk_x0, apk_y1, apk_y0)
+
+    /**
+     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of DataLayr operators, 
+             this is updated whenever a new operator registers or deregisters
+     */
     bytes32[] public apkHashes;
-    //the current aggregate public key, used for uncoordinated registration
+
+
+    // the current aggregate public key, used for uncoordinated registration
+    /// @dev This is the generator of G2 group. It is necessary in order to do addition in Jacobian coordinate system.
     uint256[4] public apk = [10857046999023057135944570762232829481370756359578518086990519993285655852781,11559732032986387107991004021392285783925812861821192530917403151452391805634,8495653923123431417604973247489272438418190587263600148770280649306958101930,4082367875863433681332203403145435568316851327593401208105741076214120093531];
 
     
@@ -113,10 +137,12 @@ contract DataLayrVoteWeigher is
         uint32 prevUpdateDumpNumber
     );
 
+    // MODIFIERS
     modifier onlyRepository() {
         require(address(repository) == msg.sender, "onlyRepository");
         _;
     }
+
 
     constructor(
         Repository _repository,
@@ -134,7 +160,7 @@ contract DataLayrVoteWeigher is
         )
     {
         //apk_0 = g2Gen
-        //initialize the DOMAIN_SEPARATOR for signatures
+        // initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
         );
