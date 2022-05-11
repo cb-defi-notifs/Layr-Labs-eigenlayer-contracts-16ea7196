@@ -108,13 +108,16 @@ contract EigenLayrDeployer is
 
     //performs basic deployment before each test
     function setUp() public {
+        // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //eth2 deposit contract
         depositContract = new DepositContract();
-        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
+        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
+        // (this is why this contract inherits from 'ERC1155TokenReceiver')
         eigen = new Eigen(address(this));
 
+        // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
         deposit = EigenLayrDeposit(
             address(
@@ -125,7 +128,8 @@ contract EigenLayrDeployer is
                 )
             )
         );
-        //do stuff this eigen token here
+
+        // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
             address(
@@ -136,9 +140,13 @@ contract EigenLayrDeployer is
                 )
             )
         );
+
+        // deploy slasher and service factory contracts
         address slashingRecipient = address(this);
         slasher = new Slasher(investmentManager, address(this), slashingRecipient);
         serviceFactory = new ServiceFactory(investmentManager, delegation);
+
+        // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(
             eigen,
             delegation,
@@ -153,14 +161,16 @@ contract EigenLayrDeployer is
                 )
             )
         );
-        //used in the one investment strategy
+
+        //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
             wethInitialSupply,
             address(this)
         );
-        //do stuff with weth
+
+        // deploy WethStashInvestmentStrategy contract implementation, then create upgradeable proxy that points to implementation
         strat = new WethStashInvestmentStrategy();
         strat = WethStashInvestmentStrategy(
             address(
@@ -171,22 +181,24 @@ contract EigenLayrDeployer is
                 )
             )
         );
+        // initialize WethStashInvestmentStrategy proxy
         strat.initialize(address(investmentManager), weth);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
 
+        // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
         HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
         temp.initialize(address(investmentManager));
         strats[0] = temp;
-        strategies[1] = temp;
+        strategies[0] = temp;
         temp = new HollowInvestmentStrategy();
         temp.initialize(address(investmentManager));
         strats[1] = temp;
-        strategies[2] = temp;
-        strats[2] = IInvestmentStrategy(address(strat));
+        strategies[1] = temp;
         // WETH strategy added to InvestmentManager
-        strategies[0] = IInvestmentStrategy(address(strat));
+        strategies[2] = IInvestmentStrategy(address(strat));
 
+        // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         investmentManager.initialize(
             strats,
@@ -195,6 +207,7 @@ contract EigenLayrDeployer is
             address(deposit)
         );
 
+        // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
             serviceFactory,
@@ -202,45 +215,14 @@ contract EigenLayrDeployer is
             undelegationFraudProofInterval
         );
 
-        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+        // deploy all the DataLayr contracts
+        _deployDataLayrContracts();
 
-        uint256 feePerBytePerTime = 1;
-        dlsm = new DataLayrServiceManager(
-            delegation,
-            weth,
-            weth,
-            feePerBytePerTime,
-            dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory
-        );
-        dl = new DataLayr();
-
-        dlRepository = new Repository(delegation, investmentManager);
-
-        // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        // strats[0] = IInvestmentStrategy(address(strat));
-        dlRegVW = new DataLayrVoteWeigher(
-            Repository(address(dlRepository)),
-            delegation,
-            investmentManager,
-            consensusLayerEthToEth,
-            strats
-        );
-
-        Repository(address(dlRepository)).initialize(
-            dlRegVW,
-            dlsm,
-            dlRegVW,
-            timelockDelay
-        );
-
-        dl.setRepository(dlRepository);
-        dlsm.setRepository(dlRepository);
-        dlsm.setDataLayr(dl);
-
+        // initialize the deposit (proxy) contract
+        // must wait until after the DL contracts are deployed since it relies on the DLSM for updates to ProofOfStaking
         deposit.initialize(depositContract, investmentManager, dlsm);
 
+        // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new WethStashInvestmentStrategy();
         liquidStakingMockStrat.initialize(
@@ -267,46 +249,43 @@ contract EigenLayrDeployer is
         registrationData.push(hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a414b5c501b3a03cd83ef2c1d31e0d46f6087f498b508aab54710fe6bcb7922a5a103bc846a08ed3768a9542b7293bf0d254134427070a9f2f88d47e566a21c741");
     }
 
-    function testDeploymentSuccessful() public {
-        assertTrue(
-            address(depositContract) != address(0),
-            "depositContract failed to deploy"
+    // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
+    function _deployDataLayrContracts() internal {
+        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
+        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+        uint256 feePerBytePerTime = 1;
+        dlsm = new DataLayrServiceManager(
+            delegation,
+            weth,
+            weth,
+            feePerBytePerTime,
+            dataLayrPaymentChallengeFactory,
+            dataLayrDisclosureChallengeFactory
         );
-        assertTrue(address(eigen) != address(0), "eigen failed to deploy");
-        assertTrue(
-            address(delegation) != address(0),
-            "delegation failed to deploy"
+        dl = new DataLayr();
+
+        dlRepository = new Repository(delegation, investmentManager);
+
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
+        strats[0] = IInvestmentStrategy(address(strat));
+        dlRegVW = new DataLayrVoteWeigher(
+            Repository(address(dlRepository)),
+            delegation,
+            investmentManager,
+            consensusLayerEthToEth,
+            strats
         );
-        assertTrue(
-            address(investmentManager) != address(0),
-            "investmentManager failed to deploy"
+
+        Repository(address(dlRepository)).initialize(
+            dlRegVW,
+            dlsm,
+            dlRegVW,
+            timelockDelay
         );
-        assertTrue(address(slasher) != address(0), "slasher failed to deploy");
-        assertTrue(
-            address(serviceFactory) != address(0),
-            "serviceFactory failed to deploy"
-        );
-        assertTrue(address(weth) != address(0), "weth failed to deploy");
-        assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
-        assertTrue(address(dl) != address(0), "dl failed to deploy");
-        assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
-        assertTrue(
-            address(dlRepository) != address(0),
-            "dlRepository failed to deploy"
-        );
-        assertTrue(address(deposit) != address(0), "deposit failed to deploy");
-        assertTrue(
-            dlRepository.serviceManager() == dlsm,
-            "ServiceManager set incorrectly"
-        );
-        assertTrue(
-            dlsm.repository() == dlRepository,
-            "repository set incorrectly in dlsm"
-        );
-        assertTrue(
-            dl.repository() == dlRepository,
-            "repository set incorrectly in dl"
-        );
+
+        dl.setRepository(dlRepository);
+        dlsm.setRepository(dlRepository);
+        dlsm.setDataLayr(dl);
     }
 
     // function testE2() public {
@@ -371,14 +350,6 @@ contract EigenLayrDeployer is
     //     );
     // }
 
-    //verifies that depositing WETH works
-    function testWethDeposit(uint256 amountToDeposit)
-        public
-        returns (uint256 amountDeposited)
-    {
-        return _testWethDeposit(registrant, amountToDeposit);
-    }
-
     //deposits 'amountToDeposit' of WETH from address 'sender' into 'strat'
     function _testWethDeposit(address sender, uint256 amountToDeposit)
         internal
@@ -423,17 +394,6 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    //Testing deposits in Eigen Layr Contracts - check msg.value
-    function testDepositETHIntoConsensusLayer()
-        public
-        returns (uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoConsensusLayer(
-            registrant,
-            amountDeposited
-        );
-    }
-
     function _testDepositETHIntoConsensusLayer(
         address sender,
         uint256 amountToDeposit
@@ -454,19 +414,6 @@ contract EigenLayrDeployer is
             amountDeposited
         );
         cheats.stopPrank();
-    }
-
-    function testDepositETHIntoLiquidStaking()
-        public
-        returns (uint256 amountDeposited)
-    {
-        return
-            _testDepositETHIntoLiquidStaking(
-                registrant,
-                1e18,
-                liquidStakingMockToken,
-                liquidStakingMockStrat
-            );
     }
 
     function _testDepositETHIntoLiquidStaking(
@@ -492,14 +439,6 @@ contract EigenLayrDeployer is
             "shares should match deposit"
         );
         cheats.stopPrank();
-    }
-
-    //checks that it is possible to withdraw WETH
-    function testWethWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
-    ) public {
-        _testWethWithdrawal(registrant, amountToDeposit, amountToWithdraw);
     }
 
     //checks that it is possible to withdraw WETH
@@ -545,36 +484,6 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    //checks that it is possible to prove a consensus layer deposit
-    function testCleProof() public {
-        address depositor = address(0x1234123412341234123412341234123412341235);
-        uint256 amount = 100;
-        bytes32[] memory proof = new bytes32[](3);
-        proof[0] = bytes32(
-            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
-        );
-        proof[1] = bytes32(
-            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
-        );
-        proof[2] = bytes32(
-            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
-        );
-        cheats.prank(depositor);
-        deposit.proveLegacyConsensusLayerDeposit(
-            proof,
-            address(0),
-            "0x",
-            amount
-        );
-        //make sure their proofOfStakingEth has updated
-        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
-    }
-
-    //checks that it is possible to init a data store
-    function testInitDataStore() public returns (bytes32) {
-        return _testInitDataStore();
-    }
-
     //initiates a data store
     //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
     function _testInitDataStore() internal returns (bytes32) {
@@ -615,11 +524,6 @@ contract EigenLayrDeployer is
         return headerHash;
     }
 
-    //verifies that it is possible to deposit eigen
-    function testDepositEigen() public {
-        _testDepositEigen(registrant);
-    }
-
     //deposits a fixed amount of eigen from address 'sender'
     //checks that the deposit is credited correctly
     function _testDepositEigen(address sender) public {
@@ -638,10 +542,6 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    function testSelfOperatorDelegate() public {
-        _testSelfOperatorDelegate(registrant);
-    }
-
     function _testSelfOperatorDelegate(address sender) internal {
         cheats.prank(sender);
         delegation.delegateToSelf();
@@ -654,17 +554,6 @@ contract EigenLayrDeployer is
             uint8(delegation.delegated(sender)) == 1,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
-    }
-
-    function testSelfOperatorRegister() public {
-        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
-        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
-    }
-
-    function testTwoSelfOperatorsRegister() public {
-        address sender = acct_0;
-        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
-        _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
     }
 
     function _testRegisterAdditionalSelfOperator(
@@ -684,20 +573,6 @@ contract EigenLayrDeployer is
 
         cheats.stopPrank();
     }
-
-    //verifies that it is possible to confirm a data store
-    //checks that the store is marked as committed
-    function testConfirmDataStore() public {
-        _testConfirmDataStoreSelfOperators(15);
-    }
-
-    // function testConfirmDataStoreTwoOperators() public {
-    //     _testConfirmDataStoreSelfOperators(2);
-    // }
-
-    // function testConfirmDataStoreTwelveOperators() public {
-    //     _testConfirmDataStoreSelfOperators(12);
-    // }
 
     // TODO: fix this to work with a variable number again, if possible
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
@@ -764,41 +639,6 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
-    function testDelegation() public {
-        uint96 registrantEthWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
-        );
-        uint96 registrantEigenWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
-        );
-        DelegationTerms dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelegate(registrant, dt);
-        _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0);
-        _testDelegateToOperator(acct_0, registrant);
-        // TODO: fix or remove this
-        // _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
-
-        uint96 registrantEthWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
-        );
-        uint96 registrantEigenWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
-        );
-        assertTrue(
-            registrantEthWeightAfter > registrantEthWeightBefore,
-            "testDelegation: registrantEthWeight did not increase!"
-        );
-        assertTrue(
-            registrantEigenWeightAfter > registrantEigenWeightBefore,
-            "testDelegation: registrantEigenWeight did not increase!"
-        );
-        // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
-        // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
-        // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
-    }
-
     function _testRegisterAsDelegate(address sender, DelegationTerms dt)
         internal
     {
@@ -854,6 +694,17 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
+    function _testAddStrategies(uint16 numStratsToAdd) internal {
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
+            // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
+            // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
+            strategy.initialize(address(investmentManager), weth);
+            //store strategy in mapping of strategies
+            strategies[i] = IInvestmentStrategy(address(strategy));
+        }
+    }
+
     //     function _testDelegateToBySignature(address sender, address operator, uint256 priv_key) internal {
     //         cheats.startPrank(sender);
     //         bytes32 structHash = keccak256(
@@ -874,28 +725,13 @@ contract EigenLayrDeployer is
     //         assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
     //         cheats.stopPrank();
 
-    function testAddStrategies(uint16 numStratsToAdd) public {
-        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        for (uint16 i = 1; i < numStratsToAdd; ++i) {
-            WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
-            // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
-            // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-            strategy.initialize(address(investmentManager), weth);
-            // add strategy to InvestmentManager
-            // IInvestmentStrategy[] memory stratsToAdd = new IInvestmentStrategy[](1);
-            // stratsToAdd[0] = IInvestmentStrategy(address(strategy));
-            //store strategy in mapping
-            strategies[i] = IInvestmentStrategy(address(strategy));
-        }
-    }
-
     function _testDepositStrategies(
         address sender,
         uint256 amountToDeposit,
         uint16 numStratsToAdd
     ) internal {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        testAddStrategies(numStratsToAdd);
+        _testAddStrategies(numStratsToAdd);
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             _testWethDepositStrat(
                 sender,
@@ -907,6 +743,208 @@ contract EigenLayrDeployer is
         }
     }
 
+    function _testUndelegation(address sender) internal {
+        cheats.startPrank(sender);
+        cheats.warp(block.timestamp + 1000000);
+        delegation.commitUndelegation();
+        delegation.finalizeUndelegation();
+        cheats.stopPrank();
+    }
+    // function testCheckSignatures() public {
+
+    // }
+}
+
+contract PublicTests is
+    EigenLayrDeployer
+{
+    function testDeploymentSuccessful() public {
+        assertTrue(
+            address(depositContract) != address(0),
+            "depositContract failed to deploy"
+        );
+        assertTrue(address(eigen) != address(0), "eigen failed to deploy");
+        assertTrue(
+            address(delegation) != address(0),
+            "delegation failed to deploy"
+        );
+        assertTrue(
+            address(investmentManager) != address(0),
+            "investmentManager failed to deploy"
+        );
+        assertTrue(address(slasher) != address(0), "slasher failed to deploy");
+        assertTrue(
+            address(serviceFactory) != address(0),
+            "serviceFactory failed to deploy"
+        );
+        assertTrue(address(weth) != address(0), "weth failed to deploy");
+        assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
+        assertTrue(address(dl) != address(0), "dl failed to deploy");
+        assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
+        assertTrue(
+            address(dlRepository) != address(0),
+            "dlRepository failed to deploy"
+        );
+        assertTrue(address(deposit) != address(0), "deposit failed to deploy");
+        assertTrue(
+            dlRepository.serviceManager() == dlsm,
+            "ServiceManager set incorrectly"
+        );
+        assertTrue(
+            dlsm.repository() == dlRepository,
+            "repository set incorrectly in dlsm"
+        );
+        assertTrue(
+            dl.repository() == dlRepository,
+            "repository set incorrectly in dl"
+        );
+    }
+
+    //verifies that depositing WETH works
+    function testWethDeposit(uint256 amountToDeposit)
+        public
+        returns (uint256 amountDeposited)
+    {
+        return _testWethDeposit(registrant, amountToDeposit);
+    }
+
+    //Testing deposits in Eigen Layr Contracts - check msg.value
+    function testDepositETHIntoConsensusLayer()
+        public
+        returns (uint256 amountDeposited)
+    {
+        amountDeposited = _testDepositETHIntoConsensusLayer(
+            registrant,
+            amountDeposited
+        );
+    }
+
+    function testDepositETHIntoLiquidStaking()
+        public
+        returns (uint256 amountDeposited)
+    {
+        return
+            _testDepositETHIntoLiquidStaking(
+                registrant,
+                1e18,
+                liquidStakingMockToken,
+                liquidStakingMockStrat
+            );
+    }
+
+    //checks that it is possible to withdraw WETH
+    function testWethWithdrawal(
+        uint256 amountToDeposit,
+        uint256 amountToWithdraw
+    ) public {
+        _testWethWithdrawal(registrant, amountToDeposit, amountToWithdraw);
+    }
+
+
+    //checks that it is possible to prove a consensus layer deposit
+    function testCleProof() public {
+        address depositor = address(0x1234123412341234123412341234123412341235);
+        uint256 amount = 100;
+        bytes32[] memory proof = new bytes32[](3);
+        proof[0] = bytes32(
+            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
+        );
+        proof[1] = bytes32(
+            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
+        );
+        proof[2] = bytes32(
+            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
+        );
+        cheats.prank(depositor);
+        deposit.proveLegacyConsensusLayerDeposit(
+            proof,
+            address(0),
+            "0x",
+            amount
+        );
+        //make sure their proofOfStakingEth has updated
+        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
+    }
+
+    //checks that it is possible to init a data store
+    function testInitDataStore() public returns (bytes32) {
+        return _testInitDataStore();
+    }
+
+    //verifies that it is possible to deposit eigen
+    function testDepositEigen() public {
+        _testDepositEigen(registrant);
+    }
+
+    function testSelfOperatorDelegate() public {
+        _testSelfOperatorDelegate(registrant);
+    }
+    
+    function testSelfOperatorRegister() public {
+        // emptyStakes is used in place of stakes, since right now they are empty (two totals of 12 zero bytes each)
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
+    }
+
+    function testTwoSelfOperatorsRegister() public {
+        address sender = acct_0;
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
+        _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
+    }
+    
+    //verifies that it is possible to confirm a data store
+    //checks that the store is marked as committed
+    function testConfirmDataStore() public {
+        _testConfirmDataStoreSelfOperators(15);
+    }
+
+    // function testConfirmDataStoreTwoOperators() public {
+    //     _testConfirmDataStoreSelfOperators(2);
+    // }
+
+    // function testConfirmDataStoreTwelveOperators() public {
+    //     _testConfirmDataStoreSelfOperators(12);
+    // }
+    
+    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    function testDelegation() public {
+        uint96 registrantEthWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightBefore = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
+        DelegationTerms dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, dt);
+        _testWethDeposit(acct_0, 1e18);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+        // TODO: fix or remove this
+        // _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
+
+        uint96 registrantEthWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightAfter = uint96(
+            dlRegVW.weightOfOperatorEigen(registrant)
+        );
+        assertTrue(
+            registrantEthWeightAfter > registrantEthWeightBefore,
+            "testDelegation: registrantEthWeight did not increase!"
+        );
+        assertTrue(
+            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            "testDelegation: registrantEigenWeight did not increase!"
+        );
+        // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
+        // assertTrue(address(_strat) != address(0), "operatorStrats not updated correctly");
+        // assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+    }
+
+    function testAddStrategies(uint16 numStratsToAdd) public {
+        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
+        _testAddStrategies(numStratsToAdd);
+    }
+    
     function testDepositStrategies(uint16 numStratsToAdd) public {
         _testDepositStrategies(registrant, 1e18, numStratsToAdd);
     }
@@ -1001,18 +1039,4 @@ contract EigenLayrDeployer is
             );
         }
     }
-
-    function _testUndelegation(address sender) internal {
-        cheats.startPrank(sender);
-        cheats.warp(block.timestamp + 1000000);
-        delegation.commitUndelegation();
-        delegation.finalizeUndelegation();
-        cheats.stopPrank();
-    }
-
-
-
-    // function testCheckSignatures() public {
-
-    // }
 }
