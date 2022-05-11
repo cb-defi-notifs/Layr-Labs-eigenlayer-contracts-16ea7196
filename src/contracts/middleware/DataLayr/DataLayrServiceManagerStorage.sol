@@ -42,12 +42,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     struct MultiReveal {
         uint256 i_x;
         uint256 i_y;
-        uint256 c_minus_i_x;
-        uint256 c_minus_i_y;
         uint256 pi_x;
         uint256 pi_y;
-        uint256 pairing_x;
-        uint256 pairing_y;
     }
 
     struct Commitment {
@@ -92,7 +88,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
-    mapping (uint256 => Commitment) zeroPolynomialCommitments;
+    bytes32[32] public zeroPolynomialCommitmentMerlkeRoots;
 
     /**
      * @notice mapping between the dumpNumber for a particular assertion of data into

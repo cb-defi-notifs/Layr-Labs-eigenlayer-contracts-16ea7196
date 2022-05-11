@@ -250,9 +250,9 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      */
     function payForService(IERC20 token, uint256 amount) external payable {
         // determine the repository associated with the service manager
-        IRepository repository = IServiceManager(msg.sender).repository();
+        IRepository _repository = IServiceManager(msg.sender).repository();
         // only the service manager can call this function
-        require(msg.sender == address(repository.serviceManager()), "only ServiceManagers");
+        require(msg.sender == address(_repository.serviceManager()), "only ServiceManagers");
 
         // check if the repository exists
         //TODO: fix this check
