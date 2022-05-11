@@ -141,7 +141,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     // used for fetching weights
     IRepository public immutable repository;
 
-    //NOTE: copied from 'DataLayrVoteWeigher.sol'
+    //NOTE: copied from 'DataLayrRegistry.sol'
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
     uint256 public constant consensusLayerPercent = 10;
 
@@ -490,7 +490,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     }
 
 //TODO: move logic for 'weightOfEth' and 'weightOfEigen' to separate contract, in the event that we want to use it elsewhere
-//      currently it heavily resembles the logic in the DataLayrVoteWeigher contract
+//      currently it heavily resembles the logic in the DataLayrRegistry contract
     /**
      *  @notice returns the total ETH value of staked assets of the given staker in EigenLayr
      *          via this delegation term's operator.    
@@ -501,12 +501,12 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      *       to determine the value of delegator's shares in that investment strategy in ETH.        
      */ 
     function weightOfEth(address delegator) public returns(uint256) {
-        // TODO: make this work better. right now I believe this is broken if delegator falls below DLVW threshold
+        // TODO: make this work better. right now I believe this is broken if delegator falls below DataLayrRegistry threshold
         uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEth(delegator));
         return weight;
     }
     function weightOfEigen(address delegator) public returns(uint256) {
-        // TODO: make this work better. right now I believe this is broken if delegator falls below DLVW threshold
+        // TODO: make this work better. right now I believe this is broken if delegator falls below DataLayrRegistry threshold
         uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEigen(delegator));
         return weight;
     }

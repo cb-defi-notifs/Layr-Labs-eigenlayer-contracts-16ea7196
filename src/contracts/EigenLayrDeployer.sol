@@ -17,7 +17,7 @@ import "./middleware/ServiceFactory.sol";
 import "./middleware/Repository.sol";
 import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
-import "./middleware/DataLayr/DataLayrVoteWeigher.sol";
+import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 
@@ -41,7 +41,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     InvestmentManager public investmentManager;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
-    DataLayrVoteWeigher public dlRegVW;
+    DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayr public dl;
 
@@ -124,12 +124,12 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         dlRepository = new Repository(delegation, investmentManager);
         
-        dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
+        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
 
         Repository(address(dlRepository)).initialize(
-            dlRegVW,
+            dlReg,
             dlsm,
-            dlRegVW,
+            dlReg,
             timelockDelay
         );
 

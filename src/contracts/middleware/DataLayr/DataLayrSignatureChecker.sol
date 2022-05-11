@@ -132,7 +132,7 @@ abstract contract DataLayrSignatureChecker is
 
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
-        IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(address(repository.voteWeigher()));
+        IDataLayrRegistry dlvw = IDataLayrRegistry(address(repository.voteWeigher()));
 
 
         // to be used for holding the aggregated pub key of all DataLayr operators
@@ -202,7 +202,7 @@ abstract contract DataLayrSignatureChecker is
 
                 /** 
                  @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
-                         DataLayrVoteWeigher.sol that was recorded at the time of pre-commit.
+                         DataLayrRegistry.sol that was recorded at the time of pre-commit.
                  */
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
@@ -224,7 +224,7 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw
                 .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
             // check that the stake returned from the specified index is recent enough
@@ -267,7 +267,7 @@ abstract contract DataLayrSignatureChecker is
 
                 /**
                  @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
-                         DataLayrVoteWeigher.sol that was recorded at the time of pre-commit.
+                         DataLayrRegistry.sol that was recorded at the time of pre-commit.
                  */
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
@@ -297,7 +297,7 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
 
 
             // check that the stake returned from the specified index is recent enough
@@ -329,7 +329,7 @@ abstract contract DataLayrSignatureChecker is
         }
 
         assembly {
-            //get next 32 bits which would be the apkIndex of apkUpdates in DataLayrVoteWeigher.sol
+            //get next 32 bits which would be the apkIndex of apkUpdates in DataLayrRegistry.sol
             placeholder := shr(224, calldataload(pointer))
 
             // get the aggregated publickey at the moment when pre-commit happened

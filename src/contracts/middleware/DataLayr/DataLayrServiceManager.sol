@@ -128,7 +128,7 @@ contract DataLayrServiceManager is
 
         // recording the expiry time until which the DataLayr nodes, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(repository.voteWeigher())).setLatestTime(
+        IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
             uint32(block.timestamp) + storePeriodLength
         );
 
@@ -261,7 +261,7 @@ contract DataLayrServiceManager is
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
         // only registered operators can call
         require(
-            IDataLayrVoteWeigher(address(repository.voteWeigher()))
+            IDataLayrRegistry(address(repository.voteWeigher()))
                 .getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
@@ -283,7 +283,7 @@ contract DataLayrServiceManager is
             // payment from when the operator registered
 
             // get the dumpNumber in the DataLayr when the operator registered
-            fromDumpNumber = IDataLayrVoteWeigher(
+            fromDumpNumber = IDataLayrRegistry(
                 address(repository.voteWeigher())
             ).getOperatorFromDumpNumber(msg.sender);
 
@@ -467,7 +467,7 @@ contract DataLayrServiceManager is
             "Sig record does not match hash"
         );
         {
-            IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(
+            IDataLayrRegistry dlvw = IDataLayrRegistry(
                 address(
                     repository.registrationManager()
                 )

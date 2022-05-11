@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrVoteWeigher.sol";
+import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
 
@@ -202,7 +202,7 @@ contract DataLayrPaymentChallenge is DSTest{
             "Sig record does not match hash"
         );
 
-        IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
+        IDataLayrRegistry dlvw = IDataLayrRegistry(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
 
         bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
 
@@ -221,7 +221,7 @@ contract DataLayrPaymentChallenge is DSTest{
             }
             //TODO: Change this
             uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
-            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
             require(
                 operatorStake.dumpNumber <= challengedDumpNumber,
