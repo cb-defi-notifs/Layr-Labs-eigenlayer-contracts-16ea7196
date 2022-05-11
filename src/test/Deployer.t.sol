@@ -499,10 +499,10 @@ contract EigenLayrDeployer is
         weth.approve(address(dlsm), type(uint256).max);
         cheats.prank(storer);
         dlsm.initDataStore(header, totalBytes, storePeriodLength);
-        uint48 dumpNumber = 1;
+        uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         (
-            uint48 dataStoreDumpNumber,
+            uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
             bool dataStoreCommitted
@@ -577,7 +577,7 @@ contract EigenLayrDeployer is
     }
 
     // TODO: fix this to work with a variable number again, if possible
-    function _testConfirmDataStoreSelfOperators(uint8 signersInput) public {
+    function _testConfirmDataStoreSelfOperators(uint8 signersInput) internal {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
         uint32 numberOfSigners = uint32(signersInput);
@@ -598,7 +598,7 @@ contract EigenLayrDeployer is
         // uint32 apkIndex
         // uint256[4] sigma
 
-        uint32 currentDumpNumber = dlsm.dumpNumber();
+        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
 
         // form the data object
         /*
@@ -615,7 +615,7 @@ contract EigenLayrDeployer is
             currentDumpNumber,
             headerHash,
             uint32(0),
-            uint32(14),
+            uint32(dlRegVW.getApkUpdatesLength() - 1),
             uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
             uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
             uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
