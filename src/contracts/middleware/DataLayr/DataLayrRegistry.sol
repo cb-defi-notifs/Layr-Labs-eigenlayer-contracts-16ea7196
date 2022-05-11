@@ -397,35 +397,53 @@ contract DataLayrRegistry is
 
         uint256 operatorsLength = operators.length;
 
+
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+
+
             // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
+
+
+
             // determine current stakes
             OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
                 pubkeyHash
             ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
+
+
             // determine new stakes
             OperatorStake memory newStakes;
-
             newStakes.dumpNumber = currentDumpNumber;
             newStakes.ethStake = uint96(weightOfOperatorEth(operators[i]));
             newStakes.eigenStake = uint96(weightOfOperatorEigen(operators[i]));
 
-            // check if minimum requirements have been met
+
+            // check if minimum requirements for the new stakes have been met
             if (newStakes.ethStake < dlnEthStake) {
                 newStakes.ethStake = uint96(0);
             }
             if (newStakes.eigenStake < dlnEigenStake) {
                 newStakes.eigenStake = uint96(0);
             }
-            //set next dump number in prev stakes
+
+
+            /**
+             @notice update records on stakes in the history
+             */
+            // set next dump number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateDumpNumber = currentDumpNumber;
+
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+
+
+
+
             // update the total stake
             totalStake.ethAmount =
                 totalStake.ethAmount +
@@ -435,6 +453,10 @@ contract DataLayrRegistry is
                 totalStake.eigenAmount +
                 newStakes.ethStake -
                 currentStakes.eigenStake;
+
+
+
+
             emit StakeUpdate(
                 operators[i],
                 newStakes.ethStake,
@@ -442,6 +464,7 @@ contract DataLayrRegistry is
                 currentDumpNumber,
                 currentStakes.dumpNumber
             );
+
             unchecked {
                 ++i;
             }
