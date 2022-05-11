@@ -266,8 +266,10 @@ contract EigenLayrDeployer is
 
         dlRepository = new Repository(delegation, investmentManager);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
-        strats[0] = IInvestmentStrategy(address(strat));
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
+        for (uint256 i = 0; i < strats.length; ++i) {
+            strats[i] = strategies[i];
+        }
         dlRegVW = new DataLayrVoteWeigher(
             Repository(address(dlRepository)),
             delegation,
@@ -963,6 +965,16 @@ contract PublicTests is
         _testRegisterAsDelegate(registrant, dt);
         _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
         _testDepositEigen(acct_0);
+
+        // add all the new strategies to the 'strategiesConsidered' of dlVW
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](numStratsToAdd);
+        for (uint256 i = 0; i < strats.length; ++i) {
+            strats[i] = strategies[i];
+        }
+        cheats.startPrank(address(dlRegVW.repository().timelock()));
+        dlRegVW.addStrategiesConsidered(strats);
+        cheats.stopPrank();
+
         _testDelegateToOperator(acct_0, registrant);
         uint96 registrantEthWeightAfter = uint96(
             dlRegVW.weightOfOperatorEth(registrant)

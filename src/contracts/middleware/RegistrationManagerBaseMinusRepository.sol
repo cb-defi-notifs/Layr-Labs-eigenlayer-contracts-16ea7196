@@ -73,7 +73,10 @@ abstract contract RegistrationManagerBaseMinusRepository is IRegistrationManager
      * @notice
      */
     event Registration(
-        address registrant
+        address registrant,
+        uint256[4] pk,
+        uint32 apkHashIndex,
+        bytes32 apkHash
     );
 
     event DeregistrationCommit(
