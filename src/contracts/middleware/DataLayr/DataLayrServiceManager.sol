@@ -123,9 +123,6 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-        // increment the counter
-        dumpNumber++;
-
         // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
 
@@ -145,6 +142,9 @@ contract DataLayrServiceManager is
             totalBytes,
             storePeriodLength
         );
+
+        // increment the counter
+        dumpNumber++;
     }
 
     /**

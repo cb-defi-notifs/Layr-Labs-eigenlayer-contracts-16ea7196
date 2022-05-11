@@ -452,7 +452,8 @@ contract DataLayrVoteWeigher is
         // update apk coordinates
         apkUpdates.push(currentDumpNumber);
         //store hashed apk
-        apkHashes.push(keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3])));
+        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
+        apkHashes.push(newApkHash);
 
         _operatorStake.dumpNumber = currentDumpNumber;
 
@@ -499,6 +500,6 @@ contract DataLayrVoteWeigher is
             ++numRegistrants;
         }
 
-        emit Registration(operator);
+        emit Registration(operator, pk, uint32(apkHashes.length), newApkHash);
     }
 }
