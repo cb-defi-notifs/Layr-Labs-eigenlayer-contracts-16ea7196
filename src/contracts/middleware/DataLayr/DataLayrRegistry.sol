@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrVoteWeigher.sol";
+import "../../interfaces/IDataLayrRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
@@ -16,8 +16,8 @@ import "ds-test/test.sol";
  * @notice
  */
 
-contract DataLayrVoteWeigher is
-    IDataLayrVoteWeigher,
+contract DataLayrRegistry is
+    IDataLayrRegistry,
     VoteWeigherBase,
     RegistrationManagerBaseMinusRepository,
     DSTest

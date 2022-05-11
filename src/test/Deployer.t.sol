@@ -21,7 +21,7 @@ import "../contracts/middleware/ServiceFactory.sol";
 import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/middleware/DataLayr/DataLayrVoteWeigher.sol";
+import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 
@@ -60,7 +60,7 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
-    DataLayrVoteWeigher public dlRegVW;
+    DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayr public dl;
 
@@ -270,7 +270,7 @@ contract EigenLayrDeployer is
         for (uint256 i = 0; i < strats.length; ++i) {
             strats[i] = strategies[i];
         }
-        dlRegVW = new DataLayrVoteWeigher(
+        dlReg = new DataLayrRegistry(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
@@ -279,9 +279,9 @@ contract EigenLayrDeployer is
         );
 
         Repository(address(dlRepository)).initialize(
-            dlRegVW,
+            dlReg,
             dlsm,
-            dlRegVW,
+            dlReg,
             timelockDelay
         );
 
@@ -571,7 +571,7 @@ contract EigenLayrDeployer is
 
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlRegVW.registerOperator(registrantType, data, socket);
+        dlReg.registerOperator(registrantType, data, socket);
 
         cheats.stopPrank();
     }
@@ -615,7 +615,7 @@ contract EigenLayrDeployer is
             currentDumpNumber,
             headerHash,
             uint32(0),
-            uint32(dlRegVW.getApkUpdatesLength() - 1),
+            uint32(dlReg.getApkUpdatesLength() - 1),
             uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
             uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
             uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
@@ -782,7 +782,7 @@ contract PublicTests is
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dl) != address(0), "dl failed to deploy");
-        assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
+        assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
         assertTrue(
             address(dlRepository) != address(0),
             "dlRepository failed to deploy"
@@ -910,10 +910,10 @@ contract PublicTests is
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
         uint96 registrantEthWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
+            dlReg.weightOfOperatorEth(registrant)
         );
         uint96 registrantEigenWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
+            dlReg.weightOfOperatorEigen(registrant)
         );
         DelegationTerms dt = _deployDelegationTerms(registrant);
         _testRegisterAsDelegate(registrant, dt);
@@ -924,10 +924,10 @@ contract PublicTests is
         // _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
 
         uint96 registrantEthWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
+            dlReg.weightOfOperatorEth(registrant)
         );
         uint96 registrantEigenWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
+            dlReg.weightOfOperatorEigen(registrant)
         );
         assertTrue(
             registrantEthWeightAfter > registrantEthWeightBefore,
@@ -955,10 +955,10 @@ contract PublicTests is
     function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         uint96 registrantEthWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
+            dlReg.weightOfOperatorEth(registrant)
         );
         uint96 registrantEigenWeightBefore = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
+            dlReg.weightOfOperatorEigen(registrant)
         );
         DelegationTerms dt = _deployDelegationTerms(registrant);
 
@@ -971,16 +971,16 @@ contract PublicTests is
         for (uint256 i = 0; i < strats.length; ++i) {
             strats[i] = strategies[i];
         }
-        cheats.startPrank(address(dlRegVW.repository().timelock()));
-        dlRegVW.addStrategiesConsidered(strats);
+        cheats.startPrank(address(dlReg.repository().timelock()));
+        dlReg.addStrategiesConsidered(strats);
         cheats.stopPrank();
 
         _testDelegateToOperator(acct_0, registrant);
         uint96 registrantEthWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEth(registrant)
+            dlReg.weightOfOperatorEth(registrant)
         );
         uint96 registrantEigenWeightAfter = uint96(
-            dlRegVW.weightOfOperatorEigen(registrant)
+            dlReg.weightOfOperatorEigen(registrant)
         );
         assertTrue(
             registrantEthWeightAfter > registrantEthWeightBefore,

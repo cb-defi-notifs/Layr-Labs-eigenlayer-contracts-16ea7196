@@ -21,7 +21,7 @@
 // import "../contracts/middleware/Repository.sol";
 // import "../contracts/middleware/DataLayr/DataLayr.sol";
 // import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
-// import "../contracts/middleware/DataLayr/DataLayrVoteWeigher.sol";
+// import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 // import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 // import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 
@@ -54,7 +54,7 @@
 //     InvestmentManager public investmentManager;
 //     Slasher public slasher;
 //     ServiceFactory public serviceFactory;
-//     DataLayrVoteWeigher public dlRegVW;
+//     DataLayrRegistry public dlReg;
 //     DataLayrServiceManager public dlsm;
 //     DataLayr public dl;
 
@@ -174,12 +174,12 @@
 
 //         // IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
 //         // strats[0] = IInvestmentStrategy(address(strat));
-//         dlRegVW = new DataLayrVoteWeigher(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
+//         dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
 
 //         Repository(address(dlRepository)).initialize(
-//             dlRegVW,
+//             dlReg,
 //             dlsm,
-//             dlRegVW,
+//             dlReg,
 //             timelockDelay
 //         );
 
@@ -219,7 +219,7 @@
 //         assertTrue(address(weth) != address(0), "weth failed to deploy");
 //         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
 //         assertTrue(address(dl) != address(0), "dl failed to deploy");
-//         assertTrue(address(dlRegVW) != address(0), "dlRegVW failed to deploy");
+//         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
 //         assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
 //         assertTrue(address(deposit) != address(0), "deposit failed to deploy");
 //         assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
@@ -537,11 +537,11 @@
 
 //     //     cheats.startPrank(sender);
 //     //     // function registerOperator(uint8 registrantType, string calldata socket, bytes calldata stakes)
-//     //     dlRegVW.registerOperator(registrantType, socket, stakesPrev);
+//     //     dlReg.registerOperator(registrantType, socket, stakesPrev);
 
-//     //     uint32 dumpNumber = dlRegVW.apkUpdates(dlRegVW.apkUpdatesLength() - 1);
-//     //     uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
-//     //     uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
+//     //     uint32 dumpNumber = dlReg.apkUpdates(dlReg.apkUpdatesLength() - 1);
+//     //     uint96 weightOfOperatorEth = uint96(dlReg.weightOfOperatorEth(sender));
+//     //     uint96 weightOfOperatorEigen = uint96(dlReg.weightOfOperatorEigen(sender));
 //     //     bytes memory stakes = abi.encodePacked(
 //     //         stakesPrev.slice(0,stakesPrev.length - 24),
 //     //         sender,
@@ -552,7 +552,7 @@
 //     //     );
 //     //     bytes32 hashOfStakes = keccak256(stakes);
 //     //     assertTrue(
-//     //         hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+//     //         hashOfStakes == dlReg.stakeHashes(dumpNumber),
 //     //         "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
 //     //     );
 
@@ -581,12 +581,12 @@
 // //         _testSelfOperatorDelegate(sender);  
 // //         // string memory socket = "fe";
 
-// //         // calculate hash to sign, imitating logic in DataLayrVoteWeigher
+// //         // calculate hash to sign, imitating logic in DataLayrRegistry
 // //         bytes32 digestHash = keccak256(
 // //             abi.encode(
-// //                 dlRegVW.REGISTRATION_TYPEHASH(),
+// //                 dlReg.REGISTRATION_TYPEHASH(),
 // //                 sender,
-// //                 address(dlRegVW),
+// //                 address(dlReg),
 // //                 // expiry
 // //                 uint256(0)
 // //             )
@@ -594,7 +594,7 @@
 // //         digestHash = keccak256(
 // //             abi.encodePacked(
 // //                 "\x19\x01",
-// //                 dlRegVW.DOMAIN_SEPARATOR(),
+// //                 dlReg.DOMAIN_SEPARATOR(),
 // //                 digestHash
 // //             )
 // //         );
@@ -615,11 +615,11 @@
 // //     //     bytes32 r,
 // //     //     bytes32 vs,
 // //     //     bytes calldata stakes
-// //         dlRegVW.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
+// //         dlReg.registerOperatorBySignature(sender, uint8(3), string("fe"), uint256(0), r, vs, stakesPrev);
 
-// //         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
-// //         uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(sender));
-// //         uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(sender));
+// //         uint48 dumpNumber = dlReg.stakeHashUpdates(dlReg.getStakesHashUpdateLength() - 1);
+// //         uint96 weightOfOperatorEth = uint96(dlReg.weightOfOperatorEth(sender));
+// //         uint96 weightOfOperatorEigen = uint96(dlReg.weightOfOperatorEigen(sender));
 // //         bytes memory stakes = abi.encodePacked(
 // //             stakesPrev.slice(0,stakesPrev.length - 24),
 // //             sender
@@ -636,7 +636,7 @@
 // //         );
 // //         bytes32 hashOfStakes = keccak256(stakes);
 // //         assertTrue(
-// //             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+// //             hashOfStakes == dlReg.stakeHashes(dumpNumber),
 // //             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
 // //         );
 
@@ -684,12 +684,12 @@
 // //             _testSelfOperatorDelegate(signers[i]);  
 // //             // string memory socket = "fe";
 
-// //             // calculate hash to sign, imitating logic in DataLayrVoteWeigher
+// //             // calculate hash to sign, imitating logic in DataLayrRegistry
 // //             bytes32 digestHash = keccak256(
 // //                 abi.encode(
-// //                     dlRegVW.REGISTRATION_TYPEHASH(),
+// //                     dlReg.REGISTRATION_TYPEHASH(),
 // //                     signers[i],
-// //                     address(dlRegVW),
+// //                     address(dlReg),
 // //                     // expiry
 // //                     uint256(0)
 // //                 )
@@ -697,7 +697,7 @@
 // //             digestHash = keccak256(
 // //                 abi.encodePacked(
 // //                     "\x19\x01",
-// //                     dlRegVW.DOMAIN_SEPARATOR(),
+// //                     dlReg.DOMAIN_SEPARATOR(),
 // //                     digestHash
 // //                 )
 // //             );
@@ -717,8 +717,8 @@
 // //             signerData.signatureData[2 * i] = r;
 // //             signerData.signatureData[2 * i + 1] = vs;
 
-// //             uint96 weightOfOperatorEth = uint96(dlRegVW.weightOfOperatorEth(signers[i]));
-// //             uint96 weightOfOperatorEigen = uint96(dlRegVW.weightOfOperatorEigen(signers[i]));
+// //             uint96 weightOfOperatorEth = uint96(dlReg.weightOfOperatorEth(signers[i]));
+// //             uint96 weightOfOperatorEigen = uint96(dlReg.weightOfOperatorEigen(signers[i]));
 
 // //             bytes memory stakes = abi.encodePacked(
 // //                 stakesPrev.slice(0,stakesPrev.length - 24),
@@ -745,13 +745,13 @@
 // //     //  // set of all {r, vs} for signers
 // //     // bytes32[] calldata signatureData,
 // //     // bytes calldata stakes)
-// //         dlRegVW.registerOperatorsBySignatures(signerData.operators, signerData.registrantTypes, signerData.sockets, signerData.expiries, signerData.signatureData, initStakes);
+// //         dlReg.registerOperatorsBySignatures(signerData.operators, signerData.registrantTypes, signerData.sockets, signerData.expiries, signerData.signatureData, initStakes);
 
-// //         uint48 dumpNumber = dlRegVW.stakeHashUpdates(dlRegVW.getStakesHashUpdateLength() - 1);
+// //         uint48 dumpNumber = dlReg.stakeHashUpdates(dlReg.getStakesHashUpdateLength() - 1);
 
 // //         bytes32 hashOfStakes = keccak256(stakesPrev);
 // //         assertTrue(
-// //             hashOfStakes == dlRegVW.stakeHashes(dumpNumber),
+// //             hashOfStakes == dlReg.stakeHashes(dumpNumber),
 // //             "_testRegisterAdditionalSelfOperator: stakes stored incorrectly"
 // //         );
 // //         return (stakesPrev);
@@ -793,7 +793,7 @@
 // //             currentDumpNumber,
 // //             headerHash,
 // //             numberOfSigners,
-// //             uint256(dlRegVW.getStakesHashUpdateLength() - 1),
+// //             uint256(dlReg.getStakesHashUpdateLength() - 1),
 // //             stakes.length,
 // //             stakes
 // //         );
@@ -840,8 +840,8 @@
 // //     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
 // //     function testDelegation() public {
       
-// //         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
-// //         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+// //         uint96 registrantEthWeightBefore = uint96(dlReg.weightOfOperatorEth(registrant));
+// //         uint96 registrantEigenWeightBefore = uint96(dlReg.weightOfOperatorEigen(registrant));
 // //         DelegationTerms dt = _deployDelegationTerms(registrant);
 // //         _testRegisterAsDelegate(registrant, dt);
 // //         _testWethDeposit(acct_0, 1e18);
@@ -849,8 +849,8 @@
 // //         _testDelegateToOperator(acct_0, registrant);
 // //         _testDelegateToBySignature(acct_1, registrant, uint256(priv_key_1));
     
-// //         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
-// //         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+// //         uint96 registrantEthWeightAfter = uint96(dlReg.weightOfOperatorEth(registrant));
+// //         uint96 registrantEigenWeightAfter = uint96(dlReg.weightOfOperatorEigen(registrant));
 // //         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
 // //         assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
 // //         // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);
@@ -955,8 +955,8 @@
 // //     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
 // //     function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
 // //         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-// //         uint96 registrantEthWeightBefore = uint96(dlRegVW.weightOfOperatorEth(registrant));
-// //         uint96 registrantEigenWeightBefore = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+// //         uint96 registrantEthWeightBefore = uint96(dlReg.weightOfOperatorEth(registrant));
+// //         uint96 registrantEigenWeightBefore = uint96(dlReg.weightOfOperatorEigen(registrant));
 // //         DelegationTerms dt = _deployDelegationTerms(registrant);
 // //         _testRegisterAsDelegate(registrant, dt);
 // //         _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
@@ -967,8 +967,8 @@
 // //         _testAddOperatorStrats(registrant, strats);
 // //         _testDepositEigen(acct_0);
 // //         _testDelegateToOperator(acct_0, registrant);
-// //         uint96 registrantEthWeightAfter = uint96(dlRegVW.weightOfOperatorEth(registrant));
-// //         uint96 registrantEigenWeightAfter = uint96(dlRegVW.weightOfOperatorEigen(registrant));
+// //         uint96 registrantEthWeightAfter = uint96(dlReg.weightOfOperatorEth(registrant));
+// //         uint96 registrantEigenWeightAfter = uint96(dlReg.weightOfOperatorEigen(registrant));
 // //         assertTrue(registrantEthWeightAfter > registrantEthWeightBefore, "testDelegation: registrantEthWeight did not increase!");
 // //         assertTrue(registrantEigenWeightAfter > registrantEigenWeightBefore, "testDelegation: registrantEigenWeight did not increase!");
 // //         // IInvestmentStrategy _strat = delegation.operatorStrats(registrant, 0);

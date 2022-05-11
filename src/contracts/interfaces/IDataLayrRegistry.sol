@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-interface IDataLayrVoteWeigher {
+interface IDataLayrRegistry {
     struct OperatorStake {
         uint32 dumpNumber;
         uint32 nextUpdateDumpNumber;

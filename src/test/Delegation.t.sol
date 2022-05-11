@@ -120,7 +120,7 @@ contract Delegator is EigenLayrDeployer {
 
         //register operator with vote weigher so they can get payment
         bytes memory data = registrationData[0];
-        dlRegVW.registerOperator(registrantType, data, socket);
+        dlReg.registerOperator(registrantType, data, socket);
         cheats.stopPrank();
 
     }
