@@ -622,9 +622,6 @@ contract DataLayrRegistry is
         );
 
 
-        // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
-
 
         uint256[4] memory newApk;
         uint256[4] memory pk;
@@ -646,6 +643,7 @@ contract DataLayrRegistry is
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
 
+        // CRITIC: @Gautham please elaborate on the meaning of this snippet
         if (apkUpdates.length != 0) {
             // addition doesn't work in this case 
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
@@ -655,28 +653,33 @@ contract DataLayrRegistry is
         // emit log_named_uint("x", input[0]);
         // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
-        // update apk coordinates
+
+        /**
+         @notice some book-keeping
+         */
+        // get current dump number from DataLayrServiceManager
+        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
+
+        // store the current dumpnumber in which the aggregated pubkey is being updated 
         apkUpdates.push(currentDumpNumber);
         
-        //store hashed apk
+        //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);
 
+        // record the new stake for the DataLayr operator in the storage
         _operatorStake.dumpNumber = currentDumpNumber;
-
-        //store operatorStake in storage
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
+        
 
-        // slice starting the byte after socket length to construct the details on the
-        // DataLayr node
+        // store the registrant's info in relation to DataLayr
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            fromDumpNumber: IDataLayrServiceManager(
-                address(repository.serviceManager())
-            ).dumpNumber(),
+            // CRITIC: load from memory and save it in memory the first time above this other contract was called
+            fromDumpNumber: IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber(),
             to: 0,
             // extract the socket address
             socket: socket
