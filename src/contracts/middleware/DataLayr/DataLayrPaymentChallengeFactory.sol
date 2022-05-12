@@ -4,10 +4,16 @@ pragma solidity ^0.8.9;
 import "./DataLayrPaymentChallenge.sol";
 
 /**
- * @notice Factory contract for creating new DataLayrPaymentChallenge contracts
+ * @notice This factory contract is used for creating new DataLayrPaymentChallenge contracts.
  */
 contract DataLayrPaymentChallengeFactory {
-    //creates a new 'DataLayrPaymentChallenge' contract
+
+    /**
+     @notice this function creates a new 'DataLayrPaymentChallenge' contract 
+     */
+    /**
+     @param operator is DataLayr operator 
+     */
     function createDataLayrPaymentChallenge(
         address operator,
         address challenger,

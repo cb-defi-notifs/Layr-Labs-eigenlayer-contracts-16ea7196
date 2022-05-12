@@ -417,6 +417,7 @@ contract DataLayrServiceManager is
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);
+
             // i.e. if the operator *is* a 'self operator'
         } else {
             //simply transfer the payment amount in this case
@@ -427,8 +428,19 @@ contract DataLayrServiceManager is
     }
 
 
-    //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
+
+
+    //
     //TODO: How much collateral
+    /**
+     @notice This function would be called by a fraud prover to challenge a payment 
+             by initiating an interactive type proof
+     */
+    /**
+     @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
+     @param amount1 
+     @param amount2
+     */ 
     function challengePaymentInit(
         address operator,
         uint120 amount1,
@@ -441,6 +453,8 @@ contract DataLayrServiceManager is
                 operatorToPayment[operator].status == 0,
             "Fraud proof interval has passed"
         );
+
+
         // deploy new challenge contract
         address challengeContract = dataLayrPaymentChallengeFactory
             .createDataLayrPaymentChallenge(
@@ -461,6 +475,9 @@ contract DataLayrServiceManager is
         operatorToPaymentChallenge[operator] = challengeContract;
         emit PaymentChallengeInit(operator, msg.sender);
     }
+
+
+
 
     function resolvePaymentChallenge(address operator, bool winner) external {
         require(

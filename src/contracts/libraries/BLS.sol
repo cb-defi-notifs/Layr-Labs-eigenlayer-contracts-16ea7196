@@ -28,7 +28,7 @@ library BLS {
      */
     /**
      @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @return pubkey is the pubkey
+     @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */ 
     function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
         internal
