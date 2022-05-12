@@ -563,6 +563,11 @@ contract DataLayrRegistry is
     /**
      @notice called for registering as a DataLayr operator
      */
+    /**
+     @param registrantType specifies whether the DataLayr operator want to register as ETH staker or Eigen stake or both
+     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @param socket is the socket address of the DataLayr operator
+     */ 
     function registerOperator(
         uint8 registrantType,
         bytes calldata data,
@@ -570,6 +575,8 @@ contract DataLayrRegistry is
     ) public {
         _registerOperator(msg.sender, registrantType, data, socket);
     }
+
+
 
     function _registerOperator(
         address operator,
@@ -587,7 +594,7 @@ contract DataLayrRegistry is
 
 
 
-        //if first bit of registrantType is '1', then operator wants to be an ETH validator
+        // if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the
             // minimum requirements on how much ETH it must deposit
@@ -614,10 +621,10 @@ contract DataLayrRegistry is
             "must register as at least one type of validator"
         );
 
+
         // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();
+        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
+
 
         uint256[4] memory newApk;
         uint256[4] memory pk;
@@ -625,16 +632,22 @@ contract DataLayrRegistry is
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
-            //add pk to apk
+
+            // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
+            
+            // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
+
             apk = newApk;
         }
 
+        // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
+
         if (apkUpdates.length != 0) {
-            //addition doesn't work in this case
+            // addition doesn't work in this case 
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
@@ -644,6 +657,7 @@ contract DataLayrRegistry is
 
         // update apk coordinates
         apkUpdates.push(currentDumpNumber);
+        
         //store hashed apk
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);
