@@ -27,10 +27,10 @@ library BLS {
      @notice verification of BLS signature with the message being pubkey hash
      */
     /**
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @return pubkey is the pubkey
      */ 
-    function verifyBLSSigOfPubKeyHash(bytes calldata data, uint256 offset)
+    function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
         internal
         returns (uint256, uint256, uint256, uint256)
     {
@@ -436,21 +436,19 @@ library BLS {
     function hashToG1(bytes32 _x)
         internal
         view
-        returns (uint256, uint256)
+        returns (uint256 x, uint256 y)
     {
-        uint256 x = uint256(_x) % MODULUS;
-        uint256 y;
+        x = uint256(_x) % MODULUS;
         bool found = false;
         while (true) {
-            y = mulmod(x, x,MODULUS);
-            y = mulmod(y, x,MODULUS);
-            y = addmod(y, 3,MODULUS);
+            y = mulmod(x, x, MODULUS);
+            y = mulmod(y, x, MODULUS);
+            y = addmod(y, 3, MODULUS);
             (y, found) = sqrt(y);
             if (found) {
                 return (x, y);
-                break;
             }
-            x = addmod(x, 1,MODULUS);
+            x = addmod(x, 1, MODULUS);
         }
     }
 

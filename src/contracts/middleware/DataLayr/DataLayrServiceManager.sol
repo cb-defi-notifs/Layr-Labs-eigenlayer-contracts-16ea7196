@@ -451,7 +451,6 @@ contract DataLayrServiceManager is
             bool commited
         ) = dataLayr.dataStores(headerHash);
         require(commited, "Dump is not commited yet");
-        bytes32 signatoryHash = dumpNumberToSignatureHash[dumpNumber];
 
         //check sigs
         require(
@@ -689,7 +688,8 @@ contract DataLayrServiceManager is
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
-        bytes calldata header
+        // bytes calldata header
+        bytes calldata
     ) public returns (uint256[2] memory, uint48) {
         //TODO: Bowen Implement
         // return x, y coordinate of overall data poly commitment

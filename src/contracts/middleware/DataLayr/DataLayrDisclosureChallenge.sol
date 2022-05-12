@@ -150,7 +150,6 @@ contract DataLayrDisclosureChallenge {
             challenge.oneStepDegree == degree,
             "Correct degree was not proven"
         );
-        bytes32 pointRoot;
         uint256[3] memory contest_point;
         if (half) {
             //left leaf
@@ -167,9 +166,7 @@ contract DataLayrDisclosureChallenge {
         uint256[5] memory coors;
         coors[0] = x_power;
         coors[1] = y_power;
-        //this is the coefficient of the term with degree degree
-        //TODO: verify that multiplying by 32 is safe from overflow
-        //(Q: does this automatically make the result a uint256, or is it constrained to uint48?)
+        //this is the coefficient of the term with degree 'degree'
         coors[2] = uint256(bytes32(poly[degree * 32:degree * 32 + 32]));
         assembly {
             if iszero(

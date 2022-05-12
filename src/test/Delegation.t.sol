@@ -73,8 +73,8 @@ contract Delegator is EigenLayrDeployer {
         uint96 registrantEigenWeightBefore = uint96(
             dlReg.weightOfOperatorEigen(registrant)
         );
-        DelegationTerms dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelegate(registrant, dt);
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, _dt);
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);
@@ -109,9 +109,9 @@ contract Delegator is EigenLayrDeployer {
         uint96 registrantEigenWeightBefore = uint96(
             dlReg.weightOfOperatorEigen(registrant)
         );
-        DelegationTerms dt = _deployDelegationTerms(registrant);
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
 
-        _testRegisterAsDelegate(registrant, dt);
+        _testRegisterAsDelegate(registrant, _dt);
         _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
         _testDepositEigen(acct_0);
 
@@ -161,8 +161,8 @@ contract Delegator is EigenLayrDeployer {
     //TODO: add tests for contestDelegationCommit()
     function testUndelegation() public {
         //delegate
-        DelegationTerms dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelegate(registrant, dt);
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, _dt);
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0);
         _testDelegateToOperator(acct_0, registrant);

@@ -64,6 +64,7 @@ contract InvestmentTests is
     function testDepositAndWithdrawEigen() public {
         uint256 toDeposit = 1e16;
         uint256 amountToWithdraw = 1e16;
+        cheats.assume(amountToWithdraw <= toDeposit);
         _testDepositEigen(registrant);
         uint256 eigenBeforeWithdrawal = eigen.balanceOf(registrant, eigenTokenId);
 
