@@ -13,7 +13,10 @@ import "../../libraries/BLS.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice
+ * @notice This contract is used for 
+            - registering new DataLayr operators 
+            - committing to and finalizing de-registration as an operator from DataLayr 
+            - updating the stakes of the DataLayr operator
  */
 
 contract DataLayrRegistry is
@@ -123,8 +126,13 @@ contract DataLayrRegistry is
     bytes32[] public apkHashes;
 
 
-    // the current aggregate public key, used for uncoordinated registration
-    /// @dev This is the generator of G2 group. It is necessary in order to do addition in Jacobian coordinate system.
+    /**
+     @notice used for storing current aggregate public key
+     */
+    /** 
+     @dev Initialized value is the generator of G2 group. It is necessary in order to do 
+     addition in Jacobian coordinate system.
+     */
     uint256[4] public apk = [10857046999023057135944570762232829481370756359578518086990519993285655852781,11559732032986387107991004021392285783925812861821192530917403151452391805634,8495653923123431417604973247489272438418190587263600148770280649306958101930,4082367875863433681332203403145435568316851327593401208105741076214120093531];
 
     
@@ -563,6 +571,11 @@ contract DataLayrRegistry is
     /**
      @notice called for registering as a DataLayr operator
      */
+    /**
+     @param registrantType specifies whether the DataLayr operator want to register as ETH staker or Eigen stake or both
+     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @param socket is the socket address of the DataLayr operator
+     */ 
     function registerOperator(
         uint8 registrantType,
         bytes calldata data,
@@ -571,6 +584,10 @@ contract DataLayrRegistry is
         _registerOperator(msg.sender, registrantType, data, socket);
     }
 
+
+    /**
+     @param operator is the node who is registering to be a DataLayr operator
+     */
     function _registerOperator(
         address operator,
         uint8 registrantType,
@@ -587,7 +604,7 @@ contract DataLayrRegistry is
 
 
 
-        //if first bit of registrantType is '1', then operator wants to be an ETH validator
+        // if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the
             // minimum requirements on how much ETH it must deposit
@@ -614,27 +631,34 @@ contract DataLayrRegistry is
             "must register as at least one type of validator"
         );
 
-        // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();
 
+
+        /**
+         @notice evaluate the new aggregated pubkey
+         */
         uint256[4] memory newApk;
         uint256[4] memory pk;
 
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
-            //add pk to apk
+
+            // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
+            
+            // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
+
             apk = newApk;
         }
 
+        // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
+
+        // CRITIC: @Gautham please elaborate on the meaning of this snippet
         if (apkUpdates.length != 0) {
-            //addition doesn't work in this case
+            // addition doesn't work in this case 
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
@@ -642,27 +666,40 @@ contract DataLayrRegistry is
         // emit log_named_uint("x", input[0]);
         // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
-        // update apk coordinates
+
+
+
+        /**
+         @notice some book-keeping for aggregated pubkey
+         */
+        // get current dump number from DataLayrServiceManager
+        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
+
+        // store the current dumpnumber in which the aggregated pubkey is being updated 
         apkUpdates.push(currentDumpNumber);
-        //store hashed apk
+        
+        //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);
 
+
+
+
+        /**
+         @notice some book-keeping for recording info pertaining to the DataLayr operator
+         */
+        // record the new stake for the DataLayr operator in the storage
         _operatorStake.dumpNumber = currentDumpNumber;
-
-        //store operatorStake in storage
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
-
-        // slice starting the byte after socket length to construct the details on the
-        // DataLayr node
+        
+        // store the registrant's info in relation to DataLayr
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            fromDumpNumber: IDataLayrServiceManager(
-                address(repository.serviceManager())
-            ).dumpNumber(),
+            // CRITIC: load from memory and save it in memory the first time above this other contract was called
+            fromDumpNumber: IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber(),
             to: 0,
             // extract the socket address
             socket: socket
@@ -675,8 +712,12 @@ contract DataLayrRegistry is
         unchecked {
             ++nextRegistrantId;
         }
-
-        // copy total stake to memory
+        
+        
+        
+        /**
+         @notice some book-keeping for recoding updated total stake
+         */
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         /**
          * update total Eigen and ETH that are being employed by the operator for securing
@@ -685,12 +726,14 @@ contract DataLayrRegistry is
         _totalStake.ethStake += _operatorStake.ethStake;
         _totalStake.eigenStake += _operatorStake.eigenStake;
         _totalStake.dumpNumber = currentDumpNumber;
-        // update storage of total stake
+        // linking with the most recent stake recordd in the past
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
         totalStakeHistory.push(_totalStake);
 
+
+
         //TODO: do we need this variable at all?
-        //increment number of registrants
+        // increment number of registrants
         unchecked {
             ++numRegistrants;
         }
