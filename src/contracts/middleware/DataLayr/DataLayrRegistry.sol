@@ -13,7 +13,10 @@ import "../../libraries/BLS.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice
+ * @notice This contract is used for 
+            - registering new DataLayr operators 
+            - committing to and finalizing de-registration as an operator from DataLayr 
+            - updating the stakes of the DataLayr operator
  */
 
 contract DataLayrRegistry is
