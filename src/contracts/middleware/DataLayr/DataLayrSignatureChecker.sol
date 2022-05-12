@@ -129,13 +129,8 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(208, calldataload(104))
         }
 
-        // we have read (68 + 4 + 32 + 4 + 6) = 114 bytes of calldata
-        uint256 pointer = 114;
-
-
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
-
 
         // to be used for holding the aggregated pub key of all DataLayr operators
         // that aren't part of the quorum
@@ -143,7 +138,6 @@ abstract contract DataLayrSignatureChecker is
          @dev we would be storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
          */
         uint256[6] memory aggNonSignerPubkey;
-
 
         // get information on total stakes
         IDataLayrRegistry.OperatorStake memory totalStake = dlRegistry.getTotalStakeFromIndex(placeholder);
@@ -174,6 +168,8 @@ abstract contract DataLayrSignatureChecker is
             // number of DataLayr operators that aren't present in the quorum
             placeholder := shr(224, calldataload(110))
         }
+        // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
+        uint256 pointer = 114;
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -185,7 +181,8 @@ abstract contract DataLayrSignatureChecker is
          */
         /**
          @dev loading pubkey for the first DataLayr operator that is not part of the quorum as listed in the calldata; 
-              Note that this need not be a special case and can be subsumed in the for loop below.    
+              Note that this need not be a special case and can be subsumed in the for loop below.
+              However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
          */
         if (placeholder > 0) {
             uint256 stakeIndex;
@@ -230,10 +227,12 @@ abstract contract DataLayrSignatureChecker is
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 bytes of calldata above.
-            // Update pointer.
-            pointer += 132;
-
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // Update pointer accordingly.
+            unchecked {
+                pointer += 132;
+            }
+            
             // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(
@@ -296,8 +295,8 @@ abstract contract DataLayrSignatureChecker is
             }
 
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 bytes of calldata above.
-            // Update pointer.
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // Update pointer accordingly.
             pointer += 132;
 
 
@@ -366,10 +365,11 @@ abstract contract DataLayrSignatureChecker is
             mstore(add(pk, 0x60), calldataload(add(pointer, 100)))
         }
 
-        // We have read (4 + 32 + 32 + 32 + 32) = 132 bytes of calldata above.
+        // We have read (4 + 32 + 32 + 32 + 32) = 132 additional bytes of calldata in the above assembly block
         // Update pointer.
-        pointer += 132;
-
+        unchecked {
+            pointer += 132;
+        }
 
         // make sure they have provided the correct aggPubKey
         require(
@@ -394,10 +394,11 @@ abstract contract DataLayrSignatureChecker is
             uint256(0)
         ];
 
+        // TODO: only set this once, if possible?
         assembly {
             // get the 4 bytes immediately after the above, which would represent the
             // number of DataLayr operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(104))
+            placeholder := shr(224, calldataload(110))
         }
 
         if (placeholder != 0) {

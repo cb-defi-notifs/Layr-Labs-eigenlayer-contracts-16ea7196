@@ -52,7 +52,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function testSelfOperatorDelegate() public {
-        _testSelfOperatorDelegate(registrant);
+        _testSelfOperatorDelegate(signers[0]);
     }
     
     function testSelfOperatorRegister() public {
