@@ -177,7 +177,7 @@ abstract contract DataLayrSignatureChecker is
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
-        emit log("stupid");
+
 
         /**
          @notice next step involves computing the aggregated pub key of all the DataLayr operators

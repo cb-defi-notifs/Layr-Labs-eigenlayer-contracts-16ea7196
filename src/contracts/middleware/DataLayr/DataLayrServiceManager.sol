@@ -24,23 +24,29 @@ contract DataLayrServiceManager is
 {
     using BytesLib for bytes;
     /**
-     * @dev The EigenLayr delegation contract for this DataLayr which primarily used by
+     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
      *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on. For more details, see EigenLayrDelegation.sol.
+     *      nodes and so on. 
      */
+    /**
+      @dev For more details, see EigenLayrDelegation.sol. 
+     */ 
     IEigenLayrDelegation public immutable eigenLayrDelegation;
+
 
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
-    DataLayrPaymentChallengeFactory
-        public immutable dataLayrPaymentChallengeFactory;
+    DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
+
 
     /**
      * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
      */
-    DataLayrDisclosureChallengeFactory
-        public immutable dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
+
+
+
 
     // EVENTS
     /**
@@ -62,6 +68,8 @@ contract DataLayrServiceManager is
     event PaymentChallengeResolution(address operator, bool operatorWon);
 
     event PaymentRedemption(address operator, uint256 fee);
+
+
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -93,14 +101,14 @@ contract DataLayrServiceManager is
     /**
      * @notice This function is used for
      *          - notifying in the settlement layer that the disperser has asserted the data
-     *            into DataLayr and is waiting for obtaining quorum of DataLayr nodes to sign,
+     *            into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
      *          - asserting the metadata corresponding to the data asserted into DataLayr
-     *          - escrow the service fees that DataLayr nodes will receive from the disperser
+     *          - escrow the service fees that DataLayr operators will receive from the disperser
      *            on account of their service.
      */
     /**
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes,
+     * @param storePeriodLength for which the data has to be stored by the DataLayr operators,
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
@@ -123,19 +131,20 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
+
         // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
 
-        // recording the expiry time until which the DataLayr nodes, who sign up to
+        // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
         IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
             uint32(block.timestamp) + storePeriodLength
         );
 
-        // escrow the total service fees from the storer to the DataLayr nodes in this contract
+        // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
-        // call DL contract
+        // call DataLayr contract
         dataLayr.initDataStore(
             dumpNumber,
             headerHash,
@@ -147,6 +156,7 @@ contract DataLayrServiceManager is
         dumpNumber++;
     }
 
+
     /**
      * @notice This function is used for
      *          - disperser to notify that signatures on the message, comprising of hash( headerHash ),
@@ -154,8 +164,18 @@ contract DataLayrServiceManager is
      *          - check that each of the signatures are valid,
      *          - call the DataLayr contract to check that whether quorum has been achieved or not.
      */
-    /**
-     * @param data TBA.
+    /** 
+     @param data is of the format:
+            <
+             uint32 dumpNumber,
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
      */
     // CRITIC: there is an important todo in this function
     function confirmDataStore(bytes calldata data) external payable {
@@ -168,20 +188,27 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        emit log("stupid");
+
 
         /**
-         * @dev Checks that there is no need for posting a deposit root required for proving
-         * the new staking of ETH into settlement layer after the launch of EigenLayr. For
-         * more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         * @notice checks that there is no need for posting a deposit root required for proving
+         * the new staking of ETH into settlement layer. 
          */
+        /**
+         @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         */ 
         require(
             dumpNumberToConfirm % depositRootInterval != 0,
             "Must post a deposit root now"
         );
 
-        // record the compressed information on all the DataLayr nodes who signed
+
+        // record the compressed information pertaining to this particular dump
+        /**
+         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
+         */
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
