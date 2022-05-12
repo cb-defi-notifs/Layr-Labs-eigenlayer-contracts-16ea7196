@@ -10,13 +10,27 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
-    // Payment
+    
+    // DATA STRUCTURE
+
+    /**
+     @notice used for storing information on the most recent payment made to the DataLayr operator
+     */
     struct Payment {
-        uint32 fromDumpNumber; // dumpNumber payment being claimed from
-        uint32 toDumpNumber; // dumpNumber payment being claimed to exclusive
+        // dumpNumber starting from which payment is being claimed 
+        uint32 fromDumpNumber; 
+
+        // dumpNumber until which payment is being claimed (exclusive) 
+        uint32 toDumpNumber; 
+
+        // recording when committment for payment made; used for fraud proof period
+        uint32 commitTime; 
+
         // payment for range [fromDumpNumber, toDumpNumber)
-        uint32 commitTime; // when commited, used for fraud proof period
-        uint120 amount; // max 1.3e36, keep in mind for token decimals
+        /// @dev max 1.3e36, keep in mind for token decimals
+        uint120 amount; 
+
+
         uint8 status; // 0: commited, 1: redeemed
         uint256 collateral; //account for if collateral changed
     }
@@ -74,7 +88,15 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
+
+    /**
+     @notice this is the payment that has to be made as a collateral for fraudproof 
+             during payment challenges
+     */
     uint256 public paymentFraudProofCollateral = 1 wei;
+
+
+
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
