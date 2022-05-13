@@ -27,10 +27,10 @@ library BLS {
      @notice verification of BLS signature with the message being pubkey hash
      */
     /**
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @return pubkey is the pubkey
+     @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */ 
-    function verifyBLSSigOfPubKeyHash(bytes calldata data, uint256 offset)
+    function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
         internal
         returns (uint256, uint256, uint256, uint256)
     {
@@ -329,9 +329,9 @@ library BLS {
     }
 
 
-    function jacToAff(uint256[6] memory jac) internal view returns(uint256[4] memory) {
+    function jacToAff(uint256[6] memory jac) internal view returns(uint256, uint256, uint256, uint256) {
         if (jac[4] == 0 && jac[5] == 0) {
-            return [uint256(0), uint256(0), uint256(0), uint256(0)];
+            return (uint256(0), uint256(0), uint256(0), uint256(0));
         }
 
         (jac[4], jac[5]) = inverse(jac[4], jac[5]);
@@ -339,13 +339,8 @@ library BLS {
         (jac[0], jac[1]) = mul(jac[0], jac[1], b0, b1);
         (jac[2], jac[3]) = mul(jac[2], jac[3], b0, b1);
         (jac[2], jac[3]) = mul(jac[2], jac[3], jac[4], jac[5]);
-        
-        uint256[4] memory aff;
-        aff[0] = jac[0];
-        aff[1] = jac[1];
-        aff[2] = jac[2];
-        aff[3] = jac[3];
-        return aff;
+
+        return (jac[0], jac[1], jac[2], jac[3]);
     }
 
     /**
@@ -441,21 +436,19 @@ library BLS {
     function hashToG1(bytes32 _x)
         internal
         view
-        returns (uint256, uint256)
+        returns (uint256 x, uint256 y)
     {
-        uint256 x = uint256(_x) % MODULUS;
-        uint256 y;
+        x = uint256(_x) % MODULUS;
         bool found = false;
         while (true) {
-            y = mulmod(x, x,MODULUS);
-            y = mulmod(y, x,MODULUS);
-            y = addmod(y, 3,MODULUS);
+            y = mulmod(x, x, MODULUS);
+            y = mulmod(y, x, MODULUS);
+            y = addmod(y, 3, MODULUS);
             (y, found) = sqrt(y);
             if (found) {
                 return (x, y);
-                break;
             }
-            x = addmod(x, 1,MODULUS);
+            x = addmod(x, 1, MODULUS);
         }
     }
 

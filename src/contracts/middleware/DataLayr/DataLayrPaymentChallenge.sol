@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrVoteWeigher.sol";
+import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
 
@@ -202,7 +202,7 @@ contract DataLayrPaymentChallenge is DSTest{
             "Sig record does not match hash"
         );
 
-        IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
+        IDataLayrRegistry dlvw = IDataLayrRegistry(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
 
         bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
 
@@ -221,7 +221,7 @@ contract DataLayrPaymentChallenge is DSTest{
             }
             //TODO: Change this
             uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
-            IDataLayrVoteWeigher.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
             require(
                 operatorStake.dumpNumber <= challengedDumpNumber,
@@ -265,23 +265,23 @@ contract DataLayrPaymentChallenge is DSTest{
         selfdestruct(payable(0));
     }
 
-    function getChallengeStatus() external returns(uint8){
+    function getChallengeStatus() external view returns(uint8){
         return challenge.status;
     }
 
-    function getAmount1() external returns (uint120){
+    function getAmount1() external view returns (uint120){
         return challenge.amount1;
     }
-    function getAmount2() external returns (uint120){
+    function getAmount2() external view returns (uint120){
         return challenge.amount2;
     }
-    function getToDumpNumber() external returns (uint48){
+    function getToDumpNumber() external view returns (uint48){
         return challenge.toDumpNumber;
     }
-    function getFromDumpNumber() external returns (uint48){
+    function getFromDumpNumber() external view returns (uint48){
         return challenge.fromDumpNumber;
     }
-    function getDiff() external returns (uint48){
+    function getDiff() external view returns (uint48){
         return challenge.toDumpNumber - challenge.fromDumpNumber;
     }
 }

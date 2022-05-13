@@ -15,7 +15,7 @@ import "../contracts/middleware/ServiceManagerBase.sol";
 
 import "ds-test/test.sol";
 
-import "./CheatCodes.sol";
+import "./utils/CheatCodes.sol";
 
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
@@ -38,38 +38,163 @@ contract Delegator is EigenLayrDeployer {
     address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     address challengeContract;
 
-    
-
-
-
     constructor(){
         delegators = [acct_0, acct_1];
-        setUp();
-        headers.push(bytes("0x0102030405060708091011121314151617184567"));
-        headers.push(bytes("0x0102030405060708091011121314151617182167"));
-        headers.push(bytes("0x0102030405060708091011121314151617181920"));
-        headers.push(bytes("0x0102030405060708091011121314151617181934"));
-        headers.push(bytes("0x0102030405060708091011121314151617181956"));
-        headers.push(bytes("0x0102030405060708091011121314151617181967"));
-        headers.push(bytes("0x0102030405060708091011121314151617181909"));
-        headers.push(bytes("0x0102030405060708091011121314151617181944"));
-        headers.push(bytes("0x0102030405060708091011121314151617145620"));
-
-
+        // headers.push(bytes("0x0102030405060708091011121314151617184567"));
+        // headers.push(bytes("0x0102030405060708091011121314151617182167"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181920"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181934"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181956"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181967"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181909"));
+        // headers.push(bytes("0x0102030405060708091011121314151617181944"));
+        // headers.push(bytes("0x0102030405060708091011121314151617145620"));
     }
 
-    function testinitiateDelegation() public {
+    function testSelfOperatorDelegate() public {
+        _testSelfOperatorDelegate(signers[0]);
+    }
+    
+    function testSelfOperatorRegister() public {
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
+    }
 
-        //_initializeServiceManager();
-        
-        _testinitiateDelegation(1e10);
+    function testTwoSelfOperatorsRegister() public {
+        address sender = acct_0;
+        _testRegisterAdditionalSelfOperator(registrant, registrationData[0]);
+        _testRegisterAdditionalSelfOperator(sender, registrationData[1]);
+    }
+    
+    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    function testDelegation() public {
+        uint96 registrantEthWeightBefore = uint96(
+            dlReg.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightBefore = uint96(
+            dlReg.weightOfOperatorEigen(registrant)
+        );
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, _dt);
+        _testWethDeposit(acct_0, 1e18);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+
+        uint96 registrantEthWeightAfter = uint96(
+            dlReg.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightAfter = uint96(
+            dlReg.weightOfOperatorEigen(registrant)
+        );
+        assertTrue(
+            registrantEthWeightAfter > registrantEthWeightBefore,
+            "testDelegation: registrantEthWeight did not increase!"
+        );
+        assertTrue(
+            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            "testDelegation: registrantEigenWeight did not increase!"
+        );
+        IInvestmentStrategy _strat = investmentManager.investorStrats(acct_0, 0);
+        assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
+        assertTrue(delegation.operatorShares(registrant, _strat) > 0, "operatorShares not updated correctly");
+    }
+
+    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
+        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
+        uint96 registrantEthWeightBefore = uint96(
+            dlReg.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightBefore = uint96(
+            dlReg.weightOfOperatorEigen(registrant)
+        );
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+
+        _testRegisterAsDelegate(registrant, _dt);
+        _testDepositStrategies(acct_0, 1e18, numStratsToAdd);
+        _testDepositEigen(acct_0);
+
+        // add all the new strategies to the 'strategiesConsidered' of dlVW
+        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](numStratsToAdd);
+        for (uint256 i = 0; i < strats.length; ++i) {
+            strats[i] = strategies[i];
+        }
+        cheats.startPrank(address(dlReg.repository().timelock()));
+        dlReg.addStrategiesConsidered(strats);
+        cheats.stopPrank();
+
+        _testDelegateToOperator(acct_0, registrant);
+        uint96 registrantEthWeightAfter = uint96(
+            dlReg.weightOfOperatorEth(registrant)
+        );
+        uint96 registrantEigenWeightAfter = uint96(
+            dlReg.weightOfOperatorEigen(registrant)
+        );
+        assertTrue(
+            registrantEthWeightAfter > registrantEthWeightBefore,
+            "testDelegation: registrantEthWeight did not increase!"
+        );
+        assertTrue(
+            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            "testDelegation: registrantEigenWeight did not increase!"
+        );
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            IInvestmentStrategy depositorStrat = investmentManager.investorStrats(acct_0, i);
+            assertTrue(
+                delegation.operatorShares(registrant, depositorStrat)
+                ==
+                investmentManager.investorStratShares(acct_0, depositorStrat),
+                "delegate shares not stored properly"
+            );
+        }
+    }
+
+    //TODO: add tests for contestDelegationCommit()
+    function testUndelegation() public {
+        //delegate
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+        _testRegisterAsDelegate(registrant, _dt);
+        _testWethDeposit(acct_0, 1e18);
+        _testDepositEigen(acct_0);
+        _testDelegateToOperator(acct_0, registrant);
+
+        //delegator-specific information
+        (
+            IInvestmentStrategy[] memory delegatorStrategies,
+            uint256[] memory delegatorShares
+        ) = investmentManager.getDeposits(msg.sender);
+
+        //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            initialOperatorShares[delegatorStrategies[k]] = delegation
+                .getOperatorShares(registrant, delegatorStrategies[k]);
+        }
+
+        _testUndelegation(acct_0);
+
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            uint256 operatorSharesBefore = initialOperatorShares[
+                delegatorStrategies[k]
+            ];
+            uint256 operatorSharesAfter = delegation.getOperatorShares(
+                registrant,
+                delegatorStrategies[k]
+            );
+            assertTrue(
+                delegatorShares[k] == operatorSharesAfter - operatorSharesBefore
+            );
+        }
+    }
+
+
+    
+    function testInitiateDelegation() public {        
+        _testInitiateDelegation(1e10);
         emit log("c");
 
         //servicemanager pays out rewards to delegate and delegators
         _payRewards();
         
         
-
         // for(uint i; i < delegators.length; i++){
         //     (
         //     IInvestmentStrategy[] memory strategies,
@@ -79,21 +204,22 @@ contract Delegator is EigenLayrDeployer {
         // }
 
     }
-    function _testinitiateDelegation(uint256 amountToDeposit) public {
+
+    function _testInitiateDelegation(uint256 amountToDeposit) public {
         //setting up operator's delegation terms
-        weth.transfer(registrant, 1e5);
+        address toRegister = signers[0];
+        weth.transfer(toRegister, 1e5);
         weth.transfer(challenger, 1e5);
-        cheats.startPrank(registrant);
-        dt = _setDelegationTerms(registrant);
-        delegation.registerAsDelegate(dt);
+        cheats.startPrank(toRegister);
+        dt = _setDelegationTerms(toRegister);
         cheats.stopPrank();        
+        _testRegisterAsDelegate(toRegister, dt);
+
         for(uint i; i < delegators.length; i++){
             //initialize weth, eigen and eth balances for delegator
             eigen.safeTransferFrom(address(this), delegators[i], 0, amountEigenToDeposit, "0x");
             weth.transfer(delegators[i], amountToDeposit);
             cheats.deal(delegators[i], amountEthToDeposit);
-            
-
 
             cheats.startPrank(delegators[i]);
 
@@ -113,17 +239,12 @@ contract Delegator is EigenLayrDeployer {
                 amountToDeposit);
 
             //delegate delegators deposits to operator
-            delegation.delegateTo(registrant);
+            delegation.delegateTo(toRegister);
             cheats.stopPrank();
         }
 
-        cheats.startPrank(registrant);
-        uint8 registrantType = 3;
-        string memory socket = "fe";
-
+        cheats.startPrank(toRegister);
         //register operator with vote weigher so they can get payment
-        bytes memory data = registrationData[0];
-        dlRegVW.registerOperator(registrantType, data, socket);
         cheats.stopPrank();
 
     }
@@ -167,8 +288,6 @@ contract Delegator is EigenLayrDeployer {
         uint120 challengerAmount1, 
         uint120 challengerAmount2
         ) internal{
-
-        
 
         //The challenger has initiated a challenge to the payment commit of the operator
         //The next step is for the operator to respond to the proposed split of the challenger
@@ -224,75 +343,18 @@ contract Delegator is EigenLayrDeployer {
 
      //Operator submits claim or commit for a payment amount
     function _testCommitPayment(uint120 _amountRewards) internal {
+        emit log_named_uint("where is this broken", 0);
+        // TODO: fix this here. currently this registers every operator as a self operator, and we register signers[0]
+        //      as a delegate (not a self operator) within '_testConfirmDataStoreSelfOperators'
+        _testConfirmDataStoreSelfOperators(15);
+        emit log_named_uint("where is this broken", 1);
 
+        cheats.startPrank(registrant);
+        weth.approve(address(dlsm), type(uint256).max);
+        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
 
-        //make 10 different data commits to DL
-        for (uint i=0; i<9; i++){
-            weth.transfer(storer, 10e10);
-            cheats.prank(storer);
-            weth.approve(address(dlsm), type(uint256).max);
-            cheats.prank(storer);
-
-            dlsm.initDataStore(
-                headers[i],
-                1e6,
-                600
-            );
-
-            // form the data object
-            /*
-            From DataLayrSignatureChecker.sol:
-            FULL CALLDATA FORMAT:
-            uint48 dumpNumber,
-            bytes32 headerHash,
-            uint32 numberOfNonSigners,
-            bytes33[] compressedPubKeys of nonsigners
-            uint32 apkIndex
-            uint256[2] sigma
-            */
-            bytes32 headerHash = keccak256(headers[i]);
-            uint32 currentDumpNumber = dlsm.dumpNumber();
-            bytes memory data = abi.encodePacked(
-                currentDumpNumber,
-                headerHash,
-                uint32(0),
-                uint32(14),
-                uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
-                uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
-                uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
-                uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672),
-                uint256(
-                    7155561537864411538991615376457474334371827900888029310878886991084477170996
-                ),
-                uint256(
-                    10352977531892356631551102769773992282745949082157652335724669165983475588346
-                )
-            );
-
-            dlsm.confirmDataStore(data);
-
-
-            (
-                uint32 dataStoreDumpNumber,
-                ,
-                ,
-                
-            ) = dl.dataStores(headerHash);
-
-            
-            cheats.startPrank(registrant);
-            weth.approve(address(dlsm), type(uint256).max);
-
-            // removed this declaration to silence a compiler warning for unused local variable
-            // uint256 currBalance = weth.balanceOf(address(dt));
-            dlsm.commitPayment(dataStoreDumpNumber, _amountRewards);
-            cheats.stopPrank();
-        }
-        
-       
-
-        
-
+        dlsm.commitPayment(currentDumpNumber, _amountRewards);
+        cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
 

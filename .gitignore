@@ -11,3 +11,7 @@ artifacts
 *.lock
 #Foundry files
 out
+
+
+lib/ds-test
+*.DS_Store

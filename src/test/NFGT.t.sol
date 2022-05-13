@@ -8,7 +8,7 @@ import "ds-test/test.sol";
 import "../contracts/utils/ERC165_Universal.sol";
 import "../contracts/utils/ERC1155TokenReceiver.sol";
 
-import "./CheatCodes.sol";
+import "./utils/CheatCodes.sol";
 
 contract NFGT_Tester is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 

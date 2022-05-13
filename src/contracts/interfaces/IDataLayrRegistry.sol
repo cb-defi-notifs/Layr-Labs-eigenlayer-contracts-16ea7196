@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-interface IDataLayrVoteWeigher {
+interface IDataLayrRegistry {
     struct OperatorStake {
         uint32 dumpNumber;
         uint32 nextUpdateDumpNumber;
@@ -22,4 +22,8 @@ interface IDataLayrVoteWeigher {
     function getStakeFromPubkeyHashAndIndex(bytes32, uint256) external view returns (OperatorStake memory);
 
     function getCorrectApkHash(uint256, uint32) external returns(bytes32);
+
+    function getLengthOfTotalStakeHistory() external view returns (uint256);
+    
+    function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory);
 }

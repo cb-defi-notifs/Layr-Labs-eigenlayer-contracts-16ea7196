@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrVoteWeigher.sol";
+import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
@@ -152,7 +152,6 @@ contract DataLayrDisclosureChallenge {
             ),
             "Incorrect power of tau proof"
         );
-        bytes32 pointRoot;
         uint256[3] memory contest_point;
         if (half) {
             //left leaf

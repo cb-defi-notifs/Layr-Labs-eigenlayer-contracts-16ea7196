@@ -24,23 +24,29 @@ contract DataLayrServiceManager is
 {
     using BytesLib for bytes;
     /**
-     * @dev The EigenLayr delegation contract for this DataLayr which primarily used by
+     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
      *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on. For more details, see EigenLayrDelegation.sol.
+     *      nodes and so on. 
      */
+    /**
+      @dev For more details, see EigenLayrDelegation.sol. 
+     */ 
     IEigenLayrDelegation public immutable eigenLayrDelegation;
+
 
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
-    DataLayrPaymentChallengeFactory
-        public immutable dataLayrPaymentChallengeFactory;
+    DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
+
 
     /**
      * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
      */
-    DataLayrDisclosureChallengeFactory
-        public immutable dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
+
+
+
 
     // EVENTS
     /**
@@ -62,6 +68,8 @@ contract DataLayrServiceManager is
     event PaymentChallengeResolution(address operator, bool operatorWon);
 
     event PaymentRedemption(address operator, uint256 fee);
+
+
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -93,14 +101,14 @@ contract DataLayrServiceManager is
     /**
      * @notice This function is used for
      *          - notifying in the settlement layer that the disperser has asserted the data
-     *            into DataLayr and is waiting for obtaining quorum of DataLayr nodes to sign,
+     *            into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
      *          - asserting the metadata corresponding to the data asserted into DataLayr
-     *          - escrow the service fees that DataLayr nodes will receive from the disperser
+     *          - escrow the service fees that DataLayr operators will receive from the disperser
      *            on account of their service.
      */
     /**
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes,
+     * @param storePeriodLength for which the data has to be stored by the DataLayr operators,
      * @param totalBytes  is the size of the data ,
      */
     function initDataStore(
@@ -123,29 +131,31 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-        // increment the counter
-        dumpNumber++;
 
         // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
 
-        // recording the expiry time until which the DataLayr nodes, who sign up to
+        // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
-        IDataLayrVoteWeigher(address(repository.voteWeigher())).setLatestTime(
+        IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
             uint32(block.timestamp) + storePeriodLength
         );
 
-        // escrow the total service fees from the storer to the DataLayr nodes in this contract
+        // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
-        // call DL contract
+        // call DataLayr contract
         dataLayr.initDataStore(
             dumpNumber,
             headerHash,
             totalBytes,
             storePeriodLength
         );
+
+        // increment the counter
+        dumpNumber++;
     }
+
 
     /**
      * @notice This function is used for
@@ -154,12 +164,22 @@ contract DataLayrServiceManager is
      *          - check that each of the signatures are valid,
      *          - call the DataLayr contract to check that whether quorum has been achieved or not.
      */
-    /**
-     * @param data TBA.
+    /** 
+     @param data is of the format:
+            <
+             uint32 dumpNumber,
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
      */
     // CRITIC: there is an important todo in this function
     function confirmDataStore(bytes calldata data) external payable {
-        // verify the signatures that disperser is claiming to be that of DataLayr nodes
+        // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
         (
             uint32 dumpNumberToConfirm,
@@ -168,20 +188,27 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        emit log("stupid");
+
 
         /**
-         * @dev Checks that there is no need for posting a deposit root required for proving
-         * the new staking of ETH into settlement layer after the launch of EigenLayr. For
-         * more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         * @notice checks that there is no need for posting a deposit root required for proving
+         * the new staking of ETH into Ethereum. 
          */
+        /**
+         @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         */ 
         require(
             dumpNumberToConfirm % depositRootInterval != 0,
             "Must post a deposit root now"
         );
 
-        // record the compressed information on all the DataLayr nodes who signed
+
+        // record the compressed information pertaining to this particular dump
+        /**
+         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
+         */
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
@@ -194,6 +221,9 @@ contract DataLayrServiceManager is
         );
     }
 
+
+
+
     /**
      * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
      *         along with the regular assertion of data into the DataLayr by the disperser. This
@@ -202,13 +232,15 @@ contract DataLayrServiceManager is
      *            from quorum of DataLayr nodes have been obtained,
      *          - check that each of the signatures are valid,
      *          - store the POSt hash, given by depositRoot,
-     *          - call the DataLayr contract to check that whether quorum has been achieved or not.
+     *          - call the DataLayr contract to check  whether quorum has been achieved or not.
      */
     function confirmDataStoreWithPOSt(
         bytes32 depositRoot,
         bytes32 headerHash,
         bytes calldata data
     ) external payable {
+        // verify the signatures that disperser is claiming to be that of DataLayr operators
+        // who have agreed to be in the quorum
         (
             uint32 dumpNumberToConfirm,
             bytes32 depositFerkleHash,
@@ -216,18 +248,26 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+
         /**
-         * @dev Checks that there is need for posting a deposit root required for proving
-         * the new staking of ETH into settlement layer after the launch of EigenLayr. For
-         * more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+          @notice checks that there is need for posting a deposit root required for proving
+          the new staking of ETH into Ethereum. 
          */
+        /**
+          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         */ 
         require(
             dumpNumberToConfirm % depositRootInterval == 0,
             "Shouldn't post a deposit root now"
         );
 
+
         // record the compressed information on all the DataLayr nodes who signed
+        /**
+         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
+         */
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+
 
         /**
          * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
@@ -253,51 +293,59 @@ contract DataLayrServiceManager is
         );
     }
 
-    //an operator can commit that they deserve `amount` payment for their service since their last payment to toDumpNumber
+
+
+
+
     // TODO: collateral
     /**
-     * @notice
+     @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
+             for their service since their last payment until @param toDumpNumber  
      */
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
-        // only registered operators can call
+        // only registered DataLayr operators can call
         require(
-            IDataLayrVoteWeigher(address(repository.voteWeigher()))
+            IDataLayrRegistry(address(repository.voteWeigher()))
                 .getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
 
-        // operator puts up collateral which can be slashed in case of wrongful
-        // payment claim
+
+        // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
             msg.sender,
             address(this),
             paymentFraudProofCollateral
         );
 
+
+
+        /**
+         @notice recording payment claims for the DataLayr operators
+         */
         uint32 fromDumpNumber;
 
+        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
+        /**
+         @notice this special case also implies that the DataLayr operator must be claiming payment from 
+                 when the operator registered.   
+         */
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            // this is the first commitment to a payment and thus, it must be claiming
-            // payment from when the operator registered
 
-            // get the dumpNumber in the DataLayr when the operator registered
-            fromDumpNumber = IDataLayrVoteWeigher(
-                address(repository.voteWeigher())
-            ).getOperatorFromDumpNumber(msg.sender);
-
-
-
+            // get the dumpNumber when the DataLayr operator registered
+            fromDumpNumber = IDataLayrRegistry(address(repository.voteWeigher())).getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
-            // record the payment information for the operator
+            // record the payment information pertaining to the operator
             operatorToPayment[msg.sender] = Payment(
                 fromDumpNumber,
                 toDumpNumber,
                 uint32(block.timestamp),
                 amount,
+                // setting to 0 to indicate commitment to payment claim
                 0,
                 paymentFraudProofCollateral
             );
@@ -329,7 +377,12 @@ contract DataLayrServiceManager is
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
 
-    // can only call after challenge window
+
+
+
+    /**
+     @notice This function can only be called after the challenge window for the payment claim has completed.
+     */
     function redeemPayment() external {
         require(
             block.timestamp >
@@ -364,6 +417,7 @@ contract DataLayrServiceManager is
             // inform the DelegationTerms contract of the payment, which would determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);
+
             // i.e. if the operator *is* a 'self operator'
         } else {
             //simply transfer the payment amount in this case
@@ -373,8 +427,20 @@ contract DataLayrServiceManager is
         emit PaymentRedemption(msg.sender, amount);
     }
 
-    //a fraud prover can challenge a payment to initiate an interactive arbitrum type proof
+
+
+
+    //
     //TODO: How much collateral
+    /**
+     @notice This function would be called by a fraud prover to challenge a payment 
+             by initiating an interactive type proof
+     */
+    /**
+     @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
+     @param amount1 
+     @param amount2
+     */ 
     function challengePaymentInit(
         address operator,
         uint120 amount1,
@@ -387,6 +453,8 @@ contract DataLayrServiceManager is
                 operatorToPayment[operator].status == 0,
             "Fraud proof interval has passed"
         );
+
+
         // deploy new challenge contract
         address challengeContract = dataLayrPaymentChallengeFactory
             .createDataLayrPaymentChallenge(
@@ -407,6 +475,9 @@ contract DataLayrServiceManager is
         operatorToPaymentChallenge[operator] = challengeContract;
         emit PaymentChallengeInit(operator, msg.sender);
     }
+
+
+
 
     function resolvePaymentChallenge(address operator, bool winner) external {
         require(
@@ -451,7 +522,6 @@ contract DataLayrServiceManager is
             bool commited
         ) = dataLayr.dataStores(headerHash);
         require(commited, "Dump is not commited yet");
-        bytes32 signatoryHash = dumpNumberToSignatureHash[dumpNumber];
 
         //check sigs
         require(
@@ -467,7 +537,7 @@ contract DataLayrServiceManager is
             "Sig record does not match hash"
         );
         {
-            IDataLayrVoteWeigher dlvw = IDataLayrVoteWeigher(
+            IDataLayrRegistry dlvw = IDataLayrRegistry(
                 address(
                     repository.registrationManager()
                 )
@@ -689,7 +759,8 @@ contract DataLayrServiceManager is
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
-        bytes calldata header
+        // bytes calldata header
+        bytes calldata
     ) public returns (uint256[2] memory, uint48) {
         //TODO: Bowen Implement
         // return x, y coordinate of overall data poly commitment
