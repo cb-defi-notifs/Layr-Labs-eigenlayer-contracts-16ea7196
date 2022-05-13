@@ -301,7 +301,7 @@ contract DataLayrServiceManager is
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
              for their service since their last payment until @param toDumpNumber  
-     */
+     **/
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
         // only registered DataLayr operators can call
         require(
@@ -435,12 +435,12 @@ contract DataLayrServiceManager is
     /**
      @notice This function would be called by a fraud prover to challenge a payment 
              by initiating an interactive type proof
-     */
+     **/
     /**
      @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
-     @param amount1 
-     @param amount2
-     */ 
+     @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
+     @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
+     **/ 
     function challengePaymentInit(
         address operator,
         uint120 amount1,
