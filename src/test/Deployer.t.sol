@@ -197,7 +197,7 @@ contract EigenLayrDeployer is
         temp.initialize(address(investmentManager));
         strats[1] = temp;
         strategies[1] = temp;
-        // WETH strategy added to InvestmentManager
+        // add WETH strategy to mapping
         strategies[2] = IInvestmentStrategy(address(strat));
 
         // actually initialize the investmentManager (proxy) contraxt
@@ -497,12 +497,12 @@ contract EigenLayrDeployer is
 
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 10e10);
-        cheats.prank(storer);
+        cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        cheats.prank(storer);
         dlsm.initDataStore(header, totalBytes, storePeriodLength);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
+        cheats.stopPrank();
         (
             uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
@@ -572,7 +572,6 @@ contract EigenLayrDeployer is
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
         dlReg.registerOperator(registrantType, data, socket);
-
         cheats.stopPrank();
     }
 

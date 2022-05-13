@@ -60,11 +60,11 @@ contract EigenLayrDelegation is
     function delegateToSelf() external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "Delegate has already registered"
+            "delegateToSelf: Delegate has already registered"
         );
         require(
             isNotDelegated(msg.sender),
-            "Staker has existing delegation or pending undelegation commitment"
+            "delegateToSelf: Staker has existing delegation or pending undelegation commitment"
         );
         // store delegation relation that the staker (msg.sender) is its own operator
         delegation[msg.sender] = SELF_DELEGATION_ADDRESS;
@@ -123,11 +123,11 @@ contract EigenLayrDelegation is
     function _delegate(address delegator, address operator) internal {
         require(
             address(delegationTerms[operator]) != address(0),
-            "Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            "_delegate: Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(delegator),
-            "Staker has existing delegation or pending undelegation commitment"
+            "_delegate: Staker has existing delegation or pending undelegation commitment"
         );
 
         // record delegation relation between the delegator and operator
