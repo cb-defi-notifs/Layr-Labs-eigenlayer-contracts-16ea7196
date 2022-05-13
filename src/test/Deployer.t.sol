@@ -552,7 +552,7 @@ contract EigenLayrDeployer is
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
-            //TODO: write this properly
+            //TODO: write this properly to use the enum type defined in delegation
             uint8(delegation.delegated(sender)) == 1,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
@@ -730,6 +730,7 @@ contract EigenLayrDeployer is
     //         assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
     //         cheats.stopPrank();
 
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategies' and then deposits 'amountToDeposit' to each of them from 'sender'
     function _testDepositStrategies(
         address sender,
         uint256 amountToDeposit,
@@ -743,14 +744,13 @@ contract EigenLayrDeployer is
                 amountToDeposit,
                 WethStashInvestmentStrategy(address(strategies[i]))
             );
-            // removed testing of deprecated functionality
-            // assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
+            assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
     }
 
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
-        cheats.warp(block.timestamp + 1000000);
+        cheats.warp(block.timestamp + 365 days);
         delegation.commitUndelegation();
         delegation.finalizeUndelegation();
         cheats.stopPrank();
