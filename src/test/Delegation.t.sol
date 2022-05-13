@@ -398,9 +398,6 @@ contract Delegator is EigenLayrDeployer {
     }
         cheats.stopPrank();
 
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
-        emit log_named_uint("currentDumpNumberBefore", currentDumpNumber);
-
         // // try initing another dataStore, so currentDumpNumber > fromDumpNumber
         // _testInitDataStore();
         bytes memory header = hex"0102030405060708091011121314151617181921";
@@ -419,10 +416,7 @@ contract Delegator is EigenLayrDeployer {
         weth.approve(address(dlsm), type(uint256).max);
 
         uint256 fromDumpNumber = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDumpNumber(operator);
-        currentDumpNumber = dlsm.dumpNumber() - 1;
-        emit log_named_uint("currentDumpNumberAfter", currentDumpNumber);
-        emit log_named_uint("fromDumpNumber", fromDumpNumber);
-        // TODO: test currently failing here for invalid payment range
+        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         dlsm.commitPayment(currentDumpNumber, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
