@@ -6,9 +6,11 @@ import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 
 contract DataLayrDisclosureChallenge {
+    using BytesLib for bytes;
     IDataLayrServiceManager public dlsm;
     DisclosureChallenge public challenge;
 
@@ -120,8 +122,7 @@ contract DataLayrDisclosureChallenge {
         uint256 x_power,
         uint256 y_power,
         bytes calldata poly,
-        bool[] calldata leftRightFlags,
-        bytes32[] calldata proof
+        bytes calldata proof
     ) external {
         bool turn = challenge.turn;
         require(
@@ -140,15 +141,16 @@ contract DataLayrDisclosureChallenge {
             keccak256(poly) == polyHash,
             "Must provide the same polynomial coefficients as before"
         );
+        uint48 degree = challenge.oneStepDegree;
         //degree of proved leaf
-        uint48 degree = proveDegreeLeaf(
-            leftRightFlags,
-            keccak256(abi.encodePacked(x_power, y_power)),
-            proof
-        );
         require(
-            challenge.oneStepDegree == degree,
-            "Correct degree was not proven"
+            checkMembership(
+                keccak256(abi.encodePacked(x_power, y_power)),
+                degree,
+                dlsm.powersOfTauMerkleRoot(),
+                proof
+            ),
+            "Incorrect power of tau proof"
         );
         uint256[3] memory contest_point;
         if (half) {
@@ -166,8 +168,10 @@ contract DataLayrDisclosureChallenge {
         uint256[5] memory coors;
         coors[0] = x_power;
         coors[1] = y_power;
-        //this is the coefficient of the term with degree 'degree'
-        coors[2] = uint256(bytes32(poly[degree * 32:degree * 32 + 32]));
+        //this is the coefficient of the term with degree degree
+        //TODO: verify that multiplying by 32 is safe from overflow
+        //(Q: does this automatically make the result a uint256, or is it constrained to uint48?)
+        coors[2] = poly.toUint256(degree*32);
         assembly {
             if iszero(
                 call(not(0), 0x07, 0, coors, 0x60, add(coors, 0x60), 0x40)
@@ -191,42 +195,39 @@ contract DataLayrDisclosureChallenge {
         }
     }
 
-    function proveDegreeLeaf(
-        bool[] calldata leftRightFlags,
-        bytes32 nodeToProve,
-        bytes32[] calldata proof
-    ) public returns (uint48) {
-        //prove first level of tree
-        // require(dlsm.powersOfTauMerkleRoot() == keccak256(abi.encodePacked(proof[0], proof[1])), "First step of proof is not correct");
-        uint256 len = leftRightFlags.length;
-        // -1 because proved first level
-        require(
-            len == dlsm.log2NumPowersOfTau(),
-            "Proof is not the correct length"
-        );
-        uint48 powerOf2 = 1;
-        //degree of power being proved
-        uint48 degree;
-        bytes32 node = nodeToProve;
-        for (uint i = 0; i < len; ) {
-            if (leftRightFlags[i]) {
-                //left branch
-                node = keccak256(abi.encodePacked(node, proof[i]));
+    //copied from
+    function checkMembership(
+        bytes32 leaf,
+        uint256 index,
+        bytes32 rootHash,
+        bytes memory proof
+    ) internal pure returns (bool) {
+        require(proof.length % 32 == 0, "Invalid proof length");
+        uint256 proofHeight = proof.length / 32;
+        // Proof of size n means, height of the tree is n+1.
+        // In a tree of height n+1, max #leafs possible is 2 ^ n
+        require(index < 2**proofHeight, "Leaf index is too big");
+
+        bytes32 proofElement;
+        bytes32 computedHash = leaf;
+        for (uint256 i = 32; i <= proof.length; i += 32) {
+            assembly {
+                proofElement := mload(add(proof, i))
+            }
+
+            if (index % 2 == 0) {
+                computedHash = keccak256(
+                    abi.encodePacked(computedHash, proofElement)
+                );
             } else {
-                //right branch
-                node = keccak256(abi.encodePacked(proof[i], node));
-                degree += powerOf2;
-                powerOf2 *= 2;
+                computedHash = keccak256(
+                    abi.encodePacked(proofElement, computedHash)
+                );
             }
-            unchecked {
-                ++i;
-            }
+
+            index = index / 2;
         }
-        require(
-            node == dlsm.powersOfTauMerkleRoot(),
-            "Proof doesn't match correct merkle root"
-        );
-        return degree;
+        return computedHash == rootHash;
     }
 
     function resolve(bytes32 headerHash, bool challengeSuccessful) internal {
