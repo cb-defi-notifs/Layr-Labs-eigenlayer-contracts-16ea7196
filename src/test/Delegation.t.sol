@@ -211,7 +211,7 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(toRegister, 1e5);
         weth.transfer(challenger, 1e5);
         cheats.startPrank(toRegister);
-        dt = _setDelegationTerms(toRegister);
+        dt = _deployDelegationTerms(toRegister);
         cheats.stopPrank();        
         _testRegisterAsDelegate(toRegister, dt);
 
@@ -357,27 +357,4 @@ contract Delegator is EigenLayrDeployer {
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
-
-    //initialize delegation terms contract
-    function _setDelegationTerms(address operator) internal returns (DelegationTerms) {
-        address[] memory paymentTokens = new address[](0);
-        uint16 _MAX_OPERATOR_FEE_BIPS = 500;
-        uint16 _operatorFeeBips = 500;
-        dt = 
-            new DelegationTerms(
-                operator,
-                investmentManager,
-                paymentTokens,
-                factory,
-                address(delegation),
-                dlRepository,
-                _MAX_OPERATOR_FEE_BIPS,
-                _operatorFeeBips
-            );
-        assertTrue(address(dt) != address(0), "_deployDelegationTerms: DelegationTerms failed to deploy");
-        dt.addPaymentToken(address(weth));
-        return dt;
-
-    }
-
 }
