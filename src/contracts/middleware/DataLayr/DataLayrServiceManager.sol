@@ -521,10 +521,9 @@ contract DataLayrServiceManager is
         uint256 totalEthStakeSigned,
         uint256 totalEigenStakeSigned
     ) public {
-        // get information on the dataStore for which disperser is being challenged
         /**
-         @notice this dataStore was constructed during call to initDataStore in 
-                 DataLayr.sol by the disperser
+         Get information on the dataStore for which disperser is being challenged. This dataStore was 
+         constructed during call to initDataStore in DataLayr.sol by the disperser.
          */
         (
             uint32 dumpNumber,
@@ -538,8 +537,10 @@ contract DataLayrServiceManager is
 
 
 
-        // check that the information supplied as input for forced disclosure for this particular data 
-        // dump on DataLayr is correct
+        /** 
+         Check that the information supplied as input for forced disclosure for this particular data 
+         dump on DataLayr is correct
+         */
         require(
             getDumpNumberSignatureHash(dumpNumber) ==
                 keccak256(
@@ -555,7 +556,10 @@ contract DataLayrServiceManager is
 
 
 
-        
+        /**
+         Check that the DataLayr operator against whom forced disclosure is being initiated, was
+         actually part of the quorum for the @param dumpNumber
+         */        
         {
             IDataLayrRegistry dlvw = IDataLayrRegistry(
                 address(
@@ -563,15 +567,32 @@ contract DataLayrServiceManager is
                 )
             );
 
+            // get the pubkey hash of the DataLayr operator
             bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
 
-            //require that the index is before where operatorpubkey hash would be
+
+            
+            /** 
+              @notice The burden of responsibility lies with the challenger to show that the DataLayr operator 
+              is not part of the non-signers for the dump. Towards that end, challenger provides
+              @param index such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+                    uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+              then,
+                        uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+             */
+            /**
+              @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
+              non-signers pubkey is recorded in the compressed signatory record in an  ascending
+              manner.      
+             */
+            // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash) 
             require(
                 uint256(nonSignerPubkeyHashes[nonSignerIndex]) <
                     uint256(operatorPubkeyHash),
                 "Wrong index"
             );
 
+            // check that uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
             if (nonSignerIndex == nonSignerPubkeyHashes.length - 1) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
