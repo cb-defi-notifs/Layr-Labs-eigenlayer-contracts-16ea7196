@@ -178,22 +178,10 @@ contract Delegator is EigenLayrDeployer {
 
 
     
-    function testInitiateDelegation() public {        
+    function testRewardPayouts() public {        
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e10);
-
-        //servicemanager pays out rewards to delegate and delegators
         _payRewards(operator);
-        
-        
-        // for(uint i; i < delegators.length; i++){
-        //     (
-        //     IInvestmentStrategy[] memory strategies,
-        //     uint256[] memory shares
-        // ) = investmentManager.getDeposits(delegators[i]);
-        //     dt.onDelegationWithdrawn(delegators[i], strategies, shares);
-        // }
-
     }
 
     function _testInitiateDelegation(address operator, uint256 amountToDeposit) public {
@@ -257,45 +245,18 @@ contract Delegator is EigenLayrDeployer {
 
 
         //Challenge payment test
-        _operatorDisputesChallenger(operator, half, 2, 3);
-        _challengerDisputesOperator(operator, half, 1, 1);
-        _operatorDisputesChallenger(operator, half, 1, 1);
+        operatorDisputesChallenger(operator, half, 2, 3);
+        challengerDisputesOperator(operator, half, 1, 1);
+        operatorDisputesChallenger(operator, half, 1, 1);
         emit log_uint(dlpc.getDiff());
 
-        //dlpc.respondToPaymentChallengeFinal();
-        //dlpc.resolveChallenge();
-
-        //_testPaymentChallenge(operator, 5, 5, 5, 3);
-
-    }
-   
-    //Challenger initiates the challenge to operator's claim
-    // challenge status:  0: commited, 1: redeemed, 2: operator turn (dissection), 3: challenger turn (dissection)
-    // 4: operator turn (one step), 5: challenger turn (one step)
-    function _testPaymentChallenge(
-        address operator, 
-        uint120 operatorAmount1, 
-        uint120 operatorAmount2, 
-        uint120 challengerAmount1, 
-        uint120 challengerAmount2
-        ) internal{
-
-        //The challenger has initiated a challenge to the payment commit of the operator
-        //The next step is for the operator to respond to the proposed split of the challenger
-        //This back and forth continues until there is resolution
-
-        uint120 challengerTotal = challengerAmount1 + challengerAmount2;
-        uint120 operatorTotal = operatorAmount1 + operatorAmount2;
-
-        bool half = operatorAmount1 != challengerAmount1 ? false : true;
-
     }
 
-    function _operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) internal{
+    function operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) public{
 
         cheats.startPrank(operator);
         if (dlpc.getDiff() == 1){
-            emit log("HIT OPERATOR DIFF 1");
+            emit log("Difference in dumpnumbers is now 1");
             cheats.stopPrank();
             return;
         }
@@ -307,10 +268,10 @@ contract Delegator is EigenLayrDeployer {
     }
 
     // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
-    function _challengerDisputesOperator(address, bool half, uint120 amount1, uint120 amount2) internal{
+    function challengerDisputesOperator(address, bool half, uint120 amount1, uint120 amount2) public{
         cheats.startPrank(challenger);
         if (dlpc.getDiff() == 1){
-            emit log("HIT OPERChallenger ATOR DIFF1");
+            emit log("Difference in dumpnumbers is now");
             cheats.stopPrank();
             return;
         }
