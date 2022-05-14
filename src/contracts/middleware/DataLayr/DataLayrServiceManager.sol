@@ -280,7 +280,7 @@ contract DataLayrServiceManager is
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
              for their service since their last payment until @param toDumpNumber  
-     */
+     **/
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
         // only registered DataLayr operators can call
         require(
@@ -406,12 +406,12 @@ contract DataLayrServiceManager is
     /**
      @notice This function would be called by a fraud prover to challenge a payment 
              by initiating an interactive type proof
-     */
+     **/
     /**
      @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
-     @param amount1 
-     @param amount2
-     */
+     @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
+     @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
+     **/ 
     function challengePaymentInit(
         address operator,
         uint120 amount1,
@@ -473,6 +473,13 @@ contract DataLayrServiceManager is
         }
     }
 
+
+    /**
+     @notice 
+     */
+    /**
+     @param headerHash 
+     */
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
@@ -481,16 +488,26 @@ contract DataLayrServiceManager is
         uint256 totalEthStakeSigned,
         uint256 totalEigenStakeSigned
     ) public {
-        //get the dataStore being challenged
+        /**
+         Get information on the dataStore for which disperser is being challenged. This dataStore was 
+         constructed during call to initDataStore in DataLayr.sol by the disperser.
+         */
         (
             uint32 dumpNumber,
             uint32 initTime,
             uint32 storePeriodLength,
             bool commited
         ) = dataLayr.dataStores(headerHash);
+
+        // check that disperser had acquire quorum for this dataStore
         require(commited, "Dump is not commited yet");
 
-        //check sigs
+
+
+        /** 
+         Check that the information supplied as input for forced disclosure for this particular data 
+         dump on DataLayr is correct
+         */
         require(
             getDumpNumberSignatureHash(dumpNumber) ==
                 keccak256(
@@ -503,15 +520,37 @@ contract DataLayrServiceManager is
                 ),
             "Sig record does not match hash"
         );
+
+
+
+        /**
+         Check that the DataLayr operator against whom forced disclosure is being initiated, was
+         actually part of the quorum for the @param dumpNumber
+         */        
         {
             IDataLayrRegistry dlvw = IDataLayrRegistry(
                 address(repository.registrationManager())
             );
 
+            // get the pubkey hash of the DataLayr operator
             bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
 
-            //require that the index is before where operatorpubkey hash would be
-            //or that the operator would be before everyone else
+
+            
+            /** 
+              @notice The burden of responsibility lies with the challenger to show that the DataLayr operator 
+              is not part of the non-signers for the dump. Towards that end, challenger provides
+              @param index such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+                    uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+              then,
+                        uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+             */
+            /**
+              @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
+              non-signers pubkey is recorded in the compressed signatory record in an  ascending
+              manner.      
+             */
+            // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash) 
             require(
                 uint256(nonSignerPubkeyHashes[nonSignerIndex]) <
                     uint256(operatorPubkeyHash) ||
@@ -833,6 +872,11 @@ contract DataLayrServiceManager is
         return dumpNumberToFee[_dumpNumber];
     }
 
+
+    /**
+     @notice this function returns the compressed record on the signatures of DataLayr nodes 
+             that aren't part of the quorum for this @param _dumpNumber.
+     */
     function getDumpNumberSignatureHash(uint32 _dumpNumber)
         public
         view
@@ -840,6 +884,8 @@ contract DataLayrServiceManager is
     {
         return dumpNumberToSignatureHash[_dumpNumber];
     }
+
+
 
     function getPaymentCollateral(address operator)
         public

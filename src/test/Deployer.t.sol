@@ -197,7 +197,7 @@ contract EigenLayrDeployer is
         temp.initialize(address(investmentManager));
         strats[1] = temp;
         strategies[1] = temp;
-        // WETH strategy added to InvestmentManager
+        // add WETH strategy to mapping
         strategies[2] = IInvestmentStrategy(address(strat));
 
         // actually initialize the investmentManager (proxy) contraxt
@@ -497,12 +497,12 @@ contract EigenLayrDeployer is
 
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 10e10);
-        cheats.prank(storer);
+        cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        cheats.prank(storer);
         dlsm.initDataStore(header, totalBytes, storePeriodLength);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
+        cheats.stopPrank();
         (
             uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
@@ -552,7 +552,7 @@ contract EigenLayrDeployer is
             "_testSelfOperatorDelegate: self delegation not properly recorded"
         );
         assertTrue(
-            //TODO: write this properly
+            //TODO: write this properly to use the enum type defined in delegation
             uint8(delegation.delegated(sender)) == 1,
             "_testSelfOperatorDelegate: delegation not credited?"
         );
@@ -572,7 +572,6 @@ contract EigenLayrDeployer is
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
         dlReg.registerOperator(registrantType, data, socket);
-
         cheats.stopPrank();
     }
 
@@ -591,14 +590,18 @@ contract EigenLayrDeployer is
             );
         }
         bytes32 headerHash = _testInitDataStore();
-        // uint48 dumpNumber,
-        // bytes32 headerHash,
-        // uint32 numberOfNonSigners,
-        // bytes33[] compressedPubKeys of nonsigners
-        // uint32 apkIndex
-        // uint256[4] sigma
-
         uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
+        uint32 numberOfNonSigners = 0;
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
+            uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
+            uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
+            uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
+            uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672)
+        );
+        (uint256 sigma_0, uint256 sigma_1) = (
+            uint256(7155561537864411538991615376457474334371827900888029310878886991084477170996),
+            uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346)
+        );
 
     /** 
      @param data This calldata is of the format:
@@ -617,18 +620,15 @@ contract EigenLayrDeployer is
             currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            uint32(0),
+            numberOfNonSigners,
+            // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
-            uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
-            uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
-            uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672),
-            uint256(
-                7155561537864411538991615376457474334371827900888029310878886991084477170996
-            ),
-            uint256(
-                10352977531892356631551102769773992282745949082157652335724669165983475588346
-            )
+            apk_0,
+            apk_1,
+            apk_2,
+            apk_3,
+            sigma_0,
+            sigma_1
         );
 
         uint256 gasbefore = gasleft();
@@ -644,6 +644,8 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
+    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
     function _testRegisterAsDelegate(address sender, DelegationTerms dt)
         internal
     {
@@ -656,6 +658,9 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
+    // deploys a DelegationTerms contract on behalf of 'operator', with several hard-coded values
+    // does a simple check that deployment was successful
+    // currently hard-codes 'weth' as the only payment token
     function _deployDelegationTerms(address operator)
         internal
         returns (DelegationTerms)
@@ -681,24 +686,52 @@ contract EigenLayrDeployer is
         return dt;
     }
 
+    // tries to delegate from 'sender' to 'operator'
+    // verifies that:
+    //                  delegator has at least some shares
+    //                  delegatedShares update correctly for 'operator'
+    //                  delegated status is updated correctly for 'sender'
     function _testDelegateToOperator(address sender, address operator)
         internal
     {
+        //delegator-specific information
+        (
+            IInvestmentStrategy[] memory delegateStrategies,
+            uint256[] memory delegateShares
+        ) = investmentManager.getDeposits(sender);
+
+        uint256 numStrats = delegateShares.length;
+        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no investments");
+        uint256[] memory initialOperatorShares = new uint256[](numStrats);
+        for (uint256 i = 0; i < numStrats; ++i) {
+            initialOperatorShares[i] = delegation.getOperatorShares(operator, delegateStrategies[i]);
+        }
+
         cheats.startPrank(sender);
         delegation.delegateTo(operator);
+        cheats.stopPrank();
+
         assertTrue(
             delegation.delegation(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
-        //TODO: write this properly
+        //TODO: write this properly to use the enum type defined in delegation
         assertTrue(
             uint8(delegation.delegated(sender)) == 1,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
-        // TODO: add more checks?
-        cheats.stopPrank();
+
+        for (uint256 i = 0; i < numStrats; ++i) {
+            uint256 operatorSharesBefore = initialOperatorShares[i];
+            uint256 operatorSharesAfter = delegation.getOperatorShares(operator, delegateStrategies[i]);
+            assertTrue(
+                operatorSharesAfter == (operatorSharesBefore + delegateShares[i]),
+                "_testDelegateToOperator: delegatedShares not increased correctly"
+            );
+        }
     }
 
+    // deploys 'numStratsToAdd' WethStashInvestmentStrategy contracts and initializes them to treat 'weth' token as their underlying token
     function _testAddStrategies(uint16 numStratsToAdd) internal {
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
@@ -710,26 +743,7 @@ contract EigenLayrDeployer is
         }
     }
 
-    //     function _testDelegateToBySignature(address sender, address operator, uint256 priv_key) internal {
-    //         cheats.startPrank(sender);
-    //         bytes32 structHash = keccak256(
-    //             abi.encode(
-    //                 delegation.DELEGATION_TYPEHASH(), sender, operator, 0, 0
-    //                 )
-    //         );
-    //         bytes32 digestHash = keccak256(
-    //             abi.encodePacked(
-    //             "\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash)
-    //             );
-
-    //         (uint8 v, bytes32 r, bytes32 s) = cheats.sign((priv_key), digestHash);
-    //         bytes32 vs;
-
-    //         (r, vs) = SignatureCompaction.packSignature(r, s, v);
-    //         delegation.delegateToBySignature(sender, operator, 0, 0, r, vs);
-    //         assertTrue(delegation.delegation(sender) == operator, "no delegation relation between sender and operator");
-    //         cheats.stopPrank();
-
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategies' and then deposits 'amountToDeposit' to each of them from 'sender'
     function _testDepositStrategies(
         address sender,
         uint256 amountToDeposit,
@@ -743,14 +757,13 @@ contract EigenLayrDeployer is
                 amountToDeposit,
                 WethStashInvestmentStrategy(address(strategies[i]))
             );
-            // removed testing of deprecated functionality
-            // assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
+            assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
         }
     }
 
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
-        cheats.warp(block.timestamp + 1000000);
+        cheats.warp(block.timestamp + 365 days);
         delegation.commitUndelegation();
         delegation.finalizeUndelegation();
         cheats.stopPrank();

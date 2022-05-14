@@ -275,7 +275,13 @@ abstract contract DataLayrSignatureChecker is
                 abi.encodePacked(pk[0], pk[1], pk[2], pk[3])
             );
 
-            //pubkeys should be ordered in scending order of hash to make proofs of signing or non signing constant time
+
+
+            //pubkeys should be ordered in ascending order of hash to make proofs of signing or 
+            // non signing constant time
+            /**
+             @dev this invariant is used in forceOperatorToDisclose in DataLayrServiceManager.sol
+             */
             require(
                 uint256(pubkeyHash) > uint256(pubkeyHashes[i - 1]),
                 "Pubkey hashes must be in ascending order"

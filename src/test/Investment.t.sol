@@ -11,7 +11,7 @@ contract InvestmentTests is
         public
         returns (uint256 amountDeposited)
     {
-        return _testWethDeposit(registrant, amountToDeposit);
+        return _testWethDeposit(signers[0], amountToDeposit);
     }
 
     //Testing deposits in Eigen Layr Contracts - check msg.value
@@ -20,7 +20,7 @@ contract InvestmentTests is
         returns (uint256 amountDeposited)
     {
         amountDeposited = _testDepositETHIntoConsensusLayer(
-            registrant,
+            signers[0],
             amountDeposited
         );
     }
@@ -31,7 +31,7 @@ contract InvestmentTests is
     {
         return
             _testDepositETHIntoLiquidStaking(
-                registrant,
+                signers[0],
                 1e18,
                 liquidStakingMockToken,
                 liquidStakingMockStrat
@@ -43,7 +43,7 @@ contract InvestmentTests is
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) public {
-        _testWethWithdrawal(registrant, amountToDeposit, amountToWithdraw);
+        _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
 
     function testAddStrategies(uint16 numStratsToAdd) public {
@@ -52,12 +52,12 @@ contract InvestmentTests is
     }
     
     function testDepositStrategies(uint16 numStratsToAdd) public {
-        _testDepositStrategies(registrant, 1e18, numStratsToAdd);
+        _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
     }
 
     //verifies that it is possible to deposit eigen
     function testDepositEigen() public {
-        _testDepositEigen(registrant);
+        _testDepositEigen(signers[0]);
     }
 
     //verifies that it is possible to deposit eigen and then withdraw it
@@ -65,14 +65,14 @@ contract InvestmentTests is
         uint256 toDeposit = 1e16;
         uint256 amountToWithdraw = 1e16;
         cheats.assume(amountToWithdraw <= toDeposit);
-        _testDepositEigen(registrant);
-        uint256 eigenBeforeWithdrawal = eigen.balanceOf(registrant, eigenTokenId);
+        _testDepositEigen(signers[0]);
+        uint256 eigenBeforeWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
 
-        cheats.startPrank(registrant);
+        cheats.startPrank(signers[0]);
         investmentManager.withdrawEigen(amountToWithdraw);
         cheats.stopPrank();
 
-        uint256 eigenAfterWithdrawal = eigen.balanceOf(registrant, eigenTokenId);
+        uint256 eigenAfterWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
         assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
     }
 
@@ -101,4 +101,27 @@ contract InvestmentTests is
         assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
     }
 
+    //checks that an incorrect proof for a consensus layer deposit reverts properly
+    function testConfirmRevertIncorrectCleProof() public {
+        address depositor = address(0x1234123412341234123412341234123412341235);
+        uint256 amount = 1000;
+        bytes32[] memory proof = new bytes32[](3);
+        proof[0] = bytes32(
+            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
+        );
+        proof[1] = bytes32(
+            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
+        );
+        proof[2] = bytes32(
+            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
+        );
+        cheats.prank(depositor);
+        cheats.expectRevert("Invalid merkle proof");
+        deposit.proveLegacyConsensusLayerDeposit(
+            proof,
+            address(0),
+            "0x",
+            amount
+        );
+    }
 }
