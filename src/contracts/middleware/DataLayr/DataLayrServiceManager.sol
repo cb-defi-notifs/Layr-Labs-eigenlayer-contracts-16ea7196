@@ -594,7 +594,7 @@ contract DataLayrServiceManager is
 
             // check that uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
             // CRITIC: potential bug in the following condition as there will never be check for 
-            //         any general nonSignerIndex 
+            //         any general nonSignerIndex
             if (nonSignerIndex == nonSignerPubkeyHashes.length - 1) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
