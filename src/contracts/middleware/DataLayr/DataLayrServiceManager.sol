@@ -521,16 +521,25 @@ contract DataLayrServiceManager is
         uint256 totalEthStakeSigned,
         uint256 totalEigenStakeSigned
     ) public {
-        //get the dataStore being challenged
+        // get information on the dataStore for which disperser is being challenged
+        /**
+         @notice this dataStore was constructed during call to initDataStore in 
+                 DataLayr.sol by the disperser
+         */
         (
             uint32 dumpNumber,
             uint32 initTime,
             uint32 storePeriodLength,
             bool commited
         ) = dataLayr.dataStores(headerHash);
+
+        // check that disperser had acquire quorum for this dataStore
         require(commited, "Dump is not commited yet");
 
-        //check sigs
+
+
+        // check that the information supplied as input for forced disclosure for this particular data 
+        // dump on DataLayr is correct
         require(
             getDumpNumberSignatureHash(dumpNumber) ==
                 keccak256(
@@ -543,6 +552,10 @@ contract DataLayrServiceManager is
                 ),
             "Sig record does not match hash"
         );
+
+
+
+        
         {
             IDataLayrRegistry dlvw = IDataLayrRegistry(
                 address(
@@ -872,6 +885,11 @@ contract DataLayrServiceManager is
         return dumpNumberToFee[_dumpNumber];
     }
 
+
+    /**
+     @notice this function returns the compressed record on the signatures of DataLayr nodes 
+             that aren't part of the quorum for this @param _dumpNumber.
+     */
     function getDumpNumberSignatureHash(uint32 _dumpNumber)
         public
         view
@@ -879,6 +897,8 @@ contract DataLayrServiceManager is
     {
         return dumpNumberToSignatureHash[_dumpNumber];
     }
+
+
 
     function getPaymentCollateral(address operator)
         public
