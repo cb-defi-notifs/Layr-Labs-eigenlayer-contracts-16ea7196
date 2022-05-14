@@ -9,10 +9,16 @@ import "./DataLayrPaymentChallenge.sol";
 contract DataLayrPaymentChallengeFactory {
 
     /**
-     @notice this function creates a new 'DataLayrPaymentChallenge' contract 
+     @notice this function creates a new 'DataLayrPaymentChallenge' contract. 
      */
     /**
-     @param operator is DataLayr operator 
+     @param operator is the DataLayr operator whose payment claim is being challenged,
+     @param challenger is the entity challenging with the fraudproof,
+     @param serviceManager is the DataLayr service manager,
+     @param fromDumpNumber is the dump number from which payment has been computed,
+     @param toDumpNumber is the dump number until which payment has been computed to,
+     @param amount1
+     @param amount2 
      */
     function createDataLayrPaymentChallenge(
         address operator,
@@ -23,6 +29,7 @@ contract DataLayrPaymentChallengeFactory {
         uint120 amount1,
         uint120 amount2
     ) external returns (address) {
+
         // deploy new challenge contract
         address challengeContract = address(
             new DataLayrPaymentChallenge(
@@ -35,6 +42,7 @@ contract DataLayrPaymentChallengeFactory {
                 amount2
             )
         );
+
         return challengeContract;
     }
 }

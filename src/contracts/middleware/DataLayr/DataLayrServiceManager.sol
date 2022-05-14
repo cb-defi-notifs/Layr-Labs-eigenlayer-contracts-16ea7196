@@ -506,6 +506,13 @@ contract DataLayrServiceManager is
         }
     }
 
+
+    /**
+     @notice 
+     */
+    /**
+     @param headerHash 
+     */
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
