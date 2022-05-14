@@ -560,6 +560,7 @@ contract DataLayrServiceManager is
                 "Wrong index"
             );
 
+
             //  check that uint256(operatorPubkeyHash) < uint256(nspkh[index + 1])
             if (nonSignerIndex != nonSignerPubkeyHashes.length - 1) {
                 //require that the index+1 is before where operatorpubkey hash would be
