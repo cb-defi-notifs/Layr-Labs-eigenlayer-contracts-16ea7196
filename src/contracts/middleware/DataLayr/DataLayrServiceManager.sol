@@ -26,27 +26,24 @@ contract DataLayrServiceManager is
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
      *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on. 
+     *      nodes and so on.
      */
     /**
       @dev For more details, see EigenLayrDelegation.sol. 
-     */ 
+     */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
-
 
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
-    DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
-
+    DataLayrPaymentChallengeFactory
+        public immutable dataLayrPaymentChallengeFactory;
 
     /**
      * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
      */
-    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
-
-
-
+    DataLayrDisclosureChallengeFactory
+        public immutable dataLayrDisclosureChallengeFactory;
 
     // EVENTS
     /**
@@ -68,8 +65,6 @@ contract DataLayrServiceManager is
     event PaymentChallengeResolution(address operator, bool operatorWon);
 
     event PaymentRedemption(address operator, uint256 fee);
-
-
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -131,7 +126,6 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-
         // record the total service fee that will be paid out for this assertion of data
         dumpNumberToFee[dumpNumber] = fee;
 
@@ -155,7 +149,6 @@ contract DataLayrServiceManager is
         // increment the counter
         dumpNumber++;
     }
-
 
     /**
      * @notice This function is used for
@@ -188,27 +181,23 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-
-
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
-         * the new staking of ETH into Ethereum. 
+         * the new staking of ETH into Ethereum.
          */
         /**
          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
-         */ 
+         */
         require(
             dumpNumberToConfirm % depositRootInterval != 0,
             "Must post a deposit root now"
         );
-
 
         // record the compressed information pertaining to this particular dump
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
-
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
@@ -220,9 +209,6 @@ contract DataLayrServiceManager is
             signedTotals.totalEigenStake
         );
     }
-
-
-
 
     /**
      * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
@@ -248,26 +234,23 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-
         /**
           @notice checks that there is need for posting a deposit root required for proving
           the new staking of ETH into Ethereum. 
          */
         /**
           @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
-         */ 
+         */
         require(
             dumpNumberToConfirm % depositRootInterval == 0,
             "Shouldn't post a deposit root now"
         );
-
 
         // record the compressed information on all the DataLayr nodes who signed
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
-
 
         /**
          * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
@@ -293,10 +276,6 @@ contract DataLayrServiceManager is
         );
     }
 
-
-
-
-
     // TODO: collateral
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
@@ -312,15 +291,12 @@ contract DataLayrServiceManager is
 
         require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
 
-
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
             msg.sender,
             address(this),
             paymentFraudProofCollateral
         );
-
-
 
         /**
          @notice recording payment claims for the DataLayr operators
@@ -333,9 +309,10 @@ contract DataLayrServiceManager is
                  when the operator registered.   
          */
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-
             // get the dumpNumber when the DataLayr operator registered
-            fromDumpNumber = IDataLayrRegistry(address(repository.voteWeigher())).getOperatorFromDumpNumber(msg.sender);
+            fromDumpNumber = IDataLayrRegistry(
+                address(repository.voteWeigher())
+            ).getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
@@ -376,9 +353,6 @@ contract DataLayrServiceManager is
 
         emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
     }
-
-
-
 
     /**
      @notice This function can only be called after the challenge window for the payment claim has completed.
@@ -427,9 +401,6 @@ contract DataLayrServiceManager is
         emit PaymentRedemption(msg.sender, amount);
     }
 
-
-
-
     //
     //TODO: How much collateral
     /**
@@ -440,7 +411,7 @@ contract DataLayrServiceManager is
      @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
      @param amount1 
      @param amount2
-     */ 
+     */
     function challengePaymentInit(
         address operator,
         uint120 amount1,
@@ -453,7 +424,6 @@ contract DataLayrServiceManager is
                 operatorToPayment[operator].status == 0,
             "Fraud proof interval has passed"
         );
-
 
         // deploy new challenge contract
         address challengeContract = dataLayrPaymentChallengeFactory
@@ -475,9 +445,6 @@ contract DataLayrServiceManager is
         operatorToPaymentChallenge[operator] = challengeContract;
         emit PaymentChallengeInit(operator, msg.sender);
     }
-
-
-
 
     function resolvePaymentChallenge(address operator, bool winner) external {
         require(
@@ -538,21 +505,23 @@ contract DataLayrServiceManager is
         );
         {
             IDataLayrRegistry dlvw = IDataLayrRegistry(
-                address(
-                    repository.registrationManager()
-                )
+                address(repository.registrationManager())
             );
 
             bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
 
             //require that the index is before where operatorpubkey hash would be
+            //or that the operator would be before everyone else
             require(
                 uint256(nonSignerPubkeyHashes[nonSignerIndex]) <
-                    uint256(operatorPubkeyHash),
+                    uint256(operatorPubkeyHash) ||
+                    (nonSignerIndex == 0 &&
+                        uint256(nonSignerPubkeyHashes[0]) >
+                        uint256(operatorPubkeyHash)),
                 "Wrong index"
             );
 
-            if (nonSignerIndex == nonSignerPubkeyHashes.length - 1) {
+            if (nonSignerIndex != nonSignerPubkeyHashes.length - 1) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
                     uint256(nonSignerPubkeyHashes[nonSignerIndex + 1]) >
@@ -614,7 +583,7 @@ contract DataLayrServiceManager is
             uint48 degree
         ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
         require(
-            degree * 32 == poly.length,
+            (degree + 1) * 32 == poly.length,
             "Polynomial must have a 256 bit coefficient for each term"
         );
 
@@ -639,7 +608,7 @@ contract DataLayrServiceManager is
         );
 
         //get the commitment to the zero polynomial of multireveal degree
-        // e(pi, z)e(C - I, -g2)
+        // e(pi, z)e(C - I, -g2) == 1
         uint256[12] memory pairingInput;
         assembly {
             //set pi
@@ -731,9 +700,7 @@ contract DataLayrServiceManager is
         uint256[2] memory res;
 
         assembly {
-            if iszero(
-                call(not(0), 0x06, 0, coors, 0x80, res, 0x40)
-            ) {
+            if iszero(call(not(0), 0x06, 0, coors, 0x80, res, 0x40)) {
                 revert(0, 0)
             }
         }
@@ -743,7 +710,8 @@ contract DataLayrServiceManager is
             "Cannot commit to same polynomial as DLN"
         );
         //the degree has been narrowed down by half every dissection
-        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree / 2;
+        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree /
+            2;
         disclosureForOperator[headerHash][operator].challenge = address(
             dataLayrDisclosureChallengeFactory
                 .createDataLayrDisclosureChallenge(

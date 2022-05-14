@@ -152,7 +152,7 @@ contract DataLayrDisclosureChallenge {
             ),
             "Incorrect power of tau proof"
         );
-        uint256[3] memory contest_point;
+        uint256[2] memory contest_point;
         if (half) {
             //left leaf
             //challenging lower degree term
