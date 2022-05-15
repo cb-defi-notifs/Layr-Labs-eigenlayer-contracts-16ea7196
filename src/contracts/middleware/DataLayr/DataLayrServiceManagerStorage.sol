@@ -42,12 +42,33 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint120 amount1;
         uint120 amount2;
     }
+
+    /**
+     @notice used for storing information on the forced disclosure challenge    
+     */
     struct DisclosureChallenge {
+        // instant when forced disclosure challenge was made
         uint32 commitTime;
-        address challenger; // dumpNumber payment being claimed from
-        address challenge;//address of challenge contract if there is one
+
+        // challenger's address
+        address challenger; 
+
+        // address of challenge contract if there is one
+        address challenge;
+
+        // 
         uint48 degree;
-        uint8 status; // 1: challenged, 2: responded (in fraud proof period), 3: challenged commitment, 4: operator incorrect
+
+        /** 
+            Used for indicating the status of the forced disclosure challenge. The status are:
+                - 1: challenged, 
+                - 2: responded (in fraud proof period), 
+                - 3: challenged commitment, 
+                - 4: operator incorrect
+         */
+        uint8 status; 
+
+
         uint256 x; //commitment coordinates
         uint256 y;
         bytes32 polyHash;
@@ -101,16 +122,28 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
     
+    /// @notice indicates the window within which DataLayr operator must respond to the forced disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
+
+
     uint256 disclosurePaymentPerByte;
+
+
+
+    /**
+     @notice map of forced disclosure challenge that has been opened against a DataLayr operator
+             for a particular dump number.   
+     */
     mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
+
+
     bytes32 public powersOfTauMerkleRoot;
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
-    bytes32[32] public zeroPolynomialCommitmentMerlkeRoots;
+    bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
      * @notice mapping between the dumpNumber for a particular assertion of data into
