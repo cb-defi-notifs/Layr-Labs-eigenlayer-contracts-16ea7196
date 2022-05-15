@@ -775,6 +775,7 @@ contract DataLayrServiceManager is
             /**
              @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
              */
+            // CRITIC:  change add(pairingInput, 0x100) to add(pairingInput, 0xC0)
             if iszero(
                 call(not(0), 0x06, 0, add(pairingInput, 0x100), 0x80, add(pairingInput, 0x100),0x40)
             ) {
