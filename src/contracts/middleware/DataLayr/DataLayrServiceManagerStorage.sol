@@ -125,7 +125,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     /// @notice indicates the window within which DataLayr operator must respond to the forced disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
 
-    
+
     uint256 disclosurePaymentPerByte;
 
 
@@ -143,7 +143,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
-    bytes32[32] public zeroPolynomialCommitmentMerlkeRoots;
+    bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
      * @notice mapping between the dumpNumber for a particular assertion of data into
