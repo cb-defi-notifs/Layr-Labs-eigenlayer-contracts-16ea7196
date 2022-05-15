@@ -52,7 +52,7 @@ contract DataLayrServiceManager is
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
-    event DisclosureChallengeResponse(bytes32 headerHash, address operator);
+    event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
     event DisclosureChallengeInteractive(bytes32 headerHash, address operator);
 
 
@@ -670,7 +670,7 @@ contract DataLayrServiceManager is
      */
     /**
      @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
-     @param poly 
+     @param poly x
      @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
                      [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
      @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
@@ -821,7 +821,7 @@ contract DataLayrServiceManager is
         );
         disclosureForOperator[headerHash][msg.sender].status = 2;
         disclosureForOperator[headerHash][msg.sender].degree = degree;
-        emit DisclosureChallengeResponse(headerHash, msg.sender);
+        emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 
     function initInterpolatingPolynomialFraudProof(
@@ -895,7 +895,7 @@ contract DataLayrServiceManager is
      */
     /**
      @param leaf is the element whose membership in the merkle tree is being checked,
-     @param index 
+     @param index x
      @param rootHash is the Merkle root of the Merkle tree,
      @param proof is the Merkle proof associated with the @param leaf and @param rootHash.
      */ 
