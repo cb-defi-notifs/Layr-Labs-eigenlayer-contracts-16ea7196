@@ -52,6 +52,9 @@ contract DataLayrServiceManager is
      */
 
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
+    event DisclosureChallengeResponse(bytes32 headerHash, address operator);
+    event DisclosureChallengeInteractive(bytes32 headerHash, address operator);
+
 
     event PaymentCommit(
         address operator,
@@ -474,12 +477,6 @@ contract DataLayrServiceManager is
     }
 
 
-    /**
-     @notice 
-     */
-    /**
-     @param headerHash 
-     */
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
@@ -676,9 +673,9 @@ contract DataLayrServiceManager is
                     not(0),
                     0x06,
                     0,
-                    add(pairingInput, 0x100),
+                    add(pairingInput, 0xC0),
                     0x80,
-                    add(pairingInput, 0x100),
+                    add(pairingInput, 0xC0),
                     0x40
                 )
             ) {
@@ -713,6 +710,7 @@ contract DataLayrServiceManager is
         );
         disclosureForOperator[headerHash][msg.sender].status = 2;
         disclosureForOperator[headerHash][msg.sender].degree = degree;
+        emit DisclosureChallengeResponse(headerHash, msg.sender);
     }
 
     function initInterpolatingPolynomialFraudProof(
@@ -763,6 +761,7 @@ contract DataLayrServiceManager is
                     halfDegree
                 )
         );
+        emit DisclosureChallengeInteractive(headerHash, msg.sender);
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(

@@ -17,8 +17,8 @@ contract DataLayrPaymentChallengeFactory {
      @param serviceManager is the DataLayr service manager,
      @param fromDumpNumber is the dump number from which payment has been computed,
      @param toDumpNumber is the dump number until which payment has been computed to,
-     @param amount1
-     @param amount2 
+     @param amount1 x
+     @param amount2 y
      */
     function createDataLayrPaymentChallenge(
         address operator,
