@@ -68,9 +68,12 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
          */
         uint8 status; 
 
-
+        // Proof [Pi(s).x, Pi(s).y] with respect to C(s) - I_k(s)
+        // updated in respondToDisclosureInit function in DataLayrServiceManager.sol 
         uint256 x; //commitment coordinates
         uint256 y;
+
+        
         bytes32 polyHash;
     }
 

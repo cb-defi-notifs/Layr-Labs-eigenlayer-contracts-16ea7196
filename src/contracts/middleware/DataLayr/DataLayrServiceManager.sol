@@ -670,6 +670,9 @@ contract DataLayrServiceManager is
             k-th leaf would be equal to the hash of Z_k(s). 
      */
     /**
+     @notice
+     */ 
+    /**
      @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
      @param poly x
      @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
@@ -745,8 +748,11 @@ contract DataLayrServiceManager is
             "Incorrect zero poly merkle proof"
         );
 
+
+        /**
+         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
+         */    
         //get the commitment to the zero polynomial of multireveal degree
-        // e(Pi(s), Z_k(s))e(C - I, -g2) == 1
         uint256[12] memory pairingInput;
         assembly {
             // extract the proof [Pi(s).x, Pi(s).y]
@@ -794,14 +800,17 @@ contract DataLayrServiceManager is
                 revert(0, 0)
             }
         }
-        // e(pi, z)e(C - I, -g2) == 1
+
+
+        // check e(pi, z)e(C - I, -g2) == 1
         assembly {
-            //store -g2
+            // store -g2, where g2 is the negation of the generator of group G2
             mstore(add(pairingInput, 0x100), nG2x1)
             mstore(add(pairingInput, 0x120), nG2x0)
             mstore(add(pairingInput, 0x140), nG2y1)
             mstore(add(pairingInput, 0x160), nG2y0)
-            //check the lhs paring
+
+            // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 call(not(0), 0x08, 0, pairingInput, 0x180, pairingInput, 0x20)
             ) {
@@ -811,20 +820,34 @@ contract DataLayrServiceManager is
 
         require(pairingInput[0] == 1, "Pairing unsuccessful");
 
-        //update disclosure to add commitment point, hash of poly, and degree
+        // update disclosure to record proof - [Pi(s).x, Pi(s).y]
         disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
         disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
+
+        // update disclosure to record  hash of poly
         disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
             poly
         );
-        disclosureForOperator[headerHash][msg.sender].commitTime = uint32(
-            block.timestamp
-        );
-        disclosureForOperator[headerHash][msg.sender].status = 2;
+
+        // update disclosure to record degree
         disclosureForOperator[headerHash][msg.sender].degree = degree;
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 
+
+    /**
+     @notice 
+        For simpicity of notation, let the interpolating polynomial I_k(x) for the DataLayr operation k
+        be denoted by I(x). Then, substituting x = s, we can write:
+         I(s) = c_0 + c_1 * s + c_2 * s^2 + c_3 * s^3 + ... + c_d * s^d
+              = [c_0 + c_1 * s + ... + c_{d/2} * s^(d/2)] + [c_{d/2 + 1} * s^(d/2 + 1) ... + c_{d/2} * s^(d/2)]
+              =                   coors1(s)               +                        coors2(s)
+     */
+    /**
+     @param headerHash abc
+     @param operator abc
+     @param coors this is of the format: [coors1(s).x, coors1(s).y, coors2(s).x, coors2(s).y]
+     */ 
     function initInterpolatingPolynomialFraudProof(
         bytes32 headerHash,
         address operator,
@@ -835,16 +858,18 @@ contract DataLayrServiceManager is
                 msg.sender,
             "Only challenger can call"
         );
+
         require(
             disclosureForOperator[headerHash][operator].status == 2,
             "Not in post operator response phase"
         );
-        //update commit time
-        disclosureForOperator[headerHash][operator].commitTime = uint32(
-            block.timestamp
-        );
+
+        // update commit time
+        disclosureForOperator[headerHash][operator].commitTime = uint32(block.timestamp);
+
         // update status to challenged
         disclosureForOperator[headerHash][operator].status = 3;
+
         // make sure the dissection is not commiting to the same polynomial as the DLN
         uint256[2] memory res;
 
