@@ -108,12 +108,6 @@ contract DataLayrPaymentChallenge is DSTest{
 
 
     //challenger challenges a particular half of the payment
-    /**
-     @notice 
-     */
-    /**
-     @param 
-     */ 
     function challengePaymentHalf(
         bool half,
         uint120 amount1,

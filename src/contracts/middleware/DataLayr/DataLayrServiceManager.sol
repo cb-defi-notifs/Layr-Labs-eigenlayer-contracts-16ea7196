@@ -52,6 +52,9 @@ contract DataLayrServiceManager is
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
+    event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
+    event DisclosureChallengeInteractive(bytes32 headerHash, address operator);
+
 
     event PaymentCommit(
         address operator,
@@ -670,7 +673,7 @@ contract DataLayrServiceManager is
      */ 
     /**
      @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
-     @param poly 
+     @param poly x
      @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
                      [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
      @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
@@ -783,7 +786,15 @@ contract DataLayrServiceManager is
              */
             // CRITIC:  change add(pairingInput, 0x100) to add(pairingInput, 0xC0)
             if iszero(
-                call(not(0), 0x06, 0, add(pairingInput, 0x100), 0x80, add(pairingInput, 0x100),0x40)
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    add(pairingInput, 0xC0),
+                    0x80,
+                    add(pairingInput, 0xC0),
+                    0x40
+                )
             ) {
                 revert(0, 0)
             }
@@ -819,13 +830,7 @@ contract DataLayrServiceManager is
 
         // update disclosure to record degree
         disclosureForOperator[headerHash][msg.sender].degree = degree;
-
-        // update commitTime of the forced disclosure
-        disclosureForOperator[headerHash][msg.sender].commitTime = uint32(block.timestamp);
-
-        // update the status of the forced disclosure challenge
-        disclosureForOperator[headerHash][msg.sender].status = 2;
-        
+        emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 
 
@@ -892,6 +897,7 @@ contract DataLayrServiceManager is
                     halfDegree
                 )
         );
+        emit DisclosureChallengeInteractive(headerHash, msg.sender);
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
@@ -914,7 +920,7 @@ contract DataLayrServiceManager is
      */
     /**
      @param leaf is the element whose membership in the merkle tree is being checked,
-     @param index 
+     @param index x
      @param rootHash is the Merkle root of the Merkle tree,
      @param proof is the Merkle proof associated with the @param leaf and @param rootHash.
      */ 
