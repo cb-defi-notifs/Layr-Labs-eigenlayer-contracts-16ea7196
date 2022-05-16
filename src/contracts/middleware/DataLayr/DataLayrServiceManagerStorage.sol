@@ -53,7 +53,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         // challenger's address
         address challenger; 
 
-        // address of challenge contract if there is one
+        // address of challenge contract if there is one - updated in initInterpolatingPolynomialFraudProof function
+        // in DataLayrServiceManager.sol 
         address challenge;
 
         // 
@@ -73,7 +74,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint256 x; //commitment coordinates
         uint256 y;
 
-        
+
         bytes32 polyHash;
     }
 
