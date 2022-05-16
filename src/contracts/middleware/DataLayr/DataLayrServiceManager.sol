@@ -760,10 +760,10 @@ contract DataLayrServiceManager is
             mstore(add(pairingInput, 0x20), mload(add(multireveal, 0x20)))
 
             // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(zeroPoly))
-            mstore(add(pairingInput, 0x60), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x40)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x60)))
+            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
+            mstore(add(pairingInput, 0x60), mload(zeroPoly))
+            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
+            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
 
             // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
             mstore(add(pairingInput, 0xC0), mload(c))
@@ -889,6 +889,7 @@ contract DataLayrServiceManager is
         address disclosureChallenge = address(
             dataLayrDisclosureChallengeFactory
                 .createDataLayrDisclosureChallenge(
+                    headerHash,
                     operator,
                     msg.sender,
                     coors[0],
@@ -900,7 +901,7 @@ contract DataLayrServiceManager is
         );
 
         disclosureForOperator[headerHash][operator].challenge = disclosureChallenge;
-        emit DisclosureChallengeInteractive(headerHash, disclosureChallenge, msg.sender);
+        emit DisclosureChallengeInteractive(headerHash, disclosureChallenge, operator);
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(

@@ -14,7 +14,10 @@ contract DataLayrDisclosureChallenge {
     IDataLayrServiceManager public dlsm;
     DisclosureChallenge public challenge;
 
+    event DisclosureChallengeDisection(address nextInteracter);
+
     struct DisclosureChallenge {
+        bytes32 headerHash;
         address operator;
         address challenger;
         uint32 commitTime; // when commited, used for fraud proof period
@@ -28,6 +31,7 @@ contract DataLayrDisclosureChallenge {
     }
 
     constructor(
+        bytes32 headerHash,
         address operator,
         address challenger,
         uint256 x_low,
@@ -37,6 +41,7 @@ contract DataLayrDisclosureChallenge {
         uint48 increment
     ) {
         challenge = DisclosureChallenge(
+            headerHash,
             operator,
             challenger,
             uint32(block.timestamp),
@@ -97,6 +102,7 @@ contract DataLayrDisclosureChallenge {
         challenge.commitTime = uint32(block.timestamp);
         //half the amount to increment
         challenge.increment /= 2;
+        emit DisclosureChallengeDisection(turn ? challenge.challenger : challenge.operator);
     }
 
     function resolveTimeout(bytes32 headerHash) public {

@@ -9,6 +9,7 @@ import "./DataLayrDisclosureChallenge.sol";
 contract DataLayrDisclosureChallengeFactory {
     //creates a new 'DataLayrPaymentChallenge' contract
     function createDataLayrDisclosureChallenge(
+        bytes32 headerHash,
         address operator,
         address challenger,
         uint256 x_low,
@@ -20,6 +21,7 @@ contract DataLayrDisclosureChallengeFactory {
         // deploy new challenge contract
         address disclosureContract = address(
             new DataLayrDisclosureChallenge(
+                headerHash,
                 operator,
                 challenger,
                 x_low,
