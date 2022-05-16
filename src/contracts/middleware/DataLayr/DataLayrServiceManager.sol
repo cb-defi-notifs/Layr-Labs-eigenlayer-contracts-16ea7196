@@ -15,7 +15,11 @@ import "../Repository.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice
+ * @notice This contract is used for:
+            - initializing the data store by the disperser
+            - confirming the data store by the disperser with inferred aggregated signatures of the quorum
+            - doing forced disclosure challenge
+            - doing payment challenge
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
@@ -52,7 +56,15 @@ contract DataLayrServiceManager is
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
+
+    /**
+     @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
+     */
     event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
+
+    /**
+     @notice used while initializing the interactive forced disclosure
+     */
     event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge, address operator);
 
 
@@ -214,7 +226,7 @@ contract DataLayrServiceManager is
     }
 
     /**
-     * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
+     * @notice This function is used when the  DataLayr is used to update the POSt hash
      *         along with the regular assertion of data into the DataLayr by the disperser. This
      *         function enables
      *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
@@ -656,21 +668,20 @@ contract DataLayrServiceManager is
 
             where x^l - (w^k)^l is the zero polynomial. Let us denote the zero poly by Z_k(x) = x^l - (w^k)^l.
             
-            Observe that for forced disclosre, 
-            
+            Now, under forced disclosure, DataLayr operator k needs to just reveal the coefficients of the 
+            interpolating polynomial I_k(x). The challenger for the forced disclosure can use this polynomial 
+            I_k(x) to reconstruct the symbols that are stored with the DataLayr operator k which is given by:
 
-            // CRITICL @soubhik finish this
-            In order to respond to the forced disclosure challenge:
-              (1) DataLayr operator first has to disclose proof (quotient polynomial) Pi(s) and I_k(s) which is then
-                  used to verify that   
-              (2)
+                        I_k(w^k), I_k(w^k * phi), I_k(w^k * phi^2), ..., I_k(w^k * phi^(l-1))
 
-
-            Observe that, given l, Z_k(x) evaluated at SRS s are fixed for all k. However, it would be too
-            expensive to store these evaluations in on-chain contract. Instead, on-chain contract only stores
-            the Merkle root of a Merkle tree whose leaves are comprised of Z_k(s) for all values of k. That is,
-            k-th leaf would be equal to the hash of Z_k(s). 
+            However, revealing the coefficients of I_k(x) gives no guarantee that these coefficints are correct. 
+            So, we in order to respond to the forced disclosure challenge:
+              (1) DataLayr operator first has to disclose proof (quotient polynomial) Pi(s) and commitment to 
+                  zero polynomial Z_k(x) in order to help on-chain code to certify the commitment to the 
+                  interpolating polynomial I_k(x),   
+              (2) reveal the coefficients of the interpolating polynomial I_k(x) 
      */
+     
     /**
      @notice This function is used by the DataLayr operator to respond to the forced disclosure challenge.   
      */ 
@@ -787,7 +798,6 @@ contract DataLayrServiceManager is
             /**
              @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
              */
-            // CRITIC:  change add(pairingInput, 0x100) to add(pairingInput, 0xC0)
             if iszero(
                 call(
                     not(0),
@@ -831,10 +841,7 @@ contract DataLayrServiceManager is
 
         // update disclosure to record degree of the interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].degree = degree;
-
-        // CRITIC@Gautham: forgot to update disclosureForOperator[headerHash][msg.sender].status to 2 
-
-        // emit the event that records the coefficients of the interpolating polynomial I_k(x)
+        disclosureForOperator[headerHash][msg.sender].status = 2;
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 

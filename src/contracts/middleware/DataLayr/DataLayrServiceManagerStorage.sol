@@ -147,6 +147,27 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
+    /**
+     @notice For a given l, zeroPolynomialCommitmentMerkleRoots[l] represents the root of merkle tree 
+     that is given by:
+
+                                    zeroPolynomialCommitmentMerkleRoots[l]
+                                                        :    
+                                                        :    
+                         ____________ ....                             .... ____________              
+                        |                                                               |
+                        |                                                               |    
+              _____h(h_1||h_2)______                                        ____h(h_{k-1}||h_{k}__________  
+             |                      |                                      |                              |   
+             |                      |                                      |                              |
+            h_1                    h_2                                 h_{k-1}                         h_{k} 
+             |                      |                                      |                              |  
+             |                      |                                      |                              |  
+     hash(x^l - w^l)       hash(x^l - (w^2)^l)                   hash(x^l - (w^{k-1})^l)        hash(x^l - (w^k)^l) 
+     
+     This tree is computed off-chain and only the Merkle roots are stored on-chain.
+     */
+    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees? 
     bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**

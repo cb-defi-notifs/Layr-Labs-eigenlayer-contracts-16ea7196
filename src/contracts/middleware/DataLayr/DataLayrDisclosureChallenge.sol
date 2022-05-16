@@ -9,6 +9,10 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 
+
+/**
+ @notice This contract is for doing interactive forced disclosure and then settling it.   
+ */
 contract DataLayrDisclosureChallenge {
     using BytesLib for bytes;
     IDataLayrServiceManager public dlsm;
@@ -52,6 +56,7 @@ contract DataLayrDisclosureChallenge {
 
 
     constructor(
+        address dlsmAddr,
         bytes32 headerHash,
         address operator,
         address challenger,
@@ -75,10 +80,7 @@ contract DataLayrDisclosureChallenge {
             increment,
             0
         );
-
-        // CRITIC@Gautham: msg.sender is DataLayrDisclosureChallengeFactory; how would it react to being put inside 
-        // IDataLayrServiceManager
-        dlsm = IDataLayrServiceManager(msg.sender);
+        dlsm = IDataLayrServiceManager(dlsmAddr);
     }
 
 
@@ -245,18 +247,21 @@ contract DataLayrDisclosureChallenge {
         );
 
 
-        // CRITIC: how is this proving supplied x_power, y_power is correct?
+        /**
+         Check that the monomial supplied (x_power, y_power) is same as (s^{degree}.x, s^{degree}.y)
+         */
         uint48 degree = challenge.oneStepDegree;
-        //degree of proved leaf
         require(
             checkMembership(
                 keccak256(abi.encodePacked(x_power, y_power)),
                 degree,
+                /// @dev more explanation on TauMerkleRoot in IDataLayrServiceManager.sol
                 dlsm.powersOfTauMerkleRoot(),
                 proof
             ),
             "Incorrect power of tau proof"
         );
+
 
         // verify that whether the forced disclosure challenge was valid
         uint256[2] memory contest_point;
