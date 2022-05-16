@@ -137,7 +137,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      @notice map of forced disclosure challenge that has been opened against a DataLayr operator
              for a particular dump number.   
      */
-    mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
+    mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
 
 
     bytes32 public powersOfTauMerkleRoot;
