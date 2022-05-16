@@ -53,7 +53,7 @@ contract DataLayrServiceManager is
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
     event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
-    event DisclosureChallengeInteractive(bytes32 headerHash, address operator);
+    event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge, address operator);
 
 
     event PaymentCommit(
@@ -558,20 +558,21 @@ contract DataLayrServiceManager is
 
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash) 
             require(
-                uint256(nonSignerPubkeyHashes[nonSignerIndex]) <
-                    uint256(operatorPubkeyHash) ||
-                    (nonSignerIndex == 0 &&
-                        uint256(nonSignerPubkeyHashes[0]) >
-                        uint256(operatorPubkeyHash)),
+                //they're either greater than everyone in the nspkh array
+                (nonSignerIndex == nonSignerPubkeyHashes.length && uint256(nonSignerPubkeyHashes[nonSignerIndex-1]) < uint256(operatorPubkeyHash))
+                ||
+                //or nonSigner index is greater than them
+                (uint256(nonSignerPubkeyHashes[nonSignerIndex]) >
+                    uint256(operatorPubkeyHash)),
                 "Wrong index"
             );
 
 
-            //  check that uint256(operatorPubkeyHash) < uint256(nspkh[index + 1])
-            if (nonSignerIndex != nonSignerPubkeyHashes.length - 1) {
+            //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
+            if (nonSignerIndex != 0) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
-                    uint256(nonSignerPubkeyHashes[nonSignerIndex + 1]) >
+                    uint256(nonSignerPubkeyHashes[nonSignerIndex - 1]) <
                         uint256(operatorPubkeyHash),
                     "Wrong index"
                 );
@@ -860,7 +861,7 @@ contract DataLayrServiceManager is
         //the degree has been narrowed down by half every dissection
         uint48 halfDegree = disclosureForOperator[headerHash][operator].degree /
             2;
-        disclosureForOperator[headerHash][operator].challenge = address(
+        address disclosureChallenge = address(
             dataLayrDisclosureChallengeFactory
                 .createDataLayrDisclosureChallenge(
                     operator,
@@ -872,7 +873,9 @@ contract DataLayrServiceManager is
                     halfDegree
                 )
         );
-        emit DisclosureChallengeInteractive(headerHash, msg.sender);
+
+        disclosureForOperator[headerHash][operator].challenge = disclosureChallenge;
+        emit DisclosureChallengeInteractive(headerHash, disclosureChallenge, msg.sender);
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
