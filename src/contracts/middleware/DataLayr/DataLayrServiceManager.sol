@@ -843,8 +843,8 @@ contract DataLayrServiceManager is
               =                   coors1(s)               +                        coors2(s)
      */
     /**
-     @param headerHash 
-     @param operator 
+     @param headerHash abc
+     @param operator abc
      @param coors this is of the format: [coors1(s).x, coors1(s).y, coors2(s).x, coors2(s).y]
      */ 
     function initInterpolatingPolynomialFraudProof(
