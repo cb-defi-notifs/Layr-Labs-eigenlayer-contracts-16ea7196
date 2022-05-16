@@ -27,6 +27,12 @@ contract DataLayrServiceManager is
     // ,DSTest
 {
     using BytesLib for bytes;
+    //TODO: mechanism to change any of these values?
+    uint32 constant internal MIN_STORE_SIZE = 32;
+    uint32 constant internal MAX_STORE_SIZE = 4e9;    
+    uint32 constant internal MIN_STORE_LENGTH = 60;
+    uint32 constant internal MAX_STORE_LENGTH = 604800;
+
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
      *      delegators to delegate their stake to operators who would serve as DataLayr
@@ -128,14 +134,13 @@ contract DataLayrServiceManager is
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
-        require(totalBytes > 32, "Can't store less than 33 bytes");
+        require(totalBytes > MIN_STORE_SIZE, "Can't store less than 33 bytes");
 
-        require(storePeriodLength > 60, "store for more than a minute");
+        require(totalBytes <= MAX_STORE_SIZE, "store of more than 4 GB");
 
-        require(storePeriodLength < 604800, "store for less than 7 days");
+        require(storePeriodLength > MIN_STORE_LENGTH, "store for more than a minute");
 
-        //TODO: mechanism to change this?
-        require(totalBytes <= 4e9, "store of more than 4 GB");
+        require(storePeriodLength < MAX_STORE_LENGTH, "store for less than 7 days");
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -162,7 +167,7 @@ contract DataLayrServiceManager is
         );
 
         // increment the counter
-        dumpNumber++;
+        ++dumpNumber;
     }
 
     /**

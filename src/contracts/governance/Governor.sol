@@ -236,7 +236,7 @@ contract Governor is Timelock_Managed {
             );
         }
 
-        proposalCount++;
+        ++proposalCount;
         Proposal memory newProposal = Proposal({
             id: proposalCount,
             proposer: msg.sender,
@@ -279,7 +279,7 @@ contract Governor is Timelock_Managed {
         );
         Proposal storage proposal = proposals[proposalId];
         uint256 eta = block.timestamp + timelock.delay();
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
+        for (uint256 i = 0; i < proposal.targets.length; ++i) {
             _queueOrRevert(
                 proposal.targets[i],
                 proposal.values[i],
@@ -315,7 +315,7 @@ contract Governor is Timelock_Managed {
         );
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
+        for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.executeTransaction{value: proposal.values[i]}(
                 proposal.targets[i],
                 proposal.values[i],
@@ -349,7 +349,7 @@ contract Governor is Timelock_Managed {
         );
 
         proposal.canceled = true;
-        for (uint256 i = 0; i < proposal.targets.length; i++) {
+        for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.cancelTransaction(
                 proposal.targets[i],
                 proposal.values[i],
