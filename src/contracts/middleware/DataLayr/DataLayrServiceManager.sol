@@ -831,6 +831,7 @@ contract DataLayrServiceManager is
 
         // update disclosure to record degree
         disclosureForOperator[headerHash][msg.sender].degree = degree;
+        disclosureForOperator[headerHash][msg.sender].status = 2;
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 

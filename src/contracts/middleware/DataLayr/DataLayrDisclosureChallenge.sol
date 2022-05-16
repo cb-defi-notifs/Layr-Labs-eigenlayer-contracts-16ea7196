@@ -31,6 +31,7 @@ contract DataLayrDisclosureChallenge {
     }
 
     constructor(
+        address dlsmAddr,
         bytes32 headerHash,
         address operator,
         address challenger,
@@ -53,7 +54,7 @@ contract DataLayrDisclosureChallenge {
             increment,
             0
         );
-        dlsm = IDataLayrServiceManager(msg.sender);
+        dlsm = IDataLayrServiceManager(dlsmAddr);
     }
 
     //challenger challenges a particular half of the commitment

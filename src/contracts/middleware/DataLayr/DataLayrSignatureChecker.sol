@@ -10,9 +10,6 @@ import "../../libraries/BLS.sol";
 
 import "ds-test/test.sol";
 
-
-
-
 /**
  @notice This is the contract for checking that the aggregated signatures of all DataLayr operators which is being 
          asserted by the disperser is valid.
@@ -41,9 +38,6 @@ abstract contract DataLayrSignatureChecker is
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
-
-
-
     // DATA STRUCTURES
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
@@ -71,8 +65,6 @@ abstract contract DataLayrSignatureChecker is
         uint256 eigenStakeSigned,
         bytes32[] pubkeyHashes
     );
-
-
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the DataLayr operators
@@ -129,7 +121,9 @@ abstract contract DataLayrSignatureChecker is
         }
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
+            address(repository.voteWeigher())
+        );
 
         // to be used for holding the aggregated pub key of all DataLayr operators
         // that aren't part of the quorum
@@ -139,7 +133,8 @@ abstract contract DataLayrSignatureChecker is
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry.getTotalStakeFromIndex(placeholder);
+        IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry
+            .getTotalStakeFromIndex(placeholder);
         // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
         _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
@@ -216,7 +211,7 @@ abstract contract DataLayrSignatureChecker is
             unchecked {
                 pointer += 132;
             }
-            
+
             // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(
@@ -230,8 +225,10 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            localStakeObject = dlRegistry
-                .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(
+                pubkeyHash,
+                stakeIndex
+            );
             // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
             _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
@@ -246,7 +243,7 @@ abstract contract DataLayrSignatureChecker is
 
         emit log_uint(placeholder);
 
-        for (uint256 i = 1; i < placeholder;) {
+        for (uint256 i = 1; i < placeholder; ) {
             //load compressed pubkey and the index in the stakes array into memory
             uint32 stakeIndex;
 
@@ -275,9 +272,7 @@ abstract contract DataLayrSignatureChecker is
                 abi.encodePacked(pk[0], pk[1], pk[2], pk[3])
             );
 
-
-
-            //pubkeys should be ordered in ascending order of hash to make proofs of signing or 
+            //pubkeys should be ordered in ascending order of hash to make proofs of signing or
             // non signing constant time
             /**
              @dev this invariant is used in forceOperatorToDisclose in DataLayrServiceManager.sol
@@ -292,7 +287,10 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(
+                pubkeyHash,
+                stakeIndex
+            );
             // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
             _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
@@ -330,11 +328,12 @@ abstract contract DataLayrSignatureChecker is
             // Update pointer.
             unchecked {
                 pointer += 132;
-            }   
+            }
 
             // make sure they have provided the correct aggPubKey
             require(
-                dlRegistry.getCorrectApkHash(apkIndex, dumpNumberToConfirm) == keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
+                dlRegistry.getCorrectApkHash(apkIndex, dumpNumberToConfirm) ==
+                    keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
                 "Incorrect apk provided"
             );
         }
@@ -370,7 +369,7 @@ abstract contract DataLayrSignatureChecker is
 
             // reorder for pairing
             (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
-        // if zero non-signers
+            // if zero non-signers
         } else {
             //else copy it to input
             //reorder for pairing
@@ -386,7 +385,7 @@ abstract contract DataLayrSignatureChecker is
          @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
          */
 
-        // compute the point in G1 
+        // compute the point in G1
         (input[0], input[1]) = BLS.hashToG1(headerHash);
 
         // insert negated coordinates of the generator for G2
@@ -424,9 +423,9 @@ abstract contract DataLayrSignatureChecker is
             abi.encodePacked(
                 // headerHash,
                 dumpNumberToConfirm,
+                pubkeyHashes,
                 signedTotals.ethStakeSigned,
-                signedTotals.eigenStakeSigned,
-                pubkeyHashes
+                signedTotals.eigenStakeSigned
             )
         );
 
@@ -440,7 +439,10 @@ abstract contract DataLayrSignatureChecker is
     }
 
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
-    function _validateOperatorStake(IDataLayrRegistry.OperatorStake memory opStake, uint32 dumpNumberToConfirm) internal pure {
+    function _validateOperatorStake(
+        IDataLayrRegistry.OperatorStake memory opStake,
+        uint32 dumpNumberToConfirm
+    ) internal pure {
         // check that the stake returned from the specified index is recent enough
         require(
             opStake.dumpNumber <= dumpNumberToConfirm,
