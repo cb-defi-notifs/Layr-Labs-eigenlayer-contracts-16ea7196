@@ -15,7 +15,11 @@ import "../Repository.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice
+ * @notice This contract is used for:
+            - initializing the data store by the disperser
+            - confirming the data store by the disperser with inferred aggregated signatures of the quorum
+            - doing forced disclosure challenge
+            - doing payment challenge
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
@@ -52,7 +56,15 @@ contract DataLayrServiceManager is
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
+
+    /**
+     @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
+     */
     event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
+
+    /**
+     @notice used while initializing the interactive forced disclosure
+     */
     event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge, address operator);
 
 
@@ -214,7 +226,7 @@ contract DataLayrServiceManager is
     }
 
     /**
-     * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
+     * @notice This function is used when the  DataLayr is used to update the POSt hash
      *         along with the regular assertion of data into the DataLayr by the disperser. This
      *         function enables
      *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),

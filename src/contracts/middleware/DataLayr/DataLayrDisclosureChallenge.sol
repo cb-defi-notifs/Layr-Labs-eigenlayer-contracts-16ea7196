@@ -9,6 +9,10 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 
+
+/**
+ @notice This contract is for doing interactive forced disclosure and then settling it.   
+ */
 contract DataLayrDisclosureChallenge {
     using BytesLib for bytes;
     IDataLayrServiceManager public dlsm;
