@@ -15,7 +15,11 @@ import "../Repository.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice
+ * @notice This contract is used for:
+            - initializing the data store by the disperser
+            - confirming the data store by the disperser with inferred aggregated signatures of the quorum
+            - doing forced disclosure challenge
+            - doing payment challenge
  */
 contract DataLayrServiceManager is
     DataLayrSignatureChecker,
@@ -52,7 +56,15 @@ contract DataLayrServiceManager is
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
      */
     event DisclosureChallengeInit(bytes32 headerHash, address operator);
+
+    /**
+     @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
+     */
     event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
+
+    /**
+     @notice used while initializing the interactive forced disclosure
+     */
     event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge, address operator);
 
 
@@ -214,7 +226,7 @@ contract DataLayrServiceManager is
     }
 
     /**
-     * @notice This function is used when the enshrined DataLayr is used to update the POSt hash
+     * @notice This function is used when the  DataLayr is used to update the POSt hash
      *         along with the regular assertion of data into the DataLayr by the disperser. This
      *         function enables
      *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
@@ -656,25 +668,26 @@ contract DataLayrServiceManager is
 
             where x^l - (w^k)^l is the zero polynomial. Let us denote the zero poly by Z_k(x) = x^l - (w^k)^l.
             
-            Observe that for forced disclosre, 
-            
-            In order to respond to the forced disclosure challenge:
-              (1) DataLayr operator first has to disclose proof (quotient polynomial) Pi(s) and I_k(s) which is then
-                  used to verify that   
-              (2)
+            Now, under forced disclosure, DataLayr operator k needs to just reveal the coefficients of the 
+            interpolating polynomial I_k(x). The challenger for the forced disclosure can use this polynomial 
+            I_k(x) to reconstruct the symbols that are stored with the DataLayr operator k which is given by:
 
+                        I_k(w^k), I_k(w^k * phi), I_k(w^k * phi^2), ..., I_k(w^k * phi^(l-1))
 
-            Observe that, given l, Z_k(x) evaluated at SRS s are fixed for all k. However, it would be too
-            expensive to store these evaluations in on-chain contract. Instead, on-chain contract only stores
-            the Merkle root of a Merkle tree whose leaves are comprised of Z_k(s) for all values of k. That is,
-            k-th leaf would be equal to the hash of Z_k(s). 
+            However, revealing the coefficients of I_k(x) gives no guarantee that these coefficints are correct. 
+            So, we in order to respond to the forced disclosure challenge:
+              (1) DataLayr operator first has to disclose proof (quotient polynomial) Pi(s) and commitment to 
+                  zero polynomial Z_k(x) in order to help on-chain code to certify the commitment to the 
+                  interpolating polynomial I_k(x),   
+              (2) reveal the coefficients of the interpolating polynomial I_k(x) 
      */
+     
     /**
-     @notice
+     @notice This function is used by the DataLayr operator to respond to the forced disclosure challenge.   
      */ 
     /**
      @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
-     @param poly x
+     @param poly are the coefficients of the interpolating polynomial I_k(x)
      @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
                      [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
      @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
@@ -706,7 +719,7 @@ contract DataLayrServiceManager is
 
 
         // extract the commitment to the entire data polynomial, that is [C(s).x, C(s).y], and 
-        // the degree of the polynomial C(x) itself
+        // the degree of the interpolating polynomial I_k(x)
         (
             uint256[2] memory c,
             uint48 degree
@@ -785,7 +798,6 @@ contract DataLayrServiceManager is
             /**
              @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
              */
-            // CRITIC:  change add(pairingInput, 0x100) to add(pairingInput, 0xC0)
             if iszero(
                 call(
                     not(0),
@@ -824,12 +836,10 @@ contract DataLayrServiceManager is
         disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
         disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
 
-        // update disclosure to record  hash of poly
-        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
-            poly
-        );
+        // update disclosure to record  hash of interpolating polynomial I_k(x)
+        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(poly);
 
-        // update disclosure to record degree
+        // update disclosure to record degree of the interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].degree = degree;
         disclosureForOperator[headerHash][msg.sender].status = 2;
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
@@ -839,14 +849,17 @@ contract DataLayrServiceManager is
     /**
      @notice 
         For simpicity of notation, let the interpolating polynomial I_k(x) for the DataLayr operation k
-        be denoted by I(x). Then, substituting x = s, we can write:
+        be denoted by I(x). Assume the interpolating polynomial is of degree d and its coefficients are 
+        c_0, c_1, ...., c_d. 
+        
+        Then, substituting x = s, we can write:
          I(s) = c_0 + c_1 * s + c_2 * s^2 + c_3 * s^3 + ... + c_d * s^d
-              = [c_0 + c_1 * s + ... + c_{d/2} * s^(d/2)] + [c_{d/2 + 1} * s^(d/2 + 1) ... + c_{d/2} * s^(d/2)]
+              = [c_0 + c_1 * s + ... + c_{d/2} * s^(d/2)] + [c_{d/2 + 1} * s^(d/2 + 1) ... + c_d * s^d]
               =                   coors1(s)               +                        coors2(s)
      */
     /**
-     @param headerHash abc
-     @param operator abc
+     @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     @param operator is the address of the DataLayr operator
      @param coors this is of the format: [coors1(s).x, coors1(s).y, coors2(s).x, coors2(s).y]
      */ 
     function initInterpolatingPolynomialFraudProof(
@@ -871,22 +884,32 @@ contract DataLayrServiceManager is
         // update status to challenged
         disclosureForOperator[headerHash][operator].status = 3;
 
-        // make sure the dissection is not commiting to the same polynomial as the DLN
+
+        /**
+         @notice We need to ensure that the challenge is legitimate. In order to do so, we want coors1(s) and 
+                 coors2(s) to be such that:
+                                        I(s) != coors1(s) + coors2(s)   
+         */
         uint256[2] memory res;
 
+        // doing coors1(s) + coors2(s)
         assembly {
             if iszero(call(not(0), 0x06, 0, coors, 0x80, res, 0x40)) {
                 revert(0, 0)
             }
         }
+
+        // checking I(s) != coors1(s) + coors2(s)
         require(
             res[0] != disclosureForOperator[headerHash][operator].x ||
                 res[0] != disclosureForOperator[headerHash][operator].y,
-            "Cannot commit to same polynomial as DLN"
+            "Cannot commit to same polynomial as the interpolating polynomial"
         );
-        //the degree has been narrowed down by half every dissection
-        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree /
-            2;
+
+        // degree has been narrowed down by half every dissection
+        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree/2;
+
+        // initializing the interaction-style forced disclosure challenge
         address disclosureChallenge = address(
             dataLayrDisclosureChallengeFactory
                 .createDataLayrDisclosureChallenge(
@@ -901,7 +924,9 @@ contract DataLayrServiceManager is
                 )
         );
 
+        // recording the contract address for interaction-style forced disclosure challenge
         disclosureForOperator[headerHash][operator].challenge = disclosureChallenge;
+
         emit DisclosureChallengeInteractive(headerHash, disclosureChallenge, operator);
     }
 
@@ -925,7 +950,7 @@ contract DataLayrServiceManager is
      */
     /**
      @param leaf is the element whose membership in the merkle tree is being checked,
-     @param index x
+     @param index is the leaf index
      @param rootHash is the Merkle root of the Merkle tree,
      @param proof is the Merkle proof associated with the @param leaf and @param rootHash.
      */ 
@@ -997,8 +1022,15 @@ contract DataLayrServiceManager is
 
 
 
-
-
+    /**
+     @notice This function is called for settling the forced disclosure challenge.
+     */
+    /**
+     @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     @param operator is the address of DataLAyr operator
+     @param winner representing who is the winner - challenged DataLayr operator or the challenger?  
+     */
+    // CRITIC: there are some @todo's here 
     function resolveDisclosureChallenge(
         bytes32 headerHash,
         address operator,
@@ -1007,21 +1039,30 @@ contract DataLayrServiceManager is
         if (
             msg.sender == disclosureForOperator[headerHash][operator].challenge
         ) {
+            /** 
+                the above condition would be called by the forced disclosure challenge contract when the final 
+                step of the interactive fraudproof for single monomial has finished
+            */  
             if (winner) {
-                // operator was correct, allow for another challenge
+                // challenger was wrong, allow for another forced disclosure challenge 
                 disclosureForOperator[headerHash][operator].status = 0;
-                operatorToPayment[operator].commitTime = uint32(
-                    block.timestamp
-                );
-                //give them previous challengers payment
+                operatorToPayment[operator].commitTime = uint32(block.timestamp);
+
+                // @todo give them previous challengers payment
             } else {
                 // challeger was correct, reset payment
                 disclosureForOperator[headerHash][operator].status = 4;
-                //do something
+                // @todo do something
             }
+
         } else if (
             msg.sender == disclosureForOperator[headerHash][operator].challenger
         ) {
+            /** 
+                the above condition would be called by the challenger in case if the DataLayr operator doesn't 
+                respond in time
+             */   
+
             require(
                 disclosureForOperator[headerHash][operator].status == 1,
                 "Operator is not in initial response phase"
@@ -1032,8 +1073,14 @@ contract DataLayrServiceManager is
                         disclosureFraudProofInterval,
                 "Fraud proof period has not passed"
             );
+
             //slash here
         } else if (msg.sender == operator) {
+            /** 
+                the above condition would be called by the DataLayr operator in case if the challenger doesn't 
+                respond in time
+             */ 
+
             require(
                 disclosureForOperator[headerHash][operator].status == 2,
                 "Challenger is not in commitment challenge phase"
@@ -1044,6 +1091,7 @@ contract DataLayrServiceManager is
                         disclosureFraudProofInterval,
                 "Fraud proof period has not passed"
             );
+
             //get challengers payment here
         } else {
             revert(
