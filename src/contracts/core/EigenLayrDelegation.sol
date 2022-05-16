@@ -360,18 +360,10 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
 
-        //TODO: set recipient and maxSlashedAmount appropriately
-
-        // function slashShares(
-        //     address slashed,
-        //     address recipient,
-        //     IInvestmentStrategy[] calldata strategies,
-        //     uint256[] calldata strategyIndexes,
-        //     uint256[] calldata amounts,
-        //     uint256 maxSlashedAmount
-        // )
-
-        slasher.slashShares(staker, strategies, strategyIndexes, amounts, 0); 
+        //TODO: set maxSlashedAmount appropriately
+        uint256 maxSlashedAmount = 0;
+        // perform the slashing itself
+        slasher.slashShares(staker, strategies, strategyIndexes, amounts, maxSlashedAmount); 
 
         // TODO: reset status of staker to having not committed to de-delegation?
     }

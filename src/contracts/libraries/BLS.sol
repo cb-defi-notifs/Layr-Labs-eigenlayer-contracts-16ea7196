@@ -1,6 +1,6 @@
-// TODO: @Gautham -- licensing / source??
-// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
-// rest is me
+// SPDX IDENTIFIER: UNLICENSED & MIT
+// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
+// remainder is UNLICENSED
 pragma solidity ^0.8.9;
 
 

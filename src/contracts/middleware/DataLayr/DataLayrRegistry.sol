@@ -734,9 +734,6 @@ contract DataLayrRegistry is
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
         totalStakeHistory.push(_totalStake);
 
-
-
-        //TODO: do we need this variable at all?
         // increment number of registrants
         unchecked {
             ++numRegistrants;

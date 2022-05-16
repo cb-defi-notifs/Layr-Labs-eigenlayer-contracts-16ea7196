@@ -291,7 +291,6 @@ contract DataLayrServiceManager is
         );
     }
 
-    // TODO: collateral
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
              for their service since their last payment until @param toDumpNumber  
