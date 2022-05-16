@@ -10,31 +10,74 @@ import "../Repository.sol";
 
 import "ds-test/test.sol";
 
+/**
+ @notice This contract is used for:
+ */
 contract DataLayrPaymentChallenge is DSTest{
-    IDataLayrServiceManager public dlsm;
-    PaymentChallenge public challenge;
-
+    
+    // DATA STRUCTURES
     struct PaymentChallenge {
+        // DataLayr operator whose payment claim is being challenged,
         address operator;
+
+        // the entity challenging with the fraudproof
         address challenger;
+
+        // address of the DataLayr service manager contract
         address serviceManager;
+
+        // the dump number from which payment has been computed
         uint32 fromDumpNumber;
+
+        // the dump number until which payment has been computed to
         uint32 toDumpNumber;
 
+        // 
         uint120 amount1;
+
+        // 
         uint120 amount2;
+
+        // used for recording the time when challenge was created
         uint32 commitTime; // when commited, used for fraud proof period
-        uint8 status; // 0: commited, 1: redeemed, 2: operator turn (dissection), 3: challenger turn (dissection)
-        // 4: operator turn (one step), 5: challenger turn (one step)
+
+
+        // indicates the status of the challenge
+        /**
+         @notice The possible status are:
+                    - 0: commited,
+                    - 1: redeemed,
+                    - 2: operator turn (dissection),
+                    - 3: challenger turn (dissection),
+                    - 4: operator turn (one step),
+                    - 5: challenger turn (one step)
+         */
+        uint8 status;   
     }
 
+    /**
+     @notice  
+     */
     struct SignerMetadata {
         address signer;
         uint96 ethStake;
         uint96 eigenStake;
     }
 
+
+    IDataLayrServiceManager public dlsm;
+
+    // the payment challenge 
+    PaymentChallenge public challenge;
+
+
+
+    // EVENTS
     event PaymentBreakdown(uint32 fromDumpNumber, uint32 toDumpNumber, uint120 amount1, uint120 amount2);
+
+    
+    
+
 
     constructor(
         address operator,
@@ -53,12 +96,16 @@ contract DataLayrPaymentChallenge is DSTest{
             toDumpNumber,
             amount1,
             amount2,
+            // recording current timestamp as the commitTime
             uint32(block.timestamp),
+            // setting DataLayr operator to respond next
             2
         );
 
         dlsm = IDataLayrServiceManager(serviceManager);
     }
+
+
 
     //challenger challenges a particular half of the payment
     function challengePaymentHalf(
@@ -67,6 +114,7 @@ contract DataLayrPaymentChallenge is DSTest{
         uint120 amount2
     ) external {
         uint8 status = challenge.status;
+
         require(
             (status == 3 && challenge.challenger == msg.sender) ||
                 (status == 2 && challenge.operator == msg.sender),
@@ -79,6 +127,8 @@ contract DataLayrPaymentChallenge is DSTest{
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
+
+
         uint32 fromDumpNumber = challenge.fromDumpNumber;
         uint32 toDumpNumber = challenge.toDumpNumber;
         uint32 diff;
@@ -115,20 +165,37 @@ contract DataLayrPaymentChallenge is DSTest{
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
+
+
+
+    /**
+     @notice This function is used for updating the status of the challenge in terms of who
+             has to respond to the interactive challenge mechanism next -  is it going to be
+             challenger or the DataLayr operator.   
+     */
+    /**
+     @param operator is the DataLayr operator whose payment claim is being challenged
+     @param diff is the number of DataLayr dumps across which payment is being challenged in this iteration
+     */ 
     function updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
+        // payment challenge for one data dump
         if (diff == 1) {
             //set to one step turn of either challenger or operator
             challenge.status = msg.sender == operator ? 5 : 4;
             return false;
+
+        // payment challenge across more than one data dump
         } else {
-            //set to dissection turn of either challenger or operator
+            // set to dissection turn of either challenger or operator
             challenge.status = msg.sender == operator ? 3 : 2;
             return true;
         }
     }
+
+
 
     //an operator can respond to challenges and breakdown the amount
     function updateChallengeAmounts(
