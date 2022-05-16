@@ -20,35 +20,19 @@ import "./utils/CheatCodes.sol";
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     using Math for uint;
-    uint shares;
     address[2] public delegators;
-    bytes[] headers;
-    ServiceManagerBase serviceManager;
-    VoteWeigherBase voteWeigher;
-    Repository repository;
-    IRepository newRepository;
-    ServiceFactory factory;
-    IRegistrationManager regManager;
-    IDataLayrPaymentChallenge dlpc;
-    DelegationTerms dt;
-    uint120 amountRewards;
+    bytes[] public headers;
+    IDataLayrPaymentChallenge public dlpc;
+    DelegationTerms public dt;
 
-    uint256 amountEigenToDeposit = 20;
-    uint256 amountEthToDeposit = 2e19;
-    address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-    address challengeContract;
+    uint256 public amountEigenToDeposit = 20;
+    uint256 public amountEthToDeposit = 2e19;
+    address public challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
+    address public challengeContract;
+    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     constructor(){
         delegators = [acct_0, acct_1];
-        // headers.push(bytes("0x0102030405060708091011121314151617184567"));
-        // headers.push(bytes("0x0102030405060708091011121314151617182167"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181920"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181934"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181956"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181967"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181909"));
-        // headers.push(bytes("0x0102030405060708091011121314151617181944"));
-        // headers.push(bytes("0x0102030405060708091011121314151617145620"));
     }
 
     function testSelfOperatorDelegate() public {
@@ -60,7 +44,6 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        address sender = acct_0;
         _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
         _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
     }
@@ -231,7 +214,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function _payRewards(address operator) internal {
-        amountRewards = 10;
+        uint120 amountRewards = 10;
 
         //Operator submits claim to rewards
         _testCommitPayment(operator, amountRewards);
@@ -376,9 +359,9 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(operator);
         weth.approve(address(dlsm), type(uint256).max);
 
-        uint256 fromDumpNumber = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDumpNumber(operator);
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
-        dlsm.commitPayment(currentDumpNumber, _amountRewards);
+        // uint256 fromDumpNumber = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDumpNumber(operator);
+        uint32 newCurrentDumpNumber = dlsm.dumpNumber() - 1;
+        dlsm.commitPayment(newCurrentDumpNumber, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }

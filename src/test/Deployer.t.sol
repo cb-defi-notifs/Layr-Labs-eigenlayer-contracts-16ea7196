@@ -81,7 +81,6 @@ contract EigenLayrDeployer is
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
-    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
     // number of strategies deployed
     uint256 public numberOfStrats;
 

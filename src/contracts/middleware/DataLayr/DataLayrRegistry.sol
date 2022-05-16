@@ -114,6 +114,13 @@ contract DataLayrRegistry is
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
+    struct OperatorIndex {
+        uint32 from;
+        uint32 to;
+        uint32 index;
+    }
+    mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
+
 
     /// @notice the dump numbers in which the aggregated pubkeys are updated
     uint32[] public apkUpdates;
@@ -247,10 +254,15 @@ contract DataLayrRegistry is
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
+        );
+
+        require(
+            msg.sender == registrantList[index],
+            "Incorrect index supplied"
         );
 
 
@@ -311,9 +323,11 @@ contract DataLayrRegistry is
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateDumpNumber = currentDumpNumber;
 
-
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+
+        // Update registrant list and update index histories
+        popRegistrant(pubkeyHash,index,currentDumpNumber);
 
 
         /**
@@ -353,6 +367,74 @@ contract DataLayrRegistry is
 
         emit Deregistration(msg.sender);
         return true;
+    }
+
+    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
+        // Removes the registrant with the given pubkeyHash from the index in registrantList
+
+        // Old operator
+        OperatorIndex memory operatorIndex;
+        uint32 len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
+        if (len > 0){
+            operatorIndex.from = pubkeyHashToIndexHistory[pubkeyHash][len - 1].to;
+        }else{
+            operatorIndex.from = 0;
+        }
+        operatorIndex.index = index;
+        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+
+        // Operator at end of list
+        if (index < registrantList.length-1){
+
+            address addr = registrantList[registrantList.length-1];
+            Registrant memory registrant = registry[addr];
+            pubkeyHash = registrant.pubkeyHash;
+
+            len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
+            if (len > 0){
+                operatorIndex.from = pubkeyHashToIndexHistory[pubkeyHash][len - 1].to;
+            }else{
+                operatorIndex.from = 0;
+            }
+            operatorIndex.index = uint32(registrantList.length-1);
+            operatorIndex.to = currentDumpNumber;
+
+            pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+
+            registrantList[index] = addr;
+        }
+
+        registrantList.pop();
+    }
+
+    
+    function getOrCheckIndex(address operator, uint32 dumpNumber, uint32 index) public returns (uint32) {
+
+        Registrant memory registrant = registry[operator];
+        bytes32 pubkeyHash = registrant.pubkeyHash;
+
+        //Check if getting or checking index
+        uint32 len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
+        if (index >> 31 == 1){
+            // Get index
+            index = index & 0x7fffffff;
+            require(index < len, "Incorrect indexHistory index");
+            OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
+            require(dumpNumber >= operatorIndex.from, "Incorrect indexHistory index");
+            require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.from, "Incorrect indexHistory index");
+            return operatorIndex.index;
+        }else{
+            // Check index
+            if (len > 0){
+                OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][len - 1];
+                require(dumpNumber >= operatorIndex.from, "Must get index instead of check");
+                require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.from, "Must get index instead of check");
+            }
+
+            require(registrantList[index] == operator, "Incorrect index supplied");
+            return index;
+        }
+
     }
 
 
