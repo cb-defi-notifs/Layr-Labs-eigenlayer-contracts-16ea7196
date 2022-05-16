@@ -10,9 +10,6 @@ import "../../libraries/BLS.sol";
 
 import "ds-test/test.sol";
 
-
-
-
 /**
  @notice This is the contract for checking that the aggregated signatures of all DataLayr operators which is being 
          asserted by the disperser is valid.
@@ -41,9 +38,6 @@ abstract contract DataLayrSignatureChecker is
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
-
-
-
     // DATA STRUCTURES
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
@@ -71,8 +65,6 @@ abstract contract DataLayrSignatureChecker is
         uint256 eigenStakeSigned,
         bytes32[] pubkeyHashes
     );
-
-
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the DataLayr operators
@@ -111,8 +103,7 @@ abstract contract DataLayrSignatureChecker is
             bytes32 compressedSignatoryRecord
         )
     {
-        //dumpNumber corresponding to the headerHash
-        //number of different signature bins that signatures are being posted from
+        //temporary variable used to hold various numbers
         uint256 placeholder;
 
         assembly {
@@ -129,13 +120,10 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(208, calldataload(104))
         }
 
-        // we have read (68 + 4 + 32 + 4 + 6) = 114 bytes of calldata
-        uint256 pointer = 114;
-
-
         // obtain DataLayr's voteweigher contract for querying information on stake later
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
-
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
+            address(repository.voteWeigher())
+        );
 
         // to be used for holding the aggregated pub key of all DataLayr operators
         // that aren't part of the quorum
@@ -144,29 +132,15 @@ abstract contract DataLayrSignatureChecker is
          */
         uint256[6] memory aggNonSignerPubkey;
 
-
         // get information on total stakes
-        IDataLayrRegistry.OperatorStake memory totalStake = dlRegistry.getTotalStakeFromIndex(placeholder);
+        IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry
+            .getTotalStakeFromIndex(placeholder);
+        // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
+        _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
-        // check that the stake returned from the specified index is recent enough
-        require(
-            totalStake.dumpNumber <= dumpNumberToConfirm,
-            "Total stake index is too early"
-        );
-
-        /** 
-          check that stake is either the most recent update for the total stake, 
-          or latest before the dumpNumberToConfirm
-         */
-        require(
-            totalStake.nextUpdateDumpNumber == 0 ||
-                totalStake.nextUpdateDumpNumber > dumpNumberToConfirm,
-            "Total stake index is too early"
-        );
-
-        signedTotals.ethStakeSigned = totalStake.ethStake;
+        signedTotals.ethStakeSigned = localStakeObject.ethStake;
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = totalStake.eigenStake;
+        signedTotals.eigenStakeSigned = localStakeObject.eigenStake;
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
@@ -174,10 +148,11 @@ abstract contract DataLayrSignatureChecker is
             // number of DataLayr operators that aren't present in the quorum
             placeholder := shr(224, calldataload(110))
         }
+        // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
+        uint256 pointer = 114;
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
-
 
         /**
          @notice next step involves computing the aggregated pub key of all the DataLayr operators
@@ -185,10 +160,11 @@ abstract contract DataLayrSignatureChecker is
          */
         /**
          @dev loading pubkey for the first DataLayr operator that is not part of the quorum as listed in the calldata; 
-              Note that this need not be a special case and can be subsumed in the for loop below.    
+              Note that this need not be a special case and *could* be subsumed in the for loop below.
+              However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
          */
         if (placeholder > 0) {
-            uint256 stakeIndex;
+            uint32 stakeIndex;
 
             assembly {
                 /** 
@@ -230,9 +206,11 @@ abstract contract DataLayrSignatureChecker is
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 bytes of calldata above.
-            // Update pointer.
-            pointer += 132;
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // Update pointer accordingly.
+            unchecked {
+                pointer += 132;
+            }
 
             // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
@@ -247,28 +225,16 @@ abstract contract DataLayrSignatureChecker is
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry
-                .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
-
-            // check that the stake returned from the specified index is recent enough
-            require(
-                operatorStake.dumpNumber <= dumpNumberToConfirm,
-                "Operator stake index is too early"
+            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(
+                pubkeyHash,
+                stakeIndex
             );
-
-            /** 
-              check that stake is either the most recent update for the operator, 
-              or latest before the dumpNumberToConfirm
-             */
-            require(
-                operatorStake.nextUpdateDumpNumber == 0 ||
-                    operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
-                "Operator stake index is too early"
-            );
+            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
+            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
             // subtract operator stakes from totals
-            signedTotals.ethStakeSigned -= operatorStake.ethStake;
-            signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
+            signedTotals.ethStakeSigned -= localStakeObject.ethStake;
+            signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
         }
 
         // temporary variable for storing the pubkey of DataLayr operators in Jacobian coordinates
@@ -277,9 +243,9 @@ abstract contract DataLayrSignatureChecker is
 
         emit log_uint(placeholder);
 
-        for (uint i = 1; i < placeholder; ) {
-            //load compressed pubkey into memory and the index in the stakes array
-            uint256 stakeIndex;
+        for (uint256 i = 1; i < placeholder; ) {
+            //load compressed pubkey and the index in the stakes array into memory
+            uint32 stakeIndex;
 
             assembly {
                 /// @notice retrieving the pubkey of the DataLayr operator that is not part of the quorum
@@ -295,88 +261,82 @@ abstract contract DataLayrSignatureChecker is
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
 
-
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 bytes of calldata above.
-            // Update pointer.
-            pointer += 132;
-
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // Update pointer accordingly.
+            unchecked {
+                pointer += 132;
+            }
 
             // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
                 abi.encodePacked(pk[0], pk[1], pk[2], pk[3])
             );
 
-
-            //pubkeys should be ordered in scending order of hash to make proofs of signing or non signing constant time
+            //pubkeys should be ordered in ascending order of hash to make proofs of signing or
+            // non signing constant time
+            /**
+             @dev this invariant is used in forceOperatorToDisclose in DataLayrServiceManager.sol
+             */
             require(
                 uint256(pubkeyHash) > uint256(pubkeyHashes[i - 1]),
                 "Pubkey hashes must be in ascending order"
             );
 
-
             // recording the pubkey hash
             pubkeyHashes[i] = pubkeyHash;
 
-
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
-
-
-            // check that the stake returned from the specified index is recent enough
-            require(
-                operatorStake.dumpNumber <= dumpNumberToConfirm,
-                "Operator stake index is too early"
+            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(
+                pubkeyHash,
+                stakeIndex
             );
-
-
-            // check that stake is either the most recent update for the operator, or latest before the dupNumberToConfirm
-            require(
-                operatorStake.nextUpdateDumpNumber == 0 ||
-                    operatorStake.nextUpdateDumpNumber > dumpNumberToConfirm,
-                "Operator stake index is too early"
-            );
-
+            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
+            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
 
             //subtract validator stakes from totals
-            signedTotals.ethStakeSigned -= operatorStake.ethStake;
-            signedTotals.eigenStakeSigned -= operatorStake.eigenStake;
+            signedTotals.ethStakeSigned -= localStakeObject.ethStake;
+            signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
 
             // add the pubkey of the DataLayr operator to the aggregate pubkeys in Jacobian coordinate system.
             BLS.addJac(aggNonSignerPubkey, pk);
 
-            
             unchecked {
                 ++i;
             }
         }
 
-        assembly {
-            //get next 32 bits which would be the apkIndex of apkUpdates in DataLayrRegistry.sol
-            placeholder := shr(224, calldataload(pointer))
+        // usage of a scoped block here minorly decreases gas usage
+        {
+            uint32 apkIndex;
+            assembly {
+                //get next 32 bits which would be the apkIndex of apkUpdates in DataLayrRegistry.sol
+                apkIndex := shr(224, calldataload(pointer))
 
-            // get the aggregated publickey at the moment when pre-commit happened
-            /**
-             @dev aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher is 
-                  in order to avoid SLOADs  
-             */
-            mstore(pk, calldataload(add(pointer, 4)))
-            mstore(add(pk, 0x20), calldataload(add(pointer, 36)))
-            mstore(add(pk, 0x40), calldataload(add(pointer, 68)))
-            mstore(add(pk, 0x60), calldataload(add(pointer, 100)))
+                // get the aggregated publickey at the moment when pre-commit happened
+                /**
+                 @dev aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher is 
+                      in order to avoid SLOADs  
+                 */
+                mstore(pk, calldataload(add(pointer, 4)))
+                mstore(add(pk, 0x20), calldataload(add(pointer, 36)))
+                mstore(add(pk, 0x40), calldataload(add(pointer, 68)))
+                mstore(add(pk, 0x60), calldataload(add(pointer, 100)))
+            }
+
+            // We have read (4 + 32 + 32 + 32 + 32) = 132 additional bytes of calldata in the above assembly block
+            // Update pointer.
+            unchecked {
+                pointer += 132;
+            }
+
+            // make sure they have provided the correct aggPubKey
+            require(
+                dlRegistry.getCorrectApkHash(apkIndex, dumpNumberToConfirm) ==
+                    keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
+                "Incorrect apk provided"
+            );
         }
-
-        // We have read (4 + 32 + 32 + 32 + 32) = 132 bytes of calldata above.
-        // Update pointer.
-        pointer += 132;
-
-
-        // make sure they have provided the correct aggPubKey
-        require(
-            dlRegistry.getCorrectApkHash(placeholder, dumpNumberToConfirm) == keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
-            "Incorrect apk provided"
-        );
-
 
         // input for call to ecPairing precomplied contract
         uint256[12] memory input = [
@@ -394,12 +354,7 @@ abstract contract DataLayrSignatureChecker is
             uint256(0)
         ];
 
-        assembly {
-            // get the 4 bytes immediately after the above, which would represent the
-            // number of DataLayr operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(104))
-        }
-
+        // if at least 1 non-signer
         if (placeholder != 0) {
             /**
              @notice need to subtract aggNonSignerPubkey from the apk to get aggregate signature of all
@@ -414,6 +369,7 @@ abstract contract DataLayrSignatureChecker is
 
             // reorder for pairing
             (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
+            // if zero non-signers
         } else {
             //else copy it to input
             //reorder for pairing
@@ -429,7 +385,7 @@ abstract contract DataLayrSignatureChecker is
          @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
          */
 
-        // compute the point in G1 
+        // compute the point in G1
         (input[0], input[1]) = BLS.hashToG1(headerHash);
 
         // insert negated coordinates of the generator for G2
@@ -454,8 +410,6 @@ abstract contract DataLayrSignatureChecker is
         // check that signature is correct
         require(input[0] == 1, "Pairing unsuccessful");
 
-        
-
         emit SignatoryRecord(
             headerHash,
             dumpNumberToConfirm,
@@ -469,9 +423,9 @@ abstract contract DataLayrSignatureChecker is
             abi.encodePacked(
                 // headerHash,
                 dumpNumberToConfirm,
+                pubkeyHashes,
                 signedTotals.ethStakeSigned,
-                signedTotals.eigenStakeSigned,
-                pubkeyHashes
+                signedTotals.eigenStakeSigned
             )
         );
 
@@ -481,6 +435,28 @@ abstract contract DataLayrSignatureChecker is
             headerHash,
             signedTotals,
             compressedSignatoryRecord
+        );
+    }
+
+    // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
+    function _validateOperatorStake(
+        IDataLayrRegistry.OperatorStake memory opStake,
+        uint32 dumpNumberToConfirm
+    ) internal pure {
+        // check that the stake returned from the specified index is recent enough
+        require(
+            opStake.dumpNumber <= dumpNumberToConfirm,
+            "Provided stake index is too early"
+        );
+
+        /** 
+          check that stake is either the most recent update for the total stake (or the operator), 
+          or latest before the dumpNumberToConfirm
+         */
+        require(
+            opStake.nextUpdateDumpNumber == 0 ||
+                opStake.nextUpdateDumpNumber > dumpNumberToConfirm,
+            "Provided stake index is not the most recent for dumpNumber"
         );
     }
 }

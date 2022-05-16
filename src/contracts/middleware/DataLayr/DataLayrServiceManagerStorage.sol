@@ -10,13 +10,27 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
-    // Payment
+    
+    // DATA STRUCTURE
+
+    /**
+     @notice used for storing information on the most recent payment made to the DataLayr operator
+     */
     struct Payment {
-        uint32 fromDumpNumber; // dumpNumber payment being claimed from
-        uint32 toDumpNumber; // dumpNumber payment being claimed to exclusive
+        // dumpNumber starting from which payment is being claimed 
+        uint32 fromDumpNumber; 
+
+        // dumpNumber until which payment is being claimed (exclusive) 
+        uint32 toDumpNumber; 
+
+        // recording when committment for payment made; used for fraud proof period
+        uint32 commitTime; 
+
         // payment for range [fromDumpNumber, toDumpNumber)
-        uint32 commitTime; // when commited, used for fraud proof period
-        uint120 amount; // max 1.3e36, keep in mind for token decimals
+        /// @dev max 1.3e36, keep in mind for token decimals
+        uint120 amount; 
+
+
         uint8 status; // 0: commited, 1: redeemed
         uint256 collateral; //account for if collateral changed
     }
@@ -28,14 +42,39 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint120 amount1;
         uint120 amount2;
     }
+
+    /**
+     @notice used for storing information on the forced disclosure challenge    
+     */
     struct DisclosureChallenge {
+        // instant when forced disclosure challenge was made
         uint32 commitTime;
-        address challenger; // dumpNumber payment being claimed from
-        address challenge;//address of challenge contract if there is one
+
+        // challenger's address
+        address challenger; 
+
+        // address of challenge contract if there is one - updated in initInterpolatingPolynomialFraudProof function
+        // in DataLayrServiceManager.sol 
+        address challenge;
+
+        // 
         uint48 degree;
-        uint8 status; // 1: challenged, 2: responded (in fraud proof period), 3: challenged commitment, 4: operator incorrect
+
+        /** 
+            Used for indicating the status of the forced disclosure challenge. The status are:
+                - 1: challenged, 
+                - 2: responded (in fraud proof period), 
+                - 3: challenged commitment, 
+                - 4: operator incorrect
+         */
+        uint8 status; 
+
+        // Proof [Pi(s).x, Pi(s).y] with respect to C(s) - I_k(s)
+        // updated in respondToDisclosureInit function in DataLayrServiceManager.sol 
         uint256 x; //commitment coordinates
         uint256 y;
+
+
         bytes32 polyHash;
     }
 
@@ -74,21 +113,62 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
+
+    /**
+     @notice this is the payment that has to be made as a collateral for fraudproof 
+             during payment challenges
+     */
     uint256 public paymentFraudProofCollateral = 1 wei;
+
+
+
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
     
+    /// @notice indicates the window within which DataLayr operator must respond to the forced disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
+
+
     uint256 disclosurePaymentPerByte;
-    mapping(bytes32 => mapping(address => DisclosureChallenge)) disclosureForOperator;
+
+
+
+    /**
+     @notice map of forced disclosure challenge that has been opened against a DataLayr operator
+             for a particular dump number.   
+     */
+    mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
+
+
     bytes32 public powersOfTauMerkleRoot;
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
-    bytes32[32] public zeroPolynomialCommitmentMerlkeRoots;
+    /**
+     @notice For a given l, zeroPolynomialCommitmentMerkleRoots[l] represents the root of merkle tree 
+     that is given by:
+
+                                    zeroPolynomialCommitmentMerkleRoots[l]
+                                                        :    
+                                                        :    
+                         ____________ ....                             .... ____________              
+                        |                                                               |
+                        |                                                               |    
+              _____h(h_1||h_2)______                                        ____h(h_{k-1}||h_{k}__________  
+             |                      |                                      |                              |   
+             |                      |                                      |                              |
+            h_1                    h_2                                 h_{k-1}                         h_{k} 
+             |                      |                                      |                              |  
+             |                      |                                      |                              |  
+     hash(x^l - w^l)       hash(x^l - (w^2)^l)                   hash(x^l - (w^{k-1})^l)        hash(x^l - (w^k)^l) 
+     
+     This tree is computed off-chain and only the Merkle roots are stored on-chain.
+     */
+    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees? 
+    bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
      * @notice mapping between the dumpNumber for a particular assertion of data into

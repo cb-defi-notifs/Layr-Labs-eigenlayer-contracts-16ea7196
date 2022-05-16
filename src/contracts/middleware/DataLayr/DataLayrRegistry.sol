@@ -59,7 +59,7 @@ contract DataLayrRegistry is
         // corresponds to position in registrantList
         uint64 index;
 
-        //
+        // dump number from which the DataLayr operator has been registered
         uint32 fromDumpNumber;
 
         // time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
@@ -555,6 +555,10 @@ contract DataLayrRegistry is
         totalStakeHistory.push(_totalStake);
     }
 
+
+    /**
+     @notice returns dump number from when operator has been registered.
+     */
     function getOperatorFromDumpNumber(address operator)
         public
         view
