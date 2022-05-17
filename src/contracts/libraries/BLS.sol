@@ -1,4 +1,4 @@
-// SPDX IDENTIFIER: UNLICENSED & MIT
+// SPDX-License-Identifier: UNLICENSED AND MIT
 // hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
 // remainder is UNLICENSED
 pragma solidity ^0.8.9;
