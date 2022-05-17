@@ -33,11 +33,10 @@ contract Delegator is EigenLayrDeployer {
     IRegistrationManager regManager;
     IDataLayrPaymentChallenge dlpc;
     DelegationTerms dt;
-    uint120 amountRewards;
 
     uint256 amountEigenToDeposit = 20;
     uint256 amountEthToDeposit = 2e19;
-    address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
+    address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     address challengeContract;
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
@@ -210,7 +209,7 @@ contract Delegator is EigenLayrDeployer {
     function _testInitiateDelegation(address operator, uint256 amountToDeposit) public {
         //setting up operator's delegation terms
         weth.transfer(operator, 1e5);
-        weth.transfer(challenger, 1e5);
+        weth.transfer(_challenger, 1e5);
         dt = _deployDelegationTerms(operator);
         _testRegisterAsDelegate(operator, dt);
 
@@ -305,7 +304,7 @@ contract Delegator is EigenLayrDeployer {
 
     //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
     function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal returns(address){
-        cheats.startPrank(challenger);
+        cheats.startPrank(_challenger);
         weth.approve(address(dlsm), type(uint256).max);
 
         //challenger initiates challenge
