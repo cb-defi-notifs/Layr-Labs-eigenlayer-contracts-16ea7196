@@ -22,7 +22,6 @@ contract RegistrationManagerBase is RegistrationManagerBaseMinusRepository {
         require(opStake.ethAmount == 0 && opStake.eigenAmount == 0, "operator already registered");
         // get msg.sender's vote weights
         IVoteWeigher voteWeigher = repository.voteWeigher();
-        // TODO: add sanity check for size to this?
         opStake.ethAmount = uint96(voteWeigher.weightOfOperatorEth(msg.sender));
         opStake.eigenAmount = uint96(voteWeigher.weightOfOperatorEigen(msg.sender));
         // update total stake

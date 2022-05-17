@@ -1,6 +1,6 @@
-// TODO: @Gautham -- licensing / source??
-// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol
-// rest is me
+// SPDX-License-Identifier: UNLICENSED AND MIT
+// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
+// remainder is UNLICENSED
 pragma solidity ^0.8.9;
 
 
@@ -17,11 +17,6 @@ library BLS {
         17805874995975841540914202342111839520379459829704422454583296818431106115052;
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
-
-    // constructor() {
-
-    // }
-
 
     /**
      @notice verification of BLS signature with the message being pubkey hash

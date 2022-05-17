@@ -7,7 +7,6 @@ import "../interfaces/IServiceManager.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../utils/Initializable.sol";
 
-// TODO: make this contract actually functional(? unclear if worth it, since this is the most service-specific contract)
 contract ServiceManagerBase is Initializable, IServiceManager {
     /**
      * @notice This struct is used for containing the details of a serviceObject that is created 

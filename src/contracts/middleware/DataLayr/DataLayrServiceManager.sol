@@ -10,6 +10,7 @@ import "./DataLayrServiceManagerStorage.sol";
 import "./DataLayrDisclosureChallengeFactory.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
+import "../../libraries/Merkle.sol";
 import "../Repository.sol";
 
 import "ds-test/test.sol";
@@ -27,6 +28,12 @@ contract DataLayrServiceManager is
     // ,DSTest
 {
     using BytesLib for bytes;
+    //TODO: mechanism to change any of these values?
+    uint32 constant internal MIN_STORE_SIZE = 32;
+    uint32 constant internal MAX_STORE_SIZE = 4e9;    
+    uint32 constant internal MIN_STORE_LENGTH = 60;
+    uint32 constant internal MAX_STORE_LENGTH = 604800;
+
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
      *      delegators to delegate their stake to operators who would serve as DataLayr
@@ -128,14 +135,13 @@ contract DataLayrServiceManager is
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
-        require(totalBytes > 32, "Can't store less than 33 bytes");
+        require(totalBytes > MIN_STORE_SIZE, "Can't store less than 33 bytes");
 
-        require(storePeriodLength > 60, "store for more than a minute");
+        require(totalBytes <= MAX_STORE_SIZE, "store of more than 4 GB");
 
-        require(storePeriodLength < 604800, "store for less than 7 days");
+        require(storePeriodLength > MIN_STORE_LENGTH, "store for more than a minute");
 
-        //TODO: mechanism to change this?
-        require(totalBytes <= 4e9, "store of more than 4 GB");
+        require(storePeriodLength < MAX_STORE_LENGTH, "store for less than 7 days");
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -162,7 +168,7 @@ contract DataLayrServiceManager is
         );
 
         // increment the counter
-        dumpNumber++;
+        ++dumpNumber;
     }
 
     /**
@@ -291,7 +297,6 @@ contract DataLayrServiceManager is
         );
     }
 
-    // TODO: collateral
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
              for their service since their last payment until @param toDumpNumber  
@@ -742,7 +747,7 @@ contract DataLayrServiceManager is
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
         require(
-            checkMembership(
+            Merkle.checkMembership(
                 // leaf
                 keccak256(
                     abi.encodePacked(
@@ -944,86 +949,6 @@ contract DataLayrServiceManager is
         uint256[2] memory point = [uint256(0), uint256(0)];
         return (point, 0);
     }
-
-
-
-
-    /**
-     @notice this function checks whether the given @param leaf is actually a member (leaf) of the 
-             merkle tree with @param rootHash being the Merkle root or not.   
-     */
-    /**
-     @param leaf is the element whose membership in the merkle tree is being checked,
-     @param index is the leaf index
-     @param rootHash is the Merkle root of the Merkle tree,
-     @param proof is the Merkle proof associated with the @param leaf and @param rootHash.
-     */ 
-    function checkMembership(
-        bytes32 leaf,
-        uint256 index,
-        bytes32 rootHash,
-        bytes memory proof
-    ) internal pure returns (bool) {
-
-        require(proof.length % 32 == 0, "Invalid proof length");
-
-        /**
-         Merkle proof consists of all siblings along the path to the Merkle root, each of 32 bytes
-         */
-        uint256 proofHeight = proof.length / 32;
-
-        /**
-          Proof of size n means, height of the tree is n+1.
-          In a tree of height n+1, max #leafs possible is 2**n.
-         */
-        require(index < 2**proofHeight, "Leaf index is too big");
-
-
-        bytes32 proofElement;
-
-        // starting from the leaf
-        bytes32 computedHash = leaf;
-
-        // going up the Merkle tree
-        for (uint256 i = 32; i <= proof.length; i += 32) {
-
-            // retrieve the sibling along the merkle proof
-            assembly {
-                proofElement := mload(add(proof, i))
-            }
-
-
-            /**
-             check whether the association with the parent is of the format:
-
-                computedHash of Parent                    computedHash of Parent        
-                             *                                      *
-                           *   *                or                *   *
-                         *       *                              *       *
-                       *           *                          *           * 
-                computedHash    proofElement            proofElement   computedHash
-                             
-             */
-            // association is of first type
-            if (index % 2 == 0) {
-                computedHash = keccak256(
-                    abi.encodePacked(computedHash, proofElement)
-                );
-
-            // association is of second type
-            } else {
-                computedHash = keccak256(
-                    abi.encodePacked(proofElement, computedHash)
-                );
-            }
-
-            index = index / 2;
-        }
-
-        // check whether computed root is same as the Merkle root
-        return computedHash == rootHash;
-    }
-
 
 
     /**

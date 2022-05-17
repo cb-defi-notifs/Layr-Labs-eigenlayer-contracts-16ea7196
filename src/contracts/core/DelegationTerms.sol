@@ -488,9 +488,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
             IERC20(token).transfer(msg.sender, pending);
         }
     }
-
-//TODO: move logic for 'weightOfEth' and 'weightOfEigen' to separate contract, in the event that we want to use it elsewhere
-//      currently it heavily resembles the logic in the DataLayrRegistry contract
     /**
      *  @notice returns the total ETH value of staked assets of the given staker in EigenLayr
      *          via this delegation term's operator.    

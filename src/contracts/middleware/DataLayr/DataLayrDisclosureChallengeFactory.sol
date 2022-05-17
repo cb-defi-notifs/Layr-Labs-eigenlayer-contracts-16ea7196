@@ -31,6 +31,7 @@ contract DataLayrDisclosureChallengeFactory {
         // deploy new challenge contract
         address disclosureContract = address(
             new DataLayrDisclosureChallenge(
+                msg.sender,
                 headerHash,
                 operator,
                 challenger,

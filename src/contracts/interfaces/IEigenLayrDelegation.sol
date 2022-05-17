@@ -54,7 +54,6 @@ interface IEigenLayrDelegation {
         uint256 shares
     ) external;
     
-    // TODO: finalize this function
     function reduceOperatorShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,

@@ -14,6 +14,47 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
+    //checks that it is possible to withdraw WETH
+    function testWethWithdrawal(
+        uint256 amountToDeposit,
+        uint256 amountToWithdraw
+    ) public {
+        _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
+    }
+    
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
+    function testDepositStrategies(uint16 numStratsToAdd) public {
+        _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
+    }
+
+    //verifies that it is possible to deposit eigen
+    function testDepositEigen(uint80 eigenToDeposit) public {
+        // sanity check for inputs; keeps fuzzed tests from failing
+        cheats.assume(eigenToDeposit < eigenTotalSupply / 2);
+        _testDepositEigen(signers[0], eigenToDeposit);
+    }
+
+    //verifies that it is possible to deposit eigen and then withdraw it
+    function testDepositAndWithdrawEigen(uint80 eigenToDeposit, uint256 amountToWithdraw) public {
+        // sanity check for inputs; keeps fuzzed tests from failing
+        cheats.assume(eigenToDeposit < eigenTotalSupply / 2);
+        cheats.assume(amountToWithdraw <= eigenToDeposit);
+        _testDepositEigen(signers[0], eigenToDeposit);
+        uint256 eigenBeforeWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
+
+        cheats.startPrank(signers[0]);
+        investmentManager.withdrawEigen(amountToWithdraw);
+        cheats.stopPrank();
+
+        uint256 eigenAfterWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
+        assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
+    }
+
+
+// Coverage for EigenLayrDeposit contract //
+    // TODOs:
+    // testDepositPOSProof
+
     //Testing deposits in Eigen Layr Contracts - check msg.value
     function testDepositETHIntoConsensusLayer()
         public
@@ -25,6 +66,8 @@ contract InvestmentTests is
         );
     }
 
+    // tests that it is possible to deposit ETH into liquid staking through the 'deposit' contract
+    // also verifies that the subsequent strategy shares are credited correctly
     function testDepositETHIntoLiquidStaking()
         public
         returns (uint256 amountDeposited)
@@ -36,44 +79,6 @@ contract InvestmentTests is
                 liquidStakingMockToken,
                 liquidStakingMockStrat
             );
-    }
-
-    //checks that it is possible to withdraw WETH
-    function testWethWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
-    ) public {
-        _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
-    }
-
-    function testAddStrategies(uint16 numStratsToAdd) public {
-        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        _testAddStrategies(numStratsToAdd);
-    }
-    
-    function testDepositStrategies(uint16 numStratsToAdd) public {
-        _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
-    }
-
-    //verifies that it is possible to deposit eigen
-    function testDepositEigen() public {
-        _testDepositEigen(signers[0]);
-    }
-
-    //verifies that it is possible to deposit eigen and then withdraw it
-    function testDepositAndWithdrawEigen() public {
-        uint256 toDeposit = 1e16;
-        uint256 amountToWithdraw = 1e16;
-        cheats.assume(amountToWithdraw <= toDeposit);
-        _testDepositEigen(signers[0]);
-        uint256 eigenBeforeWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
-
-        cheats.startPrank(signers[0]);
-        investmentManager.withdrawEigen(amountToWithdraw);
-        cheats.stopPrank();
-
-        uint256 eigenAfterWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
-        assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
     }
 
     //checks that it is possible to prove a consensus layer deposit
