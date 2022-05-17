@@ -106,6 +106,7 @@ contract EigenLayrDeployer is
     address acct_1 = cheats.addr(uint256(priv_key_1));
 
     uint256 public constant eigenTokenId = 0;
+    uint256 public constant eigenTotalSupply = 1000e18;
 
     //performs basic deployment before each test
     function setUp() public {
@@ -527,10 +528,9 @@ contract EigenLayrDeployer is
         return headerHash;
     }
 
-    //deposits a fixed amount of eigen from address 'sender'
-    //checks that the deposit is credited correctly
-    function _testDepositEigen(address sender) public {
-        uint256 toDeposit = 1e16;
+    // deposits a fixed amount of eigen from address 'sender'
+    // checks that the deposit is credited correctly
+    function _testDepositEigen(address sender, uint256 toDeposit) public {
         eigen.safeTransferFrom(address(this), sender, 0, toDeposit, "0x");
         cheats.startPrank(sender);
         eigen.setApprovalForAll(address(investmentManager), true);
@@ -564,7 +564,8 @@ contract EigenLayrDeployer is
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
         _testWethDeposit(sender, 1e18);
-        _testDepositEigen(sender);
+        uint256 eigenToDeposit = 1e16;
+        _testDepositEigen(sender, eigenToDeposit);
         _testSelfOperatorDelegate(sender);
         string memory socket = "255.255.255.255";
 

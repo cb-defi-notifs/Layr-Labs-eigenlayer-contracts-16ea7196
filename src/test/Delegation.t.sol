@@ -59,7 +59,7 @@ contract Delegator is EigenLayrDeployer {
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
         _testRegisterAsDelegate(signers[0], _dt);
         _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0);
+        _testDepositEigen(acct_0, 1e16);
         _testDelegateToOperator(acct_0, signers[0]);
 
         uint96 registrantEthWeightAfter = uint96(
@@ -94,7 +94,7 @@ contract Delegator is EigenLayrDeployer {
 
         _testRegisterAsDelegate(signers[0], _dt);
         _testDepositStrategies(signers[1], 1e18, numStratsToAdd);
-        _testDepositEigen(signers[1]);
+        _testDepositEigen(signers[1], 1e16);
 
         // add all the new strategies to the 'strategiesConsidered' of dlVW
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](numStratsToAdd);
@@ -128,7 +128,7 @@ contract Delegator is EigenLayrDeployer {
         DelegationTerms _dt = _deployDelegationTerms(registrant);
         _testRegisterAsDelegate(registrant, _dt);
         _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0);
+        _testDepositEigen(acct_0, 1e16);
         _testDelegateToOperator(acct_0, registrant);
 
         //delegator-specific information
