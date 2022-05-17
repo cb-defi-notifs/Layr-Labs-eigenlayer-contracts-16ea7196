@@ -529,9 +529,6 @@ contract DataLayrServiceManager is
         // check that disperser had acquire quorum for this dataStore
         require(commited, "Dump is not commited yet");
 
-        operatorIndex = 
-
-
         /** 
          Check that the information supplied as input for forced disclosure for this particular data 
          dump on DataLayr is correct
@@ -570,7 +567,7 @@ contract DataLayrServiceManager is
             address(repository.registrationManager())
         );
 
-        operatorIndex = dlvw.getOrCheckIndex(operator, dumpNumber, operatorIndex);
+        operatorIndex = dlvw.getOperatorIndex(operator, dumpNumber, operatorIndex);
 
         {
             // get the pubkey hash of the DataLayr operator

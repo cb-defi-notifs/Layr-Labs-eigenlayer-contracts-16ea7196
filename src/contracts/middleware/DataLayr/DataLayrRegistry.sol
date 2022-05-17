@@ -117,7 +117,6 @@ contract DataLayrRegistry is
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
     struct OperatorIndex {
-        uint32 from;
         uint32 to;
         uint32 index;
     }
@@ -379,13 +378,8 @@ contract DataLayrRegistry is
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Old operator
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length-1].to = currentDumpNumber;
         OperatorIndex memory operatorIndex;
-        uint32 len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
-        if (len > 0){
-            operatorIndex.from = pubkeyHashToIndexHistory[pubkeyHash][len - 1].to;
-        }else{
-            operatorIndex.from = 0;
-        }
         operatorIndex.index = index;
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
@@ -396,15 +390,8 @@ contract DataLayrRegistry is
             Registrant memory registrant = registry[addr];
             pubkeyHash = registrant.pubkeyHash;
 
-            len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
-            if (len > 0){
-                operatorIndex.from = pubkeyHashToIndexHistory[pubkeyHash][len - 1].to;
-            }else{
-                operatorIndex.from = 0;
-            }
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length-1].to = currentDumpNumber;
             operatorIndex.index = uint32(registrantList.length-1);
-            operatorIndex.to = currentDumpNumber;
-
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
             registrantList[index] = addr;
@@ -415,39 +402,25 @@ contract DataLayrRegistry is
         // Update totalOperatorsHistory
         totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
         OperatorIndex memory _totalOperators;
-        _totalOperators.index = registrantList.length;
-        _totalOperators.from = currentDumpNumber;
+        _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
     }
 
     
-    function getOrCheckIndex(address operator, uint32 dumpNumber, uint32 index) public returns (uint32) {
+    function getOperatorIndex(address operator, uint32 dumpNumber, uint32 index) public view returns (uint32) {
 
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
-        //Check if getting or checking index
-        uint32 len = uint32(pubkeyHashToIndexHistory[pubkeyHash].length);
-        if (index >> 31 == 1){
-            // Get index
-            index = index & 0x7fffffff;
-            require(index < len, "Incorrect indexHistory index");
-            OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-            require(dumpNumber >= operatorIndex.from, "Incorrect indexHistory index");
-            require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.from, "Incorrect indexHistory index");
-            return operatorIndex.index;
-        }else{
-            // Check index
-            if (len > 0){
-                OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][len - 1];
-                require(dumpNumber >= operatorIndex.from, "Must get index instead of check");
-                require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.from, "Must get index instead of check");
-            }
-
-            require(registrantList[index] == operator, "Incorrect index supplied");
-            return index;
-        }
-
+        require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "indexHistory index exceeds array length");
+        require(
+            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index-1].to < dumpNumber,
+            "indexHistory index is too high"
+        );
+        OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
+        require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
+        return operatorIndex.index;
+        
     }
 
 
@@ -808,12 +781,15 @@ contract DataLayrRegistry is
         // record the operator being registered
         registrantList.push(operator);
 
+        OperatorIndex memory operatorIndex;
+        operatorIndex.index = uint32(registrantList.length-1);
+        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+
 
         // Update Total Operators
         totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
         OperatorIndex memory _totalOperators;
-        _totalOperators.index = registrantList.length;
-        _totalOperators.from = currentDumpNumber;
+        _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
 
         // update the counter for registrant ID
