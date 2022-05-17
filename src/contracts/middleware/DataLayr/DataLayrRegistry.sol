@@ -649,6 +649,7 @@ contract DataLayrRegistry is
         view
         returns (OperatorStake memory)
     {
+        
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 

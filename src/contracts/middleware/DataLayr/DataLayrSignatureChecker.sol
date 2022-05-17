@@ -120,6 +120,8 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(208, calldataload(104))
         }
 
+       
+
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(
             address(repository.voteWeigher())
@@ -148,6 +150,8 @@ abstract contract DataLayrSignatureChecker is
             // number of DataLayr operators that aren't present in the quorum
             placeholder := shr(224, calldataload(110))
         }
+
+        
         // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
         uint256 pointer = 114;
 
@@ -203,9 +207,9 @@ abstract contract DataLayrSignatureChecker is
                  @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
                          DataLayrRegistry.sol that was recorded at the time of pre-commit.
                  */
+                
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
-
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
@@ -221,7 +225,9 @@ abstract contract DataLayrSignatureChecker is
                     aggNonSignerPubkey[3]
                 )
             );
+           
             pubkeyHashes[0] = pubkeyHash;
+            
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
@@ -231,11 +237,14 @@ abstract contract DataLayrSignatureChecker is
             );
             // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
             _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
-
+           
+             
             // subtract operator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
             signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
+            
         }
+
 
         // temporary variable for storing the pubkey of DataLayr operators in Jacobian coordinates
         uint256[6] memory pk;
