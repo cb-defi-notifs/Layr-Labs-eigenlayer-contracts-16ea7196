@@ -563,8 +563,9 @@ contract EigenLayrDeployer is
     ) internal {
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
-        _testWethDeposit(sender, 1e18);
+        uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e16;
+        _testWethDeposit(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
         _testSelfOperatorDelegate(sender);
         string memory socket = "255.255.255.255";
@@ -573,6 +574,18 @@ contract EigenLayrDeployer is
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
         dlReg.registerOperator(registrantType, data, socket);
         cheats.stopPrank();
+
+        // verify that registration was stored correctly
+        if ((registrantType & 1) == 1 && wethToDeposit > dlReg.dlnEthStake()) {
+            assertTrue(dlReg.ethStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
+        } else {
+            assertTrue(dlReg.ethStakedByOperator(sender) == 0, "ethStaked incorrectly > 0");            
+        }
+        if ((registrantType & 2) == 2 && eigenToDeposit > dlReg.dlnEigenStake()) {
+            assertTrue(dlReg.eigenStakedByOperator(sender) == eigenToDeposit, "eigenStaked not increased!");
+        } else {
+            assertTrue(dlReg.eigenStakedByOperator(sender) == 0, "eigenStaked incorrectly > 0");            
+        }
     }
 
     // TODO: fix this to work with a variable number again, if possible
@@ -731,33 +744,37 @@ contract EigenLayrDeployer is
         }
     }
 
-    // deploys 'numStratsToAdd' WethStashInvestmentStrategy contracts and initializes them to treat 'weth' token as their underlying token
-    function _testAddStrategies(uint16 numStratsToAdd) internal {
-        for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
-            // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
-            // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-            strategy.initialize(address(investmentManager), weth);
-            //store strategy in mapping of strategies
-            strategies[i] = IInvestmentStrategy(address(strategy));
-        }
+    // deploys a WethStashInvestmentStrategy contract and initializes it to treat 'weth' token as its underlying token
+    function _testAddStrategy() internal returns (IInvestmentStrategy) {
+        WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
+        // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
+        // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
+        strategy.initialize(address(investmentManager), weth);
+        return strategy;
     }
 
-    // deploys 'numStratsToAdd' strategies using '_testAddStrategies' and then deposits 'amountToDeposit' to each of them from 'sender'
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits 'amountToDeposit' to each of them from 'sender'
     function _testDepositStrategies(
         address sender,
         uint256 amountToDeposit,
         uint16 numStratsToAdd
     ) internal {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        _testAddStrategies(numStratsToAdd);
+        IInvestmentStrategy[] memory stratsToDepositTo = new IInvestmentStrategy[](numStratsToAdd);
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            stratsToDepositTo[i] = _testAddStrategy();
             _testWethDepositStrat(
                 sender,
                 amountToDeposit,
-                WethStashInvestmentStrategy(address(strategies[i]))
+                WethStashInvestmentStrategy(address(stratsToDepositTo[i]))
             );
-            assertTrue(investmentManager.investorStrats(sender, i) == strategies[i], "investorStrats array updated incorrectly");
+        }
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            assertTrue(investmentManager.investorStrats(sender, i) == stratsToDepositTo[i], "investorStrats array updated incorrectly");
+            
+            // TODO: perhaps remove this is we can. seems brittle if we don't track the number of strategies somewhere
+            //store strategy in mapping of strategies
+            strategies[i] = IInvestmentStrategy(address(stratsToDepositTo[i]));
         }
     }
 

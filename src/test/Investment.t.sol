@@ -14,17 +14,6 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
-    //Testing deposits in Eigen Layr Contracts - check msg.value
-    function testDepositETHIntoConsensusLayer()
-        public
-        returns (uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoConsensusLayer(
-            signers[0],
-            amountDeposited
-        );
-    }
-
     //checks that it is possible to withdraw WETH
     function testWethWithdrawal(
         uint256 amountToDeposit,
@@ -32,12 +21,8 @@ contract InvestmentTests is
     ) public {
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
-
-    function testAddStrategies(uint16 numStratsToAdd) public {
-        cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        _testAddStrategies(numStratsToAdd);
-    }
     
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
     function testDepositStrategies(uint16 numStratsToAdd) public {
         _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
     }
@@ -65,9 +50,21 @@ contract InvestmentTests is
         assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
     }
 
+
+// Coverage for EigenLayrDeposit contract //
     // TODOs:
-    // testDepositEthIntoConsensusLayer
     // testDepositPOSProof
+
+    //Testing deposits in Eigen Layr Contracts - check msg.value
+    function testDepositETHIntoConsensusLayer()
+        public
+        returns (uint256 amountDeposited)
+    {
+        amountDeposited = _testDepositETHIntoConsensusLayer(
+            signers[0],
+            amountDeposited
+        );
+    }
 
     // tests that it is possible to deposit ETH into liquid staking through the 'deposit' contract
     // also verifies that the subsequent strategy shares are credited correctly
