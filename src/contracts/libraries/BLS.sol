@@ -18,11 +18,6 @@ library BLS {
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
-    // constructor() {
-
-    // }
-
-
     /**
      @notice verification of BLS signature with the message being pubkey hash
      */
