@@ -33,7 +33,7 @@ contract DataLayrPaymentChallengeFactory {
         // deploy new challenge contract
         address challengeContract = address(
             new DataLayrPaymentChallenge(
-                msg.sender,
+                // msg.sender, 
                 operator,
                 challenger,
                 serviceManager,

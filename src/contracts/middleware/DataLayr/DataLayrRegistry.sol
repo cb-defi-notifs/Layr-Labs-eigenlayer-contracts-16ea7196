@@ -111,6 +111,8 @@ contract DataLayrRegistry is
     /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
+    OperatorIndex[] public totalOperatorsHistory;
+
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
@@ -207,6 +209,9 @@ contract DataLayrRegistry is
         // push an empty OperatorStake object to the total stake history
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
+
+        OperatorIndex memory _totalOperators;
+        totalOperatorsHistory.push(_totalOperators);
     }
 
     /**
@@ -369,6 +374,7 @@ contract DataLayrRegistry is
         return true;
     }
 
+
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
@@ -405,6 +411,13 @@ contract DataLayrRegistry is
         }
 
         registrantList.pop();
+
+        // Update totalOperatorsHistory
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        OperatorIndex memory _totalOperators;
+        _totalOperators.index = registrantList.length;
+        _totalOperators.from = currentDumpNumber;
+        totalOperatorsHistory.push(_totalOperators);
     }
 
     
@@ -794,6 +807,14 @@ contract DataLayrRegistry is
         // record the operator being registered
         registrantList.push(operator);
 
+
+        // Update Total Operators
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        OperatorIndex memory _totalOperators;
+        _totalOperators.index = registrantList.length;
+        _totalOperators.from = currentDumpNumber;
+        totalOperatorsHistory.push(_totalOperators);
+
         // update the counter for registrant ID
         unchecked {
             ++nextRegistrantId;
@@ -878,8 +899,16 @@ contract DataLayrRegistry is
         return pubkeyHashToStakeHistory[pubkeyHash].length;
     }
 
+    function getLengthOfPubkeyHashIndexHistory(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToIndexHistory[pubkeyHash].length;
+    }
+
     function getLengthOfTotalStakeHistory() external view returns (uint256) {
         return totalStakeHistory.length;
+    }
+
+    function getLengthOfTotalOperatorsHistory() external view returns (uint256) {
+        return totalOperatorsHistory.length;
     }
 
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {

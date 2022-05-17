@@ -504,6 +504,7 @@ contract DataLayrServiceManager is
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
+        uint32 operatorIndex,
         uint256 nonSignerIndex,
         bytes32[] calldata nonSignerPubkeyHashes,
         uint256 totalEthStakeSigned,
@@ -523,6 +524,7 @@ contract DataLayrServiceManager is
         // check that disperser had acquire quorum for this dataStore
         require(commited, "Dump is not commited yet");
 
+        operatorIndex = 
 
 
         /** 
@@ -559,11 +561,13 @@ contract DataLayrServiceManager is
                non-signers pubkey is recorded in the compressed signatory record in an  ascending
                manner.      
         */      
-        {
-            IDataLayrRegistry dlvw = IDataLayrRegistry(
-                address(repository.registrationManager())
-            );
+        IDataLayrRegistry dlvw = IDataLayrRegistry(
+            address(repository.registrationManager())
+        );
 
+        operatorIndex = dlvw.getOrCheckIndex(operator, dumpNumber, operatorIndex);
+
+        {
             // get the pubkey hash of the DataLayr operator
             bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
             
