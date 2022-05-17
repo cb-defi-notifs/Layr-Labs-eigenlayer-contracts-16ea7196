@@ -40,16 +40,28 @@ contract Delegator is EigenLayrDeployer {
     address challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     address challengeContract;
 
+    struct nonSignerInfo{
+            uint256 xA0;
+            uint256 xA1;
+            uint256 yA0;
+            uint256 yA1;
+        }
+
+    struct signerInfo{
+        uint256 apk0;
+        uint256 apk1;
+        uint256 apk2;
+        uint256 apk3;
+        uint256 sigma0;
+        uint256 sigma1;
+    }
+
+        
+
     constructor(){
         delegates = [acct_0, acct_1];
 
-        apks.push(uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121));
-        apks.push(uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634));
-        apks.push(uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960));
-        apks.push(uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672));
-
-        sigmas.push(uint256(7155561537864411538991615376457474334371827900888029310878886991084477170996));
-        sigmas.push(uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346));
+        
     }
 
     function testSelfOperatorDelegate() public {
@@ -179,7 +191,19 @@ contract Delegator is EigenLayrDeployer {
 
 
     
-    function testRewardPayouts() public {        
+    function testRewardPayouts() public {  
+
+
+        //G2 coordinates for aggregate PKs for 15 signers
+        apks.push(uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121));
+        apks.push(uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634));
+        apks.push(uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960));
+        apks.push(uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672));
+
+        //15 signers' associated sigma
+        sigmas.push(uint256(7155561537864411538991615376457474334371827900888029310878886991084477170996));
+        sigmas.push(uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346));
+             
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e10);
         _payRewards(operator);
@@ -340,7 +364,13 @@ contract Delegator is EigenLayrDeployer {
     }
 
     //commits data store to data layer
-    function _testCommitDataStore(bytes32 headerHash, uint32 currentDumpNumber, uint32 numberOfNonSigners, uint256[] memory apk, uint256[] memory sigma) internal{
+    function _testCommitDataStore(
+            bytes32 headerHash, 
+            uint32 currentDumpNumber, 
+            uint32 numberOfNonSigners, 
+            uint256[] memory apk, 
+            uint256[] memory sigma
+            ) internal{
 
         /** 
         @param data This calldata is of the format:
@@ -350,11 +380,14 @@ contract Delegator is EigenLayrDeployer {
                 uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
                 uint256[numberOfSigners][4] pubkeys of nonsigners,
+                uint32 nonSignerStakeIndices[numberOfNonSigners]
                 uint32 apkIndex,
                 uint256[4] apk,
                 uint256[2] sigma
                 >
         */
+
+        emit log_named_uint("current dump", currentDumpNumber);
         bytes memory data = abi.encodePacked(
             currentDumpNumber,
             headerHash,
@@ -394,6 +427,108 @@ contract Delegator is EigenLayrDeployer {
                 registrationData[i]
             );
         }
+
+    }
+
+//testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
+    function testForNonSigners() public{
+
+        address operator = signers[0];
+        _testInitiateDelegation(operator, 1e10);
+
+        nonSignerInfo memory nonsigner;
+        signerInfo memory signer;
+
+        nonsigner.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
+        nonsigner.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
+        nonsigner.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
+        nonsigner.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
+
+
+        signer.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
+        signer.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
+        signer.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
+        signer.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
+        signer.sigma0 = uint256(11158738887387636951551175125607721554638045534548101012382762810906820102473);
+        signer.sigma1 = uint256(3135580093883685723788059851431412645937134768491818213416377523852295292067 );
+        
+        uint32 numberOfSigners = 15;
+        _testRegisterSigners(numberOfSigners, false);
+        
+    // scoped block helps fix 'stack too deep' errors
+    {
+
+        bytes32 headerHash = _testInitDataStore();
+        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
+        uint32 numberOfNonSigners = 1;
+
+        bytes memory data = _getCallData(headerHash, currentDumpNumber, numberOfNonSigners, signer, nonsigner);
+
+        
+        uint gasbefore = gasleft();
+        
+        dlsm.confirmDataStore(data);
+
+        emit log_named_uint("gas cost", gasbefore - gasleft());
+
+
+
+        (, , , bool committed) = dl.dataStores(headerHash);
+        assertTrue(committed, "Data store not committed");
+    }
+
+
+    }
+
+    //Internal function for assembling calldata - prevents stack too deep errors
+    function _getCallData(
+            bytes32 headerHash, 
+            uint32 currentDumpNumber, 
+            uint32 numberOfNonSigners, 
+            signerInfo memory signers,
+            nonSignerInfo memory nonsigners
+    ) internal returns(bytes memory){
+
+        /** 
+        @param data This calldata is of the format:
+                <
+                uint32 dumpNumber,
+                bytes32 headerHash,
+                uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+                uint32 numberOfNonSigners,
+                uint256[numberOfSigners][4] pubkeys of nonsigners,
+                uint32 nonSignerStakeIndices[numberOfNonSigners]
+                uint32 apkIndex,
+                uint256[4] apk,
+                uint256[2] sigma
+                >
+        */
+        emit log_named_uint("total stake history", dlReg.getLengthOfTotalStakeHistory());
+        bytes memory data = abi.encodePacked(
+            currentDumpNumber,
+            headerHash,
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            numberOfNonSigners,
+            nonsigners.xA0,
+            nonsigners.xA1,
+            nonsigners.yA0,
+            nonsigners.yA1
+        );
+
+        emit log_named_uint("apk updates elng", uint32(dlReg.getApkUpdatesLength() - 1));
+         data = abi.encodePacked(
+            data,
+            uint32(0),
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            signers.apk0,
+            signers.apk1,
+            signers.apk2,
+            signers.apk3,
+            signers.sigma0,
+            signers.sigma1
+        );
+
+        return data;
 
     }
 

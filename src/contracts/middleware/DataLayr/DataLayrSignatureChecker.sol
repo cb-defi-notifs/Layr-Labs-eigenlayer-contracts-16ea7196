@@ -128,6 +128,8 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(208, calldataload(104))
         }
 
+       
+
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
 
@@ -153,6 +155,8 @@ abstract contract DataLayrSignatureChecker is
             // number of DataLayr operators that aren't present in the quorum
             placeholder := shr(224, calldataload(110))
         }
+
+        
         // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
         uint256 pointer = 114;
 
@@ -208,14 +212,20 @@ abstract contract DataLayrSignatureChecker is
                  @notice retrieving the index of the stake of the DataLayr operator in pubkeyHashToStakeHistory in 
                          DataLayrRegistry.sol that was recorded at the time of pre-commit.
                  */
+                
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
-
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
                 pointer += 132;
             }
+
+            // emit log_named_uint("aggNonSignerPubkey 0", aggNonSignerPubkey[0]);
+            // emit log_named_uint("aggNonSignerPubkey 1", aggNonSignerPubkey[1]);
+            // emit log_named_uint("aggNonSignerPubkey 2", aggNonSignerPubkey[2]);
+            // emit log_named_uint("aggNonSignerPubkey 3", aggNonSignerPubkey[3]);
+
             
             // get pubkeyHash and add it to pubkeyHashes of DataLayr operators that aren't part of the quorum.
             bytes32 pubkeyHash = keccak256(
@@ -226,19 +236,27 @@ abstract contract DataLayrSignatureChecker is
                     aggNonSignerPubkey[3]
                 )
             );
+           
             pubkeyHashes[0] = pubkeyHash;
+            
 
             // querying the VoteWeigher for getting information on the DataLayr operator's stake
             // at the time of pre-commit
-            localStakeObject = dlRegistry
-                .getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+
+            // emit log_named_uint("stakeIndex", stakeIndex);
+            // emit log_named_bytes32("pubkeyhash", pubkeyHash);
+            localStakeObject = dlRegistry.getStakeFromPubkeyHashAndIndex(pubkeyHash, stakeIndex);
+            
             // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
             _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
-
+           
+             
             // subtract operator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
             signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
+            
         }
+
 
         // temporary variable for storing the pubkey of DataLayr operators in Jacobian coordinates
         uint256[6] memory pk;
