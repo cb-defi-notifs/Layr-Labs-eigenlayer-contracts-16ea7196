@@ -164,7 +164,8 @@ contract DataLayrServiceManager is
             dumpNumber,
             headerHash,
             totalBytes,
-            storePeriodLength
+            storePeriodLength,
+            header
         );
 
         // increment the counter

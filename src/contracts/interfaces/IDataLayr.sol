@@ -6,7 +6,8 @@ interface IDataLayr {
         uint32 dumpNumber,
         bytes32 headerHash,
         uint32 totalBytes,
-        uint32 storePeriodLength
+        uint32 storePeriodLength,
+        bytes calldata header
     ) external;
 
     function confirm(

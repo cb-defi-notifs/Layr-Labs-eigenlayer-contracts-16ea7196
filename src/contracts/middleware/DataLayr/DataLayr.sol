@@ -39,7 +39,8 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,        
         uint32 initTime,
-        uint32 storePeriodLength
+        uint32 storePeriodLength,
+        bytes header
     );
 
     // event ConfirmDataStore(
@@ -96,7 +97,8 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 dumpNumber,
         bytes32 headerHash,
         uint32 totalBytes,
-        uint32 storePeriodLength
+        uint32 storePeriodLength,
+        bytes calldata header
     ) external onlyServiceManager {
         require(
             dataStores[headerHash].initTime == 0,
@@ -115,7 +117,7 @@ contract DataLayr is Ownable, IDataLayr {
         );
 
         
-        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength);
+        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength, header);
     }
 
     /**
