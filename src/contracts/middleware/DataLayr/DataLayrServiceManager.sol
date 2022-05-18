@@ -507,45 +507,68 @@ contract DataLayrServiceManager is
      @param totalEthStakeSigned is the total ETH that has been staked with the DataLayr operators that are in quorum
      @param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
      */
+
+
+    struct SignatoryRecordMinusDumpNumber {
+        bytes32[] nonSignerPubkeyHashes;
+        uint256 totalEthStakeSigned;
+        uint256 totalEigenStakeSigned;
+    }
+
+
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
         uint32 operatorIndex,
+        uint32 totalOperatorsIndex,
         uint256 nonSignerIndex,
-        bytes32[] calldata nonSignerPubkeyHashes,
-        uint256 totalEthStakeSigned,
-        uint256 totalEigenStakeSigned
+        SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
-        /**
-         Get information on the dataStore for which disperser is being challenged. This dataStore was 
-         constructed during call to initDataStore in DataLayr.sol by the disperser.
-         */
-        (
-            uint32 dumpNumber,
-            uint32 initTime,
-            uint32 storePeriodLength,
-            bool commited
-        ) = dataLayr.dataStores(headerHash);
 
-        // check that disperser had acquire quorum for this dataStore
-        require(commited, "Dump is not commited yet");
-
-        /** 
-         Check that the information supplied as input for forced disclosure for this particular data 
-         dump on DataLayr is correct
-         */
-        require(
-            getDumpNumberSignatureHash(dumpNumber) ==
-                keccak256(
-                    abi.encodePacked(
-                        dumpNumber,
-                        nonSignerPubkeyHashes,
-                        totalEthStakeSigned,
-                        totalEigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
+        IDataLayrRegistry dlvw = IDataLayrRegistry(
+            address(repository.registrationManager())
         );
+        uint32 chunkNumber;
+        uint32 expireTime;
+
+        {
+            /**
+            Get information on the dataStore for which disperser is being challenged. This dataStore was 
+            constructed during call to initDataStore in DataLayr.sol by the disperser.
+            */
+            (
+                uint32 dumpNumber,
+                uint32 expireTime,
+                uint32 storePeriodLength,
+                bool commited
+            ) = dataLayr.dataStores(headerHash);
+
+            expireTime = expireTime + storePeriodLength;
+
+            // check that disperser had acquire quorum for this dataStore
+            require(commited, "Dump is not commited yet");
+
+            /** 
+            Check that the information supplied as input for forced disclosure for this particular data 
+            dump on DataLayr is correct
+            */
+            require(
+                getDumpNumberSignatureHash(dumpNumber) ==
+                    keccak256(
+                        abi.encodePacked(
+                            dumpNumber,
+                            signatoryRecord.nonSignerPubkeyHashes,
+                            signatoryRecord.totalEthStakeSigned,
+                            signatoryRecord.totalEigenStakeSigned
+                        )
+                    ),
+                "Sig record does not match hash"
+            );
+
+            operatorIndex = dlvw.getOperatorIndex(operator, dumpNumber, operatorIndex);
+            totalOperatorsIndex = dlvw.getTotalOperators(dumpNumber, totalOperatorsIndex);
+            chunkNumber = operatorIndex + dumpNumber % totalOperatorsIndex;
+        }
 
 
         /** 
@@ -564,12 +587,6 @@ contract DataLayrServiceManager is
                non-signers pubkey is recorded in the compressed signatory record in an  ascending
                manner.      
         */      
-        IDataLayrRegistry dlvw = IDataLayrRegistry(
-            address(repository.registrationManager())
-        );
-
-        operatorIndex = dlvw.getOperatorIndex(operator, dumpNumber, operatorIndex);
-
         {
             // get the pubkey hash of the DataLayr operator
             bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
@@ -578,10 +595,10 @@ contract DataLayrServiceManager is
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash) 
             require(
                 //they're either greater than everyone in the nspkh array
-                (nonSignerIndex == nonSignerPubkeyHashes.length && uint256(nonSignerPubkeyHashes[nonSignerIndex-1]) < uint256(operatorPubkeyHash))
+                (nonSignerIndex == signatoryRecord.nonSignerPubkeyHashes.length && uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex-1]) < uint256(operatorPubkeyHash))
                 ||
                 //or nonSigner index is greater than them
-                (uint256(nonSignerPubkeyHashes[nonSignerIndex]) >
+                (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) >
                     uint256(operatorPubkeyHash)),
                 "Wrong index"
             );
@@ -591,7 +608,7 @@ contract DataLayrServiceManager is
             if (nonSignerIndex != 0) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
-                    uint256(nonSignerPubkeyHashes[nonSignerIndex - 1]) <
+                    uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) <
                         uint256(operatorPubkeyHash),
                     "Wrong index"
                 );
@@ -606,7 +623,7 @@ contract DataLayrServiceManager is
          */
         // todo: need to finalize this. 
         require(
-            block.timestamp < initTime + storePeriodLength - 600 ||
+            block.timestamp < expireTime - 600 ||
                 (block.timestamp <
                     disclosureForOperator[headerHash][operator].commitTime +
                         2 *
@@ -639,7 +656,8 @@ contract DataLayrServiceManager is
             1,
             0,
             0,
-            bytes32(0)
+            bytes32(0),
+            chunkNumber
         );
 
         emit DisclosureChallengeInit(headerHash, operator);
@@ -740,7 +758,7 @@ contract DataLayrServiceManager is
 
         //deterministic assignment of "y" here
         // @todo
-        uint256 chunkNumber = 0; //f(operator, header);
+        uint256 chunkNumber = disclosureForOperator[headerHash][msg.sender].chunkNumber;
 
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree

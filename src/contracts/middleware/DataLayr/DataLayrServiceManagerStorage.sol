@@ -76,6 +76,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
 
         bytes32 polyHash;
+
+        uint32 chunkNumber;
     }
 
     struct MultiReveal {
