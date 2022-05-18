@@ -420,6 +420,18 @@ contract DataLayrRegistry is
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
         require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
         return operatorIndex.index;
+    }
+
+    function getTotalOperators(uint32 dumpNumber, uint32 index) public view returns (uint32) {
+
+        require(index < uint32(totalOperatorsHistory.length), "indexHistory index exceeds array length");
+        require(
+            index == 0 || totalOperatorsHistory[index-1].to < dumpNumber,
+            "indexHistory index is too high"
+        );
+        OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
+        require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
+        return operatorIndex.index;
         
     }
 
