@@ -13,7 +13,7 @@ import "../contracts/core/EigenLayrDeposit.sol";
 import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
-import "../contracts/investment/WethStashInvestmentStrategy.sol";
+import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
@@ -65,7 +65,7 @@ contract EigenLayrDeployer is
     DataLayr public dl;
 
     IERC20 public weth;
-    WethStashInvestmentStrategy public strat;
+    InvestmentStrategyBase public strat;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
@@ -75,7 +75,7 @@ contract EigenLayrDeployer is
         public dataLayrDisclosureChallengeFactory;
 
     WETH public liquidStakingMockToken;
-    WethStashInvestmentStrategy public liquidStakingMockStrat;
+    InvestmentStrategyBase public liquidStakingMockStrat;
 
     bytes[] registrationData;
 
@@ -172,9 +172,9 @@ contract EigenLayrDeployer is
             address(this)
         );
 
-        // deploy WethStashInvestmentStrategy contract implementation, then create upgradeable proxy that points to implementation
-        strat = new WethStashInvestmentStrategy();
-        strat = WethStashInvestmentStrategy(
+        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
+        strat = new InvestmentStrategyBase();
+        strat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(strat),
@@ -183,7 +183,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
-        // initialize WethStashInvestmentStrategy proxy
+        // initialize InvestmentStrategyBase proxy
         strat.initialize(address(investmentManager), weth);
 
 
@@ -226,7 +226,7 @@ contract EigenLayrDeployer is
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new WethStashInvestmentStrategy();
+        liquidStakingMockStrat = new InvestmentStrategyBase();
         liquidStakingMockStrat.initialize(
             address(investmentManager),
             IERC20(address(liquidStakingMockToken))
@@ -366,7 +366,7 @@ contract EigenLayrDeployer is
     function _testWethDepositStrat(
         address sender,
         uint256 amountToDeposit,
-        WethStashInvestmentStrategy stratToDepositTo
+        InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
         if (amountToDeposit > wethInitialSupply) {
@@ -744,11 +744,11 @@ contract EigenLayrDeployer is
         }
     }
 
-    // deploys a WethStashInvestmentStrategy contract and initializes it to treat 'weth' token as its underlying token
+    // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token
     function _testAddStrategy() internal returns (IInvestmentStrategy) {
-        WethStashInvestmentStrategy strategy = new WethStashInvestmentStrategy();
+        InvestmentStrategyBase strategy = new InvestmentStrategyBase();
         // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
-        // strategy = WethStashInvestmentStrategy(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
+        // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
         strategy.initialize(address(investmentManager), weth);
         return strategy;
     }
@@ -766,12 +766,12 @@ contract EigenLayrDeployer is
             _testWethDepositStrat(
                 sender,
                 amountToDeposit,
-                WethStashInvestmentStrategy(address(stratsToDepositTo[i]))
+                InvestmentStrategyBase(address(stratsToDepositTo[i]))
             );
         }
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             assertTrue(investmentManager.investorStrats(sender, i) == stratsToDepositTo[i], "investorStrats array updated incorrectly");
-            
+
             // TODO: perhaps remove this is we can. seems brittle if we don't track the number of strategies somewhere
             //store strategy in mapping of strategies
             strategies[i] = IInvestmentStrategy(address(stratsToDepositTo[i]));

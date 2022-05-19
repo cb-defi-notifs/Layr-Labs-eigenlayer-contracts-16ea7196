@@ -9,22 +9,22 @@ contract InvestmentStrategyBase is
     Initializable,
     IInvestmentStrategy
 {
-    IERC20 public immutable underlyingToken;
-    address public immutable investmentManager;
+    address public investmentManager;
+    IERC20 public underlyingToken;
     uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
         require(msg.sender == investmentManager, "onlyInvestmentManager");
         _;
     }
-    
-    constructor(address _investmentManager, IERC20 _underlyingToken) {
+
+    function initialize(address _investmentManager, IERC20 _underlyingToken) initializer public {
         investmentManager = _investmentManager;
         underlyingToken = _underlyingToken;
     }
 
     function deposit(IERC20 token, uint256 amount)
-        external view
+        external virtual override
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -36,22 +36,26 @@ contract InvestmentStrategyBase is
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyInvestmentManager {
+    ) external virtual override onlyInvestmentManager {
         require(token == underlyingToken, "Can only withdraw the strategy token");
         underlyingToken.transfer(depositor, shareAmount);
     }
 
-    function explanation() external pure returns (string memory) {
+    function explanation() external pure virtual override returns (string memory) {
         return "Base InvestmentStrategy implementation to inherit from";
     }
 
     // implementation for these functions in particular may vary for different underlying tokens & strategies
     function sharesToUnderlyingView(uint256 amountShares)
         public
-        view
+        view virtual override
         returns (uint256)
     {
-        return (_underlyingTokenBalance() * amountShares) / totalShares;
+        if (totalShares == 0) {
+            return amountShares;
+        } else {
+            return (_tokenBalance() * amountShares) / totalShares;            
+        }
     }
 
     /**
@@ -62,18 +66,23 @@ contract InvestmentStrategyBase is
      */
     function sharesToUnderlying(uint256 amountShares)
         public
-        view
+        view virtual override
         returns (uint256)
     {
-        return (_underlyingTokenBalance() * amountShares) / totalShares;
+        return sharesToUnderlyingView(amountShares);
     }
 
     function underlyingToSharesView(uint256 amountUnderlying)
         public
-        view
+        view virtual
         returns (uint256)
     {
-        return (amountUnderlying * totalShares) / _underlyingTokenBalance();
+        uint256 tokenBalance = _tokenBalance();
+        if (tokenBalance == 0 || totalShares == 0) {
+            return amountUnderlying;
+        } else {
+            return (amountUnderlying * totalShares) / tokenBalance;            
+        }
     }
 
     /**
@@ -84,21 +93,21 @@ contract InvestmentStrategyBase is
      */
     function underlyingToShares(uint256 amountUnderlying)
         public
-        view
+        view virtual
         returns (uint256)
     {
-        return (amountUnderlying * totalShares) / _underlyingTokenBalance();
+        return underlyingToSharesView(amountUnderlying);
     }
 
-    function userUnderlying(address user) public view returns (uint256) {
+    function userUnderlying(address user) public view virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
     }
 
-    function userUnderlyingView(address user) public view returns (uint256) {
+    function userUnderlyingView(address user) public view virtual returns (uint256) {
         return sharesToUnderlyingView(shares(user));
     }
 
-    function shares(address user) public view returns (uint256) {
+    function shares(address user) public view virtual returns (uint256) {
         return
             IInvestmentManager(investmentManager).investorStratShares(
                 user,
@@ -106,7 +115,7 @@ contract InvestmentStrategyBase is
             );
     }
 
-    function _underlyingTokenBalance() internal view returns(uint256) {
+    function _tokenBalance() internal view virtual returns(uint256) {
         return underlyingToken.balanceOf(address(this));
     }
 }
