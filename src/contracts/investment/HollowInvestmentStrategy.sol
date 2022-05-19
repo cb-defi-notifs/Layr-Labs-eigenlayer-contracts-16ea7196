@@ -52,26 +52,6 @@ contract HollowInvestmentStrategy is
         return "A simple investment strategy that just stashes WETH";
     }
 
-    // implementation for these functions in particular may vary for different underlying tokens
-    // thus, they are left as unimplimented in this general contract
-    function underlyingEthValueOfShares(uint256 numShares)
-        public
-        pure
-        virtual
-        returns (uint256)
-    {
-        return numShares;
-    }
-
-    function underlyingEthValueOfSharesView(uint256 numShares)
-        public
-        pure
-        virtual
-        returns (uint256)
-    {
-        return numShares;
-    }
-
     function sharesToUnderlyingView(uint256 amountShares)
         public
         pure

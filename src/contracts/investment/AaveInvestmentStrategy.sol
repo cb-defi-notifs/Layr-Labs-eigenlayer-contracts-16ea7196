@@ -117,12 +117,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    // implementation for these functions in particular may vary for different underlying tokens
-    // thus, they are left as unimplimented in this general contract
-    function underlyingEthValueOfShares(uint256 numShares) public view virtual returns(uint256);
-    function underlyingEthValueOfSharesView(uint256 numShares) public view virtual returns(uint256);
-
-    function sharesToUnderlyingView(uint256 amountShares) public view returns(uint256) {
+    function sharesToUnderlyingView(uint256 amountShares) public view virtual returns(uint256) {
         if (totalShares == 0) {
             return 0;
         } else {
@@ -136,7 +131,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     /**
      * @param amountShares is the number of shares whose conversion is to be checked
      */ 
-    function sharesToUnderlying(uint256 amountShares) public view returns(uint256) {
+    function sharesToUnderlying(uint256 amountShares) public view virtual returns(uint256) {
         if (totalShares == 0) {
             return 0;
         } else {
@@ -145,7 +140,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     }
 
 
-    function underlyingToSharesView(uint256 amountUnderlying) public view returns(uint256) {
+    function underlyingToSharesView(uint256 amountUnderlying) public view virtual returns(uint256) {
         if (totalShares == 0) {
             return amountUnderlying;
         } else {
@@ -159,7 +154,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     /**
      * @param amountUnderlying is the amount of aToken for which number of shares is to be checked
      */ 
-    function underlyingToShares(uint256 amountUnderlying) public view returns(uint256) {
+    function underlyingToShares(uint256 amountUnderlying) public view virtual returns(uint256) {
         if (totalShares == 0) {
             return amountUnderlying;
         } else {

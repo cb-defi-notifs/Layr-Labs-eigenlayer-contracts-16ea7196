@@ -16,12 +16,12 @@ contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
         super.initialize(_lendingPool, _underlyingToken, _aToken, _investmentManager);
     }
 
-    function underlyingEthValueOfShares(uint256 numShares) public view override returns(uint256) {
+    function sharesToUnderlying(uint256 numShares) public view override returns(uint256) {
         (, , , uint256 exchangeRate) = stableSwapOracle.getState();
         return (sharesToUnderlying(numShares) * exchangeRate) / 1e18;
     }
 
-    function underlyingEthValueOfSharesView(uint256 numShares) public view override returns(uint256) {
+    function sharesToUnderlyingView(uint256 numShares) public view override returns(uint256) {
         (, , , uint256 exchangeRate) = stableSwapOracle.getState();
         return (sharesToUnderlyingView(numShares) * exchangeRate) / 1e18;
     }

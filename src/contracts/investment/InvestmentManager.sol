@@ -601,7 +601,7 @@ contract InvestmentManager is
         uint256 slashedAmount;
         for (uint256 i = 0; i < strategies.length; ) {
             // add the value of the slashed shares to the total amount slashed
-            slashedAmount += strategies[i].underlyingEthValueOfShares(
+            slashedAmount += strategies[i].sharesToUnderlying(
                 shareAmounts[i]
             );
 
@@ -828,7 +828,7 @@ contract InvestmentManager is
 
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].underlyingEthValueOfShares(shares[i]);
+            stake += strats[i].sharesToUnderlying(shares[i]);
             unchecked {
                 ++i;
             }
@@ -848,7 +848,7 @@ contract InvestmentManager is
         );
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].underlyingEthValueOfSharesView(shares[i]);
+            stake += strats[i].sharesToUnderlyingView(shares[i]);
             unchecked {
                 ++i;
             }

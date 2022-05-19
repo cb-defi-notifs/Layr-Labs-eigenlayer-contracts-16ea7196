@@ -325,7 +325,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         for (uint256 i; i < investorStratsLength;) {
             // get the underlying ETH value of the shares
             // each investment strategy have their own description of ETH value per share.
-            weight += investorStrats[i].underlyingEthValueOfShares(investorShares[i]);
+            weight += investorStrats[i].sharesToUnderlying(investorShares[i]);
             unchecked {
                 ++i;
             }
@@ -494,7 +494,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      */
     /**
      *  @dev for each investment strategy where the delegator has staked its asset,
-     *       it needs to call that investment strategy's "underlyingEthValueOfShares" function
+     *       it needs to call that investment strategy's "sharesToUnderlying" function
      *       to determine the value of delegator's shares in that investment strategy in ETH.        
      */ 
     function weightOfEth(address delegator) public returns(uint256) {
