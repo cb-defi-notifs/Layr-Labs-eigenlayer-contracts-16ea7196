@@ -121,13 +121,14 @@ contract EigenLayrDelegation is
 
     // internal function implementing the delegation of 'delegator' to 'operator'
     function _delegate(address delegator, address operator) internal {
+        IDelegationTerms dt = delegationTerms[operator];
         require(
-            address(delegationTerms[operator]) != address(0),
-            "_delegate: Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            address(dt) != address(0),
+            "_delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(delegator),
-            "_delegate: Staker has existing delegation or pending undelegation commitment"
+            "_delegate: delegator has existing delegation"
         );
 
         // record delegation relation between the delegator and operator
@@ -157,14 +158,11 @@ contract EigenLayrDelegation is
         eigenDelegated[operator] += eigenAmount;
 
         // call into hook in delegationTerms contract
-        IDelegationTerms dt = delegationTerms[operator];
-        if (address(dt) != operator) {
-            delegationTerms[operator].onDelegationReceived(
+        dt.onDelegationReceived(
                 delegator,
                 strategies,
                 shares
-            );
-        }
+        );
     }
 
     /// @notice This function is used to notify the system that a delegator wants to stop
@@ -223,6 +221,7 @@ contract EigenLayrDelegation is
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
 
             // call into hook in delegationTerms contract
+            // TODO: ensure that an operator cannot maliciously make this function fail to revert undelegation -- perhaps using low-level call functionality
             delegationTerms[operator].onDelegationWithdrawn(
                 msg.sender,
                 strategies,
