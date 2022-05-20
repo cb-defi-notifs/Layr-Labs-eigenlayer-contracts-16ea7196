@@ -814,9 +814,9 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice get the ETH-denominated value of shares in specified investment strategies
+     * @notice get the underlying-denominated value of shares in specified investment strategies
      */
-    function getUnderlyingEthOfStrategyShares(
+    function getUnderlyingValueOfStrategyShares(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external returns (uint256) {
@@ -837,7 +837,7 @@ contract InvestmentManager is
         return stake;
     }
 
-    function getUnderlyingEthOfStrategySharesView(
+    function getUnderlyingValueOfStrategySharesView(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external view returns (uint256) {

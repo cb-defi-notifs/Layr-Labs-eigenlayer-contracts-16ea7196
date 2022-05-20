@@ -71,12 +71,12 @@ interface IInvestmentManager {
         view
         returns (uint256 shares);
 
-    function getUnderlyingEthOfStrategyShares(
+    function getUnderlyingValueOfStrategyShares(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external returns (uint256);
 
-    function getUnderlyingEthOfStrategySharesView(
+    function getUnderlyingValueOfStrategySharesView(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external returns (uint256);
