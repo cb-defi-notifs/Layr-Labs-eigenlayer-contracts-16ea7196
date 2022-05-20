@@ -13,7 +13,7 @@ interface IEigenLayrDelegation {
 
     function registerAsDelegate(IDelegationTerms dt) external;
 
-    function getDelegationTerms(address operator)
+    function delegationTerms(address operator)
         external
         view
         returns (IDelegationTerms);

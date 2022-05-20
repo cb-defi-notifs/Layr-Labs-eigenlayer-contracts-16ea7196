@@ -359,7 +359,7 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
 
-        //TODO: set maxSlashedAmount appropriately
+        //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
         uint256 maxSlashedAmount = 0;
         // perform the slashing itself
         slasher.slashShares(staker, strategies, strategyIndexes, amounts, maxSlashedAmount); 
@@ -378,15 +378,6 @@ contract EigenLayrDelegation is
                 block.timestamp >
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[staker]);
-    }
-
-    /// @notice returns the delegationTerms for the input operator
-    function getDelegationTerms(address operator)
-        public
-        view
-        returns (IDelegationTerms)
-    {
-        return delegationTerms[operator];
     }
 
     /**
@@ -408,10 +399,8 @@ contract EigenLayrDelegation is
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling
-        // operatorStrats[operator] for the case "delegation[operator] != operator"
         return
-            delegation[operator] == operator
+            isSelfOperator(operator)
                 ? investmentManager.getConsensusLayerEth(operator)
                 : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
     }
@@ -422,8 +411,6 @@ contract EigenLayrDelegation is
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling
-        // operatorStrats[operator] for the case "delegation[operator] != operator
         return
             isSelfOperator(operator)
                 ? investmentManager.getEigen(operator)

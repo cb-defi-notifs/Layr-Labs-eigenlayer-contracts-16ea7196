@@ -399,7 +399,7 @@ contract DataLayrServiceManager is
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(
+        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(
             msg.sender
         );
 
