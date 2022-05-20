@@ -102,7 +102,7 @@ contract InvestmentManager is
     ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
         // increase delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -137,7 +137,7 @@ contract InvestmentManager is
             }
         }
         // increase delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -215,7 +215,7 @@ contract InvestmentManager is
             }
         }
         // reduce delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.reduceOperatorShares(
                 delegatedAddress,
@@ -337,7 +337,7 @@ contract InvestmentManager is
         // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
         // this solves a 'stack too deep' error on compilation
         {
-            if (delegation.isSelfOperator(msg.sender)) {
+            if (!delegation.isSelfOperator(msg.sender)) {
                 address delegatedAddress = delegation.delegation(msg.sender);
                 delegation.reduceOperatorShares(
                     delegatedAddress,
@@ -570,7 +570,7 @@ contract InvestmentManager is
             shareAmount
         );
         // reduce delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.reduceOperatorShares(
                 delegatedAddress,
@@ -587,6 +587,7 @@ contract InvestmentManager is
     /**
      * @dev only Slasher contract can call this function
      */
+     // TODO: remove 'maxSlashedAmount' -- figure out a more general pattern for this if we want to keep it
     function slashShares(
         address slashed,
         address recipient,
@@ -637,7 +638,7 @@ contract InvestmentManager is
         require(slashedAmount <= maxSlashedAmount, "excessive slashing");
 
         // modify delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(slashed)) {
+        if (!delegation.isSelfOperator(slashed)) {
             address delegatedAddress = delegation.delegation(slashed);
             delegation.reduceOperatorShares(
                 delegatedAddress,
@@ -645,7 +646,7 @@ contract InvestmentManager is
                 shareAmounts
             );
         }
-        if (delegation.isSelfOperator(recipient)) {
+        if (!delegation.isSelfOperator(recipient)) {
             address delegatedAddress = delegation.delegation(recipient);
             delegation.increaseOperatorShares(
                 delegatedAddress,
