@@ -214,10 +214,10 @@ contract InvestmentManager is
                 ++i;
             }
         }
-        // reduce delegated shares accordingly, if applicable
+        // decrease delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
                 shareAmounts
@@ -245,7 +245,7 @@ contract InvestmentManager is
         strategy.withdraw(depositor, token, shareAmount);
     }
 
-    // reduces the shares that 'depositor' holds in 'strategy' by 'shareAmount'
+    // decreases the shares that 'depositor' holds in 'strategy' by 'shareAmount'
     // if the amount of shares represents all of the depositor's shares in said strategy,
     // then the strategy is removed from investorStrats[depositor] and 'true' is returned
     function _removeShares(
@@ -339,7 +339,7 @@ contract InvestmentManager is
         {
             if (!delegation.isSelfOperator(msg.sender)) {
                 address delegatedAddress = delegation.delegation(msg.sender);
-                delegation.reduceOperatorShares(
+                delegation.decreaseOperatorShares(
                     delegatedAddress,
                     strategies,
                     shareAmounts
@@ -569,10 +569,10 @@ contract InvestmentManager is
             token,
             shareAmount
         );
-        // reduce delegated shares accordingly, if applicable
+        // decrease delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategy,
                 shareAmount
@@ -640,7 +640,7 @@ contract InvestmentManager is
         // modify delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(slashed)) {
             address delegatedAddress = delegation.delegation(slashed);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
                 shareAmounts
@@ -667,6 +667,16 @@ contract InvestmentManager is
         // record the ETH that has been staked by the depositor
         investorStratShares[depositor][consensusLayerEthStrat] += shares;
 
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                consensusLayerEthStrat,
+                shares
+            );
+        }
+
         return shares;
     }
 
@@ -680,6 +690,16 @@ contract InvestmentManager is
 
         // record the proof of staking ETH that has been staked by the depositor
         investorStratShares[depositor][proofOfStakingEthStrat] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                proofOfStakingEthStrat,
+                shares
+            );
+        }
 
         return shares;
     }
@@ -701,6 +721,15 @@ contract InvestmentManager is
 
         eigenDeposited[msg.sender] += amount;
 
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorEigen(
+                delegatedAddress,
+                amount
+            );
+        }
+
         return (deposited + amount);
     }
 
@@ -713,6 +742,15 @@ contract InvestmentManager is
     {
         eigenDeposited[msg.sender] -= amount;
         totalEigenStaked -= amount;
+        // decrease delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.decreaseOperatorEigen(
+                delegatedAddress,
+                amount
+            );
+        }
+
         EIGEN.safeTransferFrom(
             address(this),
             msg.sender,

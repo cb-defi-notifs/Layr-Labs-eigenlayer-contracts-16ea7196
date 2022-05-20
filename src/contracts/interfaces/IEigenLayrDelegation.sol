@@ -48,13 +48,13 @@ interface IEigenLayrDelegation {
         view
         returns (bool);
 
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy strategy,
         uint256 shares
     ) external;
     
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
@@ -71,4 +71,9 @@ interface IEigenLayrDelegation {
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external;
+
+    function decreaseOperatorEigen(address operator, uint256 eigenAmount) external;
+
+    function increaseOperatorEigen(address operator, uint256 eigenAmount) external;
+    
 }

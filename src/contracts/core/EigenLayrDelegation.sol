@@ -242,7 +242,7 @@ contract EigenLayrDelegation is
         }
     }
 
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy strategy,
         uint256 shares
@@ -252,7 +252,7 @@ contract EigenLayrDelegation is
         //TOOD: call into delegationTerms contract as well?
     }
 
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
@@ -266,6 +266,14 @@ contract EigenLayrDelegation is
             }
         }
         //TOOD: call into delegationTerms contract as well?
+    }
+
+    function decreaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
+        eigenDelegated[operator] -= eigenAmount;
+    }
+
+    function increaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
+        eigenDelegated[operator] += eigenAmount;        
     }
 
     function increaseOperatorShares(
