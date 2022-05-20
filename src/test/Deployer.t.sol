@@ -31,7 +31,7 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 import "../contracts/utils/ERC165_Universal.sol";
 import "../contracts/utils/ERC1155TokenReceiver.sol";
@@ -40,7 +40,6 @@ import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/SignatureCompaction.sol";
 
-import "./utils/CheatCodes.sol";
 import "./utils/Signers.sol";
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
@@ -52,7 +51,7 @@ contract EigenLayrDeployer is
 {
     using BytesLib for bytes;
 
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
+    Vm cheats = Vm(HEVM_ADDRESS);
     DepositContract public depositContract;
     Eigen public eigen;
     EigenLayrDelegation public delegation;

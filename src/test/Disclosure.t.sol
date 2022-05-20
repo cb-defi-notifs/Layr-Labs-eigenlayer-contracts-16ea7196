@@ -3,13 +3,11 @@ pragma solidity ^0.8.9;
 
 import "./mocks/DisclosureChallenge.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 import "./mocks/Multiplication.sol";
 
-import "./utils/CheatCodes.sol";
-
 contract DisclosureDeployer is DSTest {
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
+    Vm cheats = Vm(HEVM_ADDRESS);
     DataLayrDisclosureChallenge public dc;
 
     address challenger = address(0x1111128043334532291375821752135089127385);

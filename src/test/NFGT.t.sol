@@ -3,16 +3,14 @@ pragma solidity ^0.8.9;
 
 import "../contracts/experimental/NFGT.sol";
 
-import "ds-test/test.sol";
-
 import "../contracts/utils/ERC165_Universal.sol";
 import "../contracts/utils/ERC1155TokenReceiver.sol";
 
-import "./utils/CheatCodes.sol";
+import "forge-std/Test.sol";
 
 contract NFGT_Tester is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 
-    CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
+    Vm cheats = Vm(HEVM_ADDRESS);
     NFGT public nfgt;
     uint256 ORIGIN_ID;
     //TODO: fuzz this in tests?
