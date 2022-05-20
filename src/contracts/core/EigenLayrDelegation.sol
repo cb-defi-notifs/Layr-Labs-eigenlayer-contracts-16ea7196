@@ -30,6 +30,8 @@ contract EigenLayrDelegation is
         _;
     }
 
+    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+
     function initialize(
         IInvestmentManager _investmentManager,
         IServiceFactory _serviceFactory,
@@ -221,12 +223,20 @@ contract EigenLayrDelegation is
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
 
             // call into hook in delegationTerms contract
-            // TODO: ensure that an operator cannot maliciously make this function fail to revert undelegation -- perhaps using low-level call functionality
-            delegationTerms[operator].onDelegationWithdrawn(
-                msg.sender,
-                strategies,
-                shares
+            // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+            // TODO: do we also need a max gas budget to avoid griefing here?
+            (bool success, bytes memory returnData) = address(delegationTerms[operator]).call(
+                abi.encodeWithSelector(
+                    IDelegationTerms.onDelegationWithdrawn.selector,
+                    msg.sender,
+                    strategies,
+                    shares    
+                )            
             );
+            // if the internal call fails, we emit a special event rather than reverting
+            if (!success) {
+                emit OnDelegationWithdrawnCallFailure(delegationTerms[operator], returnData);
+            }
         } else {
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
         }
@@ -285,8 +295,7 @@ contract EigenLayrDelegation is
     }
 
     /// @notice This function must be called by a delegator to notify that its stake is
-    ///         no longer active on any queries, which in turn launches the challenge
-    ///         period.
+    ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
@@ -381,14 +390,17 @@ contract EigenLayrDelegation is
     }
 
     /**
-     * @notice returns the shares in a specified strategy being used by the delegator of this operator
+     * @notice returns the shares in a specified strategy either held directly by or delegated to the operator
      **/
 
     function getOperatorShares(
         address operator,
         IInvestmentStrategy investmentStrategy
     ) public view returns (uint256) {
-        return operatorShares[operator][investmentStrategy];
+        return
+            isSelfOperator(operator)
+                ? investmentManager.investorStratShares(operator, investmentStrategy)
+                : operatorShares[operator][investmentStrategy];
     }
 
     /// @notice returns the total ETH delegated by delegators with this operator
