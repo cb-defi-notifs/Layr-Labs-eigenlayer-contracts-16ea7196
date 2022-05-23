@@ -17,8 +17,8 @@ interface IInvestmentStrategy {
         uint256 amount
     ) external;
 
-    function underlyingEthValueOfShares(uint256 numShares) external returns(uint256);
-    function underlyingEthValueOfSharesView(uint256 numShares) external view returns(uint256);
+    function sharesToUnderlying(uint256 numShares) external returns(uint256);
+    function sharesToUnderlyingView(uint256 numShares) external view returns(uint256);
 
     event Deposit(address indexed from);
     event Withdraw(address indexed to);

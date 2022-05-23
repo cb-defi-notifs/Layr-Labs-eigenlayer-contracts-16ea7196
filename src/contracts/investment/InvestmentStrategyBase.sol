@@ -3,43 +3,32 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./aave/ILendingPool.sol";
-import "./AaveInvestmentStrategyStorage.sol";
 import "../utils/Initializable.sol";
-import "../utils/Governed.sol";
 
-
-contract WethStashInvestmentStrategy is
+contract InvestmentStrategyBase is
     Initializable,
-    Governed,
     IInvestmentStrategy
 {
-    IERC20 public weth;
     address public investmentManager;
+    IERC20 public underlyingToken;
+    uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
         require(msg.sender == investmentManager, "onlyInvestmentManager");
         _;
     }
-    
-    constructor() {
-    }
 
-    function initialize(address _investmentManager, IERC20 _weth)
-        public
-        initializer
-    {
-        _transferGovernor(msg.sender);
+    function initialize(address _investmentManager, IERC20 _underlyingToken) initializer public {
         investmentManager = _investmentManager;
-        weth = _weth;
+        underlyingToken = _underlyingToken;
     }
 
     function deposit(IERC20 token, uint256 amount)
-        external view
+        external virtual override
         onlyInvestmentManager
         returns (uint256 newShares)
     {
-        require(token == weth, "Can only deposit weth");
+        require(token == underlyingToken, "Can only deposit underlyingToken");
         return amount;
     }
 
@@ -47,41 +36,26 @@ contract WethStashInvestmentStrategy is
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyInvestmentManager {
-        require(token == weth, "Can only withdraw the strategy token");
-        weth.transfer(depositor, shareAmount);
+    ) external virtual override onlyInvestmentManager {
+        require(token == underlyingToken, "Can only withdraw the strategy token");
+        underlyingToken.transfer(depositor, shareAmount);
     }
 
-    function explanation() external pure returns (string memory) {
-        return "A simple investment strategy that just stashes WETH";
+    function explanation() external pure virtual override returns (string memory) {
+        return "Base InvestmentStrategy implementation to inherit from";
     }
 
-    // implementation for these functions in particular may vary for different underlying tokens
-    // thus, they are left as unimplimented in this general contract
-    function underlyingEthValueOfShares(uint256 numShares)
-        public
-        pure
-        virtual
-        returns (uint256)
-    {
-        return numShares;
-    }
-
-    function underlyingEthValueOfSharesView(uint256 numShares)
-        public
-        pure
-        virtual
-        returns (uint256)
-    {
-        return numShares;
-    }
-
+    // implementation for these functions in particular may vary for different underlying tokens & strategies
     function sharesToUnderlyingView(uint256 amountShares)
         public
-        pure
+        view virtual override
         returns (uint256)
     {
-        return amountShares;
+        if (totalShares == 0) {
+            return amountShares;
+        } else {
+            return (_tokenBalance() * amountShares) / totalShares;            
+        }
     }
 
     /**
@@ -92,18 +66,23 @@ contract WethStashInvestmentStrategy is
      */
     function sharesToUnderlying(uint256 amountShares)
         public
-        pure
+        view virtual override
         returns (uint256)
     {
-        return amountShares;
+        return sharesToUnderlyingView(amountShares);
     }
 
     function underlyingToSharesView(uint256 amountUnderlying)
         public
-        pure
+        view virtual
         returns (uint256)
     {
-        return amountUnderlying;
+        uint256 tokenBalance = _tokenBalance();
+        if (tokenBalance == 0 || totalShares == 0) {
+            return amountUnderlying;
+        } else {
+            return (amountUnderlying * totalShares) / tokenBalance;            
+        }
     }
 
     /**
@@ -114,25 +93,29 @@ contract WethStashInvestmentStrategy is
      */
     function underlyingToShares(uint256 amountUnderlying)
         public
-        pure
+        view virtual
         returns (uint256)
     {
-        return amountUnderlying;
+        return underlyingToSharesView(amountUnderlying);
     }
 
-    function userUnderlying(address user) public view returns (uint256) {
+    function userUnderlying(address user) public view virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
     }
 
-    function userUnderlyingView(address user) public view returns (uint256) {
+    function userUnderlyingView(address user) public view virtual returns (uint256) {
         return sharesToUnderlyingView(shares(user));
     }
 
-    function shares(address user) public view returns (uint256) {
+    function shares(address user) public view virtual returns (uint256) {
         return
             IInvestmentManager(investmentManager).investorStratShares(
                 user,
                 IInvestmentStrategy(address(this))
             );
+    }
+
+    function _tokenBalance() internal view virtual returns(uint256) {
+        return underlyingToken.balanceOf(address(this));
     }
 }

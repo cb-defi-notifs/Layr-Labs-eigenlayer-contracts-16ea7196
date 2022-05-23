@@ -102,7 +102,7 @@ contract InvestmentManager is
     ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
         // increase delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -137,7 +137,7 @@ contract InvestmentManager is
             }
         }
         // increase delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -214,10 +214,10 @@ contract InvestmentManager is
                 ++i;
             }
         }
-        // reduce delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        // decrease delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
                 shareAmounts
@@ -245,7 +245,7 @@ contract InvestmentManager is
         strategy.withdraw(depositor, token, shareAmount);
     }
 
-    // reduces the shares that 'depositor' holds in 'strategy' by 'shareAmount'
+    // decreases the shares that 'depositor' holds in 'strategy' by 'shareAmount'
     // if the amount of shares represents all of the depositor's shares in said strategy,
     // then the strategy is removed from investorStrats[depositor] and 'true' is returned
     function _removeShares(
@@ -337,9 +337,9 @@ contract InvestmentManager is
         // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
         // this solves a 'stack too deep' error on compilation
         {
-            if (delegation.isSelfOperator(msg.sender)) {
+            if (!delegation.isSelfOperator(msg.sender)) {
                 address delegatedAddress = delegation.delegation(msg.sender);
-                delegation.reduceOperatorShares(
+                delegation.decreaseOperatorShares(
                     delegatedAddress,
                     strategies,
                     shareAmounts
@@ -569,10 +569,10 @@ contract InvestmentManager is
             token,
             shareAmount
         );
-        // reduce delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(msg.sender)) {
+        // decrease delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategy,
                 shareAmount
@@ -587,6 +587,7 @@ contract InvestmentManager is
     /**
      * @dev only Slasher contract can call this function
      */
+     // TODO: remove 'maxSlashedAmount' -- figure out a more general pattern for this if we want to keep it
     function slashShares(
         address slashed,
         address recipient,
@@ -601,7 +602,7 @@ contract InvestmentManager is
         uint256 slashedAmount;
         for (uint256 i = 0; i < strategies.length; ) {
             // add the value of the slashed shares to the total amount slashed
-            slashedAmount += strategies[i].underlyingEthValueOfShares(
+            slashedAmount += strategies[i].sharesToUnderlying(
                 shareAmounts[i]
             );
 
@@ -637,15 +638,15 @@ contract InvestmentManager is
         require(slashedAmount <= maxSlashedAmount, "excessive slashing");
 
         // modify delegated shares accordingly, if applicable
-        if (delegation.isSelfOperator(slashed)) {
+        if (!delegation.isSelfOperator(slashed)) {
             address delegatedAddress = delegation.delegation(slashed);
-            delegation.reduceOperatorShares(
+            delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
                 shareAmounts
             );
         }
-        if (delegation.isSelfOperator(recipient)) {
+        if (!delegation.isSelfOperator(recipient)) {
             address delegatedAddress = delegation.delegation(recipient);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -666,6 +667,16 @@ contract InvestmentManager is
         // record the ETH that has been staked by the depositor
         investorStratShares[depositor][consensusLayerEthStrat] += shares;
 
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                consensusLayerEthStrat,
+                shares
+            );
+        }
+
         return shares;
     }
 
@@ -679,6 +690,16 @@ contract InvestmentManager is
 
         // record the proof of staking ETH that has been staked by the depositor
         investorStratShares[depositor][proofOfStakingEthStrat] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                proofOfStakingEthStrat,
+                shares
+            );
+        }
 
         return shares;
     }
@@ -700,6 +721,15 @@ contract InvestmentManager is
 
         eigenDeposited[msg.sender] += amount;
 
+        // increase delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorEigen(
+                delegatedAddress,
+                amount
+            );
+        }
+
         return (deposited + amount);
     }
 
@@ -712,6 +742,15 @@ contract InvestmentManager is
     {
         eigenDeposited[msg.sender] -= amount;
         totalEigenStaked -= amount;
+        // decrease delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.decreaseOperatorEigen(
+                delegatedAddress,
+                amount
+            );
+        }
+
         EIGEN.safeTransferFrom(
             address(this),
             msg.sender,
@@ -813,9 +852,9 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice get the ETH-denominated value of shares in specified investment strategies
+     * @notice get the underlying-denominated value of shares in specified investment strategies
      */
-    function getUnderlyingEthOfStrategyShares(
+    function getUnderlyingValueOfStrategyShares(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external returns (uint256) {
@@ -828,7 +867,7 @@ contract InvestmentManager is
 
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].underlyingEthValueOfShares(shares[i]);
+            stake += strats[i].sharesToUnderlying(shares[i]);
             unchecked {
                 ++i;
             }
@@ -836,7 +875,7 @@ contract InvestmentManager is
         return stake;
     }
 
-    function getUnderlyingEthOfStrategySharesView(
+    function getUnderlyingValueOfStrategySharesView(
         IInvestmentStrategy[] calldata strats,
         uint256[] calldata shares
     ) external view returns (uint256) {
@@ -848,7 +887,7 @@ contract InvestmentManager is
         );
         // for all strats find uderlying eth value of shares
         for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].underlyingEthValueOfSharesView(shares[i]);
+            stake += strats[i].sharesToUnderlyingView(shares[i]);
             unchecked {
                 ++i;
             }

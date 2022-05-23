@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./DataLayrServiceManagerStorage.sol";
-import "../RegistrationManagerBaseMinusRepository.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/SignatureCompaction.sol";
 import "../../libraries/BLS.sol";

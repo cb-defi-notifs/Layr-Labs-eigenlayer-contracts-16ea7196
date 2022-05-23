@@ -10,7 +10,7 @@ import "./core/EigenLayrDelegation.sol";
 import "./core/EigenLayrDeposit.sol";
 
 import "./investment/InvestmentManager.sol";
-import "./investment/WethStashInvestmentStrategy.sol";
+import "./investment/InvestmentStrategyBase.sol";
 import "./investment/Slasher.sol";
 
 import "./middleware/ServiceFactory.sol";
@@ -46,7 +46,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     DataLayr public dl;
 
     IERC20 public weth;
-    WethStashInvestmentStrategy public strat;
+    InvestmentStrategyBase public strat;
     IRepository public dlRepository;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
@@ -87,7 +87,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             ownerAddr
         );
         //do stuff with weth
-        strat = new WethStashInvestmentStrategy();
+        strat = new InvestmentStrategyBase();
         strat.initialize(address(investmentManager), weth);
 
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);

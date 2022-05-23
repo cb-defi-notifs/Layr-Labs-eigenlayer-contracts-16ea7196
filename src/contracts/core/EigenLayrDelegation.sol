@@ -30,6 +30,8 @@ contract EigenLayrDelegation is
         _;
     }
 
+    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+
     function initialize(
         IInvestmentManager _investmentManager,
         IServiceFactory _serviceFactory,
@@ -121,13 +123,14 @@ contract EigenLayrDelegation is
 
     // internal function implementing the delegation of 'delegator' to 'operator'
     function _delegate(address delegator, address operator) internal {
+        IDelegationTerms dt = delegationTerms[operator];
         require(
-            address(delegationTerms[operator]) != address(0),
-            "_delegate: Staker has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            address(dt) != address(0),
+            "_delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(delegator),
-            "_delegate: Staker has existing delegation or pending undelegation commitment"
+            "_delegate: delegator has existing delegation"
         );
 
         // record delegation relation between the delegator and operator
@@ -157,14 +160,11 @@ contract EigenLayrDelegation is
         eigenDelegated[operator] += eigenAmount;
 
         // call into hook in delegationTerms contract
-        IDelegationTerms dt = delegationTerms[operator];
-        if (address(dt) != operator) {
-            delegationTerms[operator].onDelegationReceived(
+        dt.onDelegationReceived(
                 delegator,
                 strategies,
                 shares
-            );
-        }
+        );
     }
 
     /// @notice This function is used to notify the system that a delegator wants to stop
@@ -223,17 +223,26 @@ contract EigenLayrDelegation is
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
 
             // call into hook in delegationTerms contract
-            delegationTerms[operator].onDelegationWithdrawn(
-                msg.sender,
-                strategies,
-                shares
+            // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+            // TODO: do we also need a max gas budget to avoid griefing here?
+            (bool success, bytes memory returnData) = address(delegationTerms[operator]).call(
+                abi.encodeWithSelector(
+                    IDelegationTerms.onDelegationWithdrawn.selector,
+                    msg.sender,
+                    strategies,
+                    shares    
+                )            
             );
+            // if the internal call fails, we emit a special event rather than reverting
+            if (!success) {
+                emit OnDelegationWithdrawnCallFailure(delegationTerms[operator], returnData);
+            }
         } else {
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
         }
     }
 
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy strategy,
         uint256 shares
@@ -243,7 +252,7 @@ contract EigenLayrDelegation is
         //TOOD: call into delegationTerms contract as well?
     }
 
-    function reduceOperatorShares(
+    function decreaseOperatorShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
@@ -257,6 +266,14 @@ contract EigenLayrDelegation is
             }
         }
         //TOOD: call into delegationTerms contract as well?
+    }
+
+    function decreaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
+        eigenDelegated[operator] -= eigenAmount;
+    }
+
+    function increaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
+        eigenDelegated[operator] += eigenAmount;        
     }
 
     function increaseOperatorShares(
@@ -286,8 +303,7 @@ contract EigenLayrDelegation is
     }
 
     /// @notice This function must be called by a delegator to notify that its stake is
-    ///         no longer active on any queries, which in turn launches the challenge
-    ///         period.
+    ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
@@ -360,7 +376,7 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
 
-        //TODO: set maxSlashedAmount appropriately
+        //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
         uint256 maxSlashedAmount = 0;
         // perform the slashing itself
         slasher.slashShares(staker, strategies, strategyIndexes, amounts, maxSlashedAmount); 
@@ -381,24 +397,18 @@ contract EigenLayrDelegation is
                     lastUndelegationCommit[staker]);
     }
 
-    /// @notice returns the delegationTerms for the input operator
-    function getDelegationTerms(address operator)
-        public
-        view
-        returns (IDelegationTerms)
-    {
-        return delegationTerms[operator];
-    }
-
     /**
-     * @notice returns the shares in a specified strategy being used by the delegator of this operator
+     * @notice returns the shares in a specified strategy either held directly by or delegated to the operator
      **/
 
     function getOperatorShares(
         address operator,
         IInvestmentStrategy investmentStrategy
     ) public view returns (uint256) {
-        return operatorShares[operator][investmentStrategy];
+        return
+            isSelfOperator(operator)
+                ? investmentManager.investorStratShares(operator, investmentStrategy)
+                : operatorShares[operator][investmentStrategy];
     }
 
     /// @notice returns the total ETH delegated by delegators with this operator
@@ -409,10 +419,8 @@ contract EigenLayrDelegation is
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling
-        // operatorStrats[operator] for the case "delegation[operator] != operator"
         return
-            delegation[operator] == operator
+            isSelfOperator(operator)
                 ? investmentManager.getConsensusLayerEth(operator)
                 : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
     }
@@ -423,8 +431,6 @@ contract EigenLayrDelegation is
         view
         returns (uint256)
     {
-        // CRITIC: same problem as in getControlledEthStake, with calling
-        // operatorStrats[operator] for the case "delegation[operator] != operator
         return
             isSelfOperator(operator)
                 ? investmentManager.getEigen(operator)

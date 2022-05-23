@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/ProofOfStakingInterfaces.sol";
+import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
 import "./DataLayrDisclosureChallengeFactory.sol";
@@ -410,7 +410,7 @@ contract DataLayrServiceManager is
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.getDelegationTerms(
+        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(
             msg.sender
         );
 

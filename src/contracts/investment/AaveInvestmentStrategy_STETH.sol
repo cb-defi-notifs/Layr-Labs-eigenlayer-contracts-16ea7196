@@ -10,18 +10,13 @@ import "./LIDO/IStableSwapStateOracle.sol";
 contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
     IStableSwapStateOracle public stableSwapOracle;
 
-    function initialize (ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager, IStableSwapStateOracle _stableSwapOracle
+    function initialize (address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
     ) initializer external {
+        super.initialize(_investmentManager, _underlyingToken, _lendingPool, _aToken);
         stableSwapOracle = _stableSwapOracle;
-        super.initialize(_lendingPool, _underlyingToken, _aToken, _investmentManager);
     }
 
-    function underlyingEthValueOfShares(uint256 numShares) public view override returns(uint256) {
-        (, , , uint256 exchangeRate) = stableSwapOracle.getState();
-        return (sharesToUnderlying(numShares) * exchangeRate) / 1e18;
-    }
-
-    function underlyingEthValueOfSharesView(uint256 numShares) public view override returns(uint256) {
+    function sharesToUnderlyingView(uint256 numShares) public view override returns(uint256) {
         (, , , uint256 exchangeRate) = stableSwapOracle.getState();
         return (sharesToUnderlyingView(numShares) * exchangeRate) / 1e18;
     }

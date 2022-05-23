@@ -3,21 +3,17 @@ pragma solidity ^0.8.9;
 
 import "./aave/ILendingPool.sol";
 import "./AaveInvestmentStrategyStorage.sol";
+import "./InvestmentStrategyBase.sol";
 import "../utils/Initializable.sol";
 
-abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, IInvestmentStrategy {
-    modifier onlyInvestmentManager() {
-        require(msg.sender == investmentManager, "onlyInvestmentManager");
-        _;
-    }
+abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
 
-    function initialize (ILendingPool _lendingPool, IERC20 _underlyingToken, IERC20 _aToken, address _investmentManager
+    function initialize(address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
     ) initializer public {
+        super.initialize(_investmentManager, _underlyingToken);
         lendingPool = _lendingPool;
-        underlyingToken = _underlyingToken;
         aToken = _aToken;
-        investmentManager = _investmentManager;
-        _underlyingToken.approve(address(_lendingPool), type(uint256).max);
+        underlyingToken.approve(address(_lendingPool), type(uint256).max);
     }
 
 
@@ -31,7 +27,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     function deposit(
         IERC20 token,
         uint256 amount
-    ) external onlyInvestmentManager returns (uint256 newShares) {
+    ) external override onlyInvestmentManager returns (uint256 newShares) {
         uint256 aTokenIncrease;
         uint256 aTokensBefore;
         if (token == underlyingToken) {
@@ -88,7 +84,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyInvestmentManager {
+    ) external override onlyInvestmentManager {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
 
         if (token == underlyingToken) {
@@ -113,68 +109,11 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     }
 
     
-    function explanation() external pure returns (string memory) {
+    function explanation() external pure override returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    // implementation for these functions in particular may vary for different underlying tokens
-    // thus, they are left as unimplimented in this general contract
-    function underlyingEthValueOfShares(uint256 numShares) public view virtual returns(uint256);
-    function underlyingEthValueOfSharesView(uint256 numShares) public view virtual returns(uint256);
-
-    function sharesToUnderlyingView(uint256 amountShares) public view returns(uint256) {
-        if (totalShares == 0) {
-            return 0;
-        } else {
-            return (aToken.balanceOf(address(this)) * amountShares) / totalShares;
-        }
-    }
-
-    /**
-     * @notice get a conversion of aToken from the input shares
-     */
-    /**
-     * @param amountShares is the number of shares whose conversion is to be checked
-     */ 
-    function sharesToUnderlying(uint256 amountShares) public view returns(uint256) {
-        if (totalShares == 0) {
-            return 0;
-        } else {
-            return (aToken.balanceOf(address(this)) * amountShares) / totalShares;
-        }
-    }
-
-
-    function underlyingToSharesView(uint256 amountUnderlying) public view returns(uint256) {
-        if (totalShares == 0) {
-            return amountUnderlying;
-        } else {
-            return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
-        }
-    }
-
-    /**
-     * @notice get a conversion of inout aToken to the shares at current price
-     */
-    /**
-     * @param amountUnderlying is the amount of aToken for which number of shares is to be checked
-     */ 
-    function underlyingToShares(uint256 amountUnderlying) public view returns(uint256) {
-        if (totalShares == 0) {
-            return amountUnderlying;
-        } else {
-            return (amountUnderlying * totalShares) / aToken.balanceOf(address(this));
-        }
-    }
-
-
-    function userUnderlying(address user) public view returns(uint256) {
-        return sharesToUnderlying(shares(user));
-    }
-    function userUnderlyingView(address user) public view returns(uint256) {
-        return sharesToUnderlyingView(shares(user));
-    }
-    function shares(address user) public view returns(uint256) {
-        return IInvestmentManager(investmentManager).investorStratShares(user, IInvestmentStrategy(address(this)));
+    function _tokenBalance() internal view override returns(uint256) {
+        return aToken.balanceOf(address(this));
     }
 }

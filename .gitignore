@@ -13,5 +13,5 @@ artifacts
 out
 
 
-lib/ds-test
+lib/
 *.DS_Store

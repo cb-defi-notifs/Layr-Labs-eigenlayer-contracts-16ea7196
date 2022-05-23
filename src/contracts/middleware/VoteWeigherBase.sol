@@ -59,7 +59,7 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
             for (uint256 i = 0; i < stratsLength;) {
                 uint256 sharesAmount = investmentManager.investorStratShares(operator, strategiesConsidered[i]);
                 if (sharesAmount > 0) {
-                    amount += uint128(strategiesConsidered[i].underlyingEthValueOfShares(sharesAmount));                    
+                    amount += uint128(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                    
                 }
                 unchecked {
                     ++i;
@@ -69,7 +69,7 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
             for (uint256 i = 0; i < stratsLength;) {
                 uint256 sharesAmount = delegation.getOperatorShares(operator, strategiesConsidered[i]);
                 if (sharesAmount > 0) {
-                    amount += uint128(strategiesConsidered[i].underlyingEthValueOfShares(sharesAmount));                                        
+                    amount += uint128(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                                        
                 }
                 unchecked {
                     ++i;
