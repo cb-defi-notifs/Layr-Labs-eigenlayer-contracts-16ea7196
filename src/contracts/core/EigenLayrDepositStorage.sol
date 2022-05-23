@@ -13,7 +13,6 @@ abstract contract EigenLayrDepositStorage {
         0x656967656e4c61797252657374616b696e67596f754b6e6f7749744261626179;
     IDepositContract public depositContract;
     Repository public posMiddleware;
-    mapping(IERC20 => bool) public isAllowedLiquidStakedToken;
     mapping(bytes32 => mapping(address => bool)) public depositProven;
     IInvestmentManager public investmentManager;
 }
