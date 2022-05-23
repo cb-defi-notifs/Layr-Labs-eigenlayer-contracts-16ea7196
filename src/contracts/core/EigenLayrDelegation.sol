@@ -86,7 +86,7 @@ contract EigenLayrDelegation is
         bytes32 vs
     ) external {
         require(
-            delegationNonces[delegator] == nonce,
+            nonces[delegator] == nonce,
             "invalid delegation nonce"
         );
         require(
@@ -114,7 +114,7 @@ contract EigenLayrDelegation is
             "delegateToBySignature: sig not from delegator"
         );
         // increment delegator's delegationNonce
-        ++delegationNonces[delegator];
+        ++nonces[delegator];
         _delegate(delegator, operator);
     }
 
