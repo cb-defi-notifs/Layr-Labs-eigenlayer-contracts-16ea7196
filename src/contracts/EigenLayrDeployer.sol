@@ -103,8 +103,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         delegation.initialize(
             investmentManager,
-            serviceFactory,
-            slasher,
             undelegationFraudProofInterval
         );
 

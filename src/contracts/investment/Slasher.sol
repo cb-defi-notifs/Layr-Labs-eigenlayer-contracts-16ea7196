@@ -5,6 +5,7 @@ import "./InvestmentManager.sol";
 import "../utils/Governed.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRepository.sol";
+import "../interfaces/ISlasher.sol";
 
 /**
  * @notice This contract specifies details on slashing. The functionalities are:
@@ -12,7 +13,7 @@ import "../interfaces/IRepository.sol";
  *          - revoking permission for slashing from specified contracts,
  *          - calling investManager to do actual slashing.          
  */
-contract Slasher is Governed {
+contract Slasher is Governed, ISlasher {
     InvestmentManager public investmentManager;
     mapping(address => bool) public globallyPermissionedContracts;
     mapping(address => bool) public serviceFactories;

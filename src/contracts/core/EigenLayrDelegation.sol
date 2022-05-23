@@ -6,6 +6,7 @@ import "../utils/Initializable.sol";
 import "../utils/Governed.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
+import "../investment/Slasher.sol";
 
 // TODO: updating of stored addresses by governance?
 
@@ -34,14 +35,10 @@ contract EigenLayrDelegation is
 
     function initialize(
         IInvestmentManager _investmentManager,
-        IServiceFactory _serviceFactory,
-        Slasher _slasher,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
         _transferGovernor(msg.sender);
         investmentManager = _investmentManager;
-        serviceFactory = _serviceFactory;
-        slasher = _slasher;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
@@ -338,8 +335,6 @@ contract EigenLayrDelegation is
         uint256[] calldata strategyIndexes,
         uint256[] calldata amounts
     ) external {
-        address operator = delegation[staker];
-
         require(
             block.timestamp <
                 undelegationFraudProofInterval + lastUndelegationCommit[staker],
@@ -351,10 +346,12 @@ contract EigenLayrDelegation is
             "Challenge period hasn't yet started"
         );
 
+        ISlasher slasher = investmentManager.slasher();
+
         // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
         require(
             slasher.canSlash(
-                operator,
+                delegation[staker],
                 serviceFactory,
                 repository,
                 registrationManager
@@ -362,6 +359,8 @@ contract EigenLayrDelegation is
             "Contract does not have rights to prevent undelegation"
         );
 
+    // scoped block to help solve stack too deep
+    {
         IServiceManager serviceManager = repository.serviceManager();
 
         // ongoing serviceObject is still active at time when staker was finalizing undelegation
@@ -375,6 +374,7 @@ contract EigenLayrDelegation is
                 serviceManager.getServiceObjectExpiry(serviceObjectHash),
             "serviceObject does not meet requirements"
         );
+    }
 
         //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
         uint256 maxSlashedAmount = 0;

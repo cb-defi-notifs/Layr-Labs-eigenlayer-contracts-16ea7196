@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./IInvestmentStrategy.sol";
+import "./ISlasher.sol";
 
 interface IInvestmentManager {
 
@@ -88,4 +89,6 @@ interface IInvestmentManager {
             IInvestmentStrategy[] memory,
             uint256[] memory
         );
+
+    function slasher() external view returns (ISlasher);
 }

@@ -5,7 +5,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
-import "../investment/Slasher.sol";
+import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     struct WithdrawalStorage {
@@ -26,7 +26,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
     IServiceFactory public immutable serviceFactory;
-    Slasher public slasher;
+    ISlasher public slasher;
 
     IInvestmentStrategy public proofOfStakingEthStrat;
     IInvestmentStrategy public consensusLayerEthStrat;

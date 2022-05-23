@@ -5,17 +5,11 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
-import "../investment/Slasher.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     address public constant SELF_DELEGATION_ADDRESS = address(1);
 
     IInvestmentManager public investmentManager;
-
-    IServiceFactory public serviceFactory;
-
-    // TODO: refer to another place for this address (in particular, the InvestmentManager?), so we do not have multiple places to update it?
-    Slasher public slasher;
 
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;

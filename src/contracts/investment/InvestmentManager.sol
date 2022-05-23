@@ -66,7 +66,7 @@ contract InvestmentManager is
      */
     function initialize(
         IInvestmentStrategy[] memory strategies,
-        Slasher _slasher,
+        ISlasher _slasher,
         address _governor,
         address _eigenLayrDepositContract
     ) external initializer {
