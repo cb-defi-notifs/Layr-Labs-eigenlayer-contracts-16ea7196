@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../utils/Governed.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
@@ -19,7 +19,7 @@ import "../utils/ERC1155TokenReceiver.sol";
  */
 contract InvestmentManager is
     Initializable,
-    Governed,
+    Ownable,
     InvestmentManagerStorage,
     ERC1155TokenReceiver
 {
@@ -72,8 +72,7 @@ contract InvestmentManager is
     ) external initializer {
         consensusLayerEthStrat = strategies[0];
         proofOfStakingEthStrat = strategies[1];
-        // make the sender who is initializing the investment manager as the governor
-        _transferGovernor(_governor);
+        _transferOwnership(_governor);
         slasher = _slasher;
         eigenLayrDepositContract = _eigenLayrDepositContract;
     }

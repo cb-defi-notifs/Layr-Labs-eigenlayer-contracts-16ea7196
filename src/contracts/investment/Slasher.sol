@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./InvestmentManager.sol";
-import "../utils/Governed.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./InvestmentManager.sol";
 
 /**
  * @notice This contract specifies details on slashing. The functionalities are:
@@ -13,7 +13,7 @@ import "../interfaces/ISlasher.sol";
  *          - revoking permission for slashing from specified contracts,
  *          - calling investManager to do actual slashing.          
  */
-contract Slasher is Governed, ISlasher {
+contract Slasher is Ownable, ISlasher {
     InvestmentManager public investmentManager;
     mapping(address => bool) public globallyPermissionedContracts;
     mapping(address => bool) public serviceFactories;
@@ -24,7 +24,7 @@ contract Slasher is Governed, ISlasher {
     address public slashingRecipient;
 
     constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance, address _slashingRecipient) {
-        _transferGovernor(_eigenLayrGovernance);
+        _transferOwnership(_eigenLayrGovernance);
         investmentManager = _investmentManager;
         slashingRecipient = _slashingRecipient;
         // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
@@ -33,7 +33,7 @@ contract Slasher is Governed, ISlasher {
     /**
      * @notice used for giving permission of slashing to contracts. 
      */
-    function addPermissionedContracts(address[] calldata contracts) external onlyGovernor {
+    function addPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             globallyPermissionedContracts[contracts[i]] = true;
             unchecked {
@@ -45,7 +45,7 @@ contract Slasher is Governed, ISlasher {
     /**
      * @notice used for revoking permission of slashing from contracts. 
      */
-    function removePermissionedContracts(address[] calldata contracts) external onlyGovernor {
+    function removePermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             globallyPermissionedContracts[contracts[i]] = false;
             unchecked {
@@ -57,7 +57,7 @@ contract Slasher is Governed, ISlasher {
     /**
      * @notice used for marking approved service factories 
      */
-    function addserviceFactories(address[] calldata contracts) external onlyGovernor {
+    function addserviceFactories(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             serviceFactories[contracts[i]] = true;
             unchecked {
@@ -69,7 +69,7 @@ contract Slasher is Governed, ISlasher {
     /**
      * @notice used for revoking approval of service factories
      */
-    function removeserviceFactories(address[] calldata contracts) external onlyGovernor {
+    function removeserviceFactories(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             serviceFactories[contracts[i]] = false;
             unchecked {

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../utils/Initializable.sol";
-import "../utils/Governed.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
@@ -20,7 +20,7 @@ import "../investment/Slasher.sol";
  */
 contract EigenLayrDelegation is
     Initializable,
-    Governed,
+    Ownable,
     EigenLayrDelegationStorage
 {
     modifier onlyInvestmentManager() {
@@ -37,7 +37,7 @@ contract EigenLayrDelegation is
         IInvestmentManager _investmentManager,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
-        _transferGovernor(msg.sender);
+        _transferOwnership(msg.sender);
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
