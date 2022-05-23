@@ -29,10 +29,10 @@ contract DataLayrServiceManager is
 {
     using BytesLib for bytes;
     //TODO: mechanism to change any of these values?
-    uint32 constant internal MIN_STORE_SIZE = 32;
-    uint32 constant internal MAX_STORE_SIZE = 4e9;    
-    uint32 constant internal MIN_STORE_LENGTH = 60;
-    uint32 constant internal MAX_STORE_LENGTH = 604800;
+    uint32 internal constant MIN_STORE_SIZE = 32;
+    uint32 internal constant MAX_STORE_SIZE = 4e9;
+    uint32 internal constant MIN_STORE_LENGTH = 60;
+    uint32 internal constant MAX_STORE_LENGTH = 604800;
 
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
@@ -56,8 +56,6 @@ contract DataLayrServiceManager is
     DataLayrDisclosureChallengeFactory
         public immutable dataLayrDisclosureChallengeFactory;
 
-
-
     // EVENTS
     /**
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
@@ -67,13 +65,20 @@ contract DataLayrServiceManager is
     /**
      @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
      */
-    event DisclosureChallengeResponse(bytes32 headerHash, address operator, bytes poly);
+    event DisclosureChallengeResponse(
+        bytes32 headerHash,
+        address operator,
+        bytes poly
+    );
 
     /**
      @notice used while initializing the interactive forced disclosure
      */
-    event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge, address operator);
-
+    event DisclosureChallengeInteractive(
+        bytes32 headerHash,
+        address disclosureChallenge,
+        address operator
+    );
 
     event PaymentCommit(
         address operator,
@@ -139,9 +144,15 @@ contract DataLayrServiceManager is
 
         require(totalBytes <= MAX_STORE_SIZE, "store of more than 4 GB");
 
-        require(storePeriodLength > MIN_STORE_LENGTH, "store for more than a minute");
+        require(
+            storePeriodLength > MIN_STORE_LENGTH,
+            "store for more than a minute"
+        );
 
-        require(storePeriodLength < MAX_STORE_LENGTH, "store for less than 7 days");
+        require(
+            storePeriodLength < MAX_STORE_LENGTH,
+            "store for less than 7 days"
+        );
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -432,7 +443,7 @@ contract DataLayrServiceManager is
      @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
      @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
      @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
-     **/ 
+     **/
     function challengePaymentInit(
         address operator,
         uint120 amount1,
@@ -494,7 +505,6 @@ contract DataLayrServiceManager is
         }
     }
 
-
     /**
      @notice This function is used for opening a forced disclosure challenge against a particular 
              DataLayr operator for a particular dump number.
@@ -508,13 +518,11 @@ contract DataLayrServiceManager is
      @param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
      */
 
-
     struct SignatoryRecordMinusDumpNumber {
         bytes32[] nonSignerPubkeyHashes;
         uint256 totalEthStakeSigned;
         uint256 totalEigenStakeSigned;
     }
-
 
     function forceOperatorToDisclose(
         bytes32 headerHash,
@@ -524,7 +532,6 @@ contract DataLayrServiceManager is
         uint256 nonSignerIndex,
         SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
-
         IDataLayrRegistry dlvw = IDataLayrRegistry(
             address(repository.registrationManager())
         );
@@ -565,11 +572,17 @@ contract DataLayrServiceManager is
                 "Sig record does not match hash"
             );
 
-            operatorIndex = dlvw.getOperatorIndex(operator, dumpNumber, operatorIndex);
-            totalOperatorsIndex = dlvw.getTotalOperators(dumpNumber, totalOperatorsIndex);
-            chunkNumber = operatorIndex + dumpNumber % totalOperatorsIndex;
+            operatorIndex = dlvw.getOperatorIndex(
+                operator,
+                dumpNumber,
+                operatorIndex
+            );
+            totalOperatorsIndex = dlvw.getTotalOperators(
+                dumpNumber,
+                totalOperatorsIndex
+            );
+            chunkNumber = (operatorIndex + dumpNumber) % totalOperatorsIndex;
         }
-
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
@@ -586,42 +599,57 @@ contract DataLayrServiceManager is
           @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
                non-signers pubkey is recorded in the compressed signatory record in an  ascending
                manner.      
-        */      
+        */
+
         {
-            // get the pubkey hash of the DataLayr operator
-            bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
-            
+            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                // get the pubkey hash of the DataLayr operator
+                bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(
+                    operator
+                );
 
-            // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash) 
-            require(
-                //they're either greater than everyone in the nspkh array
-                (nonSignerIndex == signatoryRecord.nonSignerPubkeyHashes.length && uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex-1]) < uint256(operatorPubkeyHash))
-                ||
-                //or nonSigner index is greater than them
-                (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) >
-                    uint256(operatorPubkeyHash)),
-                "Wrong index"
-            );
-
-
-            //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
-            if (nonSignerIndex != 0) {
-                //require that the index+1 is before where operatorpubkey hash would be
+                // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
                 require(
-                    uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) <
-                        uint256(operatorPubkeyHash),
+                    //they're either greater than everyone in the nspkh array
+                    (nonSignerIndex ==
+                        signatoryRecord.nonSignerPubkeyHashes.length &&
+                        uint256(
+                            signatoryRecord.nonSignerPubkeyHashes[
+                                nonSignerIndex - 1
+                            ]
+                        ) <
+                        uint256(operatorPubkeyHash)) ||
+                        //or nonSigner index is greater than them
+                        (uint256(
+                            signatoryRecord.nonSignerPubkeyHashes[
+                                nonSignerIndex
+                            ]
+                        ) > uint256(operatorPubkeyHash)),
                     "Wrong index"
                 );
+
+                //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
+                if (nonSignerIndex != 0) {
+                    //require that the index+1 is before where operatorpubkey hash would be
+                    require(
+                        uint256(
+                            signatoryRecord.nonSignerPubkeyHashes[
+                                nonSignerIndex - 1
+                            ]
+                        ) < uint256(operatorPubkeyHash),
+                        "Wrong index"
+                    );
+                }
             }
-
         }
-
 
         /**
          @notice check that the challenger is giving enough time to the DataLayr operator for responding to
                  forced disclosure. 
          */
-        // todo: need to finalize this. 
+        // todo: need to finalize this.
+
+        /*
         require(
             block.timestamp < expireTime - 600 ||
                 (block.timestamp <
@@ -633,6 +661,7 @@ contract DataLayrServiceManager is
                         disclosureFraudProofInterval),
             "Must challenge before 10 minutes before expiry or within consecutive disclosure time"
         );
+        */
 
 
         // check that the DataLayr operator hasn't been challenged yet
@@ -641,7 +670,7 @@ contract DataLayrServiceManager is
             "Operator is already challenged for dump number"
         );
 
-
+        
         // record details of forced disclosure challenge that has been opened 
         disclosureForOperator[headerHash][operator] = DisclosureChallenge(
             // the current timestamp when the challenge was created
@@ -659,12 +688,11 @@ contract DataLayrServiceManager is
             bytes32(0),
             chunkNumber
         );
+        
 
         emit DisclosureChallengeInit(headerHash, operator);
+        
     }
-
-
-
 
     /**
      @notice 
@@ -706,10 +734,10 @@ contract DataLayrServiceManager is
                   interpolating polynomial I_k(x),   
               (2) reveal the coefficients of the interpolating polynomial I_k(x) 
      */
-     
+
     /**
      @notice This function is used by the DataLayr operator to respond to the forced disclosure challenge.   
-     */ 
+     */
     /**
      @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
      @param poly are the coefficients of the interpolating polynomial I_k(x)
@@ -717,51 +745,56 @@ contract DataLayrServiceManager is
                      [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
      @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
      @param header is the summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
-     */ 
+     */
     function respondToDisclosureInit(
+        bytes calldata header,
         uint256[4] calldata multireveal,
         bytes calldata poly,
         uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof,
-        bytes calldata header
+        bytes calldata zeroPolyProof
     ) external {
-
         bytes32 headerHash = keccak256(header);
 
         // check that DataLayr operator is responding to the forced disclosure challenge period within some window
+        /*
         require(
             block.timestamp <
                 disclosureForOperator[headerHash][msg.sender].commitTime +
                     disclosureFraudProofInterval,
             "must be in fraud proof period"
         );
-
+        */
+        bytes32 data;
+        uint256 position;
         // check that it is DataLayr operator who is supposed to respond
         require(
             disclosureForOperator[headerHash][msg.sender].status == 1,
             "Not in operator initial response phase"
         );
 
-
-        // extract the commitment to the entire data polynomial, that is [C(s).x, C(s).y], and 
-        // the degree of the interpolating polynomial I_k(x)
+        // extract the commitment to the entire data polynomial, that is [C(s).x, C(s).y], and
+        // the degree of the interpolating polynomial I_k(x)        
         (
             uint256[2] memory c,
             uint48 degree
         ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
-
-
+    
+        /*
+        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
         require(
             (degree + 1) * 32 == poly.length,
             "Polynomial must have a 256 bit coefficient for each term"
         );
-
+        */
+  
         //deterministic assignment of "y" here
         // @todo
-        uint256 chunkNumber = disclosureForOperator[headerHash][msg.sender].chunkNumber;
+        uint256 chunkNumber = disclosureForOperator[headerHash][msg.sender]
+            .chunkNumber;
 
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
+        /*
         require(
             Merkle.checkMembership(
                 // leaf
@@ -773,29 +806,27 @@ contract DataLayrServiceManager is
                         zeroPoly[3]
                     )
                 ),
-
                 // index in the Merkle tree
                 chunkNumber,
-
                 // Merkle root hash
                 zeroPolynomialCommitmentMerkleRoots[degree],
-
                 // Merkle proof
                 zeroPolyProof
             ),
             "Incorrect zero poly merkle proof"
         );
-
-
+        */
         /**
          Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
-         */    
+         */
         //get the commitment to the zero polynomial of multireveal degree
-        uint256[12] memory pairingInput;
+    
+        uint256[13] memory pairingInput;
+
         assembly {
             // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, mload(multireveal))
-            mstore(add(pairingInput, 0x20), mload(add(multireveal, 0x20)))
+            mstore(pairingInput, calldataload(36))
+            mstore(add(pairingInput, 0x20), calldataload(68))
 
             // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
             mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
@@ -807,22 +838,21 @@ contract DataLayrServiceManager is
             mstore(add(pairingInput, 0xC0), mload(c))
             mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
 
-
             // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
             // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), mload(add(multireveal, 0x40)))
+            mstore(add(pairingInput, 0x100), calldataload(100))
             // obtain -I_k(s).y
             mstore(
                 add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, mload(add(multireveal, 0x60))), MODULUS)
+                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
             )
         }
-
+        
         assembly {
             // overwrite C(s) with C(s) - I(s)
-            /**
-             @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
-             */
+            
+            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
+            
             if iszero(
                 call(
                     not(0),
@@ -837,8 +867,7 @@ contract DataLayrServiceManager is
                 revert(0, 0)
             }
         }
-
-
+        
         // check e(pi, z)e(C - I, -g2) == 1
         assembly {
             // store -g2, where g2 is the negation of the generator of group G2
@@ -849,27 +878,29 @@ contract DataLayrServiceManager is
 
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
-                call(not(0), 0x08, 0, pairingInput, 0x180, pairingInput, 0x20)
+                call(not(0), 0x08, 0, pairingInput, 0x180, add(pairingInput, 0x180), 0x20)
             ) {
                 revert(0, 0)
             }
         }
 
-        require(pairingInput[0] == 1, "Pairing unsuccessful");
+        require(pairingInput[12] == 1, "Pairing unsuccessful");
 
         // update disclosure to record proof - [Pi(s).x, Pi(s).y]
         disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
         disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
 
         // update disclosure to record  hash of interpolating polynomial I_k(x)
-        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(poly);
+        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
+            poly
+        );
 
         // update disclosure to record degree of the interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].degree = degree;
         disclosureForOperator[headerHash][msg.sender].status = 2;
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
+    
     }
-
 
     /**
      @notice 
@@ -886,7 +917,7 @@ contract DataLayrServiceManager is
      @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
      @param operator is the address of the DataLayr operator
      @param coors this is of the format: [coors1(s).x, coors1(s).y, coors2(s).x, coors2(s).y]
-     */ 
+     */
     function initInterpolatingPolynomialFraudProof(
         bytes32 headerHash,
         address operator,
@@ -904,11 +935,12 @@ contract DataLayrServiceManager is
         );
 
         // update commit time
-        disclosureForOperator[headerHash][operator].commitTime = uint32(block.timestamp);
+        disclosureForOperator[headerHash][operator].commitTime = uint32(
+            block.timestamp
+        );
 
         // update status to challenged
         disclosureForOperator[headerHash][operator].status = 3;
-
 
         /**
          @notice We need to ensure that the challenge is legitimate. In order to do so, we want coors1(s) and 
@@ -932,7 +964,8 @@ contract DataLayrServiceManager is
         );
 
         // degree has been narrowed down by half every dissection
-        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree/2;
+        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree /
+            2;
 
         // initializing the interaction-style forced disclosure challenge
         address disclosureChallenge = address(
@@ -950,9 +983,14 @@ contract DataLayrServiceManager is
         );
 
         // recording the contract address for interaction-style forced disclosure challenge
-        disclosureForOperator[headerHash][operator].challenge = disclosureChallenge;
+        disclosureForOperator[headerHash][operator]
+            .challenge = disclosureChallenge;
 
-        emit DisclosureChallengeInteractive(headerHash, disclosureChallenge, operator);
+        emit DisclosureChallengeInteractive(
+            headerHash,
+            disclosureChallenge,
+            operator
+        );
     }
 
     function getDataCommitmentAndMultirevealDegreeFromHeader(
@@ -960,12 +998,33 @@ contract DataLayrServiceManager is
         bytes calldata
     ) public returns (uint256[2] memory, uint48) {
         //TODO: Bowen Implement
+    
         // return x, y coordinate of overall data poly commitment
         // then return degree of multireveal polynomial
         uint256[2] memory point = [uint256(0), uint256(0)];
-        return (point, 0);
-    }
+        uint48 degree = 0;
+        uint256 pointer = 4;
+        //uint256 length = 0;  do not need length 
+        
+        assembly {
+            // get data location
+            pointer := calldataload(pointer)
+        }
 
+        unchecked {
+            // uncompensate signature length
+            pointer += 36; // 4 + 32
+        }
+
+        assembly {
+            mstore(point, calldataload(pointer))
+            mstore(add(point, 0x20), calldataload(add(pointer, 32)))
+            
+            degree := shr(224, calldataload(add(pointer, 64)))         
+        }  
+
+        return (point, degree);
+    }
 
     /**
      @notice This function is called for settling the forced disclosure challenge.
@@ -975,7 +1034,7 @@ contract DataLayrServiceManager is
      @param operator is the address of DataLAyr operator
      @param winner representing who is the winner - challenged DataLayr operator or the challenger?  
      */
-    // CRITIC: there are some @todo's here 
+    // CRITIC: there are some @todo's here
     function resolveDisclosureChallenge(
         bytes32 headerHash,
         address operator,
@@ -987,11 +1046,13 @@ contract DataLayrServiceManager is
             /** 
                 the above condition would be called by the forced disclosure challenge contract when the final 
                 step of the interactive fraudproof for single monomial has finished
-            */  
+            */
             if (winner) {
-                // challenger was wrong, allow for another forced disclosure challenge 
+                // challenger was wrong, allow for another forced disclosure challenge
                 disclosureForOperator[headerHash][operator].status = 0;
-                operatorToPayment[operator].commitTime = uint32(block.timestamp);
+                operatorToPayment[operator].commitTime = uint32(
+                    block.timestamp
+                );
 
                 // @todo give them previous challengers payment
             } else {
@@ -999,14 +1060,13 @@ contract DataLayrServiceManager is
                 disclosureForOperator[headerHash][operator].status = 4;
                 // @todo do something
             }
-
         } else if (
             msg.sender == disclosureForOperator[headerHash][operator].challenger
         ) {
             /** 
                 the above condition would be called by the challenger in case if the DataLayr operator doesn't 
                 respond in time
-             */   
+             */
 
             require(
                 disclosureForOperator[headerHash][operator].status == 1,
@@ -1024,7 +1084,7 @@ contract DataLayrServiceManager is
             /** 
                 the above condition would be called by the DataLayr operator in case if the challenger doesn't 
                 respond in time
-             */ 
+             */
 
             require(
                 disclosureForOperator[headerHash][operator].status == 2,
@@ -1053,7 +1113,6 @@ contract DataLayrServiceManager is
         return dumpNumberToFee[_dumpNumber];
     }
 
-
     /**
      @notice this function returns the compressed record on the signatures of DataLayr nodes 
              that aren't part of the quorum for this @param _dumpNumber.
@@ -1065,8 +1124,6 @@ contract DataLayrServiceManager is
     {
         return dumpNumberToSignatureHash[_dumpNumber];
     }
-
-
 
     function getPaymentCollateral(address operator)
         public

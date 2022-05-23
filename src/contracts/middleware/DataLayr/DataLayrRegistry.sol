@@ -412,10 +412,10 @@ contract DataLayrRegistry is
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
-        require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "indexHistory index exceeds array length");
+        require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index-1].to < dumpNumber,
-            "indexHistory index is too high"
+            "Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
         require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
@@ -424,13 +424,13 @@ contract DataLayrRegistry is
 
     function getTotalOperators(uint32 dumpNumber, uint32 index) public view returns (uint32) {
 
-        require(index < uint32(totalOperatorsHistory.length), "indexHistory index exceeds array length");
+        require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
         require(
-            index == 0 || totalOperatorsHistory[index-1].to < dumpNumber,
-            "indexHistory index is too high"
+            index == 0 || totalOperatorsHistory[index-1].to <= dumpNumber,
+            "TotalOperator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
+        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is to low");
         return operatorIndex.index;
         
     }
