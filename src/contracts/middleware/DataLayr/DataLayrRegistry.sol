@@ -6,7 +6,6 @@ import "../../interfaces/IDataLayrRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
-import "../../libraries/SignatureCompaction.sol";
 import "../../libraries/BLS.sol";
 
 import "ds-test/test.sol";
