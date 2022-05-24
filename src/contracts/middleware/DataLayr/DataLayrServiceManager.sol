@@ -29,10 +29,21 @@ contract DataLayrServiceManager is
 {
     using BytesLib for bytes;
     //TODO: mechanism to change any of these values?
-    uint32 constant internal MIN_STORE_SIZE = 32;
+    uint32 constant internal MIN_STORE_SIZE = 33;
     uint32 constant internal MAX_STORE_SIZE = 4e9;    
     uint32 constant internal MIN_STORE_LENGTH = 60;
     uint32 constant internal MAX_STORE_LENGTH = 604800;
+    // only repositoryGovernance can call this, but 'sender' called instead
+    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
+    // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
+    error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
+    // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
+    error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
+    // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
+    error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
+    // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
+    error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
+
 
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
@@ -103,10 +114,9 @@ contract DataLayrServiceManager is
     }
 
     modifier onlyRepositoryGovernance() {
-        require(
-            address(repository.timelock()) == msg.sender,
-            "only repository governance can call this function"
-        );
+        if (!(address(repository.timelock()) == msg.sender)) {
+            revert OnlyRepositoryGovernance(address(repository.timelock()), msg.sender);
+        }
         _;
     }
 
@@ -135,13 +145,18 @@ contract DataLayrServiceManager is
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
-        require(totalBytes > MIN_STORE_SIZE, "Can't store less than 33 bytes");
-
-        require(totalBytes <= MAX_STORE_SIZE, "store of more than 4 GB");
-
-        require(storePeriodLength > MIN_STORE_LENGTH, "store for more than a minute");
-
-        require(storePeriodLength < MAX_STORE_LENGTH, "store for less than 7 days");
+        if (totalBytes < MIN_STORE_SIZE) {
+            revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
+        }
+        if (totalBytes > MAX_STORE_SIZE) {
+            revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
+        }
+        if (storePeriodLength <= MIN_STORE_LENGTH) {
+            revert StoreTooShort(MIN_STORE_LENGTH, storePeriodLength);
+        }
+        if (storePeriodLength >= MAX_STORE_LENGTH) {
+            revert StoreTooLong(MAX_STORE_LENGTH, storePeriodLength);
+        }
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
