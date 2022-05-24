@@ -303,10 +303,11 @@ contract DataLayrServiceManager is
              for their service since their last payment until @param toDumpNumber  
      **/
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
+
         // only registered DataLayr operators can call
         require(
-            IDataLayrRegistry(address(repository.voteWeigher()))
-                .getOperatorType(msg.sender) != 0,
+            dlRegistry.getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
@@ -331,9 +332,7 @@ contract DataLayrServiceManager is
          */
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
             // get the dumpNumber when the DataLayr operator registered
-            fromDumpNumber = IDataLayrRegistry(
-                address(repository.voteWeigher())
-            ).getOperatorFromDumpNumber(msg.sender);
+            fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
