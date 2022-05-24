@@ -25,7 +25,6 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
-    IServiceFactory public immutable serviceFactory;
     ISlasher public slasher;
 
     IInvestmentStrategy public proofOfStakingEthStrat;
@@ -43,9 +42,8 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint96) public numWithdrawalsQueued;
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
         EIGEN = _EIGEN;
         delegation = _delegation;
-        serviceFactory = _serviceFactory;
     }
 }

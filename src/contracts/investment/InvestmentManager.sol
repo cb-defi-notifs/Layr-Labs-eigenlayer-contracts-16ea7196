@@ -52,9 +52,8 @@ contract InvestmentManager is
 
     constructor(
         IERC1155 _EIGEN,
-        IEigenLayrDelegation _delegation,
-        IServiceFactory _serviceFactory
-    ) InvestmentManagerStorage(_EIGEN, _delegation, _serviceFactory) {}
+        IEigenLayrDelegation _delegation
+    ) InvestmentManagerStorage(_EIGEN, _delegation) {}
 
     /**
      * @notice Initializes the investment manager contract with a given set of strategies
