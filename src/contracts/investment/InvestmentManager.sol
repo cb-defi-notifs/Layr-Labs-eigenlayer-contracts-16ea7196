@@ -793,33 +793,7 @@ contract InvestmentManager is
 
         return shares;
     }
-
-    /**
-     * @notice gets depositor's ETH that has been deposited directly to settlement layer
-     */
-    function getConsensusLayerEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][consensusLayerEthStrat];
-    }
-
-    function getProofOfStakingEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][proofOfStakingEthStrat];
-    }
-
-    /**
-     * @notice gets depositor's Eigen that has been deposited
-     */
-    function getEigen(address depositor) external view returns (uint256) {
-        return eigenDeposited[depositor];
-    }
-
+    
     /**
      * @notice get all details on the depositor's investments and shares
      */
@@ -848,6 +822,32 @@ contract InvestmentManager is
             investorStrats[depositor],
             shares
         );
+    }
+
+    /**
+     * @notice gets depositor's ETH that has been deposited directly to settlement layer
+     */
+    function getConsensusLayerEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][consensusLayerEthStrat];
+    }
+
+    function getProofOfStakingEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][proofOfStakingEthStrat];
+    }
+
+    /**
+     * @notice gets depositor's Eigen that has been deposited
+     */
+    function getEigen(address depositor) external view returns (uint256) {
+        return eigenDeposited[depositor];
     }
 
     /**
