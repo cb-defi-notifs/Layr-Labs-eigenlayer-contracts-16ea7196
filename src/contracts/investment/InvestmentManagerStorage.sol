@@ -5,7 +5,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
-import "../investment/Slasher.sol";
+import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     struct WithdrawalStorage {
@@ -25,8 +25,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
-    IServiceFactory public immutable serviceFactory;
-    Slasher public slasher;
+    ISlasher public slasher;
 
     IInvestmentStrategy public proofOfStakingEthStrat;
     IInvestmentStrategy public consensusLayerEthStrat;
@@ -36,16 +35,17 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => InvestmentStrategy => num shares
     mapping(address => mapping(IInvestmentStrategy => uint256))
         public investorStratShares;
+    // staker => array of strategies in which they have nonzero shares
     mapping(address => IInvestmentStrategy[]) public investorStrats;
+    // staker => amount of EIGEN tokens they have deposited
     mapping(address => uint256) public eigenDeposited;
-    // staker => hash of withdrawal inputs => timestamps related to the withdrawal
+    // staker => hash of withdrawal inputs => timestamps & address related to the withdrawal
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint96) public numWithdrawalsQueued;
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation, IServiceFactory _serviceFactory) {
+    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
         EIGEN = _EIGEN;
         delegation = _delegation;
-        serviceFactory = _serviceFactory;
     }
 }

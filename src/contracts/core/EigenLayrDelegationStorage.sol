@@ -5,23 +5,14 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
-import "../investment/Slasher.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     address public constant SELF_DELEGATION_ADDRESS = address(1);
 
     IInvestmentManager public investmentManager;
 
-    IServiceFactory public serviceFactory;
-
-    // TODO: refer to another place for this address (in particular, the InvestmentManager?), so we do not have multiple places to update it?
-    Slasher public slasher;
-
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
-
-    // staker => hash of delegated strategies
-    mapping(address => bytes32) public delegatedStrategiesHash;
 
     mapping(address => uint256) public eigenDelegated;
 
@@ -50,7 +41,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
-    mapping(address => uint256) delegationNonces;
+    mapping(address => uint256) nonces;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(

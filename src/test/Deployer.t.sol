@@ -150,8 +150,7 @@ contract EigenLayrDeployer is
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(
             eigen,
-            delegation,
-            serviceFactory
+            delegation
         );
         investmentManager = InvestmentManager(
             address(
@@ -211,8 +210,6 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
-            serviceFactory,
-            slasher,
             undelegationFraudProofInterval
         );
 
