@@ -539,7 +539,7 @@ contract DataLayrServiceManager is
         uint256 nonSignerIndex,
         SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
-        IDataLayrRegistry dlvw = IDataLayrRegistry(
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
             address(repository.registrationManager())
         );
         uint32 chunkNumber;
@@ -554,13 +554,13 @@ contract DataLayrServiceManager is
                 uint32 dumpNumber,
                 uint32 expireTime,
                 uint32 storePeriodLength,
-                bool commited
+                bool committed
             ) = dataLayr.dataStores(headerHash);
 
             expireTime = expireTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
-            require(commited, "Dump is not commited yet");
+            require(committed, "Dump is not committed yet");
 
             /** 
             Check that the information supplied as input for forced disclosure for this particular data 
@@ -579,12 +579,12 @@ contract DataLayrServiceManager is
                 "Sig record does not match hash"
             );
 
-            operatorIndex = dlvw.getOperatorIndex(
+            operatorIndex = dlRegistry.getOperatorIndex(
                 operator,
                 dumpNumber,
                 operatorIndex
             );
-            totalOperatorsIndex = dlvw.getTotalOperators(
+            totalOperatorsIndex = dlRegistry.getTotalOperators(
                 dumpNumber,
                 totalOperatorsIndex
             );
@@ -611,7 +611,7 @@ contract DataLayrServiceManager is
         {
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // get the pubkey hash of the DataLayr operator
-                bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(
+                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
 
