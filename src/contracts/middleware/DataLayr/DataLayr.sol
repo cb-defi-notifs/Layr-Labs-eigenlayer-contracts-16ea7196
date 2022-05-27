@@ -57,7 +57,7 @@ contract DataLayr is Ownable, IDataLayr {
         uint32 storePeriodLength;  
 
         // indicates whether quorm of signatures from DataLayr has been obtained or not
-        bool commited; 
+        bool committed; 
     }
 
 
@@ -148,7 +148,7 @@ contract DataLayr is Ownable, IDataLayr {
 
         // there can't be multiple signature commitments into settlement layer for same data
         require(
-            !dataStores[headerHash].commited,
+            !dataStores[headerHash].committed,
             "Data store already has already been committed"
         );
 
@@ -159,7 +159,7 @@ contract DataLayr is Ownable, IDataLayr {
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
         // record that quorum has been achieved 
-        dataStores[headerHash].commited = true;
+        dataStores[headerHash].committed = true;
 
         // emit ConfirmDataStore(dumpNumber, headerHash);
     }
