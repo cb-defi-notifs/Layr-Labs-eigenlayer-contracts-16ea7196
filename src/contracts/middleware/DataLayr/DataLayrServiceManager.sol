@@ -33,6 +33,16 @@ contract DataLayrServiceManager is
     uint32 internal constant MAX_STORE_SIZE = 4e9;
     uint32 internal constant MIN_STORE_LENGTH = 60;
     uint32 internal constant MAX_STORE_LENGTH = 604800;
+    // only repositoryGovernance can call this, but 'sender' called instead
+    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
+    // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
+    error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
+    // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
+    error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
+    // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
+    error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
+    // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
+    error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
@@ -108,10 +118,9 @@ contract DataLayrServiceManager is
     }
 
     modifier onlyRepositoryGovernance() {
-        require(
-            address(repository.timelock()) == msg.sender,
-            "only repository governance can call this function"
-        );
+        if (!(address(repository.timelock()) == msg.sender)) {
+            revert OnlyRepositoryGovernance(address(repository.timelock()), msg.sender);
+        }
         _;
     }
 
@@ -140,19 +149,18 @@ contract DataLayrServiceManager is
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
-        require(totalBytes > MIN_STORE_SIZE, "Can't store less than 33 bytes");
-
-        require(totalBytes <= MAX_STORE_SIZE, "store of more than 4 GB");
-
-        require(
-            storePeriodLength > MIN_STORE_LENGTH,
-            "store for more than a minute"
-        );
-
-        require(
-            storePeriodLength < MAX_STORE_LENGTH,
-            "store for less than 7 days"
-        );
+        if (totalBytes < MIN_STORE_SIZE) {
+            revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
+        }
+        if (totalBytes > MAX_STORE_SIZE) {
+            revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
+        }
+        if (storePeriodLength <= MIN_STORE_LENGTH) {
+            revert StoreTooShort(MIN_STORE_LENGTH, storePeriodLength);
+        }
+        if (storePeriodLength >= MAX_STORE_LENGTH) {
+            revert StoreTooLong(MAX_STORE_LENGTH, storePeriodLength);
+        }
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -314,10 +322,11 @@ contract DataLayrServiceManager is
              for their service since their last payment until @param toDumpNumber  
      **/
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
+
         // only registered DataLayr operators can call
         require(
-            IDataLayrRegistry(address(repository.voteWeigher()))
-                .getOperatorType(msg.sender) != 0,
+            dlRegistry.getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
@@ -342,9 +351,7 @@ contract DataLayrServiceManager is
          */
         if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
             // get the dumpNumber when the DataLayr operator registered
-            fromDumpNumber = IDataLayrRegistry(
-                address(repository.voteWeigher())
-            ).getOperatorFromDumpNumber(msg.sender);
+            fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(msg.sender);
 
             require(fromDumpNumber < toDumpNumber, "invalid payment range");
 
@@ -532,7 +539,7 @@ contract DataLayrServiceManager is
         uint256 nonSignerIndex,
         SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
-        IDataLayrRegistry dlvw = IDataLayrRegistry(
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
             address(repository.registrationManager())
         );
         uint32 chunkNumber;
@@ -547,13 +554,13 @@ contract DataLayrServiceManager is
                 uint32 dumpNumber,
                 uint32 expireTime,
                 uint32 storePeriodLength,
-                bool commited
+                bool committed
             ) = dataLayr.dataStores(headerHash);
 
             expireTime = expireTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
-            require(commited, "Dump is not commited yet");
+            require(committed, "Dump is not committed yet");
 
             /** 
             Check that the information supplied as input for forced disclosure for this particular data 
@@ -572,12 +579,12 @@ contract DataLayrServiceManager is
                 "Sig record does not match hash"
             );
 
-            operatorIndex = dlvw.getOperatorIndex(
+            operatorIndex = dlRegistry.getOperatorIndex(
                 operator,
                 dumpNumber,
                 operatorIndex
             );
-            totalOperatorsIndex = dlvw.getTotalOperators(
+            totalOperatorsIndex = dlRegistry.getTotalOperators(
                 dumpNumber,
                 totalOperatorsIndex
             );
@@ -604,7 +611,7 @@ contract DataLayrServiceManager is
         {
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // get the pubkey hash of the DataLayr operator
-                bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(
+                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
 

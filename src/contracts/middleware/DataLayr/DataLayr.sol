@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IRepository.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
@@ -17,7 +13,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *            - confirming that quorum has been obtained for storing data in DataLayr  
  */
 contract DataLayr is Ownable, IDataLayr {
-    using ECDSA for bytes32;
 
     // the DataLayr repository
     IRepository public repository;

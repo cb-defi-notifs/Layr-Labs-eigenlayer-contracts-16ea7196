@@ -6,7 +6,6 @@ import "../../interfaces/IDataLayrRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
-import "../../libraries/SignatureCompaction.sol";
 import "../../libraries/BLS.sol";
 
 import "ds-test/test.sol";
@@ -107,18 +106,25 @@ contract DataLayrRegistry is
     //     uint96 ethStake;
     //     uint96 eigenStake;
     // }
+
+    // struct used to give definitive ordering to operators at each dump number
+    struct OperatorIndex {
+        // dump number at which operator index changed
+        // note that the operator's index is different *for this dump number*, i.e. the new index is inclusive of this value
+        uint32 to;
+        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
+        uint32 index;
+    }
     /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
+    /// @notice array of the history of the number of operators, and the dumpNumbers at which the number of operators changed
     OperatorIndex[] public totalOperatorsHistory;
 
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
     mapping(bytes32 => OperatorStake[]) public pubkeyHashToStakeHistory;
 
-    struct OperatorIndex {
-        uint32 to;
-        uint32 index;
-    }
+    /// @notice mapping from operator's pubkeyhash to the history of their index in the array of all operators
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
 
@@ -204,10 +210,11 @@ contract DataLayrRegistry is
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
         );
-        // push an empty OperatorStake object to the total stake history
+        // push an empty OperatorStake struct to the total stake history
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
 
+        // push an empty OperatorIndex struct to the total operators history
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
     }
@@ -376,21 +383,22 @@ contract DataLayrRegistry is
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
-        // Old operator
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length-1].to = currentDumpNumber;
-        OperatorIndex memory operatorIndex;
-        operatorIndex.index = index;
-        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+        // Update index info for old operator
+        // store dumpNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].to = currentDumpNumber;
 
-        // Operator at end of list
-        if (index < registrantList.length-1){
-
-            address addr = registrantList[registrantList.length-1];
+        // Update index info for operator at end of list, if they are not the same as the removed operator
+        if (index < registrantList.length - 1){
+            // get existing operator at end of list, and retrieve their pubkeyHash
+            address addr = registrantList[registrantList.length - 1];
             Registrant memory registrant = registry[addr];
             pubkeyHash = registrant.pubkeyHash;
 
-            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length-1].to = currentDumpNumber;
-            operatorIndex.index = uint32(registrantList.length-1);
+            // store dumpNumber at which operator index changed
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].to = currentDumpNumber;
+            // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
+            OperatorIndex memory operatorIndex;
+            operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
             registrantList[index] = addr;
@@ -399,7 +407,9 @@ contract DataLayrRegistry is
         registrantList.pop();
 
         // Update totalOperatorsHistory
+        // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
         totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
@@ -412,24 +422,31 @@ contract DataLayrRegistry is
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
+        // since the 'to' field represents the dumpNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
         require(
-            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index-1].to < dumpNumber,
+            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].to <= dumpNumber,
             "Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-        require(operatorIndex.to == 0 || dumpNumber <= operatorIndex.to, "indexHistory index is to low");
+        // when deregistering, the operator does *not* serve the currentDumpNumber -- 'to' gets set (from zero) to the currentDumpNumber on deregistration
+        // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is too low");
         return operatorIndex.index;
     }
 
     function getTotalOperators(uint32 dumpNumber, uint32 index) public view returns (uint32) {
 
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
+        // since the 'to' field represents the dumpNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
         require(
-            index == 0 || totalOperatorsHistory[index-1].to <= dumpNumber,
+            index == 0 || totalOperatorsHistory[index - 1].to <= dumpNumber,
             "TotalOperator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is to low");
+        // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is too low");
         return operatorIndex.index;
         
     }
@@ -792,13 +809,15 @@ contract DataLayrRegistry is
         // record the operator being registered
         registrantList.push(operator);
 
+        // record operator's index in list of operators
         OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length-1);
+        operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
-
-        // Update Total Operators
+        // Update totalOperatorsHistory
+        // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
         totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);

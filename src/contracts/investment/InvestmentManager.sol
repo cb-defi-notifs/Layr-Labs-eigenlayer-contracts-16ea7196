@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../utils/Governed.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
@@ -19,7 +19,7 @@ import "../utils/ERC1155TokenReceiver.sol";
  */
 contract InvestmentManager is
     Initializable,
-    Governed,
+    Ownable,
     InvestmentManagerStorage,
     ERC1155TokenReceiver
 {
@@ -52,9 +52,8 @@ contract InvestmentManager is
 
     constructor(
         IERC1155 _EIGEN,
-        IEigenLayrDelegation _delegation,
-        IServiceFactory _serviceFactory
-    ) InvestmentManagerStorage(_EIGEN, _delegation, _serviceFactory) {}
+        IEigenLayrDelegation _delegation
+    ) InvestmentManagerStorage(_EIGEN, _delegation) {}
 
     /**
      * @notice Initializes the investment manager contract with a given set of strategies
@@ -66,14 +65,13 @@ contract InvestmentManager is
      */
     function initialize(
         IInvestmentStrategy[] memory strategies,
-        Slasher _slasher,
+        ISlasher _slasher,
         address _governor,
         address _eigenLayrDepositContract
     ) external initializer {
         consensusLayerEthStrat = strategies[0];
         proofOfStakingEthStrat = strategies[1];
-        // make the sender who is initializing the investment manager as the governor
-        _transferGovernor(_governor);
+        _transferOwnership(_governor);
         slasher = _slasher;
         eigenLayrDepositContract = _eigenLayrDepositContract;
     }
@@ -794,33 +792,7 @@ contract InvestmentManager is
 
         return shares;
     }
-
-    /**
-     * @notice gets depositor's ETH that has been deposited directly to settlement layer
-     */
-    function getConsensusLayerEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][consensusLayerEthStrat];
-    }
-
-    function getProofOfStakingEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][proofOfStakingEthStrat];
-    }
-
-    /**
-     * @notice gets depositor's Eigen that has been deposited
-     */
-    function getEigen(address depositor) external view returns (uint256) {
-        return eigenDeposited[depositor];
-    }
-
+    
     /**
      * @notice get all details on the depositor's investments and shares
      */
@@ -849,6 +821,32 @@ contract InvestmentManager is
             investorStrats[depositor],
             shares
         );
+    }
+
+    /**
+     * @notice gets depositor's ETH that has been deposited directly to settlement layer
+     */
+    function getConsensusLayerEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][consensusLayerEthStrat];
+    }
+
+    function getProofOfStakingEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][proofOfStakingEthStrat];
+    }
+
+    /**
+     * @notice gets depositor's Eigen that has been deposited
+     */
+    function getEigen(address depositor) external view returns (uint256) {
+        return eigenDeposited[depositor];
     }
 
     /**
