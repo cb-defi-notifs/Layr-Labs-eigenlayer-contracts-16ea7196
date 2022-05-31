@@ -817,7 +817,7 @@ contract DataLayrServiceManager is
                         )
                     ),
                     // index in the Merkle tree
-                    getLeadingCosetIndex(uint32(chunkNumber), numSys, numPar),
+                    getLeadingCosetIndexFromHighestRootOfUnity(uint32(chunkNumber), numSys, numPar),
                     // Merkle root hash
                     getZeroPolyMerkleRoot(degree),
                     // Merkle proof
@@ -898,9 +898,9 @@ contract DataLayrServiceManager is
         require(pairingInput[12] == 1, "Pairing unsuccessful");
 
     
-        // update disclosure to record proof - [Pi(s).x, Pi(s).y]
-        disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
-        disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
+        // update disclosure to record Interpolating poly commitment - [I(s).x, Is(s).y]
+        disclosureForOperator[headerHash][msg.sender].x = multireveal[2];
+        disclosureForOperator[headerHash][msg.sender].y = multireveal[3];
 
         // update disclosure to record  hash of interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
@@ -1045,16 +1045,16 @@ contract DataLayrServiceManager is
         return (point, degree, numSys, numPar);
     }
 
-    function getLeadingCosetIndex(uint32 i, uint32 numSys, uint32 numPar) public pure returns(uint32) {
+    function getLeadingCosetIndexFromHighestRootOfUnity(uint32 i, uint32 numSys, uint32 numPar) public pure returns(uint32) {
         uint32 numNode = numSys + numPar;
         uint32 numSysE = uint32(nextPowerOf2(numSys));
         uint32 ratio = numNode/numSys + (numNode%numSys == 0 ? 0 : 1);
         uint32 numNodeE = uint32(nextPowerOf2(numSysE * ratio));
 
         if (i < numSys) {
-            return reverseBitsLimited(uint32(numNodeE), uint32(i));
+            return reverseBitsLimited(uint32(numNodeE), uint32(i))*512/numNodeE;
         } else if (i < numNodeE - ( numSysE - numSys )) {
-            return reverseBitsLimited(uint32(numNodeE), uint32((i - numSys) + numSysE));
+            return reverseBitsLimited(uint32(numNodeE), uint32((i - numSys) + numSysE))*512/numNodeE;
         } else {
             revert("Cannot create number of frame higher than possible");
         }
