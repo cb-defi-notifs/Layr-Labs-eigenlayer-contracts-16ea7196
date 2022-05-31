@@ -2,6 +2,11 @@
 pragma solidity ^0.8.9;
 
 interface IDataLayrServiceManager {
+    struct SignatoryRecordMinusDumpNumber {
+        bytes32[] nonSignerPubkeyHashes;
+        uint256 totalEthStakeSigned;
+        uint256 totalEigenStakeSigned;
+    }
     function dumpNumber() external returns (uint32);
 
     function getDumpNumberFee(uint32) external returns (uint256);

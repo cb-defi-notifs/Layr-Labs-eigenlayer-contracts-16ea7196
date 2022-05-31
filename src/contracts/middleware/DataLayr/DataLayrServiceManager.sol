@@ -12,7 +12,7 @@ import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../Repository.sol";
-
+import "./DataLayrDisclosureUtils.sol";
 import "ds-test/test.sol";
 
 /**
@@ -520,17 +520,10 @@ contract DataLayrServiceManager is
      @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
      @param operator is the DataLayr operator against whom forced disclosure challenge is being opened
      @param nonSignerIndex is used for verifying that DataLayr operator is member of the quorum that signed on the dump
-     @param nonSignerPubkeyHashes is the array of hashes of pubkey of all DataLayr operators that didn't sign for the dump
-     @param totalEthStakeSigned is the total ETH that has been staked with the DataLayr operators that are in quorum
-     @param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
+     param nonSignerPubkeyHashes is the array of hashes of pubkey of all DataLayr operators that didn't sign for the dump
+     param totalEthStakeSigned is the total ETH that has been staked with the DataLayr operators that are in quorum
+     param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
      */
-
-    struct SignatoryRecordMinusDumpNumber {
-        bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
-    }
-
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
@@ -614,39 +607,8 @@ contract DataLayrServiceManager is
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
-
-                // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
-                require(
-                    //they're either greater than everyone in the nspkh array
-                    (nonSignerIndex ==
-                        signatoryRecord.nonSignerPubkeyHashes.length &&
-                        uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex - 1
-                            ]
-                        ) <
-                        uint256(operatorPubkeyHash)) ||
-                        //or nonSigner index is greater than them
-                        (uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex
-                            ]
-                        ) > uint256(operatorPubkeyHash)),
-                    "Wrong index"
-                );
-
-                //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
-                if (nonSignerIndex != 0) {
-                    //require that the index+1 is before where operatorpubkey hash would be
-                    require(
-                        uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex - 1
-                            ]
-                        ) < uint256(operatorPubkeyHash),
-                        "Wrong index"
-                    );
-                }
+                //not super critic: new call here, maybe change comment
+                DataLayrDisclosureUtils.checkInclusionExclusionInNonSigner(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
             }
         }
 
@@ -779,14 +741,17 @@ contract DataLayrServiceManager is
             "Not in operator initial response phase"
         );
 
-        // extract the commitment to the entire data polynomial, that is [C(s).x, C(s).y], and
-        // the degree of the interpolating polynomial I_k(x)        
-        (
-            uint256[2] memory c,
-            uint48 degree,
-            uint32 numSys,
-            uint32 numPar
-        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+
+
+        //not so critic: move comments here
+        uint48 degree = DataLayrDisclosureUtils.validateDisclosureResponse(
+            disclosureForOperator[headerHash][msg.sender]
+                .chunkNumber,
+            header,
+            multireveal,
+            zeroPoly,
+            zeroPolyProof
+        );
     
         /*
         degree is the poly length, no need to multiply 32, as it is the size of data in bytes
@@ -800,104 +765,6 @@ contract DataLayrServiceManager is
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
 
-        {
-            //deterministic assignment of "y" here
-            // @todo
-            uint256 chunkNumber = disclosureForOperator[headerHash][msg.sender]
-            .chunkNumber;
-            require(
-                Merkle.checkMembership(
-                    // leaf
-                    keccak256(
-                        abi.encodePacked(
-                            zeroPoly[0],
-                            zeroPoly[1],
-                            zeroPoly[2],
-                            zeroPoly[3]
-                        )
-                    ),
-                    // index in the Merkle tree
-                    getLeadingCosetIndexFromHighestRootOfUnity(uint32(chunkNumber), numSys, numPar),
-                    // Merkle root hash
-                    getZeroPolyMerkleRoot(degree),
-                    // Merkle proof
-                    zeroPolyProof
-                ),
-                "Incorrect zero poly merkle proof"
-            );
-        }
-        
-        /**
-         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
-         */
-        //get the commitment to the zero polynomial of multireveal degree
-    
-        uint256[13] memory pairingInput;
-
-        assembly {
-            // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(36))
-            mstore(add(pairingInput, 0x20), calldataload(68))
-
-            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x60), mload(zeroPoly))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
-
-            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-            mstore(add(pairingInput, 0xC0), mload(c))
-            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
-
-            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
-            // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(100))
-            // obtain -I_k(s).y
-            mstore(
-                add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
-            )
-        }
-        
-        assembly {
-            // overwrite C(s) with C(s) - I(s)
-            
-            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
-            
-            if iszero(
-                call(
-                    not(0),
-                    0x06,
-                    0,
-                    add(pairingInput, 0xC0),
-                    0x80,
-                    add(pairingInput, 0xC0),
-                    0x40
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-        
-        // check e(pi, z)e(C - I, -g2) == 1
-        assembly {
-            // store -g2, where g2 is the negation of the generator of group G2
-            mstore(add(pairingInput, 0x100), nG2x1)
-            mstore(add(pairingInput, 0x120), nG2x0)
-            mstore(add(pairingInput, 0x140), nG2y1)
-            mstore(add(pairingInput, 0x160), nG2y0)
-
-            // call the precompiled ec2 pairing contract at 0x08
-            if iszero(
-                call(not(0), 0x08, 0, pairingInput, 0x180, add(pairingInput, 0x180), 0x20)
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        require(pairingInput[12] == 1, "Pairing unsuccessful");
-
-    
         // update disclosure to record Interpolating poly commitment - [I(s).x, Is(s).y]
         disclosureForOperator[headerHash][msg.sender].x = multireveal[2];
         disclosureForOperator[headerHash][msg.sender].y = multireveal[3];
