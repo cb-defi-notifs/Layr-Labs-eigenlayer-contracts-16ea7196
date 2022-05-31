@@ -1,7 +1,7 @@
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/Merkle.sol";
 
-library DataLayrDisclosureUtils {
+contract DataLayrDisclosureUtils {
     // modulus for the underlying field F_q of the elliptic curve
     uint256 constant MODULUS =
         21888242871839275222246405745257275088696311157297823662689037894645226208583;
@@ -17,6 +17,8 @@ library DataLayrDisclosureUtils {
         17805874995975841540914202342111839520379459829704422454583296818431106115052;
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
+
+    constructor() {}
 
     function checkInclusionExclusionInNonSigner(
         bytes32 operatorPubkeyHash,

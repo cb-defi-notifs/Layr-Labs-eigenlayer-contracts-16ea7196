@@ -20,6 +20,8 @@ import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
+import "./middleware/DataLayr/DataLayrDisclosureUtils.sol";
+
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -109,6 +111,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
         dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
 
+        DataLayrDisclosureUtils disclosureUtils = new DataLayrDisclosureUtils();
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
@@ -116,7 +120,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             weth,
             feePerBytePerTime,
             dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory
+            dataLayrDisclosureChallengeFactory,
+            disclosureUtils
         );
         dl = new DataLayr();
 

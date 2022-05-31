@@ -66,6 +66,8 @@ contract DataLayrServiceManager is
     DataLayrDisclosureChallengeFactory
         public immutable dataLayrDisclosureChallengeFactory;
 
+    DataLayrDisclosureUtils public immutable disclosureUtils;
+
     // EVENTS
     /**
      @notice used for notifying that disperser has initiated a forced disclosure challenge.
@@ -109,12 +111,14 @@ contract DataLayrServiceManager is
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
-        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
+        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory,
+        DataLayrDisclosureUtils _disclosureUtils
     ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
+        disclosureUtils = _disclosureUtils;
     }
 
     modifier onlyRepositoryGovernance() {
@@ -608,7 +612,7 @@ contract DataLayrServiceManager is
                     operator
                 );
                 //not super critic: new call here, maybe change comment
-                DataLayrDisclosureUtils.checkInclusionExclusionInNonSigner(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+                disclosureUtils.checkInclusionExclusionInNonSigner(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
             }
         }
 
@@ -744,7 +748,7 @@ contract DataLayrServiceManager is
 
 
         //not so critic: move comments here
-        uint48 degree = DataLayrDisclosureUtils.validateDisclosureResponse(
+        uint48 degree = disclosureUtils.validateDisclosureResponse(
             disclosureForOperator[headerHash][msg.sender]
                 .chunkNumber,
             header,
