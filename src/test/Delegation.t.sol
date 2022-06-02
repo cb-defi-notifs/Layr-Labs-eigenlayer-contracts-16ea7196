@@ -74,6 +74,8 @@ contract Delegator is EigenLayrDeployer {
     
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
+        uint256 ethAmount = 1e18;
+        uint256 eigenAmount = 1e16;
         uint96 registrantEthWeightBefore = uint96(
             dlReg.weightOfOperatorEth(signers[0])
         );
@@ -82,8 +84,8 @@ contract Delegator is EigenLayrDeployer {
         );
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
         _testRegisterAsDelegate(signers[0], _dt);
-        _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0, 1e16);
+        _testWethDeposit(acct_0, ethAmount);
+        _testDepositEigen(acct_0, eigenAmount);
         _testDelegateToOperator(acct_0, signers[0]);
 
         uint96 registrantEthWeightAfter = uint96(
@@ -93,12 +95,12 @@ contract Delegator is EigenLayrDeployer {
             dlReg.weightOfOperatorEigen(signers[0])
         );
         assertTrue(
-            registrantEthWeightAfter > registrantEthWeightBefore,
-            "testDelegation: registrantEthWeight did not increase!"
+            registrantEthWeightAfter - registrantEthWeightBefore == ethAmount, 
+            "testDelegation: registrantEthWeight did not increment by the right amount"
         );
         assertTrue(
-            registrantEigenWeightAfter > registrantEigenWeightBefore,
-            "testDelegation: registrantEigenWeight did not increase!"
+            registrantEigenWeightAfter - registrantEigenWeightBefore == eigenAmount, 
+            "Eigen weights did not increment by the right amount"
         );
         IInvestmentStrategy _strat = investmentManager.investorStrats(acct_0, 0);
         assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");

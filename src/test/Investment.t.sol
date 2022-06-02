@@ -2,10 +2,15 @@
 pragma solidity ^0.8.9;
 
 import "./Deployer.t.sol";
+import "../contracts/investment/InvestmentManagerStorage.sol";
+
 
 contract InvestmentTests is
     EigenLayrDeployer
 {
+    IInvestmentStrategy[] strategy_arr;
+    IERC20[] tokens;
+
     //verifies that depositing WETH works
     function testWethDeposit(uint256 amountToDeposit)
         public
@@ -20,6 +25,64 @@ contract InvestmentTests is
         uint256 amountToWithdraw
     ) public {
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
+    }
+
+    //testing queued withdrawals in the investment manager
+    function testQueuedWithdrawal(
+        uint256 amountToDeposit,
+        uint256 amountToWithdraw 
+    ) public {
+        emit log_uint(strategyIndexes.length);
+        //initiate deposits
+        address[2] memory accounts = [acct_0, acct_1];
+        uint256[2] memory depositAmounts;
+
+
+        amountToDeposit = 10e7;
+
+
+        //make deposits in WETH strategy
+        for (uint i=0; i<accounts.length; i++){
+            cheats.deal(accounts[i], amountToDeposit);
+            depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
+
+        }
+
+        strategy_arr.push(strat);
+        tokens.push(weth);
+        
+        //queue the withdrawal
+        for (uint i=0; i<accounts.length; i++){ 
+            cheats.startPrank(accounts[i]);
+
+
+            uint256[] memory shareAmounts = new uint256[](1);
+            shareAmounts[0] = depositAmounts[i];
+
+            uint256[] memory strategyIndexes = new uint256[](1);
+            strategyIndexes[0] = 0;
+
+
+            
+            InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
+            
+
+            investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
+            emit log_named_uint("INDEX", strategyIndexes.length);
+            cheats.stopPrank();
+        }
+
+
+
+
+
+
+        
+
+
+
+        
+
     }
     
     // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
@@ -129,4 +192,6 @@ contract InvestmentTests is
             amount
         );
     }
+
+    
 }

@@ -365,6 +365,8 @@ contract EigenLayrDeployer is
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
+        emit log_named_uint("wethinitial", wethInitialSupply);
+        emit log_named_uint("amount to deposit", amountDeposited);
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
