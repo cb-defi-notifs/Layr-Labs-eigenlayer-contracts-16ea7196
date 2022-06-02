@@ -11,7 +11,7 @@ import "../Repository.sol";
 import "ds-test/test.sol";
 
 /**
- @notice This contract is used for:
+ @notice This contract is used for doing interactive payment challenge
  */
 contract DataLayrPaymentChallenge is DSTest{
     

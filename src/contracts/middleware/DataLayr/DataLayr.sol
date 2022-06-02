@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @notice The functionalities of this contract are:
  *            - initializing and asserting the metadata, corresponding to a particular 
- *              assertion of data in DataLayr, into settlement layer.  
+ *              assertion of data in DataLayr, into Ethereum.  
  *            - confirming that quorum has been obtained for storing data in DataLayr  
  */
 contract DataLayr is Ownable, IDataLayr {
