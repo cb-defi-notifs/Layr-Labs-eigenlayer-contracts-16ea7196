@@ -32,7 +32,6 @@ contract InvestmentTests is
         uint256 amountToDeposit,
         uint256 amountToWithdraw 
     ) public {
-        emit log_uint(strategyIndexes.length);
         //initiate deposits
         address[2] memory accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
@@ -40,14 +39,12 @@ contract InvestmentTests is
 
         amountToDeposit = 10e7;
 
-
         //make deposits in WETH strategy
         for (uint i=0; i<accounts.length; i++){
             cheats.deal(accounts[i], amountToDeposit);
             depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
 
         }
-
         strategy_arr.push(strat);
         tokens.push(weth);
         
@@ -55,34 +52,18 @@ contract InvestmentTests is
         for (uint i=0; i<accounts.length; i++){ 
             cheats.startPrank(accounts[i]);
 
-
             uint256[] memory shareAmounts = new uint256[](1);
             shareAmounts[0] = depositAmounts[i];
 
             uint256[] memory strategyIndexes = new uint256[](1);
             strategyIndexes[0] = 0;
 
-
-            
             InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
-            
-
             investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-            emit log_named_uint("INDEX", strategyIndexes.length);
+            investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], nonce.nonce);
+            investmentManager.completeQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], nonce.nonce);
             cheats.stopPrank();
         }
-
-
-
-
-
-
-        
-
-
-
-        
-
     }
     
     // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
