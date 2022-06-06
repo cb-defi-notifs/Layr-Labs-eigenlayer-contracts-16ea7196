@@ -25,6 +25,8 @@ interface IDataLayrServiceManager {
 
     function disclosureFraudProofInterval() external returns (uint256);
 
+    function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) external;
+
     /**
      @notice A merkle tree of powers of srs (represented by s) is constructed off-chain:
 
