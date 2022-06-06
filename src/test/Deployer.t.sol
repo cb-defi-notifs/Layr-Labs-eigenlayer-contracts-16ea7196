@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "./mocks/DepositContract.sol";
 import "./mocks/LiquidStakingToken.sol";
-import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
 
@@ -89,7 +88,6 @@ contract EigenLayrDeployer is
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
-    uint256 timelockDelay = 2 days;
     bytes32 consensusLayerDepositRoot =
         0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
@@ -280,7 +278,7 @@ contract EigenLayrDeployer is
             dlReg,
             dlsm,
             dlReg,
-            timelockDelay
+            address(this)
         );
 
         dl.setRepository(dlRepository);
