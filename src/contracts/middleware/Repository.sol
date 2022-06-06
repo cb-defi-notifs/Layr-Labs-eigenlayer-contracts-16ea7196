@@ -34,21 +34,21 @@ contract Repository is Initializable, RepositoryStorage {
         serviceManager = _serviceManager;
         registrationManager = _registrationManager;
         Timelock _timelock = new Timelock(address(this), _timelockDelay);
-        _setTimelock(_timelock);
+        _transferOwnership(address(_timelock));
     }
 
     /// @notice sets the service manager for the middleware's repository
-    function setServiceManager(IServiceManager _serviceManager) external onlyTimelock {
+    function setServiceManager(IServiceManager _serviceManager) external onlyOwner {
         serviceManager = _serviceManager;
     }
 
     /// @notice sets the registration manager for the middleware's repository
-    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
+    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyOwner {
         registrationManager = _registrationManager;
     }
 
     /// @notice sets the vote weigher for the middleware's repository
-    function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyTimelock {
+    function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyOwner {
         voteWeigher = _voteWeigher;
     }
 }

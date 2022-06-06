@@ -118,8 +118,8 @@ contract DataLayrServiceManager is
     }
 
     modifier onlyRepositoryGovernance() {
-        if (!(address(repository.timelock()) == msg.sender)) {
-            revert OnlyRepositoryGovernance(address(repository.timelock()), msg.sender);
+        if (!(address(repository.owner()) == msg.sender)) {
+            revert OnlyRepositoryGovernance(address(repository.owner()), msg.sender);
         }
         _;
     }
@@ -1168,7 +1168,7 @@ contract DataLayrServiceManager is
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
             (address(dataLayr) == address(0)) ||
-                (address(repository.timelock()) == msg.sender),
+                (address(repository.owner()) == msg.sender),
             "only repository governance can call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;

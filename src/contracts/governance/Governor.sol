@@ -29,10 +29,9 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "./Timelock.sol";
-import "../utils/Timelock_Managed.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract Governor is Timelock_Managed {
+contract Governor {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -88,7 +87,8 @@ contract Governor is Timelock_Managed {
         Expired,
         Executed
     }
-
+    /// @notice The address of the Protocol Timelock
+    Timelock public timelock;
     /// @notice The maximum number of actions that can be included in a proposal
     uint16 public constant proposalMaxOperations = 10;
     /// @notice The delay before voting on a proposal may take place, once proposed. stored as uint256 in number of seconds
@@ -168,6 +168,14 @@ contract Governor is Timelock_Managed {
 
     /// @notice Emitted when the 'multisig' address has been changed
     event MultisigTransferred(address indexed previousAddress, address indexed newAddress);
+
+    /// @notice Emitted when the 'timelock' address has been changed
+    event TimelockTransferred(address indexed previousAddress, address indexed newAddress);
+
+    modifier onlyTimelock() {
+        require(msg.sender == address(timelock), "onlyTimelock");
+        _;
+    }
 
     constructor(
         IRepository _REPOSITORY,
@@ -527,6 +535,15 @@ contract Governor is Timelock_Managed {
         return block.chainid;
     }
 
+    function setTimelock(Timelock _timelock) external onlyTimelock {
+        _setTimelock(_timelock);
+    }
+
+    function _setTimelock(Timelock _timelock) internal {
+        emit TimelockTransferred(address(timelock), address(_timelock));
+        timelock = _timelock;
+    }
+    
     // TODO: reintroduce a way to update stakes before simply fetching them?
     function _getEthAndEigenStaked(address user)
         internal view

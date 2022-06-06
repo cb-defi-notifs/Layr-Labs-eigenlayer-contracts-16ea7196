@@ -127,7 +127,7 @@ contract Delegator is EigenLayrDeployer {
         for (uint256 i = 0; i < strats.length; ++i) {
             strats[i] = strategies[i];
         }
-        cheats.startPrank(address(dlReg.repository().timelock()));
+        cheats.startPrank(address(dlReg.repository().owner()));
         dlReg.addStrategiesConsidered(strats);
         cheats.stopPrank();
 

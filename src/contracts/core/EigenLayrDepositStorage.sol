@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Eigen.sol";
+import "../interfaces/IProofOfStakingOracle.sol";
 import "../interfaces/IDepositContract.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../middleware/Repository.sol";
@@ -15,4 +16,10 @@ abstract contract EigenLayrDepositStorage {
     Repository public posMiddleware;
     mapping(bytes32 => mapping(address => bool)) public depositProven;
     IInvestmentManager public investmentManager;
+    bytes32 public immutable consensusLayerDepositRoot;
+    IProofOfStakingOracle public postOracle;
+    
+    constructor(bytes32 _consensusLayerDepositRoot) {
+        consensusLayerDepositRoot = _consensusLayerDepositRoot;
+    }
 }
