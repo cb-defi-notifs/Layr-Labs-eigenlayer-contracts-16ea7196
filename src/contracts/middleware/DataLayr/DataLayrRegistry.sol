@@ -918,4 +918,8 @@ contract DataLayrRegistry is
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
         return totalStakeHistory[index];
     }
+
+    function getApkHashesLength() external view returns (uint256) {
+        return apkHashes.length;
+    }
 }

@@ -226,6 +226,8 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        require(dumpNumberToConfirm > 0 && dumpNumberToConfirm < dumpNumber, "Dump number is invalid");
+
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
          * the new staking of ETH into Ethereum.
