@@ -552,12 +552,12 @@ contract DataLayrServiceManager is
             */
             (
                 uint32 dumpNumber,
-                uint32 expireTime,
+                uint32 initTime,
                 uint32 storePeriodLength,
                 bool committed
             ) = dataLayr.dataStores(headerHash);
 
-            expireTime = expireTime + storePeriodLength;
+            expireTime = initTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
             require(committed, "Dump is not committed yet");
