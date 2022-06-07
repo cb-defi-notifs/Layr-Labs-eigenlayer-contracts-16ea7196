@@ -57,7 +57,6 @@ contract ServiceFactory is IServiceFactory {
 
     function createNewService(
         IServiceManager serviceManager,
-        uint256 timelockDelay,
         uint256 _consensusLayerEthToEth,
         IInvestmentStrategy[] memory _strategiesConsidered,
         address initialRepositoryOwner

@@ -29,8 +29,8 @@ contract InvestmentTests is
 
     //testing queued withdrawals in the investment manager
     function testQueuedWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw 
+        uint256 amountToDeposit
+        // ,uint256 amountToWithdraw 
     ) public {
         //initiate deposits
         address[2] memory accounts = [acct_0, acct_1];
