@@ -302,7 +302,7 @@ contract DataLayrDisclosureUtils {
     }
 
     //finds the next power of 2 greater than n and returns it
-    function nextPowerOf2(uint256 n) internal pure returns (uint256) {
+    function nextPowerOf2(uint256 n) public pure returns (uint256) {
         uint256 res = 1;
         while (1 << res < n) {
             res++;
@@ -361,5 +361,123 @@ contract DataLayrDisclosureUtils {
         } else {
             revert("Log not in valid range");
         }
+    }
+
+    // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof is in G2 to allow for calculation of Z in G1
+    function openPolynomialAtPoint(uint256[2] calldata c, uint256[4] calldata pi, uint256 r, uint256 s) public returns(bool) {
+        uint256[12] memory pairingInput;
+        //calculate -g1*r and store in first 2 slots of input      -g1 = (1, -2) btw
+        pairingInput[0] = 1;
+        pairingInput[1] = MODULUS - 2;
+        pairingInput[2] = r;
+        assembly {
+            // @dev using precompiled contract at 0x06 to do G1 scalar multiplication on elliptic curve alt_bn128
+
+            if iszero(
+                call(
+                    not(0),
+                    0x07,
+                    0,
+                    pairingInput,
+                    0x60,
+                    pairingInput,
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        //add [x]_1 + (-r*g1) = Z and store in first 2 slots of input
+        //TODO: SWITCH THESE TO [x]_1 of Powers of Tau!
+        pairingInput[2] = 1;
+        pairingInput[3] = 2;
+
+        assembly {
+            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
+
+            if iszero(
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    pairingInput,
+                    0x80,
+                    pairingInput,
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+        //store pi
+        pairingInput[2] = pi[0];
+        pairingInput[3] = pi[1];
+        pairingInput[4] = pi[2];
+        pairingInput[5] = pi[3];
+        //calculate c - [s]_1
+        pairingInput[6] = c[0];
+        pairingInput[7] = c[1];
+        pairingInput[8] = 1;
+        pairingInput[9] = MODULUS - 2;
+        pairingInput[10] = s;
+
+        assembly {
+            // @dev using precompiled contract at 0x06 to do G1 scalar multiplication on elliptic curve alt_bn128
+
+            if iszero(
+                call(
+                    not(0),
+                    0x07,
+                    0,
+                    add(pairingInput, 0x160),
+                    0x60,
+                    add(pairingInput, 0x160),
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+
+            if iszero(
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    add(pairingInput, 0x120),
+                    0x80,
+                    add(pairingInput, 0x120),
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        //check e(z, pi)e(C-[s]_1, -g2) = 1
+        assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
+            // call the precompiled ec2 pairing contract at 0x08
+            if iszero(
+                call(
+                    not(0),
+                    0x08,
+                    0,
+                    pairingInput,
+                    0x180,
+                    pairingInput,
+                    0x20
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        return pairingInput[0] == 1;
     }
 }
