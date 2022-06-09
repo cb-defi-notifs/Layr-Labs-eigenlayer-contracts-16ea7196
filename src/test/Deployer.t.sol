@@ -496,6 +496,9 @@ contract EigenLayrDeployer is
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         uint32 blockNumber = 1;
+        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
+        // and 'BLOCK_STALE_MEASURE' is currently 100
+        cheats.roll(100);
         dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
