@@ -141,6 +141,9 @@ contract DataLayrServiceManager is
      * @param header is the summary of the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr operators,
      * @param totalBytes  is the size of the data ,
+     * @param storePeriodLength is time in seconds for which the data has to be stored by the DataLayr nodes, 
+     * @param blockNumber for which the confirmation will consult total + operator stake amounts 
+     *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
         bytes calldata header,

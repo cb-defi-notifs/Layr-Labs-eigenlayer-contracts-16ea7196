@@ -270,9 +270,9 @@ contract DataLayrPaymentChallenge is DSTest{
             "Sig record does not match hash"
         );
 
-        IDataLayrRegistry dlvw = IDataLayrRegistry(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
 
-        bytes32 operatorPubkeyHash = dlvw.getOperatorPubkeyHash(operator);
+        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
         // //calculate the true amount deserved
         uint120 trueAmount;
@@ -288,7 +288,7 @@ contract DataLayrPaymentChallenge is DSTest{
                 }
             }
             //TODO: Change this
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {

@@ -79,6 +79,8 @@ abstract contract DataLayrSignatureChecker is
                 of all DataLayr operators that are part of quorum.
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
+    
+    // TODO: eliminate 'dumpNumber' from the calldata -- it is fetched based on the specified headerHash
     /** 
      @dev This calldata is of the format:
             <
@@ -118,6 +120,8 @@ abstract contract DataLayrSignatureChecker is
             // index of the totalStake in the 'totalStakeHistory' array
             placeholder := shr(208, calldataload(104))
         }
+
+        // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contrat
         uint32 blockNumberFromHeaderHash;
        (dumpNumberToConfirm, , , blockNumberFromHeaderHash, ) = dataLayr.dataStores(headerHash);
 

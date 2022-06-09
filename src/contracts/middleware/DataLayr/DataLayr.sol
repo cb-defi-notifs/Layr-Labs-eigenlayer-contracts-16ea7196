@@ -13,6 +13,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *            - confirming that quorum has been obtained for storing data in DataLayr  
  */
 contract DataLayr is Ownable, IDataLayr {
+    // constant used to constrain the age of 'blockNumber' specified as input to 'initDataStore' function
+    uint256 internal constant BLOCK_STALE_MEASURE = 100;
 
     // the DataLayr repository
     IRepository public repository;
@@ -30,24 +32,26 @@ contract DataLayr is Ownable, IDataLayr {
     uint128 public ethSignedThresholdPercentage = 90;
 
     event InitDataStore(
-        uint32 dumpNumber,
         bytes32 headerHash,
+        uint32 dumpNumber,
         uint32 totalBytes,        
         uint32 initTime,
         uint32 storePeriodLength,
+        uint32 blockNumber,
         bytes header
     );
 
-    // event ConfirmDataStore(
-    //     uint32 dumpNumber,
-    //     bytes32 headerHash
-    // );
+    event ConfirmDataStore(
+        uint32 dumpNumber,
+        bytes32 headerHash
+    );
 
     /**
      * @notice data structure for storing metadata on a particular assertion of data 
      *         into the DataLayr 
      */
     struct DataStore {
+        // identifying value for the DataStore. incremented for each new 'initDataStore' transaction
         uint32 dumpNumber;
 
         // time when this store was initiated
@@ -56,6 +60,7 @@ contract DataLayr is Ownable, IDataLayr {
         // time when obligation for storing this corresponding data by DataLayr nodes expires
         uint32 storePeriodLength;  
 
+        // blockNumber for which the confirmation will consult total + operator stake amounts -- must not be more than 'BLOCK_STALE_MEASURE' in past
         uint32 blockNumber;  
 
         // indicates whether quorm of signatures from DataLayr has been obtained or not
@@ -69,8 +74,6 @@ contract DataLayr is Ownable, IDataLayr {
      *         layer.  
      */
     mapping(bytes32 => DataStore) public dataStores;
-
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
 
     modifier onlyServiceManager() {
         require(msg.sender == address(repository.serviceManager()), "Only service manager can call this");
@@ -88,9 +91,11 @@ contract DataLayr is Ownable, IDataLayr {
      *         This precomit process includes asserting metadata.   
      */
     /**
+     * @param dumpNumber is the dumpNumber to initiate
      * @param headerHash is the commitment to the data that is being asserted into DataLayr,
-     * @param storePeriodLength for which the data has to be stored by the DataLayr nodes, 
      * @param totalBytes  is the size of the data ,
+     * @param storePeriodLength is time in seconds for which the data has to be stored by the DataLayr nodes, 
+     * @param blockNumber for which the confirmation will consult total + operator stake amounts -- must not be more than 'BLOCK_STALE_MEASURE' blocks in past
      */
     function initDataStore(
         uint32 dumpNumber,
@@ -124,9 +129,8 @@ contract DataLayr is Ownable, IDataLayr {
             blockNumber,
             false
         );
-
         
-        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength, header);
+        emit InitDataStore(headerHash, dumpNumber, totalBytes, initTime, storePeriodLength, blockNumber, header);
     }
 
     /**
@@ -175,7 +179,7 @@ contract DataLayr is Ownable, IDataLayr {
         // record that quorum has been achieved 
         dataStores[headerHash].committed = true;
 
-        // emit ConfirmDataStore(dumpNumber, headerHash);
+        emit ConfirmDataStore(dumpNumber, headerHash);
     }
     
     
