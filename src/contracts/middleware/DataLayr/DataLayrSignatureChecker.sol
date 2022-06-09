@@ -118,8 +118,8 @@ abstract contract DataLayrSignatureChecker is
             // index of the totalStake in the 'totalStakeHistory' array
             placeholder := shr(208, calldataload(104))
         }
-
-       
+        uint32 blockNumberFromHeaderHash;
+       (dumpNumberToConfirm, , , blockNumberFromHeaderHash, ) = dataLayr.dataStores(headerHash);
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(
@@ -137,7 +137,7 @@ abstract contract DataLayrSignatureChecker is
         IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry
             .getTotalStakeFromIndex(placeholder);
         // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-        _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+        _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
 
         signedTotals.ethStakeSigned = localStakeObject.ethStake;
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
@@ -234,8 +234,8 @@ abstract contract DataLayrSignatureChecker is
                 pubkeyHash,
                 stakeIndex
             );
-            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromHeaderHash
+            _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
            
              
             // subtract operator stakes from totals
@@ -299,8 +299,8 @@ abstract contract DataLayrSignatureChecker is
                 pubkeyHash,
                 stakeIndex
             );
-            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromHeaderHash
+            _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
 
             //subtract validator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
@@ -340,7 +340,7 @@ abstract contract DataLayrSignatureChecker is
 
             // make sure they have provided the correct aggPubKey
             require(
-                dlRegistry.getCorrectApkHash(apkIndex, dumpNumberToConfirm) ==
+                dlRegistry.getCorrectApkHash(apkIndex, blockNumberFromHeaderHash) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
                 "Incorrect apk provided"
             );
@@ -449,21 +449,21 @@ abstract contract DataLayrSignatureChecker is
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
     function _validateOperatorStake(
         IDataLayrRegistry.OperatorStake memory opStake,
-        uint32 dumpNumberToConfirm
+        uint32 blockNumberFromHeaderHash
     ) internal pure {
         // check that the stake returned from the specified index is recent enough
         require(
-            opStake.dumpNumber <= dumpNumberToConfirm,
+            opStake.updateBlockNumber <= blockNumberFromHeaderHash,
             "Provided stake index is too early"
         );
 
         /** 
           check that stake is either the most recent update for the total stake (or the operator), 
-          or latest before the dumpNumberToConfirm
+          or latest before the blockNumberFromHeaderHash
          */
         require(
-            opStake.nextUpdateDumpNumber == 0 ||
-                opStake.nextUpdateDumpNumber > dumpNumberToConfirm,
+            opStake.nextUpdateBlockNumber == 0 ||
+                opStake.nextUpdateBlockNumber > blockNumberFromHeaderHash,
             "Provided stake index is not the most recent for dumpNumber"
         );
     }

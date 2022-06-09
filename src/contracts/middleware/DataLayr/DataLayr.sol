@@ -56,6 +56,8 @@ contract DataLayr is Ownable, IDataLayr {
         // time when obligation for storing this corresponding data by DataLayr nodes expires
         uint32 storePeriodLength;  
 
+        uint32 blockNumber;  
+
         // indicates whether quorm of signatures from DataLayr has been obtained or not
         bool committed; 
     }
@@ -67,6 +69,8 @@ contract DataLayr is Ownable, IDataLayr {
      *         layer.  
      */
     mapping(bytes32 => DataStore) public dataStores;
+
+    uint256 internal constant BLOCK_STALE_MEASURE = 100;
 
     modifier onlyServiceManager() {
         require(msg.sender == address(repository.serviceManager()), "Only service manager can call this");
@@ -93,11 +97,20 @@ contract DataLayr is Ownable, IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength,
+        uint32 blockNumber,
         bytes calldata header
     ) external onlyServiceManager {
         require(
             dataStores[headerHash].initTime == 0,
             "Data store has already been initialized"
+        );
+        require(
+            blockNumber <= block.number,
+            "specified blockNumber is in future"
+        );
+        require(
+            blockNumber >= (block.number - BLOCK_STALE_MEASURE),
+            "specified blockNumber is too far in past"
         );
 
         //initializes data store
@@ -108,6 +121,7 @@ contract DataLayr is Ownable, IDataLayr {
             dumpNumber,
             initTime,
             storePeriodLength,
+            blockNumber,
             false
         );
 

@@ -101,8 +101,8 @@ contract DataLayrRegistry is
     address[] public registrantList;
 
     // struct OperatorStake {
-    //     uint32 dumpNumber;
-    //     uint32 nextUpdateDumpNumber;
+    //     uint32 updateBlockNumber;
+    //     uint32 nextUpdateBlockNumber;
     //     uint96 ethStake;
     //     uint96 eigenStake;
     // }
@@ -156,8 +156,8 @@ contract DataLayrRegistry is
         uint96 ethStake,
         uint96 eigenStake,
         uint256 updateNumber,
-        uint32 dumpNumber,
-        uint32 prevDumpNumber
+        uint32 updateBlockNumber,
+        uint32 prevUpdateBlockNumber
     );
     // uint48 prevUpdateDumpNumber
 
@@ -165,8 +165,8 @@ contract DataLayrRegistry is
         address operator,
         uint96 ethStake,
         uint96 eigenStake,
-        uint32 dumpNumber,
-        uint32 prevUpdateDumpNumber
+        uint32 updateBlockNumber,
+        uint32 prevUpdateBlockNumber
     );
 
     /**
@@ -320,7 +320,7 @@ contract DataLayrRegistry is
         // determine new stakes
         OperatorStake memory newStakes;
         // recording the current dump number where the operator stake got updated 
-        newStakes.dumpNumber = currentDumpNumber;
+        newStakes.updateBlockNumber = uint32(block.number);
 
         // setting total staked ETH for the DataLayr operator to 0
         newStakes.ethStake = uint96(0);
@@ -331,7 +331,7 @@ contract DataLayrRegistry is
         //set next dump number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
-        ].nextUpdateDumpNumber = currentDumpNumber;
+        ].nextUpdateBlockNumber = uint32(block.number);
 
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
@@ -348,8 +348,8 @@ contract DataLayrRegistry is
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.dumpNumber = currentDumpNumber;
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
 
         //decrement number of registrants
@@ -525,7 +525,7 @@ contract DataLayrRegistry is
             // determine new stakes
             OperatorStake memory newStakes;
 
-            newStakes.dumpNumber = currentDumpNumber;
+            newStakes.updateBlockNumber = uint32(block.number);
             newStakes.ethStake = uint96(weightOfOperatorEth(operators[i]));
             newStakes.eigenStake = uint96(weightOfOperatorEigen(operators[i]));
 
@@ -539,7 +539,7 @@ contract DataLayrRegistry is
             //set next dump number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateDumpNumber = currentDumpNumber;
+            ].nextUpdateBlockNumber = uint32(block.number);
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
@@ -555,8 +555,8 @@ contract DataLayrRegistry is
                 operators[i],
                 newStakes.ethStake,
                 newStakes.eigenStake,
-                currentDumpNumber,
-                currentStakes.dumpNumber
+                uint32(block.number),
+                currentStakes.updateBlockNumber
             );
             unchecked {
                 ++i;
@@ -564,8 +564,8 @@ contract DataLayrRegistry is
         }
 
         // update storage of total stake
-        _totalStake.dumpNumber = currentDumpNumber;
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
     }
 
@@ -627,20 +627,20 @@ contract DataLayrRegistry is
      @notice get hash of a historical aggregated public key corresponding to a given index;
              called by checkSignatures in DataLayrSignatureChecker.sol.
      */
-    function getCorrectApkHash(uint256 index, uint32 dumpNumberToConfirm)
+    function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
         view
         returns (bytes32)
     {
         require(
-            dumpNumberToConfirm >= apkUpdates[index],
+            blockNumber >= apkUpdates[index],
             "Index too recent"
         );
 
         // if not last update
         if (index != apkUpdates.length - 1) {
             require(
-                dumpNumberToConfirm < apkUpdates[index + 1],
+                blockNumber < apkUpdates[index + 1],
                 "Not latest valid apk update"
             );
         }
@@ -777,7 +777,7 @@ contract DataLayrRegistry is
         uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
 
         // store the current dumpnumber in which the aggregated pubkey is being updated 
-        apkUpdates.push(currentDumpNumber);
+        apkUpdates.push(uint32(block.number));
         
         //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
@@ -790,7 +790,7 @@ contract DataLayrRegistry is
          @notice some book-keeping for recording info pertaining to the DataLayr operator
          */
         // record the new stake for the DataLayr operator in the storage
-        _operatorStake.dumpNumber = currentDumpNumber;
+        _operatorStake.updateBlockNumber = uint32(block.number);
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
         // store the registrant's info in relation to DataLayr
@@ -839,9 +839,9 @@ contract DataLayrRegistry is
          */
         _totalStake.ethStake += _operatorStake.ethStake;
         _totalStake.eigenStake += _operatorStake.eigenStake;
-        _totalStake.dumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
         // linking with the most recent stake recordd in the past
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
 
         // increment number of registrants

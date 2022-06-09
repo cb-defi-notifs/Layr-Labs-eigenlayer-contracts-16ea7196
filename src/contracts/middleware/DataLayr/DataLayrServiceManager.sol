@@ -145,7 +145,8 @@ contract DataLayrServiceManager is
     function initDataStore(
         bytes calldata header,
         uint32 totalBytes,
-        uint32 storePeriodLength
+        uint32 storePeriodLength,
+        uint32 blockNumber
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
@@ -184,6 +185,7 @@ contract DataLayrServiceManager is
             headerHash,
             totalBytes,
             storePeriodLength,
+            blockNumber,
             header
         );
 
@@ -554,6 +556,7 @@ contract DataLayrServiceManager is
                 uint32 dumpNumber,
                 uint32 initTime,
                 uint32 storePeriodLength,
+                ,
                 bool committed
             ) = dataLayr.dataStores(headerHash);
 
@@ -1180,7 +1183,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, , ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, , , ) = dataLayr.dataStores(serviceObjectHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -1195,7 +1198,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
+        (, uint32 initTime, uint32 storePeriodLength, , ) = dataLayr.dataStores(
             serviceObjectHash
         );
         uint256 timeCreated = uint256(initTime);

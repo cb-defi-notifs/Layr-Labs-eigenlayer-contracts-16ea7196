@@ -330,7 +330,7 @@ contract Delegator is EigenLayrDeployer {
         _testCommitDataStore( headerHash,  currentDumpNumber,  numberOfNonSigners,apks, sigmas);
 
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
     }
         cheats.stopPrank();
@@ -345,7 +345,8 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(storer, 10e10);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength);
+        uint32 blockNumber = 1;
+        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
         cheats.stopPrank();
 
 
@@ -469,7 +470,7 @@ contract Delegator is EigenLayrDeployer {
 
 
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
     }
 

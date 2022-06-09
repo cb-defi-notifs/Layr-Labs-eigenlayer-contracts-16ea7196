@@ -495,7 +495,8 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 10e10);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength);
+        uint32 blockNumber = 1;
+        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
@@ -503,6 +504,7 @@ contract EigenLayrDeployer is
             uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
+            uint32 dataStoreBlockNumber,
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
         assertTrue(
@@ -516,6 +518,10 @@ contract EigenLayrDeployer is
         assertTrue(
             dataStorePeriodLength == storePeriodLength,
             "_testInitDataStore: wrong storePeriodLength"
+        );
+        assertTrue(
+            dataStoreBlockNumber == blockNumber,
+            "_testInitDataStore: wrong blockNumber"
         );
         assertTrue(
             dataStoreCommitted == false,
@@ -648,7 +654,7 @@ contract EigenLayrDeployer is
         );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
     }

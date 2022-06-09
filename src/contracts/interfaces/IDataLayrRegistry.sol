@@ -3,8 +3,8 @@ pragma solidity ^0.8.9;
 
 interface IDataLayrRegistry {
     struct OperatorStake {
-        uint32 dumpNumber;
-        uint32 nextUpdateDumpNumber;
+        uint32 updateBlockNumber;
+        uint32 nextUpdateBlockNumber;
         uint96 ethStake;
         uint96 eigenStake;
     }

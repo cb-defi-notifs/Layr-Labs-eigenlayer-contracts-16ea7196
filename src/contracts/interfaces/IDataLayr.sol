@@ -7,6 +7,7 @@ interface IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength,
+        uint32 stakesBlockNumber,
         bytes calldata header
     ) external;
 
@@ -23,6 +24,7 @@ interface IDataLayr {
         external
         view
         returns (
+            uint32,
             uint32,
             uint32,
             uint32,

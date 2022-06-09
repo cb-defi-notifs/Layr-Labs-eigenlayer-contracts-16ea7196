@@ -245,7 +245,8 @@ contract DataLayrPaymentChallenge is DSTest{
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
         uint256 totalEthStakeSigned,
-        uint256 totalEigenStakeSigned
+        uint256 totalEigenStakeSigned,
+        bytes32 challengedDumpHeaderHash
     ) external {
         require(
             block.timestamp <
@@ -287,20 +288,26 @@ contract DataLayrPaymentChallenge is DSTest{
                 }
             }
             //TODO: Change this
-            uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
             IDataLayrRegistry.OperatorStake memory operatorStake = dlvw.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
+        // scoped block helps fix stack too deep
+        {
+            (uint32 dumpNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber, ) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
+            require(dumpNumberFromHeaderHash == challengedDumpNumber, "specified dumpNumber does not match provided headerHash");
             require(
-                operatorStake.dumpNumber <= challengedDumpNumber,
-                "Operator stake index is too early"
+                operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
+                "Operator stake index is too late"
             );
 
             require(
-                operatorStake.nextUpdateDumpNumber == 0 ||
-                    operatorStake.nextUpdateDumpNumber > challengedDumpNumber,
+                operatorStake.nextUpdateBlockNumber == 0 ||
+                    operatorStake.nextUpdateBlockNumber > challengedDumpBlockNumber,
                 "Operator stake index is too early"
             );
+        }
 
+            //TODO: Change this
+            uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
                 (fee * operatorStake.ethStake) /
