@@ -257,7 +257,6 @@ contract Delegator is EigenLayrDeployer {
         //Operator submits claim to rewards
         _testCommitPayment(operator, amountRewards);
 
-
         //initiate challenge
         challengeContract = _testInitPaymentChallenge(operator, 5, 3);
         dlpc = IDataLayrPaymentChallenge(challengeContract);
@@ -324,10 +323,9 @@ contract Delegator is EigenLayrDeployer {
     // scoped block helps fix 'stack too deep' errors
     {
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 0;
 
-        _testCommitDataStore( headerHash,  currentDumpNumber,  numberOfNonSigners,apks, sigmas);
+        _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
 
 
         (, , , , bool committed) = dl.dataStores(headerHash);
@@ -363,7 +361,6 @@ contract Delegator is EigenLayrDeployer {
     //commits data store to data layer
     function _testCommitDataStore(
             bytes32 headerHash, 
-            uint32 currentDumpNumber, 
             uint32 numberOfNonSigners, 
             uint256[] memory apk, 
             uint256[] memory sigma
@@ -372,7 +369,6 @@ contract Delegator is EigenLayrDeployer {
         /** 
         @param data This calldata is of the format:
                 <
-                uint32 dumpNumber,
                 bytes32 headerHash,
                 uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
@@ -384,9 +380,8 @@ contract Delegator is EigenLayrDeployer {
                 >
         */
 
-        emit log_named_uint("current dump", currentDumpNumber);
+        // emit log_named_uint("current dump", currentDumpNumber);
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,
@@ -456,10 +451,9 @@ contract Delegator is EigenLayrDeployer {
     {
 
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 1;
 
-        bytes memory data = _getCallData(headerHash, currentDumpNumber, numberOfNonSigners, signer, nonsigner);
+        bytes memory data = _getCallData(headerHash, numberOfNonSigners, signer, nonsigner);
 
         
         uint gasbefore = gasleft();
@@ -480,7 +474,6 @@ contract Delegator is EigenLayrDeployer {
     //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
             bytes32 headerHash, 
-            uint32 currentDumpNumber, 
             uint32 numberOfNonSigners, 
             signerInfo memory signers,
             nonSignerInfo memory nonsigners
@@ -489,7 +482,6 @@ contract Delegator is EigenLayrDeployer {
         /** 
         @param data This calldata is of the format:
                 <
-                uint32 dumpNumber,
                 bytes32 headerHash,
                 uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
@@ -502,7 +494,6 @@ contract Delegator is EigenLayrDeployer {
         */
         emit log_named_uint("total stake history", dlReg.getLengthOfTotalStakeHistory());
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,

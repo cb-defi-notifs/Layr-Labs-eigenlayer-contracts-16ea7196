@@ -363,8 +363,8 @@ contract EigenLayrDeployer is
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
-        emit log_named_uint("wethinitial", wethInitialSupply);
-        emit log_named_uint("amount to deposit", amountDeposited);
+        // emit log_named_uint("wethinitial", wethInitialSupply);
+        // emit log_named_uint("amount to deposit", amountDeposited);
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
@@ -608,7 +608,6 @@ contract EigenLayrDeployer is
             );
         }
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
             uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
@@ -624,7 +623,6 @@ contract EigenLayrDeployer is
     /** 
      @param data This calldata is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -635,7 +633,6 @@ contract EigenLayrDeployer is
             >
      */
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,

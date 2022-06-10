@@ -84,7 +84,6 @@ abstract contract DataLayrSignatureChecker is
     /** 
      @dev This calldata is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -108,20 +107,16 @@ abstract contract DataLayrSignatureChecker is
         uint256 placeholder;
 
         assembly {
-            // get the 4 bytes immediately after the function signature and length encoding of bytes
-            // calldata type, which would represent the dump number at the time of pre-commit for which
-            // disperser is calling checkSignatures.
-            dumpNumberToConfirm := shr(224, calldataload(68))
+            // get the 32 bytes immediately after the function signature and length + position encoding of bytes
+            // calldata type, which represents the headerHash for which disperser is calling checkSignatures
+            headerHash := calldataload(68)
 
-            // get the 32 bytes immediately after the above
-            headerHash := calldataload(72)
-
-            // get the 6 bytes immediately after the above, which would represent the
+            // get the 6 bytes immediately after the above, which represent the
             // index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(104))
+            placeholder := shr(208, calldataload(100))
         }
 
-        // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contrat
+        // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contract
         uint32 blockNumberFromHeaderHash;
        (dumpNumberToConfirm, , , blockNumberFromHeaderHash, ) = dataLayr.dataStores(headerHash);
 
@@ -149,14 +144,14 @@ abstract contract DataLayrSignatureChecker is
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
-            // get the 4 bytes immediately after the above, which would represent the
+            // get the 4 bytes immediately after the above, which represent the
             // number of DataLayr operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(110))
+            placeholder := shr(224, calldataload(106))
         }
 
         
-        // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
-        uint256 pointer = 114;
+        // we have read (68 + 32 + 6 + 4) = 114 bytes of calldata so far
+        uint256 pointer = 110;
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
