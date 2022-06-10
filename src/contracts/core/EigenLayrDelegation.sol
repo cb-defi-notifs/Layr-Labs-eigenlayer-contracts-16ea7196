@@ -40,6 +40,7 @@ contract EigenLayrDelegation is
         require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
+        _transferOwnership(msg.sender);
     }
 
     /// @notice This will be called by an operator to register itself as a delegate that stakers

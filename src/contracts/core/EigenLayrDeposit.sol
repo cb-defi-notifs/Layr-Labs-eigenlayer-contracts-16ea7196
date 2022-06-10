@@ -205,6 +205,8 @@ contract EigenLayrDeposit is
         );
         depositProven[depositRoot][depositor] = true;
 
+        // TODO: @Gautham should this credit to a specified address? right now it necesarily goes to 'depositor'
+        //      -- was the intention for it to go to msg.sender?
         // mark deposited eth in investment contract
         investmentManager.depositProofOfStakingEth(depositor, amount);
     }
