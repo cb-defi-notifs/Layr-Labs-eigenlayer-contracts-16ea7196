@@ -62,6 +62,8 @@ abstract contract DataLayrSignatureChecker is
         uint32 dumpNumber,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
+        uint256 totalEthStake,
+        uint256 totalEigenStake,
         bytes32[] pubkeyHashes
     );
 
@@ -423,6 +425,8 @@ abstract contract DataLayrSignatureChecker is
             dumpNumberToConfirm,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
+            signedTotals.totalEthStake,
+            signedTotals.totalEigenStake,
             pubkeyHashes
         );
 

@@ -849,7 +849,7 @@ contract DataLayrRegistry is
             ++numRegistrants;
         }
 
-        emit Registration(operator, pk, uint32(apkHashes.length), newApkHash);
+        emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
