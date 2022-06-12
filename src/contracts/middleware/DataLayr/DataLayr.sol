@@ -31,7 +31,7 @@ contract DataLayr is Ownable, IDataLayr {
 
     event InitDataStore(
         uint32 dumpNumber,
-        bytes32 headerHash,
+        bytes32 indexed headerHash,
         uint32 totalBytes,        
         uint32 initTime,
         uint32 storePeriodLength,
