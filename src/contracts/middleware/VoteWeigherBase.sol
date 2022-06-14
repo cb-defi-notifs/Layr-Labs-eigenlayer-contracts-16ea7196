@@ -6,6 +6,8 @@ import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
 contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
+    // TODO: make this immutable?
+    uint8 public override constant NUMBER_OF_QUORUMS = 2;
 
     constructor(
         IRepository _repository,
