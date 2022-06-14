@@ -206,7 +206,6 @@ contract DataLayrServiceManager is
     /** 
      @param data is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -1116,14 +1115,6 @@ contract DataLayrServiceManager is
                 "Only the challenge contract, challenger, or operator can call"
             );
         }
-    }
-
-    function getDumpNumberFee(uint32 _dumpNumber)
-        public
-        view
-        returns (uint256)
-    {
-        return dumpNumberToFee[_dumpNumber];
     }
 
     /**

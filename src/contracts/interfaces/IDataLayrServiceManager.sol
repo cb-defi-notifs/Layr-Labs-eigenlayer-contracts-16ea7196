@@ -5,7 +5,7 @@ import "./IDataLayr.sol";
 interface IDataLayrServiceManager {
     function dumpNumber() external returns (uint32);
 
-    function getDumpNumberFee(uint32) external returns (uint256);
+    function dumpNumberToFee(uint32) external returns (uint256);
 
     function getDumpNumberSignatureHash(uint32) external returns (bytes32);
 

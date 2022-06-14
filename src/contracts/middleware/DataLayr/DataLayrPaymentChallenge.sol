@@ -307,7 +307,7 @@ contract DataLayrPaymentChallenge is DSTest{
         }
 
             //TODO: Change this
-            uint256 fee = dlsm.getDumpNumberFee(challengedDumpNumber);
+            uint256 fee = dlsm.dumpNumberToFee(challengedDumpNumber);
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
                 (fee * operatorStake.ethStake) /

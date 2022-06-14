@@ -38,11 +38,11 @@ contract Delegator is EigenLayrDeployer {
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     struct nonSignerInfo{
-            uint256 xA0;
-            uint256 xA1;
-            uint256 yA0;
-            uint256 yA1;
-        }
+        uint256 xA0;
+        uint256 xA1;
+        uint256 yA0;
+        uint256 yA1;
+    }
 
     struct signerInfo{
         uint256 apk0;
