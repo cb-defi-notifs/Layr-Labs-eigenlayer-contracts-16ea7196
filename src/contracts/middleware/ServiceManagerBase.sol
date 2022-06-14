@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IVoteWeigher.sol";
-import "../utils/Initializable.sol";
 
 contract ServiceManagerBase is Initializable, IServiceManager {
     /**
@@ -69,14 +69,18 @@ contract ServiceManagerBase is Initializable, IServiceManager {
         uint256 totalCumulativeWeight
     );
 
-    constructor(
-        IERC20 _paymentToken,
-        IERC20 _collateralToken,
-        IRepository _repository,
-        IVoteWeigher _voteWeigher
-    ) {
+// TODO: change to initializer
+    constructor(IERC20 _paymentToken, IERC20 _collateralToken) {
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
+
+    function initialize(
+        IRepository _repository,
+        IVoteWeigher _voteWeigher
+    )  external initializer {
         repository = _repository;
         voteWeigher = _voteWeigher;
     }

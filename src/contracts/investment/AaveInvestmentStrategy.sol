@@ -4,9 +4,14 @@ pragma solidity ^0.8.9;
 import "./aave/ILendingPool.sol";
 import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
+
+    constructor() {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
 
     function initialize(address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
     ) initializer public {

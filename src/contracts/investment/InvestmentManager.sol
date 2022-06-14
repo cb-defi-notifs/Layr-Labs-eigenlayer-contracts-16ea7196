@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 import "forge-std/Test.sol";
@@ -21,7 +21,7 @@ import "forge-std/Test.sol";
  */
 contract InvestmentManager is
     Initializable,
-    Ownable,
+    OwnableUpgradeable,
     InvestmentManagerStorage,
     ERC1155TokenReceiver,
     DSTest
@@ -56,7 +56,10 @@ contract InvestmentManager is
     constructor(
         IERC1155 _EIGEN,
         IEigenLayrDelegation _delegation
-    ) InvestmentManagerStorage(_EIGEN, _delegation) {}
+    ) InvestmentManagerStorage(_EIGEN, _delegation) {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
 
     /**
      * @notice Initializes the investment manager contract with a given set of strategies

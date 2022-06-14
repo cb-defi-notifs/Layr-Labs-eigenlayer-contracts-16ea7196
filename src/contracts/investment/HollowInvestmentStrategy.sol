@@ -2,12 +2,18 @@
 pragma solidity ^0.8.9;
 
 import "./InvestmentStrategyBase.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 contract HollowInvestmentStrategy is
     Initializable,
     InvestmentStrategyBase
 {
+
+    constructor() {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
+    
     function initialize(address _investmentManager)
         public
         initializer

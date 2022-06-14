@@ -6,7 +6,7 @@ import "../interfaces/IEigenLayrDeposit.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
 // import "ds-test/test.sol";
 
@@ -32,6 +32,8 @@ contract EigenLayrDeposit is
     // ,DSTest
 {
     constructor(bytes32 _consensusLayerDepositRoot) EigenLayrDepositStorage(_consensusLayerDepositRoot) {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
     }
 
     function initialize(

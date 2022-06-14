@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 contract InvestmentStrategyBase is
     Initializable,
@@ -16,6 +16,11 @@ contract InvestmentStrategyBase is
     modifier onlyInvestmentManager() {
         require(msg.sender == investmentManager, "onlyInvestmentManager");
         _;
+    }
+
+    constructor() {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
     }
 
     function initialize(address _investmentManager, IERC20 _underlyingToken) initializer public {

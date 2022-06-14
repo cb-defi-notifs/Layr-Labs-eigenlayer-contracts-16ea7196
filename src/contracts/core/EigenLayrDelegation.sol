@@ -3,7 +3,8 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
@@ -20,7 +21,7 @@ import "../investment/Slasher.sol";
  */
 contract EigenLayrDelegation is
     Initializable,
-    Ownable,
+    OwnableUpgradeable,
     EigenLayrDelegationStorage
 {
     modifier onlyInvestmentManager() {
@@ -29,6 +30,11 @@ contract EigenLayrDelegation is
             "onlyInvestmentManager"
         );
         _;
+    }
+
+    constructor() {
+        // TODO: uncomment for production use!
+        //_disableInitializers();
     }
 
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
