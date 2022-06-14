@@ -137,7 +137,7 @@ contract ServiceManagerBase is Initializable, IServiceManager {
         );
 
         // find respondent's weight and the hash of their response
-        uint256 weightToAssign = voteWeigher.weightOfOperatorEth(respondent);
+        uint256 weightToAssign = voteWeigher.weightOfOperator(respondent, 0);
         bytes32 responseHash = keccak256(response);
 
         // update ServiceObject struct with respondent's weight and response

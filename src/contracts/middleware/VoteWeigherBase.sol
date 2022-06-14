@@ -6,6 +6,8 @@ import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
 contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
+    // TODO: make this immutable?
+    uint8 public override constant NUMBER_OF_QUORUMS = 2;
 
     constructor(
         IRepository _repository,
@@ -26,6 +28,18 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
         _;
     }
 
+    function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
+        // ETH quorum
+        if (quorumNumber == 0) {
+            return weightOfOperatorEth(operator);
+        // EIGEN quorum
+        } else if (quorumNumber == 1) {
+            return weightOfOperatorEigen(operator);
+        } else {
+            return 0;
+        }
+    }
+
     /**
      * @notice returns the total Eigen delegated by delegators with this operator
      */
@@ -35,9 +49,9 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
     function weightOfOperatorEigen(address operator)
         public virtual
         view
-        returns (uint128)
+        returns (uint96)
     {
-        uint128 eigenAmount = uint128(delegation.getEigenDelegated(operator));
+        uint96 eigenAmount = uint96(delegation.getEigenDelegated(operator));
 
         // check that minimum delegation limit is satisfied
         return eigenAmount;
@@ -52,14 +66,14 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
      *      Note that the DataLayr can decide for itself how much weight it wants to
      *      give to the ETH that is being used for staking in settlement layer.
      */
-    function weightOfOperatorEth(address operator) public virtual returns (uint128) {
+    function weightOfOperatorEth(address operator) public virtual returns (uint96) {
         uint256 stratsLength = strategiesConsideredLength();
-        uint128 amount;
+        uint96 amount;
         if (delegation.isSelfOperator(operator)) {
             for (uint256 i = 0; i < stratsLength;) {
                 uint256 sharesAmount = investmentManager.investorStratShares(operator, strategiesConsidered[i]);
                 if (sharesAmount > 0) {
-                    amount += uint128(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                    
+                    amount += uint96(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                    
                 }
                 unchecked {
                     ++i;
@@ -69,14 +83,14 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
             for (uint256 i = 0; i < stratsLength;) {
                 uint256 sharesAmount = delegation.getOperatorShares(operator, strategiesConsidered[i]);
                 if (sharesAmount > 0) {
-                    amount += uint128(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                                        
+                    amount += uint96(strategiesConsidered[i].sharesToUnderlying(sharesAmount));                                        
                 }
                 unchecked {
                     ++i;
                 }
             }
         }
-        // uint128 amount = uint128(
+        // uint96 amount = uint96(
         //     delegation.getConsensusLayerEthDelegated(operator) /
         //         consensusLayerEthToEth +
         //         delegation.getUnderlyingEthDelegated(operator)
