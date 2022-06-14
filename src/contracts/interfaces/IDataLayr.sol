@@ -26,7 +26,7 @@ interface IDataLayr {
         returns (
             uint32 dumpNumber,
             uint32 headerHash,
-            uint32 totalBytes,
+            uint32 storePeriodLength,
             uint32 blockNumber,
             bool committed
         );

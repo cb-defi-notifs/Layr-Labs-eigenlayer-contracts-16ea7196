@@ -57,6 +57,7 @@ contract DataLayrLowDegreeChallenge {
                 uint32 dumpNumber,
                 uint32 expireTime,
                 uint32 storePeriodLength,
+                uint32 blockNumber,
                 bool committed
             ) = dataLayr.dataStores(headerHash);
 

@@ -130,7 +130,7 @@ contract DataLayr is Ownable, IDataLayr {
             false
         );
         
-        emit InitDataStore(headerHash, dumpNumber, totalBytes, initTime, storePeriodLength, blockNumber, header);
+        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
     }
 
     /**
