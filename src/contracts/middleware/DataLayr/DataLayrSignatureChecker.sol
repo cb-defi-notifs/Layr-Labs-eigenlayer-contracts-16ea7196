@@ -81,10 +81,11 @@ abstract contract DataLayrSignatureChecker is
                 of all DataLayr operators that are part of quorum.
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
+    
+    // TODO: eliminate 'dumpNumber' from the calldata -- it is fetched based on the specified headerHash
     /** 
      @dev This calldata is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -108,20 +109,18 @@ abstract contract DataLayrSignatureChecker is
         uint256 placeholder;
 
         assembly {
-            // get the 4 bytes immediately after the function signature and length encoding of bytes
-            // calldata type, which would represent the dump number at the time of pre-commit for which
-            // disperser is calling checkSignatures.
-            dumpNumberToConfirm := shr(224, calldataload(68))
+            // get the 32 bytes immediately after the function signature and length + position encoding of bytes
+            // calldata type, which represents the headerHash for which disperser is calling checkSignatures
+            headerHash := calldataload(68)
 
-            // get the 32 bytes immediately after the above
-            headerHash := calldataload(72)
-
-            // get the 6 bytes immediately after the above, which would represent the
+            // get the 6 bytes immediately after the above, which represent the
             // index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(104))
+            placeholder := shr(208, calldataload(100))
         }
 
-       
+        // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contract
+        uint32 blockNumberFromHeaderHash;
+       (dumpNumberToConfirm, , , blockNumberFromHeaderHash, ) = dataLayr.dataStores(headerHash);
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(
@@ -139,7 +138,7 @@ abstract contract DataLayrSignatureChecker is
         IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry
             .getTotalStakeFromIndex(placeholder);
         // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-        _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+        _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
 
         signedTotals.ethStakeSigned = localStakeObject.ethStake;
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
@@ -147,14 +146,14 @@ abstract contract DataLayrSignatureChecker is
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
-            // get the 4 bytes immediately after the above, which would represent the
+            // get the 4 bytes immediately after the above, which represent the
             // number of DataLayr operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(110))
+            placeholder := shr(224, calldataload(106))
         }
 
         
-        // we have read (68 + 4 + 32 + 6 + 4) = 114 bytes of calldata so far
-        uint256 pointer = 114;
+        // we have read (68 + 32 + 6 + 4) = 114 bytes of calldata so far
+        uint256 pointer = 110;
 
         // to be used for holding the pub key hashes of the DataLayr operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -236,8 +235,8 @@ abstract contract DataLayrSignatureChecker is
                 pubkeyHash,
                 stakeIndex
             );
-            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromHeaderHash
+            _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
            
              
             // subtract operator stakes from totals
@@ -301,8 +300,8 @@ abstract contract DataLayrSignatureChecker is
                 pubkeyHash,
                 stakeIndex
             );
-            // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
-            _validateOperatorStake(localStakeObject, dumpNumberToConfirm);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromHeaderHash
+            _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
 
             //subtract validator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
@@ -342,7 +341,7 @@ abstract contract DataLayrSignatureChecker is
 
             // make sure they have provided the correct aggPubKey
             require(
-                dlRegistry.getCorrectApkHash(apkIndex, dumpNumberToConfirm) ==
+                dlRegistry.getCorrectApkHash(apkIndex, blockNumberFromHeaderHash) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
                 "Incorrect apk provided"
             );
@@ -453,21 +452,21 @@ abstract contract DataLayrSignatureChecker is
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
     function _validateOperatorStake(
         IDataLayrRegistry.OperatorStake memory opStake,
-        uint32 dumpNumberToConfirm
+        uint32 blockNumberFromHeaderHash
     ) internal pure {
         // check that the stake returned from the specified index is recent enough
         require(
-            opStake.dumpNumber <= dumpNumberToConfirm,
+            opStake.updateBlockNumber <= blockNumberFromHeaderHash,
             "Provided stake index is too early"
         );
 
         /** 
           check that stake is either the most recent update for the total stake (or the operator), 
-          or latest before the dumpNumberToConfirm
+          or latest before the blockNumberFromHeaderHash
          */
         require(
-            opStake.nextUpdateDumpNumber == 0 ||
-                opStake.nextUpdateDumpNumber > dumpNumberToConfirm,
+            opStake.nextUpdateBlockNumber == 0 ||
+                opStake.nextUpdateBlockNumber > blockNumberFromHeaderHash,
             "Provided stake index is not the most recent for dumpNumber"
         );
     }

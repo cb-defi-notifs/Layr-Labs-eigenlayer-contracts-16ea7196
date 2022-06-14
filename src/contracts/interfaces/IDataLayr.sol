@@ -7,6 +7,7 @@ interface IDataLayr {
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength,
+        uint32 stakesBlockNumber,
         bytes calldata header
     ) external;
 
@@ -15,17 +16,18 @@ interface IDataLayr {
         bytes32 headerHash,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
-        uint256,
-        uint256
+        uint256 totalEthStake,
+        uint256 totalEigenStake
     ) external;
 
     function dataStores(bytes32)
         external
         view
         returns (
-            uint32,
-            uint32,
-            uint32,
-            bool
+            uint32 dumpNumber,
+            uint32 headerHash,
+            uint32 totalBytes,
+            uint32 blockNumber,
+            bool committed
         );
 }

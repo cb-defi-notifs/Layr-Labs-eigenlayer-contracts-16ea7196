@@ -29,7 +29,9 @@ contract InvestmentStrategyBase is
         returns (uint256 newShares)
     {
         require(token == underlyingToken, "Can only deposit underlyingToken");
-        return amount;
+        newShares = amount;
+        totalShares += newShares;
+        return newShares;
     }
 
     function withdraw(
@@ -38,6 +40,7 @@ contract InvestmentStrategyBase is
         uint256 shareAmount
     ) external virtual override onlyInvestmentManager {
         require(token == underlyingToken, "Can only withdraw the strategy token");
+        totalShares -= shareAmount;
         underlyingToken.transfer(depositor, shareAmount);
     }
 

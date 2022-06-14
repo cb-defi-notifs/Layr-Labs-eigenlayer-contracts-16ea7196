@@ -192,7 +192,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      * @notice mapping between the total service fee that would be paid out in the 
      *         corresponding assertion of data into DataLayr 
      */
-    mapping(uint64 => uint256) public dumpNumberToFee;
+    mapping(uint32 => uint256) public dumpNumberToFee;
 
     mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
 

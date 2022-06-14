@@ -286,10 +286,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 
-        emit log_uint(totalEigenStaked);
-        emit log_uint(totalEthStaked);
-        emit log_uint(operatorEigenStaked);
-        emit log_uint(operatorEthStaked);
 
 
 

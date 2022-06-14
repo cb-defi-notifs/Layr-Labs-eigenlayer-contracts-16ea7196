@@ -37,9 +37,10 @@ contract EigenLayrDelegation is
         IInvestmentManager _investmentManager,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
-        _transferOwnership(msg.sender);
+        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
+        _transferOwnership(msg.sender);
     }
 
     /// @notice This will be called by an operator to register itself as a delegate that stakers
@@ -443,5 +444,14 @@ contract EigenLayrDelegation is
         returns (bool)
     {
         return (delegation[operator] == SELF_DELEGATION_ADDRESS);
+    }
+
+    function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {
+        investmentManager = _investmentManager;
+    }
+
+    function setUndelegationFraudProofInterval(uint256 _undelegationFraudProofInterval) external onlyOwner {
+        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
+        undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 }

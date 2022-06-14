@@ -20,7 +20,7 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
 
     modifier onlyRepositoryGovernance() {
         require(
-            address(repository.timelock()) == msg.sender,
+            address(repository.owner()) == msg.sender,
             "only repository governance can call this function"
         );
         _;

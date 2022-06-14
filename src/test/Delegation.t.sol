@@ -38,11 +38,11 @@ contract Delegator is EigenLayrDeployer {
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     struct nonSignerInfo{
-            uint256 xA0;
-            uint256 xA1;
-            uint256 yA0;
-            uint256 yA1;
-        }
+        uint256 xA0;
+        uint256 xA1;
+        uint256 yA0;
+        uint256 yA1;
+    }
 
     struct signerInfo{
         uint256 apk0;
@@ -74,6 +74,8 @@ contract Delegator is EigenLayrDeployer {
     
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
+        uint256 ethAmount = 1e18;
+        uint256 eigenAmount = 1e16;
         uint96 registrantEthWeightBefore = uint96(
             dlReg.weightOfOperatorEth(signers[0])
         );
@@ -82,8 +84,8 @@ contract Delegator is EigenLayrDeployer {
         );
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
         _testRegisterAsDelegate(signers[0], _dt);
-        _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0, 1e16);
+        _testWethDeposit(acct_0, ethAmount);
+        _testDepositEigen(acct_0, eigenAmount);
         _testDelegateToOperator(acct_0, signers[0]);
 
         uint96 registrantEthWeightAfter = uint96(
@@ -93,12 +95,12 @@ contract Delegator is EigenLayrDeployer {
             dlReg.weightOfOperatorEigen(signers[0])
         );
         assertTrue(
-            registrantEthWeightAfter > registrantEthWeightBefore,
-            "testDelegation: registrantEthWeight did not increase!"
+            registrantEthWeightAfter - registrantEthWeightBefore == ethAmount, 
+            "testDelegation: registrantEthWeight did not increment by the right amount"
         );
         assertTrue(
-            registrantEigenWeightAfter > registrantEigenWeightBefore,
-            "testDelegation: registrantEigenWeight did not increase!"
+            registrantEigenWeightAfter - registrantEigenWeightBefore == eigenAmount, 
+            "Eigen weights did not increment by the right amount"
         );
         IInvestmentStrategy _strat = investmentManager.investorStrats(acct_0, 0);
         assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
@@ -125,7 +127,7 @@ contract Delegator is EigenLayrDeployer {
         for (uint256 i = 0; i < strats.length; ++i) {
             strats[i] = strategies[i];
         }
-        cheats.startPrank(address(dlReg.repository().timelock()));
+        cheats.startPrank(address(dlReg.repository().owner()));
         dlReg.addStrategiesConsidered(strats);
         cheats.stopPrank();
 
@@ -255,7 +257,6 @@ contract Delegator is EigenLayrDeployer {
         //Operator submits claim to rewards
         _testCommitPayment(operator, amountRewards);
 
-
         //initiate challenge
         challengeContract = _testInitPaymentChallenge(operator, 5, 3);
         dlpc = IDataLayrPaymentChallenge(challengeContract);
@@ -322,13 +323,12 @@ contract Delegator is EigenLayrDeployer {
     // scoped block helps fix 'stack too deep' errors
     {
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 0;
 
-        _testCommitDataStore( headerHash,  currentDumpNumber,  numberOfNonSigners,apks, sigmas);
+        _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
 
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
     }
         cheats.stopPrank();
@@ -343,7 +343,8 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(storer, 10e10);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength);
+        uint32 blockNumber = 1;
+        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
         cheats.stopPrank();
 
 
@@ -360,7 +361,6 @@ contract Delegator is EigenLayrDeployer {
     //commits data store to data layer
     function _testCommitDataStore(
             bytes32 headerHash, 
-            uint32 currentDumpNumber, 
             uint32 numberOfNonSigners, 
             uint256[] memory apk, 
             uint256[] memory sigma
@@ -369,7 +369,6 @@ contract Delegator is EigenLayrDeployer {
         /** 
         @param data This calldata is of the format:
                 <
-                uint32 dumpNumber,
                 bytes32 headerHash,
                 uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
@@ -381,9 +380,8 @@ contract Delegator is EigenLayrDeployer {
                 >
         */
 
-        emit log_named_uint("current dump", currentDumpNumber);
+        // emit log_named_uint("current dump", currentDumpNumber);
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,
@@ -453,10 +451,9 @@ contract Delegator is EigenLayrDeployer {
     {
 
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 1;
 
-        bytes memory data = _getCallData(headerHash, currentDumpNumber, numberOfNonSigners, signer, nonsigner);
+        bytes memory data = _getCallData(headerHash, numberOfNonSigners, signer, nonsigner);
 
         
         uint gasbefore = gasleft();
@@ -467,7 +464,7 @@ contract Delegator is EigenLayrDeployer {
 
 
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
     }
 
@@ -477,7 +474,6 @@ contract Delegator is EigenLayrDeployer {
     //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
             bytes32 headerHash, 
-            uint32 currentDumpNumber, 
             uint32 numberOfNonSigners, 
             signerInfo memory signers,
             nonSignerInfo memory nonsigners
@@ -486,7 +482,6 @@ contract Delegator is EigenLayrDeployer {
         /** 
         @param data This calldata is of the format:
                 <
-                uint32 dumpNumber,
                 bytes32 headerHash,
                 uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
@@ -499,7 +494,6 @@ contract Delegator is EigenLayrDeployer {
         */
         emit log_named_uint("total stake history", dlReg.getLengthOfTotalStakeHistory());
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,

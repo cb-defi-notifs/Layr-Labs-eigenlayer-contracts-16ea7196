@@ -136,11 +136,8 @@ contract DataLayrServiceManager is
 
 
     modifier onlyRepositoryGovernance() {
-        if (!(address(repository.timelock()) == msg.sender)) {
-            revert OnlyRepositoryGovernance(
-                address(repository.timelock()),
-                msg.sender
-            );
+        if (!(address(repository.owner()) == msg.sender)) {
+            revert OnlyRepositoryGovernance(address(repository.owner()), msg.sender);
         }
         _;
     }
@@ -167,11 +164,15 @@ contract DataLayrServiceManager is
      * @param header is the summary of the data that is being asserted into DataLayr,
      * @param storePeriodLength for which the data has to be stored by the DataLayr operators,
      * @param totalBytes  is the size of the data ,
+     * @param storePeriodLength is time in seconds for which the data has to be stored by the DataLayr nodes, 
+     * @param blockNumber for which the confirmation will consult total + operator stake amounts 
+     *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
         bytes calldata header,
         uint32 totalBytes,
-        uint32 storePeriodLength
+        uint32 storePeriodLength,
+        uint32 blockNumber
     ) external payable {
         bytes32 headerHash = keccak256(header);
 
@@ -210,6 +211,7 @@ contract DataLayrServiceManager is
             headerHash,
             totalBytes,
             storePeriodLength,
+            blockNumber,
             header
         );
 
@@ -227,7 +229,6 @@ contract DataLayrServiceManager is
     /** 
      @param data is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -587,12 +588,13 @@ contract DataLayrServiceManager is
             */
             (
                 uint32 dumpNumber,
-                uint32 expireTime,
+                uint32 initTime,
                 uint32 storePeriodLength,
+                ,
                 bool committed
             ) = dataLayr.dataStores(headerHash);
 
-            expireTime = expireTime + storePeriodLength;
+            expireTime = initTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
             require(committed, "Dump is not committed yet");
@@ -990,14 +992,6 @@ contract DataLayrServiceManager is
         }
     }
 
-    function getDumpNumberFee(uint32 _dumpNumber)
-        public
-        view
-        returns (uint256)
-    {
-        return dumpNumberToFee[_dumpNumber];
-    }
-
     /**
      @notice this function returns the compressed record on the signatures of DataLayr nodes 
              that aren't part of the quorum for this @param _dumpNumber.
@@ -1046,7 +1040,7 @@ contract DataLayrServiceManager is
     function setDataLayr(IDataLayr _dataLayr) public {
         require(
             (address(dataLayr) == address(0)) ||
-                (address(repository.timelock()) == msg.sender),
+                (address(repository.owner()) == msg.sender),
             "only repository governance can call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;
@@ -1058,7 +1052,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, , ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, , , ) = dataLayr.dataStores(serviceObjectHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -1073,7 +1067,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
+        (, uint32 initTime, uint32 storePeriodLength, , ) = dataLayr.dataStores(
             serviceObjectHash
         );
         uint256 timeCreated = uint256(initTime);

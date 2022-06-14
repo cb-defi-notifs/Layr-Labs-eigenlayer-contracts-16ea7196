@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../governance/Timelock.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "../utils/Initializable.sol";
 import "./RepositoryStorage.sol";
@@ -28,27 +27,26 @@ contract Repository is Initializable, RepositoryStorage {
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,
         IRegistrationManager _registrationManager,
-        uint256 _timelockDelay
+        address initialOwner
     ) external initializer {
         voteWeigher = _voteWeigher;
         serviceManager = _serviceManager;
         registrationManager = _registrationManager;
-        Timelock _timelock = new Timelock(address(this), _timelockDelay);
-        _setTimelock(_timelock);
+        _transferOwnership(initialOwner);
     }
 
     /// @notice sets the service manager for the middleware's repository
-    function setServiceManager(IServiceManager _serviceManager) external onlyTimelock {
+    function setServiceManager(IServiceManager _serviceManager) external onlyOwner {
         serviceManager = _serviceManager;
     }
 
     /// @notice sets the registration manager for the middleware's repository
-    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyTimelock {
+    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyOwner {
         registrationManager = _registrationManager;
     }
 
     /// @notice sets the vote weigher for the middleware's repository
-    function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyTimelock {
+    function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyOwner {
         voteWeigher = _voteWeigher;
     }
 }

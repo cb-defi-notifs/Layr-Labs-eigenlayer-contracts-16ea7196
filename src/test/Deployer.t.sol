@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "./mocks/DepositContract.sol";
 import "./mocks/LiquidStakingToken.sol";
-import "../contracts/governance/Timelock.sol";
 
 import "../contracts/core/Eigen.sol";
 
@@ -91,7 +90,6 @@ contract EigenLayrDeployer is
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
     uint256 consensusLayerEthToEth = 10;
-    uint256 timelockDelay = 2 days;
     bytes32 consensusLayerDepositRoot =
         0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
@@ -284,7 +282,7 @@ contract EigenLayrDeployer is
             dlReg,
             dlsm,
             dlReg,
-            timelockDelay
+            address(this)
         );
 
         dl.setRepository(dlRepository);
@@ -369,6 +367,8 @@ contract EigenLayrDeployer is
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
+        // emit log_named_uint("wethinitial", wethInitialSupply);
+        // emit log_named_uint("amount to deposit", amountDeposited);
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
@@ -499,7 +499,11 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 10e10);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength);
+        uint32 blockNumber = 1;
+        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
+        // and 'BLOCK_STALE_MEASURE' is currently 100
+        cheats.roll(100);
+        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
@@ -507,6 +511,7 @@ contract EigenLayrDeployer is
             uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
+            uint32 dataStoreBlockNumber,
             bool dataStoreCommitted
         ) = dl.dataStores(headerHash);
         assertTrue(
@@ -520,6 +525,10 @@ contract EigenLayrDeployer is
         assertTrue(
             dataStorePeriodLength == storePeriodLength,
             "_testInitDataStore: wrong storePeriodLength"
+        );
+        assertTrue(
+            dataStoreBlockNumber == blockNumber,
+            "_testInitDataStore: wrong blockNumber"
         );
         assertTrue(
             dataStoreCommitted == false,
@@ -603,7 +612,6 @@ contract EigenLayrDeployer is
             );
         }
         bytes32 headerHash = _testInitDataStore();
-        uint32 currentDumpNumber = dlsm.dumpNumber() - 1;
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
             uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
@@ -619,7 +627,6 @@ contract EigenLayrDeployer is
     /** 
      @param data This calldata is of the format:
             <
-             uint32 dumpNumber,
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
@@ -630,7 +637,6 @@ contract EigenLayrDeployer is
             >
      */
         bytes memory data = abi.encodePacked(
-            currentDumpNumber,
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             numberOfNonSigners,
@@ -652,7 +658,7 @@ contract EigenLayrDeployer is
         );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        (, , , bool committed) = dl.dataStores(headerHash);
+        (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
         cheats.stopPrank();
     }

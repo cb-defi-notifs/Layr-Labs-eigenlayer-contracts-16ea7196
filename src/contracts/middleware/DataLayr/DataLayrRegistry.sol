@@ -60,9 +60,9 @@ contract DataLayrRegistry is
         // dump number from which the DataLayr operator has been registered
         uint32 fromDumpNumber;
 
-        // time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
+        // UTC time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
         // set only when committing to deregistration
-        uint32 to;
+        uint32 storeUntil;
 
         // indicates whether the DataLayr operator is actively registered for storing data or not 
         uint8 active; //bool
@@ -101,8 +101,8 @@ contract DataLayrRegistry is
     address[] public registrantList;
 
     // struct OperatorStake {
-    //     uint32 dumpNumber;
-    //     uint32 nextUpdateDumpNumber;
+    //     uint32 updateBlockNumber;
+    //     uint32 nextUpdateBlockNumber;
     //     uint96 ethStake;
     //     uint96 eigenStake;
     // }
@@ -111,7 +111,7 @@ contract DataLayrRegistry is
     struct OperatorIndex {
         // dump number at which operator index changed
         // note that the operator's index is different *for this dump number*, i.e. the new index is inclusive of this value
-        uint32 to;
+        uint32 toDumpNumber;
         // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
@@ -156,8 +156,8 @@ contract DataLayrRegistry is
         uint96 ethStake,
         uint96 eigenStake,
         uint256 updateNumber,
-        uint32 dumpNumber,
-        uint32 prevDumpNumber
+        uint32 updateBlockNumber,
+        uint32 prevUpdateBlockNumber
     );
     // uint48 prevUpdateDumpNumber
 
@@ -165,8 +165,8 @@ contract DataLayrRegistry is
         address operator,
         uint96 ethStake,
         uint96 eigenStake,
-        uint32 dumpNumber,
-        uint32 prevUpdateDumpNumber
+        uint32 updateBlockNumber,
+        uint32 prevUpdateBlockNumber
     );
 
     /**
@@ -280,7 +280,7 @@ contract DataLayrRegistry is
         /**
          @notice this info is used in forced disclosure
          */
-        registry[msg.sender].to = latestTime;
+        registry[msg.sender].storeUntil = latestTime;
 
 
         // committing to not signing off on any more data that is being asserted into DataLayr
@@ -320,7 +320,7 @@ contract DataLayrRegistry is
         // determine new stakes
         OperatorStake memory newStakes;
         // recording the current dump number where the operator stake got updated 
-        newStakes.dumpNumber = currentDumpNumber;
+        newStakes.updateBlockNumber = uint32(block.number);
 
         // setting total staked ETH for the DataLayr operator to 0
         newStakes.ethStake = uint96(0);
@@ -331,7 +331,7 @@ contract DataLayrRegistry is
         //set next dump number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
-        ].nextUpdateDumpNumber = currentDumpNumber;
+        ].nextUpdateBlockNumber = uint32(block.number);
 
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
@@ -348,8 +348,8 @@ contract DataLayrRegistry is
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.dumpNumber = currentDumpNumber;
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
 
         //decrement number of registrants
@@ -385,7 +385,7 @@ contract DataLayrRegistry is
 
         // Update index info for old operator
         // store dumpNumber at which operator index changed (stopped being applicable)
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].to = currentDumpNumber;
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toDumpNumber = currentDumpNumber;
 
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantList.length - 1){
@@ -395,7 +395,7 @@ contract DataLayrRegistry is
             pubkeyHash = registrant.pubkeyHash;
 
             // store dumpNumber at which operator index changed
-            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].to = currentDumpNumber;
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toDumpNumber = currentDumpNumber;
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
@@ -408,7 +408,7 @@ contract DataLayrRegistry is
 
         // Update totalOperatorsHistory
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
@@ -425,13 +425,13 @@ contract DataLayrRegistry is
         // since the 'to' field represents the dumpNumber at which a new index started
         // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
         require(
-            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].to <= dumpNumber,
+            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toDumpNumber <= dumpNumber,
             "Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
         // when deregistering, the operator does *not* serve the currentDumpNumber -- 'to' gets set (from zero) to the currentDumpNumber on deregistration
         // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is too low");
+        require(operatorIndex.toDumpNumber == 0 || dumpNumber < operatorIndex.toDumpNumber, "indexHistory index is too low");
         return operatorIndex.index;
     }
 
@@ -441,12 +441,12 @@ contract DataLayrRegistry is
         // since the 'to' field represents the dumpNumber at which a new index started
         // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
         require(
-            index == 0 || totalOperatorsHistory[index - 1].to <= dumpNumber,
+            index == 0 || totalOperatorsHistory[index - 1].toDumpNumber <= dumpNumber,
             "TotalOperator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
         // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.to == 0 || dumpNumber < operatorIndex.to, "indexHistory index is too low");
+        require(operatorIndex.toDumpNumber == 0 || dumpNumber < operatorIndex.toDumpNumber, "indexHistory index is too low");
         return operatorIndex.index;
         
     }
@@ -503,16 +503,11 @@ contract DataLayrRegistry is
      *        getting updated
      */
     function updateStakes(address[] calldata operators) public {
-        // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(
-            address(repository.serviceManager())
-        ).dumpNumber();
-
-        uint256 operatorsLength = operators.length;
-
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
+        // TODO: test if declaring more variables outside of loop decreases gas usage
+        uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
             // get operator's pubkeyHash
@@ -525,7 +520,7 @@ contract DataLayrRegistry is
             // determine new stakes
             OperatorStake memory newStakes;
 
-            newStakes.dumpNumber = currentDumpNumber;
+            newStakes.updateBlockNumber = uint32(block.number);
             newStakes.ethStake = uint96(weightOfOperatorEth(operators[i]));
             newStakes.eigenStake = uint96(weightOfOperatorEigen(operators[i]));
 
@@ -539,7 +534,7 @@ contract DataLayrRegistry is
             //set next dump number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateDumpNumber = currentDumpNumber;
+            ].nextUpdateBlockNumber = uint32(block.number);
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
@@ -555,8 +550,8 @@ contract DataLayrRegistry is
                 operators[i],
                 newStakes.ethStake,
                 newStakes.eigenStake,
-                currentDumpNumber,
-                currentStakes.dumpNumber
+                uint32(block.number),
+                currentStakes.updateBlockNumber
             );
             unchecked {
                 ++i;
@@ -564,8 +559,8 @@ contract DataLayrRegistry is
         }
 
         // update storage of total stake
-        _totalStake.dumpNumber = currentDumpNumber;
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
     }
 
@@ -627,20 +622,20 @@ contract DataLayrRegistry is
      @notice get hash of a historical aggregated public key corresponding to a given index;
              called by checkSignatures in DataLayrSignatureChecker.sol.
      */
-    function getCorrectApkHash(uint256 index, uint32 dumpNumberToConfirm)
+    function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
         view
         returns (bytes32)
     {
         require(
-            dumpNumberToConfirm >= apkUpdates[index],
+            blockNumber >= apkUpdates[index],
             "Index too recent"
         );
 
         // if not last update
         if (index != apkUpdates.length - 1) {
             require(
-                dumpNumberToConfirm < apkUpdates[index + 1],
+                blockNumber < apkUpdates[index + 1],
                 "Not latest valid apk update"
             );
         }
@@ -777,7 +772,7 @@ contract DataLayrRegistry is
         uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
 
         // store the current dumpnumber in which the aggregated pubkey is being updated 
-        apkUpdates.push(currentDumpNumber);
+        apkUpdates.push(uint32(block.number));
         
         //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
@@ -790,7 +785,7 @@ contract DataLayrRegistry is
          @notice some book-keeping for recording info pertaining to the DataLayr operator
          */
         // record the new stake for the DataLayr operator in the storage
-        _operatorStake.dumpNumber = currentDumpNumber;
+        _operatorStake.updateBlockNumber = uint32(block.number);
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
         // store the registrant's info in relation to DataLayr
@@ -801,7 +796,7 @@ contract DataLayrRegistry is
             active: registrantType,
             // CRITIC: load from memory and save it in memory the first time above this other contract was called
             fromDumpNumber: IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber(),
-            to: 0,
+            storeUntil: 0,
             // extract the socket address
             socket: socket
         });
@@ -816,7 +811,7 @@ contract DataLayrRegistry is
 
         // Update totalOperatorsHistory
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].to = currentDumpNumber;
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
@@ -839,9 +834,9 @@ contract DataLayrRegistry is
          */
         _totalStake.ethStake += _operatorStake.ethStake;
         _totalStake.eigenStake += _operatorStake.eigenStake;
-        _totalStake.dumpNumber = currentDumpNumber;
+        _totalStake.updateBlockNumber = uint32(block.number);
         // linking with the most recent stake recordd in the past
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateDumpNumber = currentDumpNumber;
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
 
         // increment number of registrants

@@ -33,13 +33,13 @@ contract ServiceFactory is IServiceFactory {
      *        the response from an operator for the purpose of computing the outcome of the query, 
      * @param registrationManager is the address of the contract that manages registration of operators
      *        with the middleware of the repository that is being created,  
-     * @param timelockDelay is the intended delay on the governing timelock. 
+     * @param initialOwner is the inital owner of the repository contract 
      */ 
     function createNewRepository(
         IServiceManager serviceManager,
         IVoteWeigher voteWeigher,
         IRegistrationManager registrationManager,
-        uint256 timelockDelay
+        address initialOwner
     ) external returns(IRepository) {
         // register a new repository
         IRepository newRepository = new Repository(delegation, investmentManager);
@@ -47,7 +47,7 @@ contract ServiceFactory is IServiceFactory {
             voteWeigher,
             serviceManager,
             registrationManager,
-            timelockDelay
+            initialOwner
         );
 
         // set the existence bit on the repository to true
@@ -57,9 +57,9 @@ contract ServiceFactory is IServiceFactory {
 
     function createNewService(
         IServiceManager serviceManager,
-        uint256 timelockDelay,
         uint256 _consensusLayerEthToEth,
-        IInvestmentStrategy[] memory _strategiesConsidered
+        IInvestmentStrategy[] memory _strategiesConsidered,
+        address initialRepositoryOwner
     ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
         IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _consensusLayerEthToEth, _strategiesConsidered);
@@ -68,7 +68,7 @@ contract ServiceFactory is IServiceFactory {
             voteWeigher,
             serviceManager,
             registrationManager,
-            timelockDelay
+            initialRepositoryOwner
         );
         // set the existence bit on the repository and registration manager to true
         isRepository[repository] = true;

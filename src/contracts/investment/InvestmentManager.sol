@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../utils/Initializable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
+import "forge-std/Test.sol";
+
 
 // TODO: withdrawals of consensus layer ETH?
 /**
@@ -21,7 +23,8 @@ contract InvestmentManager is
     Initializable,
     Ownable,
     InvestmentManagerStorage,
-    ERC1155TokenReceiver
+    ERC1155TokenReceiver,
+    DSTest
 {
     event WithdrawalQueued(
         address indexed depositor,
@@ -259,17 +262,21 @@ contract InvestmentManager is
         unchecked {
             userShares = userShares - shareAmount;
         }
+        
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
         if (investorStratShares[depositor][strategy] == 0) {
             // if the strategy matches with the strategy index provided
             if (investorStrats[depositor][strategyIndex] == strategy) {
+                
                 // replace the strategy with the last strategy in the list
                 investorStrats[depositor][strategyIndex] = investorStrats[
                     depositor
                 ][investorStrats[depositor].length - 1];
+                
             } else {
+
                 //loop through all of the strategies, find the right one, then replace
                 uint256 stratsLength = investorStrats[depositor].length;
 
@@ -286,6 +293,7 @@ contract InvestmentManager is
                     }
                 }
             }
+            
 
             // return true in the event that the strategy was removed from investorStrats[depositor]
             return true;
@@ -296,7 +304,7 @@ contract InvestmentManager is
 
    // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
     /**
-     * @notice Used to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
+     * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
      */
     /**
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
@@ -331,6 +339,7 @@ contract InvestmentManager is
                 withdrawerAndNonce.nonce
             )
         );
+        
 
         // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
         // this solves a 'stack too deep' error on compilation
@@ -348,9 +357,11 @@ contract InvestmentManager is
         //TODO: take this nearly identically duplicated code and move it into a function
         // had to check against this rather than store it to solve 'stack too deep' error
         // uint256 strategiesLength = strategies.length;
+        
         for (uint256 i = 0; i < strategies.length; ) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            
             if (
                 _removeShares(
                     msg.sender,
@@ -370,12 +381,15 @@ contract InvestmentManager is
             }
         }
 
+        
+
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawerAndNonce.withdrawer
         });
+        
 
         emit WithdrawalQueued(
             msg.sender,
