@@ -173,7 +173,7 @@ contract DataLayrRegistry is
      * @notice
      */
     event Registration(
-        address registrant,
+        address indexed registrant,
         uint256[4] pk,
         uint32 apkHashIndex,
         bytes32 apkHash
