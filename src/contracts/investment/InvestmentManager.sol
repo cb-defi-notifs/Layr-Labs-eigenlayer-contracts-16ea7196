@@ -177,7 +177,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Used to withdraw the given token and shareAmount from the given strategies.
+     * @notice Used by stakers to withdraw the given token and shareAmount from the given strategies.
      */
     /**
      * @dev Only those stakers who have notified the system that they want to undelegate

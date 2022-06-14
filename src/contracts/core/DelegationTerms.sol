@@ -229,7 +229,7 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     }
 
     /**
-     * @notice Used for transferring rewards accrued in a speciifc token
+     * @notice Used for transferring rewards accrued in a specific token
      */
     function _operatorWithdraw(address token) internal {
         uint256 pending = operatorPendingEarnings[token];
@@ -287,8 +287,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         //uint256 amountToEthHolders = amount - amountToEigenHolders
 
 
-
-
         // update the multiplying factors, scaled by REWARD_SCALING 
         updatedEarnings.earnedPerWeightAllTimeEth += uint112(((amount - amountToEigenHolders) * REWARD_SCALING) / totalWeightEth);
         updatedEarnings.earnedPerWeightAllTimeEigen += uint112((amountToEigenHolders * REWARD_SCALING) / totalWeightEigen);
@@ -326,8 +324,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
                 ++i;
             }
         }
-        emit log_named_uint("weight", weight);
-        emit log_named_uint("total", totalWeightEth);
         delegatorUpdate.weightEth = uint112(weight);
         delegatorUpdate.weightEigen = uint112(weightOfEigen(delegator));
         delegatorUpdate.lastClaimedRewards = uint32(block.timestamp);

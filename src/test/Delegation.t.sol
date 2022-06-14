@@ -276,7 +276,6 @@ contract Delegator is EigenLayrDeployer {
 
         cheats.startPrank(operator);
         if (dlpc.getDiff() == 1){
-            emit log("Difference in dumpnumbers is now 1");
             cheats.stopPrank();
             return;
         }
@@ -291,7 +290,6 @@ contract Delegator is EigenLayrDeployer {
     function challengerDisputesOperator(address challenger, bool half, uint120 amount1, uint120 amount2) public{
         cheats.startPrank(challenger);
         if (dlpc.getDiff() == 1){
-            emit log("Difference in dumpnumbers is now 1");
             cheats.stopPrank();
             return;
         }

@@ -504,6 +504,7 @@ contract DataLayrServiceManager is
                 amount1,
                 amount2
             );
+        emit log("THIS IS HALLENGE");
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.transferFrom(msg.sender, address(this), collateral);

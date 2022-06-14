@@ -138,8 +138,6 @@ contract DataLayrPaymentChallenge is DSTest{
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
             diff = (toDumpNumber - fromDumpNumber) / 2;
-            emit log_named_uint("DIFF", diff);
-            emit log("**************MLM*****************");
             challenge.fromDumpNumber = fromDumpNumber + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
@@ -161,7 +159,7 @@ contract DataLayrPaymentChallenge is DSTest{
             updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
-        emit log_named_uint("STATUS", challenge.status);
+        
         emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
     }
 
