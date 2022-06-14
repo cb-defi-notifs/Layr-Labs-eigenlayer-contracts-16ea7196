@@ -32,8 +32,8 @@ contract DataLayr is Ownable, IDataLayr {
     uint128 public ethSignedThresholdPercentage = 90;
 
     event InitDataStore(
-        bytes32 headerHash,
         uint32 dumpNumber,
+        bytes32 indexed headerHash,
         uint32 totalBytes,        
         uint32 initTime,
         uint32 storePeriodLength,

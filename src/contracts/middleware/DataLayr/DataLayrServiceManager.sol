@@ -12,7 +12,8 @@ import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../Repository.sol";
-
+import "./DataLayrDisclosureUtils.sol";
+import "./DataLayrLowDegreeChallenge.sol";
 import "ds-test/test.sol";
 
 /**
@@ -34,7 +35,10 @@ contract DataLayrServiceManager is
     uint32 internal constant MIN_STORE_LENGTH = 60;
     uint32 internal constant MAX_STORE_LENGTH = 604800;
     // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
+    error OnlyRepositoryGovernance(
+        address repositoryGovernance,
+        address sender
+    );
     // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
     error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
     // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
@@ -65,6 +69,10 @@ contract DataLayrServiceManager is
      */
     DataLayrDisclosureChallengeFactory
         public immutable dataLayrDisclosureChallengeFactory;
+
+    DataLayrDisclosureUtils public immutable disclosureUtils;
+
+    DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
     // EVENTS
     /**
@@ -103,19 +111,29 @@ contract DataLayrServiceManager is
 
     event PaymentRedemption(address operator, uint256 fee);
 
+    event LowDegreeChallengeResolution(
+        bytes32 headerHash,
+        address operator,
+        bool operatorWon
+    );
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
-        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
+        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory,
+        DataLayrDisclosureUtils _disclosureUtils
     ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
+        disclosureUtils = _disclosureUtils;
     }
+
+
 
     modifier onlyRepositoryGovernance() {
         if (!(address(repository.owner()) == msg.sender)) {
@@ -128,6 +146,11 @@ contract DataLayrServiceManager is
         require(address(repository) == address(0), "repository already set");
         repository = _repository;
     }
+
+    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public {
+        dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
+    }
+
 
     /**
      * @notice This function is used for
@@ -225,6 +248,8 @@ contract DataLayrServiceManager is
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
+
+        require(dumpNumberToConfirm > 0 && dumpNumberToConfirm < dumpNumber, "Dump number is invalid");
 
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
@@ -326,7 +351,9 @@ contract DataLayrServiceManager is
              for their service since their last payment until @param toDumpNumber  
      **/
     function commitPayment(uint32 toDumpNumber, uint120 amount) external {
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.voteWeigher()));
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
+            address(repository.voteWeigher())
+        );
 
         // only registered DataLayr operators can call
         require(
@@ -421,9 +448,7 @@ contract DataLayrServiceManager is
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(
-            msg.sender
-        );
+        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
 
         // i.e. if operator is not a 'self operator'
         if (address(dt) != address(0)) {
@@ -516,6 +541,20 @@ contract DataLayrServiceManager is
         }
     }
 
+    function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) public {
+        require(msg.sender == address(dataLayrLowDegreeChallenge), "Only low degree resolver can resolve low degree challenges");
+        require(commitTime != 0, "Low degree challenge does not exist");
+        if(commitTime == 1) {
+            //pay operator
+            emit LowDegreeChallengeResolution(headerHash, operator, true);
+        } else if (block.timestamp - commitTime > lowDegreeFraudProofInterval) {
+            //pay challenger
+            emit LowDegreeChallengeResolution(headerHash, operator, false);
+        } else {
+            revert("Low degree challenge not resolvable");
+        }
+    }
+
     /**
      @notice This function is used for opening a forced disclosure challenge against a particular 
              DataLayr operator for a particular dump number.
@@ -524,17 +563,10 @@ contract DataLayrServiceManager is
      @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
      @param operator is the DataLayr operator against whom forced disclosure challenge is being opened
      @param nonSignerIndex is used for verifying that DataLayr operator is member of the quorum that signed on the dump
-     @param nonSignerPubkeyHashes is the array of hashes of pubkey of all DataLayr operators that didn't sign for the dump
-     @param totalEthStakeSigned is the total ETH that has been staked with the DataLayr operators that are in quorum
-     @param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
+     param nonSignerPubkeyHashes is the array of hashes of pubkey of all DataLayr operators that didn't sign for the dump
+     param totalEthStakeSigned is the total ETH that has been staked with the DataLayr operators that are in quorum
+     param totalEigenStakeSigned is the total Eigen that has been staked with the DataLayr operators that are in quorum
      */
-
-    struct SignatoryRecordMinusDumpNumber {
-        bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
-    }
-
     function forceOperatorToDisclose(
         bytes32 headerHash,
         address operator,
@@ -619,39 +651,12 @@ contract DataLayrServiceManager is
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
-
-                // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
-                require(
-                    //they're either greater than everyone in the nspkh array
-                    (nonSignerIndex ==
-                        signatoryRecord.nonSignerPubkeyHashes.length &&
-                        uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex - 1
-                            ]
-                        ) <
-                        uint256(operatorPubkeyHash)) ||
-                        //or nonSigner index is greater than them
-                        (uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex
-                            ]
-                        ) > uint256(operatorPubkeyHash)),
-                    "Wrong index"
+                //not super critic: new call here, maybe change comment
+                disclosureUtils.checkInclusionExclusionInNonSigner(
+                    operatorPubkeyHash,
+                    nonSignerIndex,
+                    signatoryRecord
                 );
-
-                //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
-                if (nonSignerIndex != 0) {
-                    //require that the index+1 is before where operatorpubkey hash would be
-                    require(
-                        uint256(
-                            signatoryRecord.nonSignerPubkeyHashes[
-                                nonSignerIndex - 1
-                            ]
-                        ) < uint256(operatorPubkeyHash),
-                        "Wrong index"
-                    );
-                }
             }
         }
 
@@ -675,35 +680,32 @@ contract DataLayrServiceManager is
         );
         */
 
-
         // check that the DataLayr operator hasn't been challenged yet
         require(
             disclosureForOperator[headerHash][operator].status == 0,
             "Operator is already challenged for dump number"
         );
 
-        
-        // record details of forced disclosure challenge that has been opened 
+        // record details of forced disclosure challenge that has been opened
         disclosureForOperator[headerHash][operator] = DisclosureChallenge(
             // the current timestamp when the challenge was created
             uint32(block.timestamp),
             // challenger's address
-            msg.sender, 
+            msg.sender,
             // address of challenge contract if there is one
-            address(0), 
+            address(0),
             // todo: set degree here
-            0, 
+            0,
             // set the status to 1 as forced disclosure challenge has been opened
             1,
             0,
             0,
             bytes32(0),
-            chunkNumber
+            chunkNumber,
+            0
         );
-        
 
         emit DisclosureChallengeInit(headerHash, operator);
-        
     }
 
     /**
@@ -784,13 +786,15 @@ contract DataLayrServiceManager is
             "Not in operator initial response phase"
         );
 
-        // extract the commitment to the entire data polynomial, that is [C(s).x, C(s).y], and
-        // the degree of the interpolating polynomial I_k(x)        
-        (
-            uint256[2] memory c,
-            uint48 degree
-        ) = getDataCommitmentAndMultirevealDegreeFromHeader(header);
-    
+        //not so critic: move comments here
+        uint48 degree = disclosureUtils.validateDisclosureResponse(
+            disclosureForOperator[headerHash][msg.sender].chunkNumber,
+            header,
+            multireveal,
+            zeroPoly,
+            zeroPolyProof
+        );
+
         /*
         degree is the poly length, no need to multiply 32, as it is the size of data in bytes
         require(
@@ -798,109 +802,13 @@ contract DataLayrServiceManager is
             "Polynomial must have a 256 bit coefficient for each term"
         );
         */
-  
-        //deterministic assignment of "y" here
-        // @todo
-        uint256 chunkNumber = disclosureForOperator[headerHash][msg.sender]
-            .chunkNumber;
 
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
-        /*
-        require(
-            Merkle.checkMembership(
-                // leaf
-                keccak256(
-                    abi.encodePacked(
-                        zeroPoly[0],
-                        zeroPoly[1],
-                        zeroPoly[2],
-                        zeroPoly[3]
-                    )
-                ),
-                // index in the Merkle tree
-                chunkNumber,
-                // Merkle root hash
-                zeroPolynomialCommitmentMerkleRoots[degree],
-                // Merkle proof
-                zeroPolyProof
-            ),
-            "Incorrect zero poly merkle proof"
-        );
-        */
-        /**
-         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
-         */
-        //get the commitment to the zero polynomial of multireveal degree
-    
-        uint256[13] memory pairingInput;
 
-        assembly {
-            // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(36))
-            mstore(add(pairingInput, 0x20), calldataload(68))
-
-            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x60), mload(zeroPoly))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
-
-            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-            mstore(add(pairingInput, 0xC0), mload(c))
-            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
-
-            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
-            // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(100))
-            // obtain -I_k(s).y
-            mstore(
-                add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
-            )
-        }
-        
-        assembly {
-            // overwrite C(s) with C(s) - I(s)
-            
-            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
-            
-            if iszero(
-                call(
-                    not(0),
-                    0x06,
-                    0,
-                    add(pairingInput, 0xC0),
-                    0x80,
-                    add(pairingInput, 0xC0),
-                    0x40
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-        
-        // check e(pi, z)e(C - I, -g2) == 1
-        assembly {
-            // store -g2, where g2 is the negation of the generator of group G2
-            mstore(add(pairingInput, 0x100), nG2x1)
-            mstore(add(pairingInput, 0x120), nG2x0)
-            mstore(add(pairingInput, 0x140), nG2y1)
-            mstore(add(pairingInput, 0x160), nG2y0)
-
-            // call the precompiled ec2 pairing contract at 0x08
-            if iszero(
-                call(not(0), 0x08, 0, pairingInput, 0x180, add(pairingInput, 0x180), 0x20)
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        require(pairingInput[12] == 1, "Pairing unsuccessful");
-
-        // update disclosure to record proof - [Pi(s).x, Pi(s).y]
-        disclosureForOperator[headerHash][msg.sender].x = multireveal[0];
-        disclosureForOperator[headerHash][msg.sender].y = multireveal[1];
+        // update disclosure to record Interpolating poly commitment - [I(s).x, Is(s).y]
+        disclosureForOperator[headerHash][msg.sender].x = multireveal[2];
+        disclosureForOperator[headerHash][msg.sender].y = multireveal[3];
 
         // update disclosure to record  hash of interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
@@ -910,8 +818,8 @@ contract DataLayrServiceManager is
         // update disclosure to record degree of the interpolating polynomial I_k(x)
         disclosureForOperator[headerHash][msg.sender].degree = degree;
         disclosureForOperator[headerHash][msg.sender].status = 2;
+
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
-    
     }
 
     /**
@@ -1004,40 +912,7 @@ contract DataLayrServiceManager is
             operator
         );
     }
-
-    function getDataCommitmentAndMultirevealDegreeFromHeader(
-        // bytes calldata header
-        bytes calldata
-    ) public returns (uint256[2] memory, uint48) {
-        //TODO: Bowen Implement
     
-        // return x, y coordinate of overall data poly commitment
-        // then return degree of multireveal polynomial
-        uint256[2] memory point = [uint256(0), uint256(0)];
-        uint48 degree = 0;
-        uint256 pointer = 4;
-        //uint256 length = 0;  do not need length 
-        
-        assembly {
-            // get data location
-            pointer := calldataload(pointer)
-        }
-
-        unchecked {
-            // uncompensate signature length
-            pointer += 36; // 4 + 32
-        }
-
-        assembly {
-            mstore(point, calldataload(pointer))
-            mstore(add(point, 0x20), calldataload(add(pointer, 32)))
-            
-            degree := shr(224, calldataload(add(pointer, 64)))         
-        }  
-
-        return (point, degree);
-    }
-
     /**
      @notice This function is called for settling the forced disclosure challenge.
      */

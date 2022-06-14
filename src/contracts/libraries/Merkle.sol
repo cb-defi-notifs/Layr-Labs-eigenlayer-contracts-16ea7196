@@ -32,7 +32,6 @@ library Merkle {
          */
         require(index < 2**proofHeight, "Leaf index is too big");
 
-
         bytes32 proofElement;
 
         // starting from the leaf

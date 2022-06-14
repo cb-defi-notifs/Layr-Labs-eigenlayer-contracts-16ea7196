@@ -18,7 +18,7 @@ contract DataLayrDisclosureChallenge {
     IDataLayrServiceManager public dlsm;
     DisclosureChallenge public challenge;
 
-    event DisclosureChallengeDisection(address nextInteracter);
+    event DisclosureChallengeDisection(address nextInteracter, bytes32 headerHash);
 
     struct DisclosureChallenge {
 
@@ -159,8 +159,6 @@ contract DataLayrDisclosureChallenge {
             "Cannot commit to same polynomial as DLN"
         );
 
-
-
         // update the records to reflect new commitment points
         challenge.x_low = coors[0];
         challenge.y_low = coors[1];
@@ -171,7 +169,7 @@ contract DataLayrDisclosureChallenge {
         //half the amount to increment
         challenge.increment /= 2;
 
-        emit DisclosureChallengeDisection(turn ? challenge.challenger : challenge.operator);
+        emit DisclosureChallengeDisection(turn ? challenge.operator : challenge.challenger, challenge.headerHash);
     }
 
 

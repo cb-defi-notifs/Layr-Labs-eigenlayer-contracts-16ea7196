@@ -3,6 +3,11 @@ pragma solidity ^0.8.9;
 import "./IDataLayr.sol";
 
 interface IDataLayrServiceManager {
+    struct SignatoryRecordMinusDumpNumber {
+        bytes32[] nonSignerPubkeyHashes;
+        uint256 totalEthStakeSigned;
+        uint256 totalEigenStakeSigned;
+    }
     function dumpNumber() external returns (uint32);
 
     function dumpNumberToFee(uint32) external returns (uint256);
@@ -20,6 +25,8 @@ interface IDataLayrServiceManager {
     function resolveDisclosureChallenge(bytes32, address, bool) external;
 
     function disclosureFraudProofInterval() external returns (uint256);
+
+    function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) external;
 
     /**
      @notice A merkle tree of powers of srs (represented by s) is constructed off-chain:

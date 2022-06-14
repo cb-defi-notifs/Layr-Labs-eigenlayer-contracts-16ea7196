@@ -35,6 +35,12 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint256 collateral; //account for if collateral changed
     }
 
+    struct LowDegreeChallenge {
+        uint32 commitTime; 
+        address challenge;
+        uint256 collateral; //account for if collateral changed
+    }
+
     struct PaymentChallenge {
         address challenger;
         uint32 fromDumpNumber;
@@ -78,6 +84,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         bytes32 polyHash;
 
         uint32 chunkNumber;
+
+        uint256 collateral; //account for if collateral changed
     }
 
     struct MultiReveal {
@@ -134,6 +142,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     uint256 disclosurePaymentPerByte;
 
+    uint256 public constant lowDegreeFraudProofInterval = 7 days;
 
 
     /**
@@ -143,7 +152,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
 
 
-    bytes32 public powersOfTauMerkleRoot;
+    bytes32 public powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
 
@@ -185,6 +194,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     mapping(uint32 => uint256) public dumpNumberToFee;
 
+    mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
 
     /**
      * @notice mapping between the operator and its current committed or payment

@@ -19,6 +19,9 @@ import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
+import "./middleware/DataLayr/DataLayrDisclosureUtils.sol";
+import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
+
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -107,6 +110,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
         dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
 
+        DataLayrDisclosureUtils disclosureUtils = new DataLayrDisclosureUtils();
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
@@ -114,13 +119,17 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             weth,
             feePerBytePerTime,
             dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory
+            dataLayrDisclosureChallengeFactory,
+            disclosureUtils
         );
+
         dl = new DataLayr();
 
         dlRepository = new Repository(delegation, investmentManager);
         
         dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
+
+        DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, disclosureUtils);
 
         Repository(address(dlRepository)).initialize(
             dlReg,
@@ -132,6 +141,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dl.setRepository(dlRepository);
         dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
+        dlsm.setLowDegreeChallenge(lowDegreeChallenge);
 
         deposit.initialize(depositContract, investmentManager, dlsm);
     }

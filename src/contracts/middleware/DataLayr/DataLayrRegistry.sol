@@ -173,7 +173,7 @@ contract DataLayrRegistry is
      * @notice
      */
     event Registration(
-        address registrant,
+        address indexed registrant,
         uint256[4] pk,
         uint32 apkHashIndex,
         bytes32 apkHash
@@ -844,7 +844,7 @@ contract DataLayrRegistry is
             ++numRegistrants;
         }
 
-        emit Registration(operator, pk, uint32(apkHashes.length), newApkHash);
+        emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
@@ -912,5 +912,9 @@ contract DataLayrRegistry is
 
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
         return totalStakeHistory[index];
+    }
+
+    function getApkHashesLength() external view returns (uint256) {
+        return apkHashes.length;
     }
 }
