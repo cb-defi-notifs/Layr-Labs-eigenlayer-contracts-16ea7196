@@ -76,24 +76,22 @@ contract Delegator is EigenLayrDeployer {
     function testDelegation() public {
         uint256 ethAmount = 1e18;
         uint256 eigenAmount = 1e16;
-        uint96 registrantEthWeightBefore = uint96(
-            dlReg.weightOfOperatorEth(signers[0])
-        );
-        uint96 registrantEigenWeightBefore = uint96(
-            dlReg.weightOfOperatorEigen(signers[0])
-        );
+        // uint96 registrantEthWeightBefore = uint96(
+        //     dlReg.weightOfOperatorEth(signers[0])
+        // );
+        // uint96 registrantEigenWeightBefore = uint96(
+        //     dlReg.weightOfOperatorEigen(signers[0])
+        // );
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(signers[0], 0);
+        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(signers[0], 1);
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
         _testRegisterAsDelegate(signers[0], _dt);
         _testWethDeposit(acct_0, ethAmount);
         _testDepositEigen(acct_0, eigenAmount);
         _testDelegateToOperator(acct_0, signers[0]);
 
-        uint96 registrantEthWeightAfter = uint96(
-            dlReg.weightOfOperatorEth(signers[0])
-        );
-        uint96 registrantEigenWeightAfter = uint96(
-            dlReg.weightOfOperatorEigen(signers[0])
-        );
+        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
         assertTrue(
             registrantEthWeightAfter - registrantEthWeightBefore == ethAmount, 
             "testDelegation: registrantEthWeight did not increment by the right amount"
@@ -110,12 +108,8 @@ contract Delegator is EigenLayrDeployer {
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        uint96 registrantEthWeightBefore = uint96(
-            dlReg.weightOfOperatorEth(signers[0])
-        );
-        uint96 registrantEigenWeightBefore = uint96(
-            dlReg.weightOfOperatorEigen(signers[0])
-        );
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(signers[0], 0);
+        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(signers[0], 1);
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
 
         _testRegisterAsDelegate(signers[0], _dt);
@@ -132,12 +126,8 @@ contract Delegator is EigenLayrDeployer {
         cheats.stopPrank();
 
         _testDelegateToOperator(signers[1], signers[0]);
-        uint96 registrantEthWeightAfter = uint96(
-            dlReg.weightOfOperatorEth(signers[0])
-        );
-        uint96 registrantEigenWeightAfter = uint96(
-            dlReg.weightOfOperatorEigen(signers[0])
-        );
+        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
         assertTrue(
             registrantEthWeightAfter > registrantEthWeightBefore,
             "testDelegation: registrantEthWeight did not increase!"

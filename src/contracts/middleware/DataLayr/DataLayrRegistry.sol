@@ -229,9 +229,9 @@ contract DataLayrRegistry is
         public
         view
         override
-        returns (uint128)
+        returns (uint96)
     {
-        uint128 eigenAmount = super.weightOfOperatorEigen(operator);
+        uint96 eigenAmount = super.weightOfOperatorEigen(operator);
 
         // check that minimum delegation limit is satisfied
         return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
@@ -250,9 +250,9 @@ contract DataLayrRegistry is
     function weightOfOperatorEth(address operator)
         public
         override
-        returns (uint128)
+        returns (uint96)
     {
-        uint128 amount = super.weightOfOperatorEth(operator);
+        uint96 amount = super.weightOfOperatorEth(operator);
 
         // check that minimum delegation limit is satisfied
         return amount < dlnEthStake ? 0 : amount;
@@ -521,8 +521,8 @@ contract DataLayrRegistry is
             OperatorStake memory newStakes;
 
             newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = uint96(weightOfOperatorEth(operators[i]));
-            newStakes.eigenStake = uint96(weightOfOperatorEigen(operators[i]));
+            newStakes.ethStake = weightOfOperatorEth(operators[i]);
+            newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
 
             // check if minimum requirements have been met
             if (newStakes.ethStake < dlnEthStake) {

@@ -491,12 +491,12 @@ contract DelegationTerms is IDelegationTerms, DSTest {
      */ 
     function weightOfEth(address delegator) public returns(uint256) {
         // TODO: make this work better. right now I believe this is broken if delegator falls below DataLayrRegistry threshold
-        uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEth(delegator));
+        uint256 weight = uint256(repository.voteWeigher().weightOfOperator(delegator, 0));
         return weight;
     }
     function weightOfEigen(address delegator) public returns(uint256) {
         // TODO: make this work better. right now I believe this is broken if delegator falls below DataLayrRegistry threshold
-        uint256 weight = uint256(repository.voteWeigher().weightOfOperatorEigen(delegator));
+        uint256 weight = uint256(repository.voteWeigher().weightOfOperator(delegator, 1));
         return weight;
     }
 }
