@@ -12,6 +12,4 @@ artifacts
 #Foundry files
 out
 
-
-lib/
 *.DS_Store
