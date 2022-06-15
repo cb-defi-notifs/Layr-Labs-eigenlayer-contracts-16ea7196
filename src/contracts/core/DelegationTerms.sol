@@ -298,39 +298,15 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
-    // function onDelegationReceived(
-    //     address,
-    //     uint256[] memory
-    // ) external {}
-
-//NOTE: the logic in this function currently mimmics that in the 'weightOfEth' function
     /**
      * @notice Hook for receiving new delegation   
      */
     function onDelegationReceived(
         address delegator,
-        IInvestmentStrategy[] memory investorStrats,
-        uint256[] memory investorShares
+        IInvestmentStrategy[] memory,
+        uint256[] memory
     ) external onlyDelegation {
-        DelegatorStatus memory delegatorUpdate;
-        // get the ETH that has been staked by a delegator in the settlement layer (beacon chain) 
-        uint256 weight = (investmentManager.getConsensusLayerEth(delegator) * consensusLayerPercent) / 100;
-        uint256 investorStratsLength = investorStrats.length;
-        for (uint256 i; i < investorStratsLength;) {
-            // get the underlying ETH value of the shares
-            // each investment strategy have their own description of ETH value per share.
-            weight += investorStrats[i].sharesToUnderlying(investorShares[i]);
-            unchecked {
-                ++i;
-            }
-        }
-        delegatorUpdate.weightEth = uint112(weight);
-        delegatorUpdate.weightEigen = uint112(weightOfEigen(delegator));
-        delegatorUpdate.lastClaimedRewards = uint32(block.timestamp);
-        totalWeightEth += delegatorUpdate.weightEth;
-        totalWeightEigen += delegatorUpdate.weightEigen;
-        //update storage at end
-        delegatorStatus[delegator] = delegatorUpdate;
+        _updateDelegatorWeights(delegator);
     }
 
 //NOTE: currently this causes the delegator to lose any pending rewards
