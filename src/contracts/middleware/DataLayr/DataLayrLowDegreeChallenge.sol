@@ -4,7 +4,7 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../Repository.sol";
-import "./DataLayrDisclosureUtils.sol";
+import "./DataLayrChallengeUtils.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 
 contract DataLayrLowDegreeChallenge {
@@ -14,7 +14,7 @@ contract DataLayrLowDegreeChallenge {
 
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
-    DataLayrDisclosureUtils public immutable disclosureUtils;
+    DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     struct LowDegreeChallenge {
@@ -30,10 +30,10 @@ contract DataLayrLowDegreeChallenge {
         address challenger
     );
 
-    constructor(IDataLayrServiceManager _dataLayrServiceManager, IDataLayr _dataLayr, IDataLayrRegistry _dlRegistry, DataLayrDisclosureUtils _disclosureUtils) {
+    constructor(IDataLayrServiceManager _dataLayrServiceManager, IDataLayr _dataLayr, IDataLayrRegistry _dlRegistry, DataLayrChallengeUtils _challengeUtils) {
         dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
-        disclosureUtils = _disclosureUtils;
+        challengeUtils = _challengeUtils;
         dataLayrServiceManager = _dataLayrServiceManager;
     }
 
@@ -119,7 +119,7 @@ contract DataLayrLowDegreeChallenge {
                     operator
                 );
                 //not super critic: new call here, maybe change comment
-                disclosureUtils.checkInclusionExclusionInNonSigner(
+                challengeUtils.checkInclusionExclusionInNonSigner(
                     operatorPubkeyHash,
                     nonSignerIndex,
                     signatoryRecord
@@ -168,7 +168,7 @@ contract DataLayrLowDegreeChallenge {
             uint48 degree,
             uint32 numSys,
             uint32 numPar
-        ) = disclosureUtils
+        ) = challengeUtils
                 .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                     header
                 );
@@ -176,12 +176,12 @@ contract DataLayrLowDegreeChallenge {
         uint256 r = uint256(keccak256(abi.encodePacked(c, cPower))) % MODULUS;
 
         require(
-            disclosureUtils.openPolynomialAtPoint(c, pi, r, s),
+            challengeUtils.openPolynomialAtPoint(c, pi, r, s),
             "Incorrect proof against commitment"
         );
 
-        uint256 power = disclosureUtils.nextPowerOf2(numSys) *
-            disclosureUtils.nextPowerOf2(degree);
+        uint256 power = challengeUtils.nextPowerOf2(numSys) *
+            challengeUtils.nextPowerOf2(degree);
 
         uint256 sPower;
 
@@ -205,7 +205,7 @@ contract DataLayrLowDegreeChallenge {
         }
 
         require(
-            disclosureUtils.openPolynomialAtPoint(cPower, piPower, r, sPower),
+            challengeUtils.openPolynomialAtPoint(cPower, piPower, r, sPower),
             "Incorrect proof against commitment power"
         );
 

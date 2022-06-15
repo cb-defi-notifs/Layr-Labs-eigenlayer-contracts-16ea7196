@@ -8,11 +8,12 @@ import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
 import "./DataLayrDisclosureChallengeFactory.sol";
+import "./DataLayrChallengeUtils.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../Repository.sol";
-import "./DataLayrDisclosureUtils.sol";
+import "./DataLayrChallengeUtils.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "ds-test/test.sol";
 
@@ -61,16 +62,14 @@ contract DataLayrServiceManager is
     /**
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
-    DataLayrPaymentChallengeFactory
-        public immutable dataLayrPaymentChallengeFactory;
+    DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
 
     /**
      * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
      */
-    DataLayrDisclosureChallengeFactory
-        public immutable dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
 
-    DataLayrDisclosureUtils public immutable disclosureUtils;
+    DataLayrChallengeUtils public immutable disclosureUtils;
 
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
@@ -124,7 +123,7 @@ contract DataLayrServiceManager is
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
         DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory,
-        DataLayrDisclosureUtils _disclosureUtils
+        DataLayrChallengeUtils _disclosureUtils
     ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
@@ -750,78 +749,6 @@ contract DataLayrServiceManager is
               (2) reveal the coefficients of the interpolating polynomial I_k(x) 
      */
 
-    /**
-     @notice This function is used by the DataLayr operator to respond to the forced disclosure challenge.   
-     */
-    /**
-     @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
-     @param poly are the coefficients of the interpolating polynomial I_k(x)
-     @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
-                     [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
-     @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
-     @param header is the summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
-     */
-    function respondToDisclosureInit(
-        bytes calldata header,
-        uint256[4] calldata multireveal,
-        bytes calldata poly,
-        uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof
-    ) external {
-        bytes32 headerHash = keccak256(header);
-
-        // check that DataLayr operator is responding to the forced disclosure challenge period within some window
-        /*
-        require(
-            block.timestamp <
-                disclosureForOperator[headerHash][msg.sender].commitTime +
-                    disclosureFraudProofInterval,
-            "must be in fraud proof period"
-        );
-        */
-        bytes32 data;
-        uint256 position;
-        // check that it is DataLayr operator who is supposed to respond
-        require(
-            disclosureForOperator[headerHash][msg.sender].status == 1,
-            "Not in operator initial response phase"
-        );
-
-        //not so critic: move comments here
-        uint48 degree = disclosureUtils.validateDisclosureResponse(
-            disclosureForOperator[headerHash][msg.sender].chunkNumber,
-            header,
-            multireveal,
-            zeroPoly,
-            zeroPolyProof
-        );
-
-        /*
-        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
-        require(
-            (degree + 1) * 32 == poly.length,
-            "Polynomial must have a 256 bit coefficient for each term"
-        );
-        */
-
-        // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
-        // of the zero polynomial Merkle tree
-
-        // update disclosure to record Interpolating poly commitment - [I(s).x, Is(s).y]
-        disclosureForOperator[headerHash][msg.sender].x = multireveal[2];
-        disclosureForOperator[headerHash][msg.sender].y = multireveal[3];
-
-        // update disclosure to record  hash of interpolating polynomial I_k(x)
-        disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
-            poly
-        );
-
-        // update disclosure to record degree of the interpolating polynomial I_k(x)
-        disclosureForOperator[headerHash][msg.sender].degree = degree;
-        disclosureForOperator[headerHash][msg.sender].status = 2;
-
-        emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
-    }
 
     /**
      @notice 

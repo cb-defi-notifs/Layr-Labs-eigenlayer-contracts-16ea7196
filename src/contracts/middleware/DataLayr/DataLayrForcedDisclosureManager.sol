@@ -4,21 +4,29 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayr.sol";
-import "./DataLayrDisclosureUtils.sol";
+import "./DataLayrChallengeUtils.sol";
+import "./DataLayrDisclosureChallengeFactory.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
+
 
 import "ds-test/test.sol";
 
 contract DataLayrForcedDisclosureManager {
-    // struct SignatoryRecordMinusDumpNumber {
-    //     bytes32[] nonSignerPubkeyHashes;
-    //     uint256 totalEthStakeSigned;
-    //     uint256 totalEigenStakeSigned;
-    // }
-
-    IRepository public repository;
-    IDataLayr public dataLayr;
-    DataLayrDisclosureUtils public immutable disclosureUtils;
+    // modulus for the underlying field F_q of the elliptic curve
+    uint256 constant MODULUS =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    // negation of the generators of group G2
+    /**
+     @dev Generator point lies in F_q2 is of the form: (x0 + ix1, y0 + iy1).
+     */
+    uint256 constant nG2x1 =
+        11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 constant nG2x0 =
+        10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 constant nG2y1 =
+        17805874995975841540914202342111839520379459829704422454583296818431106115052;
+    uint256 constant nG2y0 =
+        13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
     //STRUCTS
     /**
@@ -33,7 +41,6 @@ contract DataLayrForcedDisclosureManager {
         // in DataLayrServiceManager.sol 
         address challenge;
         uint48 degree;
-
         /** 
             Used for indicating the status of the forced disclosure challenge. The status are:
                 - 1: challenged, 
@@ -42,7 +49,6 @@ contract DataLayrForcedDisclosureManager {
                 - 4: operator incorrect
          */
         uint8 status; 
-
         // Proof [Pi(s).x, Pi(s).y] with respect to C(s) - I_k(s)
         // updated in respondToDisclosureInit function in DataLayrServiceManager.sol 
         uint256 x; //commitment coordinates
@@ -65,6 +71,12 @@ contract DataLayrForcedDisclosureManager {
      */
     mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
 
+    IRepository public repository;
+    IDataLayr public dataLayr;
+    DataLayrChallengeUtils public immutable challengeUtils;
+    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
+
+
 
     // EVENTS
     /**
@@ -75,11 +87,23 @@ contract DataLayrForcedDisclosureManager {
      @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
      */
     event DisclosureChallengeResponse(bytes32 headerHash,address operator,bytes poly);
+    /**
+     @notice used while initializing the interactive forced disclosure
+     */
+    event DisclosureChallengeInteractive(bytes32 headerHash, address disclosureChallenge,address operator);
+
+
+    /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDumpNumber disclosure challenge 
+    uint256 public constant disclosureFraudProofInterval = 7 days;
 
 
 
-    constructor(DataLayrDisclosureUtils _disclosureUtils)  {
-        disclosureUtils = _disclosureUtils;
+    constructor(
+        DataLayrChallengeUtils _challengeUtils,
+        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory
+    )  {
+        challengeUtils = _challengeUtils;
+        dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
     }
 
     /**
@@ -179,7 +203,7 @@ contract DataLayrForcedDisclosureManager {
                     operator
                 );
                 //not super critic: new call here, maybe change comment
-                disclosureUtils.checkInclusionExclusionInNonSigner(
+                challengeUtils.checkInclusionExclusionInNonSigner(
                     operatorPubkeyHash,
                     nonSignerIndex,
                     signatoryRecord
@@ -314,7 +338,7 @@ contract DataLayrForcedDisclosureManager {
         );
 
         //not so critic: move comments here
-        uint48 degree = disclosureUtils.validateDisclosureResponse(
+        uint48 degree = validateDisclosureResponse(
             disclosureForOperator[headerHash][msg.sender].chunkNumber,
             header,
             multireveal,
@@ -349,6 +373,182 @@ contract DataLayrForcedDisclosureManager {
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
 
+    /**
+     @notice 
+        For simpicity of notation, let the interpolating polynomial I_k(x) for the DataLayr operation k
+        be denoted by I(x). Assume the interpolating polynomial is of degree d and its coefficients are 
+        c_0, c_1, ...., c_d. 
+        
+        Then, substituting x = s, we can write:
+         I(s) = c_0 + c_1 * s + c_2 * s^2 + c_3 * s^3 + ... + c_d * s^d
+              = [c_0 + c_1 * s + ... + c_{d/2} * s^(d/2)] + [c_{d/2 + 1} * s^(d/2 + 1) ... + c_d * s^d]
+              =                   coors1(s)               +                        coors2(s)
+     */
+    /**
+     @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     @param operator is the address of the DataLayr operator
+     @param coors this is of the format: [coors1(s).x, coors1(s).y, coors2(s).x, coors2(s).y]
+     */
+    function initInterpolatingPolynomialFraudProof(
+        bytes32 headerHash,
+        address operator,
+        uint256[4] memory coors
+    ) public {
+        require(
+            disclosureForOperator[headerHash][operator].challenger ==
+                msg.sender,
+            "Only challenger can call"
+        );
+
+        require(
+            disclosureForOperator[headerHash][operator].status == 2,
+            "Not in post operator response phase"
+        );
+
+        // update commit time
+        disclosureForOperator[headerHash][operator].commitTime = uint32(
+            block.timestamp
+        );
+
+        // update status to challenged
+        disclosureForOperator[headerHash][operator].status = 3;
+
+        /**
+         @notice We need to ensure that the challenge is legitimate. In order to do so, we want coors1(s) and 
+                 coors2(s) to be such that:
+                                        I(s) != coors1(s) + coors2(s)   
+         */
+        uint256[2] memory res;
+
+        // doing coors1(s) + coors2(s)
+        assembly {
+            if iszero(call(not(0), 0x06, 0, coors, 0x80, res, 0x40)) {
+                revert(0, 0)
+            }
+        }
+
+        // checking I(s) != coors1(s) + coors2(s)
+        require(
+            res[0] != disclosureForOperator[headerHash][operator].x ||
+                res[0] != disclosureForOperator[headerHash][operator].y,
+            "Cannot commit to same polynomial as the interpolating polynomial"
+        );
+
+        // degree has been narrowed down by half every dissection
+        uint48 halfDegree = disclosureForOperator[headerHash][operator].degree /
+            2;
+
+        // initializing the interaction-style forced disclosure challenge
+        address disclosureChallenge = address(
+            dataLayrDisclosureChallengeFactory
+                .createDataLayrDisclosureChallenge(
+                    headerHash,
+                    operator,
+                    msg.sender,
+                    coors[0],
+                    coors[1],
+                    coors[2],
+                    coors[3],
+                    halfDegree
+                )
+        );
+
+        // recording the contract address for interaction-style forced disclosure challenge
+        disclosureForOperator[headerHash][operator]
+            .challenge = disclosureChallenge;
+
+        emit DisclosureChallengeInteractive(
+            headerHash,
+            disclosureChallenge,
+            operator
+        );
+    }
+    
+    /**
+     @notice This function is called for settling the forced disclosure challenge.
+     */
+    /**
+     @param headerHash is the hash of summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     @param operator is the address of DataLAyr operator
+     @param winner representing who is the winner - challenged DataLayr operator or the challenger?  
+     */
+    // CRITIC: there are some @todo's here
+    function resolveDisclosureChallenge(
+        bytes32 headerHash,
+        address operator,
+        bool winner
+    ) external {
+        if (
+            msg.sender == disclosureForOperator[headerHash][operator].challenge
+        ) {
+            /** 
+                the above condition would be called by the forced disclosure challenge contract when the final 
+                step of the interactive fraudproof for single monomial has finished
+            */
+            if (winner) {
+                // challenger was wrong, allow for another forced disclosure challenge
+                disclosureForOperator[headerHash][operator].status = 0;
+                disclosureForOperator[headerHash][operator].commitTime = uint32(
+                    block.timestamp
+                );
+
+                // @todo give them previous challengers payment
+            } else {
+                // challeger was correct, reset payment
+                disclosureForOperator[headerHash][operator].status = 4;
+                // @todo do something
+            }
+        } else if (
+            msg.sender == disclosureForOperator[headerHash][operator].challenger
+        ) {
+            /** 
+                the above condition would be called by the challenger in case if the DataLayr operator doesn't 
+                respond in time
+             */
+
+            require(
+                disclosureForOperator[headerHash][operator].status == 1,
+                "Operator is not in initial response phase"
+            );
+            require(
+                block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval,
+                "Fraud proof period has not passed"
+            );
+
+            //slash here
+        } else if (msg.sender == operator) {
+            /** 
+                the above condition would be called by the DataLayr operator in case if the challenger doesn't 
+                respond in time
+             */
+
+            require(
+                disclosureForOperator[headerHash][operator].status == 2,
+                "Challenger is not in commitment challenge phase"
+            );
+            require(
+                block.timestamp >
+                    disclosureForOperator[headerHash][operator].commitTime +
+                        disclosureFraudProofInterval,
+                "Fraud proof period has not passed"
+            );
+
+            //get challengers payment here
+        } else {
+            revert(
+                "Only the challenge contract, challenger, or operator can call"
+            );
+        }
+    }
+
+
+
+
+
+
+
 
     /**
      @notice this function returns the compressed record on the signatures of DataLayr nodes 
@@ -360,6 +560,143 @@ contract DataLayrForcedDisclosureManager {
         returns (bytes32)
     {
         return dumpNumberToSignatureHash[_dumpNumber];
+    }
+
+    function validateDisclosureResponse(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        // bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof
+    ) public returns(uint48) {
+        (
+            uint256[2] memory c,
+            uint48 degree,
+            uint32 numSys,
+            uint32 numPar
+        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+            // modulus for the underlying field F_q of the elliptic curve
+        /*
+        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
+        require(
+            (degree + 1) * 32 == poly.length,
+            "Polynomial must have a 256 bit coefficient for each term"
+        );
+        */
+
+        // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
+        // of the zero polynomial Merkle tree
+
+        {
+            //deterministic assignment of "y" here
+            // @todo
+            require(
+                Merkle.checkMembership(
+                    // leaf
+                    keccak256(
+                        abi.encodePacked(
+                            zeroPoly[0],
+                            zeroPoly[1],
+                            zeroPoly[2],
+                            zeroPoly[3]
+                        )
+                    ),
+                    // index in the Merkle tree
+                    challengeUtils.getLeadingCosetIndexFromHighestRootOfUnity(
+                        uint32(chunkNumber),
+                        numSys,
+                        numPar
+                    ),
+                    // Merkle root hash
+                    challengeUtils.getZeroPolyMerkleRoot(degree),
+                    // Merkle proof
+                    zeroPolyProof
+                ),
+                "Incorrect zero poly merkle proof"
+            );
+        }
+
+        /**
+         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
+         */
+        //get the commitment to the zero polynomial of multireveal degree
+
+        uint256[13] memory pairingInput;
+
+        assembly {
+            // extract the proof [Pi(s).x, Pi(s).y]
+            mstore(pairingInput, calldataload(36))
+            mstore(add(pairingInput, 0x20), calldataload(68))
+
+            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
+            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
+            mstore(add(pairingInput, 0x60), mload(zeroPoly))
+            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
+            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
+
+            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
+            mstore(add(pairingInput, 0xC0), mload(c))
+            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
+
+            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
+            // to get [I_k(s).x, -I_k(s).y]
+            mstore(add(pairingInput, 0x100), calldataload(100))
+            // obtain -I_k(s).y
+            mstore(
+                add(pairingInput, 0x120),
+                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
+            )
+        }
+
+        assembly {
+            // overwrite C(s) with C(s) - I(s)
+
+            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
+
+            if iszero(
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    add(pairingInput, 0xC0),
+                    0x80,
+                    add(pairingInput, 0xC0),
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        // check e(pi, z)e(C - I, -g2) == 1
+        assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
+            // call the precompiled ec2 pairing contract at 0x08
+            if iszero(
+                call(
+                    not(0),
+                    0x08,
+                    0,
+                    pairingInput,
+                    0x180,
+                    add(pairingInput, 0x180),
+                    0x20
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        require(pairingInput[12] == 1, "Pairing unsuccessful");
+        return degree;
     }
 
 
