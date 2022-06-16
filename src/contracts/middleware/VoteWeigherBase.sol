@@ -51,7 +51,9 @@ contract VoteWeigherBase is IVoteWeigher, VoteWeigherBaseStorage {
         view
         returns (uint96)
     {
-        uint96 eigenAmount = uint96(delegation.getEigenDelegated(operator));
+        // TODO: fix this!!!
+        // uint96 eigenAmount = uint96(delegation.getEigenDelegated(operator));
+        uint96 eigenAmount = 1e17;
 
         // check that minimum delegation limit is satisfied
         return eigenAmount;

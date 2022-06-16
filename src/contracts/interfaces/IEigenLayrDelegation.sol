@@ -28,11 +28,6 @@ interface IEigenLayrDelegation {
         view
         returns (uint256);
 
-    function getEigenDelegated(address operator)
-        external
-        view
-        returns (uint256);
-
     function isNotDelegated(address staker)
         external
         view
@@ -71,9 +66,5 @@ interface IEigenLayrDelegation {
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external;
-
-    function decreaseOperatorEigen(address operator, uint256 eigenAmount) external;
-
-    function increaseOperatorEigen(address operator, uint256 eigenAmount) external;
     
 }

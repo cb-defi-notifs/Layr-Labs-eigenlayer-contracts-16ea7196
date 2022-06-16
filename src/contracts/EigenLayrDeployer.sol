@@ -79,7 +79,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager, address(this), address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
-        investmentManager = new InvestmentManager(eigen, delegation);
+        investmentManager = new InvestmentManager(delegation);
         //used in the one investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",

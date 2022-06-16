@@ -215,7 +215,8 @@ contract Delegator is EigenLayrDeployer {
 
             //deposit delegator's eigen into investment manager
             eigen.setApprovalForAll(address(investmentManager), true);
-            investmentManager.depositEigen(amountEigenToDeposit);
+            // TODO: FIX THIS!
+            // investmentManager.depositEigen(amountEigenToDeposit);
             
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
