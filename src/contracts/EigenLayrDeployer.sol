@@ -118,9 +118,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             weth,
             weth,
             feePerBytePerTime,
-            dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory,
-            disclosureUtils
+            dataLayrPaymentChallengeFactory
         );
 
         dl = new DataLayr();

@@ -243,21 +243,25 @@ contract Delegator is EigenLayrDeployer {
 
     function _payRewards(address operator) internal {
         uint120 amountRewards = 10;
+        
 
         //Operator submits claim to rewards
         _testCommitPayment(operator, amountRewards);
+        
 
         //initiate challenge
         challengeContract = _testInitPaymentChallenge(operator, 5, 3);
+        emit log("HEYEHEYE");
         dlpc = IDataLayrPaymentChallenge(challengeContract);
+        
 
         bool half = true;
 
 
         //Challenge payment test
         operatorDisputesChallenger(operator, half, 2, 3);
-        challengerDisputesOperator(operator, half, 1, 1);
-        operatorDisputesChallenger(operator, half, 1, 1);
+        // challengerDisputesOperator(operator, half, 1, 1);
+        // operatorDisputesChallenger(operator, half, 1, 1);
         emit log_uint(dlpc.getDiff());
 
     }
@@ -269,7 +273,7 @@ contract Delegator is EigenLayrDeployer {
             cheats.stopPrank();
             return;
         }
-
+        
         dlpc.challengePaymentHalf(half, amount1, amount2);
         cheats.stopPrank();
 
@@ -293,9 +297,12 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(_challenger);
         weth.approve(address(dlsm), type(uint256).max);
 
+        
+
         //challenger initiates challenge
-        dlsm.challengePaymentInit(operator, amount1, amount2);
-        address _challengeContract = dlsm.operatorToPaymentChallenge(operator);
+        dlpcm.challengePaymentInit(operator, amount1, amount2);
+        
+        address _challengeContract = dlpcm.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
 
         return _challengeContract;

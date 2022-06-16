@@ -24,6 +24,7 @@ import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
 
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
@@ -62,6 +63,7 @@ contract EigenLayrDeployer is
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
+    DataLayrPaymentChallengeManager public dlpcm;
     DataLayr public dl;
 
     IERC20 public weth;
@@ -258,10 +260,10 @@ contract EigenLayrDeployer is
             weth,
             weth,
             feePerBytePerTime,
-            dataLayrPaymentChallengeFactory,
-            dataLayrDisclosureChallengeFactory,
-            disclosureUtils
+            dataLayrPaymentChallengeFactory
         );
+
+        dlpcm = new DataLayrPaymentChallengeManager(weth, address(dlsm));
         dl = new DataLayr();
 
         dlRepository = new Repository(delegation, investmentManager);

@@ -14,7 +14,7 @@ interface IDataLayrServiceManager {
 
     function getDumpNumberSignatureHash(uint32) external returns (bytes32);
 
-    function resolvePaymentChallenge(address, bool) external;
+    //function resolvePaymentChallenge(address, bool) external;
 
     function paymentFraudProofInterval() external returns (uint256);
 
