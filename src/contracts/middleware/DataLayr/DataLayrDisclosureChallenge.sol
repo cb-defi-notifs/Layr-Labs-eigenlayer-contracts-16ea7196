@@ -6,7 +6,13 @@ import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IDataLayrForcedDisclosureManager.sol";
 import "../../libraries/BytesLib.sol";
+import "../../middleware/DataLayr/DataLayrForcedDisclosureManager.sol";
+import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
+import "../../middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
+
+
 import "../Repository.sol";
 
 
@@ -15,8 +21,14 @@ import "../Repository.sol";
  */
 contract DataLayrDisclosureChallenge {
     using BytesLib for bytes;
-    IDataLayrServiceManager public dlsm;
+    IDataLayrForcedDisclosureManager public dlfdm;
     DisclosureChallenge public challenge;
+
+    DataLayrChallengeUtils public challengeUtils;
+    DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
+
+
+    
 
     event DisclosureChallengeDisection(address nextInteracter, bytes32 headerHash);
 
@@ -56,7 +68,7 @@ contract DataLayrDisclosureChallenge {
 
 
     constructor(
-        address dlsmAddr,
+        address dlfdmAddr,
         bytes32 headerHash,
         address operator,
         address challenger,
@@ -80,7 +92,14 @@ contract DataLayrDisclosureChallenge {
             increment,
             0
         );
-        dlsm = IDataLayrServiceManager(dlsmAddr);
+
+        dlfdm = IDataLayrForcedDisclosureManager(dlfdmAddr);
+        
+
+        // dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+        // challengeUtils = new DataLayrChallengeUtils();
+        
+
     }
 
 
@@ -125,7 +144,7 @@ contract DataLayrDisclosureChallenge {
 
         require(
             block.timestamp <
-                challenge.commitTime + dlsm.disclosureFraudProofInterval(),
+                challenge.commitTime + dlfdm.disclosureFraudProofInterval(),
             "Fraud proof interval has passed"
         );
 
@@ -178,7 +197,7 @@ contract DataLayrDisclosureChallenge {
              DataLayr operator didn't respond within a stipulated time.
      */
     function resolveTimeout(bytes32 headerHash) public {
-        uint256 interval = dlsm.disclosureFraudProofInterval();
+        uint256 interval = dlfdm.disclosureFraudProofInterval();
 
         // CRITIC: what is this first condition?
         require(
@@ -230,7 +249,7 @@ contract DataLayrDisclosureChallenge {
 
         require(
             block.timestamp <
-                challenge.commitTime + dlsm.disclosureFraudProofInterval(),
+                challenge.commitTime + dlfdm.disclosureFraudProofInterval(),
             "Fraud proof interval has passed"
         );
 
@@ -238,7 +257,7 @@ contract DataLayrDisclosureChallenge {
           Check that the interpolating polynomial supplied is same as what was supplied back in 
           respondToDisclosureInit in DataLayrServiceManager.sol.
          */   
-        bytes32 polyHash = dlsm.getPolyHash(challenge.operator, headerHash);
+        bytes32 polyHash = dlfdm.getPolyHash(challenge.operator, headerHash);
         require(
             keccak256(poly) == polyHash,
             "Must provide the same polynomial coefficients as before"
@@ -254,7 +273,7 @@ contract DataLayrDisclosureChallenge {
                 keccak256(abi.encodePacked(x_power, y_power)),
                 degree,
                 /// @dev more explanation on TauMerkleRoot in IDataLayrServiceManager.sol
-                dlsm.powersOfTauMerkleRoot(),
+                dlfdm.powersOfTauMerkleRoot(),
                 proof
             ),
             "Incorrect power of tau proof"
@@ -347,7 +366,7 @@ contract DataLayrDisclosureChallenge {
     }
 
     function resolve(bytes32 headerHash, bool challengeSuccessful) internal {
-        dlsm.resolveDisclosureChallenge(
+        dlfdm.resolveDisclosureChallenge(
             headerHash,
             challenge.operator,
             challengeSuccessful

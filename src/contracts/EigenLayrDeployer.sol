@@ -19,7 +19,7 @@ import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
-import "./middleware/DataLayr/DataLayrDisclosureUtils.sol";
+import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
 
@@ -110,7 +110,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
         dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
 
-        DataLayrDisclosureUtils disclosureUtils = new DataLayrDisclosureUtils();
+        DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(

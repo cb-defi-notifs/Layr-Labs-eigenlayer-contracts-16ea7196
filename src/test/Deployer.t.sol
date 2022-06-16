@@ -23,7 +23,7 @@ import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
-import "../contracts/middleware/DataLayr/DataLayrDisclosureUtils.sol";
+import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
@@ -249,7 +249,7 @@ contract EigenLayrDeployer is
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
-        DataLayrDisclosureUtils disclosureUtils = new DataLayrDisclosureUtils();
+        DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
         dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
         uint256 feePerBytePerTime = 1;
