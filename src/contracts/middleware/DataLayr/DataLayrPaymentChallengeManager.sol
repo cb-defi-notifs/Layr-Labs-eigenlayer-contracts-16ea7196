@@ -38,6 +38,7 @@ import "ds-test/test.sol";
     mapping(address => address) public operatorToPaymentChallenge;
 
     IERC20 public immutable collateralToken;
+    address dlsmAddr;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
 
@@ -53,9 +54,12 @@ import "ds-test/test.sol";
 
 
     constructor(
-        IERC20 _collateralToken
+        IERC20 _collateralToken,
+        address _dlsmAddr
     ){
         collateralToken = _collateralToken;
+        dlsmAddr = _dlsmAddr;
+        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
     }
 
 
@@ -73,6 +77,7 @@ import "ds-test/test.sol";
         uint120 amount1,
         uint120 amount2
     ) external {
+        
         require(
             block.timestamp <
                 operatorToPayment[operator].commitTime +
@@ -80,19 +85,21 @@ import "ds-test/test.sol";
                 operatorToPayment[operator].status == 0,
             "Fraud proof interval has passed"
         );
-
+        
         // deploy new challenge contract
         address challengeContract = dataLayrPaymentChallengeFactory
             .createDataLayrPaymentChallenge(
                 operator,
                 msg.sender,
+                dlsmAddr,
                 address(this),
                 operatorToPayment[operator].fromDumpNumber,
                 operatorToPayment[operator].toDumpNumber,
                 amount1,
                 amount2
             );
-        emit log("THIS IS HALLENGE");
+        emit log("THIS IS CHALLENGE");
+        
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.transferFrom(msg.sender, address(this), collateral);

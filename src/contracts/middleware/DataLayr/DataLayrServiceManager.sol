@@ -7,8 +7,6 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
-import "./DataLayrDisclosureChallengeFactory.sol";
-import "./DataLayrChallengeUtils.sol";
 import "./DataLayrSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
@@ -64,12 +62,6 @@ contract DataLayrServiceManager is
      */
     DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
 
-    /**
-     * @notice factory contract used to deploy new DataLayrDisclosureChallenge contracts
-     */
-    DataLayrDisclosureChallengeFactory public immutable dataLayrDisclosureChallengeFactory;
-
-    DataLayrChallengeUtils public immutable challengeUtils;
 
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
@@ -121,15 +113,12 @@ contract DataLayrServiceManager is
         IERC20 _paymentToken,
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime,
-        DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory,
-        DataLayrDisclosureChallengeFactory _dataLayrDisclosureChallengeFactory,
-        DataLayrChallengeUtils _challengeUtils
+        DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory
     ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
-        dataLayrDisclosureChallengeFactory = _dataLayrDisclosureChallengeFactory;
-        challengeUtils = _challengeUtils;
+        
     }
 
 
@@ -468,78 +457,78 @@ contract DataLayrServiceManager is
         emit PaymentRedemption(msg.sender, amount);
     }
 
-    //
-    //TODO: How much collateral
-    /**
-     @notice This function would be called by a fraud prover to challenge a payment 
-             by initiating an interactive type proof
-     **/
-    /**
-     @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
-     @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
-     @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
-     **/
-    function challengePaymentInit(
-        address operator,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
-        require(
-            block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval &&
-                operatorToPayment[operator].status == 0,
-            "Fraud proof interval has passed"
-        );
+    // //
+    // //TODO: How much collateral
+    // /**
+    //  @notice This function would be called by a fraud prover to challenge a payment 
+    //          by initiating an interactive type proof
+    //  **/
+    // /**
+    //  @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
+    //  @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
+    //  @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
+    //  **/
+    // function challengePaymentInit(
+    //     address operator,
+    //     uint120 amount1,
+    //     uint120 amount2
+    // ) external {
+    //     require(
+    //         block.timestamp <
+    //             operatorToPayment[operator].commitTime +
+    //                 paymentFraudProofInterval &&
+    //             operatorToPayment[operator].status == 0,
+    //         "Fraud proof interval has passed"
+    //     );
 
-        // deploy new challenge contract
-        address challengeContract = dataLayrPaymentChallengeFactory
-            .createDataLayrPaymentChallenge(
-                operator,
-                msg.sender,
-                address(this),
-                operatorToPayment[operator].fromDumpNumber,
-                operatorToPayment[operator].toDumpNumber,
-                amount1,
-                amount2
-            );
-        emit log("THIS IS HALLENGE");
-        //move collateral over
-        uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.transferFrom(msg.sender, address(this), collateral);
-        //update payment
-        operatorToPayment[operator].status = 2;
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
-        operatorToPaymentChallenge[operator] = challengeContract;
-        emit PaymentChallengeInit(operator, msg.sender);
-    }
+    //     // deploy new challenge contract
+    //     address challengeContract = dataLayrPaymentChallengeFactory
+    //         .createDataLayrPaymentChallenge(
+    //             operator,
+    //             msg.sender,
+    //             address(this),
+    //             operatorToPayment[operator].fromDumpNumber,
+    //             operatorToPayment[operator].toDumpNumber,
+    //             amount1,
+    //             amount2
+    //         );
+    //     emit log("THIS IS HALLENGE");
+    //     //move collateral over
+    //     uint256 collateral = operatorToPayment[operator].collateral;
+    //     collateralToken.transferFrom(msg.sender, address(this), collateral);
+    //     //update payment
+    //     operatorToPayment[operator].status = 2;
+    //     operatorToPayment[operator].commitTime = uint32(block.timestamp);
+    //     operatorToPaymentChallenge[operator] = challengeContract;
+    //     emit PaymentChallengeInit(operator, msg.sender);
+    // }
 
-    function resolvePaymentChallenge(address operator, bool winner) external {
-        require(
-            msg.sender == operatorToPaymentChallenge[operator],
-            "Only the payment challenge contract can call"
-        );
-        if (winner) {
-            // operator was correct, allow for another challenge
-            operatorToPayment[operator].status = 0;
-            operatorToPayment[operator].commitTime = uint32(block.timestamp);
-            //give them previous challengers collateral
-            collateralToken.transfer(
-                operator,
-                operatorToPayment[operator].collateral
-            );
-            emit PaymentChallengeResolution(operator, true);
-        } else {
-            // challeger was correct, reset payment
-            operatorToPayment[operator].status = 1;
-            //give them their collateral and the operators
-            collateralToken.transfer(
-                operator,
-                2 * operatorToPayment[operator].collateral
-            );
-            emit PaymentChallengeResolution(operator, false);
-        }
-    }
+    // function resolvePaymentChallenge(address operator, bool winner) external {
+    //     require(
+    //         msg.sender == operatorToPaymentChallenge[operator],
+    //         "Only the payment challenge contract can call"
+    //     );
+    //     if (winner) {
+    //         // operator was correct, allow for another challenge
+    //         operatorToPayment[operator].status = 0;
+    //         operatorToPayment[operator].commitTime = uint32(block.timestamp);
+    //         //give them previous challengers collateral
+    //         collateralToken.transfer(
+    //             operator,
+    //             operatorToPayment[operator].collateral
+    //         );
+    //         emit PaymentChallengeResolution(operator, true);
+    //     } else {
+    //         // challeger was correct, reset payment
+    //         operatorToPayment[operator].status = 1;
+    //         //give them their collateral and the operators
+    //         collateralToken.transfer(
+    //             operator,
+    //             2 * operatorToPayment[operator].collateral
+    //         );
+    //         emit PaymentChallengeResolution(operator, false);
+    //     }
+    // }
 
     function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) public {
         require(msg.sender == address(dataLayrLowDegreeChallenge), "Only low degree resolver can resolve low degree challenges");

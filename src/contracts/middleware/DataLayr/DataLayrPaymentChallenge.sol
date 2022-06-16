@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
+import "../../interfaces/IDataLayrPaymentChallengeManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
@@ -66,6 +67,7 @@ contract DataLayrPaymentChallenge is DSTest{
 
 
     IDataLayrServiceManager public dlsm;
+    IDataLayrPaymentChallengeManager public dlpcm;
 
     // the payment challenge 
     PaymentChallenge public challenge;
@@ -83,6 +85,7 @@ contract DataLayrPaymentChallenge is DSTest{
         address operator,
         address challenger,
         address serviceManager,
+        address dlpcmAddr,
         uint32 fromDumpNumber,
         uint32 toDumpNumber,
         uint120 amount1,
@@ -103,6 +106,8 @@ contract DataLayrPaymentChallenge is DSTest{
         );
 
         dlsm = IDataLayrServiceManager(serviceManager);
+        dlpcm = IDataLayrPaymentChallengeManager(dlpcmAddr);
+        
     }
 
 
@@ -333,7 +338,7 @@ contract DataLayrPaymentChallenge is DSTest{
     }
 
     function resolve(bool challengeSuccessful) internal {
-        dlsm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
+        dlpcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
     }
 
