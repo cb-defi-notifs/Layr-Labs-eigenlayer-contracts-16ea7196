@@ -136,7 +136,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
     
-    /// @notice indicates the window within which DataLayr operator must respond to the forced disclosure challenge 
+    /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDumpNumber disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
 
 
