@@ -312,13 +312,10 @@ contract Delegator is EigenLayrDeployer {
 
     // scoped block helps fix 'stack too deep' errors
     {
-emit log_named_uint("delegation.t.sol line", 321);
         bytes32 headerHash = _testInitDataStore();
         uint32 numberOfNonSigners = 0;
 
-emit log_named_uint("delegation.t.sol line", 324);
         _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
-emit log_named_uint("delegation.t.sol line", 326);
 
         (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
