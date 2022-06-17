@@ -75,7 +75,7 @@ contract Delegator is EigenLayrDeployer {
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
         uint256 ethAmount = 1e18;
-        uint256 eigenAmount = 1e16;
+        uint256 eigenAmount = 1e18;
         // uint96 registrantEthWeightBefore = uint96(
         //     dlReg.weightOfOperatorEth(signers[0])
         // );
@@ -92,6 +92,8 @@ contract Delegator is EigenLayrDeployer {
 
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
         uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
+        emit log_named_uint("registrantEthWeightBefore", registrantEthWeightBefore);
+        emit log_named_uint("registrantEthWeightAfter", registrantEthWeightAfter);
         assertTrue(
             registrantEthWeightAfter - registrantEthWeightBefore == ethAmount, 
             "testDelegation: registrantEthWeight did not increment by the right amount"
@@ -114,17 +116,7 @@ contract Delegator is EigenLayrDeployer {
 
         _testRegisterAsDelegate(signers[0], _dt);
         _testDepositStrategies(signers[1], 1e18, numStratsToAdd);
-        _testDepositEigen(signers[1], 1e16);
-
-        // add all the new strategies to the 'strategiesConsidered' of dlVW
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](numStratsToAdd);
-        for (uint256 i = 0; i < strats.length; ++i) {
-            strats[i] = strategies[i];
-        }
-        cheats.startPrank(address(dlReg.repository().owner()));
-        dlReg.addStrategiesConsidered(strats);
-        cheats.stopPrank();
-
+        _testDepositEigen(signers[1], 1e18);
         _testDelegateToOperator(signers[1], signers[0]);
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
         uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
@@ -144,7 +136,7 @@ contract Delegator is EigenLayrDeployer {
         DelegationTerms _dt = _deployDelegationTerms(registrant);
         _testRegisterAsDelegate(registrant, _dt);
         _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0, 1e16);
+        _testDepositEigen(acct_0, 1e18);
         _testDelegateToOperator(acct_0, registrant);
 
         //delegator-specific information
@@ -191,20 +183,21 @@ contract Delegator is EigenLayrDeployer {
         sigmas.push(uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346));
              
         address operator = signers[0];
-        _testInitiateDelegation(operator, 1e10);
+        _testInitiateDelegation(operator, 1e18);
         _payRewards(operator);
     }
 
     function _testInitiateDelegation(address operator, uint256 amountToDeposit) public {
         //setting up operator's delegation terms
-        weth.transfer(operator, 1e5);
-        weth.transfer(_challenger, 1e5);
+        weth.transfer(operator, 1e18);
+        weth.transfer(_challenger, 1e18);
         dt = _deployDelegationTerms(operator);
         _testRegisterAsDelegate(operator, dt);
 
         for(uint i; i < delegates.length; i++){
             //initialize weth, eigen and eth balances for delegator
-            eigen.safeTransferFrom(address(this), delegates[i], 0, amountEigenToDeposit, "0x");
+            // eigen.safeTransferFrom(address(this), delegates[i], 0, amountEigenToDeposit, "0x");
+            eigenToken.transfer(delegates[i], amountEigenToDeposit);
             weth.transfer(delegates[i], amountToDeposit);
             cheats.deal(delegates[i], amountEthToDeposit);
 
@@ -214,9 +207,11 @@ contract Delegator is EigenLayrDeployer {
             deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}("0x", "0x", depositContract.get_deposit_root());
 
             //deposit delegator's eigen into investment manager
-            eigen.setApprovalForAll(address(investmentManager), true);
-            investmentManager.depositEigen(amountEigenToDeposit);
-            
+            // eigen.setApprovalForAll(address(investmentManager), true);
+            // investmentManager.depositEigen(amountEigenToDeposit);
+            eigenToken.approve(address(investmentManager), type(uint256).max);
+            investmentManager.depositIntoStrategy(delegates[i], eigenStrat, eigenToken, amountEigenToDeposit);
+
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
             investmentManager.depositIntoStrategy(
@@ -317,11 +312,13 @@ contract Delegator is EigenLayrDeployer {
 
     // scoped block helps fix 'stack too deep' errors
     {
+emit log_named_uint("delegation.t.sol line", 321);
         bytes32 headerHash = _testInitDataStore();
         uint32 numberOfNonSigners = 0;
 
+emit log_named_uint("delegation.t.sol line", 324);
         _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
-
+emit log_named_uint("delegation.t.sol line", 326);
 
         (, , , , bool committed) = dl.dataStores(headerHash);
         assertTrue(committed, "Data store not committed");
@@ -421,7 +418,7 @@ contract Delegator is EigenLayrDeployer {
     function testForNonSigners() public{
 
         address operator = signers[0];
-        _testInitiateDelegation(operator, 1e10);
+        _testInitiateDelegation(operator, 1e18);
 
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;

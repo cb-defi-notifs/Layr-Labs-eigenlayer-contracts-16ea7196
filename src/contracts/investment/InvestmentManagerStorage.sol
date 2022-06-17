@@ -18,12 +18,10 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
         uint96 nonce;
     }
 
-    uint256 constant eigenTokenId = 0;
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval!
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
 
-    IERC1155 public immutable EIGEN;
     IEigenLayrDelegation public immutable delegation;
     ISlasher public slasher;
 
@@ -37,15 +35,12 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
         public investorStratShares;
     // staker => array of strategies in which they have nonzero shares
     mapping(address => IInvestmentStrategy[]) public investorStrats;
-    // staker => amount of EIGEN tokens they have deposited
-    mapping(address => uint256) public eigenDeposited;
     // staker => hash of withdrawal inputs => timestamps & address related to the withdrawal
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint96) public numWithdrawalsQueued;
 
-    constructor(IERC1155 _EIGEN, IEigenLayrDelegation _delegation) {
-        EIGEN = _EIGEN;
+    constructor(IEigenLayrDelegation _delegation) {
         delegation = _delegation;
     }
 }

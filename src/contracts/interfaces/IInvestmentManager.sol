@@ -56,16 +56,10 @@ interface IInvestmentManager {
         external
         returns (uint256);
 
-    function depositEigen(uint256 amount)
-        external
-        returns (uint256);
-
     function getConsensusLayerEth(address depositor)
         external
         view
         returns (uint256);
-
-    function getEigen(address depositor) external view returns (uint256);
 
     function investorStratShares(address user, IInvestmentStrategy strategy)
         external

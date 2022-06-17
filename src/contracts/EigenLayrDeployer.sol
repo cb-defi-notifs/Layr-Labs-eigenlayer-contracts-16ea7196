@@ -37,7 +37,9 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     using BytesLib for bytes;
 
     DepositContract public depositContract;
-    Eigen public eigen;
+    // Eigen public eigen;
+    IERC20 public eigenToken;
+    InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
@@ -72,15 +74,15 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         //eth2 deposit contract
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        eigen = new Eigen(ownerAddr);
+        // eigen = new Eigen(ownerAddr);
 
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager, address(this), address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
-        investmentManager = new InvestmentManager(eigen, delegation);
-        //used in the one investment strategy
+        investmentManager = new InvestmentManager(delegation);
+        //used in the one ETH investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -93,6 +95,17 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](1);
         strats[0] = IInvestmentStrategy(address(strat));
+
+        //used in the one EIGEN investment strategy
+        eigenToken = new ERC20PresetFixedSupply(
+            "eigen",
+            "EIGEN",
+            wethInitialSupply,
+            ownerAddr
+        );
+        //do stuff with eigen
+        eigenStrat = new InvestmentStrategyBase();
+        eigenStrat.initialize(address(investmentManager), eigenToken);
 
         address governor = address(this);
         investmentManager.initialize(
@@ -125,7 +138,13 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         dlRepository = new Repository(delegation, investmentManager);
         
-        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, consensusLayerEthToEth, strats);
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        ethStratsAndMultipliers[0].strategy = strat;
+        ethStratsAndMultipliers[0].multiplier = 1e18;
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        eigenStratsAndMultipliers[0].strategy = eigenStrat;
+        eigenStratsAndMultipliers[0].multiplier = 1e18;
+        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, disclosureUtils);
 

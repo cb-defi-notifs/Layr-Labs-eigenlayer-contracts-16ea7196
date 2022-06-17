@@ -159,10 +159,6 @@ contract EigenLayrDelegation is
             }
         }
 
-        // update the total EIGEN deposited with the operator
-        uint256 eigenAmount = investmentManager.getEigen(delegator);
-        eigenDelegated[operator] += eigenAmount;
-
         // call into hook in delegationTerms contract
         dt.onDelegationReceived(
                 delegator,
@@ -219,10 +215,6 @@ contract EigenLayrDelegation is
                 }
             }
 
-            // update the total EIGEN deposited with the operator
-            uint256 eigenAmount = investmentManager.getEigen(msg.sender);
-            eigenDelegated[operator] -= eigenAmount;
-
             // set that they are no longer delegated to anyone
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
 
@@ -270,14 +262,6 @@ contract EigenLayrDelegation is
             }
         }
         //TOOD: call into delegationTerms contract as well?
-    }
-
-    function decreaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
-        eigenDelegated[operator] -= eigenAmount;
-    }
-
-    function increaseOperatorEigen(address operator, uint256 eigenAmount) external onlyInvestmentManager {
-        eigenDelegated[operator] += eigenAmount;        
     }
 
     function increaseOperatorShares(
@@ -430,18 +414,6 @@ contract EigenLayrDelegation is
             isSelfOperator(operator)
                 ? investmentManager.getConsensusLayerEth(operator)
                 : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
-    }
-
-    /// @notice returns the total Eigen delegated by delegators with this operator
-    function getEigenDelegated(address operator)
-        external
-        view
-        returns (uint256)
-    {
-        return
-            isSelfOperator(operator)
-                ? investmentManager.getEigen(operator)
-                : eigenDelegated[operator];
     }
 
     function isSelfOperator(address operator)

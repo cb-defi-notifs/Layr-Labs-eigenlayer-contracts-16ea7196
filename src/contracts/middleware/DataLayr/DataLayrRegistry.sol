@@ -8,7 +8,7 @@ import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "../../libraries/BLS.sol";
 
-import "ds-test/test.sol";
+// import "ds-test/test.sol";
 
 /**
  * @notice This contract is used for 
@@ -20,8 +20,8 @@ import "ds-test/test.sol";
 contract DataLayrRegistry is
     IDataLayrRegistry,
     VoteWeigherBase,
-    IRegistrationManager,
-    DSTest
+    IRegistrationManager
+    // , DSTest
 {
     using BytesLib for bytes;
 
@@ -194,15 +194,13 @@ contract DataLayrRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        uint256 _consensusLayerEthToEth,
-        IInvestmentStrategy[] memory _strategiesConsidered
+        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
         VoteWeigherBase(
             _repository,
             _delegation,
-            _investmentManager,
-            _consensusLayerEthToEth,
-            _strategiesConsidered
+            _investmentManager
         )
     {
         //apk_0 = g2Gen
@@ -217,6 +215,15 @@ contract DataLayrRegistry is
         // push an empty OperatorIndex struct to the total operators history
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
+
+        uint256 length = _ethStrategiesConsideredAndMultipliers.length;
+        for (uint256 i = 0; i < length; ++i) {
+            strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
+        }
+        length = _eigenStrategiesConsideredAndMultipliers.length;
+        for (uint256 i = 0; i < length; ++i) {
+            strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
+        }
     }
 
     /**
@@ -227,7 +234,6 @@ contract DataLayrRegistry is
      */
     function weightOfOperatorEigen(address operator)
         public
-        view
         override
         returns (uint96)
     {

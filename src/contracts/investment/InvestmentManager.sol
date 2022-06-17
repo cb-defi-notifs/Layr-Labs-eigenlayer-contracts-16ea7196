@@ -54,9 +54,8 @@ contract InvestmentManager is
     }
 
     constructor(
-        IERC1155 _EIGEN,
         IEigenLayrDelegation _delegation
-    ) InvestmentManagerStorage(_EIGEN, _delegation) {
+    ) InvestmentManagerStorage(_delegation) {
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
@@ -719,62 +718,6 @@ contract InvestmentManager is
         return shares;
     }
 
-    //returns depositor's new eigenBalance
-    /**
-    /// @notice Used for staking Eigen in EigenLayr.
-     */
-    function depositEigen(uint256 amount) external returns (uint256) {
-        EIGEN.safeTransferFrom(
-            msg.sender,
-            address(this),
-            eigenTokenId,
-            amount,
-            ""
-        );
-        uint256 deposited = eigenDeposited[msg.sender];
-        totalEigenStaked = (totalEigenStaked + amount) - deposited;
-
-        eigenDeposited[msg.sender] += amount;
-
-        // increase delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.increaseOperatorEigen(
-                delegatedAddress,
-                amount
-            );
-        }
-
-        return (deposited + amount);
-    }
-
-    /**
-     * @notice Used for withdrawing Eigen
-     */
-    function withdrawEigen(uint256 amount)
-        external
-        onlyNotDelegated(msg.sender)
-    {
-        eigenDeposited[msg.sender] -= amount;
-        totalEigenStaked -= amount;
-        // decrease delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.decreaseOperatorEigen(
-                delegatedAddress,
-                amount
-            );
-        }
-
-        EIGEN.safeTransferFrom(
-            address(this),
-            msg.sender,
-            // fixed tokenId. TODO: make this flexible?
-            0,
-            amount,
-            ""
-        );
-    }
 
     /**
      * @notice gets depositor's strategies
@@ -857,13 +800,6 @@ contract InvestmentManager is
         returns (uint256)
     {
         return investorStratShares[depositor][proofOfStakingEthStrat];
-    }
-
-    /**
-     * @notice gets depositor's Eigen that has been deposited
-     */
-    function getEigen(address depositor) external view returns (uint256) {
-        return eigenDeposited[depositor];
     }
 
     /**
