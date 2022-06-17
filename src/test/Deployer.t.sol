@@ -54,7 +54,9 @@ contract EigenLayrDeployer is
 
     Vm cheats = Vm(HEVM_ADDRESS);
     DepositContract public depositContract;
-    Eigen public eigen;
+    // Eigen public eigen;
+    IERC20 public eigenToken;
+    InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
@@ -89,7 +91,6 @@ contract EigenLayrDeployer is
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
-    uint256 consensusLayerEthToEth = 10;
     bytes32 consensusLayerDepositRoot =
         0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
@@ -116,7 +117,7 @@ contract EigenLayrDeployer is
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
-        eigen = new Eigen(address(this));
+        // eigen = new Eigen(address(this));
 
         // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
         deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
@@ -183,6 +184,20 @@ contract EigenLayrDeployer is
         // initialize InvestmentStrategyBase proxy
         strat.initialize(address(investmentManager), weth);
 
+        eigenToken = new ERC20PresetFixedSupply("eigen", "EIGEN", wethInitialSupply, address(this));
+        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
+        eigenStrat = new InvestmentStrategyBase();
+        eigenStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(eigenStrat),
+                    address(eigenLayrProxyAdmin),
+                    ""
+                )
+            )
+        );
+        // initialize InvestmentStrategyBase proxy
+        eigenStrat.initialize(address(investmentManager), eigenToken);
 
         // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
@@ -265,16 +280,21 @@ contract EigenLayrDeployer is
 
         dlRepository = new Repository(delegation, investmentManager);
 
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](3);
-        for (uint256 i = 0; i < strats.length; ++i) {
-            strats[i] = strategies[i];
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](3);
+        for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
+            ethStratsAndMultipliers[i].strategy = strategies[i];
+            // TODO: change this if needed
+            ethStratsAndMultipliers[i].multiplier = 1e18;
         }
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        eigenStratsAndMultipliers[0].strategy = eigenStrat;
+        eigenStratsAndMultipliers[0].multiplier = 1e18;
         dlReg = new DataLayrRegistry(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
-            consensusLayerEthToEth,
-            strats
+            ethStratsAndMultipliers,
+            eigenStratsAndMultipliers
         );
 
         Repository(address(dlRepository)).initialize(
@@ -539,17 +559,17 @@ contract EigenLayrDeployer is
     // deposits a fixed amount of eigen from address 'sender'
     // checks that the deposit is credited correctly
     function _testDepositEigen(address sender, uint256 toDeposit) public {
-        // TODO: FIX THiS!
-        // eigen.safeTransferFrom(address(this), sender, 0, toDeposit, "0x");
-        // cheats.startPrank(sender);
-        // eigen.setApprovalForAll(address(investmentManager), true);
-        // investmentManager.depositEigen(toDeposit);
+        eigenToken.transfer(sender, toDeposit);
+        cheats.startPrank(sender);
+        eigenToken.approve(address(investmentManager), type(uint256).max);
+        investmentManager.depositIntoStrategy(sender, eigenStrat, eigenToken, toDeposit);
+        // TODO: add this check back in
         // assertEq(
         //     investmentManager.eigenDeposited(sender),
         //     toDeposit,
         //     "_testDepositEigen: deposit not properly credited"
         // );
-        // cheats.stopPrank();
+        cheats.stopPrank();
     }
 
     function _testSelfOperatorDelegate(address sender) internal {
@@ -782,6 +802,14 @@ contract EigenLayrDeployer is
             //store strategy in mapping of strategies
             strategies[i] = IInvestmentStrategy(address(stratsToDepositTo[i]));
         }
+        // add strategies to dlRegistry
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
+            // TODO: change this if needed
+            ethStratsAndMultipliers[0].multiplier = 1e18;
+            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
+        }
     }
 
     function _testUndelegation(address sender) internal {
@@ -800,7 +828,8 @@ contract EigenLayrDeployer is
             address(depositContract) != address(0),
             "depositContract failed to deploy"
         );
-        assertTrue(address(eigen) != address(0), "eigen failed to deploy");
+        // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
+        assertTrue(address(eigenToken) != address(0), "eigenToken failed to deploy");
         assertTrue(
             address(delegation) != address(0),
             "delegation failed to deploy"

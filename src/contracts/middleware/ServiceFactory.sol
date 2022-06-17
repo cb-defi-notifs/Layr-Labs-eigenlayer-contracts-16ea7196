@@ -57,12 +57,10 @@ contract ServiceFactory is IServiceFactory {
 
     function createNewService(
         IServiceManager serviceManager,
-        uint256 _consensusLayerEthToEth,
-        IInvestmentStrategy[] memory _strategiesConsidered,
         address initialRepositoryOwner
     ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
-        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _consensusLayerEthToEth, _strategiesConsidered);
+        IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager);
         IRegistrationManager registrationManager = new RegistrationManagerBase(repository);
         Repository(payable(address(repository))).initialize(
             voteWeigher,
