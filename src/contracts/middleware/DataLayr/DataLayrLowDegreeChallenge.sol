@@ -49,7 +49,6 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
         uint32 chunkNumber;
-        uint32 expireTime;
 
         {
             /**
