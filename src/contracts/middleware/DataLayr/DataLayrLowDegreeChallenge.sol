@@ -25,6 +25,8 @@ contract DataLayrLowDegreeChallenge {
         address challenge;
         uint256 collateral; //account for if collateral changed
     }
+
+    // header => operator => challenge struct
     mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
 
     event LowDegreeChallengeInit(
