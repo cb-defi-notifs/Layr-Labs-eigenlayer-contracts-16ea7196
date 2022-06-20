@@ -229,7 +229,7 @@ contract DataLayrChallengeUtils {
         }
     }
 
-    // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof is in G2 to allow for calculation of Z in G1
+    // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof (pi) is in G2 to allow for calculation of Z in G1
     function openPolynomialAtPoint(uint256[2] calldata c, uint256[4] calldata pi, uint256 r, uint256 s) public returns(bool) {
         uint256[12] memory pairingInput;
         //calculate -g1*r and store in first 2 slots of input      -g1 = (1, -2) btw
@@ -237,19 +237,27 @@ contract DataLayrChallengeUtils {
         pairingInput[1] = MODULUS - 2;
         pairingInput[2] = r;
         assembly {
-            // @dev using precompiled contract at 0x06 to do G1 scalar multiplication on elliptic curve alt_bn128
+            // @dev using precompiled contract at 0x07 to do G1 scalar multiplication on elliptic curve alt_bn128
 
             if iszero(
                 call(
+                    // forward all gas
                     not(0),
+                    // call ecMul precompile
                     0x07,
+                    // send no value
                     0,
+                    // send args starting from pairingInput[0]
                     pairingInput,
+                    // send 96 bytes of arguments, i.e. pairingInput[0], pairingInput[1], and pairingInput[2]
                     0x60,
+                    // store return data starting from pairingInput[0]
                     pairingInput,
+                    // store 64 bytes of return data, i.e. overwrite pairingInput[0] & pairingInput[1] with the return data
                     0x40
                 )
             ) {
+                // revert if the call to the precompile failed
                 revert(0, 0)
             }
         }
@@ -262,21 +270,31 @@ contract DataLayrChallengeUtils {
         assembly {
             // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
 
+            // add together the alt_bn128 points defined by (pairingInput[0], pairingInput[1]) and (pairingInput[2], pairingInput[3])
+            // store resultant point in (pairingInput[0], pairingInput[1])
             if iszero(
                 call(
+                    // forward all gas
                     not(0),
+                    // call ecAdd precompile
                     0x06,
+                    // send no value
                     0,
+                    // send args starting from pairingInput[0]
                     pairingInput,
+                    // send 128 bytes of arguments, i.e. pairingInput[0], pairingInput[1], pairingInput[2], and pairingInput[3]
                     0x80,
+                    // store return data starting from pairingInput[0]
                     pairingInput,
+                    // store 64 bytes of return data, i.e. overwrite pairingInput[0] & pairingInput[1] with the return data
                     0x40
                 )
             ) {
+                // revert if the call to the precompile failed
                 revert(0, 0)
             }
         }
-        //store pi
+        //store pi (proof)
         pairingInput[2] = pi[0];
         pairingInput[3] = pi[1];
         pairingInput[4] = pi[2];
@@ -288,34 +306,53 @@ contract DataLayrChallengeUtils {
         pairingInput[9] = MODULUS - 2;
         pairingInput[10] = s;
 
+        //calculate -g1*s and store in slots '8' and '9' of input      -g1 = (1, -2) btw
         assembly {
-            // @dev using precompiled contract at 0x06 to do G1 scalar multiplication on elliptic curve alt_bn128
+            // @dev using precompiled contract at 0x07 to do G1 scalar multiplication on elliptic curve alt_bn128
 
+            // multiply alt_bn128 point defined by (pairingInput[8], pairingInput[9]) by the scalar number pairingInput[10]
             if iszero(
                 call(
+                    // forward all gas
                     not(0),
+                    // call ecMul precompile
                     0x07,
+                    // send no value
                     0,
-                    add(pairingInput, 0x160),
+                    // send args starting from pairingInput[8]
+                    add(pairingInput, 0x100),
+                    // send 96 bytes of arguments, i.e. pairingInput[8], pairingInput[9], and pairingInput[10]
                     0x60,
-                    add(pairingInput, 0x160),
+                    // store return data starting at pairingInput[8]
+                    add(pairingInput, 0x100),
+                    // store 64 bytes of return data, i.e. overwrite pairingInput[8] & pairingInput[9] with the return data
                     0x40
                 )
             ) {
+                // revert if the call to the precompile failed
                 revert(0, 0)
             }
 
+            // add together the alt_bn128 points defined by (pairingInput[6], pairingInput[7]) and (pairingInput[8], pairingInput[9])
             if iszero(
                 call(
+                    // forward all gas
                     not(0),
+                    // call ecAdd precompile
                     0x06,
+                    // send no value
                     0,
-                    add(pairingInput, 0x120),
+                    // send args starting from pairingInput[6]
+                    add(pairingInput, 0x0C0),
+                    // send 128 bytes of arguments, i.e. pairingInput[6], pairingInput[7], pairingInput[8], and pairingInput[9]
                     0x80,
-                    add(pairingInput, 0x120),
+                    // store return data starting from pairingInput[6]
+                    add(pairingInput, 0x0C0),
+                    // store 64 bytes of return data, i.e. overwrite pairingInput[6] & pairingInput[7] with the return data
                     0x40
                 )
             ) {
+                // revert if the call to the precompile failed
                 revert(0, 0)
             }
         }
@@ -323,6 +360,8 @@ contract DataLayrChallengeUtils {
         //check e(z, pi)e(C-[s]_1, -g2) = 1
         assembly {
             // store -g2, where g2 is the negation of the generator of group G2
+            // point gets stored in slots pairingInput[8] through (including) pairingInput[11]
+            // note that the free memory pointer is not updated, so we should not do additional memory allocation after this assembly block
             mstore(add(pairingInput, 0x100), nG2x1)
             mstore(add(pairingInput, 0x120), nG2x0)
             mstore(add(pairingInput, 0x140), nG2y1)
@@ -331,19 +370,27 @@ contract DataLayrChallengeUtils {
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 call(
+                    // forward all gas
                     not(0),
+                    // call ecPairing precompile
                     0x08,
+                    // send no value
                     0,
+                    // send args starting from pairingInput[0]
                     pairingInput,
+                    // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]
                     0x180,
+                    // store return data starting from pairingInput[0]
                     pairingInput,
+                    // store 32 bytes of return data, i.e. overwrite pairingInput[0] with the return data
                     0x20
                 )
             ) {
+                // revert if the call to the precompile failed
                 revert(0, 0)
             }
         }
-
+        // check whether the call to the ecPairing precompile was successful (returns 1 if correct pairing, 0 otherwise)
         return pairingInput[0] == 1;
     }
 }
