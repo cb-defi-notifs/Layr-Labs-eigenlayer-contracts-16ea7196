@@ -246,7 +246,6 @@ contract Delegator is EigenLayrDeployer {
 
         //initiate challenge
         challengeContract = _testInitPaymentChallenge(operator, 5, 3);
-        emit log("HEYEHEYE");
         dlpc = IDataLayrPaymentChallenge(challengeContract);
         
 
@@ -257,7 +256,6 @@ contract Delegator is EigenLayrDeployer {
         operatorDisputesChallenger(operator, half, 2, 3);
         // challengerDisputesOperator(operator, half, 1, 1);
         // operatorDisputesChallenger(operator, half, 1, 1);
-        emit log_uint(dlpc.getDiff());
 
     }
 

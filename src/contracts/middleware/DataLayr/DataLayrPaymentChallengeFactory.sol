@@ -34,7 +34,6 @@ contract DataLayrPaymentChallengeFactory is DSTest {
         uint120 amount1,
         uint120 amount2
     ) external returns (address) {
-        emit log("HEHEHEHE");
         // deploy new challenge contract
         address challengeContract = address(
             new DataLayrPaymentChallenge(

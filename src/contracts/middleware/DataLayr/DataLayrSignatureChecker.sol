@@ -250,7 +250,6 @@ abstract contract DataLayrSignatureChecker is
         uint256[6] memory pk;
         pk[4] = 1;
 
-        emit log_uint(placeholder);
 
         for (uint256 i = 1; i < placeholder; ) {
             //load compressed pubkey and the index in the stakes array into memory

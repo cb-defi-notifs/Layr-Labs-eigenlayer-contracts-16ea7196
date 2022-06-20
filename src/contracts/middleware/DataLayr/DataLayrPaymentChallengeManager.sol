@@ -98,7 +98,6 @@ import "ds-test/test.sol";
                 amount1,
                 amount2
             );
-        emit log("THIS IS CHALLENGE");
         
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
