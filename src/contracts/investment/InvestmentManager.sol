@@ -104,15 +104,25 @@ contract InvestmentManager is
         uint256 amount
     ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        address operatorAddress = delegation.delegation(msg.sender);
         // increase delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
+
             delegation.increaseOperatorShares(
-                delegatedAddress,
+                operatorAddress,
                 strategy,
                 shares
             );
-            //TODO: call into delegationTerms contract as well?
+
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shares;
+            dt.onDelegationReceived(msg.sender, investorStrats, investorShares);
+
         }
     }
 
@@ -141,14 +151,16 @@ contract InvestmentManager is
             }
         }
         // increase delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
             delegation.increaseOperatorShares(
-                delegatedAddress,
+                operatorAddress,
                 strategies,
                 shares
             );
-            //TODO: call into delegationTerms contract as well?
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            dt.onDelegationReceived(msg.sender, strategies, shares);
         }
         return shares;
     }
@@ -178,6 +190,44 @@ contract InvestmentManager is
 
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
+    }
+
+    /**
+     * @notice Used to withdraw the given token and shareAmount from the given strategy.
+     */
+    /**
+     * @dev Only those stakers who have notified the system that they want to undelegate
+     *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
+     *      call this function.
+     */
+    // CRITIC:     a staker can get its asset back before finalizeUndelegation. Therefore,
+    //             what is the incentive for calling finalizeUndelegation and starting off
+    //             the challenge period when the staker can get its asset back before
+    //             fulfilling its obligations. More details in slack.
+    function withdrawFromStrategy(
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 shareAmount
+    ) external onlyNotDelegated(msg.sender) {
+        _withdrawFromStrategy(
+            msg.sender,
+            strategyIndex,
+            strategy,
+            token,
+            shareAmount
+        );
+        // decrease delegated shares accordingly, if applicable
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
+            delegation.decreaseOperatorShares(
+                operatorAddress,
+                strategy,
+                shareAmount
+            );
+
+            
+        }
     }
 
     /**
@@ -220,10 +270,10 @@ contract InvestmentManager is
             }
         }
         // decrease delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
             delegation.decreaseOperatorShares(
-                delegatedAddress,
+                operatorAddress,
                 strategies,
                 shareAmounts
             );
@@ -349,10 +399,10 @@ contract InvestmentManager is
         // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
         // this solves a 'stack too deep' error on compilation
         {
-            if (!delegation.isSelfOperator(msg.sender)) {
-                address delegatedAddress = delegation.delegation(msg.sender);
+            address operatorAddress = delegation.delegation(msg.sender);
+            if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
                 delegation.decreaseOperatorShares(
-                    delegatedAddress,
+                    operatorAddress,
                     strategies,
                     shareAmounts
                 );
@@ -562,41 +612,7 @@ contract InvestmentManager is
             .latestFraudproofTimestamp = uint32(block.timestamp);
     }
 
-    /**
-     * @notice Used to withdraw the given token and shareAmount from the given strategy.
-     */
-    /**
-     * @dev Only those stakers who have notified the system that they want to undelegate
-     *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
-     *      call this function.
-     */
-    // CRITIC:     a staker can get its asset back before finalizeUndelegation. Therefore,
-    //             what is the incentive for calling finalizeUndelegation and starting off
-    //             the challenge period when the staker can get its asset back before
-    //             fulfilling its obligations. More details in slack.
-    function withdrawFromStrategy(
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    ) external onlyNotDelegated(msg.sender) {
-        _withdrawFromStrategy(
-            msg.sender,
-            strategyIndex,
-            strategy,
-            token,
-            shareAmount
-        );
-        // decrease delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.decreaseOperatorShares(
-                delegatedAddress,
-                strategy,
-                shareAmount
-            );
-        }
-    }
+
 
     /**
      * @notice Used for slashing a certain user and transferring the slashed assets to
