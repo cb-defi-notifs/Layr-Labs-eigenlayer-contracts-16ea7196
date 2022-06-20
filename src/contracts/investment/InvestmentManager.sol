@@ -112,6 +112,7 @@ contract InvestmentManager is
                 strategy,
                 shares
             );
+            //TODO: call into delegationTerms contract as well?
         }
     }
 
@@ -147,6 +148,7 @@ contract InvestmentManager is
                 strategies,
                 shares
             );
+            //TODO: call into delegationTerms contract as well?
         }
         return shares;
     }
@@ -225,6 +227,7 @@ contract InvestmentManager is
                 strategies,
                 shareAmounts
             );
+            //TODO: call into delegationTerms contract as well?
         }
     }
 
@@ -354,6 +357,7 @@ contract InvestmentManager is
                     shareAmounts
                 );
             }
+            //TODO: call into delegationTerms contract as well?
         }
 
         //TODO: take this nearly identically duplicated code and move it into a function
@@ -667,6 +671,7 @@ contract InvestmentManager is
                 strategies,
                 shareAmounts
             );
+            //TODO: call into delegationTerms contract as well?
         }
     }
 
@@ -689,6 +694,7 @@ contract InvestmentManager is
                 consensusLayerEthStrat,
                 shares
             );
+            //TODO: call into delegationTerms contract as well?
         }
 
         return shares;
@@ -713,6 +719,7 @@ contract InvestmentManager is
                 proofOfStakingEthStrat,
                 shares
             );
+            //TODO: call into delegationTerms contract as well?
         }
 
         return shares;

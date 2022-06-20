@@ -245,7 +245,6 @@ contract EigenLayrDelegation is
     ) external onlyInvestmentManager {
         // subtract strategy shares from delegate's shares
         operatorShares[operator][strategy] -= shares;
-        //TOOD: call into delegationTerms contract as well?
     }
 
     function decreaseOperatorShares(
@@ -261,7 +260,6 @@ contract EigenLayrDelegation is
                 ++i;
             }
         }
-        //TOOD: call into delegationTerms contract as well?
     }
 
     function increaseOperatorShares(
@@ -271,8 +269,7 @@ contract EigenLayrDelegation is
     ) external onlyInvestmentManager {
         // add strategy shares to delegate's shares
         operatorShares[operator][strategy] += shares;
-        //TOOD: call into delegationTerms contract as well?
-    }
+     }
 
     function increaseOperatorShares(
         address operator,
@@ -287,7 +284,6 @@ contract EigenLayrDelegation is
                 ++i;
             }
         }
-        //TOOD: call into delegationTerms contract as well?
     }
 
     /// @notice This function must be called by a delegator to notify that its stake is
