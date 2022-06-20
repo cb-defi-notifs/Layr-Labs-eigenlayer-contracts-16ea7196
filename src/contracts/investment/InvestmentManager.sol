@@ -226,7 +226,16 @@ contract InvestmentManager is
                 shareAmount
             );
 
-            
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shareAmount;
+
+            dt.onDelegationWithdrawn(msg.sender,investorStrats, investorShares);
+
         }
     }
 
@@ -277,7 +286,8 @@ contract InvestmentManager is
                 strategies,
                 shareAmounts
             );
-            //TODO: call into delegationTerms contract as well?
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            dt.onDelegationWithdrawn(msg.sender, strategies, shareAmounts);
         }
     }
 
