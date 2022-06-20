@@ -25,7 +25,7 @@ interface IDataLayr {
         view
         returns (
             uint32 dumpNumber,
-            uint32 headerHash,
+            uint32 initTime,
             uint32 storePeriodLength,
             uint32 blockNumber,
             bool committed
