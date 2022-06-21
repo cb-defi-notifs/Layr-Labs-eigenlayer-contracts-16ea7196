@@ -76,8 +76,6 @@ contract DataLayrChallengeUtils {
             uint32
         )
     {
-        //TODO: Bowen Implement
-
         // return x, y coordinate of overall data poly commitment
         // then return degree of multireveal polynomial
         uint256[2] memory point = [uint256(0), uint256(0)];

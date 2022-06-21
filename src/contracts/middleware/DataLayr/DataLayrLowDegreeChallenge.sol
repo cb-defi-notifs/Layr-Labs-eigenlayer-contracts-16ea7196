@@ -8,7 +8,6 @@ import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
-import "./DataLayrLowDegreeChallenge.sol";
 
 // TODO: collateral
 contract DataLayrLowDegreeChallenge {
@@ -55,7 +54,8 @@ contract DataLayrLowDegreeChallenge {
             constructed during call to initDataStore in DataLayr.sol by the disperser.
             */
             (
-                uint32 dumpNumber,
+                // uint32 dumpNumber,
+                ,
                 uint32 initTime,
                 uint32 storePeriodLength,
                 // uint32 blockNumber,
@@ -95,7 +95,8 @@ contract DataLayrLowDegreeChallenge {
         uint256[2] calldata cPower,
         uint256[4] calldata pi,
         uint256[4] calldata piPower,
-        uint256 s
+        uint256 s,
+        uint256 sPrime
     ) external {
         bytes32 headerHash = keccak256(header);
 
@@ -109,7 +110,8 @@ contract DataLayrLowDegreeChallenge {
             uint256[2] memory c,
             uint48 degree,
             uint32 numSys,
-            uint32 numPar
+            // uint32 numPar -- commented out return variable
+            
         ) = challengeUtils
                 .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                     header
@@ -122,11 +124,13 @@ contract DataLayrLowDegreeChallenge {
             "Incorrect proof against commitment"
         );
 
+        // TODO: make sure this is the correct power -- shouldn't it actually be (32 - this number) ? -- @Gautham
         uint256 power = challengeUtils.nextPowerOf2(numSys) *
             challengeUtils.nextPowerOf2(degree);
 
-        uint256 sPower;
+        uint256 rPower;
 
+        // call modexp precompile at 0x05 to calculate r^power mod (MODULUS)
         assembly {
             let freemem := mload(0x40)
             // base size is 32 bytes
@@ -135,8 +139,8 @@ contract DataLayrLowDegreeChallenge {
             mstore(add(freemem, 0x20), 0x20)
             // modulus size is 32 bytes
             mstore(add(freemem, 0x40), 0x20)
-            // specifying base as 's'
-            mstore(add(freemem, 0x60), s)
+            // specifying base as 'r'
+            mstore(add(freemem, 0x60), r)
             // specifying exponent as 'power'
             mstore(add(freemem, 0x80), power)
             // specifying modulus as 21888242871839275222246405745257275088696311157297823662689037894645226208583 (i.e. "MODULUS") in hex
@@ -146,19 +150,26 @@ contract DataLayrLowDegreeChallenge {
             )
             // staticcall returns 0 in the case that it reverted, in which case we also want to revert
             if iszero(
-                // call modexp precompile with parameters
+                // call modexp precompile with parameters specified above, copying the (single, 32 byte) return value to the freemem location 
                 staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
             ) {
                 revert(0, 0)
             }
             // store the returned value in 'sPower'
-            sPower := mload(freemem)
+            rPower := mload(freemem)
         }
 
         require(
-            challengeUtils.openPolynomialAtPoint(cPower, piPower, r, sPower),
+            challengeUtils.openPolynomialAtPoint(cPower, piPower, r, sPrime),
             "Incorrect proof against commitment power"
         );
+
+        // verify that r^power * s mod (MODULUS) == sPrime
+        uint256 res;
+        assembly {
+            res := mulmod(rPower, s, MODULUS)
+        }
+        require(res == sPrime, "bad sPrime provided");
 
         // set challenge commit time equal to '1', so the same challenge cannot be opened a second time,
         // and to signal that the msg.sender correctly answered the challenge
@@ -186,8 +197,8 @@ contract DataLayrLowDegreeChallenge {
     function slashOperator(
         bytes32 headerHash,
         address operator,
-        uint32 operatorIndex,
-        uint32 totalOperatorsIndex,
+        // uint32 operatorIndex,
+        // uint32 totalOperatorsIndex,
         uint256 nonSignerIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
