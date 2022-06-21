@@ -212,11 +212,13 @@ contract DataLayrLowDegreeChallenge {
             */
             (
                 uint32 dumpNumber,
-                ,
+                uint32 blockNumber,
                 ,
                 ,
                 
             ) = dataLayr.dataStores(headerHash);
+// TODO: verify that operator was active *at the blockNumber*
+
 
             /** 
             Check that the information supplied as input for forced disclosure for this particular data 
@@ -272,6 +274,7 @@ contract DataLayrLowDegreeChallenge {
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
+                // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkInclusionExclusionInNonSigner(
                     operatorPubkeyHash,
