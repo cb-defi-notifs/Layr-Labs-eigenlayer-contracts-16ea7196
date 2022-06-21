@@ -197,59 +197,52 @@ contract DataLayrLowDegreeChallenge {
     function slashOperator(
         bytes32 headerHash,
         address operator,
-        // uint32 operatorIndex,
-        // uint32 totalOperatorsIndex,
         uint256 nonSignerIndex,
+        uint32 operatorHistoryIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
         // verify that the challenge has been lost
         require(lowDegreeChallenges[headerHash].commitTime == type(uint256).max, "Challenge has not been lost");
 
-        {
-            /**
-            Get information on the dataStore for which disperser is being challenged. This dataStore was 
-            constructed during call to initDataStore in DataLayr.sol by the disperser.
-            */
-            (
-                uint32 dumpNumber,
-                uint32 blockNumber,
-                ,
-                ,
-                
-            ) = dataLayr.dataStores(headerHash);
-// TODO: verify that operator was active *at the blockNumber*
+        /**
+        Get information on the dataStore for which disperser is being challenged. This dataStore was 
+        constructed during call to initDataStore in DataLayr.sol by the disperser.
+        */
+        (
+            uint32 dumpNumber,
+            uint32 blockNumber,
+            ,
+            ,
+            
+        ) = dataLayr.dataStores(headerHash);
+        // verify that operator was active *at the blockNumber*
+        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+        require(
+            // operator must have become active/registered before (or at) the block number
+            (operatorStake.updateBlockNumber <= blockNumber) &&
+            // operator must have still been active after (or until) the block number
+            // either there is a later update, past the specified blockNumber, or they are still active
+            (operatorStake.nextUpdateBlockNumber >= blockNumber ||
+            operatorStake.nextUpdateBlockNumber == 0),
+            "operator was not active during blockNumber specified by dumpNumber / headerHash"
+        );
 
-
-            /** 
-            Check that the information supplied as input for forced disclosure for this particular data 
-            dump on DataLayr is correct
-            */
-            require(
-                dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
-                    keccak256(
-                        abi.encodePacked(
-                            dumpNumber,
-                            signatoryRecord.nonSignerPubkeyHashes,
-                            signatoryRecord.totalEthStakeSigned,
-                            signatoryRecord.totalEigenStakeSigned
-                        )
-                    ),
-                "Sig record does not match hash"
-            );
-/* TODO: determine if this is useful at all
-            // lookup operator's spot in list of all operators at time, specified by operator, dumpNumber, and index in operator's history
-            operatorIndex = dlRegistry.getOperatorIndex(
-                operator,
-                dumpNumber,
-                operatorIndex
-            );
-            // lookup number of total operators at time, specified by dumpNumber, and index in history of totalOperators
-            totalOperatorsIndex = dlRegistry.getTotalOperators(
-                dumpNumber,
-                totalOperatorsIndex
-            );
-*/
-        }
+       /** 
+       Check that the information supplied as input for this particular dataStore on DataLayr is correct
+       */
+       require(
+           dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
+               keccak256(
+                   abi.encodePacked(
+                       dumpNumber,
+                       signatoryRecord.nonSignerPubkeyHashes,
+                       signatoryRecord.totalEthStakeSigned,
+                       signatoryRecord.totalEigenStakeSigned
+                   )
+               ),
+           "Sig record does not match hash"
+       );
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
@@ -257,7 +250,7 @@ contract DataLayrLowDegreeChallenge {
           
                   The burden of responsibility lies with the challenger to show that the DataLayr operator 
                   is not part of the non-signers for the dump. Towards that end, challenger provides
-                  @param index such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+                  @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
                    uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
                   then,
                         uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
