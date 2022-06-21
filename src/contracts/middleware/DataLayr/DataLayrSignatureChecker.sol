@@ -137,7 +137,7 @@ abstract contract DataLayrSignatureChecker is
         // get information on total stakes
         IDataLayrRegistry.OperatorStake memory localStakeObject = dlRegistry
             .getTotalStakeFromIndex(placeholder);
-        // check that the returned OperatorStake object is the most recent for the dumpNumberToConfirm
+        // check that the returned OperatorStake object is the most recent for the blockNumberFromHeaderHash
         _validateOperatorStake(localStakeObject, blockNumberFromHeaderHash);
 
         signedTotals.ethStakeSigned = localStakeObject.ethStake;
@@ -466,7 +466,7 @@ abstract contract DataLayrSignatureChecker is
         require(
             opStake.nextUpdateBlockNumber == 0 ||
                 opStake.nextUpdateBlockNumber > blockNumberFromHeaderHash,
-            "Provided stake index is not the most recent for dumpNumber"
+            "Provided stake index is not the most recent for blockNumber"
         );
     }
 }
