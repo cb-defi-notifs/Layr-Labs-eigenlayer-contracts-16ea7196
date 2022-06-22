@@ -25,7 +25,7 @@ import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
-
+import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -66,6 +66,7 @@ contract EigenLayrDeployer is
     DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrPaymentChallengeManager public dlpcm;
+    DataLayrLowDegreeChallenge public dlldc;
     DataLayr public dl;
 
     IERC20 public weth;
@@ -265,7 +266,7 @@ contract EigenLayrDeployer is
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
-        DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
+        DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
         dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
         uint256 feePerBytePerTime = 1;
@@ -305,6 +306,7 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, challengeUtils);
 
         dl.setRepository(dlRepository);
         dlsm.setRepository(dlRepository);

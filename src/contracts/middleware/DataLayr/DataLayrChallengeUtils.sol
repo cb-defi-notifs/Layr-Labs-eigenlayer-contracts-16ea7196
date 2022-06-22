@@ -23,6 +23,8 @@ contract DataLayrChallengeUtils {
 
     constructor() {}
 
+    // makes sure that operatorPubkeyHash was excluded from set of non-signers
+    // reverts if the operator is in the non-signer set
     function checkInclusionExclusionInNonSigner(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
@@ -76,8 +78,6 @@ contract DataLayrChallengeUtils {
             uint32
         )
     {
-        //TODO: Bowen Implement
-
         // return x, y coordinate of overall data poly commitment
         // then return degree of multireveal polynomial
         uint256[2] memory point = [uint256(0), uint256(0)];
