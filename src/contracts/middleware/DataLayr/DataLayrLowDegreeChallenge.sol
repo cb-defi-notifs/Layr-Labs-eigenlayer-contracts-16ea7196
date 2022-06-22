@@ -270,10 +270,6 @@ contract DataLayrLowDegreeChallenge {
 
         {
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-                // get the pubkey hash of the DataLayr operator
-                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                    operator
-                );
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkInclusionExclusionInNonSigner(
