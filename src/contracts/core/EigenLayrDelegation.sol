@@ -317,10 +317,7 @@ contract EigenLayrDelegation is
         bytes32 serviceObjectHash,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata strategyIndexes,
-        uint256[] calldata amounts
+        IRegistrationManager registrationManager
     ) external {
         require(
             block.timestamp <
@@ -366,7 +363,7 @@ contract EigenLayrDelegation is
         //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
         uint256 maxSlashedAmount = 0;
         // perform the slashing itself
-        slasher.slashShares(staker, strategies, strategyIndexes, amounts, maxSlashedAmount); 
+        slasher.slashOperator(staker); 
 
         // TODO: reset status of staker to having not committed to de-delegation?
     }
