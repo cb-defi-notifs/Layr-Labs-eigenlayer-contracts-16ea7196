@@ -1,376 +1,362 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IDataLayrForcedDisclosureManager.sol";
 import "../../libraries/BytesLib.sol";
-import "../../middleware/DataLayr/DataLayrForcedDisclosureManager.sol";
+import "../../libraries/Merkle.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
-import "../../middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
-
-
-import "../Repository.sol";
 
 
 /**
  @notice This contract is for doing interactive forced disclosure and then settling it.   
  */
 contract DataLayrDisclosureChallenge {
-    using BytesLib for bytes;
-    IDataLayrForcedDisclosureManager public dlfdm;
-    DisclosureChallenge public challenge;
-
-    DataLayrChallengeUtils public challengeUtils;
-    DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
-
-
-    
-
-    event DisclosureChallengeDisection(address nextInteracter, bytes32 headerHash);
-
     struct DisclosureChallenge {
-
-        bytes32 headerHash;
-
-        address operator;
+        // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
+        uint256 commitTime; 
+        // challenger's address
         address challenger;
+        // number of systematic symbols for the associated headerHash. determines how many operators must respond (at minimum)
+        uint32 numSys;
+        // number of symbols already disclosed
+        uint32 responsesReceived;
+        // operator address => whether they have completed a disclosure for this challenge or not
+        mapping (address => bool) disclosureCompleted;
+    }
 
-        // when commited, used for fraud proof period
-        uint32 commitTime; 
-        
-        // false: operator's turn, true: challengers turn
-        bool turn; 
+    // modulus for the underlying field F_q of the elliptic curve
+    uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    //TODO: change the time here
+    uint32 constant public DISCLOSURE_CHALLENGE_RESPONSE_WINDOW = 7 days;
+     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
+    uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;
+    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
+    uint256 constant public CHALLENGE_SUCCESSFUL = type(uint256).max;
 
-        /** 
-          claimed x and y coordinate of the commitment to the lower half degrees of the polynomial
-          I_k(x) which interpolates the data the DataLayr operator receives
-         */
-        uint256 x_low; 
-        uint256 y_low; 
+    IDataLayr public immutable dataLayr;
+    IDataLayrRegistry public immutable dlRegistry;
+    DataLayrChallengeUtils public immutable challengeUtils;
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
 
-        /**
-          claimed x and y coordinate of the commitment to the higher half degrees of the polynomial
-          I_k(x) which interpolates the data the DataLayr operators receives
-         */
-        uint256 x_high; 
-        uint256 y_high; 
+    // negation of the generators of group G2
+    /**
+     @dev Generator point lies in F_q2 is of the form: (x0 + ix1, y0 + iy1).
+     */
+    uint256 constant nG2x1 =
+        11559732032986387107991004021392285783925812861821192530917403151452391805634;
+    uint256 constant nG2x0 =
+        10857046999023057135944570762232829481370756359578518086990519993285655852781;
+    uint256 constant nG2y1 =
+        17805874995975841540914202342111839520379459829704422454583296818431106115052;
+    uint256 constant nG2y0 =
+        13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
-        // degree of the polynomial for which next phase of interactive challenge would be conducted 
-        uint48 increment; 
+    bytes32 public powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
 
-        // degree of term in one step proof    
-        uint48 oneStepDegree; 
+    mapping (bytes32 => DisclosureChallenge) public disclosureChallenges;
+
+    /**
+     @notice used for notifying that a forced disclosure challenge has been initiated.
+     */
+    event DisclosureChallengeInit(bytes32 indexed headerHash, address challenger);
+     /**
+     @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
+     */
+    event DisclosureChallengeResponse(bytes32 indexed headerHash,address operator, bytes poly);
+
+    constructor(IDataLayrServiceManager _dataLayrServiceManager, IDataLayr _dataLayr, IDataLayrRegistry _dlRegistry, DataLayrChallengeUtils _challengeUtils) {
+        dataLayr = _dataLayr;
+        dlRegistry = _dlRegistry;
+        challengeUtils = _challengeUtils;
+        dataLayrServiceManager = _dataLayrServiceManager;
+    }
+
+    function forceOperatorsToDisclose(
+        bytes calldata header
+    ) public {
+        bytes32 headerHash = keccak256(header);
+        {
+            /**
+            Get information on the dataStore for which disperser is being challenged. This dataStore was 
+            constructed during call to initDataStore in DataLayr.sol by the disperser.
+            */
+            (
+                // uint32 dumpNumber,
+                ,
+                uint32 initTime,
+                uint32 storePeriodLength,
+                // uint32 blockNumber,
+                ,
+                bool committed
+            ) = dataLayr.dataStores(headerHash);
+
+            uint256 expireTime = initTime + storePeriodLength;
+
+            // check that disperser had acquire quorum for this dataStore
+            require(committed, "Dump is not committed yet");
+
+            // check that the dataStore is still ongoing
+            require(block.timestamp <= expireTime, "Dump has already expired");
+        }
+
+        // check that the DataLayr operator hasn't been challenged yet
+        require(
+            disclosureChallenges[headerHash].commitTime == 0,
+            "DisclosureChallenge already opened for headerHash"
+        );
+
+        // get numSys from header
+        (, , uint32 numSys, ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+
+        // record details of forced disclosure challenge that has been opened
+        // the current timestamp when the challenge was created
+        disclosureChallenges[headerHash].commitTime = block.timestamp;
+        // challenger's address
+        disclosureChallenges[headerHash].challenger = msg.sender;
+        disclosureChallenges[headerHash].numSys = numSys;
+
+        emit DisclosureChallengeInit(headerHash, msg.sender);
     }
 
 
-    constructor(
-        address dlfdmAddr,
+    /**
+     @notice 
+            Consider C(x) to be the polynomial that was used by the disperser to obtain the symbols in coded 
+            chunks that was dispersed among the DataLayr operators. Let phi be an l-th root of unity, that is,
+            phi^l = 1. Then, assuming each DataLayr operator has deposited same stake, 
+            for the DataLayr operator k, it will receive the following symbols from the disperser:
+
+                        C(w^k), C(w^k * phi), C(w^k * phi^2), ..., C(w^k * phi^(l-1))
+
+            The disperser will also compute an interpolating polynomial for the DataLayr operator k that passes 
+            through the above l points. Denote this interpolating polynomial by I_k(x). The disperser also 
+            sends the coefficients of this interpolating polynomial I_k(x) to the DataLayr operator k. Note that
+            disperser had already committed to C(s) during initDataStore, where s is the SRS generated at some
+            initiation ceremony whose corresponding secret key is unknown.
+            
+            Observe that 
+
+               (C - I_k)(w^k) =  (C - I)(w^k * phi) = (C - I)(w^k * phi^2) = ... = (C - I)(w^k * phi^(l-1)) = 0
+
+            Therefore, w^k, w^k * phi, w^k * phi^2, ..., w^k * phi^l are the roots of the polynomial (C - I_k)(x).
+            Therefore, one can write:
+
+                (C - I_k)(x) = [(x - w^k) * (x - w^k * phi) * (x - w^k * phi^2) * ... * (x - w^k * phi^(l-1))] * Pi(x)
+                           = [x^l - (w^k)^l] * Pi(x)
+
+            where x^l - (w^k)^l is the zero polynomial. Let us denote the zero poly by Z_k(x) = x^l - (w^k)^l.
+            
+            Now, under forced disclosure, DataLayr operator k needs to just reveal the coefficients of the 
+            interpolating polynomial I_k(x). The challenger for the forced disclosure can use this polynomial 
+            I_k(x) to reconstruct the symbols that are stored with the DataLayr operator k which is given by:
+
+                        I_k(w^k), I_k(w^k * phi), I_k(w^k * phi^2), ..., I_k(w^k * phi^(l-1))
+
+            However, revealing the coefficients of I_k(x) gives no guarantee that these coefficints are correct. 
+            So, we in order to respond to the forced disclosure challenge:
+              (1) DataLayr operator first has to disclose proof (quotient polynomial) Pi(s) and commitment to 
+                  zero polynomial Z_k(x) in order to help on-chain code to certify the commitment to the 
+                  interpolating polynomial I_k(x),   
+              (2) reveal the coefficients of the interpolating polynomial I_k(x) 
+     */
+
+    /**
+     @notice This function is used by the DataLayr operator to respond to the forced disclosure challenge.   
+     */
+    /**
+     @param multireveal comprises of both Pi(s) and I_k(s) in the format: [Pi(s).x, Pi(s).y, I_k(s).x, I_k(s).y]
+     @param poly are the coefficients of the interpolating polynomial I_k(x)
+     @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
+                     [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
+     @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
+     @param headerHash is the hash of the summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     */
+    function respondToDisclosure(
+        bytes32 headerHash,
+        uint256[4] calldata multireveal,
+        bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof
+    ) external {
+
+    //    // check that DataLayr operator is responding to the forced disclosure challenge period within some window
+    //    /*
+    //    require(
+    //        block.timestamp <
+    //            disclosureForOperator[headerHash][msg.sender].commitTime +
+    //                disclosureFraudProofInterval,
+    //        "must be in fraud proof period"
+    //    );
+    //    */
+    //    bytes32 data;
+    //    uint256 position;
+    //    // check that it is DataLayr operator who is supposed to respond
+    //    require(
+    //        disclosureForOperator[headerHash][msg.sender].status == 1,
+    //        "Not in operator initial response phase"
+    //    );
+
+  //  //    //not so critic: move comments here
+    //    uint48 degree = validateDisclosureResponse(
+    //        disclosureForOperator[headerHash][msg.sender].chunkNumber,
+    //        header,
+    //        multireveal,
+    //        zeroPoly,
+    //        zeroPolyProof
+    //    );
+
+  //  //    /*
+    //    degree is the poly length, no need to multiply 32, as it is the size of data in bytes
+    //    require(
+    //        (degree + 1) * 32 == poly.length,
+    //        "Polynomial must have a 256 bit coefficient for each term"
+    //    );
+    //    */
+
+  //  //    // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
+    //    // of the zero polynomial Merkle tree
+
+  //  //    // update disclosure to record Interpolating poly commitment - [I(s).x, Is(s).y]
+    //    disclosureForOperator[headerHash][msg.sender].x = multireveal[2];
+    //    disclosureForOperator[headerHash][msg.sender].y = multireveal[3];
+
+  //  //    // update disclosure to record  hash of interpolating polynomial I_k(x)
+    //    disclosureForOperator[headerHash][msg.sender].polyHash = keccak256(
+    //        poly
+    //    );
+
+  //  //    // update disclosure to record degree of the interpolating polynomial I_k(x)
+    //    disclosureForOperator[headerHash][msg.sender].degree = degree;
+    //    disclosureForOperator[headerHash][msg.sender].status = 2;
+
+
+// TODO: some of this code resembles some of the code in 'DataLayrLowDegreeChallenge.sol' -- determine if we can de-duplicate this code
+        // check that the challenge window is still open
+        require(
+            (block.timestamp - disclosureChallenges[headerHash].commitTime) <= DISCLOSURE_CHALLENGE_RESPONSE_WINDOW,
+            "Challenge response period has already elapsed"
+        );
+
+        // check that the msg.sender has not already responded to this challenge
+        require(!disclosureChallenges[headerHash].disclosureCompleted[msg.sender], "operator already responded to challenge");
+
+        // TODO: actually check validity of response!
+
+        // record that the msg.sender has responded
+        disclosureChallenges[headerHash].disclosureCompleted[msg.sender] = true;
+        disclosureChallenges[headerHash].responsesReceived += 1;
+
+        // mark challenge as failing in the event that at least numSys operators have responded
+        if (disclosureChallenges[headerHash].responsesReceived >= disclosureChallenges[headerHash].numSys) {
+            disclosureChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
+        }
+
+        // emit event
+        emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
+    }
+    
+    // TODO: this is essentially copy-pasted from 'DataLayrLowDegreeChallenge.sol' -- de-duplicate this code!
+    function resolveDisclosureChallenge(bytes32 headerHash) public {
+        require(disclosureChallenges[headerHash].commitTime != 0, "Challenge does not exist");
+        require(disclosureChallenges[headerHash].commitTime != CHALLENGE_UNSUCCESSFUL, "Challenge failed");
+        // check that the challenge window is no longer open
+        require(
+            (block.timestamp - disclosureChallenges[headerHash].commitTime) > DISCLOSURE_CHALLENGE_RESPONSE_WINDOW,
+            "Challenge response period has not yet elapsed"
+        );
+
+        // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
+        // and to signal that the challenge has been lost by the signers
+        disclosureChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
+        // dataLayrServiceManager.resolveDisclosureChallenge(headerHash, disclosureChallenges[headerHash].commitTime);
+    }
+
+    // TODO: this is essentially copy-pasted from 'DataLayrLowDegreeChallenge.sol' -- de-duplicate this code!
+    // slash an operator who signed a headerHash but failed a subsequent DisclosureChallenge
+    function slashOperator(
         bytes32 headerHash,
         address operator,
-        address challenger,
-        uint256 x_low,
-        uint256 y_low,
-        uint256 x_high,
-        uint256 y_high,
-        uint48 increment
-    ) {
-        // open disclosure challenge instant 
-        challenge = DisclosureChallenge(
-            headerHash,
-            operator,
-            challenger,
-            uint32(block.timestamp),
-            false,
-            x_low,
-            y_low,
-            x_high,
-            y_high,
-            increment,
-            0
-        );
-
-        dlfdm = IDataLayrForcedDisclosureManager(dlfdmAddr);
-        
-
-        // dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
-        // challengeUtils = new DataLayrChallengeUtils();
-        
-
-    }
-
-
-
-    /** 
-     @notice challenger challenges a particular half of the commitment to a polynomial P(x) of degree d. Note 
-             that DisclosureChallenge already contains commitment to the degree d/2 polynomial 
-             P1(x) and P2(x) given by:
-
-             P1(s) := c_0 + c_1 * s + ... + c_{d/2} * s^(d/2)
-             P2(s) := c_{d/2 + 1} * s^(d/2 + 1) ... + c_d * s^d
-             P(s) := P1(s) + P2(s)
-
-             and,
-                DisclosureChallenge.(x_low, y_low) = (P1(s).x, P1(s).y)
-                DisclosureChallenge.(x_high, y_high) = (P2(s).x, P2(s).y)
-
-             The challenger then indicates which commitment, P1(s) or P2(s), it wants to challenge and also 
-             supplies a partition of that commitment.  For e.g., if challenger wants to challenge P1(s), then
-             challenger supplies coors1(s) and coors2(s) such that:
-
-             coors1(s) := c_0 + c_1 * s + ... + c_{d/4} * s^(d/4) 
-             coors2(s) := c_{d/4 + 1} * s^(d/2 + 1) ... + c_{d/2} * s^(d/2)
-     */
-    /**
-     @param half indicates whether the challenge is for  P1(s) or for P2(s) 
-     @param coors is of the format [coors1(s).x, coors1(s),y, coors2(s).x, coors2(s).y]                     
-     */ 
-    function challengeCommitmentHalf(bool half, uint256[4] memory coors)
-        external
-    {
-        // checking that it is challenger's turn
-        bool turn = challenge.turn;
-        require(
-            (turn && challenge.challenger == msg.sender) ||
-                (!turn && challenge.operator == msg.sender),
-            "Must be challenger and thier turn or operator and their turn"
-        );
-
-        // checking it is not yet time for the special one-step proof
-        require(challenge.increment != 1, "Time to do one step proof");
-
-        require(
-            block.timestamp <
-                challenge.commitTime + dlfdm.disclosureFraudProofInterval(),
-            "Fraud proof interval has passed"
-        );
-
+        uint256 nonSignerIndex,
+        uint32 operatorHistoryIndex,
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+    ) public {
+        // verify that the challenge has been lost
+        require(disclosureChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL, "Challenge not successful");
 
         /**
-         @notice Check that the challenge is legitimate. For example, if the challenger wants to challenge 
-                 P1(s), then it has to be the case that:
-
-                                            P1(s) != coors1(s) + coors2(s)
-         */
-        uint256 x_contest;
-        uint256 y_contest;
-        if (half) {
-            x_contest = challenge.x_low;
-            y_contest = challenge.y_low;
-        } else {
-            x_contest = challenge.x_high;
-            y_contest = challenge.y_high;
-            challenge.oneStepDegree += challenge.increment;
-        }
-
-        // add the contested points and make sure they aren't what other party claimed
-        uint256[2] memory sum;
-        assembly {
-            if iszero(call(not(0), 0x06, 0, coors, 0x80, sum, 0x40)) {
-                revert(0, 0)
-            }
-        }
+        Get information on the dataStore for which disperser is being challenged. This dataStore was 
+        constructed during call to initDataStore in DataLayr.sol by the disperser.
+        */
+        (
+            uint32 dumpNumber,
+            uint32 blockNumber,
+            ,
+            ,
+            
+        ) = dataLayr.dataStores(headerHash);
+        // verify that operator was active *at the blockNumber*
+        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
         require(
-            sum[0] != x_contest || sum[1] != y_contest,
-            "Cannot commit to same polynomial as DLN"
+            // operator must have become active/registered before (or at) the block number
+            (operatorStake.updateBlockNumber <= blockNumber) &&
+            // operator must have still been active after (or until) the block number
+            // either there is a later update, past the specified blockNumber, or they are still active
+            (operatorStake.nextUpdateBlockNumber >= blockNumber ||
+            operatorStake.nextUpdateBlockNumber == 0),
+            "operator was not active during blockNumber specified by dumpNumber / headerHash"
         );
 
-        // update the records to reflect new commitment points
-        challenge.x_low = coors[0];
-        challenge.y_low = coors[1];
-        challenge.x_high = coors[2];
-        challenge.y_high = coors[3];
-        challenge.turn = !turn;
-        challenge.commitTime = uint32(block.timestamp);
-        //half the amount to increment
-        challenge.increment /= 2;
-
-        emit DisclosureChallengeDisection(turn ? challenge.operator : challenge.challenger, challenge.headerHash);
-    }
-
-
-    /**
-     @notice This function is used for ending the forced disclosure challenge if challenger or 
-             DataLayr operator didn't respond within a stipulated time.
-     */
-    function resolveTimeout(bytes32 headerHash) public {
-        uint256 interval = dlfdm.disclosureFraudProofInterval();
-
-        // CRITIC: what is this first condition?
-        require(
-            block.timestamp > challenge.commitTime + interval &&
-                block.timestamp < challenge.commitTime + (2 * interval),
-            "Fraud proof interval has passed"
-        );
-
-        if (challenge.turn) {
-            // challenger did not respond
-            resolve(headerHash, false);
-        } else {
-            // operator did not respond
-            resolve(headerHash, true);
-        }
-    }
-
-    /**
-     @notice This is for final-step of the interaction-style forced disclosure. Suppose DisclosureChallenge
-     contains commitment for the polynomial P(x) such that:
-
-                        P(s) := c_d * s^d + c_{d+1} * s^{d+1}.
-
-     The final step would involve breaking commitment P(s) into two commitments:
-
-                        P1(s) := c_d * s^d
-                        P2(s) := c_{d+1} * s^{d+1}
-
-     In this final step, the challenger or the challenged DataLayr operator has to give s^d or s^{d+1}
-     depending on which half it wants to challenge.                  
-     */
-    function respondToDisclosureChallengeFinal(
-        bool half,
-        bytes32 headerHash,
-        uint256 x_power,
-        uint256 y_power,
-        bytes calldata poly,
-        bytes calldata proof
-    ) external {
-        bool turn = challenge.turn;
-        require(
-            (turn && challenge.challenger == msg.sender) ||
-                (!turn && challenge.operator == msg.sender),
-            "Must be challenger and their turn or operator and their turn"
-        );
-
-        // the final one-step proof 
-        require(challenge.increment == 1, "Time to do dissection proof");
-
-        require(
-            block.timestamp <
-                challenge.commitTime + dlfdm.disclosureFraudProofInterval(),
-            "Fraud proof interval has passed"
-        );
+       /** 
+       Check that the information supplied as input for this particular dataStore on DataLayr is correct
+       */
+       require(
+           dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
+               keccak256(
+                   abi.encodePacked(
+                       dumpNumber,
+                       signatoryRecord.nonSignerPubkeyHashes,
+                       signatoryRecord.totalEthStakeSigned,
+                       signatoryRecord.totalEigenStakeSigned
+                   )
+               ),
+           "Sig record does not match hash"
+       );
 
         /** 
-          Check that the interpolating polynomial supplied is same as what was supplied back in 
-          respondToDisclosureInit in DataLayrServiceManager.sol.
-         */   
-        bytes32 polyHash = dlfdm.getPolyHash(challenge.operator, headerHash);
-        require(
-            keccak256(poly) == polyHash,
-            "Must provide the same polynomial coefficients as before"
-        );
-
-
+          @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
+                  actually part of the quorum for the @param dumpNumber.
+          
+                  The burden of responsibility lies with the challenger to show that the DataLayr operator 
+                  is not part of the non-signers for the dump. Towards that end, challenger provides
+                  @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+                   uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+                  then,
+                        uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+         */
         /**
-         Check that the monomial supplied (x_power, y_power) is same as (s^{degree}.x, s^{degree}.y)
-         */
-        uint48 degree = challenge.oneStepDegree;
-        require(
-            checkMembership(
-                keccak256(abi.encodePacked(x_power, y_power)),
-                degree,
-                /// @dev more explanation on TauMerkleRoot in IDataLayrServiceManager.sol
-                dlfdm.powersOfTauMerkleRoot(),
-                proof
-            ),
-            "Incorrect power of tau proof"
-        );
+          @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
+               non-signers pubkey is recorded in the compressed signatory record in an  ascending
+               manner.      
+        */
 
-
-        // verify that whether the forced disclosure challenge was valid
-        uint256[2] memory contest_point;
-
-        if (half) {
-            // challenging lower degree term - P1(s)
-            contest_point[0] = challenge.x_low;
-            contest_point[1] = challenge.y_low;
-        } else {
-            // challenging higher degree term - P2(s)
-            contest_point[0] = challenge.x_high;
-            contest_point[1] = challenge.y_high;
-            degree += 1;
-        }
-
-        uint256[5] memory coors;
-        coors[0] = x_power;
-        coors[1] = y_power;
-
-        //this is the coefficient of the term with degree degree
-        //TODO: verify that multiplying by 32 is safe from overflow
-        //(Q: does this automatically make the result a uint256, or is it constrained to uint48?)
-        coors[2] = poly.toUint256(degree*32);
-
-        /** 
-         Multiply the coefficient with the monomial, that is, if P1(s) is challenged then, do c_d * s^d
-         */
-        assembly {
-            if iszero(
-                call(not(0), 0x07, 0, coors, 0x60, add(coors, 0x60), 0x40)
-            ) {
-                revert(0, 0)
-            }
-        }
-
-
-        if (turn) {
-            // if challenger turn, challenge successful if points don't match
-            resolve(
-                headerHash,
-                contest_point[0] != coors[3] || contest_point[1] != coors[4]
-            );
-        } else {
-            // if operator turn, challenge successful if points match
-            resolve(
-                headerHash,
-                contest_point[0] == coors[3] && contest_point[1] == coors[4]
-            );
-        }
-    }
-
-    //copied from
-    function checkMembership(
-        bytes32 leaf,
-        uint256 index,
-        bytes32 rootHash,
-        bytes memory proof
-    ) internal pure returns (bool) {
-        require(proof.length % 32 == 0, "Invalid proof length");
-        uint256 proofHeight = proof.length / 32;
-        // Proof of size n means, height of the tree is n+1.
-        // In a tree of height n+1, max #leafs possible is 2 ^ n
-        require(index < 2**proofHeight, "Leaf index is too big");
-
-        bytes32 proofElement;
-        bytes32 computedHash = leaf;
-        for (uint256 i = 32; i <= proof.length; i += 32) {
-            assembly {
-                proofElement := mload(add(proof, i))
-            }
-
-            if (index % 2 == 0) {
-                computedHash = keccak256(
-                    abi.encodePacked(computedHash, proofElement)
+        {
+            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                // get the pubkey hash of the DataLayr operator
+                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
+                    operator
                 );
-            } else {
-                computedHash = keccak256(
-                    abi.encodePacked(proofElement, computedHash)
+                // check that operator was *not* in the non-signer set (i.e. they did sign)
+                //not super critic: new call here, maybe change comment
+                challengeUtils.checkInclusionExclusionInNonSigner(
+                    operatorPubkeyHash,
+                    nonSignerIndex,
+                    signatoryRecord
                 );
             }
-
-            index = index / 2;
         }
-        return computedHash == rootHash;
-    }
 
-    function resolve(bytes32 headerHash, bool challengeSuccessful) internal {
-        dlfdm.resolveDisclosureChallenge(
-            headerHash,
-            challenge.operator,
-            challengeSuccessful
-        );
-        selfdestruct(payable(0));
+        // TODO: actually slash.
     }
 }
