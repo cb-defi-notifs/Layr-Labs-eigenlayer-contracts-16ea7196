@@ -12,7 +12,7 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 
 import "ds-test/test.sol";
 
-contract DataLayrForcedDisclosureManager {
+contract DataLayrForcedDisclosureManager is DSTest{
     // modulus for the underlying field F_q of the elliptic curve
     uint256 constant MODULUS =
         21888242871839275222246405745257275088696311157297823662689037894645226208583;
@@ -565,6 +565,9 @@ contract DataLayrForcedDisclosureManager {
         return dumpNumberToSignatureHash[_dumpNumber];
     }
 
+
+
+
     function validateDisclosureResponse(
         uint256 chunkNumber,
         bytes calldata header,
@@ -628,6 +631,7 @@ contract DataLayrForcedDisclosureManager {
         //get the commitment to the zero polynomial of multireveal degree
 
         uint256[13] memory pairingInput;
+
 
         assembly {
             // extract the proof [Pi(s).x, Pi(s).y]
@@ -713,4 +717,49 @@ contract DataLayrForcedDisclosureManager {
         return disclosureForOperator[headerHash][operator].polyHash;
     }
 
+
+
+    function NonInteractivePolynomialProof(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof
+    ) public returns(uint48) {
+        // uint48 degree = validateDisclosureResponse(
+        //     chunkNumber, 
+        //     header, 
+        //     multireveal,
+        //     zeroPoly, 
+        //     zeroPolyProof
+        // );
+
+
+        // //Calculating r, the point at which to evaluate the interpolating polynomial
+        // bytes r = keccak256(poly) % MODULUS;
+        // bytes s = linearPolynomialEvaluation(poly, s);
+        // bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
+
+        // if (res){
+        //     return true;
+        // }
+        // return false;
+        
+    }
+
+    // //evaluates the given polynomial "poly" at value "r" and returns the result
+    // function linearPolynomialEvaluation(
+    //     bytes calldata poly,
+    //     bytes r
+    // ) public returns(bytes sum){
+    //     uint length = poly.length/32;
+    //     uint256 rPower = 1;
+    //     for (uint i = 0; i < length; i++){
+    //         sum += (poly[i:i+32] * rPower);
+    //         rPower *= r;
+    //     }   
+    //     return sum; 
+    // }
+        
 }
