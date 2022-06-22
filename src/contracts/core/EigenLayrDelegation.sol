@@ -398,26 +398,21 @@ contract EigenLayrDelegation is
                 : operatorShares[operator][investmentStrategy];
     }
 
-    /// @notice returns the total ETH delegated by delegators with this operator
-    ///         while staking it with the settlement layer (beacon chain)
-    // CRITIC: change name to getSettlementLayerEthDelegated
-    function getConsensusLayerEthDelegated(address operator)
-        external
-        view
-        returns (uint256)
-    {
-        return
-            isSelfOperator(operator)
-                ? investmentManager.getConsensusLayerEth(operator)
-                : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
-    }
-
     function isSelfOperator(address operator)
         public
         view
         returns (bool)
     {
         return (delegation[operator] == SELF_DELEGATION_ADDRESS);
+    }
+
+    function isDelegator(address staker)
+        public
+        view
+        returns (bool)
+    {
+        address delegatedAddress = delegation[staker];
+        return (delegatedAddress != address(0) && delegatedAddress != SELF_DELEGATION_ADDRESS);
     }
 
     function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {
