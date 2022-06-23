@@ -725,41 +725,54 @@ contract DataLayrForcedDisclosureManager is DSTest{
         uint256[4] calldata multireveal,
         bytes calldata poly,
         uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof
-    ) public returns(uint48) {
-        // uint48 degree = validateDisclosureResponse(
-        //     chunkNumber, 
-        //     header, 
-        //     multireveal,
-        //     zeroPoly, 
-        //     zeroPolyProof
-        // );
+        bytes calldata zeroPolyProof,
+        uint256[4] calldata pi
+    ) public returns(bool) {
+
+        (
+            uint256[2] memory c,
+            ,
+            ,
+        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+
+        //verify pairing for the commitment to interpolating polynomial
+        uint48 dg = validateDisclosureResponse(
+            chunkNumber, 
+            header, 
+            multireveal,
+            zeroPoly, 
+            zeroPolyProof
+        );
 
 
-        // //Calculating r, the point at which to evaluate the interpolating polynomial
-        // bytes r = keccak256(poly) % MODULUS;
-        // bytes s = linearPolynomialEvaluation(poly, s);
-        // bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
+        //Calculating r, the point at which to evaluate the interpolating polynomial
+        uint256 r = uint(keccak256(poly)) % MODULUS;
+        uint256 s = linearPolynomialEvaluation(poly, r);
+        bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
 
-        // if (res){
-        //     return true;
-        // }
-        // return false;
+        if (res){
+            return true;
+        }
+        return false;
         
     }
 
-    // //evaluates the given polynomial "poly" at value "r" and returns the result
-    // function linearPolynomialEvaluation(
-    //     bytes calldata poly,
-    //     bytes r
-    // ) public returns(bytes sum){
-    //     uint length = poly.length/32;
-    //     uint256 rPower = 1;
-    //     for (uint i = 0; i < length; i++){
-    //         sum += (poly[i:i+32] * rPower);
-    //         rPower *= r;
-    //     }   
-    //     return sum; 
-    // }
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(
+        bytes calldata poly,
+        uint256 r
+    ) public returns(uint256){
+        uint256 sum;
+        uint length = poly.length/32;
+        uint256 rPower = 1;
+        for (uint i = 0; i < length; i++){
+            uint coefficient = uint(bytes32(poly[i:i+32]));
+            sum += (coefficient * rPower);
+            rPower *= r;
+        }   
+        return sum; 
+    }
         
 }
