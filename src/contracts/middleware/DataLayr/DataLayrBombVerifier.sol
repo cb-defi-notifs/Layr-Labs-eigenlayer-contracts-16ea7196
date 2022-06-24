@@ -4,12 +4,12 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IDataLayr.sol";
+import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
-
     struct HeaderHashes {
-        bytes32 operatorFromHeaderHash; 
+        bytes32 operatorFromHeaderHash;
         bytes32 bombHeaderHash;
     }
 
@@ -24,8 +24,9 @@ contract DataLayrBombVerifier {
         bytes header;
         uint256[4] multireveal;
         bytes poly;
-        uint256[4]  zeroPoly;
-        bytes  zeroPolyProof;
+        uint256[4] zeroPoly;
+        bytes zeroPolyProof;
+        uint256[4] pi;
     }
 
     // modulus for the underlying field F_q of the elliptic curve
@@ -44,33 +45,62 @@ contract DataLayrBombVerifier {
     uint256 constant nG2y0 =
         13392588948715843804641432497768002650278120570034223513918757245338268106653;
 
-    bytes32 public powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
+    bytes32 public powersOfTauMerkleRoot =
+        0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
+
+    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(258);
 
     IDataLayrServiceManager public dlsm;
     IDataLayrRegistry public dlRegistry;
     IDataLayr public dataLayr;
     DataLayrChallengeUtils public challengeUtils;
+    IDataLayrEphemeralKeyRegistry public dlekRegistry;
 
-
-    constructor(IDataLayrServiceManager _dlsm, IDataLayrRegistry _dlRegistry, IDataLayr _dataLayr, DataLayrChallengeUtils _challengeUtils) {
+    constructor(
+        IDataLayrServiceManager _dlsm,
+        IDataLayrRegistry _dlRegistry,
+        IDataLayr _dataLayr,
+        DataLayrChallengeUtils _challengeUtils,
+        IDataLayrEphemeralKeyRegistry _dlekRegistry
+    ) {
         dlsm = _dlsm;
         dlRegistry = _dlRegistry;
         dataLayr = _dataLayr;
         challengeUtils = _challengeUtils;
+        dlekRegistry = _dlekRegistry;
     }
 
-    function verifyBomb(address operator, 
-                        HeaderHashes calldata headerHashes,
-                        Indexes calldata indexes,
-                        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord,
-                        uint256[2][2][] calldata sandwichProofs, 
-                        uint256 bombDataStoreTimestamp, 
-                        DisclosureProof calldata disclosureProof
-                    ) external {
-        (uint32 bombDataStoreId, uint32 detonationDataStore)= verifyBombDataStoreId(operator, headerHashes.operatorFromHeaderHash, sandwichProofs, bombDataStoreTimestamp, indexes.bombDataStoreIndex);
-        (uint32 loadedBombDataStoreId,,,,) = dataLayr.dataStores(headerHashes.bombHeaderHash);
-        require(loadedBombDataStoreId == bombDataStoreId, "loaded bomb datastore id must be as calculated");
-        
+    function verifyBomb(
+        address operator,
+        HeaderHashes calldata headerHashes,
+        Indexes calldata indexes,
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
+            calldata signatoryRecord,
+        uint256[2][2][] calldata sandwichProofs,
+        uint256 bombDataStoreTimestamp,
+        //todo: get blockhash
+        uint256 bombBlockhashInt,
+        DisclosureProof calldata disclosureProof
+    ) external {
+        (
+            uint32 bombDataStoreId,
+            uint32 detonationDataStoreId
+        ) = verifyBombDataStoreId(
+                operator,
+                headerHashes.operatorFromHeaderHash,
+                sandwichProofs,
+                bombBlockhashInt,
+                bombDataStoreTimestamp,
+                indexes.bombDataStoreIndex
+            );
+        (uint32 loadedBombDataStoreId, , , , ) = dataLayr.dataStores(
+            keccak256(disclosureProof.header)
+        );
+        require(
+            loadedBombDataStoreId == bombDataStoreId,
+            "loaded bomb datastore id must be as calculated"
+        );
+
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
                   actually part of the quorum for the @param dumpNumber.
@@ -88,6 +118,23 @@ contract DataLayrBombVerifier {
                manner.      
         */
         {
+            /** 
+            Check that the information supplied as input for forced disclosure for this particular data 
+            dump on DataLayr is correct
+            */
+            require(
+                dlsm.getDumpNumberSignatureHash(detonationDataStoreId) ==
+                    keccak256(
+                        abi.encodePacked(
+                            detonationDataStoreId,
+                            signatoryRecord.nonSignerPubkeyHashes,
+                            signatoryRecord.totalEthStakeSigned,
+                            signatoryRecord.totalEigenStakeSigned
+                        )
+                    ),
+                "Sig record does not match hash"
+            );
+
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // get the pubkey hash of the DataLayr operator
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
@@ -101,27 +148,58 @@ contract DataLayrBombVerifier {
                 );
             }
         }
-        
-        uint32 chunkNumber = getChunkNumber(headerHashes.bombHeaderHash, operator, indexes.operatorIndex, indexes.totalOperatorsIndex, signatoryRecord);
-        uint48 degree = validateDisclosureResponse(
-            chunkNumber,
-            disclosureProof.header,
-            disclosureProof.multireveal,
-            disclosureProof.zeroPoly,
-            disclosureProof.zeroPolyProof
+
+        require(
+            nonInteractivePolynomialProof(
+                headerHashes.bombHeaderHash,
+                operator,
+                indexes.operatorIndex,
+                indexes.totalOperatorsIndex,
+                disclosureProof
+            ),
+            "I from multireveal is not the commitment of poly"
         );
 
+        bytes32 ek = dlekRegistry.getLatestEphemeralKey(operator);
+
+        require(
+            uint256(
+                keccak256(
+                    abi.encodePacked(
+                        disclosureProof.poly,
+                        ek,
+                        bombBlockhashInt
+                    )
+                )
+            ) < BOMB_THRESHOLD,
+            "No bomb"
+        );
+
+        //todo: SLASH HERE
     }
 
-    function verifyBombDataStoreId(address operator, bytes32 operatorFromHeaderHash, uint256[2][2][] calldata sandwichProofs, uint256 bombDataStoreTimestamp, uint256 bombDataStoreIndex) internal returns(uint32, uint32) {
+    function verifyBombDataStoreId(
+        address operator,
+        bytes32 operatorFromHeaderHash,
+        uint256[2][2][] calldata sandwichProofs,
+        uint256 bombBlockhashInt,
+        uint256 bombDataStoreTimestamp,
+        uint256 bombDataStoreIndex
+    ) internal returns (uint32, uint32) {
         uint256 fromTime;
         {
-            uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(operator);
-            (uint32 dataStoreId,uint32 fromTimeUint32,,,) = dataLayr.dataStores(operatorFromHeaderHash);
-            require(fromDataStoreId == dataStoreId, "headerHash is not for correct operator from datastore");
+            uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(
+                operator
+            );
+            (uint32 dataStoreId, uint32 fromTimeUint32, , , ) = dataLayr
+                .dataStores(operatorFromHeaderHash);
+            require(
+                fromDataStoreId == dataStoreId,
+                "headerHash is not for correct operator from datastore"
+            );
             fromTime = uint256(fromTimeUint32);
         }
-        
+
         // uint32 numberActiveDataStores;
         // uint32[] memory numberActiveDataStoresForDuration;
         uint32[] memory firstDataStoreForDuration;
@@ -133,74 +211,174 @@ contract DataLayrBombVerifier {
         // uint32 selectedDataStoreIndex = uint32(bombBlockhashInt % numberActiveDataStores);
         // (uint8 durationIndex, uint32 offset) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(selectedDataStoreIndex, numberActiveDataStoresForDuration);
 
-        (uint8 durationIndex, uint32 offset, uint32 nextDataStoreIdAfterBomb, uint32 firstDataStoreAtDurationIndex) = verifySandwiches(fromTime, bombDataStoreTimestamp, sandwichProofs);
+        (
+            uint8 durationIndex,
+            uint32 nextDataStoreIdAfterBomb,
+            uint32 calculatedDataStoreId
+        ) = verifySandwiches(
+                bombBlockhashInt,
+                fromTime,
+                bombDataStoreTimestamp,
+                sandwichProofs
+            );
 
-        IDataLayrServiceManager.DataStoreIdPair memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(durationIndex+1, bombDataStoreTimestamp, bombDataStoreIndex);
-        require(bombDataStoreIdPair.durationDataStoreId == firstDataStoreAtDurationIndex+offset, "datastore id provided is not the same as loaded");
+        IDataLayrServiceManager.DataStoreIdPair
+            memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(
+                durationIndex + 1,
+                bombDataStoreTimestamp,
+                bombDataStoreIndex
+            );
+        require(
+            bombDataStoreIdPair.durationDataStoreId ==
+                calculatedDataStoreId,
+            "datastore id provided is not the same as loaded"
+        );
 
-        return (bombDataStoreIdPair.globalDataStoreId, nextDataStoreIdAfterBomb);
+        return (
+            bombDataStoreIdPair.globalDataStoreId,
+            nextDataStoreIdAfterBomb
+        );
     }
 
-    function verifySandwiches(uint256 fromTime, uint256 bombDataStoreTimestamp, uint256[2][2][] calldata sandwichProofs) internal returns(uint8, uint32, uint32, uint32) {//returns(uint32, uint32[] memory, uint32[] memory, uint32) {
+    function verifySandwiches(
+        uint256 bombBlockhashInt,
+        uint256 fromTime,
+        uint256 bombDataStoreTimestamp,
+        uint256[2][2][] calldata sandwichProofs
+    )
+        internal
+        returns (
+            uint8,
+            uint32,
+            uint32
+        )
+    {
+        //returns(uint32, uint32[] memory, uint32[] memory, uint32) {
         uint32 numberActiveDataStores;
-        uint32[] memory numberActiveDataStoresForDuration = new uint32[](dlsm.MAX_DATASTORE_DURATION());
-        uint32[] memory firstDataStoreForDuration = new uint32[](dlsm.MAX_DATASTORE_DURATION());
+        uint32[] memory numberActiveDataStoresForDuration = new uint32[](
+            dlsm.MAX_DATASTORE_DURATION()
+        );
+        uint32[] memory firstDataStoreForDuration = new uint32[](
+            dlsm.MAX_DATASTORE_DURATION()
+        );
 
         uint32 nextDataStoreIdAfterBomb = type(uint32).max;
 
-        for(uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); i++) {
+        for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); i++) {
             //if no datastores for a certain duration, go to next duration
-            if(sandwichProofs[i][0][0] == sandwichProofs[i][0][1] && sandwichProofs[i][0][0] == 0) {
-                require(dlsm.totalDataStoresForDuration(i+1) == 0, "datastores for duration are not 0");
+            if (
+                sandwichProofs[i][0][0] == sandwichProofs[i][0][1] &&
+                sandwichProofs[i][0][0] == 0
+            ) {
+                require(
+                    dlsm.totalDataStoresForDuration(i + 1) == 0,
+                    "datastores for duration are not 0"
+                );
                 continue;
             }
-            uint256 sandwichTimestamp = max(bombDataStoreTimestamp - (i+1)*dlsm.DURATION_SCALE(), fromTime);
+            uint256 sandwichTimestamp = max(
+                bombDataStoreTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
+                fromTime
+            );
             //verify sandwich proofs
-            firstDataStoreForDuration[i] = verifyDataStoreIdSandwich(sandwichTimestamp, i, sandwichProofs[i][0]).durationDataStoreId;
-            IDataLayrServiceManager.DataStoreIdPair memory endDataStoreForDurationAfterWindowIdPair = verifyDataStoreIdSandwich(sandwichTimestamp, i, sandwichProofs[i][1]);
+            firstDataStoreForDuration[i] = verifyDataStoreIdSandwich(
+                sandwichTimestamp,
+                i,
+                sandwichProofs[i][0]
+            ).durationDataStoreId;
+            IDataLayrServiceManager.DataStoreIdPair
+                memory endDataStoreForDurationAfterWindowIdPair = verifyDataStoreIdSandwich(
+                    sandwichTimestamp,
+                    i,
+                    sandwichProofs[i][1]
+                );
             //keep track of the next datastore id after the bomb
-            if(nextDataStoreIdAfterBomb > endDataStoreForDurationAfterWindowIdPair.globalDataStoreId) {
-                nextDataStoreIdAfterBomb = endDataStoreForDurationAfterWindowIdPair.globalDataStoreId;
+            if (
+                nextDataStoreIdAfterBomb >
+                endDataStoreForDurationAfterWindowIdPair.globalDataStoreId
+            ) {
+                nextDataStoreIdAfterBomb = endDataStoreForDurationAfterWindowIdPair
+                    .globalDataStoreId;
             }
             //record num of datastores
-            numberActiveDataStoresForDuration[i] = endDataStoreForDurationAfterWindowIdPair.durationDataStoreId - firstDataStoreForDuration[i];
+            numberActiveDataStoresForDuration[i] =
+                endDataStoreForDurationAfterWindowIdPair.durationDataStoreId -
+                firstDataStoreForDuration[i];
             numberActiveDataStores += numberActiveDataStoresForDuration[i];
         }
-        //todo: get blockhash
-        uint256 bombBlockhashInt = 0;
-        uint32 selectedDataStoreIndex = uint32(bombBlockhashInt % numberActiveDataStores);
-        (uint8 durationIndex, uint32 offset) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(selectedDataStoreIndex, numberActiveDataStoresForDuration);
 
-        return (durationIndex, offset, nextDataStoreIdAfterBomb, firstDataStoreForDuration[durationIndex]);
+        uint32 selectedDataStoreIndex = uint32(
+            bombBlockhashInt % numberActiveDataStores
+        );
+        (
+            uint8 durationIndex,
+            uint32 offset
+        ) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
+                selectedDataStoreIndex,
+                numberActiveDataStoresForDuration
+            );
+
+        return (
+            durationIndex,
+            nextDataStoreIdAfterBomb,
+            firstDataStoreForDuration[durationIndex]+offset
+        );
         //return (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextDataStoreIdAfterBomb);
     }
 
-    function verifyDataStoreIdSandwich(uint256 sandwichTimestamp, uint8 duration, uint256[2] calldata timestamps) internal returns (IDataLayrServiceManager.DataStoreIdPair memory) {
-        require(timestamps[0] < sandwichTimestamp, "timestamps[0] must be before sandwich time");
-        require(timestamps[1] >= sandwichTimestamp, "timestamps[1] must be at or after sandwich time");
+    function verifyDataStoreIdSandwich(
+        uint256 sandwichTimestamp,
+        uint8 duration,
+        uint256[2] calldata timestamps
+    ) internal returns (IDataLayrServiceManager.DataStoreIdPair memory) {
+        require(
+            timestamps[0] < sandwichTimestamp,
+            "timestamps[0] must be before sandwich time"
+        );
+        require(
+            timestamps[1] >= sandwichTimestamp,
+            "timestamps[1] must be at or after sandwich time"
+        );
 
         IDataLayrServiceManager.DataStoreIdPair memory xDataStoreIdPair;
         //if not proving the first datastore
-        if(timestamps[0] != 0) {
-            xDataStoreIdPair = dlsm.lastDataStoreIdAtTimestampForDuration(duration, timestamps[0]);
+        if (timestamps[0] != 0) {
+            xDataStoreIdPair = dlsm.lastDataStoreIdAtTimestampForDuration(
+                duration,
+                timestamps[0]
+            );
         }
         IDataLayrServiceManager.DataStoreIdPair memory yDataStoreIdPair;
         //if not proving the last datastore
-        if(timestamps[1] != 0) {
-            yDataStoreIdPair = dlsm.firstDataStoreIdAtTimestampForDuration(duration, timestamps[1]);
-            require(xDataStoreIdPair.durationDataStoreId + 1 == yDataStoreIdPair.durationDataStoreId, "x and y datastore must be incremental or y datastore is not first in the duration");
+        if (timestamps[1] != 0) {
+            yDataStoreIdPair = dlsm.firstDataStoreIdAtTimestampForDuration(
+                duration,
+                timestamps[1]
+            );
+            require(
+                xDataStoreIdPair.durationDataStoreId + 1 ==
+                    yDataStoreIdPair.durationDataStoreId,
+                "x and y datastore must be incremental or y datastore is not first in the duration"
+            );
         } else {
             //if timestamps[1] is 0, prover is claiming first datastore is the last datastore in that duration
-            require(dlsm.totalDataStoresForDuration(duration) == xDataStoreIdPair.durationDataStoreId, "x datastore is not the last datastore in the duration or no datastores for duration");
+            require(
+                dlsm.totalDataStoresForDuration(duration) ==
+                    xDataStoreIdPair.durationDataStoreId,
+                "x datastore is not the last datastore in the duration or no datastores for duration"
+            );
         }
         return yDataStoreIdPair;
     }
 
-    function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(uint32 offset, uint32[] memory numberActiveDataStoresForDuration) internal returns (uint8, uint32) {
+    function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
+        uint32 offset,
+        uint32[] memory numberActiveDataStoresForDuration
+    ) internal returns (uint8, uint32) {
         uint32 offsetLeft = offset;
         uint256 i = 0;
         for (; i < numberActiveDataStoresForDuration.length; i++) {
-            if(numberActiveDataStoresForDuration[i] > offsetLeft) {
+            if (numberActiveDataStoresForDuration[i] > offsetLeft) {
                 break;
             }
             offsetLeft -= numberActiveDataStoresForDuration[i];
@@ -210,12 +388,11 @@ contract DataLayrBombVerifier {
     }
 
     function getChunkNumber(
-                bytes32 headerHash,
-                address operator,
-                uint32 operatorIndex,
-                uint32 totalOperatorsIndex,
-                IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
-            ) internal returns(uint32) {
+        bytes32 headerHash,
+        address operator,
+        uint32 operatorIndex,
+        uint32 totalOperatorsIndex
+    ) internal returns (uint32) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayr.sol by the disperser.
@@ -230,23 +407,6 @@ contract DataLayrBombVerifier {
 
         // check that disperser had acquire quorum for this dataStore
         require(committed, "Dump is not committed yet");
-
-        /** 
-        Check that the information supplied as input for forced disclosure for this particular data 
-        dump on DataLayr is correct
-        */
-        require(
-            dlsm.getDumpNumberSignatureHash(dumpNumber) ==
-                keccak256(
-                    abi.encodePacked(
-                        dumpNumber,
-                        signatoryRecord.nonSignerPubkeyHashes,
-                        signatoryRecord.totalEthStakeSigned,
-                        signatoryRecord.totalEigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
-        );
 
         uint32 operatorIndex = dlRegistry.getOperatorIndex(
             operator,
@@ -267,16 +427,17 @@ contract DataLayrBombVerifier {
         // bytes calldata poly,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
-    ) public returns(uint48) {
+    ) public returns (uint48) {
         (
             uint256[2] memory c,
             uint48 degree,
             uint32 numSys,
             uint32 numPar
-        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                header
-            );
-            // modulus for the underlying field F_q of the elliptic curve
+        ) = challengeUtils
+                .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                    header
+                );
+        // modulus for the underlying field F_q of the elliptic curve
         /*
         degree is the poly length, no need to multiply 32, as it is the size of data in bytes
         require(
@@ -397,7 +558,61 @@ contract DataLayrBombVerifier {
         return degree;
     }
 
-    function max(uint256 x, uint256 y) internal returns(uint256) {
+    function nonInteractivePolynomialProof(
+        bytes32 headerHash,
+        address operator,
+        uint32 operatorIndex,
+        uint32 totalOperatorsIndex,
+        DisclosureProof calldata disclosureProof
+    ) internal returns (bool) {
+        uint32 chunkNumber = getChunkNumber(
+            headerHash,
+            operator, 
+            operatorIndex,
+            totalOperatorsIndex
+        );
+        (uint256[2] memory c, , , ) = challengeUtils
+            .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                disclosureProof.header
+            );
+
+        //verify pairing for the commitment to interpolating polynomial
+        uint48 dg = validateDisclosureResponse(
+            chunkNumber,
+            disclosureProof.header,
+            disclosureProof.multireveal,
+            disclosureProof.zeroPoly,
+            disclosureProof.zeroPolyProof
+        );
+
+        //Calculating r, the point at which to evaluate the interpolating polynomial
+        uint256 r = uint(keccak256(disclosureProof.poly)) % MODULUS;
+        uint256 s = linearPolynomialEvaluation(disclosureProof.poly, r);
+        bool res = challengeUtils.openPolynomialAtPoint(c, disclosureProof.pi, r, s);
+
+        if (res) {
+            return true;
+        }
+        return false;
+    }
+
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
+        internal pure
+        returns (uint256)
+    {
+        uint256 sum;
+        uint length = poly.length / 32;
+        uint256 rPower = 1;
+        for (uint i = 0; i < length; i++) {
+            uint coefficient = uint(bytes32(poly[i:i + 32]));
+            sum += (coefficient * rPower);
+            rPower *= r;
+        }
+        return sum;
+    }
+
+    function max(uint256 x, uint256 y) internal returns (uint256) {
         return x > y ? x : y;
     }
 }
