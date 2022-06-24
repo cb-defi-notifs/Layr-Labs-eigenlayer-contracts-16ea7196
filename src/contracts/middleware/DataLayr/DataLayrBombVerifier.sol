@@ -8,6 +8,13 @@ import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
+
+    struct BombMetadata {
+        uint256 dataStoreTimestamp;
+        //todo: get blockhash
+        uint256 blockhashInt;
+    }
+
     struct HeaderHashes {
         bytes32 operatorFromHeaderHash;
         bytes32 bombHeaderHash;
@@ -16,7 +23,8 @@ contract DataLayrBombVerifier {
     struct Indexes {
         uint32 operatorIndex;
         uint32 totalOperatorsIndex;
-        uint256 nonSignerIndex;
+        uint256 detonationNonSignerIndex;
+        uint256[] successiveSignerIndexes;
         uint256 bombDataStoreIndex;
     }
 
@@ -74,12 +82,10 @@ contract DataLayrBombVerifier {
         address operator,
         HeaderHashes calldata headerHashes,
         Indexes calldata indexes,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
-            calldata signatoryRecord,
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber[]
+            calldata signatoryRecords,
         uint256[2][2][] calldata sandwichProofs,
-        uint256 bombDataStoreTimestamp,
-        //todo: get blockhash
-        uint256 bombBlockhashInt,
+        BombMetadata calldata bombMetadata,
         DisclosureProof calldata disclosureProof
     ) external {
         (
@@ -89,17 +95,10 @@ contract DataLayrBombVerifier {
                 operator,
                 headerHashes.operatorFromHeaderHash,
                 sandwichProofs,
-                bombBlockhashInt,
-                bombDataStoreTimestamp,
+                bombMetadata.blockhashInt,
+                bombMetadata.dataStoreTimestamp,
                 indexes.bombDataStoreIndex
             );
-        (uint32 loadedBombDataStoreId, , , , ) = dataLayr.dataStores(
-            keccak256(disclosureProof.header)
-        );
-        require(
-            loadedBombDataStoreId == bombDataStoreId,
-            "loaded bomb datastore id must be as calculated"
-        );
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
@@ -127,15 +126,15 @@ contract DataLayrBombVerifier {
                     keccak256(
                         abi.encodePacked(
                             detonationDataStoreId,
-                            signatoryRecord.nonSignerPubkeyHashes,
-                            signatoryRecord.totalEthStakeSigned,
-                            signatoryRecord.totalEigenStakeSigned
+                            signatoryRecords[0].nonSignerPubkeyHashes,
+                            signatoryRecords[0].totalEthStakeSigned,
+                            signatoryRecords[0].totalEigenStakeSigned
                         )
                     ),
                 "Sig record does not match hash"
             );
 
-            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+            if (signatoryRecords[0].nonSignerPubkeyHashes.length != 0) {
                 // get the pubkey hash of the DataLayr operator
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
@@ -143,10 +142,47 @@ contract DataLayrBombVerifier {
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkInclusionExclusionInNonSigner(
                     operatorPubkeyHash,
-                    indexes.nonSignerIndex,
-                    signatoryRecord
+                    indexes.detonationNonSignerIndex,
+                    signatoryRecords[0]
                 );
             }
+
+            //verify all non signed datastores from bomb till first signed to get correct data
+            for (uint i = 1; i < signatoryRecords.length; i++) {
+                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
+                    operator
+                );
+
+                require(
+                    dlsm.getDumpNumberSignatureHash(bombDataStoreId) ==
+                        keccak256(
+                            abi.encodePacked(
+                                bombDataStoreId++,
+                                signatoryRecords[i].nonSignerPubkeyHashes,
+                                signatoryRecords[i].totalEthStakeSigned,
+                                signatoryRecords[i].totalEigenStakeSigned
+                            )
+                        ),
+                    "Sig record does not match hash"
+                );
+
+                require(
+                    signatoryRecords[i].nonSignerPubkeyHashes[
+                        indexes.successiveSignerIndexes[i - 1]
+                    ] == operatorPubkeyHash,
+                    "Incorrect nonsigner proof"
+                );
+                bombDataStoreId++;
+            }
+        }
+        {
+            (uint32 loadedBombDataStoreId, , , , ) = dataLayr.dataStores(
+                keccak256(disclosureProof.header)
+            );
+            require(
+                loadedBombDataStoreId == bombDataStoreId,
+                "loaded bomb datastore id must be as calculated"
+            );
         }
 
         require(
@@ -165,11 +201,7 @@ contract DataLayrBombVerifier {
         require(
             uint256(
                 keccak256(
-                    abi.encodePacked(
-                        disclosureProof.poly,
-                        ek,
-                        bombBlockhashInt
-                    )
+                    abi.encodePacked(disclosureProof.poly, ek, bombMetadata.blockhashInt)
                 )
             ) < BOMB_THRESHOLD,
             "No bomb"
@@ -229,8 +261,7 @@ contract DataLayrBombVerifier {
                 bombDataStoreIndex
             );
         require(
-            bombDataStoreIdPair.durationDataStoreId ==
-                calculatedDataStoreId,
+            bombDataStoreIdPair.durationDataStoreId == calculatedDataStoreId,
             "datastore id provided is not the same as loaded"
         );
 
@@ -321,7 +352,7 @@ contract DataLayrBombVerifier {
         return (
             durationIndex,
             nextDataStoreIdAfterBomb,
-            firstDataStoreForDuration[durationIndex]+offset
+            firstDataStoreForDuration[durationIndex] + offset
         );
         //return (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextDataStoreIdAfterBomb);
     }
@@ -567,7 +598,7 @@ contract DataLayrBombVerifier {
     ) internal returns (bool) {
         uint32 chunkNumber = getChunkNumber(
             headerHash,
-            operator, 
+            operator,
             operatorIndex,
             totalOperatorsIndex
         );
@@ -588,7 +619,12 @@ contract DataLayrBombVerifier {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint(keccak256(disclosureProof.poly)) % MODULUS;
         uint256 s = linearPolynomialEvaluation(disclosureProof.poly, r);
-        bool res = challengeUtils.openPolynomialAtPoint(c, disclosureProof.pi, r, s);
+        bool res = challengeUtils.openPolynomialAtPoint(
+            c,
+            disclosureProof.pi,
+            r,
+            s
+        );
 
         if (res) {
             return true;
@@ -598,7 +634,8 @@ contract DataLayrBombVerifier {
 
     //evaluates the given polynomial "poly" at value "r" and returns the result
     function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
-        internal pure
+        internal
+        pure
         returns (uint256)
     {
         uint256 sum;
