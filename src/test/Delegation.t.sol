@@ -327,7 +327,7 @@ contract Delegator is EigenLayrDeployer {
         uint32 storePeriodLength = 600;
 
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 10e10);
+        weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         uint32 blockNumber = 1;

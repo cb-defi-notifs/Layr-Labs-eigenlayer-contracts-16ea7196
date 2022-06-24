@@ -516,18 +516,17 @@ contract EigenLayrDeployer is
     function _testInitDataStore() internal returns (bytes32) {
         bytes memory header = hex"0102030405060708091011121314151617181920";
         uint32 totalBytes = 1e6;
-        uint32 storePeriodLength = 600;
+        uint8 duration = 2;
 
-        //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 10e10);
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         uint32 blockNumber = 1;
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
-        //todo: duration
-        dlsm.initDataStore(header, 2, totalBytes, blockNumber);
+        dlsm.initDataStore(header, duration, totalBytes, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
@@ -547,7 +546,7 @@ contract EigenLayrDeployer is
             "_testInitDataStore: wrong initTime"
         );
         assertTrue(
-            dataStorePeriodLength == storePeriodLength,
+            dataStorePeriodLength == duration*dlsm.DURATION_SCALE(),
             "_testInitDataStore: wrong storePeriodLength"
         );
         assertTrue(
