@@ -526,7 +526,8 @@ contract EigenLayrDeployer is
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
+        //todo: duration
+        dlsm.initDataStore(header, 2, totalBytes, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
