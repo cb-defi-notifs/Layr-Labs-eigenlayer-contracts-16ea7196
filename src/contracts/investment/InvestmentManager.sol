@@ -515,7 +515,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint96 queuedWithdrawalNonce
-    ) external onlyNotSlashed(msg.sender) {
+    ) external onlyNotSlashed(depositor) {
         bytes32 withdrawalRoot = keccak256(
             abi.encodePacked(
                 strategies,
