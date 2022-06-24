@@ -69,7 +69,7 @@ contract DataLayrEphemeralKeyRegistry {
     function proveStaleEphemeralKey(address dataLayrNode) public{
         
         //check if DLN is still active in the DLRegistry
-        require(dlRegistry.registry(dataLayrNode).active == 1, "DLN not active");
+        //require(dlRegistry.registry(dataLayrNode).active == 1, "DLN not active");
 
         if(EKRegistry[dataLayrNode].timestamp + 7 days < block.timestamp){
             //trigger slashing for DLN who hasn't updated their EK
@@ -83,7 +83,7 @@ contract DataLayrEphemeralKeyRegistry {
     */
     function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) public {
         
-        if(EKRegistry[dataLayrNode].keyHash==keccak256(leakedEphemeralKey)){
+        if(EKRegistry[dataLayrNode].keyHash==keccak256(abi.encode(leakedEphemeralKey))){
             //trigger slashing function for that datalayr node address
         }
     }
