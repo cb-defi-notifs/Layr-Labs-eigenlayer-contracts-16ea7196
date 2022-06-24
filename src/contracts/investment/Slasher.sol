@@ -127,5 +127,6 @@ contract Slasher is Ownable, ISlasher {
         uint256 maxSlashedAmount
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    }
+        investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    
+    }
 }

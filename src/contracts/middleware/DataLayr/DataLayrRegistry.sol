@@ -689,7 +689,7 @@ contract DataLayrRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket,
-        bytes32 calldata ephemeralKey
+        bytes32 ephemeralKey
     ) public {
         _registerOperator(msg.sender, registrantType, data, socket, ephemeralKey);
     }
@@ -703,7 +703,7 @@ contract DataLayrRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket,
-        bytes32 calldata ephemeralKey
+        bytes32 ephemeralKey
     ) internal {
         require(
             registry[operator].active == 0,

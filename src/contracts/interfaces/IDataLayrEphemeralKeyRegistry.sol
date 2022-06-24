@@ -4,8 +4,8 @@ import "./IDataLayr.sol";
 
 interface IDataLayrEphemeralKeyRegistry {
     function postEphemeralKeyPreImage(
-        bytes memory prevEK,
-        bytes memory currEKHash
+        bytes32 prevEK,
+        bytes32 currEKHash
     ) external;
 
     function getCurrEphemeralKeyHash(address dataLayrNode)
@@ -16,12 +16,7 @@ interface IDataLayrEphemeralKeyRegistry {
         external
         returns (bytes32);
 
-<<<<<<< HEAD
-    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 ephemeralKey) external;
+    function verifyEphemeralKeyIntegrity(bytes32 ephemeralKey) external;
 
-
+    function postFirstEphemeralKeyPreImage(address, bytes32) external;
 }
-=======
-    function verifyEphemeralKeyIntegrity(bytes memory ephemeralKey) external;
-}
->>>>>>> 76db7ece4f41e2422d089f2494654063fe926bca

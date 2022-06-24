@@ -11,13 +11,14 @@ contract DataLayrBombVerifier {
 
     struct BombMetadata {
         uint256 dataStoreTimestamp;
-        //todo: get blockhash
+        //todo: get blockhash from time of datastore
         uint256 blockhashInt;
     }
 
     struct HeaderHashes {
         bytes32 operatorFromHeaderHash;
         bytes32 bombHeaderHash;
+        bytes32 detonationHeaderHash;
     }
 
     struct Indexes {
@@ -85,9 +86,9 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber[]
             calldata signatoryRecords,
         uint256[2][2][] calldata sandwichProofs,
-        BombMetadata calldata bombMetadata,
         DisclosureProof calldata disclosureProof
     ) external {
+        (uint32 loadedDetonationDataStoreId, uint32 detonationTime, , ,) = dataLayr.dataStores(headerHashes.detonationHeaderHash);
         (
             uint32 bombDataStoreId,
             uint32 detonationDataStoreId
@@ -95,10 +96,12 @@ contract DataLayrBombVerifier {
                 operator,
                 headerHashes.operatorFromHeaderHash,
                 sandwichProofs,
-                bombMetadata.blockhashInt,
-                bombMetadata.dataStoreTimestamp,
+                uint256(headerHashes.detonationHeaderHash),
+                detonationTime,
                 indexes.bombDataStoreIndex
             );
+        require(detonationDataStoreId == loadedDetonationDataStoreId, "Loaded detonation datastore not the same as calculated");
+        
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
@@ -201,7 +204,7 @@ contract DataLayrBombVerifier {
         require(
             uint256(
                 keccak256(
-                    abi.encodePacked(disclosureProof.poly, ek, bombMetadata.blockhashInt)
+                    abi.encodePacked(disclosureProof.poly, ek, headerHashes.detonationHeaderHash)
                 )
             ) < BOMB_THRESHOLD,
             "No bomb"

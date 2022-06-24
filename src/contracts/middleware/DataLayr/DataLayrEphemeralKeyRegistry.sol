@@ -36,15 +36,15 @@ contract DataLayrEphemeralKeyRegistry {
      /*
     * Allows DLN to update their ephemeral key hash and post their previous ephemeral key 
     */
-    function updateEphemeralKeyPreImage(bytes memory prevEK, bytes32 currEKHash) public {
-        require(keccak256(prevEK) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
+    function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) public {
+        require(keccak256(abi.encodePacked(prevEK)) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
 
         require(block.timestamp <= EKRegistry[msg.sender].timestamp + updatePeriod, "key update cannot be completed as update window has expired");
 
         EKRegistry[msg.sender].keyHash = currEKHash;
         EKRegistry[msg.sender].timestamp = block.timestamp;
 
-        latestEk[msg.sender] = prevEk;
+        latestEk[msg.sender] = prevEK;
     }
 
 
@@ -81,10 +81,11 @@ contract DataLayrEphemeralKeyRegistry {
     /*
     * proof for DLN who's ephemeral key has been leaked
     */
-    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes memory leakedEphemeralKey) public {
+    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) public {
         
         if(EKRegistry[dataLayrNode].keyHash==keccak256(leakedEphemeralKey)){
             //trigger slashing function for that datalayr node address
         }
+    }
 
 }
