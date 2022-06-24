@@ -395,7 +395,7 @@ contract DataLayrRegistry is
     }
 
     /**
-    @TODO:  add "finalze deregistration" function to close out the DLN's stake in DataLayr
+     IMPORTANT:  add "finalze deregistration" function to close out the DLN's stake in DataLayr
      */
 
 
