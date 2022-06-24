@@ -694,7 +694,6 @@ contract DataLayrRegistry is
         //_registerOperator(msg.sender, registrantType, data, socket);
         
         _registerOperator(msg.sender, registrantType, ephemeralKey, data, socket);
-        emit log("BREAK PINT 3");
     }
 
 
@@ -848,7 +847,6 @@ contract DataLayrRegistry is
         unchecked {
             ++nextRegistrantId;
         }
-        emit log("BREAK PINT 3");
         
         
         {
