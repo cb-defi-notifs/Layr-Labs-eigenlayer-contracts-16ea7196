@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrRegistry.sol";
 
 contract DataLayrEphemeralKeyRegistry {
+    mapping(address => bytes32) public ekRegistry;
+    mapping(address => bytes32) public latestEk;
 
     struct HashEntry{
         bytes32 keyHash;
@@ -42,6 +43,8 @@ contract DataLayrEphemeralKeyRegistry {
 
         EKRegistry[msg.sender].keyHash = currEKHash;
         EKRegistry[msg.sender].timestamp = block.timestamp;
+
+        latestEk[msg.sender] = prevEk;
     }
 
 
@@ -50,6 +53,12 @@ contract DataLayrEphemeralKeyRegistry {
     */
     function getCurrEphemeralKeyHash(address dataLayrNode) public view returns (bytes32){
         return EKRegistry[dataLayrNode].keyHash;
+    }
+        function getLatestEphemeralKey(address dataLayrNode)
+        public
+        returns (bytes32)
+    {
+        return latestEk[dataLayrNode];
     }
 
     /*
@@ -75,6 +84,7 @@ contract DataLayrEphemeralKeyRegistry {
         if(EKRegistry[dataLayrNode].keyHash==keccak256(leakedEphemeralKey)){
             //trigger slashing function for that datalayr node address
         }
-    }
 
+
+    function verifyEphemeralKeyIntegrity(bytes memory ephemeralKey) public {}
 }

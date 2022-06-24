@@ -150,16 +150,15 @@ contract DataLayrServiceManager is
      */
     /**
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param storePeriodLength for which the data has to be stored by the DataLayr operators,
+     * @param duration for which the data has to be stored by the DataLayr operators, scaled down by DURATION_SCALE,
      * @param totalBytes  is the size of the data ,
-     * @param storePeriodLength is time in seconds for which the data has to be stored by the DataLayr nodes, 
      * @param blockNumber for which the confirmation will consult total + operator stake amounts 
      *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
         bytes calldata header,
+        uint8 duration,
         uint32 totalBytes,
-        uint32 storePeriodLength,
         uint32 blockNumber
     ) external payable {
         bytes32 headerHash = keccak256(header);
@@ -170,12 +169,17 @@ contract DataLayrServiceManager is
         if (totalBytes > MAX_STORE_SIZE) {
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
-        if (storePeriodLength <= MIN_STORE_LENGTH) {
-            revert StoreTooShort(MIN_STORE_LENGTH, storePeriodLength);
-        }
-        if (storePeriodLength >= MAX_STORE_LENGTH) {
-            revert StoreTooLong(MAX_STORE_LENGTH, storePeriodLength);
-        }
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+
+        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
+        dataStoreIdsForDuration[duration][block.timestamp].push(
+            DataStoreIdPair(
+                ++totalDataStoresForDuration[duration],
+                dumpNumber
+            )
+        );
+        
+        uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -556,6 +560,22 @@ contract DataLayrServiceManager is
             return type(uint256).max;
         }
     }
+
+    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+        return dataStoreIdsForDuration[duration][timestamp][0];
+    }
+
+    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+        return dataStoreIdsForDuration[duration][timestamp][dataStoreIdsForDuration[duration][timestamp].length - 1];
+    }
+
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreIdPair memory) {
+        return dataStoreIdsForDuration[duration][timestamp][index];
+    }
+
+    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    //     return dataStoreIdsForDuration[duration][timestamp][0];
+    // }
 
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(

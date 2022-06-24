@@ -546,13 +546,6 @@ contract DataLayrForcedDisclosureManager is DSTest{
         }
     }
 
-
-
-
-
-
-
-
     /**
      @notice this function returns the compressed record on the signatures of DataLayr nodes 
              that aren't part of the quorum for this @param _dumpNumber.
