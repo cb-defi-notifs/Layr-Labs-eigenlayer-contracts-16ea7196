@@ -54,7 +54,9 @@ contract DataLayrEphemeralKeyRegistry {
     function getCurrEphemeralKeyHash(address dataLayrNode) public view returns (bytes32){
         return EKRegistry[dataLayrNode].keyHash;
     }
-        function getLatestEphemeralKey(address dataLayrNode)
+
+
+    function getLatestEphemeralKey(address dataLayrNode)
         public
         returns (bytes32)
     {
@@ -85,6 +87,4 @@ contract DataLayrEphemeralKeyRegistry {
             //trigger slashing function for that datalayr node address
         }
 
-
-    function verifyEphemeralKeyIntegrity(bytes memory ephemeralKey) public {}
 }
