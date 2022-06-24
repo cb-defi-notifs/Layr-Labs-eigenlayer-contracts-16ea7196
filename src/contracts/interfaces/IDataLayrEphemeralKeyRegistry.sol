@@ -7,7 +7,7 @@ interface IDataLayrEphemeralKeyRegistry{
 
     function postEphemeralKeyPreImage(bytes memory prevEK, bytes memory currEKHash) external;
 
-    function getCurrEphemeralKeyHash(address DataLayrNode, bytes memory EKHash) external;
+    function getCurrEphemeralKeyHash(address dataLayrNode) external returns(bytes32);
 
     function verifyEphemeralKeyIntegrity(bytes memory ephemeralKey) external;
 
