@@ -5,15 +5,19 @@ import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrRegistry.sol";
 
 contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
-    mapping(address => bytes32) public ekRegistry;
-    mapping(address => bytes32) public latestEk;
-
     struct HashEntry{
         bytes32 keyHash;
         uint timestamp;
     }
-
+    struct EKEntry{
+        bytes32 EK;
+        uint timestamp;
+    }
     mapping(address=>HashEntry) public EKRegistry;
+    mapping(address => EKEntry) public latestEk;
+
+    
+
     uint256 public updatePeriod = 7 days;
 
     IRepository public repository;
@@ -33,6 +37,14 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         EKRegistry[operator].timestamp = block.timestamp;
     }
 
+    /*
+    * Allows DLN to post their final ephemeral key hash via DataLayrRegistry
+    */
+    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) public {
+        latestEk[operator].EK = EK;
+        latestEk[operator].timestamp = block.timestamp;
+    }
+
      /*
     * Allows DLN to update their ephemeral key hash and post their previous ephemeral key 
     */
@@ -44,7 +56,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         EKRegistry[msg.sender].keyHash = currEKHash;
         EKRegistry[msg.sender].timestamp = block.timestamp;
 
-        latestEk[msg.sender] = prevEK;
+        latestEk[msg.sender].EK = prevEK;
+        latestEk[msg.sender].timestamp = block.timestamp;
     }
 
 
@@ -60,7 +73,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         public
         returns (bytes32)
     {
-        return latestEk[dataLayrNode];
+        return latestEk[dataLayrNode].EK;
     }
 
     /*
@@ -86,6 +99,11 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         if(EKRegistry[dataLayrNode].keyHash==keccak256(abi.encode(leakedEphemeralKey))){
             //trigger slashing function for that datalayr node address
         }
+    }
+
+
+    function getLastEKPostTimestamp(address dataLayrNode) public returns (uint) {
+        return latestEk[dataLayrNode].timestamp;
     }
 
 }

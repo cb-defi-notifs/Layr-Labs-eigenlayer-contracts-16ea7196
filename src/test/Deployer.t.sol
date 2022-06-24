@@ -613,7 +613,7 @@ contract EigenLayrDeployer is
 
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        emit log("BREAK PINT");
+
         dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
         
         cheats.stopPrank();

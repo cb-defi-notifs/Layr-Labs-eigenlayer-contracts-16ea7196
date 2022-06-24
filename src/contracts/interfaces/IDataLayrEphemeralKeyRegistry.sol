@@ -8,6 +8,11 @@ interface IDataLayrEphemeralKeyRegistry {
         bytes32 EKHash
     ) external;
 
+    function postLastEphemeralKeyPreImage(
+        address operator,
+        bytes32 EK
+    ) external;
+
     function updateEphemeralKeyPreImage(
         bytes32 prevEK, 
         bytes32 currEKHash
@@ -24,5 +29,7 @@ interface IDataLayrEphemeralKeyRegistry {
     function proveStaleEphemeralKey(address dataLayrNode) external;
  
     function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external;
+
+    function getLastEKPostTimestamp(address dataLayrNode) external returns (uint);
 
 }

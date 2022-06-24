@@ -276,7 +276,7 @@ contract DataLayrRegistry is
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -387,9 +387,16 @@ contract DataLayrRegistry is
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
+        //posting last ephemeral key reveal on chain
+        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
+
         emit Deregistration(msg.sender);
         return true;
     }
+
+    /**
+    @TODO:  add "finalze deregistration" function to close out the DLN's stake in DataLayr
+     */
 
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
