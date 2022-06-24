@@ -88,7 +88,6 @@ contract DataLayrBombVerifier {
         uint256[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
-        (uint32 loadedDetonationDataStoreId, uint32 detonationTime, , ,) = dataLayr.dataStores(headerHashes.detonationHeaderHash);
         (
             uint32 bombDataStoreId,
             uint32 detonationDataStoreId
@@ -96,11 +95,9 @@ contract DataLayrBombVerifier {
                 operator,
                 headerHashes.operatorFromHeaderHash,
                 sandwichProofs,
-                uint256(headerHashes.detonationHeaderHash),
-                detonationTime,
+                headerHashes.detonationHeaderHash,
                 indexes.bombDataStoreIndex
             );
-        require(detonationDataStoreId == loadedDetonationDataStoreId, "Loaded detonation datastore not the same as calculated");
         
 
         /** 
@@ -217,10 +214,11 @@ contract DataLayrBombVerifier {
         address operator,
         bytes32 operatorFromHeaderHash,
         uint256[2][2][] calldata sandwichProofs,
-        uint256 bombBlockhashInt,
-        uint256 bombDataStoreTimestamp,
+        bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
     ) internal returns (uint32, uint32) {
+        (,uint32 detonationTime, , ,) = dataLayr.dataStores(detonationHeaderHash);
+        
         uint256 fromTime;
         {
             uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(
@@ -251,23 +249,26 @@ contract DataLayrBombVerifier {
             uint32 nextDataStoreIdAfterBomb,
             uint32 calculatedDataStoreId
         ) = verifySandwiches(
-                bombBlockhashInt,
+                uint256(detonationHeaderHash),
                 fromTime,
-                bombDataStoreTimestamp,
+                detonationTime,
                 sandwichProofs
             );
 
         IDataLayrServiceManager.DataStoreIdPair
             memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(
                 durationIndex + 1,
-                bombDataStoreTimestamp,
+                detonationTime,
                 bombDataStoreIndex
             );
         require(
             bombDataStoreIdPair.durationDataStoreId == calculatedDataStoreId,
             "datastore id provided is not the same as loaded"
         );
-
+        {
+            (uint32 detonationDataStoreId, , , ,) = dataLayr.dataStores(detonationHeaderHash);
+            require(detonationDataStoreId == nextDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
+        }
         return (
             bombDataStoreIdPair.globalDataStoreId,
             nextDataStoreIdAfterBomb
