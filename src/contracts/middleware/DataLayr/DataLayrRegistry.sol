@@ -756,9 +756,7 @@ contract DataLayrRegistry is
         
 
         {
-            emit log("BREAK PINT 2");
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            emit log_bytes(data);
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 164);
             
             // add pubkey to aggregated pukkey in Jacobian coordinates
