@@ -23,6 +23,6 @@ interface IDataLayrEphemeralKeyRegistry {
 
     function proveStaleEphemeralKey(address dataLayrNode) external;
  
-    function verifyEphemeralKeyIntegrity(bytes32 ephemeralKey) external;
+    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external;
 
 }
