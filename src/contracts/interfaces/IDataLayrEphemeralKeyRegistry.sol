@@ -3,11 +3,16 @@ pragma solidity ^0.8.9;
 import "./IDataLayr.sol";
 
 interface IDataLayrEphemeralKeyRegistry {
-    function postEphemeralKeyPreImage(
-        bytes32 prevEK,
-        bytes32 currEKHash
+    function postFirstEphemeralKeyPreImage(
+        address operator,
+        bytes32 EKHash
     ) external;
 
+    function updateEphemeralKeyPreImage(
+        bytes32 prevEK, 
+        bytes32 currEKHash
+    ) external;
+    
     function getCurrEphemeralKeyHash(address dataLayrNode)
         external
         returns (bytes32);
@@ -16,7 +21,8 @@ interface IDataLayrEphemeralKeyRegistry {
         external
         returns (bytes32);
 
+    function proveStaleEphemeralKey(address dataLayrNode) external;
+ 
     function verifyEphemeralKeyIntegrity(bytes32 ephemeralKey) external;
 
-    function postFirstEphemeralKeyPreImage(address, bytes32) external;
 }
