@@ -30,4 +30,6 @@ interface IDataLayrRegistry {
     function getOperatorIndex(address operator, uint32 dumpNumber, uint32 index) external view returns (uint32);
 
     function getTotalOperators(uint32 dumpNumber, uint32 index) external view returns (uint32);
+    
+    function getDLNStatus(address DLN) external view returns(uint8);
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrRegistry.sol";
 
-contract DataLayrEphemeralKeyRegistry {
+contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     mapping(address => bytes32) public ekRegistry;
     mapping(address => bytes32) public latestEk;
 
@@ -20,7 +20,7 @@ contract DataLayrEphemeralKeyRegistry {
     IDataLayrRegistry public dlRegistry;
 
     
-    constructor(){
+    constructor(IRepository repository){
         dlRegistry = IDataLayrRegistry(address(repository.registrationManager()));
     }
 
@@ -69,7 +69,7 @@ contract DataLayrEphemeralKeyRegistry {
     function proveStaleEphemeralKey(address dataLayrNode) public{
         
         //check if DLN is still active in the DLRegistry
-        //require(dlRegistry.registry(dataLayrNode).active == 1, "DLN not active");
+        require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
 
         if(EKRegistry[dataLayrNode].timestamp + 7 days < block.timestamp){
             //trigger slashing for DLN who hasn't updated their EK

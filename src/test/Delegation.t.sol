@@ -231,7 +231,7 @@ contract Delegator is EigenLayrDeployer {
         uint8 registrantType = 3;
         string memory socket = "255.255.255.255";
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlReg.registerOperator(registrantType, registrationData[0], socket);
+        dlReg.registerOperator(registrantType, ephemeralKey, registrationData[0], socket);
         cheats.stopPrank();
 
     }

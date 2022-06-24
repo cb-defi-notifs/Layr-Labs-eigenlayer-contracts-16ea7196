@@ -23,6 +23,7 @@ import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
+import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
@@ -61,6 +62,7 @@ contract EigenLayrDeployer is
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
+    DataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
@@ -107,6 +109,9 @@ contract EigenLayrDeployer is
     bytes32 priv_key_1 =
         0x1234567812345678123456781234567812345698123456781234567812348976;
     address acct_1 = cheats.addr(uint256(priv_key_1));
+
+
+    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
 
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
@@ -164,6 +169,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
+
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -282,6 +288,7 @@ contract EigenLayrDeployer is
         dl = new DataLayr();
 
         dlRepository = new Repository(delegation, investmentManager);
+        ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](3);
         for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
@@ -296,6 +303,7 @@ contract EigenLayrDeployer is
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
+            ephemeralKeyRegistry,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
@@ -605,7 +613,9 @@ contract EigenLayrDeployer is
 
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlReg.registerOperator(registrantType, data, socket);
+        emit log("BREAK PINT");
+        dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
+        
         cheats.stopPrank();
 
         // verify that registration was stored correctly
