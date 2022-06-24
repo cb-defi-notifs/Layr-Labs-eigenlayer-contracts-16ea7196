@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
+import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
@@ -183,6 +184,8 @@ contract DataLayrRegistry is
         address registrant
     );
 
+    IDataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+
     // MODIFIERS
     modifier onlyRepository() {
         require(address(repository) == msg.sender, "onlyRepository");
@@ -194,6 +197,7 @@ contract DataLayrRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        IDataLayrEphemeralKeyRegistry _ephemeralKeyRegistry,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -224,6 +228,8 @@ contract DataLayrRegistry is
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
         }
+
+        ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     /**
@@ -677,13 +683,15 @@ contract DataLayrRegistry is
      @param registrantType specifies whether the DataLayr operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the DataLayr operator
+     @param ephemeralKey is the first ephemeral key the DLN registers with in the DataLayrEphemeralKeyRegistry
      */ 
     function registerOperator(
         uint8 registrantType,
         bytes calldata data,
-        string calldata socket
+        string calldata socket,
+        bytes32 calldata ephemeralKey
     ) public {
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, registrantType, data, socket, ephemeralKey);
     }
 
 
@@ -694,7 +702,8 @@ contract DataLayrRegistry is
         address operator,
         uint8 registrantType,
         bytes calldata data,
-        string calldata socket
+        string calldata socket,
+        bytes32 calldata ephemeralKey
     ) internal {
         require(
             registry[operator].active == 0,
@@ -849,6 +858,9 @@ contract DataLayrRegistry is
         unchecked {
             ++numRegistrants;
         }
+
+        //add ephemeral key to epehemral key registry
+        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(operator, ephemeralKey);
 
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }

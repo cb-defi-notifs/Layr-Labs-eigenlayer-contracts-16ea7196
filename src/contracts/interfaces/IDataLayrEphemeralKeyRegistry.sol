@@ -9,7 +9,7 @@ interface IDataLayrEphemeralKeyRegistry{
 
     function getCurrEphemeralKeyHash(address dataLayrNode) external returns(bytes32);
 
-    function verifyEphemeralKeyIntegrity(bytes memory ephemeralKey) external;
+    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 ephemeralKey) external;
 
 
 }

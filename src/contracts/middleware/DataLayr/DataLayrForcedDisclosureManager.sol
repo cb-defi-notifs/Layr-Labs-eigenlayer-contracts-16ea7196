@@ -12,7 +12,7 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 
 import "ds-test/test.sol";
 
-contract DataLayrForcedDisclosureManager {
+contract DataLayrForcedDisclosureManager is DSTest{
     // modulus for the underlying field F_q of the elliptic curve
     uint256 constant MODULUS =
         21888242871839275222246405745257275088696311157297823662689037894645226208583;
@@ -565,6 +565,9 @@ contract DataLayrForcedDisclosureManager {
         return dumpNumberToSignatureHash[_dumpNumber];
     }
 
+
+
+
     function validateDisclosureResponse(
         uint256 chunkNumber,
         bytes calldata header,
@@ -628,6 +631,7 @@ contract DataLayrForcedDisclosureManager {
         //get the commitment to the zero polynomial of multireveal degree
 
         uint256[13] memory pairingInput;
+
 
         assembly {
             // extract the proof [Pi(s).x, Pi(s).y]
@@ -713,4 +717,63 @@ contract DataLayrForcedDisclosureManager {
         return disclosureForOperator[headerHash][operator].polyHash;
     }
 
+
+
+    function NonInteractivePolynomialProof(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof,
+        uint256[4] calldata pi
+    ) public returns(bool) {
+
+        (
+            uint256[2] memory c,
+            ,
+            ,
+        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+
+        //verify pairing for the commitment to interpolating polynomial
+        uint48 dg = validateDisclosureResponse(
+            chunkNumber, 
+            header, 
+            multireveal,
+            zeroPoly, 
+            zeroPolyProof
+        );
+
+
+        //Calculating r, the point at which to evaluate the interpolating polynomial
+        uint256 r = uint(keccak256(poly)) % MODULUS;
+        uint256 s = linearPolynomialEvaluation(poly, r);
+        bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
+
+        if (res){
+            return true;
+        }
+        return false;
+        
+    }
+
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(
+        bytes calldata poly,
+        uint256 r
+    ) public returns(uint256){
+        uint256 sum;
+        uint length = poly.length/32;
+        uint256 rPower = 1;
+        for (uint i = 0; i < length; i++){
+            uint coefficient = uint(bytes32(poly[i:i+32]));
+            sum += (coefficient * rPower);
+            rPower *= r;
+        }   
+        return sum; 
+    }
+
+        
 }
