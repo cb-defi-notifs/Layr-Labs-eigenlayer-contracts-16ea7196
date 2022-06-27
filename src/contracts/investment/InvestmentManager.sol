@@ -53,15 +53,6 @@ contract InvestmentManager is
         _;
     }
 
-    modifier onlyNotSlashed(address staker) {
-        require(!slashedStatus[staker], "staker has been slashed");
-        if (delegation.isDelegator(staker)) {
-            address operatorAddress = delegation.delegation(staker);
-            require(!slashedStatus[operatorAddress], "operator has been slashed");
-        }
-        _;
-    }
-
     constructor(
         IEigenLayrDelegation _delegation
     ) InvestmentManagerStorage(_delegation) {
@@ -111,11 +102,11 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
+    ) external returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        address operatorAddress = delegation.delegation(msg.sender);
         // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
 
             delegation.increaseOperatorShares(
                 operatorAddress,
@@ -145,7 +136,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata amounts
-    ) external onlyNotSlashed(msg.sender) returns (uint256[] memory) {
+    ) external returns (uint256[] memory) {
         uint256 strategiesLength = strategies.length;
         uint256[] memory shares = new uint256[](strategiesLength);
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -160,8 +151,8 @@ contract InvestmentManager is
             }
         }
         // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
             delegation.increaseOperatorShares(
                 operatorAddress,
                 strategies,
@@ -218,7 +209,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyNotSlashed(msg.sender) onlyNotDelegated(msg.sender) {
+    ) external onlyNotDelegated(msg.sender) {
         _withdrawFromStrategy(
             msg.sender,
             strategyIndex,
@@ -227,8 +218,8 @@ contract InvestmentManager is
             shareAmount
         );
         // decrease delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
             delegation.decreaseOperatorShares(
                 operatorAddress,
                 strategy,
@@ -261,7 +252,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts
-    ) external onlyNotSlashed(msg.sender) onlyNotDelegated(msg.sender) {
+    ) external onlyNotDelegated(msg.sender) {
         uint256 strategyIndexIndex;
         address depositor = msg.sender;
 
@@ -288,8 +279,8 @@ contract InvestmentManager is
             }
         }
         // decrease delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
+        address operatorAddress = delegation.delegation(msg.sender);
+        if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
             delegation.decreaseOperatorShares(
                 operatorAddress,
                 strategies,
@@ -394,7 +385,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce memory withdrawerAndNonce
-    ) external onlyNotSlashed(msg.sender) {
+    ) external {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "provided nonce incorrect"
@@ -406,7 +397,7 @@ contract InvestmentManager is
         uint256 strategyIndexIndex;
 
         bytes32 withdrawalRoot = keccak256(
-            abi.encode(
+            abi.encodePacked(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -418,8 +409,8 @@ contract InvestmentManager is
         // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
         // this solves a 'stack too deep' error on compilation
         {
-            if (delegation.isDelegator(msg.sender)) {
-                address operatorAddress = delegation.delegation(msg.sender);
+            address operatorAddress = delegation.delegation(msg.sender);
+            if (!delegation.isSelfOperator(msg.sender) && operatorAddress != address(0)) {
                 delegation.decreaseOperatorShares(
                     operatorAddress,
                     strategies,
@@ -484,7 +475,7 @@ contract InvestmentManager is
         uint96 queuedWithdrawalNonce
     ) external view returns (bool) {
         bytes32 withdrawalRoot = keccak256(
-            abi.encode(
+            abi.encodePacked(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -515,9 +506,9 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint96 queuedWithdrawalNonce
-    ) external onlyNotSlashed(depositor) {
+    ) external {
         bytes32 withdrawalRoot = keccak256(
-            abi.encode(
+            abi.encodePacked(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -580,7 +571,7 @@ contract InvestmentManager is
         IRegistrationManager registrationManager
     ) external {
         bytes32 withdrawalRoot = keccak256(
-            abi.encode(
+            abi.encodePacked(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -634,36 +625,36 @@ contract InvestmentManager is
 
 
     /**
-     * @notice Used for slashing a certain operator
+     * @notice Used for slashing a certain user and transferring the slashed assets to
+     *         the a certain recipient.
      */
     /**
      * @dev only Slasher contract can call this function
      */
-    function slashOperator(
-        address slashedOperator
-    ) external {
-        require(msg.sender == address(slasher), "Only Slasher");
-        slashedStatus[slashedOperator] = true;
-    }
-
+     // TODO: remove 'maxSlashedAmount' -- figure out a more general pattern for this if we want to keep it
     function slashShares(
-        address slashedAddress,
+        address slashed,
         address recipient,
         IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
-        uint256[] calldata shareAmounts
-    ) external onlyOwner {
-        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
+        uint256[] calldata shareAmounts,
+        uint256 maxSlashedAmount
+    ) external {
+        require(msg.sender == address(slasher), "Only Slasher");
 
         uint256 strategyIndexIndex;
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength; ) {
+        uint256 slashedAmount;
+        for (uint256 i = 0; i < strategies.length; ) {
+            // add the value of the slashed shares to the total amount slashed
+            slashedAmount += strategies[i].sharesToUnderlying(
+                shareAmounts[i]
+            );
+
             // the internal function will return 'true' in the event the strategy was
-            // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
             if (
                 _removeShares(
-                    slashedAddress,
+                    slashed,
                     strategyIndexes[strategyIndexIndex],
                     strategies[i],
                     shareAmounts[i]
@@ -674,8 +665,13 @@ contract InvestmentManager is
                 }
             }
 
-            // withdraw the shares and send funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            // add investor strats to that of recipient if it has not invested in this strategy yet
+            if (investorStratShares[recipient][strategies[i]] == 0) {
+                investorStrats[recipient].push(strategies[i]);
+            }
+
+            // add the slashed shares to that of the recipient
+            investorStratShares[recipient][strategies[i]] += shareAmounts[i];
 
             // increment the loop
             unchecked {
@@ -683,62 +679,25 @@ contract InvestmentManager is
             }
         }
 
+        require(slashedAmount <= maxSlashedAmount, "excessive slashing");
+
         // modify delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(slashedAddress)) {
-            address delegatedAddress = delegation.delegation(slashedAddress);
+        if (!delegation.isSelfOperator(slashed)) {
+            address delegatedAddress = delegation.delegation(slashed);
             delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
                 shareAmounts
             );
         }
-    }
-
-    function slashQueuedWithdrawal(       
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address slashedAddress,
-        address recipient,
-        uint96 queuedWithdrawalNonce
-    ) external onlyOwner {
-        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
-
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
+        if (!delegation.isSelfOperator(recipient)) {
+            address delegatedAddress = delegation.delegation(recipient);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
                 strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[slashedAddress][withdrawalRoot];
-        require(
-            withdrawalStorage.initTimestamp > 0,
-            "withdrawal does not exist"
-        );
-
-        //reset the storage slot in mapping of queued withdrawals
-        queuedWithdrawals[slashedAddress][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: uint32(0),
-            latestFraudproofTimestamp: uint32(0),
-            withdrawer: address(0)
-        });
-
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength; ) {
-            // tell the strategy to send the appropriate amount of funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
-        for (uint256 i = 0; i < slashedAddresses.length; ) {
-            slashedStatus[slashedAddresses[i]] = false;
-            unchecked { ++i; }
+                shareAmounts
+            );
+            //TODO: call into delegationTerms contract as well?
         }
     }
 
@@ -754,7 +713,7 @@ contract InvestmentManager is
         investorStratShares[depositor][consensusLayerEthStrat] += shares;
 
         // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -779,7 +738,7 @@ contract InvestmentManager is
         investorStratShares[depositor][proofOfStakingEthStrat] += shares;
 
         // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
+        if (!delegation.isSelfOperator(msg.sender)) {
             address delegatedAddress = delegation.delegation(msg.sender);
             delegation.increaseOperatorShares(
                 delegatedAddress,
@@ -927,16 +886,5 @@ contract InvestmentManager is
         returns (uint256)
     {
         return investorStrats[investor].length;
-    }
-
-    function hasBeenSlashed(address staker) public view returns (bool) {
-        if (slashedStatus[staker]) {
-            return true;
-        } else if (delegation.isDelegator(staker)) {
-            address operatorAddress = delegation.delegation(staker);
-            return(slashedStatus[operatorAddress]);
-        } else {
-            return false;
-        }
     }
 }

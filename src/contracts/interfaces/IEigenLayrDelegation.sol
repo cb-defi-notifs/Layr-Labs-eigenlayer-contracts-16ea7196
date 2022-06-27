@@ -23,6 +23,11 @@ interface IEigenLayrDelegation {
         view
         returns (uint256);
 
+    function getConsensusLayerEthDelegated(address operator)
+        external
+        view
+        returns (uint256);
+
     function isNotDelegated(address staker)
         external
         view
@@ -34,11 +39,6 @@ interface IEigenLayrDelegation {
         returns (address);
 
     function isSelfOperator(address operator)
-        external
-        view
-        returns (bool);
-
-    function isDelegator(address operator)
         external
         view
         returns (bool);
