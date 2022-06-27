@@ -18,10 +18,9 @@ import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
-import "./middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-
+import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -54,7 +53,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     IRepository public dlRepository;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
-    DataLayrDisclosureChallengeFactory public dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
@@ -121,7 +120,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         );
 
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
+        // dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge();
 
         DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
 

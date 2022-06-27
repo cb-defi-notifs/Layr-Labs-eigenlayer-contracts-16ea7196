@@ -12,18 +12,22 @@ import "./DataLayrChallengeUtils.sol";
 // TODO: collateral
 contract DataLayrLowDegreeChallenge {
     struct LowDegreeChallenge {
-        // UTC timestamp (in seconds) at which the challenge was created
+        // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
         uint256 commitTime; 
         // challenger's address
-        address challenge;
-        // account for if collateral changed
+        address challenger;
+        // collateral amount associated with the challenge
         uint256 collateral;
     }
 
-    // Field order
+    // modulus for the underlying field F_q of the elliptic curve
     uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
     //TODO: change the time here
-    uint32 constant public CHALLENGE_RESPONSE_WINDOW = 7 days;
+    uint32 constant public DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
+    // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
+    uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;
+    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
+    uint256 constant public CHALLENGE_SUCCESSFUL = type(uint256).max;
 
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
@@ -46,9 +50,12 @@ contract DataLayrLowDegreeChallenge {
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
     function forceOperatorsToProveLowDegree(
-        bytes32 headerHash
+        bytes calldata header
     ) public {
+        bytes32 headerHash = keccak256(header);
+        
         {
+
             /**
             Get information on the dataStore for which disperser is being challenged. This dataStore was 
             constructed during call to initDataStore in DataLayr.sol by the disperser.
@@ -75,7 +82,7 @@ contract DataLayrLowDegreeChallenge {
         // check that the DataLayr operator hasn't been challenged yet
         require(
             lowDegreeChallenges[headerHash].commitTime == 0,
-            "LowDegreeChallenge is already opened for headerHash"
+            "LowDegreeChallenge already opened for headerHash"
         );
 
         // record details of forced disclosure challenge that has been opened
@@ -102,7 +109,7 @@ contract DataLayrLowDegreeChallenge {
 
         // check that the challenge window is still open
         require(
-            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <= CHALLENGE_RESPONSE_WINDOW,
+            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <= DEGREE_CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has already elapsed"
         );
 
@@ -171,25 +178,25 @@ contract DataLayrLowDegreeChallenge {
         }
         require(res == sPrime, "bad sPrime provided");
 
-        // set challenge commit time equal to '1', so the same challenge cannot be opened a second time,
+        // set challenge commit time equal to 'CHALLENGE_UNSUCCESSFUL', so the same challenge cannot be opened a second time,
         // and to signal that the msg.sender correctly answered the challenge
-        lowDegreeChallenges[headerHash].commitTime = 1;
+        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
         // TODO: pay collateral to msg.sender
         // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, msg.sender, 1);
     }
 
     function resolveLowDegreeChallenge(bytes32 headerHash) public {
         require(lowDegreeChallenges[headerHash].commitTime != 0, "Challenge does not exist");
-        require(lowDegreeChallenges[headerHash].commitTime != 1, "Challenge failed");
+        require(lowDegreeChallenges[headerHash].commitTime != CHALLENGE_UNSUCCESSFUL, "Challenge failed");
         // check that the challenge window is no longer open
         require(
-            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) > CHALLENGE_RESPONSE_WINDOW,
+            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) > DEGREE_CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has not yet elapsed"
         );
 
-        // set challenge commit time equal to max possible value, so the same challenge cannot be opened a second time,
+        // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
         // and to signal that the challenge has been lost by the signers
-        lowDegreeChallenges[headerHash].commitTime = type(uint256).max;
+        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
         // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, lowDegreeChallenges[headerHash].commitTime);
     }
 
@@ -202,7 +209,7 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public {
         // verify that the challenge has been lost
-        require(lowDegreeChallenges[headerHash].commitTime == type(uint256).max, "Challenge has not been lost");
+        require(lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL, "Challenge not successful");
 
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
@@ -263,10 +270,6 @@ contract DataLayrLowDegreeChallenge {
 
         {
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-                // get the pubkey hash of the DataLayr operator
-                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                    operator
-                );
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkInclusionExclusionInNonSigner(
