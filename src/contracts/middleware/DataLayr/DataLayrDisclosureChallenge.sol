@@ -355,4 +355,209 @@ contract DataLayrDisclosureChallenge {
 
         // TODO: actually slash.
     }
+
+
+
+
+
+
+
+
+
+
+    function validateDisclosureResponse(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        // bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof
+    ) public returns(uint48) {
+        (
+            uint256[2] memory c,
+            uint48 degree,
+            uint32 numSys,
+            uint32 numPar
+        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+            // modulus for the underlying field F_q of the elliptic curve
+        /*
+        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
+        require(
+            (degree + 1) * 32 == poly.length,
+            "Polynomial must have a 256 bit coefficient for each term"
+        );
+        */
+
+        // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
+        // of the zero polynomial Merkle tree
+
+        {
+            //deterministic assignment of "y" here
+            // @todo
+            require(
+                Merkle.checkMembership(
+                    // leaf
+                    keccak256(
+                        abi.encodePacked(
+                            zeroPoly[0],
+                            zeroPoly[1],
+                            zeroPoly[2],
+                            zeroPoly[3]
+                        )
+                    ),
+                    // index in the Merkle tree
+                    challengeUtils.getLeadingCosetIndexFromHighestRootOfUnity(
+                        uint32(chunkNumber),
+                        numSys,
+                        numPar
+                    ),
+                    // Merkle root hash
+                    challengeUtils.getZeroPolyMerkleRoot(degree),
+                    // Merkle proof
+                    zeroPolyProof
+                ),
+                "Incorrect zero poly merkle proof"
+            );
+        }
+
+        /**
+         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
+         */
+        //get the commitment to the zero polynomial of multireveal degree
+
+        uint256[13] memory pairingInput;
+
+
+        assembly {
+            // extract the proof [Pi(s).x, Pi(s).y]
+            mstore(pairingInput, calldataload(36))
+            mstore(add(pairingInput, 0x20), calldataload(68))
+
+            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
+            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
+            mstore(add(pairingInput, 0x60), mload(zeroPoly))
+            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
+            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
+
+            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
+            mstore(add(pairingInput, 0xC0), mload(c))
+            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
+
+            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
+            // to get [I_k(s).x, -I_k(s).y]
+            mstore(add(pairingInput, 0x100), calldataload(100))
+            // obtain -I_k(s).y
+            mstore(
+                add(pairingInput, 0x120),
+                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
+            )
+        }
+
+        assembly {
+            // overwrite C(s) with C(s) - I(s)
+
+            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
+
+            if iszero(
+                call(
+                    not(0),
+                    0x06,
+                    0,
+                    add(pairingInput, 0xC0),
+                    0x80,
+                    add(pairingInput, 0xC0),
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        // check e(pi, z)e(C - I, -g2) == 1
+        assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
+            // call the precompiled ec2 pairing contract at 0x08
+            if iszero(
+                call(
+                    not(0),
+                    0x08,
+                    0,
+                    pairingInput,
+                    0x180,
+                    add(pairingInput, 0x180),
+                    0x20
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        require(pairingInput[12] == 1, "Pairing unsuccessful");
+        return degree;
+    }
+
+
+    function NonInteractivePolynomialProof(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof,
+        uint256[4] calldata pi
+    ) public returns(bool) {
+
+        (
+            uint256[2] memory c,
+            ,
+            ,
+        ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+
+        //verify pairing for the commitment to interpolating polynomial
+        uint48 dg = validateDisclosureResponse(
+            chunkNumber, 
+            header, 
+            multireveal,
+            zeroPoly, 
+            zeroPolyProof
+        );
+
+
+        //Calculating r, the point at which to evaluate the interpolating polynomial
+        uint256 r = uint(keccak256(poly)) % MODULUS;
+        uint256 s = linearPolynomialEvaluation(poly, r);
+        bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
+
+        if (res){
+            return true;
+        }
+        return false;
+
+    }
+
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(
+        bytes calldata poly,
+        uint256 r
+    ) public returns(uint256){
+        uint256 sum;
+        uint length = poly.length/32;
+        uint256 rPower = 1;
+        for (uint i = 0; i < length; i++){
+            uint coefficient = uint(bytes32(poly[i:i+32]));
+            sum += (coefficient * rPower);
+            rPower *= r;
+        }   
+        return sum; 
+    }
+
 }
