@@ -39,6 +39,8 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint96) public numWithdrawalsQueued;
+    // staker => if they are 'slashed' or not
+    mapping(address => bool) public slashedStatus;
 
     constructor(IEigenLayrDelegation _delegation) {
         delegation = _delegation;

@@ -116,16 +116,20 @@ contract Slasher is Ownable, ISlasher {
         return false;
     }
 
+    function slashOperator(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistrationManager registrationManager) external {
+        require(canSlash(toBeSlashed, serviceFactory, repository, registrationManager), "cannot slash operator");
+        // TODO: add more require statements, particularly on msg.sender
+        revert();
+        investmentManager.slashOperator(toBeSlashed);
+    }
+
     /**
      * @notice used for calling slashing function in investmentManager contract.
      */
-    function slashShares(
-        address slashed,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata strategyIndexes,
-        uint256[] calldata amounts,
-        uint256 maxSlashedAmount
+    function slashOperator(
+        address toBeSlashed
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    }
+        investmentManager.slashOperator(toBeSlashed);
+    }
 }
