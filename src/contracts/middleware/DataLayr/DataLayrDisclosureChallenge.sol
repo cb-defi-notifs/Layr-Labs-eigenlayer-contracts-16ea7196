@@ -552,11 +552,11 @@ contract DataLayrDisclosureChallenge {
         uint256 sum;
         uint length = poly.length/32;
         uint256 rPower = 1;
-        for (uint i = 0; i < length; ){
+        for (uint i = 0; i < length; ) {
             uint coefficient = uint(bytes32(poly[i:i+32]));
-            sum += (coefficient * rPower);
-            rPower *= r;
-            i += 32
+            sum = addmod(sum, mulmod(coefficient, rPower, MODULUS), MODULUS);
+            rPower = mulmod(rPower, r, MODULUS);
+            i += 32;
         }   
         return sum; 
     }
