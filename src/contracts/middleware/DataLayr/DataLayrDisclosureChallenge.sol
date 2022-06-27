@@ -533,7 +533,7 @@ contract DataLayrDisclosureChallenge {
 
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint(keccak256(poly)) % MODULUS;
+        uint256 r = uint256(keccak256(poly)) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool res = challengeUtils.openPolynomialAtPoint(c, pi, r, s); 
 
@@ -550,10 +550,10 @@ contract DataLayrDisclosureChallenge {
         uint256 r
     ) public returns(uint256){
         uint256 sum;
-        uint length = poly.length/32;
+        uint256 length = poly.length/32;
         uint256 rPower = 1;
         for (uint i = 0; i < length; ) {
-            uint coefficient = uint(bytes32(poly[i:i+32]));
+            uint256 coefficient = uint256(bytes32(poly[i:i+32]));
             sum = addmod(sum, mulmod(coefficient, rPower, MODULUS), MODULUS);
             rPower = mulmod(rPower, r, MODULUS);
             i += 32;
