@@ -394,13 +394,6 @@ contract DataLayrRegistry is
         return true;
     }
 
-    /**
-     IMPORTANT:  add "finalze deregistration" function to close out the DLN's stake in DataLayr
-     */
-
-    function finalizeDeregistration(){
-
-    }
 
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
