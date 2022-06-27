@@ -398,6 +398,10 @@ contract DataLayrRegistry is
      IMPORTANT:  add "finalze deregistration" function to close out the DLN's stake in DataLayr
      */
 
+    function finalizeDeregistration(){
+
+    }
+
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
         // Removes the registrant with the given pubkeyHash from the index in registrantList
@@ -877,7 +881,7 @@ contract DataLayrRegistry is
         unchecked {
             ++numRegistrants;
         }
-        
+    
 
         
         //add ephemeral key to epehemral key registry
@@ -961,3 +965,5 @@ contract DataLayrRegistry is
         return registry[DLN].active;
     }
 }
+
+
