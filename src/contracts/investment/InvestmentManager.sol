@@ -406,7 +406,7 @@ contract InvestmentManager is
         uint256 strategyIndexIndex;
 
         bytes32 withdrawalRoot = keccak256(
-            abi.encodePacked(
+            abi.encode(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -484,7 +484,7 @@ contract InvestmentManager is
         uint96 queuedWithdrawalNonce
     ) external view returns (bool) {
         bytes32 withdrawalRoot = keccak256(
-            abi.encodePacked(
+            abi.encode(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -517,7 +517,7 @@ contract InvestmentManager is
         uint96 queuedWithdrawalNonce
     ) external onlyNotSlashed(depositor) {
         bytes32 withdrawalRoot = keccak256(
-            abi.encodePacked(
+            abi.encode(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -580,7 +580,7 @@ contract InvestmentManager is
         IRegistrationManager registrationManager
     ) external {
         bytes32 withdrawalRoot = keccak256(
-            abi.encodePacked(
+            abi.encode(
                 strategies,
                 tokens,
                 shareAmounts,
@@ -644,6 +644,102 @@ contract InvestmentManager is
     ) external {
         require(msg.sender == address(slasher), "Only Slasher");
         slashedStatus[slashedOperator] = true;
+    }
+
+    function slashShares(
+        address slashedAddress,
+        address recipient,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata strategyIndexes,
+        uint256[] calldata shareAmounts
+    ) external onlyOwner {
+        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
+
+        uint256 strategyIndexIndex;
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength; ) {
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
+            if (
+                _removeShares(
+                    slashedAddress,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    shareAmounts[i]
+                )
+            ) {
+                unchecked {
+                    ++strategyIndexIndex;
+                }
+            }
+
+            // withdraw the shares and send funds to the recipient
+            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+
+            // increment the loop
+            unchecked {
+                ++i;
+            }
+        }
+
+        // modify delegated shares accordingly, if applicable
+        if (!delegation.isSelfOperator(slashedAddress)) {
+            address delegatedAddress = delegation.delegation(slashedAddress);
+            delegation.decreaseOperatorShares(
+                delegatedAddress,
+                strategies,
+                shareAmounts
+            );
+        }
+    }
+
+    function slashQueuedWithdrawal(       
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address slashedAddress,
+        address recipient,
+        uint96 queuedWithdrawalNonce
+    ) external onlyOwner {
+        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
+
+        bytes32 withdrawalRoot = keccak256(
+            abi.encode(
+                strategies,
+                tokens,
+                shareAmounts,
+                queuedWithdrawalNonce
+            )
+        );
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[slashedAddress][withdrawalRoot];
+        require(
+            withdrawalStorage.initTimestamp > 0,
+            "withdrawal does not exist"
+        );
+
+        //reset the storage slot in mapping of queued withdrawals
+        queuedWithdrawals[slashedAddress][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(0),
+            latestFraudproofTimestamp: uint32(0),
+            withdrawer: address(0)
+        });
+
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength; ) {
+            // tell the strategy to send the appropriate amount of funds to the recipient
+            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
+        for (uint256 i = 0; i < slashedAddresses.length; ) {
+            slashedStatus[slashedAddresses[i]] = false;
+            unchecked { ++i; }
+        }
     }
 
     function depositConsenusLayerEth(address depositor, uint256 amount)
@@ -831,5 +927,16 @@ contract InvestmentManager is
         returns (uint256)
     {
         return investorStrats[investor].length;
+    }
+
+    function hasBeenSlashed(address staker) public view returns (bool) {
+        if (slashedStatus[staker]) {
+            return true;
+        } else if (delegation.isDelegator(staker)) {
+            address operatorAddress = delegation.delegation(staker);
+            return(slashedStatus[operatorAddress]);
+        } else {
+            return false;
+        }
     }
 }

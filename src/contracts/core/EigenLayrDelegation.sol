@@ -359,9 +359,6 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
     }
-
-        //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
-        uint256 maxSlashedAmount = 0;
         // perform the slashing itself
         slasher.slashOperator(staker); 
 
