@@ -22,10 +22,10 @@ import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
-import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
-import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
+import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
+import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -76,8 +76,7 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
-    DataLayrDisclosureChallengeFactory
-        public dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
@@ -268,7 +267,6 @@ contract EigenLayrDeployer is
     function _deployDataLayrContracts() internal {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
@@ -307,6 +305,7 @@ contract EigenLayrDeployer is
             address(this)
         );
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, challengeUtils);
+        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(dlsm, dl, dlReg, challengeUtils);
 
         dl.setRepository(dlRepository);
         dlsm.setRepository(dlRepository);
