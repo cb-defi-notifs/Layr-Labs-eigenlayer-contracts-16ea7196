@@ -7,7 +7,7 @@ interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
         DELEGATED,
-        UNDELEGATION_COMMITED,
+        UNDELEGATION_COMMITTED,
         UNDELEGATION_FINALIZED
     }
 
