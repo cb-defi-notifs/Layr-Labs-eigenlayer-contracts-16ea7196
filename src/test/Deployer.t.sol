@@ -22,11 +22,11 @@ import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
-import "../contracts/middleware/DataLayr/DataLayrDisclosureChallengeFactory.sol";
 import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
+import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
+import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -78,8 +78,7 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
-    DataLayrDisclosureChallengeFactory
-        public dataLayrDisclosureChallengeFactory;
+    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
@@ -274,7 +273,6 @@ contract EigenLayrDeployer is
     function _deployDataLayrContracts() internal {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
-        dataLayrDisclosureChallengeFactory = new DataLayrDisclosureChallengeFactory();
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
@@ -315,6 +313,7 @@ contract EigenLayrDeployer is
             address(this)
         );
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, challengeUtils);
+        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(dlsm, dl, dlReg, challengeUtils);
 
         dl.setRepository(dlRepository);
         dlsm.setRepository(dlRepository);
@@ -398,8 +397,9 @@ contract EigenLayrDeployer is
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
-        // emit log_named_uint("wethinitial", wethInitialSupply);
-        // emit log_named_uint("amount to deposit", amountDeposited);
+        // s
+
+
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
@@ -408,6 +408,7 @@ contract EigenLayrDeployer is
             weth.transfer(sender, amountToDeposit);
             amountDeposited = 0;
         } else {
+            
             weth.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
             weth.approve(address(investmentManager), type(uint256).max);

@@ -9,7 +9,23 @@ import "../interfaces/IServiceFactory.sol";
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     address public constant SELF_DELEGATION_ADDRESS = address(1);
 
+    // maximum value that 'undelegationFraudProofInterval' may take
+    uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
+
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
+
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
+
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
+
+    // the InvestmentManager contract for EigenLayr
     IInvestmentManager public investmentManager;
+
+    // fraud proof interval for undelegation
+    uint256 public undelegationFraudProofInterval;
 
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
@@ -25,21 +41,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
 
     // staker => whether they are delegated or not
     mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
-
-    // fraud proof interval for undelegation
-    uint256 public undelegationFraudProofInterval;
-
-    // maximum value that 'undelegationFraudProofInterval' may take
-    uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
-
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
-
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
-
-    /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) nonces;

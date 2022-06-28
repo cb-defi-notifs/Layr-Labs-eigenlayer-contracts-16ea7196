@@ -10,6 +10,7 @@ import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
 
 // TODO: updating of stored addresses by governance?
+// TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
@@ -136,6 +137,10 @@ contract EigenLayrDelegation is
             isNotDelegated(delegator),
             "_delegate: delegator has existing delegation"
         );
+        // checks that operator has not been slashed
+        require(!investmentManager.slashedStatus(operator),
+            "cannot delegate to a slashed operator"
+        );
 
         // record delegation relation between the delegator and operator
         delegation[delegator] = operator;
@@ -200,6 +205,11 @@ contract EigenLayrDelegation is
 
         // if not delegated to self
         if (operator != SELF_DELEGATION_ADDRESS) {
+            // checks that operator has not been slashed
+            require(!investmentManager.slashedStatus(operator),
+                "operator has been slashed. must wait for resolution before undelegation"
+            );
+
             // retrieve list of strategies and their shares from investment manager
             (
                 IInvestmentStrategy[] memory strategies,
@@ -216,7 +226,7 @@ contract EigenLayrDelegation is
             }
 
             // set that they are no longer delegated to anyone
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
 
             // call into hook in delegationTerms contract
             // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
@@ -234,7 +244,11 @@ contract EigenLayrDelegation is
                 emit OnDelegationWithdrawnCallFailure(delegationTerms[operator], returnData);
             }
         } else {
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
+            // checks that operator has not been slashed
+            require(!investmentManager.slashedStatus(msg.sender),
+                "operator has been slashed. must wait for resolution before undelegation"
+            );
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
         }
     }
 
@@ -290,7 +304,7 @@ contract EigenLayrDelegation is
     ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
         require(
-            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
+            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
             "Staker is not in the post commit phase"
         );
 
@@ -317,10 +331,7 @@ contract EigenLayrDelegation is
         bytes32 serviceObjectHash,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata strategyIndexes,
-        uint256[] calldata amounts
+        IRegistrationManager registrationManager
     ) external {
         require(
             block.timestamp <
@@ -362,11 +373,8 @@ contract EigenLayrDelegation is
             "serviceObject does not meet requirements"
         );
     }
-
-        //TODO: set maxSlashedAmount appropriately, or perhaps delete this entirely
-        uint256 maxSlashedAmount = 0;
         // perform the slashing itself
-        slasher.slashShares(staker, strategies, strategyIndexes, amounts, maxSlashedAmount); 
+        slasher.slashOperator(staker); 
 
         // TODO: reset status of staker to having not committed to de-delegation?
     }
@@ -398,26 +406,21 @@ contract EigenLayrDelegation is
                 : operatorShares[operator][investmentStrategy];
     }
 
-    /// @notice returns the total ETH delegated by delegators with this operator
-    ///         while staking it with the settlement layer (beacon chain)
-    // CRITIC: change name to getSettlementLayerEthDelegated
-    function getConsensusLayerEthDelegated(address operator)
-        external
-        view
-        returns (uint256)
-    {
-        return
-            isSelfOperator(operator)
-                ? investmentManager.getConsensusLayerEth(operator)
-                : operatorShares[operator][investmentManager.consensusLayerEthStrat()];
-    }
-
     function isSelfOperator(address operator)
         public
         view
         returns (bool)
     {
         return (delegation[operator] == SELF_DELEGATION_ADDRESS);
+    }
+
+    function isDelegator(address staker)
+        public
+        view
+        returns (bool)
+    {
+        address delegatedAddress = delegation[staker];
+        return (delegatedAddress != address(0) && delegatedAddress != SELF_DELEGATION_ADDRESS);
     }
 
     function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {

@@ -66,29 +66,6 @@ contract DataLayrServiceManager is
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
     // EVENTS
-    /**
-     @notice used for notifying that disperser has initiated a forced disclosure challenge.
-     */
-    event DisclosureChallengeInit(bytes32 headerHash, address operator);
-
-    /**
-     @notice used for disclosing the multireveals and coefficients of the associated interpolating polynomial
-     */
-    event DisclosureChallengeResponse(
-        bytes32 headerHash,
-        address operator,
-        bytes poly
-    );
-
-    /**
-     @notice used while initializing the interactive forced disclosure
-     */
-    event DisclosureChallengeInteractive(
-        bytes32 headerHash,
-        address disclosureChallenge,
-        address operator
-    );
-
     event PaymentCommit(
         address operator,
         uint32 fromDumpNumber,
