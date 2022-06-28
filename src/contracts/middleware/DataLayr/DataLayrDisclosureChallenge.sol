@@ -522,6 +522,7 @@ contract DataLayrDisclosureChallenge {
                 header
             );
 
+        // TODO: use the output that we get here somewhere
         //verify pairing for the commitment to interpolating polynomial
         uint48 dg = validateDisclosureResponse(
             chunkNumber, 
@@ -548,7 +549,7 @@ contract DataLayrDisclosureChallenge {
     function linearPolynomialEvaluation(
         bytes calldata poly,
         uint256 r
-    ) public returns(uint256){
+    ) public pure returns(uint256){
         uint256 sum;
         uint256 length = poly.length/32;
         uint256 rPower = 1;

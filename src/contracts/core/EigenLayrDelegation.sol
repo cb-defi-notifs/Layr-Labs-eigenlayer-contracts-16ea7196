@@ -10,6 +10,7 @@ import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
 
 // TODO: updating of stored addresses by governance?
+// TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
@@ -136,6 +137,10 @@ contract EigenLayrDelegation is
             isNotDelegated(delegator),
             "_delegate: delegator has existing delegation"
         );
+        // checks that operator has not been slashed
+        require(!investmentManager.slashedStatus(operator),
+            "cannot delegate to a slashed operator"
+        );
 
         // record delegation relation between the delegator and operator
         delegation[delegator] = operator;
@@ -200,6 +205,11 @@ contract EigenLayrDelegation is
 
         // if not delegated to self
         if (operator != SELF_DELEGATION_ADDRESS) {
+            // checks that operator has not been slashed
+            require(!investmentManager.slashedStatus(operator),
+                "operator has been slashed. must wait for resolution before undelegation"
+            );
+
             // retrieve list of strategies and their shares from investment manager
             (
                 IInvestmentStrategy[] memory strategies,
@@ -216,7 +226,7 @@ contract EigenLayrDelegation is
             }
 
             // set that they are no longer delegated to anyone
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
 
             // call into hook in delegationTerms contract
             // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
@@ -234,7 +244,11 @@ contract EigenLayrDelegation is
                 emit OnDelegationWithdrawnCallFailure(delegationTerms[operator], returnData);
             }
         } else {
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITED;
+            // checks that operator has not been slashed
+            require(!investmentManager.slashedStatus(msg.sender),
+                "operator has been slashed. must wait for resolution before undelegation"
+            );
+            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
         }
     }
 
@@ -290,7 +304,7 @@ contract EigenLayrDelegation is
     ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
         require(
-            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITED,
+            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
             "Staker is not in the post commit phase"
         );
 
