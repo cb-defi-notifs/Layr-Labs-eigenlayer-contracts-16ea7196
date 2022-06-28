@@ -114,9 +114,13 @@ contract InvestmentManager is
     ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
         // increase delegated shares accordingly, if applicable
+
         if (delegation.isDelegator(msg.sender)) {
             address operatorAddress = delegation.delegation(msg.sender);
-
+            
+            
+            emit log_named_uint("operator shares before", delegation.getOperatorShares(operatorAddress, strategy));
+            emit log_named_uint("shares increase by", shares);
             delegation.increaseOperatorShares(
                 operatorAddress,
                 strategy,
@@ -181,8 +185,12 @@ contract InvestmentManager is
         uint256 amount
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
+        emit log("inside deposit");
         if (investorStratShares[depositor][strategy] == 0) {
+            
             investorStrats[depositor].push(strategy);
+
+
         }
 
         // transfer tokens from the sender to the strategy
@@ -198,6 +206,7 @@ contract InvestmentManager is
         shares = strategy.deposit(token, amount);
 
         // add the returned shares to their existing shares for this strategy
+        
         investorStratShares[depositor][strategy] += shares;
     }
 
@@ -331,6 +340,9 @@ contract InvestmentManager is
     ) internal returns (bool) {
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
+        emit log_named_uint("investorStratShares for depositor", userShares);
+
+
         require(shareAmount <= userShares, "shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
@@ -673,6 +685,7 @@ contract InvestmentManager is
                     ++strategyIndexIndex;
                 }
             }
+            
 
             // withdraw the shares and send funds to the recipient
             strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
@@ -685,7 +698,12 @@ contract InvestmentManager is
 
         // modify delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(slashedAddress)) {
+
+            
             address delegatedAddress = delegation.delegation(slashedAddress);
+
+            emit log_named_uint("operator shares before", delegation.getOperatorShares(delegatedAddress, strategies[0]));
+            emit log_named_uint("shares decrease by", shareAmounts[0]);
             delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
 import "../contracts/interfaces/IDataLayrPaymentChallenge.sol";
+import "../contracts/interfaces/ISlasher.sol";
 import "../test/Deployer.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
@@ -29,6 +30,7 @@ contract Delegator is EigenLayrDeployer {
     ServiceFactory factory;
     IRegistrationManager regManager;
     IDataLayrPaymentChallenge dlpc;
+    //ISlasher slasher;
     DelegationTerms dt;
 
     uint256 amountEigenToDeposit = 20;
@@ -300,6 +302,8 @@ contract Delegator is EigenLayrDeployer {
 
         return _challengeContract;
     }
+
+
 
 
 
