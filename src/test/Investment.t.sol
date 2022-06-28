@@ -27,13 +27,15 @@ contract InvestmentTests is
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
 
+
+
     //testing queued withdrawals in the investment manager
     function testQueuedWithdrawal(
         uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
         //initiate deposits
-        address[2] memory accounts = [acct_0, acct_1];
+        address[2] memory  accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
 
 
@@ -78,8 +80,8 @@ contract InvestmentTests is
         _testDepositEigen(signers[0], eigenToDeposit);
     }
 
-// TODO: FIX THIS!
-/*
+    // TODO: FIX THIS!
+    /*
     //verifies that it is possible to deposit eigen and then withdraw it
     function testDepositAndWithdrawEigen(uint80 eigenToDeposit, uint256 amountToWithdraw) public {
         // sanity check for inputs; keeps fuzzed tests from failing
@@ -95,9 +97,9 @@ contract InvestmentTests is
         uint256 eigenAfterWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
         assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
     }
-*/
+    */
 
-// Coverage for EigenLayrDeposit contract //
+    // Coverage for EigenLayrDeposit contract //
     // TODOs:
     // testDepositPOSProof
 
@@ -176,5 +178,68 @@ contract InvestmentTests is
         );
     }
 
+    function testSlashing(uint256 amountToDeposit) public{
+
+        address[2] memory accounts = [acct_0, acct_1];
+        uint256[2] memory depositAmounts;
+
+
+        amountToDeposit = 10e7;
+
+        //register registrant as an operator
+        DelegationTerms _dt = _deployDelegationTerms(registrant);
+        cheats.deal(registrant, amountToDeposit);
+        _testWethDeposit(registrant, amountToDeposit);
+        _testRegisterAsDelegate(registrant, _dt);
+
+        //make deposits in WETH strategy
+        for (uint i=0; i<accounts.length; i++){
+            
+            cheats.deal(accounts[i], amountToDeposit);
+            depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
+            _testDelegateToOperator(accounts[i], registrant);
+
+        }
+        strategy_arr.push(strat);
+        tokens.push(weth);
+
+        uint256[] memory shareAmounts = new uint256[](1);
+        shareAmounts[0] = depositAmounts[0];
+
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
+
+        //investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
+        cheats.startPrank(address(slasher));
+        investmentManager.slashOperator(registrant);
+        cheats.stopPrank();
+
+
+        uint prev_shares = delegation.getOperatorShares(registrant, strategy_arr[0]);
+
+        investmentManager.slashShares(
+            registrant, 
+            acct_0, 
+            strategy_arr, 
+            tokens, 
+            strategyIndexes, 
+            shareAmounts
+        );
+
+        require(delegation.getOperatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+
+        uint96 queuedWithdrawalNonce = 0;
+        // investmentManager.slashQueuedWithdrawal(
+        //     strategy_arr, 
+        //     tokens, 
+        //     shareAmounts, 
+        //     registrant, 
+        //     acct_0,
+        //     queuedWithdrawalNonce
+        // );
+
+
+        
+    }
     
 }
