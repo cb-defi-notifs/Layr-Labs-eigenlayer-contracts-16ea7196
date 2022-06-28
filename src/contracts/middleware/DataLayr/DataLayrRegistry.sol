@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
+import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "../../libraries/BLS.sol";
 
-// import "ds-test/test.sol";
+import "ds-test/test.sol";
 
 /**
  * @notice This contract is used for 
@@ -20,8 +21,8 @@ import "../../libraries/BLS.sol";
 contract DataLayrRegistry is
     IDataLayrRegistry,
     VoteWeigherBase,
-    IRegistrationManager
-    // , DSTest
+    IRegistrationManager, 
+    DSTest
 {
     using BytesLib for bytes;
 
@@ -183,6 +184,8 @@ contract DataLayrRegistry is
         address registrant
     );
 
+    IDataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+
     // MODIFIERS
     modifier onlyRepository() {
         require(address(repository) == msg.sender, "onlyRepository");
@@ -194,6 +197,7 @@ contract DataLayrRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        IDataLayrEphemeralKeyRegistry _ephemeralKeyRegistry,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -224,6 +228,8 @@ contract DataLayrRegistry is
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
         }
+
+        ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     /**
@@ -270,7 +276,7 @@ contract DataLayrRegistry is
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -381,9 +387,13 @@ contract DataLayrRegistry is
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
+        //posting last ephemeral key reveal on chain
+        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
+
         emit Deregistration(msg.sender);
         return true;
     }
+
 
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
@@ -677,13 +687,17 @@ contract DataLayrRegistry is
      @param registrantType specifies whether the DataLayr operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the DataLayr operator
+     
      */ 
     function registerOperator(
         uint8 registrantType,
+        bytes32 ephemeralKey,
         bytes calldata data,
         string calldata socket
     ) public {
-        _registerOperator(msg.sender, registrantType, data, socket);
+        //_registerOperator(msg.sender, registrantType, data, socket);
+        
+        _registerOperator(msg.sender, registrantType, ephemeralKey, data, socket);
     }
 
 
@@ -693,6 +707,7 @@ contract DataLayrRegistry is
     function _registerOperator(
         address operator,
         uint8 registrantType,
+        bytes32 ephemeralKey,
         bytes calldata data,
         string calldata socket
     ) internal {
@@ -734,17 +749,19 @@ contract DataLayrRegistry is
         );
 
 
-
+        
         /**
          @notice evaluate the new aggregated pubkey
          */
         uint256[4] memory newApk;
         uint256[4] memory pk;
 
+        
+
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 132);
-
+            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 164);
+            
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
             
@@ -753,6 +770,7 @@ contract DataLayrRegistry is
 
             apk = newApk;
         }
+        
 
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
@@ -764,13 +782,14 @@ contract DataLayrRegistry is
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
+        
         // emit log_bytes(getCompressedApk());
         // emit log_named_uint("x", input[0]);
         // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
 
 
-
+        
         /**
          @notice some book-keeping for aggregated pubkey
          */
@@ -785,7 +804,7 @@ contract DataLayrRegistry is
         apkHashes.push(newApkHash);
 
 
-
+        
 
         /**
          @notice some book-keeping for recording info pertaining to the DataLayr operator
@@ -814,14 +833,19 @@ contract DataLayrRegistry is
         OperatorIndex memory operatorIndex;
         operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+        
 
-        // Update totalOperatorsHistory
-        // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
-        // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
-        OperatorIndex memory _totalOperators;
-        _totalOperators.index = uint32(registrantList.length);
-        totalOperatorsHistory.push(_totalOperators);
+        {
+            // get current dump number from DataLayrServiceManager
+            uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
+            // Update totalOperatorsHistory
+            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
+            totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
+            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
+            OperatorIndex memory _totalOperators;
+            _totalOperators.index = uint32(registrantList.length);
+            totalOperatorsHistory.push(_totalOperators);
+        }
 
         // update the counter for registrant ID
         unchecked {
@@ -829,27 +853,33 @@ contract DataLayrRegistry is
         }
         
         
-        
-        /**
-         @notice some book-keeping for recoding updated total stake
-         */
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        /**
-         * update total Eigen and ETH that are being employed by the operator for securing
-         * the queries from middleware via EigenLayr
-         */
-        _totalStake.ethStake += _operatorStake.ethStake;
-        _totalStake.eigenStake += _operatorStake.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        // linking with the most recent stake recordd in the past
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        {
+            /**
+            @notice some book-keeping for recoding updated total stake
+            */
+            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+            /**
+            * update total Eigen and ETH that are being employed by the operator for securing
+            * the queries from middleware via EigenLayr
+            */
+            _totalStake.ethStake += _operatorStake.ethStake;
+            _totalStake.eigenStake += _operatorStake.eigenStake;
+            _totalStake.updateBlockNumber = uint32(block.number);
+            // linking with the most recent stake recordd in the past
+            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+            totalStakeHistory.push(_totalStake);
+        }
 
         // increment number of registrants
         unchecked {
             ++numRegistrants;
         }
+    
 
+        
+        //add ephemeral key to epehemral key registry
+        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(operator, ephemeralKey);
+        
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
@@ -923,4 +953,10 @@ contract DataLayrRegistry is
     function getApkHashesLength() external view returns (uint256) {
         return apkHashes.length;
     }
+
+    function getDLNStatus(address DLN) external view returns(uint8) {
+        return registry[DLN].active;
+    }
 }
+
+

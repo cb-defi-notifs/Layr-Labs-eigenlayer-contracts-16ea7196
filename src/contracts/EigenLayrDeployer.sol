@@ -18,6 +18,8 @@ import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
+
+import "./middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
@@ -42,6 +44,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
+    DataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
@@ -136,6 +139,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dl = new DataLayr();
 
         dlRepository = new Repository(delegation, investmentManager);
+        ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
         
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         ethStratsAndMultipliers[0].strategy = strat;
@@ -143,7 +147,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
-        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, ethStratsAndMultipliers, eigenStratsAndMultipliers);
+        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, disclosureUtils);
 

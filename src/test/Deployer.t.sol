@@ -22,6 +22,7 @@ import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
+import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
@@ -61,6 +62,7 @@ contract EigenLayrDeployer is
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
+    DataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
@@ -106,6 +108,9 @@ contract EigenLayrDeployer is
     bytes32 priv_key_1 =
         0x1234567812345678123456781234567812345698123456781234567812348976;
     address acct_1 = cheats.addr(uint256(priv_key_1));
+
+
+    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
 
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
@@ -163,6 +168,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
+
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -280,6 +286,7 @@ contract EigenLayrDeployer is
         dl = new DataLayr();
 
         dlRepository = new Repository(delegation, investmentManager);
+        ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](3);
         for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
@@ -294,6 +301,7 @@ contract EigenLayrDeployer is
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
+            ephemeralKeyRegistry,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
@@ -517,17 +525,17 @@ contract EigenLayrDeployer is
     function _testInitDataStore() internal returns (bytes32) {
         bytes memory header = hex"0102030405060708091011121314151617181920";
         uint32 totalBytes = 1e6;
-        uint32 storePeriodLength = 600;
+        uint8 duration = 2;
 
-        //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 10e10);
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         uint32 blockNumber = 1;
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
-        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
+        dlsm.initDataStore(header, duration, totalBytes, blockNumber);
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
@@ -547,7 +555,7 @@ contract EigenLayrDeployer is
             "_testInitDataStore: wrong initTime"
         );
         assertTrue(
-            dataStorePeriodLength == storePeriodLength,
+            dataStorePeriodLength == duration*dlsm.DURATION_SCALE(),
             "_testInitDataStore: wrong storePeriodLength"
         );
         assertTrue(
@@ -606,7 +614,9 @@ contract EigenLayrDeployer is
 
         cheats.startPrank(sender);
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlReg.registerOperator(registrantType, data, socket);
+
+        dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
+        
         cheats.stopPrank();
 
         // verify that registration was stored correctly

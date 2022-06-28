@@ -4,6 +4,8 @@
 pragma solidity ^0.8.9;
 
 
+
+
 library BLS {
     // Field order
     uint256 constant MODULUS =
@@ -64,6 +66,7 @@ library BLS {
                 revert(0, 0)
             }
         }
+
 
         require(input[1] == 1, "Pairing was unsuccessful");
 
