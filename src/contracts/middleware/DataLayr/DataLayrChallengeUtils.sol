@@ -30,7 +30,7 @@ contract DataLayrChallengeUtils {
         uint256 nonSignerIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
             calldata signatoryRecord
-    ) public {
+    ) public pure {
         if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
             require(
