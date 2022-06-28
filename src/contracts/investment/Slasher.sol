@@ -19,14 +19,11 @@ contract Slasher is Ownable, ISlasher {
     mapping(address => bool) public serviceFactories;
     // user => contract => if that contract can slash the user
     mapping(address => mapping(address => bool)) public optedIntoSlashing;
-    // address that receives the slashed funds
-    // TODO: allow changing this by governance
-    address public slashingRecipient;
 
-    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance, address _slashingRecipient) {
+
+    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance) {
         _transferOwnership(_eigenLayrGovernance);
         investmentManager = _investmentManager;
-        slashingRecipient = _slashingRecipient;
         // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
     }
 
