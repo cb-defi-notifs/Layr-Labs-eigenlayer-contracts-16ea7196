@@ -716,7 +716,6 @@ contract EigenLayrDeployer is
             operator,
             investmentManager,
             paymentTokens,
-            serviceFactory,
             address(delegation),
             dlRepository,
             _MAX_OPERATOR_FEE_BIPS,

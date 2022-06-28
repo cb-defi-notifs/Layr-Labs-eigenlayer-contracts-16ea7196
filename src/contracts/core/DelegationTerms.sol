@@ -134,7 +134,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     // operator for this delegation contract
     address public immutable operator;
     //important contracts -- used for access control
-    IServiceFactory public immutable serviceFactory;
     address public immutable eigenLayrDelegation;
     //used for weighting of delegated ETH & EIGEN
     IInvestmentManager public immutable investmentManager;
@@ -166,7 +165,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     	address _operator,
         IInvestmentManager _investmentManager,
         address[] memory _paymentTokens,
-        IServiceFactory _serviceFactory,
         address _eigenLayrDelegation,
         IRepository _repository,
         uint16 _MAX_OPERATOR_FEE_BIPS,
@@ -175,7 +173,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         operator = _operator;
         investmentManager = _investmentManager;
         paymentTokens = _paymentTokens;
-        serviceFactory = _serviceFactory;
         eigenLayrDelegation = _eigenLayrDelegation;
         repository = _repository;
         require(_MAX_OPERATOR_FEE_BIPS <= MAX_BIPS, "MAX_OPERATOR_FEE_BIPS cannot be above MAX_BIPS");
