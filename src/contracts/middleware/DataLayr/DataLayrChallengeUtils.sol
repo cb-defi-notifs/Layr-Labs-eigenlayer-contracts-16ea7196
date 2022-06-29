@@ -185,7 +185,7 @@ contract DataLayrChallengeUtils {
     // (s^l - 1), (s^l - w^l), (s^l - w^2l), (s^l - w^3l), (s^l - w^4l), ...
     // we have precomputed these values and return them directly because it's cheap. currently we
     // tolerate up to degree 2^11, which means up to (31 bytes/point)(1024 points/dln)(512 dln) = 16 MB in a datastore
-    function getZeroPolyMerkleRoot(uint256 degree) external returns (bytes32) {
+    function getZeroPolyMerkleRoot(uint256 degree) external pure returns (bytes32) {
         uint256 log = log2(degree);
 
         if (log == 0) {
