@@ -21,7 +21,7 @@ interface IDataLayrRegistry {
 
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index) external view returns (OperatorStake memory);
 
-    function getCorrectApkHash(uint256 index, uint32 blockNumber) external returns(bytes32);
+    function getCorrectApkHash(uint256 index, uint32 blockNumber) external returns (bytes32);
 
     function getLengthOfTotalStakeHistory() external view returns (uint256);
     
@@ -31,5 +31,7 @@ interface IDataLayrRegistry {
 
     function getTotalOperators(uint32 dumpNumber, uint32 index) external view returns (uint32);
     
-    function getDLNStatus(address DLN) external view returns(uint8);
+    function getDLNStatus(address DLN) external view returns (uint8);
+
+    function getOperatorDeregisterTime(address operator) external view returns (uint256);
 }
