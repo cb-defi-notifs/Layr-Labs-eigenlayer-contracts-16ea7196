@@ -183,12 +183,6 @@ contract DataLayrRegistry is
         address registrant
     );
 
-    // MODIFIERS
-    modifier onlyRepository() {
-        require(address(repository) == msg.sender, "onlyRepository");
-        _;
-    }
-
 
     constructor(
         Repository _repository,
