@@ -15,7 +15,7 @@ contract Multiplication  {
         coors[2] = 255;
         uint256[2] memory product;
         assembly {
-            if iszero(call(not(0), 0x07, 0, coors, 0x60, product, 0x40)) {
+            if iszero(staticcall(not(0), 0x07, coors, 0x60, product, 0x40)) {
                 revert(0, 0)
             }
         }

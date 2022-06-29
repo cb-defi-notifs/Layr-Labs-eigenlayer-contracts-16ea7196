@@ -410,7 +410,7 @@ abstract contract DataLayrSignatureChecker is
             mstore(add(input, 0xE0), calldataload(add(pointer, 0x20)))
 
             // check the pairing; if incorrect, revert
-            if iszero(call(not(0), 0x08, 0, input, 0x0180, input, 0x20)) {
+            if iszero(staticcall(not(0), 0x08, input, 0x0180, input, 0x20)) {
                 revert(0, 0)
             }
         }

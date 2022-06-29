@@ -72,7 +72,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         uint256[2] memory sum;
         //add the contested points and make sure they arent what other party claimed
         assembly {
-            if iszero(call(not(0), 0x06, 0, coors, 0x80, sum, 0x40)) {
+            if iszero(staticcall(not(0), 0x06, coors, 0x80, sum, 0x40)) {
                 revert(0, 0)
             }
         }
@@ -170,7 +170,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         uint256[2] memory product;
         assembly {
             if iszero(
-                call(not(0), 0x07, 0, coors, 0x60, product, 0x40)
+                staticcall(not(0), 0x07, coors, 0x60, product, 0x40)
             ) {
                 revert(0, 0)
             }

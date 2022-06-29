@@ -61,7 +61,9 @@ library BLS {
         assembly {
             // check the pairing
             if iszero(
-                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x20), 0x20)
+                // call ecPairing precompile with 384 bytes of data,
+                // i.e. input[0] through (including) input[11], and get 32 bytes of return data
+                staticcall(not(0), 0x08, input, 0x0180, add(input, 0x20), 0x20)
             ) {
                 revert(0, 0)
             }

@@ -240,13 +240,11 @@ contract DataLayrChallengeUtils {
             // @dev using precompiled contract at 0x07 to do G1 scalar multiplication on elliptic curve alt_bn128
 
             if iszero(
-                call(
+                staticcall(
                     // forward all gas
                     not(0),
                     // call ecMul precompile
                     0x07,
-                    // send no value
-                    0,
                     // send args starting from pairingInput[0]
                     pairingInput,
                     // send 96 bytes of arguments, i.e. pairingInput[0], pairingInput[1], and pairingInput[2]
@@ -273,13 +271,11 @@ contract DataLayrChallengeUtils {
             // add together the alt_bn128 points defined by (pairingInput[0], pairingInput[1]) and (pairingInput[2], pairingInput[3])
             // store resultant point in (pairingInput[0], pairingInput[1])
             if iszero(
-                call(
+                staticcall(
                     // forward all gas
                     not(0),
                     // call ecAdd precompile
                     0x06,
-                    // send no value
-                    0,
                     // send args starting from pairingInput[0]
                     pairingInput,
                     // send 128 bytes of arguments, i.e. pairingInput[0], pairingInput[1], pairingInput[2], and pairingInput[3]
@@ -312,13 +308,11 @@ contract DataLayrChallengeUtils {
 
             // multiply alt_bn128 point defined by (pairingInput[8], pairingInput[9]) by the scalar number pairingInput[10]
             if iszero(
-                call(
+                staticcall(
                     // forward all gas
                     not(0),
                     // call ecMul precompile
                     0x07,
-                    // send no value
-                    0,
                     // send args starting from pairingInput[8]
                     add(pairingInput, 0x100),
                     // send 96 bytes of arguments, i.e. pairingInput[8], pairingInput[9], and pairingInput[10]
@@ -335,13 +329,11 @@ contract DataLayrChallengeUtils {
 
             // add together the alt_bn128 points defined by (pairingInput[6], pairingInput[7]) and (pairingInput[8], pairingInput[9])
             if iszero(
-                call(
+                staticcall(
                     // forward all gas
                     not(0),
                     // call ecAdd precompile
                     0x06,
-                    // send no value
-                    0,
                     // send args starting from pairingInput[6]
                     add(pairingInput, 0x0C0),
                     // send 128 bytes of arguments, i.e. pairingInput[6], pairingInput[7], pairingInput[8], and pairingInput[9]
@@ -369,13 +361,11 @@ contract DataLayrChallengeUtils {
 
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
-                call(
+                staticcall(
                     // forward all gas
                     not(0),
                     // call ecPairing precompile
                     0x08,
-                    // send no value
-                    0,
                     // send args starting from pairingInput[0]
                     pairingInput,
                     // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]

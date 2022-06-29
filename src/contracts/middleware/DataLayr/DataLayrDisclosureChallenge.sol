@@ -461,10 +461,9 @@ contract DataLayrDisclosureChallenge {
             // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
 
             if iszero(
-                call(
+                staticcall(
                     not(0),
                     0x06,
-                    0,
                     add(pairingInput, 0xC0),
                     0x80,
                     add(pairingInput, 0xC0),
@@ -485,10 +484,11 @@ contract DataLayrDisclosureChallenge {
 
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
-                call(
+                // call ecPairing precompile with 384 bytes of data,
+                // i.e. input[0] through (including) input[11], and get 32 bytes of return data
+                staticcall(
                     not(0),
                     0x08,
-                    0,
                     pairingInput,
                     0x180,
                     add(pairingInput, 0x180),
