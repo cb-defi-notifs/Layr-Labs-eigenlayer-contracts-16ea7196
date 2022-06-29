@@ -21,8 +21,8 @@ contract DataLayrDisclosureChallenge {
         uint32 numSys;
         // number of symbols already disclosed
         uint32 responsesReceived;
-        // operator address => whether they have completed a disclosure for this challenge or not
-        mapping (address => bool) disclosureCompleted;
+        // chunkNumber => whether they have completed a disclosure for this challenge or not
+        mapping (uint256 => bool) disclosureCompleted;
     }
 
     // modulus for the underlying field F_q of the elliptic curve
@@ -74,8 +74,10 @@ contract DataLayrDisclosureChallenge {
 
     function forceOperatorsToDisclose(
         bytes calldata header
-    ) public {
+    ) external {
+        // calculate headherHash from header
         bytes32 headerHash = keccak256(header);
+
         {
             /**
             Get information on the dataStore for which disperser is being challenged. This dataStore was 
@@ -170,44 +172,22 @@ contract DataLayrDisclosureChallenge {
      @param zeroPoly is the commitment to the zero polynomial x^l - (w^k)^l on group G2. The format is:
                      [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1].    
      @param zeroPolyProof is the Merkle proof for membership of @param zeroPoly in Merkle tree
-     @param headerHash is the hash of the summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
+     @param header is the summary of the data that was asserted into DataLayr by the disperser during call to initDataStore,
      */
     function respondToDisclosure(
-        bytes32 headerHash,
+        uint256 chunkNumber,
+        bytes calldata header,
         uint256[4] calldata multireveal,
         bytes calldata poly,
         uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof
+        bytes calldata zeroPolyProof,
+        uint256[4] calldata pi
     ) external {
-
-    //    // check that DataLayr operator is responding to the forced disclosure challenge period within some window
-    //    /*
-    //    require(
-    //        block.timestamp <
-    //            disclosureForOperator[headerHash][msg.sender].commitTime +
-    //                disclosureFraudProofInterval,
-    //        "must be in fraud proof period"
-    //    );
-    //    */
-    //    bytes32 data;
-    //    uint256 position;
-    //    // check that it is DataLayr operator who is supposed to respond
-    //    require(
-    //        disclosureForOperator[headerHash][msg.sender].status == 1,
-    //        "Not in operator initial response phase"
-    //    );
-
-  //  //    //not so critic: move comments here
-    //    uint48 degree = validateDisclosureResponse(
-    //        disclosureForOperator[headerHash][msg.sender].chunkNumber,
-    //        header,
-    //        multireveal,
-    //        zeroPoly,
-    //        zeroPolyProof
-    //    );
+        // calculate headherHash from header
+        bytes32 headerHash = keccak256(header);
 
 
-
+// TODO: should be add any of these checks / logic back in?
   //  //    // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
     //    // of the zero polynomial Merkle tree
 
@@ -225,6 +205,7 @@ contract DataLayrDisclosureChallenge {
     //    disclosureForOperator[headerHash][msg.sender].status = 2;
 
 
+
 // TODO: some of this code resembles some of the code in 'DataLayrLowDegreeChallenge.sol' -- determine if we can de-duplicate this code
         // check that the challenge window is still open
         require(
@@ -232,13 +213,20 @@ contract DataLayrDisclosureChallenge {
             "Challenge response period has already elapsed"
         );
 
-        // check that the msg.sender has not already responded to this challenge
-        require(!disclosureChallenges[headerHash].disclosureCompleted[msg.sender], "operator already responded to challenge");
+        // check that the submitted chunkNumber has not already been revealed for this headerHash
+        require(
+            !disclosureChallenges[headerHash].disclosureCompleted[chunkNumber],
+            "chunkNumber already revealed for headerHash"
+        );
 
-        // TODO: actually check validity of response!
+        // actually check validity of response
+        require(
+            NonInteractivePolynomialProof(chunkNumber, header, multireveal, poly, zeroPoly, zeroPolyProof, pi),
+            "noninteractive polynomial proof failed"
+        );
 
-        // record that the msg.sender has responded
-        disclosureChallenges[headerHash].disclosureCompleted[msg.sender] = true;
+        // record that the chunkNumber has been disclosed
+        disclosureChallenges[headerHash].disclosureCompleted[chunkNumber] = true;
         disclosureChallenges[headerHash].responsesReceived += 1;
 
         // mark challenge as failing in the event that at least numSys operators have responded
@@ -274,7 +262,7 @@ contract DataLayrDisclosureChallenge {
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
-    ) public {
+    ) external {
         // verify that the challenge has been lost
         require(disclosureChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL, "Challenge not successful");
 
@@ -350,20 +338,10 @@ contract DataLayrDisclosureChallenge {
         // TODO: actually slash.
     }
 
-
-
-
-
-
-
-
-
-
     function validateDisclosureResponse(
         uint256 chunkNumber,
         bytes calldata header,
         uint256[4] calldata multireveal,
-        // bytes calldata poly,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
     ) public view returns(uint48) {
@@ -375,14 +353,6 @@ contract DataLayrDisclosureChallenge {
         ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                 header
             );
-            // modulus for the underlying field F_q of the elliptic curve
-        /*
-        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
-        require(
-            (degree + 1) * 32 == poly.length,
-            "Polynomial must have a 256 bit coefficient for each term"
-        );
-        */
 
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
@@ -506,7 +476,7 @@ contract DataLayrDisclosureChallenge {
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof,
         uint256[4] calldata pi
-    ) public returns(bool) {
+    ) public view returns(bool) {
 
         (
             uint256[2] memory c,

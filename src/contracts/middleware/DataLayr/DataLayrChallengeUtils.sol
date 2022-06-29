@@ -230,7 +230,7 @@ contract DataLayrChallengeUtils {
     }
 
     // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof (pi) is in G2 to allow for calculation of Z in G1
-    function openPolynomialAtPoint(uint256[2] calldata c, uint256[4] calldata pi, uint256 r, uint256 s) public returns(bool) {
+    function openPolynomialAtPoint(uint256[2] calldata c, uint256[4] calldata pi, uint256 r, uint256 s) public view returns(bool) {
         uint256[12] memory pairingInput;
         //calculate -g1*r and store in first 2 slots of input      -g1 = (1, -2) btw
         pairingInput[0] = 1;
