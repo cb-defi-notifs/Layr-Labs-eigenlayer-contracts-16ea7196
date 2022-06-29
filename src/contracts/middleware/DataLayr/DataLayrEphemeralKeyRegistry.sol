@@ -20,12 +20,10 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
 
     uint256 public updatePeriod = 7 days;
 
-    IRepository public repository;
-    IDataLayrRegistry public dlRegistry;
+    IRepository public immutable repository;
 
-    
     constructor(IRepository _repository){
-        dlRegistry = IDataLayrRegistry(address(_repository.registrationManager()));
+        repository = _repository;
     }
 
     /*
@@ -80,7 +78,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     *proof for DLN that hasn't updated their ephemeral key within the update window.  
     */
     function proveStaleEphemeralKey(address dataLayrNode) external {
-        
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.registrationManager()));
+
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
 
