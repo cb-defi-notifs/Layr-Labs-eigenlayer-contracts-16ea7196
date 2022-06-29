@@ -88,6 +88,13 @@ contract DataLayrBombVerifier {
         uint256[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
+        {
+            //require that either
+            uint48 fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(operator);
+            uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(operator);
+            require(fromDumpNumber != 0 && (deregisterTime == 0 || deregisterTime > block.timestamp));
+        }
+        
         (
             uint32 bombDataStoreId,
             uint32 detonationDataStoreId

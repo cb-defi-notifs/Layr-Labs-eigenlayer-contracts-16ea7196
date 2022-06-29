@@ -70,6 +70,8 @@ contract DataLayrRegistry is
 
         // socket address of the DataLayr node
         string socket;
+
+        uint256 deregisterTime;
     }
 
     // number of registrants of this service
@@ -298,7 +300,7 @@ contract DataLayrRegistry is
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
 
-
+        registry[msg.sender].deregisterTime = block.timestamp;
 
         // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
         // get current dump number from DataLayrServiceManager
@@ -580,6 +582,13 @@ contract DataLayrRegistry is
         totalStakeHistory.push(_totalStake);
     }
 
+    function getOperatorDeregisterTime(address operator)
+        public
+        view
+        returns (uint256)
+    {
+        return registry[operator].deregisterTime;
+    }
 
     /**
      @notice returns dump number from when operator has been registered.
@@ -823,7 +832,8 @@ contract DataLayrRegistry is
             fromDumpNumber: IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber(),
             storeUntil: 0,
             // extract the socket address
-            socket: socket
+            socket: socket,
+            deregisterTime: 0
         });
 
         // record the operator being registered
@@ -958,5 +968,3 @@ contract DataLayrRegistry is
         return registry[DLN].active;
     }
 }
-
-
