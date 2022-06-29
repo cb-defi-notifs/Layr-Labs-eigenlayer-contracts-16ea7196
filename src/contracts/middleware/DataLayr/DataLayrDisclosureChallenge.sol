@@ -396,8 +396,8 @@ contract DataLayrDisclosureChallenge {
 
         assembly {
             // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(36))
-            mstore(add(pairingInput, 0x20), calldataload(68))
+            mstore(pairingInput, calldataload(multireveal))
+            mstore(add(pairingInput, 0x20), calldataload(add(multireveal, 0x20)))
 
             // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
             mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
@@ -411,11 +411,11 @@ contract DataLayrDisclosureChallenge {
 
             // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
             // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(100))
+            mstore(add(pairingInput, 0x100), calldataload(add(multireveal, 0x40)))
             // obtain -I_k(s).y
             mstore(
                 add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
+                addmod(0, sub(MODULUS, calldataload(add(multireveal, 0x60))), MODULUS)
             )
         }
 
