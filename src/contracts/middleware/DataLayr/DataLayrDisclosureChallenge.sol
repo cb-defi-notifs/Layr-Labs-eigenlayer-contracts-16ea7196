@@ -206,13 +206,7 @@ contract DataLayrDisclosureChallenge {
     //        zeroPolyProof
     //    );
 
-  //  //    /*
-    //    degree is the poly length, no need to multiply 32, as it is the size of data in bytes
-    //    require(
-    //        (degree + 1) * 32 == poly.length,
-    //        "Polynomial must have a 256 bit coefficient for each term"
-    //    );
-    //    */
+
 
   //  //    // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
     //    // of the zero polynomial Merkle tree
@@ -372,7 +366,7 @@ contract DataLayrDisclosureChallenge {
         // bytes calldata poly,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
-    ) public returns(uint48) {
+    ) public view returns(uint48) {
         (
             uint256[2] memory c,
             uint48 degree,
@@ -522,16 +516,22 @@ contract DataLayrDisclosureChallenge {
                 header
             );
 
-        // TODO: use the output that we get here somewhere
         //verify pairing for the commitment to interpolating polynomial
-        uint48 dg = validateDisclosureResponse(
+        uint48 degree = validateDisclosureResponse(
             chunkNumber, 
             header, 
             multireveal,
             zeroPoly, 
             zeroPolyProof
         );
-
+       
+       // TODO: verify that this check is correct!
+       // check that degree of polynomial in the header matches the length of the submitted polynomial
+       // i.e. make sure submitted polynomial doesn't contain extra points
+       require(
+           (degree + 1) * 32 == poly.length,
+           "Polynomial must have a 256 bit coefficient for each term"
+       );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(keccak256(poly)) % MODULUS;
