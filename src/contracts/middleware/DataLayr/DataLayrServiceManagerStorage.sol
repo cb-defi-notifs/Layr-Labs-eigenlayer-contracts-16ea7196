@@ -186,7 +186,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      *         DataLayr and a compressed information on the signatures of the DataLayr 
      *         nodes who signed up to be the part of the quorum.  
      */
-    mapping(uint64 => bytes32) public dumpNumberToSignatureHash;
+    mapping(uint32 => bytes32) public dumpNumberToSignatureHash;
 
     /**
      * @notice mapping between the total service fee that would be paid out in the 
@@ -204,6 +204,15 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     
     mapping(address => address) public operatorToPaymentChallenge;
+
+    uint256 constant public DURATION_SCALE = 1 hours;
+    uint8 constant public MIN_DATASTORE_DURATION = 1;
+    uint8 constant public MAX_DATASTORE_DURATION = 14;
+
+    //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp
+    mapping(uint8 => mapping(uint256 => DataStoreIdPair[])) public dataStoreIdsForDuration;
+    //total number of datastores that have been stored for a certain duration
+    mapping(uint8 => uint32) public totalDataStoresForDuration;
 
     //a deposit root is posted every depositRootInterval dumps
     uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins

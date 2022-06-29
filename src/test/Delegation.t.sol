@@ -233,7 +233,7 @@ contract Delegator is EigenLayrDeployer {
         uint8 registrantType = 3;
         string memory socket = "255.255.255.255";
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlReg.registerOperator(registrantType, registrationData[0], socket);
+        dlReg.registerOperator(registrantType, ephemeralKey, registrationData[0], socket);
         cheats.stopPrank();
 
     }
@@ -331,11 +331,12 @@ contract Delegator is EigenLayrDeployer {
         uint32 storePeriodLength = 600;
 
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 10e10);
+        weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
         uint32 blockNumber = 1;
-        dlsm.initDataStore(header, totalBytes, storePeriodLength, blockNumber);
+        //todo: duration
+        dlsm.initDataStore(header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
 
 
