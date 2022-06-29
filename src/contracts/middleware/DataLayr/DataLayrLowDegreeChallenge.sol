@@ -6,6 +6,7 @@ import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
+import "../../libraries/BN254_Constants.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 
@@ -20,8 +21,6 @@ contract DataLayrLowDegreeChallenge {
         uint256 collateral;
     }
 
-    // modulus for the underlying field F_q of the elliptic curve
-    uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
     //TODO: change the time here
     uint32 constant public DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails

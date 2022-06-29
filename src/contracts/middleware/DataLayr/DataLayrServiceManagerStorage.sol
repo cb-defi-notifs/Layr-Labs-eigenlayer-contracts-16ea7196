@@ -151,8 +151,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
 
-
-    bytes32 public powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
 

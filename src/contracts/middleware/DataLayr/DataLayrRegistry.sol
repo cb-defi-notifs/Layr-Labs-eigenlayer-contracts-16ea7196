@@ -8,6 +8,7 @@ import "../../libraries/BytesLib.sol";
 import "../Repository.sol";
 import "../VoteWeigherBase.sol";
 import "../../libraries/BLS.sol";
+import "../../libraries/BN254_Constants.sol";
 
 import "ds-test/test.sol";
 
@@ -21,15 +22,12 @@ import "ds-test/test.sol";
 contract DataLayrRegistry is
     IDataLayrRegistry,
     VoteWeigherBase,
-    IRegistrationManager, 
+    IRegistrationManager,
     DSTest
 {
     using BytesLib for bytes;
 
     // CONSTANTS
-    uint256 constant MODULUS =
-        21888242871839275222246405745257275088696311157297823662689037894645226208583;
-
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId)");
@@ -149,7 +147,7 @@ contract DataLayrRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [10857046999023057135944570762232829481370756359578518086990519993285655852781,11559732032986387107991004021392285783925812861821192530917403151452391805634,8495653923123431417604973247489272438418190587263600148770280649306958101930,4082367875863433681332203403145435568316851327593401208105741076214120093531];
+    uint256[4] public apk = [G2x0,G2x1,G2y0,G2y1];
 
     
 
