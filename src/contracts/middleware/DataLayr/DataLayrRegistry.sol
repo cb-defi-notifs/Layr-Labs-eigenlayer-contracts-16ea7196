@@ -821,8 +821,7 @@ contract DataLayrRegistry is
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            // CRITIC: load from memory and save it in memory the first time above this other contract was called
-            fromDumpNumber: IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber(),
+            fromDumpNumber: currentDumpNumber,
             storeUntil: 0,
             // extract the socket address
             socket: socket,
@@ -839,8 +838,6 @@ contract DataLayrRegistry is
         
 
         {
-            // get current dump number from DataLayrServiceManager
-            uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
             // Update totalOperatorsHistory
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
