@@ -184,7 +184,7 @@ contract InvestmentTests is
         uint256[2] memory depositAmounts;
 
 
-        amountToDeposit = 10e7;
+        amountToDeposit = 1e7;
 
         //register registrant as an operator
         DelegationTerms _dt = _deployDelegationTerms(registrant);
@@ -227,17 +227,11 @@ contract InvestmentTests is
         );
 
         require(delegation.getOperatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+        
+        //initiate withdrawal
 
-        uint96 queuedWithdrawalNonce = 0;
-        // investmentManager.slashQueuedWithdrawal(
-        //     strategy_arr, 
-        //     tokens, 
-        //     shareAmounts, 
-        //     registrant, 
-        //     acct_0,
-        //     queuedWithdrawalNonce
-        // );
-
+        InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[0], 0);
+        uint96 queuedWithdrawalNonce = nonce.nonce;
 
         
     }

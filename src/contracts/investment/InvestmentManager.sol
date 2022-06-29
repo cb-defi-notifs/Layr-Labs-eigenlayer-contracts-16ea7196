@@ -119,8 +119,7 @@ contract InvestmentManager is
             address operatorAddress = delegation.delegation(msg.sender);
             
             
-            emit log_named_uint("operator shares before", delegation.getOperatorShares(operatorAddress, strategy));
-            emit log_named_uint("shares increase by", shares);
+            
             delegation.increaseOperatorShares(
                 operatorAddress,
                 strategy,
@@ -185,7 +184,7 @@ contract InvestmentManager is
         uint256 amount
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
-        emit log("inside deposit");
+
         if (investorStratShares[depositor][strategy] == 0) {
             
             investorStrats[depositor].push(strategy);
@@ -340,7 +339,6 @@ contract InvestmentManager is
     ) internal returns (bool) {
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
-        emit log_named_uint("investorStratShares for depositor", userShares);
 
 
         require(shareAmount <= userShares, "shareAmount too high");
@@ -702,8 +700,6 @@ contract InvestmentManager is
             
             address delegatedAddress = delegation.delegation(slashedAddress);
 
-            emit log_named_uint("operator shares before", delegation.getOperatorShares(delegatedAddress, strategies[0]));
-            emit log_named_uint("shares decrease by", shareAmounts[0]);
             delegation.decreaseOperatorShares(
                 delegatedAddress,
                 strategies,
