@@ -39,7 +39,8 @@ contract DataLayrBombVerifier {
         uint256[4] pi;
     }
 
-    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(258);
+    // bomb will trigger every once every ~2^(256-250) = 2^6 = 64 chances
+    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(250);
 
     IDataLayrServiceManager public dlsm;
     IDataLayrRegistry public dlRegistry;
