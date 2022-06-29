@@ -7,7 +7,7 @@ contract Multiplication  {
 
     constructor() {}
 
-    function multiply() public {
+    function multiply() public view {
         uint256[3] memory coors;
         coors[0] = 1;
         coors[1] = 2;

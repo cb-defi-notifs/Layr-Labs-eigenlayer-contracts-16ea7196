@@ -372,7 +372,7 @@ contract DataLayrBombVerifier {
         uint256 sandwichTimestamp,
         uint8 duration,
         uint256[2] calldata timestamps
-    ) internal returns (IDataLayrServiceManager.DataStoreIdPair memory) {
+    ) internal view returns (IDataLayrServiceManager.DataStoreIdPair memory) {
         require(
             timestamps[0] < sandwichTimestamp,
             "timestamps[0] must be before sandwich time"
@@ -416,7 +416,7 @@ contract DataLayrBombVerifier {
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
-    ) internal returns (uint8, uint32) {
+    ) internal pure returns (uint8, uint32) {
         uint32 offsetLeft = offset;
         uint256 i = 0;
         for (; i < numberActiveDataStoresForDuration.length; i++) {
@@ -434,7 +434,7 @@ contract DataLayrBombVerifier {
         address operator,
         uint32 operatorIndex,
         uint32 totalOperatorsIndex
-    ) internal returns (uint32) {
+    ) internal view returns (uint32) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayr.sol by the disperser.
@@ -450,12 +450,12 @@ contract DataLayrBombVerifier {
         // check that disperser had acquire quorum for this dataStore
         require(committed, "Dump is not committed yet");
 
-        uint32 operatorIndex = dlRegistry.getOperatorIndex(
+        operatorIndex = dlRegistry.getOperatorIndex(
             operator,
             dumpNumber,
             operatorIndex
         );
-        uint32 totalOperatorsIndex = dlRegistry.getTotalOperators(
+        totalOperatorsIndex = dlRegistry.getTotalOperators(
             dumpNumber,
             totalOperatorsIndex
         );
@@ -469,7 +469,7 @@ contract DataLayrBombVerifier {
         // bytes calldata poly,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
-    ) public returns (uint48) {
+    ) public view returns (uint48) {
         (
             uint256[2] memory c,
             uint48 degree,
@@ -658,7 +658,7 @@ contract DataLayrBombVerifier {
         return sum;
     }
 
-    function max(uint256 x, uint256 y) internal returns (uint256) {
+    function max(uint256 x, uint256 y) internal pure returns (uint256) {
         return x > y ? x : y;
     }
 }
