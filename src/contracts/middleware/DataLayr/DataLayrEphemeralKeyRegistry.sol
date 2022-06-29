@@ -24,8 +24,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     IDataLayrRegistry public dlRegistry;
 
     
-    constructor(IRepository repository){
-        dlRegistry = IDataLayrRegistry(address(repository.registrationManager()));
+    constructor(IRepository _repository){
+        dlRegistry = IDataLayrRegistry(address(_repository.registrationManager()));
     }
 
     /*
@@ -102,7 +102,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     }
 
 
-    function getLastEKPostTimestamp(address dataLayrNode) public returns (uint) {
+    function getLastEKPostTimestamp(address dataLayrNode) public view returns (uint) {
         return latestEk[dataLayrNode].timestamp;
     }
 
