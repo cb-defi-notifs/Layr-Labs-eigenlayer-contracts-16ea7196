@@ -42,6 +42,8 @@ contract DataLayrBombVerifier {
     // bomb will trigger every once every ~2^(256-250) = 2^6 = 64 chances
     uint256 public BOMB_THRESHOLD = uint256(2)**uint256(250);
 
+    uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
+
     IDataLayrServiceManager public dlsm;
     IDataLayrRegistry public dlRegistry;
     IDataLayr public dataLayr;
@@ -72,10 +74,12 @@ contract DataLayrBombVerifier {
         DisclosureProof calldata disclosureProof
     ) external {
         {
-            //require that either
+            //require that either operator is still active, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
             uint48 fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(operator);
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(operator);
-            require(fromDumpNumber != 0 && (deregisterTime == 0 || deregisterTime > block.timestamp));
+            require(fromDumpNumber != 0 && 
+                (deregisterTime == 0 || deregisterTime > (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+            );
         }
         
         (
@@ -207,19 +211,24 @@ contract DataLayrBombVerifier {
         bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
     ) internal returns (uint32, uint32) {
+        // get init time of the dataStore corresponding to 'detonationHeaderHash'
         (,uint32 detonationTime, , ,) = dataLayr.dataStores(detonationHeaderHash);
         
         uint256 fromTime;
         {
+            // get the dumpNumber at which the operator registered
             uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(
                 operator
             );
+            // get the dumpNumber and initTime from the dataStore corresponding to 'operatorFromHeaderHash'
             (uint32 dataStoreId, uint32 fromTimeUint32, , , ) = dataLayr
                 .dataStores(operatorFromHeaderHash);
+            // ensure that operatorFromHeaderHash corresponds to the correct dumpNumber (i.e. the one at which the operator registered)
             require(
                 fromDataStoreId == dataStoreId,
                 "headerHash is not for correct operator from datastore"
             );
+            // store the initTime of the dumpNumber at which the operator registered in memory
             fromTime = uint256(fromTimeUint32);
         }
 
@@ -301,6 +310,7 @@ contract DataLayrBombVerifier {
                 );
                 continue;
             }
+            // calculate the greater of (init time of bombDataStoreTimestamp - (duration + 1)) and fromTime
             uint256 sandwichTimestamp = max(
                 bombDataStoreTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
                 fromTime

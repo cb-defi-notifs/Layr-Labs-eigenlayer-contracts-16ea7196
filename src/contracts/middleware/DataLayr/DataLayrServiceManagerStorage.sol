@@ -204,6 +204,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     mapping(address => address) public operatorToPaymentChallenge;
 
     uint256 constant public DURATION_SCALE = 1 hours;
+    // NOTE: these values are measured in *DURATION_SCALE*
     uint8 constant public MIN_DATASTORE_DURATION = 1;
     uint8 constant public MAX_DATASTORE_DURATION = 14;
 
