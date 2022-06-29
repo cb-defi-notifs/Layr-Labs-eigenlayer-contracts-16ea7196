@@ -31,7 +31,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     * Allows DLN to post their first ephemeral key hash via DataLayrRegistry
     */
-    function postFirstEphemeralKeyPreImage(address operator, bytes32 EKHash) public {
+    function postFirstEphemeralKeyPreImage(address operator, bytes32 EKHash) external {
         require(EKRegistry[operator].keyHash==0, "previous ephemeral key already exists");
         EKRegistry[operator].keyHash = EKHash;
         EKRegistry[operator].timestamp = block.timestamp;
@@ -40,7 +40,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     * Allows DLN to post their final ephemeral key hash via DataLayrRegistry
     */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) public {
+    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external {
         latestEk[operator].EK = EK;
         latestEk[operator].timestamp = block.timestamp;
     }
@@ -48,7 +48,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
      /*
     * Allows DLN to update their ephemeral key hash and post their previous ephemeral key 
     */
-    function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) public {
+    function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) external {
         require(keccak256(abi.encodePacked(prevEK)) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
 
         require(block.timestamp <= EKRegistry[msg.sender].timestamp + updatePeriod, "key update cannot be completed as update window has expired");
@@ -64,13 +64,13 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     * retrieve a DLN's current EK hash
     */
-    function getCurrEphemeralKeyHash(address dataLayrNode) public view returns (bytes32){
+    function getCurrEphemeralKeyHash(address dataLayrNode) external view returns (bytes32){
         return EKRegistry[dataLayrNode].keyHash;
     }
 
 
     function getLatestEphemeralKey(address dataLayrNode)
-        public
+        external view
         returns (bytes32)
     {
         return latestEk[dataLayrNode].EK;
@@ -79,7 +79,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     *proof for DLN that hasn't updated their ephemeral key within the update window.  
     */
-    function proveStaleEphemeralKey(address dataLayrNode) public{
+    function proveStaleEphemeralKey(address dataLayrNode) external {
         
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
@@ -94,7 +94,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     * proof for DLN who's ephemeral key has been leaked
     */
-    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) public {
+    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external {
         
         if(EKRegistry[dataLayrNode].keyHash==keccak256(abi.encode(leakedEphemeralKey))){
             //trigger slashing function for that datalayr node address
@@ -102,7 +102,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     }
 
 
-    function getLastEKPostTimestamp(address dataLayrNode) public view returns (uint) {
+    function getLastEKPostTimestamp(address dataLayrNode) external view returns (uint) {
         return latestEk[dataLayrNode].timestamp;
     }
 
