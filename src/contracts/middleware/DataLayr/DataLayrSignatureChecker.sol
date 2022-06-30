@@ -120,7 +120,7 @@ abstract contract DataLayrSignatureChecker is
 
         // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contract
         uint32 blockNumberFromHeaderHash;
-       (dumpNumberToConfirm, , , blockNumberFromHeaderHash, ) = dataLayr.dataStores(headerHash);
+       (dumpNumberToConfirm, , , blockNumberFromHeaderHash) = dataLayr.dataStores(headerHash);
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(

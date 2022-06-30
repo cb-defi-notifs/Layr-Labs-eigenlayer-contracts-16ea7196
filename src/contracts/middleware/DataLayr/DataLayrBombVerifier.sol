@@ -176,7 +176,7 @@ contract DataLayrBombVerifier {
             }
         }
         {
-            (uint32 loadedBombDataStoreId, , , , ) = dataLayr.dataStores(
+            (uint32 loadedBombDataStoreId, , ,) = dataLayr.dataStores(
                 keccak256(disclosureProof.header)
             );
             require(
@@ -217,14 +217,14 @@ contract DataLayrBombVerifier {
         bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
     ) internal returns (uint32, uint32) {
-        (,uint32 detonationTime, , ,) = dataLayr.dataStores(detonationHeaderHash);
+        (,uint32 detonationTime, , ) = dataLayr.dataStores(detonationHeaderHash);
         
         uint256 fromTime;
         {
             uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(
                 operator
             );
-            (uint32 dataStoreId, uint32 fromTimeUint32, , , ) = dataLayr
+            (uint32 dataStoreId, uint32 fromTimeUint32, ,  ) = dataLayr
                 .dataStores(operatorFromHeaderHash);
             require(
                 fromDataStoreId == dataStoreId,
@@ -266,7 +266,7 @@ contract DataLayrBombVerifier {
             "datastore id provided is not the same as loaded"
         );
         {
-            (uint32 detonationDataStoreId, , , ,) = dataLayr.dataStores(detonationHeaderHash);
+            (uint32 detonationDataStoreId, , , ) = dataLayr.dataStores(detonationHeaderHash);
             require(detonationDataStoreId == nextDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
         }
         return (
@@ -436,12 +436,10 @@ contract DataLayrBombVerifier {
             uint32 dumpNumber,
             uint32 initTime,
             uint32 storePeriodLength,
-            ,
-            bool committed
         ) = dataLayr.dataStores(headerHash);
 
         // check that disperser had acquire quorum for this dataStore
-        require(committed, "Dump is not committed yet");
+        require(dlsm.getDumpNumberSignatureHash(dumpNumber) != bytes32(0), "Datastore is not committed yet");
 
         uint32 operatorIndex = dlRegistry.getOperatorIndex(
             operator,

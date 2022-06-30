@@ -319,8 +319,8 @@ contract Delegator is EigenLayrDeployer {
 
         _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
 
-        (, , , , bool committed) = dl.dataStores(headerHash);
-        assertTrue(committed, "Data store not committed");
+        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        assertTrue(sighash != bytes32(0), "Data store not committed");
     }
         cheats.stopPrank();
 
@@ -456,8 +456,8 @@ contract Delegator is EigenLayrDeployer {
 
 
 
-        (, , , , bool committed) = dl.dataStores(headerHash);
-        assertTrue(committed, "Data store not committed");
+        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        assertTrue(sighash != bytes32(0), "Data store not committed");
     }
 
 
