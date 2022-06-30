@@ -14,8 +14,7 @@ contract DataLayrChallengeUtils {
     function checkExclusionFromNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
-            calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
     ) public pure {
         if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
@@ -49,6 +48,19 @@ contract DataLayrChallengeUtils {
                 );
             }
         }
+    }
+
+    // makes sure that operatorPubkeyHash was *included* in set of non-signers
+    // reverts if the operator is *not* in the non-signer set
+    function checkInclusionInNonSignerSet(
+        bytes32 operatorPubkeyHash,
+        uint256 nonSignerIndex,
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+    ) public pure {
+        require(
+            operatorPubkeyHash == signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex],
+            "operator not included in non-signer set"
+        );
     }
 
     function getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(

@@ -100,6 +100,7 @@ that the operator did not sign the 'bomb' DataStore (note that this is different
 In this specific case, the 'bomb' is actually contained in the next DataStore that the operator did indeed sign.
 The loop iterates through to find this next DataStore, thus determining the true 'bomb' DataStore.
 */
+    // TODO: update below comment to more accurately reflect the specific usecase of this code
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
                   actually part of the quorum for the @param dumpNumber.
@@ -116,11 +117,9 @@ The loop iterates through to find this next DataStore, thus determining the true
                non-signers pubkey is recorded in the compressed signatory record in an  ascending
                manner.      
         */
+// first we verify that the operator did indeed sign the 'detonation' DataStore
         {
-            /** 
-            Check that the information supplied as input for forced disclosure for this particular data 
-            dump on DataLayr is correct
-            */
+            // Verify that the information supplied as input related to the 'detonation' DataStore is correct 
             require(
                 dlsm.getDumpNumberSignatureHash(detonationGlobalDataStoreId) ==
                     keccak256(
@@ -134,11 +133,8 @@ The loop iterates through to find this next DataStore, thus determining the true
                 "Sig record does not match hash"
             );
 
-// **THIS IS NOT CORRECT LOGIC** -- we need to keep verifying that the operator *WAS* a non-signer, and verify at end that they were not a non-signer (i.e. they were a signer)
+            // check that operator was *not* in the non-signer set (i.e. they did sign) for the 'detonation' DataStore
             if (signatoryRecords[0].nonSignerPubkeyHashes.length != 0) {
-                // get the pubkey hash of the DataLayr operator
-                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                    operator
                 );
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
@@ -149,12 +145,15 @@ The loop iterates through to find this next DataStore, thus determining the true
                 );
             }
 
-            //verify all non signed DataStores from bomb till first signed to get correct data
-            for (uint i = 1; i < signatoryRecords.length; ++i) {
-                bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                    operator
-                );
+//  to find the ultimate 'bomb' DataStore, we need to keep verifying that the operator *WAS* a non-signer and incrementing bombGlobalDataStoreId,
+//  then verify at the end that they were *not* a non-signer (i.e. they were a signer)
+            // fetch hash of operator's pubkey
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
+            //verify all non signed DataStores from bomb till first signed to get correct data
+            uint256 lengthMinusOne = signatoryRecords.length - 1;
+            for (uint i = 1; i < lengthMinusOne; ++i) {            
+                // Verify that the information supplied as input related to this particular DataStore is correct 
                 require(
                     dlsm.getDumpNumberSignatureHash(bombGlobalDataStoreId) ==
                         keccak256(
@@ -176,7 +175,32 @@ The loop iterates through to find this next DataStore, thus determining the true
                 );
                 ++bombGlobalDataStoreId;
             }
-// END comment about incorrect check logic
+
+            // Verify that the information supplied as input related to the ultimate 'bomb' DataStore is correct 
+            require(
+                dlsm.getDumpNumberSignatureHash(bombGlobalDataStoreId) ==
+                    keccak256(
+                        abi.encodePacked(
+                            detonationGlobalDataStoreId,
+                            signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes,
+                            signatoryRecords[lengthMinusOne].totalEthStakeSigned,
+                            signatoryRecords[lengthMinusOne].totalEigenStakeSigned
+                        )
+                    ),
+                "Sig record does not match hash"
+            );
+
+            // check that operator was *not* in the non-signer set (i.e. they did sign) for the ultimate 'bomb' DataStore
+            if (signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes.length != 0) {
+                );
+                // check that operator was *not* in the non-signer set (i.e. they did sign)
+                //not super critic: new call here, maybe change comment
+                challengeUtils.checkExclusionFromNonSignerSet(
+                    operatorPubkeyHash,
+                    indexes.detonationNonSignerIndex,
+                    signatoryRecords[lengthMinusOne]
+                );
+            }
         }
         {
             // get dumpNumber from provided bomb DataStore headerHash
@@ -227,7 +251,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         uint256 bombDataStoreIndex
     ) internal view returns (uint32, uint32) {
         // get init time of the dataStore corresponding to 'detonationHeaderHash'
-        (,uint32 detonationTime, , ,) = dataLayr.dataStores(detonationHeaderHash);
+        (,uint32 detonationDataStoreInitTimestamp, , ,) = dataLayr.dataStores(detonationHeaderHash);
         
         uint256 fromTime;
         {
@@ -246,7 +270,6 @@ The loop iterates through to find this next DataStore, thus determining the true
             // store the initTime of the dumpNumber at which the operator registered in memory
             fromTime = uint256(fromTimeUint32);
         }
-//SHOULDN'T THIS CALL USE THE **BOMB** PARAMETERS, **NOT** THE DETONATION PARAMETERS?
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
@@ -256,7 +279,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         ) = verifySandwiches(
                 uint256(detonationHeaderHash),
                 fromTime,
-                detonationTime,
+                detonationDataStoreInitTimestamp,
                 sandwichProofs
             );
 
@@ -264,7 +287,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         IDataLayrServiceManager.DataStoreIdPair
             memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(
                 durationIndex + 1,
-                detonationTime,
+                detonationDataStoreInitTimestamp,
                 bombDataStoreIndex
             );
         // check that the specified bombDataStore info matches the calculated info 
@@ -290,7 +313,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     function verifySandwiches(
         uint256 detonationHeaderHashValue,
         uint256 fromTime,
-        uint256 bombDataStoreTimestamp,
+        uint256 detonationDataStoreInitTimestamp,
         uint256[2][2][] calldata sandwichProofs
     )
         internal view
@@ -326,13 +349,13 @@ The loop iterates through to find this next DataStore, thus determining the true
                 continue;
             }
             /*
-                calculate the greater of ((init time of bombDataStoreTimestamp) - duration) and fromTime
+                calculate the greater of ((init time of detonationDataStoreInitTimestamp) - duration) and fromTime
                 since 'fromTime' is the time at which the operator registered, if
-                fromTime is > (init time of bombDataStoreTimestamp) - duration), then we only care about DataStores
+                fromTime is > (init time of detonationDataStoreInitTimestamp) - duration), then we only care about DataStores
                 starting from 'fromTime'
             */
             uint256 sandwichTimestamp = max(
-                bombDataStoreTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
+                detonationDataStoreInitTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
                 fromTime
             );
             //verify sandwich proofs
@@ -342,10 +365,10 @@ The loop iterates through to find this next DataStore, thus determining the true
                 i + 1,
                 sandwichProofs[i][0]
             ).durationDataStoreId;
-            // fetch the first durationDataStoreId and globalDataStoreId at or after the bombDataStoreTimestamp, for duration (i.e. i+1)
+            // fetch the first durationDataStoreId and globalDataStoreId at or after the detonationDataStoreInitTimestamp, for duration (i.e. i+1)
             IDataLayrServiceManager.DataStoreIdPair memory detonationDataStoreIdPair = 
                 verifyDataStoreIdSandwich(
-                    bombDataStoreTimestamp,
+                    detonationDataStoreInitTimestamp,
                     i + 1,
                     sandwichProofs[i][1]
             );
