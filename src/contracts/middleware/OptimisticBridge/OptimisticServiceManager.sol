@@ -13,6 +13,7 @@ import "../PaymentManager.sol";
 import "../Repository.sol";
 
 import "./nearbridge/NearBridge.sol";
+import "./nearbridge/NearDecoder.sol";
 
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
@@ -61,7 +62,7 @@ contract OptimisticBridgeServiceManager is
         repository = _repository;
     }
 
-    function initBridge() public {
+    function initNearBridge(_address) public onlyOwner {
         nearbridge = NearBridge();
     }
 
@@ -135,7 +136,15 @@ contract OptimisticBridgeServiceManager is
     }
 
 
-    function challengeBridge() external payable {
-        
+    function challengeBridgeSignature(
+        address payable receiver, 
+        uint64 height, 
+        uint signatureIndex, 
+        NearDecoder.Signature[100] calldata signatures
+    ) external payable {
+        nearbridge.challenge(receiver, height, signatureIndex, signatures);
+        //SLASH optbridge layer here
+
+
     }
 }

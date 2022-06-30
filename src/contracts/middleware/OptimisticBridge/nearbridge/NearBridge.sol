@@ -97,7 +97,6 @@ contract NearBridge is INearBridge, AdminControlled {
         require(!checkBlockProducerSignatureInHead(height, signatureIndex, signatures), "Can't challenge valid signature");
 
         curHeight = height - 1;
-        //SLASH OPTBRIDGE LAYR HERE
         balanceOf[lastSubmitter] = balanceOf[lastSubmitter] - lockEthAmount;
         lastValidAt = 0;
         receiver.call{value: lockEthAmount / 2}("");
