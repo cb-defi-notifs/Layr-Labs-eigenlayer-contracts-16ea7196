@@ -93,7 +93,13 @@ contract DataLayrBombVerifier {
                 indexes.bombDataStoreIndex
             );
         
-
+/*
+this large block with for loop is used to iterate through DataStores
+although technically the pseudo-random DataStore containing the bomb is already determined, it is possible
+that the operator did not sign the 'bomb' DataStore (note that this is different than signing the 'detonator' DataStore!).
+In this specific case, the 'bomb' is actually contained in the next DataStore that the operator did indeed sign.
+The loop iterates through to find this next DataStore, thus determining the true 'bomb' DataStore.
+*/
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
                   actually part of the quorum for the @param dumpNumber.
@@ -128,13 +134,15 @@ contract DataLayrBombVerifier {
                 "Sig record does not match hash"
             );
 
+// **THIS IS NOT CORRECT LOGIC** -- we need to keep verifying that the operator *WAS* a non-signer, and verify at end that they were not a non-signer (i.e. they were a signer)
             if (signatoryRecords[0].nonSignerPubkeyHashes.length != 0) {
                 // get the pubkey hash of the DataLayr operator
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
+                // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
-                challengeUtils.checkInclusionExclusionInNonSigner(
+                challengeUtils.checkExclusionFromNonSignerSet(
                     operatorPubkeyHash,
                     indexes.detonationNonSignerIndex,
                     signatoryRecords[0]
@@ -168,17 +176,21 @@ contract DataLayrBombVerifier {
                 );
                 ++bombGlobalDataStoreId;
             }
+// END comment about incorrect check logic
         }
         {
+            // get dumpNumber from provided bomb DataStore headerHash
             (uint32 loadedBombDataStoreId, , , , ) = dataLayr.dataStores(
                 keccak256(disclosureProof.header)
             );
+            // verify that the correct bomb dumpNumber (the first the operator signed at or above the pseudo-random dumpNumber) matches the provided data
             require(
                 loadedBombDataStoreId == bombGlobalDataStoreId,
                 "loaded bomb datastore id must be as calculated"
             );
         }
 
+        // check the disclosure of the data chunk that the operator committed to storing
         require(
             nonInteractivePolynomialProof(
                 headerHashes.bombHeaderHash,
@@ -190,8 +202,10 @@ contract DataLayrBombVerifier {
             "I from multireveal is not the commitment of poly"
         );
 
+        // fetch the operator's most recent ephemeral key
         bytes32 ek = dlekRegistry.getLatestEphemeralKey(operator);
 
+        // check bomb requirement
         require(
             uint256(
                 keccak256(
@@ -211,7 +225,7 @@ contract DataLayrBombVerifier {
         uint256[2][2][] calldata sandwichProofs,
         bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
-    ) internal returns (uint32, uint32) {
+    ) internal view returns (uint32, uint32) {
         // get init time of the dataStore corresponding to 'detonationHeaderHash'
         (,uint32 detonationTime, , ,) = dataLayr.dataStores(detonationHeaderHash);
         
@@ -475,141 +489,6 @@ contract DataLayrBombVerifier {
         return (operatorIndex + dumpNumber) % totalOperatorsIndex;
     }
 
-    function validateDisclosureResponse(
-        uint256 chunkNumber,
-        bytes calldata header,
-        uint256[4] calldata multireveal,
-        // bytes calldata poly,
-        uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof
-    ) public view returns (uint48) {
-        (
-            uint256[2] memory c,
-            uint48 degree,
-            uint32 numSys,
-            uint32 numPar
-        ) = challengeUtils
-                .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                    header
-                );
-        // modulus for the underlying field F_q of the elliptic curve
-        /*
-        degree is the poly length, no need to multiply 32, as it is the size of data in bytes
-        require(
-            (degree + 1) * 32 == poly.length,
-            "Polynomial must have a 256 bit coefficient for each term"
-        );
-        */
-
-        // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
-        // of the zero polynomial Merkle tree
-
-        {
-            //deterministic assignment of "y" here
-            // @todo
-            require(
-                Merkle.checkMembership(
-                    // leaf
-                    keccak256(
-                        abi.encodePacked(
-                            zeroPoly[0],
-                            zeroPoly[1],
-                            zeroPoly[2],
-                            zeroPoly[3]
-                        )
-                    ),
-                    // index in the Merkle tree
-                    challengeUtils.getLeadingCosetIndexFromHighestRootOfUnity(
-                        uint32(chunkNumber),
-                        numSys,
-                        numPar
-                    ),
-                    // Merkle root hash
-                    challengeUtils.getZeroPolyMerkleRoot(degree),
-                    // Merkle proof
-                    zeroPolyProof
-                ),
-                "Incorrect zero poly merkle proof"
-            );
-        }
-
-        /**
-         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
-         */
-        //get the commitment to the zero polynomial of multireveal degree
-
-        uint256[13] memory pairingInput;
-
-        assembly {
-            // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(36))
-            mstore(add(pairingInput, 0x20), calldataload(68))
-
-            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x60), mload(zeroPoly))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
-
-            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-            mstore(add(pairingInput, 0xC0), mload(c))
-            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
-
-            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
-            // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(100))
-            // obtain -I_k(s).y
-            mstore(
-                add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(132)), MODULUS)
-            )
-        }
-
-        assembly {
-            // overwrite C(s) with C(s) - I(s)
-
-            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
-
-            if iszero(
-                staticcall(
-                    not(0),
-                    0x06,
-                    add(pairingInput, 0xC0),
-                    0x80,
-                    add(pairingInput, 0xC0),
-                    0x40
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        // check e(pi, z)e(C - I, -g2) == 1
-        assembly {
-            // store -g2, where g2 is the negation of the generator of group G2
-            mstore(add(pairingInput, 0x100), nG2x1)
-            mstore(add(pairingInput, 0x120), nG2x0)
-            mstore(add(pairingInput, 0x140), nG2y1)
-            mstore(add(pairingInput, 0x160), nG2y0)
-
-            // call the precompiled ec2 pairing contract at 0x08
-            if iszero(
-                staticcall(
-                    not(0),
-                    0x08,
-                    pairingInput,
-                    0x180,
-                    add(pairingInput, 0x180),
-                    0x20
-                )
-            ) {
-                revert(0, 0)
-            }
-        }
-
-        require(pairingInput[12] == 1, "Pairing unsuccessful");
-        return degree;
-    }
 
     function nonInteractivePolynomialProof(
         bytes32 headerHash,
@@ -617,58 +496,24 @@ contract DataLayrBombVerifier {
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
         DisclosureProof calldata disclosureProof
-    ) internal returns (bool) {
+    ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(
             headerHash,
             operator,
             operatorIndex,
             totalOperatorsIndex
         );
-        (uint256[2] memory c, , , ) = challengeUtils
-            .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                disclosureProof.header
-            );
-
-        //verify pairing for the commitment to interpolating polynomial
-        uint48 dg = validateDisclosureResponse(
+        bool res = challengeUtils.nonInteractivePolynomialProof(
             chunkNumber,
             disclosureProof.header,
             disclosureProof.multireveal,
+            disclosureProof.poly,
             disclosureProof.zeroPoly,
-            disclosureProof.zeroPolyProof
+            disclosureProof.zeroPolyProof,
+            disclosureProof.pi
         );
 
-        //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint(keccak256(disclosureProof.poly)) % MODULUS;
-        uint256 s = linearPolynomialEvaluation(disclosureProof.poly, r);
-        bool res = challengeUtils.openPolynomialAtPoint(
-            c,
-            disclosureProof.pi,
-            r,
-            s
-        );
-
-        if (res) {
-            return true;
-        }
-        return false;
-    }
-
-    //evaluates the given polynomial "poly" at value "r" and returns the result
-    function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 sum;
-        uint length = poly.length / 32;
-        uint256 rPower = 1;
-        for (uint i = 0; i < length; i++) {
-            uint coefficient = uint(bytes32(poly[i:i + 32]));
-            sum += (coefficient * rPower);
-            rPower *= r;
-        }
-        return sum;
+        return res;
     }
 
     function max(uint256 x, uint256 y) internal pure returns (uint256) {

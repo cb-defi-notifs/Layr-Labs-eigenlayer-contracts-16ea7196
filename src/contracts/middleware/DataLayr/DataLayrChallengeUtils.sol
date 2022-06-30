@@ -9,9 +9,9 @@ contract DataLayrChallengeUtils {
 
     constructor() {}
 
-    // makes sure that operatorPubkeyHash was excluded from set of non-signers
+    // makes sure that operatorPubkeyHash was *excluded* from set of non-signers
     // reverts if the operator is in the non-signer set
-    function checkInclusionExclusionInNonSigner(
+    function checkExclusionFromNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
@@ -171,7 +171,7 @@ contract DataLayrChallengeUtils {
     // (s^l - 1), (s^l - w^l), (s^l - w^2l), (s^l - w^3l), (s^l - w^4l), ...
     // we have precomputed these values and return them directly because it's cheap. currently we
     // tolerate up to degree 2^11, which means up to (31 bytes/point)(1024 points/dln)(512 dln) = 16 MB in a datastore
-    function getZeroPolyMerkleRoot(uint256 degree) external pure returns (bytes32) {
+    function getZeroPolyMerkleRoot(uint256 degree) public pure returns (bytes32) {
         uint256 log = log2(degree);
 
         if (log == 0) {
@@ -216,7 +216,7 @@ contract DataLayrChallengeUtils {
     }
 
     // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof (pi) is in G2 to allow for calculation of Z in G1
-    function openPolynomialAtPoint(uint256[2] calldata c, uint256[4] calldata pi, uint256 r, uint256 s) public view returns(bool) {
+    function openPolynomialAtPoint(uint256[2] memory c, uint256[4] calldata pi, uint256 r, uint256 s) public view returns(bool) {
         uint256[12] memory pairingInput;
         //calculate -g1*r and store in first 2 slots of input      -g1 = (1, -2) btw
         pairingInput[0] = 1;
@@ -368,5 +368,198 @@ contract DataLayrChallengeUtils {
         }
         // check whether the call to the ecPairing precompile was successful (returns 1 if correct pairing, 0 otherwise)
         return pairingInput[0] == 1;
+    }
+
+    function validateDisclosureResponse(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof
+    ) public view returns(uint48) {
+        (
+            uint256[2] memory c,
+            uint48 degree,
+            uint32 numSys,
+            uint32 numPar
+        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+
+        // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
+        // of the zero polynomial Merkle tree
+
+        {
+            //deterministic assignment of "y" here
+            // @todo
+            require(
+                Merkle.checkMembership(
+                    // leaf
+                    keccak256(
+                        abi.encodePacked(
+                            zeroPoly[0],
+                            zeroPoly[1],
+                            zeroPoly[2],
+                            zeroPoly[3]
+                        )
+                    ),
+                    // index in the Merkle tree
+                    getLeadingCosetIndexFromHighestRootOfUnity(
+                        uint32(chunkNumber),
+                        numSys,
+                        numPar
+                    ),
+                    // Merkle root hash
+                    getZeroPolyMerkleRoot(degree),
+                    // Merkle proof
+                    zeroPolyProof
+                ),
+                "Incorrect zero poly merkle proof"
+            );
+        }
+
+        /**
+         Doing pairing verification  e(Pi(s), Z_k(s)).e(C - I, -g2) == 1
+         */
+        //get the commitment to the zero polynomial of multireveal degree
+
+        uint256[13] memory pairingInput;
+
+
+        assembly {
+            // extract the proof [Pi(s).x, Pi(s).y]
+            mstore(pairingInput, calldataload(multireveal))
+            mstore(add(pairingInput, 0x20), calldataload(add(multireveal, 0x20)))
+
+            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
+            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
+            mstore(add(pairingInput, 0x60), mload(zeroPoly))
+            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
+            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
+
+            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
+            mstore(add(pairingInput, 0xC0), mload(c))
+            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
+
+            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
+            // to get [I_k(s).x, -I_k(s).y]
+            mstore(add(pairingInput, 0x100), calldataload(add(multireveal, 0x40)))
+            // obtain -I_k(s).y
+            mstore(
+                add(pairingInput, 0x120),
+                addmod(0, sub(MODULUS, calldataload(add(multireveal, 0x60))), MODULUS)
+            )
+        }
+
+        assembly {
+            // overwrite C(s) with C(s) - I(s)
+
+            // @dev using precompiled contract at 0x06 to do point addition on elliptic curve alt_bn128
+
+            if iszero(
+                staticcall(
+                    not(0),
+                    0x06,
+                    add(pairingInput, 0xC0),
+                    0x80,
+                    add(pairingInput, 0xC0),
+                    0x40
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        // check e(pi, z)e(C - I, -g2) == 1
+        assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
+            // call the precompiled ec2 pairing contract at 0x08
+            if iszero(
+                // call ecPairing precompile with 384 bytes of data,
+                // i.e. input[0] through (including) input[11], and get 32 bytes of return data
+                staticcall(
+                    not(0),
+                    0x08,
+                    pairingInput,
+                    0x180,
+                    add(pairingInput, 0x180),
+                    0x20
+                )
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        require(pairingInput[12] == 1, "Pairing unsuccessful");
+        return degree;
+    }
+
+    function nonInteractivePolynomialProof(
+        uint256 chunkNumber,
+        bytes calldata header,
+        uint256[4] calldata multireveal,
+        bytes calldata poly,
+        uint256[4] memory zeroPoly,
+        bytes calldata zeroPolyProof,
+        uint256[4] calldata pi
+    ) public view returns(bool) {
+
+        (
+            uint256[2] memory c,
+            ,
+            ,
+        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+
+        //verify pairing for the commitment to interpolating polynomial
+        uint48 degree = validateDisclosureResponse(
+            chunkNumber, 
+            header, 
+            multireveal,
+            zeroPoly, 
+            zeroPolyProof
+        );
+       
+       // TODO: verify that this check is correct!
+       // check that degree of polynomial in the header matches the length of the submitted polynomial
+       // i.e. make sure submitted polynomial doesn't contain extra points
+       require(
+           (degree + 1) * 32 == poly.length,
+           "Polynomial must have a 256 bit coefficient for each term"
+       );
+
+        //Calculating r, the point at which to evaluate the interpolating polynomial
+        uint256 r = uint256(keccak256(poly)) % MODULUS;
+        uint256 s = linearPolynomialEvaluation(poly, r);
+        bool res = openPolynomialAtPoint(c, pi, r, s); 
+
+        if (res){
+            return true;
+        }
+        return false;
+
+    }
+
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(
+        bytes calldata poly,
+        uint256 r
+    ) public pure returns(uint256){
+        uint256 sum;
+        uint256 length = poly.length/32;
+        uint256 rPower = 1;
+        for (uint i = 0; i < length; ) {
+            uint256 coefficient = uint256(bytes32(poly[i:i+32]));
+            sum = addmod(sum, mulmod(coefficient, rPower, MODULUS), MODULUS);
+            rPower = mulmod(rPower, r, MODULUS);
+            i += 32;
+        }   
+        return sum; 
     }
 }
