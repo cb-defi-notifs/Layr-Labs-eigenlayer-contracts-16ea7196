@@ -64,7 +64,7 @@ contract OptimisticBridgeServiceManager is
 
 
     function initNearBridge(_address) public onlyOwner {
-        nearbridge = NearBridge();
+        nearbridge = INearBridge(_address);
     }
 
 
