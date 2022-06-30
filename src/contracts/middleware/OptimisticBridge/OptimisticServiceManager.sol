@@ -133,4 +133,9 @@ contract OptimisticBridgeServiceManager is
         //add header 
         nearbridge.addLightClientBlock(header);
     }
+
+
+    function challengeBridge() external payable {
+        
+    }
 }
