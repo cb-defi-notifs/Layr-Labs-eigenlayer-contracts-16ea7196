@@ -132,10 +132,12 @@ The loop iterates through to find this next DataStore, thus determining the true
                     ),
                 "Sig record does not match hash"
             );
+            
+            // fetch hash of operator's pubkey
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
             // check that operator was *not* in the non-signer set (i.e. they did sign) for the 'detonation' DataStore
             if (signatoryRecords[0].nonSignerPubkeyHashes.length != 0) {
-                );
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkExclusionFromNonSignerSet(
@@ -147,8 +149,6 @@ The loop iterates through to find this next DataStore, thus determining the true
 
 //  to find the ultimate 'bomb' DataStore, we need to keep verifying that the operator *WAS* a non-signer and incrementing bombGlobalDataStoreId,
 //  then verify at the end that they were *not* a non-signer (i.e. they were a signer)
-            // fetch hash of operator's pubkey
-            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
             //verify all non signed DataStores from bomb till first signed to get correct data
             uint256 lengthMinusOne = signatoryRecords.length - 1;
@@ -192,7 +192,6 @@ The loop iterates through to find this next DataStore, thus determining the true
 
             // check that operator was *not* in the non-signer set (i.e. they did sign) for the ultimate 'bomb' DataStore
             if (signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes.length != 0) {
-                );
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkExclusionFromNonSignerSet(
