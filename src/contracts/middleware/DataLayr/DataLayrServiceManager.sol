@@ -147,14 +147,6 @@ contract DataLayrServiceManager is
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
-
-        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-        dataStoreIdsForDuration[duration][block.timestamp].push(
-            DataStoreIdPair(
-                ++totalDataStoresForDuration[duration],
-                dumpNumber
-            )
-        );
         
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
 
@@ -163,7 +155,17 @@ contract DataLayrServiceManager is
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
         // record the total service fee that will be paid out for this assertion of data
-        dumpNumberToFee[dumpNumber] = fee;
+        //TODO: Removed this to batch with metadata store
+        // dumpNumberToFee[dumpNumber] = fee;
+
+        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
+        dataStoreIdsForDuration[duration][block.timestamp].push(
+            DataStoreMetadata(
+                ++totalDataStoresForDuration[duration],
+                dumpNumber,
+                uint96(fee)
+            )
+        );
 
         // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
@@ -543,19 +545,23 @@ contract DataLayrServiceManager is
         }
     }
 
-    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][0];
     }
 
-    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][dataStoreIdsForDuration[duration][timestamp].length - 1];
     }
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreIdPair memory) {
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][index];
     }
 
-    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function dumpNumberToFee(uint32) external returns (uint96) {
+        return 0;
+    }
+
+    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
     //     return dataStoreIdsForDuration[duration][timestamp][0];
     // }
 

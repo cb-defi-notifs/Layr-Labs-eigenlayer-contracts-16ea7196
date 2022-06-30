@@ -255,14 +255,14 @@ contract DataLayrBombVerifier {
                 sandwichProofs
             );
 
-        IDataLayrServiceManager.DataStoreIdPair
-            memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(
+        IDataLayrServiceManager.DataStoreMetadata
+            memory bombDataStoreMetadata = dlsm.getDataStoreIdsForDuration(
                 durationIndex + 1,
                 detonationTime,
                 bombDataStoreIndex
             );
         require(
-            bombDataStoreIdPair.durationDataStoreId == calculatedDataStoreId,
+            bombDataStoreMetadata.durationDataStoreId == calculatedDataStoreId,
             "datastore id provided is not the same as loaded"
         );
         {
@@ -270,7 +270,7 @@ contract DataLayrBombVerifier {
             require(detonationDataStoreId == nextDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
         }
         return (
-            bombDataStoreIdPair.globalDataStoreId,
+            bombDataStoreMetadata.globalDataStoreId,
             nextDataStoreIdAfterBomb
         );
     }
@@ -321,7 +321,7 @@ contract DataLayrBombVerifier {
                 i,
                 sandwichProofs[i][0]
             ).durationDataStoreId;
-            IDataLayrServiceManager.DataStoreIdPair
+            IDataLayrServiceManager.DataStoreMetadata
                 memory endDataStoreForDurationAfterWindowIdPair = verifyDataStoreIdSandwich(
                     sandwichTimestamp,
                     i,
@@ -365,7 +365,7 @@ contract DataLayrBombVerifier {
         uint256 sandwichTimestamp,
         uint8 duration,
         uint256[2] calldata timestamps
-    ) internal returns (IDataLayrServiceManager.DataStoreIdPair memory) {
+    ) internal returns (IDataLayrServiceManager.DataStoreMetadata memory) {
         require(
             timestamps[0] < sandwichTimestamp,
             "timestamps[0] must be before sandwich time"
@@ -375,35 +375,35 @@ contract DataLayrBombVerifier {
             "timestamps[1] must be at or after sandwich time"
         );
 
-        IDataLayrServiceManager.DataStoreIdPair memory xDataStoreIdPair;
+        IDataLayrServiceManager.DataStoreMetadata memory xDataStoreMetadata;
         //if not proving the first datastore
         if (timestamps[0] != 0) {
-            xDataStoreIdPair = dlsm.lastDataStoreIdAtTimestampForDuration(
+            xDataStoreMetadata = dlsm.lastDataStoreIdAtTimestampForDuration(
                 duration,
                 timestamps[0]
             );
         }
-        IDataLayrServiceManager.DataStoreIdPair memory yDataStoreIdPair;
+        IDataLayrServiceManager.DataStoreMetadata memory yDataStoreMetadata;
         //if not proving the last datastore
         if (timestamps[1] != 0) {
-            yDataStoreIdPair = dlsm.firstDataStoreIdAtTimestampForDuration(
+            yDataStoreMetadata = dlsm.firstDataStoreIdAtTimestampForDuration(
                 duration,
                 timestamps[1]
             );
             require(
-                xDataStoreIdPair.durationDataStoreId + 1 ==
-                    yDataStoreIdPair.durationDataStoreId,
+                xDataStoreMetadata.durationDataStoreId + 1 ==
+                    yDataStoreMetadata.durationDataStoreId,
                 "x and y datastore must be incremental or y datastore is not first in the duration"
             );
         } else {
             //if timestamps[1] is 0, prover is claiming first datastore is the last datastore in that duration
             require(
                 dlsm.totalDataStoresForDuration(duration) ==
-                    xDataStoreIdPair.durationDataStoreId,
+                    xDataStoreMetadata.durationDataStoreId,
                 "x datastore is not the last datastore in the duration or no datastores for duration"
             );
         }
-        return yDataStoreIdPair;
+        return yDataStoreMetadata;
     }
 
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(

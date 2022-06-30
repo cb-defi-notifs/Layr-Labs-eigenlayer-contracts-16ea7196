@@ -65,6 +65,10 @@ contract DataLayrPaymentChallenge is DSTest{
         uint96 eigenStake;
     }
 
+    struct TotalStakes {
+        uint256 ethStakeSigned;
+        uint256 eigenStakeSigned;
+    }
 
     IDataLayrServiceManager public dlsm;
     IDataLayrPaymentChallengeManager public dlpcm;
@@ -247,9 +251,9 @@ contract DataLayrPaymentChallenge is DSTest{
         uint256 stakeIndex,
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
-        uint256 totalEthStakeSigned,
-        uint256 totalEigenStakeSigned,
-        bytes32 challengedDumpHeaderHash
+        TotalStakes calldata totalStakes,
+        bytes32 challengedDumpHeaderHash,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) external {
         require(
             block.timestamp <
@@ -266,8 +270,8 @@ contract DataLayrPaymentChallenge is DSTest{
                     abi.encodePacked(
                         challengedDumpNumber,
                         nonSignerPubkeyHashes,
-                        totalEthStakeSigned,
-                        totalEigenStakeSigned
+                        totalStakes.ethStakeSigned,
+                        totalStakes.eigenStakeSigned
                     )
                 ),
             "Sig record does not match hash"
@@ -310,14 +314,16 @@ contract DataLayrPaymentChallenge is DSTest{
         }
 
             //TODO: Change this
-            uint256 fee = dlsm.dumpNumberToFee(challengedDumpNumber);
+            IDataLayrServiceManager.DataStoreMetadata memory metadata = dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index);
+            require(metadata.globalDataStoreId == challengedDumpNumber, "Loaded dump number does not match challenged");
+
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
-                (fee * operatorStake.ethStake) /
-                    totalEthStakeSigned /
+                (metadata.fee * operatorStake.ethStake) /
+                    totalStakes.ethStakeSigned /
                     2 +
-                    (fee * operatorStake.eigenStake) /
-                    totalEigenStakeSigned /
+                    (metadata.fee * operatorStake.eigenStake) /
+                    totalStakes.eigenStakeSigned /
                     2
             );
         } else {

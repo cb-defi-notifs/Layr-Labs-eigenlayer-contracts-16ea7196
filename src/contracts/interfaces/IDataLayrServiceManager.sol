@@ -3,9 +3,16 @@ pragma solidity ^0.8.9;
 import "./IDataLayr.sol";
 
 interface IDataLayrServiceManager {
-    struct DataStoreIdPair {
+    struct DataStoreMetadata {
         uint32 durationDataStoreId;
         uint32 globalDataStoreId;
+        uint96 fee;
+    }
+
+    struct DataStoreSearchData {
+        uint8 duration;
+        uint256 timestamp;
+        uint256 index;
     }
 
     struct SignatoryRecordMinusDumpNumber {
@@ -16,7 +23,7 @@ interface IDataLayrServiceManager {
 
     function dumpNumber() external returns (uint32);
 
-    function dumpNumberToFee(uint32) external returns (uint256);
+    function dumpNumberToFee(uint32) external returns (uint96);
 
     function getDumpNumberSignatureHash(uint32) external returns (bytes32);
 
@@ -38,11 +45,11 @@ interface IDataLayrServiceManager {
     function DURATION_SCALE() external view returns(uint256);
     function MAX_DATASTORE_DURATION() external view returns(uint8);
 
-    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreIdPair memory);
+    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreMetadata memory);
 
-    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreIdPair memory);
+    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreMetadata memory);
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 bombDataStoreIndex) external view returns(DataStoreIdPair memory);
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 bombDataStoreIndex) external view returns(DataStoreMetadata memory);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 }
