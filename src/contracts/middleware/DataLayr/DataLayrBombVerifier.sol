@@ -68,20 +68,20 @@ contract DataLayrBombVerifier {
         address operator,
         HeaderHashes calldata headerHashes,
         Indexes calldata indexes,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber[]
-            calldata signatoryRecords,
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber[] calldata signatoryRecords,
         uint256[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
         {
-            //require that either operator is still active, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
+            //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
             uint48 fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(operator);
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(operator);
             require(fromDumpNumber != 0 && 
-                (deregisterTime == 0 || deregisterTime > (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+                (deregisterTime == 0 || deregisterTime >= (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
             );
         }
-        
+
+        // get globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId, based on input info
         (
             uint32 bombGlobalDataStoreId,
             uint32 detonationGlobalDataStoreId
@@ -142,7 +142,7 @@ contract DataLayrBombVerifier {
             }
 
             //verify all non signed DataStores from bomb till first signed to get correct data
-            for (uint i = 1; i < signatoryRecords.length; i++) {
+            for (uint i = 1; i < signatoryRecords.length; ++i) {
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
                 );
@@ -166,7 +166,7 @@ contract DataLayrBombVerifier {
                     ] == operatorPubkeyHash,
                     "Incorrect nonsigner proof"
                 );
-                bombGlobalDataStoreId++;
+                ++bombGlobalDataStoreId;
             }
         }
         {
