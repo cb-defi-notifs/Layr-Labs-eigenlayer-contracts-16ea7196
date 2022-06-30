@@ -64,6 +64,12 @@ contract DataLayrBombVerifier {
         dlekRegistry = _dlekRegistry;
     }
 
+    // signatoryRecords input is formatted as following, with 'n' being its length:
+    // signatoryRecords[0] is for the 'detonation' DataStore
+    // signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb' 
+    // DataStore returned by the 'verifyBombDataStoreId' function and any immediately following series DataStores *that the operator did NOT sign*
+    // signatoryRecords[n] is for the DataStore that is ultimately treated as the 'bomb' DataStore
+    // this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
     function verifyBomb(
         address operator,
         HeaderHashes calldata headerHashes,
@@ -132,7 +138,7 @@ The loop iterates through to find this next DataStore, thus determining the true
                     ),
                 "Sig record does not match hash"
             );
-            
+
             // fetch hash of operator's pubkey
             bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
