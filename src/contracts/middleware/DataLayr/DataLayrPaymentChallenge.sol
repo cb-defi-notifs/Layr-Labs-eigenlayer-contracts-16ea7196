@@ -295,7 +295,7 @@ contract DataLayrPaymentChallenge is DSTest{
 
         // scoped block helps fix stack too deep
         {
-            (uint32 dumpNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber, ) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
+            (uint32 dumpNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
             require(dumpNumberFromHeaderHash == challengedDumpNumber, "specified dumpNumber does not match provided headerHash");
             require(
                 operatorStake.updateBlockNumber <= challengedDumpBlockNumber,

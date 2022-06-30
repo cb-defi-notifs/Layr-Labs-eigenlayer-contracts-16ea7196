@@ -82,19 +82,18 @@ contract DataLayrDisclosureChallenge {
             constructed during call to initDataStore in DataLayr.sol by the disperser.
             */
             (
-                // uint32 dumpNumber,
-                ,
+                uint32 dumpNumber,
                 uint32 initTime,
                 uint32 storePeriodLength,
                 // uint32 blockNumber,
-                ,
-                bool committed
+                // ,
+                // bool committed
             ) = dataLayr.dataStores(headerHash);
 
             uint256 expireTime = initTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
-            require(committed, "Dump is not committed yet");
+            require(dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) != bytes32(0), "Dump is not committed yet");
 
             // check that the dataStore is still ongoing
             require(block.timestamp <= expireTime, "Dump has already expired");
@@ -291,7 +290,6 @@ contract DataLayrDisclosureChallenge {
         (
             uint32 dumpNumber,
             uint32 blockNumber,
-            ,
             ,
             
         ) = dataLayr.dataStores(headerHash);

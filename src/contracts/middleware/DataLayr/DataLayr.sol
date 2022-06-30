@@ -63,8 +63,8 @@ contract DataLayr is Ownable, IDataLayr {
         // blockNumber for which the confirmation will consult total + operator stake amounts -- must not be more than 'BLOCK_STALE_MEASURE' in past
         uint32 blockNumber;  
 
-        // indicates whether quorm of signatures from DataLayr has been obtained or not
-        bool committed; 
+        // // indicates whether quorm of signatures from DataLayr has been obtained or not
+        // bool committed; 
     }
 
 
@@ -126,8 +126,7 @@ contract DataLayr is Ownable, IDataLayr {
             dumpNumber,
             initTime,
             storePeriodLength,
-            blockNumber,
-            false
+            blockNumber
         );
         
         emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
@@ -165,10 +164,10 @@ contract DataLayr is Ownable, IDataLayr {
         );
 
         // there can't be multiple signature commitments into settlement layer for same data
-        require(
-            !dataStores[headerHash].committed,
-            "Data store already has already been committed"
-        );
+        // require(
+        //     !dataStores[headerHash].committed,
+        //     "Data store already has already been committed"
+        // );
 
         // check that signatories own at least a threshold percentage of eth 
         // and eigen, thus, implying quorum has been acheieved
@@ -177,7 +176,8 @@ contract DataLayr is Ownable, IDataLayr {
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
         // record that quorum has been achieved 
-        dataStores[headerHash].committed = true;
+        //TODO: We dont need to store this because signatoryRecordHash is a way to check whether a datastore is commited or not
+        // dataStores[headerHash].committed = true;
 
         emit ConfirmDataStore(dumpNumber, headerHash);
     }

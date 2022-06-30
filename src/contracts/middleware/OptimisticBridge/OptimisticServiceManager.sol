@@ -62,6 +62,7 @@ contract OptimisticBridgeServiceManager is
         repository = _repository;
     }
 
+
     function initNearBridge(_address) public onlyOwner {
         nearbridge = NearBridge();
     }
@@ -121,8 +122,14 @@ contract OptimisticBridgeServiceManager is
 
         require(taskNumberToConfirm > 0 && taskNumberToConfirm < currentTaskNumber, "Task number is invalid");
 
-
         uint32 taskNumber = bridgeTransferHash[headerHash].taskNumber;
+
+        require(taskNumber == taskNumberToConfirm, "task number does not match record for that header");
+        // record the compressed information pertaining to this particular task
+        /**
+         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
+         */
+        taskNumberToSignatureHash[taskNumberToConfirm] = signatoryRecordHash;
 
         require(taskNumber == taskNumberToConfirm, "task number does not match record for that header");
         // record the compressed information pertaining to this particular task

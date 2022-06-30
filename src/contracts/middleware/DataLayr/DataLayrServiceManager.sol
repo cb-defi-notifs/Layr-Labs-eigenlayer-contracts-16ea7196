@@ -240,6 +240,7 @@ contract DataLayrServiceManager is
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
+        require(dumpNumberToSignatureHash[dumpNumberToConfirm] == bytes32(0), "Datastore has already been confirmed");
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
@@ -516,7 +517,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, , , ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, ,  ) = dataLayr.dataStores(serviceObjectHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -531,7 +532,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, uint32 storePeriodLength, , ) = dataLayr.dataStores(
+        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
             serviceObjectHash
         );
         uint256 timeCreated = uint256(initTime);

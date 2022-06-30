@@ -13,7 +13,7 @@ import "./DataLayrChallengeUtils.sol";
 contract DataLayrLowDegreeChallenge {
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
-        uint256 commitTime; 
+        uint256 commitTime;
         // challenger's address
         address challenger;
         // collateral amount associated with the challenge
@@ -21,13 +21,14 @@ contract DataLayrLowDegreeChallenge {
     }
 
     // modulus for the underlying field F_q of the elliptic curve
-    uint256 constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    uint256 constant MODULUS =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
     //TODO: change the time here
-    uint32 constant public DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
+    uint32 public constant DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
-    uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;
+    uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
     // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
-    uint256 constant public CHALLENGE_SUCCESSFUL = type(uint256).max;
+    uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
 
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
@@ -39,7 +40,12 @@ contract DataLayrLowDegreeChallenge {
         address challenger
     );
 
-    constructor(IDataLayrServiceManager _dataLayrServiceManager, IDataLayr _dataLayr, IDataLayrRegistry _dlRegistry, DataLayrChallengeUtils _challengeUtils) {
+    constructor(
+        IDataLayrServiceManager _dataLayrServiceManager,
+        IDataLayr _dataLayr,
+        IDataLayrRegistry _dlRegistry,
+        DataLayrChallengeUtils _challengeUtils
+    ) {
         dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
@@ -49,31 +55,25 @@ contract DataLayrLowDegreeChallenge {
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
-    function forceOperatorsToProveLowDegree(
-        bytes calldata header
-    ) public {
+    function forceOperatorsToProveLowDegree(bytes calldata header) public {
         bytes32 headerHash = keccak256(header);
-        
-        {
 
+        {
             /**
             Get information on the dataStore for which disperser is being challenged. This dataStore was 
             constructed during call to initDataStore in DataLayr.sol by the disperser.
             */
             (
-                // uint32 dumpNumber,
-                ,
+                uint32 dumpNumber,
                 uint32 initTime,
                 uint32 storePeriodLength,
                 // uint32 blockNumber,
-                ,
-                bool committed
             ) = dataLayr.dataStores(headerHash);
 
             uint256 expireTime = initTime + storePeriodLength;
 
-            // check that disperser had acquire quorum for this dataStore
-            require(committed, "Dump is not committed yet");
+            // check that disperser had acquire quorum for this dataStore 
+            require(dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) != bytes32(0), "Data store not committed");
 
             // check that the dataStore is still ongoing
             require(block.timestamp <= expireTime, "Dump has already expired");
@@ -109,20 +109,17 @@ contract DataLayrLowDegreeChallenge {
 
         // check that the challenge window is still open
         require(
-            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <= DEGREE_CHALLENGE_RESPONSE_WINDOW,
+            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <=
+                DEGREE_CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has already elapsed"
         );
 
-        (
-            uint256[2] memory c,
-            uint48 degree,
-            uint32 numSys,
-            // uint32 numPar -- commented out return variable
-            
-        ) = challengeUtils
-                .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                    header
-                );
+        (uint256[2] memory c, uint48 degree, uint32 numSys, ) = // uint32 numPar -- commented out return variable
+
+        challengeUtils
+            .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
 
         uint256 r = uint256(keccak256(abi.encodePacked(c, cPower))) % MODULUS;
 
@@ -157,7 +154,7 @@ contract DataLayrLowDegreeChallenge {
             )
             // staticcall returns 0 in the case that it reverted, in which case we also want to revert
             if iszero(
-                // call modexp precompile with parameters specified above, copying the (single, 32 byte) return value to the freemem location 
+                // call modexp precompile with parameters specified above, copying the (single, 32 byte) return value to the freemem location
                 staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
             ) {
                 revert(0, 0)
@@ -186,11 +183,19 @@ contract DataLayrLowDegreeChallenge {
     }
 
     function resolveLowDegreeChallenge(bytes32 headerHash) public {
-        require(lowDegreeChallenges[headerHash].commitTime != 0, "Challenge does not exist");
-        require(lowDegreeChallenges[headerHash].commitTime != CHALLENGE_UNSUCCESSFUL, "Challenge failed");
+        require(
+            lowDegreeChallenges[headerHash].commitTime != 0,
+            "Challenge does not exist"
+        );
+        require(
+            lowDegreeChallenges[headerHash].commitTime !=
+                CHALLENGE_UNSUCCESSFUL,
+            "Challenge failed"
+        );
         // check that the challenge window is no longer open
         require(
-            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) > DEGREE_CHALLENGE_RESPONSE_WINDOW,
+            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) >
+                DEGREE_CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has not yet elapsed"
         );
 
@@ -206,50 +211,54 @@ contract DataLayrLowDegreeChallenge {
         address operator,
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber
+            calldata signatoryRecord
     ) public {
         // verify that the challenge has been lost
-        require(lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL, "Challenge not successful");
+        require(
+            lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL,
+            "Challenge not successful"
+        );
 
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayr.sol by the disperser.
         */
-        (
-            uint32 dumpNumber,
-            uint32 blockNumber,
-            ,
-            ,
-            
-        ) = dataLayr.dataStores(headerHash);
+        (uint32 dumpNumber, uint32 blockNumber, ,  ) = dataLayr.dataStores(
+            headerHash
+        );
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry
+            .getStakeFromPubkeyHashAndIndex(
+                operatorPubkeyHash,
+                operatorHistoryIndex
+            );
         require(
             // operator must have become active/registered before (or at) the block number
             (operatorStake.updateBlockNumber <= blockNumber) &&
-            // operator must have still been active after (or until) the block number
-            // either there is a later update, past the specified blockNumber, or they are still active
-            (operatorStake.nextUpdateBlockNumber >= blockNumber ||
-            operatorStake.nextUpdateBlockNumber == 0),
+                // operator must have still been active after (or until) the block number
+                // either there is a later update, past the specified blockNumber, or they are still active
+                (operatorStake.nextUpdateBlockNumber >= blockNumber ||
+                    operatorStake.nextUpdateBlockNumber == 0),
             "operator was not active during blockNumber specified by dumpNumber / headerHash"
         );
 
-       /** 
+        /** 
        Check that the information supplied as input for this particular dataStore on DataLayr is correct
        */
-       require(
-           dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
-               keccak256(
-                   abi.encodePacked(
-                       dumpNumber,
-                       signatoryRecord.nonSignerPubkeyHashes,
-                       signatoryRecord.totalEthStakeSigned,
-                       signatoryRecord.totalEigenStakeSigned
-                   )
-               ),
-           "Sig record does not match hash"
-       );
+        require(
+            dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
+                keccak256(
+                    abi.encodePacked(
+                        dumpNumber,
+                        signatoryRecord.nonSignerPubkeyHashes,
+                        signatoryRecord.totalEthStakeSigned,
+                        signatoryRecord.totalEigenStakeSigned
+                    )
+                ),
+            "Sig record does not match hash"
+        );
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
