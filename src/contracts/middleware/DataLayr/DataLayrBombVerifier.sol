@@ -141,7 +141,7 @@ contract DataLayrBombVerifier {
                 );
             }
 
-            //verify all non signed datastores from bomb till first signed to get correct data
+            //verify all non signed DataStores from bomb till first signed to get correct data
             for (uint i = 1; i < signatoryRecords.length; i++) {
                 bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
                     operator
@@ -296,55 +296,65 @@ contract DataLayrBombVerifier {
             dlsm.MAX_DATASTORE_DURATION()
         );
 
-        uint32 nextDataStoreIdAfterBomb = type(uint32).max;
+        uint32 nextGlobalDataStoreIdAfterBomb = type(uint32).max;
 
-        for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); i++) {
-            //if no datastores for a certain duration, go to next duration
+        for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
+            // i is loop index, (i + 1) is duration
+
+            //if no DataStores for a certain duration, go to next duration
             if (
                 sandwichProofs[i][0][0] == sandwichProofs[i][0][1] &&
                 sandwichProofs[i][0][0] == 0
             ) {
                 require(
                     dlsm.totalDataStoresForDuration(i + 1) == 0,
-                    "datastores for duration are not 0"
+                    "DataStores for duration are not 0"
                 );
                 continue;
             }
-            // calculate the greater of (init time of bombDataStoreTimestamp - (duration + 1)) and fromTime
+            /*
+                calculate the greater of ((init time of bombDataStoreTimestamp) - duration) and fromTime
+                since 'fromTime' is the time at which the operator registered, if
+                fromTime is > (init time of bombDataStoreTimestamp) - duration), then we only care about DataStores
+                starting from 'fromTime'
+            */
             uint256 sandwichTimestamp = max(
                 bombDataStoreTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
                 fromTime
             );
             //verify sandwich proofs
+            // fetch the first durationDataStoreId at or after the sandwichTimestamp, for duration (i.e. i+1)
             firstDataStoreForDuration[i] = verifyDataStoreIdSandwich(
                 sandwichTimestamp,
-                i,
+                i + 1,
                 sandwichProofs[i][0]
             ).durationDataStoreId;
-            IDataLayrServiceManager.DataStoreIdPair
-                memory endDataStoreForDurationAfterWindowIdPair = verifyDataStoreIdSandwich(
-                    sandwichTimestamp,
-                    i,
+            // fetch the first durationDataStoreId and globalDataStoreId at or after the bombDataStoreTimestamp, for duration (i.e. i+1)
+            IDataLayrServiceManager.DataStoreIdPair memory detonationDataStoreIdPair = 
+                verifyDataStoreIdSandwich(
+                    bombDataStoreTimestamp,
+                    i + 1,
                     sandwichProofs[i][1]
-                );
-            //keep track of the next datastore id after the bomb
-            if (
-                nextDataStoreIdAfterBomb >
-                endDataStoreForDurationAfterWindowIdPair.globalDataStoreId
-            ) {
-                nextDataStoreIdAfterBomb = endDataStoreForDurationAfterWindowIdPair
-                    .globalDataStoreId;
+            );
+            // keep track of the next globalDataStoreId after the bomb
+            // check this for all the durations, and reduce the value in memory whenever a value for a specific duration is lower than current value
+            if (nextGlobalDataStoreIdAfterBomb > detonationDataStoreIdPair.globalDataStoreId) {
+                nextGlobalDataStoreIdAfterBomb = detonationDataStoreIdPair.globalDataStoreId;
             }
-            //record num of datastores
+            //record number of DataStores for duration
             numberActiveDataStoresForDuration[i] =
-                endDataStoreForDurationAfterWindowIdPair.durationDataStoreId -
+                detonationDataStoreIdPair.durationDataStoreId -
                 firstDataStoreForDuration[i];
+            // add number of DataStores (for this specific duration) to sum
             numberActiveDataStores += numberActiveDataStoresForDuration[i];
         }
 
+        // find the pseudo-randomly determined DataStore containing the bomb
         uint32 selectedDataStoreIndex = uint32(
             bombBlockhashInt % numberActiveDataStores
         );
+        // find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'
+        // we can think of this as the DataStore location specified by 'selectedDataStoreIndex'
         (
             uint8 durationIndex,
             uint32 offset
@@ -353,23 +363,28 @@ contract DataLayrBombVerifier {
                 numberActiveDataStoresForDuration
             );
 
+        // return the pseudo-randomized durationIndex, the nextGlobalDataStoreIdAfterBomb, and the precise durationDataStoreId specified by 'selectedDataStoreIndex'
         return (
             durationIndex,
-            nextDataStoreIdAfterBomb,
+            nextGlobalDataStoreIdAfterBomb,
             firstDataStoreForDuration[durationIndex] + offset
         );
-        //return (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextDataStoreIdAfterBomb);
+        //return (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextGlobalDataStoreIdAfterBomb);
     }
 
+    // checks that the provided timestamps accurately specify the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
+    // returns the first durationDataStoreId and globalDataStoreId at or after the sandwichTimestamp, for the specified duration
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
         uint8 duration,
         uint256[2] calldata timestamps
     ) internal view returns (IDataLayrServiceManager.DataStoreIdPair memory) {
+        // make sure that the first timestamp is strictly before the sandwichTimestamp
         require(
             timestamps[0] < sandwichTimestamp,
             "timestamps[0] must be before sandwich time"
         );
+        // make sure that the second timestamp is at or after the sandwichTimestamp
         require(
             timestamps[1] >= sandwichTimestamp,
             "timestamps[1] must be at or after sandwich time"
@@ -378,41 +393,48 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.DataStoreIdPair memory xDataStoreIdPair;
         //if not proving the first datastore
         if (timestamps[0] != 0) {
+            // fetch the *last* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[0]' 
             xDataStoreIdPair = dlsm.lastDataStoreIdAtTimestampForDuration(
                 duration,
                 timestamps[0]
             );
         }
         IDataLayrServiceManager.DataStoreIdPair memory yDataStoreIdPair;
-        //if not proving the last datastore
+        //if not proving the most recent datastore
         if (timestamps[1] != 0) {
+            // fetch the *first* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[1]' 
             yDataStoreIdPair = dlsm.firstDataStoreIdAtTimestampForDuration(
                 duration,
                 timestamps[1]
             );
+            // for the durationDataStoreId's that we just looked up, make sure that the first durationDataStoreId is just before the second durationDataStoreId
             require(
                 xDataStoreIdPair.durationDataStoreId + 1 ==
                     yDataStoreIdPair.durationDataStoreId,
-                "x and y datastore must be incremental or y datastore is not first in the duration"
+                "x and y datastore must be incremental"
             );
         } else {
-            //if timestamps[1] is 0, prover is claiming first datastore is the last datastore in that duration
+            //if timestamps[1] is 0, prover is claiming first datastore is the most recent datastore for that duration
             require(
                 dlsm.totalDataStoresForDuration(duration) ==
                     xDataStoreIdPair.durationDataStoreId,
-                "x datastore is not the last datastore in the duration or no datastores for duration"
+                "x datastore is not the most recent datastore for the duration"
             );
         }
+        // return the first durationDataStoreId and globalDataStoreId at or after the sandwichTimestamp, for the specified duration
         return yDataStoreIdPair;
     }
 
+    // inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration
+    // given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'
+    // in other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to a specific DataStore within that bin
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
     ) internal pure returns (uint8, uint32) {
         uint32 offsetLeft = offset;
         uint256 i = 0;
-        for (; i < numberActiveDataStoresForDuration.length; i++) {
+        for (; i < numberActiveDataStoresForDuration.length; ++i) {
             if (numberActiveDataStoresForDuration[i] > offsetLeft) {
                 break;
             }
