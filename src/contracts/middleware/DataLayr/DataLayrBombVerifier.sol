@@ -83,8 +83,8 @@ contract DataLayrBombVerifier {
         }
         
         (
-            uint32 bombDataStoreId,
-            uint32 detonationDataStoreId
+            uint32 bombGlobalDataStoreId,
+            uint32 detonationGlobalDataStoreId
         ) = verifyBombDataStoreId(
                 operator,
                 headerHashes.operatorFromHeaderHash,
@@ -116,10 +116,10 @@ contract DataLayrBombVerifier {
             dump on DataLayr is correct
             */
             require(
-                dlsm.getDumpNumberSignatureHash(detonationDataStoreId) ==
+                dlsm.getDumpNumberSignatureHash(detonationGlobalDataStoreId) ==
                     keccak256(
                         abi.encodePacked(
-                            detonationDataStoreId,
+                            detonationGlobalDataStoreId,
                             signatoryRecords[0].nonSignerPubkeyHashes,
                             signatoryRecords[0].totalEthStakeSigned,
                             signatoryRecords[0].totalEigenStakeSigned
@@ -148,10 +148,10 @@ contract DataLayrBombVerifier {
                 );
 
                 require(
-                    dlsm.getDumpNumberSignatureHash(bombDataStoreId) ==
+                    dlsm.getDumpNumberSignatureHash(bombGlobalDataStoreId) ==
                         keccak256(
                             abi.encodePacked(
-                                bombDataStoreId++,
+                                bombGlobalDataStoreId++,
                                 signatoryRecords[i].nonSignerPubkeyHashes,
                                 signatoryRecords[i].totalEthStakeSigned,
                                 signatoryRecords[i].totalEigenStakeSigned
@@ -166,7 +166,7 @@ contract DataLayrBombVerifier {
                     ] == operatorPubkeyHash,
                     "Incorrect nonsigner proof"
                 );
-                bombDataStoreId++;
+                bombGlobalDataStoreId++;
             }
         }
         {
@@ -204,6 +204,7 @@ contract DataLayrBombVerifier {
         //todo: SLASH HERE
     }
 
+    // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
     function verifyBombDataStoreId(
         address operator,
         bytes32 operatorFromHeaderHash,
@@ -231,12 +232,13 @@ contract DataLayrBombVerifier {
             // store the initTime of the dumpNumber at which the operator registered in memory
             fromTime = uint256(fromTimeUint32);
         }
-
-        // find the specific DataStore containing the bomb, specified 
+//SHOULDN'T THIS CALL USE THE **BOMB** PARAMETERS, **NOT** THE DETONATION PARAMETERS?
+        // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
+        // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
             uint8 durationIndex,
             uint32 calculatedDataStoreId,
-            uint32 nextDataStoreIdAfterBomb
+            uint32 nextGlobalDataStoreIdAfterBomb
         ) = verifySandwiches(
                 uint256(detonationHeaderHash),
                 fromTime,
@@ -244,29 +246,34 @@ contract DataLayrBombVerifier {
                 sandwichProofs
             );
 
+        // fetch the durationDataStoreId and globalDataStoreId for the specific 'detonation' DataStore specified by the parameters
         IDataLayrServiceManager.DataStoreIdPair
             memory bombDataStoreIdPair = dlsm.getDataStoreIdsForDuration(
                 durationIndex + 1,
                 detonationTime,
                 bombDataStoreIndex
             );
+        // check that the specified bombDataStore info matches the calculated info 
         require(
             bombDataStoreIdPair.durationDataStoreId == calculatedDataStoreId,
             "datastore id provided is not the same as loaded"
         );
         {
-            (uint32 detonationDataStoreId, , , ,) = dataLayr.dataStores(detonationHeaderHash);
-            require(detonationDataStoreId == nextDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
+            // get the dumpNumber for 'detonationHeaderHash'
+            (uint32 detonationGlobalDataStoreId, , , ,) = dataLayr.dataStores(detonationHeaderHash);
+            // check that the dumpNumber for the provided detonationHeaderHash matches the calculated value
+            require(detonationGlobalDataStoreId == nextGlobalDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
         }
+        // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
         return (
             bombDataStoreIdPair.globalDataStoreId,
-            nextDataStoreIdAfterBomb
+            detonationGlobalDataStoreId
         );
     }
 
     // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     function verifySandwiches(
-        uint256 bombBlockhashInt,
+        uint256 detonationHeaderHashValue,
         uint256 fromTime,
         uint256 bombDataStoreTimestamp,
         uint256[2][2][] calldata sandwichProofs
@@ -342,7 +349,7 @@ contract DataLayrBombVerifier {
 
         // find the pseudo-randomly determined DataStore containing the bomb
         uint32 selectedDataStoreIndex = uint32(
-            bombBlockhashInt % numberActiveDataStores
+            detonationHeaderHashValue % numberActiveDataStores
         );
         // find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'
         // we can think of this as the DataStore location specified by 'selectedDataStoreIndex'
