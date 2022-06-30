@@ -7,6 +7,7 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IServiceManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {

@@ -3,11 +3,12 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "./ServiceManagerStorage.sol";
 import "../interfaces/IRepository.sol";
-import "../interfaces/IServiceManager.sol";
 import "../interfaces/IVoteWeigher.sol";
+import "../interfaces/ITaskMetadata.sol";
 
-contract ServiceManagerBase is Initializable, IServiceManager {
+contract ServiceManagerBase is ServiceManagerStorage, Initializable {
     /**
      * @notice This struct is used for containing the details of a serviceObject that is created 
      *         by the middleware for validation in EigenLayr.
@@ -27,16 +28,8 @@ contract ServiceManagerBase is Initializable, IServiceManager {
         mapping(address => uint256) operatorWeights;
     }
 
-    /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         Middleware nodes.
-     */
-    IERC20 public immutable paymentToken;
-
-    IERC20 public immutable collateralToken;
-
-    IRepository public repository;
     IVoteWeigher public voteWeigher;
+    ITaskMetadata public taskMetadata;
     
     // fixed duration of all new serviceObjects
     uint256 public serviceObjectDuration;
@@ -68,21 +61,26 @@ contract ServiceManagerBase is Initializable, IServiceManager {
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
+    // only repositoryGovernance can call this, but 'sender' called instead
+    error OnlyRepositoryGovernance(
+        address repositoryGovernance,
+        address sender
+    );
 
 // TODO: change to initializer
-    constructor(IERC20 _paymentToken, IERC20 _collateralToken) {
-        paymentToken = _paymentToken;
-        collateralToken = _collateralToken;
+    constructor(IERC20 _paymentToken, IERC20 _collateralToken) ServiceManagerStorage(_paymentToken, _collateralToken) {
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
 
     function initialize(
         IRepository _repository,
-        IVoteWeigher _voteWeigher
+        IVoteWeigher _voteWeigher,
+        ITaskMetadata _taskMetadata
     )  external initializer {
         repository = _repository;
         voteWeigher = _voteWeigher;
+        taskMetadata = _taskMetadata;
     }
 
     /**
@@ -243,5 +241,32 @@ contract ServiceManagerBase is Initializable, IServiceManager {
 
     function _serviceObjectExpiry(bytes32 serviceObjectHash) internal view returns (uint256) {
         return getServiceObjectCreationTime(serviceObjectHash) + serviceObjectDuration;
+    }
+
+    /**
+     @notice this function returns the compressed record on the signatures of  nodes 
+             that aren't part of the quorum for this @param _taskNumber.
+     */
+    function getTaskNumberSignatureHash(uint32 _taskNumber)
+        public
+        view
+        returns (bytes32)
+    {
+        return taskNumberToSignatureHash[_taskNumber];
+    }
+
+    function getPaymentCollateral(address operator)
+        public
+        view
+        returns (uint256)
+    {
+        return operatorToPayment[operator].collateral;
+    }
+
+    modifier onlyRepositoryGovernance() {
+        if (!(address(repository.owner()) == msg.sender)) {
+            revert OnlyRepositoryGovernance(address(repository.owner()), msg.sender);
+        }
+        _;
     }
 }
