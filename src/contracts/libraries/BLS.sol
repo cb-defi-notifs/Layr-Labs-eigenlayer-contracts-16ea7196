@@ -15,7 +15,7 @@ library BLS {
      @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */ 
     function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
-        internal
+        internal view
         returns (uint256, uint256, uint256, uint256)
     {
         // uint256 offset = 68;
