@@ -2,15 +2,22 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDelegationTerms.sol";
+
 import "../ServiceManagerStorage.sol";
 import "../SignatureChecker.sol";
 import "../PaymentManager.sol";
+import "../Repository.sol";
+
+import "./nearbridge/NearBridge.sol";
+
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
-import "../Repository.sol";
+
+
 import "ds-test/test.sol";
 
 /**
@@ -24,6 +31,8 @@ contract OptimisticBridgeServiceManager is
     PaymentManager
     // ,DSTest
 {
+    INearBridge nearbridge;
+    Ed25519 immutable edwards;
     using BytesLib for bytes;
 
     constructor(
@@ -41,6 +50,12 @@ contract OptimisticBridgeServiceManager is
         repository = _repository;
     }
 
+    function initBridge() public {
+        
+
+        nearbridge = NearBridge();
+    }
+
     /**
      * @notice This function is used for
      *          - notifying in the settlement layer that the disperser has asserted the data
@@ -55,10 +70,12 @@ contract OptimisticBridgeServiceManager is
      *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
-        bytes calldata header,
+        bytes calldata headerhash,
         uint32 blockNumber
     ) external payable {
-        bytes32 headerHash = keccak256(header);
+        //bytes32 headerHash = keccak256(header);
+
+        //@TODO: check signatures on the signed header hash 
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -110,11 +127,11 @@ contract OptimisticBridgeServiceManager is
             >
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data) external payable {
+    function confirmDataStore(bytes calldata data, bytes calldata block) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
         (
-            uint32 taskNumberToConfirm,
+            uint32 taskNumberToConfirm, 
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -127,6 +144,10 @@ contract OptimisticBridgeServiceManager is
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
         taskNumberToSignatureHash[taskNumberToConfirm] = signatoryRecordHash;
+
+        //add block 
+        nearbridge.addLightClientBlock(block);
+
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         // dataLayr.confirm(
