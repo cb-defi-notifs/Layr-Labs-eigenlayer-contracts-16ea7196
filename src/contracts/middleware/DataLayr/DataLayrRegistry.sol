@@ -381,7 +381,7 @@ contract DataLayrRegistry is
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
         //posting last ephemeral key reveal on chain
-        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
+        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, finalEphemeralKey);
 
         emit Deregistration(msg.sender);
         return true;
@@ -876,7 +876,7 @@ contract DataLayrRegistry is
 
         
         //add ephemeral key to epehemral key registry
-        ephemeralKeyRegistry.postFirstEphemeralKeyPreImage(operator, ephemeralKey);
+        ephemeralKeyRegistry.postFirstEphemeralKeyHash(operator, ephemeralKey);
         
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }

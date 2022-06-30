@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 import "./IDataLayr.sol";
 
 interface IDataLayrEphemeralKeyRegistry {
-    function postFirstEphemeralKeyPreImage(
+    function postFirstEphemeralKeyHash(
         address operator,
         bytes32 EKHash
     ) external;

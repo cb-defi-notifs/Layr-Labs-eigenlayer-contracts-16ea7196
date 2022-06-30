@@ -4,43 +4,52 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
 import "./DataLayrRegistry.sol";
 
+// TODO: need to add minimum window for update
+// TODO: MAJOR CRITIQUE -- we need nonoverlapping windows for 'updateEphemeralKeyPreImage' and 'verifyEphemeralKeyIntegrity'
+    // as-is, someone can frontrun a transaction to 'updateEphemeralKeyPreImage' by calling 'verifyEphemeralKeyIntegrity' to slash an honest operator
 contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     struct HashEntry{
         bytes32 keyHash;
-        uint timestamp;
+        uint256 timestamp;
     }
     struct EKEntry{
         bytes32 EK;
-        uint timestamp;
+        uint256 timestamp;
     }
-    mapping(address=>HashEntry) public EKRegistry;
-    mapping(address => EKEntry) public latestEk;
 
-    
-
-    uint256 public updatePeriod = 7 days;
-
+    // max amount of time that a DLN can take to update their ephemeral key
+    uint256 public constant UPDATE_PERIOD = 7 days;
+    // the DataLayr Repository contract
     IRepository public immutable repository;
+
+    mapping(address => HashEntry) public EKRegistry;
+    mapping(address => EKEntry) public latestEK;
+
+    modifier onlyDLRegistry() {
+        address dlRegistry = address(repository.registrationManager());
+        require(msg.sender == dlRegistry, "onlyDLRegistry");
+        _;
+    }
 
     constructor(IRepository _repository){
         repository = _repository;
     }
 
     /*
-    * Allows DLN to post their first ephemeral key hash via DataLayrRegistry
+    * Allows DLN to post their first ephemeral key hash via DataLayrRegistry (on registration)
     */
-    function postFirstEphemeralKeyPreImage(address operator, bytes32 EKHash) external {
-        require(EKRegistry[operator].keyHash==0, "previous ephemeral key already exists");
+    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyDLRegistry {
+        require(EKRegistry[operator].keyHash == 0, "previous ephemeral key already exists");
         EKRegistry[operator].keyHash = EKHash;
         EKRegistry[operator].timestamp = block.timestamp;
     }
 
     /*
-    * Allows DLN to post their final ephemeral key hash via DataLayrRegistry
+    * Allows DLN to post their final ephemeral key preimage via DataLayrRegistry (on degregistration)
     */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external {
-        latestEk[operator].EK = EK;
-        latestEk[operator].timestamp = block.timestamp;
+    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external onlyDLRegistry {
+        latestEK[operator].EK = EK;
+        latestEK[operator].timestamp = block.timestamp;
     }
 
      /*
@@ -49,13 +58,13 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) external {
         require(keccak256(abi.encodePacked(prevEK)) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
 
-        require(block.timestamp <= EKRegistry[msg.sender].timestamp + updatePeriod, "key update cannot be completed as update window has expired");
+        require(block.timestamp <= EKRegistry[msg.sender].timestamp + UPDATE_PERIOD, "key update cannot be completed as update window has expired");
 
         EKRegistry[msg.sender].keyHash = currEKHash;
         EKRegistry[msg.sender].timestamp = block.timestamp;
 
-        latestEk[msg.sender].EK = prevEK;
-        latestEk[msg.sender].timestamp = block.timestamp;
+        latestEK[msg.sender].EK = prevEK;
+        latestEK[msg.sender].timestamp = block.timestamp;
     }
 
 
@@ -71,7 +80,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         external view
         returns (bytes32)
     {
-        return latestEk[dataLayrNode].EK;
+        return latestEK[dataLayrNode].EK;
     }
 
     /*
@@ -83,7 +92,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
 
-        if(EKRegistry[dataLayrNode].timestamp + 7 days < block.timestamp){
+        if((EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD) < block.timestamp) {
+            // TODO: add slashing
             //trigger slashing for DLN who hasn't updated their EK
         }
 
@@ -95,14 +105,14 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     */
     function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external {
         
-        if(EKRegistry[dataLayrNode].keyHash==keccak256(abi.encode(leakedEphemeralKey))){
+        if (EKRegistry[dataLayrNode].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
             //trigger slashing function for that datalayr node address
         }
     }
 
 
     function getLastEKPostTimestamp(address dataLayrNode) external view returns (uint) {
-        return latestEk[dataLayrNode].timestamp;
+        return latestEK[dataLayrNode].timestamp;
     }
 
 }
