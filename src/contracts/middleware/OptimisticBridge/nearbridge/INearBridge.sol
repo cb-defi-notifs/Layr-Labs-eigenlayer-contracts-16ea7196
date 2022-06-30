@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8;
+import "./NearDecoder.sol";
 
 interface INearBridge {
     event BlockHashAdded(uint64 indexed height, bytes32 blockHash);
@@ -20,9 +21,9 @@ interface INearBridge {
 
     function initWithBlock(bytes calldata data) external;
 
-    function addLightClientBlock(bytes calldata data) external;
+    function addLightClientBlock(address claimer, bytes memory data) external;
 
-    function challenge(address payable receiver, uint256 signatureIndex) external;
+    function challenge(address payable receiver, uint64 height, uint signatureIndex, NearDecoder.Signature[100] calldata signatures) external;
 
-    function checkBlockProducerSignatureInHead(uint256 signatureIndex) external view returns (bool);
+    function checkBlockProducerSignatureInHead(uint64 height, uint signatureIndex, NearDecoder.Signature[100] calldata signatures) external view returns (bool);
 }
