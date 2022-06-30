@@ -19,6 +19,10 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
 
     // max amount of time that a DLN can take to update their ephemeral key
     uint256 public constant UPDATE_PERIOD = 7 days;
+
+    //max amout of time DLN has to submit and confirm the ephemeral key reveal transaction
+    uint256 public constant REVEAL_PERIOD = 1 days;
+    
     // the DataLayr Repository contract
     IRepository public immutable repository;
 
@@ -92,7 +96,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
 
-        if((EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD) < block.timestamp) {
+        if((EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD + REVEAL_PERIOD) < block.timestamp) {
             // TODO: add slashing
             //trigger slashing for DLN who hasn't updated their EK
         }
@@ -105,8 +109,10 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     */
     function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external {
         
-        if (EKRegistry[dataLayrNode].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
-            //trigger slashing function for that datalayr node address
+        if (block.timestamp < EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD){
+            if (EKRegistry[dataLayrNode].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
+                //trigger slashing function for that datalayr node address
+            }
         }
     }
 
