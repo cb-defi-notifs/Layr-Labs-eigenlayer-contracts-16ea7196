@@ -279,7 +279,7 @@ contract DataLayrBombVerifier {
         uint256 bombDataStoreTimestamp,
         uint256[2][2][] calldata sandwichProofs
     )
-        internal
+        internal view
         returns (
             uint8,
             uint32,
@@ -454,8 +454,8 @@ contract DataLayrBombVerifier {
         */
         (
             uint32 dumpNumber,
-            uint32 initTime,
-            uint32 storePeriodLength,
+            ,
+            ,
             ,
             bool committed
         ) = dataLayr.dataStores(headerHash);
