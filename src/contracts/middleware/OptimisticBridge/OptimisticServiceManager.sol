@@ -33,7 +33,18 @@ contract OptimisticBridgeServiceManager is
 {
     INearBridge nearbridge;
     Ed25519 immutable edwards;
+
+    uint32 currentTaskNumber = 0;
+
+    struct BridgeTransfer {
+        uint32 taskNumber;
+        uint32 initTime;
+    }
+
+    mapping(bytes32 => BridgeTransfer) bridgeTransferHash;
+
     using BytesLib for bytes;
+
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -51,31 +62,16 @@ contract OptimisticBridgeServiceManager is
     }
 
     function initBridge() public {
-        
-
         nearbridge = NearBridge();
     }
 
-    /**
-     * @notice This function is used for
-     *          - notifying in the settlement layer that the disperser has asserted the data
-     *            into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
-     *          - asserting the metadata corresponding to the data asserted into DataLayr
-     *          - escrow the service fees that DataLayr operators will receive from the disperser
-     *            on account of their service.
-     */
-    /**
-     * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param blockNumber for which the confirmation will consult total + operator stake amounts 
-     *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
-     */
-    function initDataStore(
-        bytes calldata headerhash,
-        uint32 blockNumber
-    ) external payable {
-        //bytes32 headerHash = keccak256(header);
 
-        //@TODO: check signatures on the signed header hash 
+    /**
+     * @param headerHash is the signed header from the Near blockchain
+     */
+    function initBridgeTransfer(
+        bytes calldata headerhash
+    ) external payable {
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
@@ -84,24 +80,17 @@ contract OptimisticBridgeServiceManager is
         // record the total service fee that will be paid out for this assertion of data
         taskNumberToFee[taskNumber] = fee;
 
-        // recording the expiry time until which the DataLayr operators, who sign up to
-        // part of the quorum, have to store the data
-        // IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
-        //     uint32(block.timestamp) + storePeriodLength
-        // );
 
         // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
-        // call DataLayr contract
-        // dataLayr.initDataStore(
-        //     taskNumber,
-        //     headerHash,
-        //     totalBytes,
-        //     storePeriodLength,
-        //     blockNumber,
-        //     header
-        // );
+
+        uint32 initTime = uint32(block.timestamp);
+        //record headerhash
+        bridgeTransferHash[headerhash] = BridgeTransfer(
+            taskNumber,
+            initTime
+        );
 
         // increment the counter
         ++taskNumber;
@@ -109,27 +98,17 @@ contract OptimisticBridgeServiceManager is
 
     /**
      * @notice This function is used for
-     *          - disperser to notify that signatures on the message, comprising of hash( headerHash ),
-     *            from quorum of DataLayr nodes have been obtained,
-     *          - check that each of the signatures are valid,
-     *          - call the DataLayr contract to check that whether quorum has been achieved or not.
      */
     /** 
      @param data is of the format:
-            <
-             bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the taskNumber in the 'totalStakeHistory' array of the DataLayrRegistry
-             uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >
+     @param header
+
      */
-    // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data, bytes calldata block) external payable {
-        // verify the signatures that disperser is claiming to be that of DataLayr operators
-        // who have agreed to be in the quorum
+
+    function confirmBridgeTransfer(bytes calldata data, bytes calldata header) external payable {
+        
+
+        // verify the signatures of the DataLayr operators
         (
             uint32 taskNumberToConfirm, 
             bytes32 headerHash,
@@ -137,26 +116,21 @@ contract OptimisticBridgeServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        require(taskNumberToConfirm > 0 && taskNumberToConfirm < taskNumber, "Task number is invalid");
+        require(keccak256(abi.encodePacked(header)) == headerHash, "provided header is incorrect");
 
+        require(taskNumberToConfirm > 0 && taskNumberToConfirm < currentTaskNumber, "Task number is invalid");
+
+
+        uint32 taskNumber = bridgeTransferHash[headerHash].taskNumber;
+
+        require(taskNumber == taskNumberToConfirm, "task number does not match record for that header");
         // record the compressed information pertaining to this particular task
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
         taskNumberToSignatureHash[taskNumberToConfirm] = signatoryRecordHash;
 
-        //add block 
-        nearbridge.addLightClientBlock(block);
-
-
-        // call DataLayr contract to check whether quorum is satisfied or not and record it
-        // dataLayr.confirm(
-        //     taskNumberToConfirm,
-        //     headerHash,
-        //     signedTotals.ethStakeSigned,
-        //     signedTotals.eigenStakeSigned,
-        //     signedTotals.totalEthStake,
-        //     signedTotals.totalEigenStake
-        // );
+        //add header 
+        nearbridge.addLightClientBlock(header);
     }
 }
