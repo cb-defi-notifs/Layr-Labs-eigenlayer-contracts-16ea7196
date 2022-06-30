@@ -232,21 +232,11 @@ contract DataLayrBombVerifier {
             fromTime = uint256(fromTimeUint32);
         }
 
-        // uint32 numberActiveDataStores;
-        // uint32[] memory numberActiveDataStoresForDuration;
-        uint32[] memory firstDataStoreForDuration;
-        // uint32 nextDataStoreIdAfterBomb;
-
-        // (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextDataStoreIdAfterBomb) = verifySandwiches(fromTime, bombDataStoreTimestamp, sandwichProofs);
-
-        // uint256 bombBlockhashInt = 0;
-        // uint32 selectedDataStoreIndex = uint32(bombBlockhashInt % numberActiveDataStores);
-        // (uint8 durationIndex, uint32 offset) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(selectedDataStoreIndex, numberActiveDataStoresForDuration);
-
+        // find the specific DataStore containing the bomb, specified 
         (
             uint8 durationIndex,
-            uint32 nextDataStoreIdAfterBomb,
-            uint32 calculatedDataStoreId
+            uint32 calculatedDataStoreId,
+            uint32 nextDataStoreIdAfterBomb
         ) = verifySandwiches(
                 uint256(detonationHeaderHash),
                 fromTime,
@@ -274,6 +264,7 @@ contract DataLayrBombVerifier {
         );
     }
 
+    // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     function verifySandwiches(
         uint256 bombBlockhashInt,
         uint256 fromTime,
@@ -363,13 +354,12 @@ contract DataLayrBombVerifier {
                 numberActiveDataStoresForDuration
             );
 
-        // return the pseudo-randomized durationIndex, the nextGlobalDataStoreIdAfterBomb, and the precise durationDataStoreId specified by 'selectedDataStoreIndex'
+        // return the pseudo-randomized durationIndex and durationDataStoreId, specified by selectedDataStoreIndex, as well as the nextGlobalDataStoreIdAfterBomb
         return (
             durationIndex,
-            nextGlobalDataStoreIdAfterBomb,
-            firstDataStoreForDuration[durationIndex] + offset
+            firstDataStoreForDuration[durationIndex] + offset,
+            nextGlobalDataStoreIdAfterBomb
         );
-        //return (numberActiveDataStores, numberActiveDataStoresForDuration, firstDataStoreForDuration, nextGlobalDataStoreIdAfterBomb);
     }
 
     // checks that the provided timestamps accurately specify the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
