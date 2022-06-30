@@ -33,26 +33,24 @@ contract NearBridge is INearBridge, AdminControlled {
     uint256 public lastValidAt;
 
     uint64 curHeight;
-    // The most recently added block. May still be in its challenge period, so should not be trusted.
-    uint64 untrustedHeight;
 
     // Address of the account which submitted the last block.
     address lastSubmitter;
 
     // Whether the contract was initialized.
     bool public initialized;
-    bool untrustedNextEpoch;
-    uint256 untrustedTimestamp;
 
     Epoch[3] epochs;
-    uint256 curEpoch;
 
     mapping(uint64 => bytes32) blockHashes_;
     mapping(uint64 => bytes32) blockMerkleRoots_;
+    mapping(uint64 => uint256) blockTimestamps_;
     mapping(uint64 => bytes32) blockNextHashes_;
     mapping(uint64 => uint256) blockSigSets_;
     mapping(uint64 => bytes32) blockSigHashes_;
     mapping(uint64 => uint256) timeAdded;
+    mapping(uint64 => bool) nextEpoch;
+    mapping(uint64 => uint256) curEpoch;
     mapping(address => uint256) public override balanceOf;
 
     constructor(
@@ -98,6 +96,8 @@ contract NearBridge is INearBridge, AdminControlled {
         require(keccak256(abi.encode(signatures)) == blockSigHashes_[height], "Signature preimage is incorrect");
         require(!checkBlockProducerSignatureInHead(height, signatureIndex, signatures), "Can't challenge valid signature");
 
+        curHeight = height - 1;
+        //SLASH OPTBRIDGE LAYR HERE
         balanceOf[lastSubmitter] = balanceOf[lastSubmitter] - lockEthAmount;
         lastValidAt = 0;
         receiver.call{value: lockEthAmount / 2}("");
@@ -107,12 +107,12 @@ contract NearBridge is INearBridge, AdminControlled {
         // Shifting by a number >= 256 returns zero.
         require((blockSigSets_[height] & (1 << signatureIndex)) != 0, "No such signature");
         unchecked {
-            Epoch storage untrustedEpoch = epochs[untrustedNextEpoch ? (curEpoch + 1) % 3 : curEpoch];
+            Epoch storage untrustedEpoch = epochs[curEpoch[curHeight]];
             NearDecoder.Signature memory signature = signatures[signatureIndex];
             bytes memory message = abi.encodePacked(
                 uint8(0),
                 blockNextHashes_[height],
-                Utils.swapBytes8(untrustedHeight + 2),
+                Utils.swapBytes8(height + 2),
                 bytes23(0)
             );
             (bytes32 arg1, bytes9 arg2) = abi.decode(message, (bytes32, bytes9));
@@ -159,15 +159,11 @@ contract NearBridge is INearBridge, AdminControlled {
     }
 
     function bridgeState() public view returns (BridgeState memory res) {
-        if (block.timestamp < lastValidAt) {
-            res.currentHeight = curHeight;
-            res.nextTimestamp = untrustedTimestamp;
-            res.nextValidAt = lastValidAt;
-            unchecked {
-                res.numBlockProducers = epochs[untrustedNextEpoch ? (curEpoch + 1) % 3 : curEpoch].numBPs;
-            }
-        } else {
-            res.currentHeight = lastValidAt == 0 ? curHeight : untrustedHeight;
+        res.currentHeight = curHeight;
+        res.nextTimestamp = blockTimestamps_[curHeight];
+        res.nextValidAt = lastValidAt;
+        unchecked {
+            res.numBlockProducers = epochs[curEpoch[curHeight]].numBPs;
         }
     }
 
@@ -183,14 +179,9 @@ contract NearBridge is INearBridge, AdminControlled {
             // Commit the previous block, or make sure that it is OK to replace it.
             if (block.timestamp < lastValidAt) {
                 require(
-                    nearBlock.inner_lite.timestamp >= untrustedTimestamp + replaceDuration,
+                    nearBlock.inner_lite.timestamp >= blockTimestamps_[curHeight] + replaceDuration,
                     "Can only replace with a sufficiently newer block"
                 );
-            } else if (lastValidAt != 0) {
-                if (untrustedNextEpoch) {
-                    curEpoch = (curEpoch + 1) % 3;
-                }
-                lastValidAt = 0;
             }
 
             // Check that the new block's height is greater than the current one's.
@@ -198,16 +189,16 @@ contract NearBridge is INearBridge, AdminControlled {
 
             // Check that the new block is from the same epoch as the current one, or from the next one.
             bool fromNextEpoch;
-            if (nearBlock.inner_lite.epoch_id == epochs[curEpoch].epochId) {
+            if (nearBlock.inner_lite.epoch_id == epochs[curEpoch[curHeight]].epochId) {
                 fromNextEpoch = false;
-            } else if (nearBlock.inner_lite.epoch_id == epochs[(curEpoch + 1) % 3].epochId) {
+            } else if (nearBlock.inner_lite.epoch_id == epochs[(curEpoch[curHeight] + 1) % 3].epochId) {
                 fromNextEpoch = true;
             } else {
                 revert("Epoch id of the block is not valid");
             }
 
             // Check that the new block is signed by more than 2/3 of the validators.
-            Epoch storage thisEpoch = epochs[fromNextEpoch ? (curEpoch + 1) % 3 : curEpoch];
+            Epoch storage thisEpoch = epochs[fromNextEpoch ? (curEpoch[curHeight] + 1) % 3 : curEpoch[curHeight]];
             // Last block in the epoch might contain extra approvals that light client can ignore.
             require(nearBlock.approvals_after_next.length >= thisEpoch.numBPs, "Approval list is too short");
             // The sum of uint128 values cannot overflow.
@@ -236,7 +227,7 @@ contract NearBridge is INearBridge, AdminControlled {
             }
 
             curHeight = nearBlock.inner_lite.height;
-            untrustedTimestamp = nearBlock.inner_lite.timestamp;
+            blockTimestamps_[curHeight] = nearBlock.inner_lite.timestamp;
             timeAdded[curHeight] = block.timestamp;
             blockHashes_[curHeight] = nearBlock.hash;
             blockMerkleRoots_[curHeight] = nearBlock.inner_lite.block_merkle_root;
@@ -253,11 +244,12 @@ contract NearBridge is INearBridge, AdminControlled {
             }
             blockSigSets_[curHeight] = signatureSet;
             blockSigHashes_[curHeight] = keccak256(abi.encode(signatures));
-            untrustedNextEpoch = fromNextEpoch;
+            nextEpoch[curHeight] = fromNextEpoch;
             if (fromNextEpoch) {
-                Epoch storage nextEpoch = epochs[(curEpoch + 2) % 3];
+                Epoch storage nextEpoch = epochs[(curEpoch[curHeight-1] + 2) % 3];
                 nextEpoch.epochId = nearBlock.inner_lite.next_epoch_id;
                 setBlockProducers(nearBlock.next_bps.blockProducers, nextEpoch);
+                curEpoch[curHeight] = (curEpoch[curHeight-1] + 1) % 3;
             }
             lastSubmitter = msg.sender;
             lastValidAt = block.timestamp + lockDuration;

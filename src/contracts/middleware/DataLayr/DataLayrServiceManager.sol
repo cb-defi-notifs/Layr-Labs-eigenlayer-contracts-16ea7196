@@ -174,6 +174,7 @@ contract DataLayrServiceManager is
         // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
+        uint g = gasleft();
         // call DataLayr contract
         dataLayr.initDataStore(
             dumpNumber,
@@ -183,6 +184,7 @@ contract DataLayrServiceManager is
             blockNumber,
             header
         );
+        emit log_named_uint("initdatalayr gas", g - gasleft());
 
         // increment the counter
         ++dumpNumber;
@@ -211,12 +213,14 @@ contract DataLayrServiceManager is
     function confirmDataStore(bytes calldata data) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
+        uint g = gasleft();
         (
             uint32 dumpNumberToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
+        emit log_named_uint("entire signature checking gas", g - gasleft());
 
         require(dumpNumberToConfirm > 0 && dumpNumberToConfirm < dumpNumber, "Dump number is invalid");
 
