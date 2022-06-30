@@ -174,7 +174,7 @@ contract DataLayrBombVerifier {
                 keccak256(disclosureProof.header)
             );
             require(
-                loadedBombDataStoreId == bombDataStoreId,
+                loadedBombDataStoreId == bombGlobalDataStoreId,
                 "loaded bomb datastore id must be as calculated"
             );
         }
@@ -267,7 +267,8 @@ contract DataLayrBombVerifier {
         // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
         return (
             bombDataStoreIdPair.globalDataStoreId,
-            detonationGlobalDataStoreId
+            // note that this matches detonationGlobalDataStoreId, as checked above
+            nextGlobalDataStoreIdAfterBomb
         );
     }
 
