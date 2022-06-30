@@ -230,8 +230,8 @@ contract InvestmentTests is
         
         //initiate withdrawal
 
-        InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[0], 0);
-        uint96 queuedWithdrawalNonce = nonce.nonce;
+        // InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[0], 0);
+        // uint96 queuedWithdrawalNonce = nonce.nonce;
 
         
     }
