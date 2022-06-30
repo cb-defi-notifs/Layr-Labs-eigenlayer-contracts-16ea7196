@@ -22,6 +22,7 @@ contract NearBridge is INearBridge, AdminControlled {
     }
 
     uint256 public lockEthAmount;
+    uint256 public challengeWindow;
     // lockDuration and replaceDuration shouldn't be extremely big, so adding them to an uint64 timestamp should not overflow uint256.
     uint256 public lockDuration;
     // replaceDuration is in nanoseconds, because it is a difference between NEAR timestamps.
@@ -41,22 +42,22 @@ contract NearBridge is INearBridge, AdminControlled {
     // Whether the contract was initialized.
     bool public initialized;
     bool untrustedNextEpoch;
-    bytes32 untrustedHash;
-    bytes32 untrustedMerkleRoot;
-    bytes32 untrustedNextHash;
     uint256 untrustedTimestamp;
-    uint256 untrustedSignatureSet;
-    NearDecoder.Signature[MAX_BLOCK_PRODUCERS] untrustedSignatures;
 
     Epoch[3] epochs;
     uint256 curEpoch;
 
     mapping(uint64 => bytes32) blockHashes_;
     mapping(uint64 => bytes32) blockMerkleRoots_;
+    mapping(uint64 => bytes32) blockNextHashes_;
+    mapping(uint64 => uint256) blockSigSets_;
+    mapping(uint64 => bytes32) blockSigHashes_;
+    mapping(uint64 => uint256) timeAdded;
     mapping(address => uint256) public override balanceOf;
 
     constructor(
         Ed25519 ed,
+        uint256 challengeWindow_,
         uint256 lockEthAmount_,
         uint256 lockDuration_,
         uint256 replaceDuration_,
@@ -65,6 +66,7 @@ contract NearBridge is INearBridge, AdminControlled {
     ) AdminControlled(admin_, pausedFlags_) {
         require(replaceDuration_ > lockDuration_ * 1000000000);
         edwards = ed;
+        challengeWindow = challengeWindow_;
         lockEthAmount = lockEthAmount_;
         lockDuration = lockDuration_;
         replaceDuration = replaceDuration_;
@@ -90,24 +92,26 @@ contract NearBridge is INearBridge, AdminControlled {
         payable(msg.sender).transfer(amount);
     }
 
-    function challenge(address payable receiver, uint signatureIndex) external override pausable(PAUSED_CHALLENGE) {
-        require(block.timestamp < lastValidAt, "No block can be challenged at this time");
-        require(!checkBlockProducerSignatureInHead(signatureIndex), "Can't challenge valid signature");
+    function challenge(address payable receiver, uint64 height, uint signatureIndex, NearDecoder.Signature[100] calldata signatures) external override pausable(PAUSED_CHALLENGE) {
+        require(height <= curHeight, "Future block cannot be challenged");
+        require(block.timestamp < timeAdded[height] + challengeWindow, "Blocks can only be challenged within thei challenge window");
+        require(keccak256(abi.encode(signatures)) == blockSigHashes_[height], "Signature preimage is incorrect");
+        require(!checkBlockProducerSignatureInHead(height, signatureIndex, signatures), "Can't challenge valid signature");
 
         balanceOf[lastSubmitter] = balanceOf[lastSubmitter] - lockEthAmount;
         lastValidAt = 0;
         receiver.call{value: lockEthAmount / 2}("");
     }
 
-    function checkBlockProducerSignatureInHead(uint signatureIndex) public view override returns (bool) {
+    function checkBlockProducerSignatureInHead(uint64 height, uint signatureIndex, NearDecoder.Signature[100] calldata signatures) public view override returns (bool) {
         // Shifting by a number >= 256 returns zero.
-        require((untrustedSignatureSet & (1 << signatureIndex)) != 0, "No such signature");
+        require((blockSigSets_[height] & (1 << signatureIndex)) != 0, "No such signature");
         unchecked {
             Epoch storage untrustedEpoch = epochs[untrustedNextEpoch ? (curEpoch + 1) % 3 : curEpoch];
-            NearDecoder.Signature storage signature = untrustedSignatures[signatureIndex];
+            NearDecoder.Signature memory signature = signatures[signatureIndex];
             bytes memory message = abi.encodePacked(
                 uint8(0),
-                untrustedNextHash,
+                blockNextHashes_[height],
                 Utils.swapBytes8(untrustedHeight + 2),
                 bytes23(0)
             );
@@ -167,9 +171,9 @@ contract NearBridge is INearBridge, AdminControlled {
         }
     }
 
-    function addLightClientBlock(bytes memory data) public override pausable(PAUSED_ADD_BLOCK) {
+    function addLightClientBlock(address claimer, bytes memory data) public override pausable(PAUSED_ADD_BLOCK) {
         require(initialized, "Contract is not initialized");
-        require(balanceOf[msg.sender] >= lockEthAmount, "Balance is not enough");
+        require(balanceOf[claimer] >= lockEthAmount, "Balance is not enough");
 
         Borsh.Data memory borsh = Borsh.from(data);
         NearDecoder.LightClientBlock memory nearBlock = borsh.decodeLightClientBlock();
@@ -183,14 +187,10 @@ contract NearBridge is INearBridge, AdminControlled {
                     "Can only replace with a sufficiently newer block"
                 );
             } else if (lastValidAt != 0) {
-                curHeight = untrustedHeight;
                 if (untrustedNextEpoch) {
                     curEpoch = (curEpoch + 1) % 3;
                 }
                 lastValidAt = 0;
-
-                blockHashes_[curHeight] = untrustedHash;
-                blockMerkleRoots_[curHeight] = untrustedMerkleRoot;
             }
 
             // Check that the new block's height is greater than the current one's.
@@ -235,21 +235,24 @@ contract NearBridge is INearBridge, AdminControlled {
                 );
             }
 
-            untrustedHeight = nearBlock.inner_lite.height;
+            curHeight = nearBlock.inner_lite.height;
             untrustedTimestamp = nearBlock.inner_lite.timestamp;
-            untrustedHash = nearBlock.hash;
-            untrustedMerkleRoot = nearBlock.inner_lite.block_merkle_root;
-            untrustedNextHash = nearBlock.next_hash;
+            timeAdded[curHeight] = block.timestamp;
+            blockHashes_[curHeight] = nearBlock.hash;
+            blockMerkleRoots_[curHeight] = nearBlock.inner_lite.block_merkle_root;
+            blockNextHashes_[curHeight] = nearBlock.next_hash;
 
             uint256 signatureSet = 0;
+            NearDecoder.Signature[MAX_BLOCK_PRODUCERS] memory signatures;
             for ((uint i, uint cnt) = (0, thisEpoch.numBPs); i < cnt; i++) {
                 NearDecoder.OptionalSignature memory approval = nearBlock.approvals_after_next[i];
                 if (approval.some) {
                     signatureSet |= 1 << i;
-                    untrustedSignatures[i] = approval.signature;
+                    signatures[i] = approval.signature;
                 }
             }
-            untrustedSignatureSet = signatureSet;
+            blockSigSets_[curHeight] = signatureSet;
+            blockSigHashes_[curHeight] = keccak256(abi.encode(signatures));
             untrustedNextEpoch = fromNextEpoch;
             if (fromNextEpoch) {
                 Epoch storage nextEpoch = epochs[(curEpoch + 2) % 3];
@@ -290,15 +293,9 @@ contract NearBridge is INearBridge, AdminControlled {
 
     function blockHashes(uint64 height) public view override pausable(PAUSED_VERIFY) returns (bytes32 res) {
         res = blockHashes_[height];
-        if (res == 0 && block.timestamp >= lastValidAt && lastValidAt != 0 && height == untrustedHeight) {
-            res = untrustedHash;
-        }
     }
 
     function blockMerkleRoots(uint64 height) public view override pausable(PAUSED_VERIFY) returns (bytes32 res) {
         res = blockMerkleRoots_[height];
-        if (res == 0 && block.timestamp >= lastValidAt && lastValidAt != 0 && height == untrustedHeight) {
-            res = untrustedMerkleRoot;
-        }
     }
 }
