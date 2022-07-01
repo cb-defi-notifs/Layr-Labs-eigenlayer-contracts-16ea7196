@@ -534,7 +534,9 @@ contract EigenLayrDeployer is
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
+        uint256 g = gasleft();
         dlsm.initDataStore(header, duration, totalBytes, blockNumber);
+        emit log_named_uint("gas for init data store", g- gasleft());
         uint32 dumpNumber = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
@@ -542,8 +544,7 @@ contract EigenLayrDeployer is
             uint32 dataStoreDumpNumber,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
-            uint32 dataStoreBlockNumber,
-            bool dataStoreCommitted
+            uint32 dataStoreBlockNumber
         ) = dl.dataStores(headerHash);
         assertTrue(
             dataStoreDumpNumber == dumpNumber,
@@ -561,10 +562,8 @@ contract EigenLayrDeployer is
             dataStoreBlockNumber == blockNumber,
             "_testInitDataStore: wrong blockNumber"
         );
-        assertTrue(
-            dataStoreCommitted == false,
-            "_testInitDataStore: wrong committed status"
-        );
+        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dumpNumber);
+        assertTrue(sighash == bytes32(0), "Data store not committed");
         return headerHash;
     }
 
@@ -692,8 +691,8 @@ contract EigenLayrDeployer is
         );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        (, , , , bool committed) = dl.dataStores(headerHash);
-        assertTrue(committed, "Data store not committed");
+        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
     }
 

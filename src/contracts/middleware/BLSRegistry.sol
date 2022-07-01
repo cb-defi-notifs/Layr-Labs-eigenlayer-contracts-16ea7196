@@ -1,33 +1,34 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
-import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
-import "../../libraries/BytesLib.sol";
-import "../Repository.sol";
-import "../VoteWeigherBase.sol";
-import "../../libraries/BLS.sol";
-import "../../libraries/BN254_Constants.sol";
+import "../interfaces/IGeneralServiceManager.sol";
+import "../interfaces/IRegistry.sol";
+import "../libraries/BytesLib.sol";
+import "./Repository.sol";
+import "./VoteWeigherBase.sol";
+import "../libraries/BLS.sol";
 
 import "ds-test/test.sol";
 
 /**
  * @notice This contract is used for 
-            - registering new DataLayr operators 
-            - committing to and finalizing de-registration as an operator from DataLayr 
-            - updating the stakes of the DataLayr operator
+            - registering new operators 
+            - committing to and finalizing de-registration as an operator 
+            - updating the stakes of the operator
  */
 
-contract DataLayrRegistry is
-    IDataLayrRegistry,
+contract BLSRegistry is
+    IRegistry,
     VoteWeigherBase,
-    IRegistrationManager,
+    IRegistrationManager, 
     DSTest
 {
     using BytesLib for bytes;
 
     // CONSTANTS
+    uint256 constant MODULUS =
+        21888242871839275222246405745257275088696311157297823662689037894645226208583;
+
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId)");
@@ -41,13 +42,12 @@ contract DataLayrRegistry is
 
     // DATA STRUCTURES 
     /**
-     * @notice  Data structure for storing info on DataLayr operators that would be used for:
+     * @notice  Data structure for storing info on OptimisticBridge operators that would be used for:
      *           - sending data by the sequencer
-     *           - querying by any challenger/retriever
      *           - payment and associated challenges
      */
     struct Registrant {
-        // hash of pubkey of the DataLayr operator
+        // hash of pubkey of the OptimisticBridge operator
         bytes32 pubkeyHash;
 
         // id is always unique
@@ -56,39 +56,47 @@ contract DataLayrRegistry is
         // corresponds to position in registrantList
         uint64 index;
 
-        // dump number from which the DataLayr operator has been registered
-        uint32 fromDumpNumber;
+        // start block from which the OptimisticBridge operator has been registered
+        uint32 fromTaskNumber;
 
-        // UTC time until which this DataLayr operator is supposed to serve its obligations in DataLayr 
+        // UTC time until which this operator is supposed to serve its obligations in 
         // set only when committing to deregistration
-        uint32 storeUntil;
+        // uint32 storeUntil;
 
-        // indicates whether the DataLayr operator is actively registered for storing data or not 
+        // indicates whether the operator is actively registered for storing data or not 
         uint8 active; //bool
 
-        // socket address of the DataLayr node
+        // socket address of the node
         string socket;
-
-        uint256 deregisterTime;
     }
 
     // number of registrants of this service
     uint64 public numRegistrants;  
 
-    uint128 public dlnEthStake = 1 wei;
-    uint128 public dlnEigenStake = 1 wei;
+    uint128 public nodeEthStake = 1 wei;
+    uint128 public nodeEigenStake = 1 wei;
     
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
+
+    /** 
+      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in OptimisticBridge;
+              updated at every call to initDataStore in OptimisticBridgeServiceManager.sol  
+
+              This would be used for recording the time until which a operator is obligated
+              to serve while committing deregistration.
+     */
+    uint32 public latestTime;
+
 
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextRegistrantId;
 
 
-    /// @notice used for storing Registrant info on each DataLayr operator while registration
+    /// @notice used for storing Registrant info on each operator while registration
     mapping(address => Registrant) public registry;
 
-    /// @notice used for storing the list of current and past registered DataLayr operators 
+    /// @notice used for storing the list of current and past registered operators 
     address[] public registrantList;
 
     // struct OperatorStake {
@@ -98,18 +106,18 @@ contract DataLayrRegistry is
     //     uint96 eigenStake;
     // }
 
-    // struct used to give definitive ordering to operators at each dump number
+    // struct used to give definitive ordering to operators at each task number
     struct OperatorIndex {
-        // dump number at which operator index changed
-        // note that the operator's index is different *for this dump number*, i.e. the new index is inclusive of this value
-        uint32 toDumpNumber;
+        // task number at which operator index changed
+        // note that the operator's index is different *for this task number*, i.e. the new index is inclusive of this value
+        uint32 toTaskNumber;
         // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
     /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
-    /// @notice array of the history of the number of operators, and the dumpNumbers at which the number of operators changed
+    /// @notice array of the history of the number of operators, and the taskNumbers at which the number of operators changed
     OperatorIndex[] public totalOperatorsHistory;
 
     /// @notice mapping from operator's pubkeyhash to the history of their stake updates
@@ -119,12 +127,12 @@ contract DataLayrRegistry is
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
 
-    /// @notice the dump numbers in which the aggregated pubkeys are updated
+    /// @notice the task numbers in which the aggregated pubkeys are updated
     uint32[] public apkUpdates;
 
 
     /**
-     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of DataLayr operators, 
+     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
              this is updated whenever a new operator registers or deregisters
      */
     bytes32[] public apkHashes;
@@ -137,7 +145,7 @@ contract DataLayrRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [G2x0,G2x1,G2y0,G2y1];
+    uint256[4] public apk = [10857046999023057135944570762232829481370756359578518086990519993285655852781,11559732032986387107991004021392285783925812861821192530917403151452391805634,8495653923123431417604973247489272438418190587263600148770280649306958101930,4082367875863433681332203403145435568316851327593401208105741076214120093531];
 
     
 
@@ -150,7 +158,7 @@ contract DataLayrRegistry is
         uint32 updateBlockNumber,
         uint32 prevUpdateBlockNumber
     );
-    // uint48 prevUpdateDumpNumber
+    // uint48 prevUpdatetaskNumber
 
     event StakeUpdate(
         address operator,
@@ -174,13 +182,17 @@ contract DataLayrRegistry is
         address registrant
     );
 
-    IDataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+    // MODIFIERS
+    modifier onlyRepository() {
+        require(address(repository) == msg.sender, "onlyRepository");
+        _;
+    }
+
 
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        IDataLayrEphemeralKeyRegistry _ephemeralKeyRegistry,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -211,15 +223,13 @@ contract DataLayrRegistry is
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
         }
-
-        ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     /**
      * @notice returns the total Eigen delegated by delegators with this operator
      */
     /**
-     * @dev minimum delegation limit of dlnEigenStake has to be satisfied.
+     * @dev minimum delegation limit of nodeEigenStake has to be satisfied.
      */
     function weightOfOperatorEigen(address operator)
         public
@@ -229,18 +239,18 @@ contract DataLayrRegistry is
         uint96 eigenAmount = super.weightOfOperatorEigen(operator);
 
         // check that minimum delegation limit is satisfied
-        return eigenAmount < dlnEigenStake ? 0 : eigenAmount;
+        return eigenAmount < nodeEigenStake ? 0 : eigenAmount;
     }
 
     /**
         @notice returns the total ETH delegated by delegators with this operator.
                 Accounts for both ETH used for staking in settlement layer (via operator)
                 and the ETH-denominated value of the shares in the investment strategies.
-                Note that the DataLayr can decide for itself how much weight it wants to
+                Note that the middleware can decide for itself how much weight it wants to
                 give to the ETH that is being used for staking in settlement layer.
      */
     /**
-     * @dev minimum delegation limit of dlnEthStake has to be satisfied.
+     * @dev minimum delegation limit of nodeEthStake has to be satisfied.
      */
     function weightOfOperatorEth(address operator)
         public
@@ -250,7 +260,7 @@ contract DataLayrRegistry is
         uint96 amount = super.weightOfOperatorEth(operator);
 
         // check that minimum delegation limit is satisfied
-        return amount < dlnEthStake ? 0 : amount;
+        return amount < nodeEthStake ? 0 : amount;
     }
 
     /**
@@ -270,27 +280,26 @@ contract DataLayrRegistry is
             "Incorrect index supplied"
         );
 
-        IDataLayrServiceManager dlsm = IDataLayrServiceManager(address(repository.serviceManager()));
 
-        // must store till the latest time a dump expires
+        // must store till the latest time a task expires
         /**
          @notice this info is used in forced disclosure
          */
-        registry[msg.sender].storeUntil = dlsm.latestTime();
+        // registry[msg.sender].storeUntil = latestTime;
 
 
-        // committing to not signing off on any more data that is being asserted into DataLayr
+        // committing to not signing off on any more data that is being asserted into OptimisticBridge
         registry[msg.sender].active = 0;
 
-        registry[msg.sender].deregisterTime = block.timestamp;
+
 
         // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
-        // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = dlsm.dumpNumber();        
+        // get current task number from OptimisticBridgeServiceManager
+        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();        
         
 
         /**
-         @notice verify that the sender is a DataLayr operator that is doing deregistration for itself 
+         @notice verify that the sender is a OptimisticBridge operator that is doing deregistration for itself 
          */
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
@@ -311,20 +320,20 @@ contract DataLayrRegistry is
         ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
         /**
-         @notice recording the information pertaining to change in stake for this DataLayr operator in the history
+         @notice recording the information pertaining to change in stake for this operator in the history
          */
         // determine new stakes
         OperatorStake memory newStakes;
-        // recording the current dump number where the operator stake got updated 
+        // recording the current task number where the operator stake got updated 
         newStakes.updateBlockNumber = uint32(block.number);
 
-        // setting total staked ETH for the DataLayr operator to 0
+        // setting total staked ETH for the operator to 0
         newStakes.ethStake = uint96(0);
-        // setting total staked Eigen for the DataLayr operator to 0
+        // setting total staked Eigen for the operator to 0
         newStakes.eigenStake = uint96(0);
 
 
-        //set next dump number in prev stakes
+        //set next task number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateBlockNumber = uint32(block.number);
@@ -333,11 +342,11 @@ contract DataLayrRegistry is
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // Update registrant list and update index histories
-        popRegistrant(pubkeyHash,index,currentDumpNumber);
+        popRegistrant(pubkeyHash,index,currentTaskNumber);
 
 
         /**
-         @notice  update info on ETH and Eigen staked with DataLayr
+         @notice  update info on ETH and Eigen staked with the middleware
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         // copy total stake to memory
@@ -355,7 +364,7 @@ contract DataLayrRegistry is
 
 
         /**
-         @notice update the aggregated public key of all registered DataLayr operators and record
+         @notice update the aggregated public key of all registered operators and record
                  this update in history
          */
         // get existing aggregate public key
@@ -366,13 +375,10 @@ contract DataLayrRegistry is
         apk = pk;
 
         // update aggregated pubkey coordinates
-        apkUpdates.push(currentDumpNumber);
+        apkUpdates.push(currentTaskNumber);
 
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
-
-        //posting last ephemeral key reveal on chain
-        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, finalEphemeralKey);
 
         emit Deregistration(msg.sender);
         return true;
@@ -380,12 +386,12 @@ contract DataLayrRegistry is
 
 
 
-    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentDumpNumber) internal{
+    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal{
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Update index info for old operator
-        // store dumpNumber at which operator index changed (stopped being applicable)
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toDumpNumber = currentDumpNumber;
+        // store taskNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toTaskNumber = currentTaskNumber;
 
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantList.length - 1){
@@ -394,8 +400,8 @@ contract DataLayrRegistry is
             Registrant memory registrant = registry[addr];
             pubkeyHash = registrant.pubkeyHash;
 
-            // store dumpNumber at which operator index changed
-            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toDumpNumber = currentDumpNumber;
+            // store taskNumber at which operator index changed
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toTaskNumber = currentTaskNumber;
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
@@ -408,7 +414,7 @@ contract DataLayrRegistry is
 
         // Update totalOperatorsHistory
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
@@ -416,37 +422,37 @@ contract DataLayrRegistry is
     }
 
     
-    function getOperatorIndex(address operator, uint32 dumpNumber, uint32 index) public view returns (uint32) {
+    function getOperatorIndex(address operator, uint32 taskNumber, uint32 index) public view returns (uint32) {
 
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
-        // since the 'to' field represents the dumpNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
+        // since the 'to' field represents the taskNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == taskNumber, so we check not strict inequality here
         require(
-            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toDumpNumber <= dumpNumber,
+            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toTaskNumber <= taskNumber,
             "Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-        // when deregistering, the operator does *not* serve the currentDumpNumber -- 'to' gets set (from zero) to the currentDumpNumber on deregistration
-        // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.toDumpNumber == 0 || dumpNumber < operatorIndex.toDumpNumber, "indexHistory index is too low");
+        // when deregistering, the operator does *not* serve the currentTaskNumber -- 'to' gets set (from zero) to the currentTaskNumber on deregistration
+        // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
         return operatorIndex.index;
     }
 
-    function getTotalOperators(uint32 dumpNumber, uint32 index) public view returns (uint32) {
+    function getTotalOperators(uint32 taskNumber, uint32 index) public view returns (uint32) {
 
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
-        // since the 'to' field represents the dumpNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == dumpNumber, so we check not strict inequality here
+        // since the 'to' field represents the taskNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == taskNumber, so we check not strict inequality here
         require(
-            index == 0 || totalOperatorsHistory[index - 1].toDumpNumber <= dumpNumber,
+            index == 0 || totalOperatorsHistory[index - 1].toTaskNumber <= taskNumber,
             "TotalOperator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        // since the 'to' field represents the dumpNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.toDumpNumber == 0 || dumpNumber < operatorIndex.toDumpNumber, "indexHistory index is too low");
+        // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
         return operatorIndex.index;
         
     }
@@ -496,10 +502,10 @@ contract DataLayrRegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes.
+     * @notice Used for updating information on ETH and EIGEN deposits of nodes.
      */
     /**
-     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
+     * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
     function updateStakes(address[] calldata operators) public {
@@ -525,13 +531,13 @@ contract DataLayrRegistry is
             newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
 
             // check if minimum requirements have been met
-            if (newStakes.ethStake < dlnEthStake) {
+            if (newStakes.ethStake < nodeEthStake) {
                 newStakes.ethStake = uint96(0);
             }
-            if (newStakes.eigenStake < dlnEigenStake) {
+            if (newStakes.eigenStake < nodeEigenStake) {
                 newStakes.eigenStake = uint96(0);
             }
-            //set next dump number in prev stakes
+            //set next task number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateBlockNumber = uint32(block.number);
@@ -564,46 +570,55 @@ contract DataLayrRegistry is
         totalStakeHistory.push(_totalStake);
     }
 
-    function getOperatorDeregisterTime(address operator)
-        public
-        view
-        returns (uint256)
-    {
-        return registry[operator].deregisterTime;
-    }
 
     /**
-     @notice returns dump number from when operator has been registered.
+     @notice returns task number from when operator has been registered.
      */
-    function getOperatorFromDumpNumber(address operator)
+    function getOperatorFromTaskNumber(address operator)
         public
         view
         returns (uint32)
     {
-        return registry[operator].fromDumpNumber;
+        return registry[operator].fromTaskNumber;
     }
 
-    function setDlnEigenStake(uint128 _dlnEigenStake)
+    function setNodeEigenStake(uint128 _nodeEigenStake)
         public
         onlyRepositoryGovernance
     {
-        dlnEigenStake = _dlnEigenStake;
+        nodeEigenStake = _nodeEigenStake;
     }
 
-    function setDlnEthStake(uint128 _dlnEthStake)
+    function setNodeEthStake(uint128 _nodeEthStake)
         public
         onlyRepositoryGovernance
     {
-        dlnEthStake = _dlnEthStake;
+        nodeEthStake = _nodeEthStake;
     }
 
-    /// @notice returns the unique ID of the specified DataLayr operator 
+
+    /**
+     @notice sets the latest time until which any of the active operators that haven't committed
+             yet to deregistration are supposed to serve.
+     */
+    function setLatestTime(uint32 _latestTime) public {
+        require(
+            address(repository.serviceManager()) == msg.sender,
+            "only service manager can call this"
+        );
+        if (_latestTime > latestTime) {
+            latestTime = _latestTime;
+        }
+    }
+
+
+    /// @notice returns the unique ID of the specified operator 
     function getOperatorId(address operator) public view returns (uint32) {
         return registry[operator].id;
     }
 
 
-    /// @notice returns the active status for the specified DataLayr operator
+    /// @notice returns the active status for the specified operator
     function getOperatorType(address operator) public view returns (uint8) {
         return registry[operator].active;
     }
@@ -611,7 +626,7 @@ contract DataLayrRegistry is
 
     /**
      @notice get hash of a historical aggregated public key corresponding to a given index;
-             called by checkSignatures in DataLayrSignatureChecker.sol.
+             called by checkSignatures in SignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
@@ -656,33 +671,31 @@ contract DataLayrRegistry is
 
 
     /**
-     @notice called for registering as a DataLayr operator
+     @notice called for registering as a operator
      */
     /**
-     @param registrantType specifies whether the DataLayr operator want to register as ETH staker or Eigen stake or both
+     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @param socket is the socket address of the DataLayr operator
+     @param socket is the socket address of the operator
      
      */ 
     function registerOperator(
         uint8 registrantType,
-        bytes32 ephemeralKey,
         bytes calldata data,
         string calldata socket
     ) public {
         //_registerOperator(msg.sender, registrantType, data, socket);
         
-        _registerOperator(msg.sender, registrantType, ephemeralKey, data, socket);
+        _registerOperator(msg.sender, registrantType, data, socket);
     }
 
 
     /**
-     @param operator is the node who is registering to be a DataLayr operator
+     @param operator is the node who is registering to be a operator
      */
     function _registerOperator(
         address operator,
         uint8 registrantType,
-        bytes32 ephemeralKey,
         bytes calldata data,
         string calldata socket
     ) internal {
@@ -702,7 +715,7 @@ contract DataLayrRegistry is
             // minimum requirements on how much ETH it must deposit
             _operatorStake.ethStake = uint96(weightOfOperatorEth(operator));
             require(
-                _operatorStake.ethStake >= dlnEthStake,
+                _operatorStake.ethStake >= nodeEthStake,
                 "Not enough eth value staked"
             );
         }
@@ -713,7 +726,7 @@ contract DataLayrRegistry is
             // minimum requirements on how much Eigen it must deposit
             _operatorStake.eigenStake = uint96(weightOfOperatorEigen(operator));
             require(
-                _operatorStake.eigenStake >= dlnEigenStake,
+                _operatorStake.eigenStake >= nodeEigenStake,
                 "Not enough eigen staked"
             );
         }
@@ -751,9 +764,9 @@ contract DataLayrRegistry is
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
 
-        // CRITIC: @Gautham please elaborate on the meaning of this snippet
         if (apkUpdates.length != 0) {
             // addition doesn't work in this case 
+            // our addition algorithm doesn't work
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
@@ -768,10 +781,10 @@ contract DataLayrRegistry is
         /**
          @notice some book-keeping for aggregated pubkey
          */
-        // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();
+        // get current task number from ServiceManager
+        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
 
-        // store the current dumpnumber in which the aggregated pubkey is being updated 
+        // store the current tasknumber in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
         
         //store the hash of aggregate pubkey
@@ -782,23 +795,22 @@ contract DataLayrRegistry is
         
 
         /**
-         @notice some book-keeping for recording info pertaining to the DataLayr operator
+         @notice some book-keeping for recording info pertaining to the operator
          */
-        // record the new stake for the DataLayr operator in the storage
+        // record the new stake for the operator in the storage
         _operatorStake.updateBlockNumber = uint32(block.number);
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
-        // store the registrant's info in relation to DataLayr
+        // store the registrant's info in relation
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            fromDumpNumber: currentDumpNumber,
-            storeUntil: 0,
+            // CRITIC: load from memory and save it in memory the first time above this other contract was called
+            fromTaskNumber: IGeneralServiceManager(address(repository.serviceManager())).taskNumber(),
             // extract the socket address
-            socket: socket,
-            deregisterTime: 0
+            socket: socket
         });
 
         // record the operator being registered
@@ -811,9 +823,11 @@ contract DataLayrRegistry is
         
 
         {
+            // get current task number from ServiceManager
+            uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
             // Update totalOperatorsHistory
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-            totalOperatorsHistory[totalOperatorsHistory.length - 1].toDumpNumber = currentDumpNumber;
+            totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
             // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
             OperatorIndex memory _totalOperators;
             _totalOperators.index = uint32(registrantList.length);
@@ -847,12 +861,7 @@ contract DataLayrRegistry is
         unchecked {
             ++numRegistrants;
         }
-    
-
-        
-        //add ephemeral key to epehemral key registry
-        ephemeralKeyRegistry.postFirstEphemeralKeyHash(operator, ephemeralKey);
-        
+            
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
@@ -927,7 +936,10 @@ contract DataLayrRegistry is
         return apkHashes.length;
     }
 
-    function getDLNStatus(address DLN) external view returns(uint8) {
-        return registry[DLN].active;
+    function getOperatorStatus(address operator) external view returns(uint8) {
+        return registry[operator].active;
     }
+
 }
+
+

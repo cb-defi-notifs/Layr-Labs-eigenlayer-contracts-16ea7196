@@ -2,36 +2,36 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IRepository.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrPaymentChallengeManager.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../Repository.sol";
+import "../interfaces/IRepository.sol";
+import "../interfaces/IGeneralServiceManager.sol";
+import "../interfaces/IPaymentChallengeManager.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "./Repository.sol";
 
 import "ds-test/test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentChallenge is DSTest{
+contract PaymentChallenge is DSTest{
     
     // DATA STRUCTURES
     struct PaymentChallenge {
-        // DataLayr operator whose payment claim is being challenged,
+        // operator whose payment claim is being challenged,
         address operator;
 
         // the entity challenging with the fraudproof
         address challenger;
 
-        // address of the DataLayr service manager contract
+        // address of the service manager contract
         address serviceManager;
 
-        // the dump number from which payment has been computed
-        uint32 fromDumpNumber;
+        // the task number from which payment has been computed
+        uint32 fromTaskNumber;
 
-        // the dump number until which payment has been computed to
-        uint32 toDumpNumber;
+        // the task number until which payment has been computed to
+        uint32 toTaskNumber;
 
         // 
         uint120 amount1;
@@ -65,13 +65,9 @@ contract DataLayrPaymentChallenge is DSTest{
         uint96 eigenStake;
     }
 
-    struct TotalStakes {
-        uint256 ethStakeSigned;
-        uint256 eigenStakeSigned;
-    }
 
-    IDataLayrServiceManager public dlsm;
-    IDataLayrPaymentChallengeManager public dlpcm;
+    IGeneralServiceManager public sm;
+    IPaymentChallengeManager public pcm;
 
     // the payment challenge 
     PaymentChallenge public challenge;
@@ -79,7 +75,7 @@ contract DataLayrPaymentChallenge is DSTest{
 
 
     // EVENTS
-    event PaymentBreakdown(uint32 fromDumpNumber, uint32 toDumpNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
 
     
     
@@ -89,9 +85,9 @@ contract DataLayrPaymentChallenge is DSTest{
         address operator,
         address challenger,
         address serviceManager,
-        address dlpcmAddr,
-        uint32 fromDumpNumber,
-        uint32 toDumpNumber,
+        address pcmAddr,
+        uint32 fromTaskNumber,
+        uint32 toTaskNumber,
         uint120 amount1,
         uint120 amount2
     ) {
@@ -99,18 +95,18 @@ contract DataLayrPaymentChallenge is DSTest{
             operator,
             challenger,
             serviceManager,
-            fromDumpNumber,
-            toDumpNumber,
+            fromTaskNumber,
+            toTaskNumber,
             amount1,
             amount2,
             // recording current timestamp as the commitTime
             uint32(block.timestamp),
-            // setting DataLayr operator to respond next
+            // setting operator to respond next
             2
         );
 
-        dlsm = IDataLayrServiceManager(serviceManager);
-        dlpcm = IDataLayrPaymentChallengeManager(dlpcmAddr);
+        sm = IGeneralServiceManager(serviceManager);
+        pcm = IPaymentChallengeManager(pcmAddr);
         
     }
 
@@ -133,43 +129,43 @@ contract DataLayrPaymentChallenge is DSTest{
 
         require(
             block.timestamp <
-                challenge.commitTime + dlsm.paymentFraudProofInterval(),
+                challenge.commitTime + sm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
 
 
-        uint32 fromDumpNumber = challenge.fromDumpNumber;
-        uint32 toDumpNumber = challenge.toDumpNumber;
+        uint32 fromTaskNumber = challenge.fromTaskNumber;
+        uint32 toTaskNumber = challenge.toTaskNumber;
         uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
-            diff = (toDumpNumber - fromDumpNumber) / 2;
-            challenge.fromDumpNumber = fromDumpNumber + diff;
+            diff = (toTaskNumber - fromTaskNumber) / 2;
+            challenge.fromTaskNumber = fromTaskNumber + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
-                challenge.toDumpNumber = toDumpNumber;
+                challenge.toTaskNumber = toTaskNumber;
             }
             //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
             updateChallengeAmounts(3, amount1, amount2);
         } else {
-            diff = (toDumpNumber - fromDumpNumber);
+            diff = (toTaskNumber - fromTaskNumber);
             if (diff % 2 == 1) {
                 diff += 1;
             }
             diff /= 2;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
-                challenge.toDumpNumber = toDumpNumber - diff;
-                challenge.fromDumpNumber = fromDumpNumber;
+                challenge.toTaskNumber = toTaskNumber - diff;
+                challenge.fromTaskNumber = fromTaskNumber;
             }
             updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
         
-        emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
+        emit PaymentBreakdown(challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
     }
 
 
@@ -178,23 +174,23 @@ contract DataLayrPaymentChallenge is DSTest{
     /**
      @notice This function is used for updating the status of the challenge in terms of who
              has to respond to the interactive challenge mechanism next -  is it going to be
-             challenger or the DataLayr operator.   
+             challenger or the operator.   
      */
     /**
-     @param operator is the DataLayr operator whose payment claim is being challenged
-     @param diff is the number of DataLayr dumps across which payment is being challenged in this iteration
+     @param operator is the operator whose payment claim is being challenged
+     @param diff is the number of tasks across which payment is being challenged in this iteration
      */ 
     function updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
-        // payment challenge for one data dump
+        // payment challenge for one data task
         if (diff == 1) {
             //set to one step turn of either challenger or operator
             challenge.status = msg.sender == operator ? 5 : 4;
             return false;
 
-        // payment challenge across more than one data dump
+        // payment challenge across more than one data task
         } else {
             // set to dissection turn of either challenger or operator
             challenge.status = msg.sender == operator ? 3 : 2;
@@ -230,7 +226,7 @@ contract DataLayrPaymentChallenge is DSTest{
     }
 
     function resolveChallenge() public {
-        uint256 interval = dlsm.paymentFraudProofInterval();
+        uint256 interval = sm.paymentFraudProofInterval();
         require(
             block.timestamp > challenge.commitTime + interval &&
                 block.timestamp < challenge.commitTime + (2 * interval),
@@ -251,33 +247,33 @@ contract DataLayrPaymentChallenge is DSTest{
         uint256 stakeIndex,
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
-        TotalStakes calldata totalStakes,
-        bytes32 challengedDumpHeaderHash,
-        IDataLayrServiceManager.DataStoreSearchData calldata searchData
+        uint256 totalEthStakeSigned,
+        uint256 totalEigenStakeSigned,
+        bytes32 challengedTaskHash
     ) external {
         require(
             block.timestamp <
-                challenge.commitTime + dlsm.paymentFraudProofInterval(),
+                challenge.commitTime + sm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint32 challengedDumpNumber = challenge.fromDumpNumber;
+        uint32 challengedTaskNumber = challenge.fromTaskNumber;
         uint8 status = challenge.status;
         address operator = challenge.operator;
         //check sigs
         require(
-            dlsm.getDumpNumberSignatureHash(challengedDumpNumber) ==
+            sm.getTaskNumberSignatureHash(challengedTaskNumber) ==
                 keccak256(
                     abi.encodePacked(
-                        challengedDumpNumber,
+                        challengedTaskNumber,
                         nonSignerPubkeyHashes,
-                        totalStakes.ethStakeSigned,
-                        totalStakes.eigenStakeSigned
+                        totalEthStakeSigned,
+                        totalEigenStakeSigned
                     )
                 ),
             "Sig record does not match hash"
         );
 
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(IRepository(IServiceManager(address(dlsm)).repository()).registrationManager()));
+        IRegistry dlRegistry = IRegistry(address(IRepository(IGeneralServiceManager(address(sm)).repository()).registrationManager()));
 
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
@@ -295,35 +291,33 @@ contract DataLayrPaymentChallenge is DSTest{
                 }
             }
             //TODO: Change this
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {
-            (uint32 dumpNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
-            require(dumpNumberFromHeaderHash == challengedDumpNumber, "specified dumpNumber does not match provided headerHash");
+            (uint32 taskNumberFromHeaderHash, uint32 challengedTaskBlockNumber) = (sm.taskMetadata()).getTaskAndBlockNumberFromTaskHash(challengedTaskHash);
+            require(taskNumberFromHeaderHash == challengedTaskNumber, "specified taskNumber does not match provided headerHash");
             require(
-                operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
+                operatorStake.updateBlockNumber <= challengedTaskBlockNumber,
                 "Operator stake index is too late"
             );
 
             require(
                 operatorStake.nextUpdateBlockNumber == 0 ||
-                    operatorStake.nextUpdateBlockNumber > challengedDumpBlockNumber,
+                    operatorStake.nextUpdateBlockNumber > challengedTaskBlockNumber,
                 "Operator stake index is too early"
             );
         }
 
             //TODO: Change this
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index);
-            require(metadata.globalDataStoreId == challengedDumpNumber, "Loaded dump number does not match challenged");
-
+            uint256 fee = sm.taskNumberToFee(challengedTaskNumber);
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
-                (metadata.fee * operatorStake.ethStake) /
-                    totalStakes.ethStakeSigned /
+                (fee * operatorStake.ethStake) /
+                    totalEthStakeSigned /
                     2 +
-                    (metadata.fee * operatorStake.eigenStake) /
-                    totalStakes.eigenStakeSigned /
+                    (fee * operatorStake.eigenStake) /
+                    totalEigenStakeSigned /
                     2
             );
         } else {
@@ -344,7 +338,7 @@ contract DataLayrPaymentChallenge is DSTest{
     }
 
     function resolve(bool challengeSuccessful) internal {
-        dlpcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
+        pcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
     }
 
@@ -358,13 +352,13 @@ contract DataLayrPaymentChallenge is DSTest{
     function getAmount2() external view returns (uint120){
         return challenge.amount2;
     }
-    function getToDumpNumber() external view returns (uint48){
-        return challenge.toDumpNumber;
+    function getToTaskNumber() external view returns (uint48){
+        return challenge.toTaskNumber;
     }
-    function getFromDumpNumber() external view returns (uint48){
-        return challenge.fromDumpNumber;
+    function getFromTaskNumber() external view returns (uint48){
+        return challenge.fromTaskNumber;
     }
     function getDiff() external view returns (uint48){
-        return challenge.toDumpNumber - challenge.fromDumpNumber;
+        return challenge.toTaskNumber - challenge.fromTaskNumber;
     }
 }

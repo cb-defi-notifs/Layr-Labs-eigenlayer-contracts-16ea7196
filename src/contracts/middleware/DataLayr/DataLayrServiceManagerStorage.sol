@@ -7,6 +7,7 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IServiceManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
@@ -131,11 +132,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint256 public paymentFraudProofCollateral = 1 wei;
 
 
-
-
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
-    
+    uint32 public latestTime;
+
     /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDumpNumber disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
 
@@ -190,7 +190,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      * @notice mapping between the total service fee that would be paid out in the 
      *         corresponding assertion of data into DataLayr 
      */
-    mapping(uint32 => uint256) public dumpNumberToFee;
+    //removed to batch with DataStoreMetadata
+    //mapping(uint32 => uint256) public dumpNumberToFee;
 
     mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
 
@@ -200,6 +201,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     mapping(address => Payment) public operatorToPayment;
 
+    /**     
+      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
+              updated at every call to initDataStore in DataLayrServiceManager.sol  
+
+              This would be used for recording the time until which a DataLayr operator is obligated
+              to serve while committing deregistration.
+     */
     
     mapping(address => address) public operatorToPaymentChallenge;
 
@@ -209,7 +217,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint8 constant public MAX_DATASTORE_DURATION = 14;
 
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp
-    mapping(uint8 => mapping(uint256 => DataStoreIdPair[])) public dataStoreIdsForDuration;
+    mapping(uint8 => mapping(uint256 => DataStoreMetadata[])) public dataStoreIdsForDuration;
     //total number of datastores that have been stored for a certain duration
     mapping(uint8 => uint32) public totalDataStoresForDuration;
 

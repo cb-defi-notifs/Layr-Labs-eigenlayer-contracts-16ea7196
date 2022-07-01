@@ -27,7 +27,6 @@ interface IDataLayr {
             uint32 dumpNumber,
             uint32 initTime,
             uint32 storePeriodLength,
-            uint32 blockNumber,
-            bool committed
+            uint32 blockNumber
         );
 }

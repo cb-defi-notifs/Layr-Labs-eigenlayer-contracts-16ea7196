@@ -147,14 +147,6 @@ contract DataLayrServiceManager is
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
-
-        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-        dataStoreIdsForDuration[duration][block.timestamp].push(
-            DataStoreIdPair(
-                ++totalDataStoresForDuration[duration],
-                dumpNumber
-            )
-        );
         
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
 
@@ -163,17 +155,22 @@ contract DataLayrServiceManager is
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
         // record the total service fee that will be paid out for this assertion of data
-        dumpNumberToFee[dumpNumber] = fee;
+        //TODO: Removed this to batch with metadata store
+        // dumpNumberToFee[dumpNumber] = fee;
 
-        // recording the expiry time until which the DataLayr operators, who sign up to
-        // part of the quorum, have to store the data
-        IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
-            uint32(block.timestamp) + storePeriodLength
+        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
+        dataStoreIdsForDuration[duration][block.timestamp].push(
+            DataStoreMetadata(
+                ++totalDataStoresForDuration[duration],
+                dumpNumber,
+                uint96(fee)
+            )
         );
 
         // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
+        uint g = gasleft();
         // call DataLayr contract
         dataLayr.initDataStore(
             dumpNumber,
@@ -183,7 +180,18 @@ contract DataLayrServiceManager is
             blockNumber,
             header
         );
+        emit log_named_uint("initdatalayr gas", g - gasleft());
 
+        /**
+        @notice sets the latest time until which any of the active DataLayr operators that haven't committed
+                yet to deregistration are supposed to serve.
+        */
+        // recording the expiry time until which the DataLayr operators, who sign up to
+        // part of the quorum, have to store the data
+        uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
+        if (_latestTime > latestTime) {
+            latestTime = _latestTime;
+        }
         // increment the counter
         ++dumpNumber;
     }
@@ -211,12 +219,14 @@ contract DataLayrServiceManager is
     function confirmDataStore(bytes calldata data) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
+        uint g = gasleft();
         (
             uint32 dumpNumberToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
+        emit log_named_uint("entire signature checking gas", g - gasleft());
 
         require(dumpNumberToConfirm > 0 && dumpNumberToConfirm < dumpNumber, "Dump number is invalid");
 
@@ -236,6 +246,7 @@ contract DataLayrServiceManager is
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
+        require(dumpNumberToSignatureHash[dumpNumberToConfirm] == bytes32(0), "Datastore has already been confirmed");
         dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
@@ -512,7 +523,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, , , ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, ,  ) = dataLayr.dataStores(serviceObjectHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -527,7 +538,7 @@ contract DataLayrServiceManager is
         view
         returns (uint256)
     {
-        (, uint32 initTime, uint32 storePeriodLength, , ) = dataLayr.dataStores(
+        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
             serviceObjectHash
         );
         uint256 timeCreated = uint256(initTime);
@@ -538,19 +549,23 @@ contract DataLayrServiceManager is
         }
     }
 
-    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][0];
     }
 
-    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][dataStoreIdsForDuration[duration][timestamp].length - 1];
     }
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreIdPair memory) {
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreMetadata memory) {
         return dataStoreIdsForDuration[duration][timestamp][index];
     }
 
-    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreIdPair memory) {
+    function dumpNumberToFee(uint32) external returns (uint96) {
+        return 0;
+    }
+
+    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
     //     return dataStoreIdsForDuration[duration][timestamp][0];
     // }
 
