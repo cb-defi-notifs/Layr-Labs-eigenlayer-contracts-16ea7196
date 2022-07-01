@@ -11,7 +11,7 @@ interface IDataLayrRegistry {
 
     function getOperatorId(address operator) external returns (uint32);
 
-    function getOperatorFromDataStoreId(address operator) external view returns (uint32);
+    function getFromDataStoreIdForOperator(address operator) external view returns (uint32);
         
     function getOperatorPubkeyHash(address operator) external view returns (bytes32);
 

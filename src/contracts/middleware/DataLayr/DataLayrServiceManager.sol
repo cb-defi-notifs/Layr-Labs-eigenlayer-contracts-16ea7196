@@ -362,7 +362,7 @@ contract DataLayrServiceManager is
          */
         if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
             // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = dlRegistry.getOperatorFromDataStoreId(msg.sender);
+            fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(msg.sender);
 
             require(fromDataStoreId < toDataStoreId, "invalid payment range");
 

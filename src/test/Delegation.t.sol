@@ -343,7 +343,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(operator);
         weth.approve(address(dlsm), type(uint256).max);
 
-        // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDataStoreId(operator);
+        // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
         dlsm.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();

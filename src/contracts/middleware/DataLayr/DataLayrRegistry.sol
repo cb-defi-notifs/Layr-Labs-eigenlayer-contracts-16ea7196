@@ -575,7 +575,7 @@ contract DataLayrRegistry is
     /**
      @notice returns DataStoreId from when operator has been registered.
      */
-    function getOperatorFromDataStoreId(address operator)
+    function getFromDataStoreIdForOperator(address operator)
         public
         view
         returns (uint32)
