@@ -132,11 +132,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint256 public paymentFraudProofCollateral = 1 wei;
 
 
-
-
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dumpNumber = 1;
-    
+    uint32 public latestTime;
+
     /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDumpNumber disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
 
@@ -204,6 +203,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     mapping(address => Payment) public operatorToPayment;
 
+    /**     
+      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
+              updated at every call to initDataStore in DataLayrServiceManager.sol  
+
+              This would be used for recording the time until which a DataLayr operator is obligated
+              to serve while committing deregistration.
+     */
     
     mapping(address => address) public operatorToPaymentChallenge;
 

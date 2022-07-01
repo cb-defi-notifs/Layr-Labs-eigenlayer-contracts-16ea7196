@@ -167,12 +167,6 @@ contract DataLayrServiceManager is
             )
         );
 
-        // recording the expiry time until which the DataLayr operators, who sign up to
-        // part of the quorum, have to store the data
-        IDataLayrRegistry(address(repository.voteWeigher())).setLatestTime(
-            uint32(block.timestamp) + storePeriodLength
-        );
-
         // escrow the total service fees from the disperser to the DataLayr operators in this contract
         paymentToken.transferFrom(msg.sender, address(this), fee);
 
@@ -188,6 +182,16 @@ contract DataLayrServiceManager is
         );
         emit log_named_uint("initdatalayr gas", g - gasleft());
 
+        /**
+        @notice sets the latest time until which any of the active DataLayr operators that haven't committed
+                yet to deregistration are supposed to serve.
+        */
+        // recording the expiry time until which the DataLayr operators, who sign up to
+        // part of the quorum, have to store the data
+        uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
+        if (_latestTime > latestTime) {
+            latestTime = _latestTime;
+        }
         // increment the counter
         ++dumpNumber;
     }

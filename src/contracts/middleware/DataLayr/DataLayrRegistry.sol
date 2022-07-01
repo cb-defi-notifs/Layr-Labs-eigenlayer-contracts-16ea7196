@@ -81,16 +81,6 @@ contract DataLayrRegistry is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /** 
-      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
-              updated at every call to initDataStore in DataLayrServiceManager.sol  
-
-              This would be used for recording the time until which a DataLayr operator is obligated
-              to serve while committing deregistration.
-     */
-    uint32 public latestTime;
-
-
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextRegistrantId;
 
@@ -287,12 +277,13 @@ contract DataLayrRegistry is
             "Incorrect index supplied"
         );
 
+        IDataLayrServiceManager dlsm = IDataLayrServiceManager(address(repository.serviceManager()));
 
         // must store till the latest time a dump expires
         /**
          @notice this info is used in forced disclosure
          */
-        registry[msg.sender].storeUntil = latestTime;
+        registry[msg.sender].storeUntil = dlsm.latestTime();
 
 
         // committing to not signing off on any more data that is being asserted into DataLayr
@@ -302,7 +293,7 @@ contract DataLayrRegistry is
 
         // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
         // get current dump number from DataLayrServiceManager
-        uint32 currentDumpNumber = IDataLayrServiceManager(address(repository.serviceManager())).dumpNumber();        
+        uint32 currentDumpNumber = dlsm.dumpNumber();        
         
 
         /**
@@ -605,22 +596,6 @@ contract DataLayrRegistry is
     {
         dlnEthStake = _dlnEthStake;
     }
-
-
-    /**
-     @notice sets the latest time until which any of the active DataLayr operators that haven't committed
-             yet to deregistration are supposed to serve.
-     */
-    function setLatestTime(uint32 _latestTime) public {
-        require(
-            address(repository.serviceManager()) == msg.sender,
-            "only service manager can call this"
-        );
-        if (_latestTime > latestTime) {
-            latestTime = _latestTime;
-        }
-    }
-
 
     /// @notice returns the unique ID of the specified DataLayr operator 
     function getOperatorId(address operator) public view returns (uint32) {

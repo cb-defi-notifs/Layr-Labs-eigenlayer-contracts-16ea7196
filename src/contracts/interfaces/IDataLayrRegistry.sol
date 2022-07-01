@@ -9,8 +9,6 @@ interface IDataLayrRegistry {
         uint96 eigenStake;
     }
 
-    function setLatestTime(uint32 _latestTime) external;
-
     function getOperatorId(address operator) external returns (uint32);
 
     function getOperatorFromDumpNumber(address operator) external view returns (uint32);

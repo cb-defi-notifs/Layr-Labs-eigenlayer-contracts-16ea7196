@@ -37,6 +37,8 @@ interface IDataLayrServiceManager {
 
     function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) external;
 
+    function latestTime() external returns(uint32);
+
     function numPowersOfTau() external returns(uint48);
     function log2NumPowersOfTau() external returns(uint48);
     
