@@ -18,16 +18,16 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      @notice used for storing information on the most recent payment made to the DataLayr operator
      */
     struct Payment {
-        // dumpNumber starting from which payment is being claimed 
-        uint32 fromDumpNumber; 
+        // dataStoreId starting from which payment is being claimed 
+        uint32 fromDataStoreId; 
 
-        // dumpNumber until which payment is being claimed (exclusive) 
-        uint32 toDumpNumber; 
+        // dataStoreId until which payment is being claimed (exclusive) 
+        uint32 toDataStoreId; 
 
         // recording when committment for payment made; used for fraud proof period
         uint32 commitTime; 
 
-        // payment for range [fromDumpNumber, toDumpNumber)
+        // payment for range [fromDataStoreId, toDataStoreId)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
 
@@ -44,8 +44,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     struct PaymentChallenge {
         address challenger;
-        uint32 fromDumpNumber;
-        uint32 toDumpNumber;
+        uint32 fromDataStoreId;
+        uint32 toDataStoreId;
         uint120 amount1;
         uint120 amount2;
     }
@@ -133,10 +133,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
-    uint32 public dumpNumber = 1;
+    uint32 public dataStoreId = 1;
     uint32 public latestTime;
 
-    /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDumpNumber disclosure challenge 
+    /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDataStoreId disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;
 
 
@@ -147,7 +147,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
 
     /**
      @notice map of forced disclosure challenge that has been opened against a DataLayr operator
-             for a particular dump number.   
+             for a particular DataStoreId.   
      */
     mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
 
@@ -180,18 +180,18 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
-     * @notice mapping between the dumpNumber for a particular assertion of data into
+     * @notice mapping between the dataStoreId for a particular assertion of data into
      *         DataLayr and a compressed information on the signatures of the DataLayr 
      *         nodes who signed up to be the part of the quorum.  
      */
-    mapping(uint32 => bytes32) public dumpNumberToSignatureHash;
+    mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
 
     /**
      * @notice mapping between the total service fee that would be paid out in the 
      *         corresponding assertion of data into DataLayr 
      */
     //removed to batch with DataStoreMetadata
-    //mapping(uint32 => uint256) public dumpNumberToFee;
+    //mapping(uint32 => uint256) public dataStoreIdToFee;
 
     mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
 

@@ -32,7 +32,7 @@ contract DataLayr is Ownable, IDataLayr {
     uint128 public ethSignedThresholdPercentage = 90;
 
     event InitDataStore(
-        uint32 dumpNumber,
+        uint32 dataStoreId,
         bytes32 indexed headerHash,
         uint32 totalBytes,        
         uint32 initTime,
@@ -42,7 +42,7 @@ contract DataLayr is Ownable, IDataLayr {
     );
 
     event ConfirmDataStore(
-        uint32 dumpNumber,
+        uint32 dataStoreId,
         bytes32 headerHash
     );
 
@@ -52,7 +52,7 @@ contract DataLayr is Ownable, IDataLayr {
      */
     struct DataStore {
         // identifying value for the DataStore. incremented for each new 'initDataStore' transaction
-        uint32 dumpNumber;
+        uint32 dataStoreId;
 
         // time when this store was initiated
         uint32 initTime; 
@@ -91,14 +91,14 @@ contract DataLayr is Ownable, IDataLayr {
      *         This precomit process includes asserting metadata.   
      */
     /**
-     * @param dumpNumber is the dumpNumber to initiate
+     * @param dataStoreId is the dataStoreId to initiate
      * @param headerHash is the commitment to the data that is being asserted into DataLayr,
      * @param totalBytes  is the size of the data ,
      * @param storePeriodLength is time in seconds for which the data has to be stored by the DataLayr nodes, 
      * @param blockNumber for which the confirmation will consult total + operator stake amounts -- must not be more than 'BLOCK_STALE_MEASURE' blocks in past
      */
     function initDataStore(
-        uint32 dumpNumber,
+        uint32 dataStoreId,
         bytes32 headerHash,
         uint32 totalBytes,
         uint32 storePeriodLength,
@@ -123,13 +123,13 @@ contract DataLayr is Ownable, IDataLayr {
 
         // initialize and record the datastore
         dataStores[headerHash] = DataStore(
-            dumpNumber,
+            dataStoreId,
             initTime,
             storePeriodLength,
             blockNumber
         );
         
-        emit InitDataStore(dumpNumber, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
+        emit InitDataStore(dataStoreId, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
     }
 
     /**
@@ -147,7 +147,7 @@ contract DataLayr is Ownable, IDataLayr {
      *                        in DataLayr.  
      */
     function confirm(
-        uint32 dumpNumber,
+        uint32 dataStoreId,
         bytes32 headerHash,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
@@ -159,8 +159,8 @@ contract DataLayr is Ownable, IDataLayr {
         DataStore storage dataStore = dataStores[headerHash];
 
         require(
-            dumpNumber == dataStore.dumpNumber,
-            "Dump Number is incorrect"
+            dataStoreId == dataStore.dataStoreId,
+            "DataStoreId is incorrect"
         );
 
         // there can't be multiple signature commitments into settlement layer for same data
@@ -179,7 +179,7 @@ contract DataLayr is Ownable, IDataLayr {
         //TODO: We dont need to store this because signatoryRecordHash is a way to check whether a datastore is commited or not
         // dataStores[headerHash].committed = true;
 
-        emit ConfirmDataStore(dumpNumber, headerHash);
+        emit ConfirmDataStore(dataStoreId, headerHash);
     }
     
     

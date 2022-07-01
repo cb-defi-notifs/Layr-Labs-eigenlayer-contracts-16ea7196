@@ -15,17 +15,17 @@ interface IDataLayrServiceManager {
         uint256 index;
     }
 
-    struct SignatoryRecordMinusDumpNumber {
+    struct SignatoryRecordMinusDataStoreId {
         bytes32[] nonSignerPubkeyHashes;
         uint256 totalEthStakeSigned;
         uint256 totalEigenStakeSigned;
     }
 
-    function dumpNumber() external returns (uint32);
+    function dataStoreId() external returns (uint32);
 
-    function dumpNumberToFee(uint32) external returns (uint96);
+    function dataStoreIdToFee(uint32) external returns (uint96);
 
-    function getDumpNumberSignatureHash(uint32) external view returns (bytes32);
+    function getDataStoreIdSignatureHash(uint32) external view returns (bytes32);
 
     //function resolvePaymentChallenge(address, bool) external;
 

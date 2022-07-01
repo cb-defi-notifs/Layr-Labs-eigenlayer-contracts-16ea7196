@@ -27,11 +27,11 @@ contract DataLayrPaymentChallenge is DSTest{
         // address of the DataLayr service manager contract
         address serviceManager;
 
-        // the dump number from which payment has been computed
-        uint32 fromDumpNumber;
+        // the DataStoreId from which payment has been computed
+        uint32 fromDataStoreId;
 
-        // the dump number until which payment has been computed to
-        uint32 toDumpNumber;
+        // the DataStoreId until which payment has been computed to
+        uint32 toDataStoreId;
 
         // 
         uint120 amount1;
@@ -79,7 +79,7 @@ contract DataLayrPaymentChallenge is DSTest{
 
 
     // EVENTS
-    event PaymentBreakdown(uint32 fromDumpNumber, uint32 toDumpNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
 
     
     
@@ -90,8 +90,8 @@ contract DataLayrPaymentChallenge is DSTest{
         address challenger,
         address serviceManager,
         address dlpcmAddr,
-        uint32 fromDumpNumber,
-        uint32 toDumpNumber,
+        uint32 fromDataStoreId,
+        uint32 toDataStoreId,
         uint120 amount1,
         uint120 amount2
     ) {
@@ -99,8 +99,8 @@ contract DataLayrPaymentChallenge is DSTest{
             operator,
             challenger,
             serviceManager,
-            fromDumpNumber,
-            toDumpNumber,
+            fromDataStoreId,
+            toDataStoreId,
             amount1,
             amount2,
             // recording current timestamp as the commitTime
@@ -138,38 +138,38 @@ contract DataLayrPaymentChallenge is DSTest{
         );
 
 
-        uint32 fromDumpNumber = challenge.fromDumpNumber;
-        uint32 toDumpNumber = challenge.toDumpNumber;
+        uint32 fromDataStoreId = challenge.fromDataStoreId;
+        uint32 toDataStoreId = challenge.toDataStoreId;
         uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
-            diff = (toDumpNumber - fromDumpNumber) / 2;
-            challenge.fromDumpNumber = fromDumpNumber + diff;
+            diff = (toDataStoreId - fromDataStoreId) / 2;
+            challenge.fromDataStoreId = fromDataStoreId + diff;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
-                challenge.toDumpNumber = toDumpNumber;
+                challenge.toDataStoreId = toDataStoreId;
             }
             //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
             updateChallengeAmounts(3, amount1, amount2);
         } else {
-            diff = (toDumpNumber - fromDumpNumber);
+            diff = (toDataStoreId - fromDataStoreId);
             if (diff % 2 == 1) {
                 diff += 1;
             }
             diff /= 2;
             //if next step is not final
             if (updateStatus(challenge.operator, diff)) {
-                challenge.toDumpNumber = toDumpNumber - diff;
-                challenge.fromDumpNumber = fromDumpNumber;
+                challenge.toDataStoreId = toDataStoreId - diff;
+                challenge.fromDataStoreId = fromDataStoreId;
             }
             updateChallengeAmounts(1, amount1, amount2);
         }
         challenge.commitTime = uint32(block.timestamp);
         
-        emit PaymentBreakdown(challenge.fromDumpNumber, challenge.toDumpNumber, challenge.amount1, challenge.amount2);
+        emit PaymentBreakdown(challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
     }
 
 
@@ -260,15 +260,15 @@ contract DataLayrPaymentChallenge is DSTest{
                 challenge.commitTime + dlsm.paymentFraudProofInterval(),
             "Fraud proof interval has passed"
         );
-        uint32 challengedDumpNumber = challenge.fromDumpNumber;
+        uint32 challengedDataStoreId = challenge.fromDataStoreId;
         uint8 status = challenge.status;
         address operator = challenge.operator;
         //check sigs
         require(
-            dlsm.getDumpNumberSignatureHash(challengedDumpNumber) ==
+            dlsm.getDataStoreIdSignatureHash(challengedDataStoreId) ==
                 keccak256(
                     abi.encodePacked(
-                        challengedDumpNumber,
+                        challengedDataStoreId,
                         nonSignerPubkeyHashes,
                         totalStakes.ethStakeSigned,
                         totalStakes.eigenStakeSigned
@@ -299,8 +299,8 @@ contract DataLayrPaymentChallenge is DSTest{
 
         // scoped block helps fix stack too deep
         {
-            (uint32 dumpNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
-            require(dumpNumberFromHeaderHash == challengedDumpNumber, "specified dumpNumber does not match provided headerHash");
+            (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dlsm.dataLayr()).dataStores(challengedDumpHeaderHash);
+            require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
             require(
                 operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
                 "Operator stake index is too late"
@@ -315,7 +315,7 @@ contract DataLayrPaymentChallenge is DSTest{
 
             //TODO: Change this
             IDataLayrServiceManager.DataStoreMetadata memory metadata = dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index);
-            require(metadata.globalDataStoreId == challengedDumpNumber, "Loaded dump number does not match challenged");
+            require(metadata.globalDataStoreId == challengedDataStoreId, "Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
@@ -358,13 +358,13 @@ contract DataLayrPaymentChallenge is DSTest{
     function getAmount2() external view returns (uint120){
         return challenge.amount2;
     }
-    function getToDumpNumber() external view returns (uint48){
-        return challenge.toDumpNumber;
+    function getToDataStoreId() external view returns (uint48){
+        return challenge.toDataStoreId;
     }
-    function getFromDumpNumber() external view returns (uint48){
-        return challenge.fromDumpNumber;
+    function getFromDataStoreId() external view returns (uint48){
+        return challenge.fromDataStoreId;
     }
     function getDiff() external view returns (uint48){
-        return challenge.toDumpNumber - challenge.fromDumpNumber;
+        return challenge.toDataStoreId - challenge.fromDataStoreId;
     }
 }

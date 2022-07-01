@@ -74,15 +74,15 @@ contract DataLayrBombVerifier {
         address operator,
         HeaderHashes calldata headerHashes,
         Indexes calldata indexes,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber[] calldata signatoryRecords,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         uint256[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
         {
             //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
-            uint48 fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(operator);
+            uint48 fromDataStoreId = dlRegistry.getOperatorFromDataStoreId(operator);
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(operator);
-            require(fromDumpNumber != 0 && 
+            require(fromDataStoreId != 0 && 
                 (deregisterTime == 0 || deregisterTime >= (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
             );
         }
@@ -109,7 +109,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     // TODO: update below comment to more accurately reflect the specific usecase of this code
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
-                  actually part of the quorum for the @param dumpNumber.
+                  actually part of the quorum for the @param dataStoreId.
           
                   The burden of responsibility lies with the challenger to show that the DataLayr operator 
                   is not part of the non-signers for the dump. Towards that end, challenger provides
@@ -127,7 +127,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         {
             // Verify that the information supplied as input related to the 'detonation' DataStore is correct 
             require(
-                dlsm.getDumpNumberSignatureHash(detonationGlobalDataStoreId) ==
+                dlsm.getDataStoreIdSignatureHash(detonationGlobalDataStoreId) ==
                     keccak256(
                         abi.encodePacked(
                             detonationGlobalDataStoreId,
@@ -161,7 +161,7 @@ The loop iterates through to find this next DataStore, thus determining the true
             for (uint i = 1; i < lengthMinusOne; ++i) {            
                 // Verify that the information supplied as input related to this particular DataStore is correct 
                 require(
-                    dlsm.getDumpNumberSignatureHash(bombGlobalDataStoreId) ==
+                    dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
                         keccak256(
                             abi.encodePacked(
                                 bombGlobalDataStoreId++,
@@ -184,7 +184,7 @@ The loop iterates through to find this next DataStore, thus determining the true
 
             // Verify that the information supplied as input related to the ultimate 'bomb' DataStore is correct 
             require(
-                dlsm.getDumpNumberSignatureHash(bombGlobalDataStoreId) ==
+                dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
                     keccak256(
                         abi.encodePacked(
                             detonationGlobalDataStoreId,
@@ -208,11 +208,11 @@ The loop iterates through to find this next DataStore, thus determining the true
             }
         }
         {
-            // get dumpNumber from provided bomb DataStore headerHash
+            // get dataStoreId from provided bomb DataStore headerHash
             (uint32 loadedBombDataStoreId, , , ) = dataLayr.dataStores(
                 keccak256(disclosureProof.header)
             );
-            // verify that the correct bomb dumpNumber (the first the operator signed at or above the pseudo-random dumpNumber) matches the provided data
+            // verify that the correct bomb dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
             require(
                 loadedBombDataStoreId == bombGlobalDataStoreId,
                 "loaded bomb datastore id must be as calculated"
@@ -254,23 +254,23 @@ The loop iterates through to find this next DataStore, thus determining the true
         uint256[2][2][] calldata sandwichProofs,
         bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
-    ) internal returns (uint32, uint32) {
+    ) internal view returns (uint32, uint32) {
         (,uint32 detonationDataStoreInitTimestamp, , ) = dataLayr.dataStores(detonationHeaderHash);
         
         uint256 fromTime;
         {
-            // get the dumpNumber at which the operator registered
-            uint32 fromDataStoreId = dlRegistry.getOperatorFromDumpNumber(
+            // get the dataStoreId at which the operator registered
+            uint32 fromDataStoreId = dlRegistry.getOperatorFromDataStoreId(
                 operator
             );
             (uint32 dataStoreId, uint32 fromTimeUint32, ,  ) = dataLayr
                 .dataStores(operatorFromHeaderHash);
-            // ensure that operatorFromHeaderHash corresponds to the correct dumpNumber (i.e. the one at which the operator registered)
+            // ensure that operatorFromHeaderHash corresponds to the correct dataStoreId (i.e. the one at which the operator registered)
             require(
                 fromDataStoreId == dataStoreId,
                 "headerHash is not for correct operator from datastore"
             );
-            // store the initTime of the dumpNumber at which the operator registered in memory
+            // store the initTime of the dataStoreId at which the operator registered in memory
             fromTime = uint256(fromTimeUint32);
         }
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
@@ -299,9 +299,9 @@ The loop iterates through to find this next DataStore, thus determining the true
             "datastore id provided is not the same as loaded"
         );
         {
-            // get the dumpNumber for 'detonationHeaderHash'
+            // get the dataStoreId for 'detonationHeaderHash'
             (uint32 detonationGlobalDataStoreId, , ,) = dataLayr.dataStores(detonationHeaderHash);
-            // check that the dumpNumber for the provided detonationHeaderHash matches the calculated value
+            // check that the dataStoreId for the provided detonationHeaderHash matches the calculated value
             require(detonationGlobalDataStoreId == nextGlobalDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
         }
         // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
@@ -492,24 +492,24 @@ The loop iterates through to find this next DataStore, thus determining the true
         constructed during call to initDataStore in DataLayr.sol by the disperser.
         */
         (
-            uint32 dumpNumber,
-            uint32 initTime,
-            uint32 storePeriodLength,
+            uint32 dataStoreId,
+            ,
+            ,
         ) = dataLayr.dataStores(headerHash);
 
         // check that disperser had acquire quorum for this dataStore
-        require(dlsm.getDumpNumberSignatureHash(dumpNumber) != bytes32(0), "Datastore is not committed yet");
+        require(dlsm.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Datastore is not committed yet");
 
         operatorIndex = dlRegistry.getOperatorIndex(
             operator,
-            dumpNumber,
+            dataStoreId,
             operatorIndex
         );
         totalOperatorsIndex = dlRegistry.getTotalOperators(
-            dumpNumber,
+            dataStoreId,
             totalOperatorsIndex
         );
-        return (operatorIndex + dumpNumber) % totalOperatorsIndex;
+        return (operatorIndex + dataStoreId) % totalOperatorsIndex;
     }
 
 

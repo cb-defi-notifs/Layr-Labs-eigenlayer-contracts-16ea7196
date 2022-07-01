@@ -34,14 +34,6 @@ abstract contract ServiceManagerStorage is IGeneralServiceManager {
         uint256 collateral; //account for if collateral changed
     }
 
-    struct PaymentChallenge {
-        address challenger;
-        uint32 fromTaskNumber;
-        uint32 toTaskNumber;
-        uint120 amount1;
-        uint120 amount2;
-    }
-
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
      *         nodes.

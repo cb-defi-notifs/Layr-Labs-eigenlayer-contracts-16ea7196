@@ -19,8 +19,8 @@ contract DataLayrPaymentChallengeFactory is DSTest {
      @param operator is the DataLayr operator whose payment claim is being challenged,
      @param challenger is the entity challenging with the fraudproof,
      @param serviceManager is the DataLayr service manager,
-     @param fromDumpNumber is the dump number from which payment has been computed,
-     @param toDumpNumber is the dump number until which payment has been computed to,
+     @param fromDataStoreId is the DataStoreId from which payment has been computed,
+     @param toDataStoreId is the DataStoreId until which payment has been computed to,
      @param amount1 x
      @param amount2 y
      */
@@ -29,8 +29,8 @@ contract DataLayrPaymentChallengeFactory is DSTest {
         address challenger,
         address serviceManager,
         address dlpcmAddr,
-        uint32 fromDumpNumber,
-        uint32 toDumpNumber,
+        uint32 fromDataStoreId,
+        uint32 toDataStoreId,
         uint120 amount1,
         uint120 amount2
     ) external returns (address) {
@@ -41,8 +41,8 @@ contract DataLayrPaymentChallengeFactory is DSTest {
                 challenger,
                 serviceManager,
                 dlpcmAddr,
-                fromDumpNumber,
-                toDumpNumber,
+                fromDataStoreId,
+                toDataStoreId,
                 amount1,
                 amount2
             )

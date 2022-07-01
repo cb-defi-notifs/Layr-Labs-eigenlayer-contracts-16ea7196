@@ -12,7 +12,7 @@ interface IDataLayrPaymentChallenge{
     function getChallengeStatus() external returns(uint8);
     function getAmount1() external returns (uint120);
     function getAmount2() external returns (uint120);
-    function getToDumpNumber() external returns (uint48);
-    function getFromDumpNumber() external returns (uint48);
+    function getToDataStoreId() external returns (uint48);
+    function getFromDataStoreId() external returns (uint48);
     function getDiff() external returns (uint48);
 }

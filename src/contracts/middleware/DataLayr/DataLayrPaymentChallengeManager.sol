@@ -17,13 +17,13 @@ import "ds-test/test.sol";
     */
 
     struct Payment {
-        // dumpNumber starting from which payment is being claimed 
-        uint32 fromDumpNumber; 
-        // dumpNumber until which payment is being claimed (exclusive) 
-        uint32 toDumpNumber; 
+        // dataStoreId starting from which payment is being claimed 
+        uint32 fromDataStoreId; 
+        // dataStoreId until which payment is being claimed (exclusive) 
+        uint32 toDataStoreId; 
         // recording when committment for payment made; used for fraud proof period
         uint32 commitTime; 
-        // payment for range [fromDumpNumber, toDumpNumber)
+        // payment for range [fromDataStoreId, toDataStoreId)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
         uint8 status; // 0: commited, 1: redeemed
@@ -93,8 +93,8 @@ import "ds-test/test.sol";
                 msg.sender,
                 dlsmAddr,
                 address(this),
-                operatorToPayment[operator].fromDumpNumber,
-                operatorToPayment[operator].toDumpNumber,
+                operatorToPayment[operator].fromDataStoreId,
+                operatorToPayment[operator].toDataStoreId,
                 amount1,
                 amount2
             );

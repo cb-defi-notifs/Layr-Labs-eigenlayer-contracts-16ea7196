@@ -68,8 +68,8 @@ contract DataLayrServiceManager is
     // EVENTS
     event PaymentCommit(
         address operator,
-        uint32 fromDumpNumber,
-        uint32 toDumpNumber,
+        uint32 fromDataStoreId,
+        uint32 toDataStoreId,
         uint256 fee
     );
 
@@ -156,13 +156,13 @@ contract DataLayrServiceManager is
 
         // record the total service fee that will be paid out for this assertion of data
         //TODO: Removed this to batch with metadata store
-        // dumpNumberToFee[dumpNumber] = fee;
+        // dataStoreIdToFee[dataStoreId] = fee;
 
         //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
         dataStoreIdsForDuration[duration][block.timestamp].push(
             DataStoreMetadata(
                 ++totalDataStoresForDuration[duration],
-                dumpNumber,
+                dataStoreId,
                 uint96(fee)
             )
         );
@@ -173,7 +173,7 @@ contract DataLayrServiceManager is
         uint g = gasleft();
         // call DataLayr contract
         dataLayr.initDataStore(
-            dumpNumber,
+            dataStoreId,
             headerHash,
             totalBytes,
             storePeriodLength,
@@ -193,7 +193,7 @@ contract DataLayrServiceManager is
             latestTime = _latestTime;
         }
         // increment the counter
-        ++dumpNumber;
+        ++dataStoreId;
     }
 
     /**
@@ -207,7 +207,7 @@ contract DataLayrServiceManager is
      @param data is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -221,14 +221,14 @@ contract DataLayrServiceManager is
         // who have agreed to be in the quorum
         uint g = gasleft();
         (
-            uint32 dumpNumberToConfirm,
+            uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
         emit log_named_uint("entire signature checking gas", g - gasleft());
 
-        require(dumpNumberToConfirm > 0 && dumpNumberToConfirm < dumpNumber, "Dump number is invalid");
+        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId, "DataStoreId is invalid");
 
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
@@ -238,7 +238,7 @@ contract DataLayrServiceManager is
          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
          */
         require(
-            dumpNumberToConfirm % depositRootInterval != 0,
+            dataStoreIdToConfirm % depositRootInterval != 0,
             "Must post a deposit root now"
         );
 
@@ -246,12 +246,12 @@ contract DataLayrServiceManager is
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
-        require(dumpNumberToSignatureHash[dumpNumberToConfirm] == bytes32(0), "Datastore has already been confirmed");
-        dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+        require(dataStoreIdToSignatureHash[dataStoreIdToConfirm] == bytes32(0), "Datastore has already been confirmed");
+        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
-            dumpNumberToConfirm,
+            dataStoreIdToConfirm,
             headerHash,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
@@ -278,7 +278,7 @@ contract DataLayrServiceManager is
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
         (
-            uint32 dumpNumberToConfirm,
+            uint32 dataStoreIdToConfirm,
             bytes32 depositFerkleHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -292,7 +292,7 @@ contract DataLayrServiceManager is
           @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
          */
         require(
-            dumpNumberToConfirm % depositRootInterval == 0,
+            dataStoreIdToConfirm % depositRootInterval == 0,
             "Shouldn't post a deposit root now"
         );
 
@@ -300,7 +300,7 @@ contract DataLayrServiceManager is
         /**
          @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
          */
-        dumpNumberToSignatureHash[dumpNumberToConfirm] = signatoryRecordHash;
+        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
 
         /**
          * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
@@ -317,7 +317,7 @@ contract DataLayrServiceManager is
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
         dataLayr.confirm(
-            dumpNumberToConfirm,
+            dataStoreIdToConfirm,
             headerHash,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
@@ -328,9 +328,9 @@ contract DataLayrServiceManager is
 
     /**
      @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toDumpNumber  
+             for their service since their last payment until @param toDataStoreId  
      **/
-    function commitPayment(uint32 toDumpNumber, uint120 amount) external {
+    function commitPayment(uint32 toDataStoreId, uint120 amount) external {
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(
             address(repository.voteWeigher())
         );
@@ -341,7 +341,7 @@ contract DataLayrServiceManager is
             "Only registered operators can call this function"
         );
 
-        require(toDumpNumber <= dumpNumber, "Cannot claim future payments");
+        require(toDataStoreId <= dataStoreId, "Cannot claim future payments");
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
@@ -353,23 +353,23 @@ contract DataLayrServiceManager is
         /**
          @notice recording payment claims for the DataLayr operators
          */
-        uint32 fromDumpNumber;
+        uint32 fromDataStoreId;
 
         // for the special case of this being the first payment that is being claimed by the DataLayr operator;
         /**
          @notice this special case also implies that the DataLayr operator must be claiming payment from 
                  when the operator registered.   
          */
-        if (operatorToPayment[msg.sender].fromDumpNumber == 0) {
-            // get the dumpNumber when the DataLayr operator registered
-            fromDumpNumber = dlRegistry.getOperatorFromDumpNumber(msg.sender);
+        if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
+            // get the dataStoreId when the DataLayr operator registered
+            fromDataStoreId = dlRegistry.getOperatorFromDataStoreId(msg.sender);
 
-            require(fromDumpNumber < toDumpNumber, "invalid payment range");
+            require(fromDataStoreId < toDataStoreId, "invalid payment range");
 
             // record the payment information pertaining to the operator
             operatorToPayment[msg.sender] = Payment(
-                fromDumpNumber,
-                toDumpNumber,
+                fromDataStoreId,
+                toDataStoreId,
                 uint32(block.timestamp),
                 amount,
                 // setting to 0 to indicate commitment to payment claim
@@ -387,21 +387,21 @@ contract DataLayrServiceManager is
         );
 
         // you have to redeem starting from the last time redeemed up to
-        fromDumpNumber = operatorToPayment[msg.sender].toDumpNumber;
+        fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
 
-        require(fromDumpNumber < toDumpNumber, "invalid payment range");
+        require(fromDataStoreId < toDataStoreId, "invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
-            fromDumpNumber,
-            toDumpNumber,
+            fromDataStoreId,
+            toDataStoreId,
             uint32(block.timestamp),
             amount,
             0,
             paymentFraudProofCollateral
         );
 
-        emit PaymentCommit(msg.sender, fromDumpNumber, toDumpNumber, amount);
+        emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
     }
 
     /**
@@ -465,14 +465,14 @@ contract DataLayrServiceManager is
 
     /**
      @notice this function returns the compressed record on the signatures of DataLayr nodes 
-             that aren't part of the quorum for this @param _dumpNumber.
+             that aren't part of the quorum for this @param _dataStoreId.
      */
-    function getDumpNumberSignatureHash(uint32 _dumpNumber)
+    function getDataStoreIdSignatureHash(uint32 _dataStoreId)
         public
         view
         returns (bytes32)
     {
-        return dumpNumberToSignatureHash[_dumpNumber];
+        return dataStoreIdToSignatureHash[_dataStoreId];
     }
 
     function getPaymentCollateral(address operator)
@@ -561,7 +561,8 @@ contract DataLayrServiceManager is
         return dataStoreIdsForDuration[duration][timestamp][index];
     }
 
-    function dumpNumberToFee(uint32) external returns (uint96) {
+    // TODO: actually write this function
+    function dataStoreIdToFee(uint32) external pure returns (uint96) {
         return 0;
     }
 

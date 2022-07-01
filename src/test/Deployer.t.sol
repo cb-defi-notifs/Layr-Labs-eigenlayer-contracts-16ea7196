@@ -520,7 +520,7 @@ contract EigenLayrDeployer is
     }
 
     //initiates a data store
-    //checks that the dumpNumber, initTime, storePeriodLength, and committed status are all correct
+    //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
     function _testInitDataStore() internal returns (bytes32) {
         bytes memory header = hex"0102030405060708091011121314151617181920";
         uint32 totalBytes = 1e6;
@@ -537,18 +537,18 @@ contract EigenLayrDeployer is
         uint256 g = gasleft();
         dlsm.initDataStore(header, duration, totalBytes, blockNumber);
         emit log_named_uint("gas for init data store", g- gasleft());
-        uint32 dumpNumber = 1;
+        uint32 dataStoreId = 1;
         bytes32 headerHash = keccak256(header);
         cheats.stopPrank();
         (
-            uint32 dataStoreDumpNumber,
+            uint32 dataStoreDataStoreId,
             uint32 dataStoreInitTime,
             uint32 dataStorePeriodLength,
             uint32 dataStoreBlockNumber
         ) = dl.dataStores(headerHash);
         assertTrue(
-            dataStoreDumpNumber == dumpNumber,
-            "_testInitDataStore: wrong dumpNumber"
+            dataStoreDataStoreId == dataStoreId,
+            "_testInitDataStore: wrong dataStoreId"
         );
         assertTrue(
             dataStoreInitTime == uint32(block.timestamp),
@@ -562,7 +562,7 @@ contract EigenLayrDeployer is
             dataStoreBlockNumber == blockNumber,
             "_testInitDataStore: wrong blockNumber"
         );
-        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dumpNumber);
+        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dataStoreId);
         assertTrue(sighash == bytes32(0), "Data store not committed");
         return headerHash;
     }
@@ -661,7 +661,7 @@ contract EigenLayrDeployer is
      @param data This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -691,7 +691,7 @@ contract EigenLayrDeployer is
         );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
         assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
     }

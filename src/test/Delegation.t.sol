@@ -319,12 +319,12 @@ contract Delegator is EigenLayrDeployer {
 
         _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
 
-        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
         assertTrue(sighash != bytes32(0), "Data store not committed");
     }
         cheats.stopPrank();
 
-        // // try initing another dataStore, so currentDumpNumber > fromDumpNumber
+        // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
         // _testInitDataStore();
         bytes memory header = hex"0102030405060708091011121314151617181921";
         uint32 totalBytes = 1e6;
@@ -343,9 +343,9 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(operator);
         weth.approve(address(dlsm), type(uint256).max);
 
-        // uint256 fromDumpNumber = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDumpNumber(operator);
-        uint32 newCurrentDumpNumber = dlsm.dumpNumber() - 1;
-        dlsm.commitPayment(newCurrentDumpNumber, _amountRewards);
+        // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getOperatorFromDataStoreId(operator);
+        uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
+        dlsm.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
@@ -362,7 +362,7 @@ contract Delegator is EigenLayrDeployer {
         @param data This calldata is of the format:
                 <
                 bytes32 headerHash,
-                uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
                 uint256[numberOfSigners][4] pubkeys of nonsigners,
                 uint32 nonSignerStakeIndices[numberOfNonSigners]
@@ -372,7 +372,7 @@ contract Delegator is EigenLayrDeployer {
                 >
         */
 
-        // emit log_named_uint("current dump", currentDumpNumber);
+        // emit log_named_uint("current dump", currentDataStoreId);
         bytes memory data = abi.encodePacked(
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -456,7 +456,7 @@ contract Delegator is EigenLayrDeployer {
 
 
 
-        bytes32 sighash = dlsm.getDumpNumberSignatureHash(dlsm.dumpNumber() - 1);
+        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
         assertTrue(sighash != bytes32(0), "Data store not committed");
     }
 
@@ -475,7 +475,7 @@ contract Delegator is EigenLayrDeployer {
         @param data This calldata is of the format:
                 <
                 bytes32 headerHash,
-                uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
                 uint32 numberOfNonSigners,
                 uint256[numberOfSigners][4] pubkeys of nonsigners,
                 uint32 nonSignerStakeIndices[numberOfNonSigners]

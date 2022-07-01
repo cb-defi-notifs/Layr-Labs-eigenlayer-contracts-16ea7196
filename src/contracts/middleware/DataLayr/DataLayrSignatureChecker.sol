@@ -23,7 +23,7 @@ abstract contract DataLayrSignatureChecker is
     // DATA STRUCTURES
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
-             DataLayr operators and those operators who are part of the quorum for a particular dumpNumber
+             DataLayr operators and those operators who are part of the quorum for a particular dataStoreId
      */
     struct SignatoryTotals {
         // total ETH stake of the DataLayr operators who are in the quorum
@@ -42,7 +42,7 @@ abstract contract DataLayrSignatureChecker is
      */
     event SignatoryRecord(
         bytes32 headerHash,
-        uint32 dumpNumber,
+        uint32 dataStoreId,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
         // uint256 totalEthStake,
@@ -52,12 +52,12 @@ abstract contract DataLayrSignatureChecker is
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the DataLayr operators
-             that are part of the quorum for a particular dumpNumber and is asserting them into on-chain. The function 
+             that are part of the quorum for a particular dataStoreId and is asserting them into on-chain. The function 
              checks that the claim for aggergated signatures are valid.
 
              The thesis of this procedure entails:
               - computing the aggregated pubkey of all the DataLayr operators that are not part of the quorum for 
-                this specific dumpNumber (represented by aggNonSignerPubkey)
+                this specific dataStoreId (represented by aggNonSignerPubkey)
               - getting the aggregated pubkey of all registered DataLayr nodes at the time of pre-commit by the 
                 disperser (represented by pk),
               - do subtraction of aggNonSignerPubkey from pk over Jacobian coordinate system to get aggregated pubkey
@@ -65,12 +65,12 @@ abstract contract DataLayrSignatureChecker is
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
     
-    // TODO: eliminate 'dumpNumber' from the calldata -- it is fetched based on the specified headerHash
+    // TODO: eliminate 'dataStoreId' from the calldata -- it is fetched based on the specified headerHash
     /** 
      @dev This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dumpNumber in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -82,7 +82,7 @@ abstract contract DataLayrSignatureChecker is
     function checkSignatures(bytes calldata)
         public
         returns (
-            uint32 dumpNumberToConfirm,
+            uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 compressedSignatoryRecord
@@ -101,9 +101,9 @@ abstract contract DataLayrSignatureChecker is
             placeholder := shr(208, calldataload(100))
         }
 
-        // fetch the dumpNumber to confirm and block number to use for stakes from the DataLayr contract
+        // fetch the dataStoreId to confirm and block number to use for stakes from the DataLayr contract
         uint32 blockNumberFromHeaderHash;
-       (dumpNumberToConfirm, , , blockNumberFromHeaderHash) = dataLayr.dataStores(headerHash);
+       (dataStoreIdToConfirm, , , blockNumberFromHeaderHash) = dataLayr.dataStores(headerHash);
 
         // obtain DataLayr's voteweigher contract for querying information on stake later
         IDataLayrRegistry dlRegistry = IDataLayrRegistry(
@@ -143,7 +143,7 @@ abstract contract DataLayrSignatureChecker is
 
         /**
          @notice next step involves computing the aggregated pub key of all the DataLayr operators
-                 that are not part of the quorum for this specific dumpNumber. 
+                 that are not part of the quorum for this specific dataStoreId. 
          */
         /**
          @dev loading pubkey for the first DataLayr operator that is not part of the quorum as listed in the calldata; 
@@ -403,7 +403,7 @@ abstract contract DataLayrSignatureChecker is
 
         emit SignatoryRecord(
             headerHash,
-            dumpNumberToConfirm,
+            dataStoreIdToConfirm,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
             // signedTotals.totalEthStake,
@@ -415,16 +415,16 @@ abstract contract DataLayrSignatureChecker is
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
                 // headerHash,
-                dumpNumberToConfirm,
+                dataStoreIdToConfirm,
                 pubkeyHashes,
                 signedTotals.ethStakeSigned,
                 signedTotals.eigenStakeSigned
             )
         );
 
-        // return dumpNumber, headerHash, eth and eigen that signed, and a hash of the signatories
+        // return dataStoreId, headerHash, eth and eigen that signed, and a hash of the signatories
         return (
-            dumpNumberToConfirm,
+            dataStoreIdToConfirm,
             headerHash,
             signedTotals,
             compressedSignatoryRecord

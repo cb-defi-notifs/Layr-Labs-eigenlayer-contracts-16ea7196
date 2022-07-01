@@ -14,7 +14,7 @@ contract DataLayrChallengeUtils {
     function checkExclusionFromNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) public pure {
         if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
@@ -55,7 +55,7 @@ contract DataLayrChallengeUtils {
     function checkInclusionInNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) public pure {
         require(
             operatorPubkeyHash == signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex],

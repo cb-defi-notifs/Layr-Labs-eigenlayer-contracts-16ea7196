@@ -11,7 +11,7 @@ interface IDataLayrRegistry {
 
     function getOperatorId(address operator) external returns (uint32);
 
-    function getOperatorFromDumpNumber(address operator) external view returns (uint32);
+    function getOperatorFromDataStoreId(address operator) external view returns (uint32);
         
     function getOperatorPubkeyHash(address operator) external view returns (bytes32);
 
@@ -25,9 +25,9 @@ interface IDataLayrRegistry {
     
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory);
 
-    function getOperatorIndex(address operator, uint32 dumpNumber, uint32 index) external view returns (uint32);
+    function getOperatorIndex(address operator, uint32 dataStoreId, uint32 index) external view returns (uint32);
 
-    function getTotalOperators(uint32 dumpNumber, uint32 index) external view returns (uint32);
+    function getTotalOperators(uint32 dataStoreId, uint32 index) external view returns (uint32);
     
     function getDLNStatus(address DLN) external view returns (uint8);
 

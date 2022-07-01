@@ -68,7 +68,7 @@ contract DataLayrDisclosureChallenge {
             constructed during call to initDataStore in DataLayr.sol by the disperser.
             */
             (
-                uint32 dumpNumber,
+                uint32 dataStoreId,
                 uint32 initTime,
                 uint32 storePeriodLength,
                 // uint32 blockNumber,
@@ -79,7 +79,7 @@ contract DataLayrDisclosureChallenge {
             uint256 expireTime = initTime + storePeriodLength;
 
             // check that disperser had acquire quorum for this dataStore
-            require(dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) != bytes32(0), "Dump is not committed yet");
+            require(dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Dump is not committed yet");
 
             // check that the dataStore is still ongoing
             require(block.timestamp <= expireTime, "Dump has already expired");
@@ -244,7 +244,7 @@ contract DataLayrDisclosureChallenge {
         address operator,
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDumpNumber calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         // verify that the challenge has been lost
         require(disclosureChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL, "Challenge not successful");
@@ -254,7 +254,7 @@ contract DataLayrDisclosureChallenge {
         constructed during call to initDataStore in DataLayr.sol by the disperser.
         */
         (
-            uint32 dumpNumber,
+            uint32 dataStoreId,
             uint32 blockNumber,
             ,
             
@@ -269,17 +269,17 @@ contract DataLayrDisclosureChallenge {
             // either there is a later update, past the specified blockNumber, or they are still active
             (operatorStake.nextUpdateBlockNumber >= blockNumber ||
             operatorStake.nextUpdateBlockNumber == 0),
-            "operator was not active during blockNumber specified by dumpNumber / headerHash"
+            "operator was not active during blockNumber specified by dataStoreId / headerHash"
         );
 
        /** 
        Check that the information supplied as input for this particular dataStore on DataLayr is correct
        */
        require(
-           dataLayrServiceManager.getDumpNumberSignatureHash(dumpNumber) ==
+           dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) ==
                keccak256(
                    abi.encodePacked(
-                       dumpNumber,
+                       dataStoreId,
                        signatoryRecord.nonSignerPubkeyHashes,
                        signatoryRecord.totalEthStakeSigned,
                        signatoryRecord.totalEigenStakeSigned
@@ -290,7 +290,7 @@ contract DataLayrDisclosureChallenge {
 
         /** 
           @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
-                  actually part of the quorum for the @param dumpNumber.
+                  actually part of the quorum for the @param dataStoreId.
           
                   The burden of responsibility lies with the challenger to show that the DataLayr operator 
                   is not part of the non-signers for the dump. Towards that end, challenger provides

@@ -17,7 +17,7 @@ import "ds-test/test.sol";
 contract PaymentChallenge is DSTest{
     
     // DATA STRUCTURES
-    struct PaymentChallenge {
+    struct PaymentChallengeStruct {
         // operator whose payment claim is being challenged,
         address operator;
 
@@ -70,7 +70,7 @@ contract PaymentChallenge is DSTest{
     IPaymentChallengeManager public pcm;
 
     // the payment challenge 
-    PaymentChallenge public challenge;
+    PaymentChallengeStruct public challenge;
 
 
 
@@ -91,7 +91,7 @@ contract PaymentChallenge is DSTest{
         uint120 amount1,
         uint120 amount2
     ) {
-        challenge = PaymentChallenge(
+        challenge = PaymentChallengeStruct(
             operator,
             challenger,
             serviceManager,
