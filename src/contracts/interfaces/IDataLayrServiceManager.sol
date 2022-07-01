@@ -54,4 +54,6 @@ interface IDataLayrServiceManager {
     function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 bombDataStoreIndex) external view returns(DataStoreMetadata memory);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
+    
+    function depositFutureFees(address onBehalfOf, uint256 amount) external;
 }

@@ -131,10 +131,12 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
      */
     uint256 public paymentFraudProofCollateral = 1 wei;
 
-
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     uint32 public dataStoreId = 1;
     uint32 public latestTime;
+
+    //total debts owed to dlns
+    mapping(address => uint256) public depositsOf;
 
     /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDataStoreId disclosure challenge 
     uint256 public constant disclosureFraudProofInterval = 7 days;

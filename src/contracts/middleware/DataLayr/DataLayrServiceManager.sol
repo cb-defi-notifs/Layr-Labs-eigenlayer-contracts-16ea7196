@@ -116,6 +116,11 @@ contract DataLayrServiceManager is
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
     }
 
+    function depositFutureFees(address onBehalfOf, uint256 amount) external {
+        paymentToken.transferFrom(msg.sender, address(this), amount);
+        depositsOf[onBehalfOf] += amount;
+    }
+
 
     /**
      * @notice This function is used for
@@ -154,6 +159,10 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
+        // require that disperser has sent enough fees to this contract to pay for this datastore
+        // this will revert if the deposits are not high enough due to undeflow
+        depositsOf[msg.sender] -= fee;
+
         //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
         dataStoreIdsForDuration[duration][block.timestamp].push(
             DataStoreMetadata(
@@ -163,10 +172,6 @@ contract DataLayrServiceManager is
             )
         );
 
-        // escrow the total service fees from the disperser to the DataLayr operators in this contract
-        paymentToken.transferFrom(msg.sender, address(this), fee);
-
-        uint g = gasleft();
         // call DataLayr contract
         dataLayr.initDataStore(
             dataStoreId,
@@ -176,7 +181,6 @@ contract DataLayrServiceManager is
             blockNumber,
             header
         );
-        emit log_named_uint("initdatalayr gas", g - gasleft());
 
         /**
         @notice sets the latest time until which any of the active DataLayr operators that haven't committed

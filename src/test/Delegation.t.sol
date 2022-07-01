@@ -334,6 +334,7 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
+        dlsm.depositFutureFees(storer, 1e11);
         uint32 blockNumber = 1;
         //todo: duration
         dlsm.initDataStore(header, 2, totalBytes, blockNumber);
