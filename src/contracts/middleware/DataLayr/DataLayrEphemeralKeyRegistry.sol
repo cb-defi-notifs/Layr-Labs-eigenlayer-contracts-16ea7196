@@ -21,8 +21,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     uint256 public constant UPDATE_PERIOD = 7 days;
 
     //max amout of time DLN has to submit and confirm the ephemeral key reveal transaction
-    uint256 public constant REVEAL_PERIOD = 1 days;
-    
+    uint256 public constant REVEAL_PERIOD = 7 days;
+
     // the DataLayr Repository contract
     IRepository public immutable repository;
 
