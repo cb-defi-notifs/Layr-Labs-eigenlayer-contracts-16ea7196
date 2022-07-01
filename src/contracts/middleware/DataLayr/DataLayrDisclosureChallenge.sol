@@ -26,7 +26,7 @@ contract DataLayrDisclosureChallenge {
         mapping (uint256 => bool) disclosureCompleted;
     }
 
-    //TODO: change the time here
+    // length of window during which the responses can be made to the challenge
     uint32 constant public DISCLOSURE_CHALLENGE_RESPONSE_WINDOW = 7 days;
      // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
     uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;

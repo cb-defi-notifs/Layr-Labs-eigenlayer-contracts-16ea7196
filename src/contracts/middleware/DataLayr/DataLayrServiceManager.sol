@@ -154,10 +154,6 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-        // record the total service fee that will be paid out for this assertion of data
-        //TODO: Removed this to batch with metadata store
-        // dataStoreIdToFee[dataStoreId] = fee;
-
         //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
         dataStoreIdsForDuration[duration][block.timestamp].push(
             DataStoreMetadata(

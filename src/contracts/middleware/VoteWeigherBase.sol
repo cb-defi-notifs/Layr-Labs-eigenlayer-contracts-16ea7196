@@ -12,14 +12,15 @@ contract VoteWeigherBase is
     VoteWeigherBaseStorage 
     // , DSTest
 {
-    // TODO: make this immutable?
-    uint8 public override constant NUMBER_OF_QUORUMS = 2;
+    uint8 public override immutable NUMBER_OF_QUORUMS;
 
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
-        IInvestmentManager _investmentManager
+        IInvestmentManager _investmentManager,
+        uint8 _NUMBER_OF_QUORUMS
     ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager) {
+        NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
     }
 
     modifier onlyRepositoryGovernance() {

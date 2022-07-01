@@ -66,7 +66,6 @@ abstract contract SignatureChecker is
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
     
-    // TODO: eliminate 'taskNumber' from the calldata -- it is fetched based on the specified taskHash
     /** 
      @dev This calldata is of the format:
             <

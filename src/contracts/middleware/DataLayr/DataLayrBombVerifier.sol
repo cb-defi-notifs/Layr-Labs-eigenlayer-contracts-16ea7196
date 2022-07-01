@@ -9,13 +9,6 @@ import "../../libraries/BN254_Constants.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
-
-    struct BombMetadata {
-        uint256 dataStoreTimestamp;
-        //todo: get blockhash from time of datastore
-        uint256 blockhashInt;
-    }
-
     struct HeaderHashes {
         bytes32 operatorFromHeaderHash;
         bytes32 bombHeaderHash;

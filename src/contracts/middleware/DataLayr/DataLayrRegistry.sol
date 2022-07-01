@@ -38,6 +38,7 @@ contract DataLayrRegistry is
             "Registration(address operator,address registrationContract,uint256 expiry)"
         );
 
+    uint8 internal constant _NUMBER_OF_QUORUMS = 2;
 
     // DATA STRUCTURES 
     /**
@@ -187,7 +188,8 @@ contract DataLayrRegistry is
         VoteWeigherBase(
             _repository,
             _delegation,
-            _investmentManager
+            _investmentManager,
+            _NUMBER_OF_QUORUMS
         )
     {
         //apk_0 = g2Gen
@@ -284,7 +286,6 @@ contract DataLayrRegistry is
 
         registry[msg.sender].deregisterTime = block.timestamp;
 
-        // TODO: this logic is mostly copied from 'updateStakes' function. perhaps de-duplicating it is possible
         // get current DataStoreId from DataLayrServiceManager
         uint32 currentDataStoreId = dlsm.dataStoreId();        
         
