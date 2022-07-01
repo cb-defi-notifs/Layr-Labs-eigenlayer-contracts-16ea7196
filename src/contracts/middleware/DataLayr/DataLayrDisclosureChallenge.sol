@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../libraries/BytesLib.sol";
@@ -22,6 +23,8 @@ contract DataLayrDisclosureChallenge {
         uint32 numSys;
         // number of symbols already disclosed
         uint32 responsesReceived;
+        // collateral amount associated with the challenge
+        uint256 collateral;
         // chunkNumber => whether they have completed a disclosure for this challenge or not
         mapping (uint256 => bool) disclosureCompleted;
     }
@@ -32,6 +35,9 @@ contract DataLayrDisclosureChallenge {
     uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;
     // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
     uint256 constant public CHALLENGE_SUCCESSFUL = type(uint256).max;
+
+    // amount of token required to be placed as collateral when a challenge is opened
+    uint256 public constant COLLATERAL_AMOUNT = 1e18;
 
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
@@ -49,7 +55,12 @@ contract DataLayrDisclosureChallenge {
      */
     event DisclosureChallengeResponse(bytes32 indexed headerHash,address operator, bytes poly);
 
-    constructor(IDataLayrServiceManager _dataLayrServiceManager, IDataLayr _dataLayr, IDataLayrRegistry _dlRegistry, DataLayrChallengeUtils _challengeUtils) {
+    constructor(
+        IDataLayrServiceManager _dataLayrServiceManager,
+        IDataLayr _dataLayr,
+        IDataLayrRegistry _dlRegistry,
+        DataLayrChallengeUtils _challengeUtils
+    ) {
         dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
@@ -100,6 +111,13 @@ contract DataLayrDisclosureChallenge {
         // challenger's address
         disclosureChallenges[headerHash].challenger = msg.sender;
         disclosureChallenges[headerHash].numSys = numSys;
+
+        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        require(
+            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
+            "collateral must be transferred when initiating challenge"
+        );
 
         emit DisclosureChallengeInit(headerHash, msg.sender);
     }

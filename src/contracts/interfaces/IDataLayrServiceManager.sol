@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IDataLayr.sol";
 
 interface IDataLayrServiceManager {
@@ -54,4 +56,6 @@ interface IDataLayrServiceManager {
     function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 bombDataStoreIndex) external view returns(DataStoreMetadata memory);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
+
+    function collateralToken() external view returns(IERC20);
 }

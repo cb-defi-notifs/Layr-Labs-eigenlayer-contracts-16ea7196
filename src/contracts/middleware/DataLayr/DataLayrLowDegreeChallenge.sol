@@ -28,6 +28,9 @@ contract DataLayrLowDegreeChallenge {
     // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
     uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
 
+    // amount of token required to be placed as collateral when a challenge is opened
+    uint256 public constant COLLATERAL_AMOUNT = 1e18;
+
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
@@ -90,6 +93,13 @@ contract DataLayrLowDegreeChallenge {
             // challenger's address
             msg.sender,
             0
+        );
+
+        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        require(
+            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
+            "collateral must be transferred when initiating challenge"
         );
 
         emit LowDegreeChallengeInit(headerHash, msg.sender);
