@@ -6,6 +6,6 @@ import "./IRepository.sol";
 // TODO: provide more functions for this spec
 interface IServiceManager {
 	function repository() external view returns (IRepository);
-	function getServiceObjectCreationTime(bytes32 serviceObjectHash) external view returns (uint256);
-	function getServiceObjectExpiry(bytes32 serviceObjectHash) external view returns (uint256);
+	function getTaskCreationTime(bytes32 taskHash) external view returns (uint256);
+	function getTaskExpiry(bytes32 taskHash) external view returns (uint256);
 }

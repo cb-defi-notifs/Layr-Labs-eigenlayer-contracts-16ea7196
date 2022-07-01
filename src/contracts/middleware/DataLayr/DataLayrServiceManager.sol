@@ -517,13 +517,13 @@ contract DataLayrServiceManager is
         dataLayr = _dataLayr;
     }
 
-    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, was created
-    function getServiceObjectCreationTime(bytes32 serviceObjectHash)
+    /// @notice returns the time when the task, associated with taskHash, was created
+    function getTaskCreationTime(bytes32 taskHash)
         public
         view
         returns (uint256)
     {
-        (, uint32 initTime, ,  ) = dataLayr.dataStores(serviceObjectHash);
+        (, uint32 initTime, ,  ) = dataLayr.dataStores(taskHash);
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {
             return timeCreated;
@@ -532,14 +532,14 @@ contract DataLayrServiceManager is
         }
     }
 
-    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, will expire
-    function getServiceObjectExpiry(bytes32 serviceObjectHash)
+    /// @notice returns the time when the task, associated with taskHash, will expire
+    function getTaskExpiry(bytes32 taskHash)
         external
         view
         returns (uint256)
     {
         (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
-            serviceObjectHash
+            taskHash
         );
         uint256 timeCreated = uint256(initTime);
         if (timeCreated != 0) {

@@ -584,7 +584,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint256 queuedWithdrawalNonce,
-        bytes32 serviceObjectHash,
+        bytes32 taskHash,
         IServiceFactory serviceFactory,
         IRepository repository,
         IRegistrationManager registrationManager
@@ -624,16 +624,16 @@ contract InvestmentManager is
 
         IServiceManager serviceManager = repository.serviceManager();
 
-        // ongoing serviceObject is still active at time when staker was finalizing undelegation
+        // ongoing task is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.
         require(
             initTimestamp >
-                serviceManager.getServiceObjectCreationTime(
-                    serviceObjectHash
+                serviceManager.getTaskCreationTime(
+                    taskHash
                 ) &&
                 unlockTime <
-                serviceManager.getServiceObjectExpiry(serviceObjectHash),
-            "serviceObject does not meet requirements"
+                serviceManager.getTaskExpiry(taskHash),
+            "task does not meet requirements"
         );
 
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal

@@ -10,13 +10,13 @@ import "../interfaces/ITaskMetadata.sol";
 
 contract ServiceManagerBase is ServiceManagerStorage, Initializable {
     /**
-     * @notice This struct is used for containing the details of a serviceObject that is created 
+     * @notice This struct is used for containing the details of a task that is created 
      *         by the middleware for validation in EigenLayr.
      */
-    struct ServiceObject {
+    struct Task {
         // hash(reponse) with the greatest cumulative weight
         bytes32 leadingResponse;
-        // hash(finalized response). initialized as 0x0, updated if/when serviceObject is finalized
+        // hash(finalized response). initialized as 0x0, updated if/when task is finalized
         bytes32 outcome;
         // sum of all cumulative weights
         uint256 totalCumulativeWeight;
@@ -31,33 +31,33 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
     IVoteWeigher public voteWeigher;
     ITaskMetadata public taskMetadata;
     
-    // fixed duration of all new serviceObjects
-    uint256 public serviceObjectDuration;
+    // fixed duration of all new tasks
+    uint256 public taskDuration;
 
     /**
-     * @notice Hash of each serviceObject is mapped to the corresponding creation time of the serviceObject.
+     * @notice Hash of each task is mapped to the corresponding creation time of the task.
      */
-    mapping(bytes32 => uint256) public serviceObjectCreated;
+    mapping(bytes32 => uint256) public taskCreated;
 
     /**
-     * @notice Each serviceObject is mapped to its hash, which is used as its identifier.
+     * @notice Each task is mapped to its hash, which is used as its identifier.
      */
-    mapping(bytes32 => ServiceObject) public serviceObjects;
+    mapping(bytes32 => Task) public tasks;
 
-    event ServiceObjectCreated(bytes32 indexed serviceObjectDataHash, uint256 blockTimestamp);
+    event TaskCreated(bytes32 indexed taskDataHash, uint256 blockTimestamp);
     event ResponseReceived(
         address indexed submitter,
-        bytes32 indexed serviceObjectDataHash,
+        bytes32 indexed taskDataHash,
         bytes32 indexed responseHash,
         uint256 weightAssigned
     );
     event NewLeadingResponse(
-        bytes32 indexed serviceObjectDataHash,
+        bytes32 indexed taskDataHash,
         bytes32 indexed previousLeadingResponseHash,
         bytes32 indexed newLeadingResponseHash
     );
-    event ServiceObjectFinalized(
-        bytes32 indexed serviceObjectDataHash,
+    event TaskFinalized(
+        bytes32 indexed taskDataHash,
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
@@ -84,88 +84,88 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
     }
 
     /**
-     * @notice creates a new serviceObject based on the @param serviceObjectData passed.
+     * @notice creates a new task based on the @param taskData passed.
      */
     // CRITIC: if we end up maintaining a database of registered middlewares (whitelisting) in EigenLayr contracts,
     //         then it might be good (necessary?) to only ensure a middleware can call this function.
-    function createNewServiceObject(bytes calldata serviceObjectData) external {
-        _createNewServiceObject(msg.sender, serviceObjectData);
+    function createNewTask(bytes calldata taskData) external {
+        _createNewTask(msg.sender, taskData);
     }
 
-    function _createNewServiceObject(address serviceObjectCreator, bytes calldata serviceObjectData)
+    function _createNewTask(address taskCreator, bytes calldata taskData)
         internal
     {
-        bytes32 serviceObjectDataHash = keccak256(serviceObjectData);
+        bytes32 taskDataHash = keccak256(taskData);
 
-        //verify that serviceObject has not already been created
-        require(serviceObjectCreated[serviceObjectDataHash] == 0, "duplicate serviceObject");
+        //verify that task has not already been created
+        require(taskCreated[taskDataHash] == 0, "duplicate task");
 
-        //mark serviceObject as created and emit an event
-        serviceObjectCreated[serviceObjectDataHash] = block.timestamp;
-        emit ServiceObjectCreated(serviceObjectDataHash, block.timestamp);
+        //mark task as created and emit an event
+        taskCreated[taskDataHash] = block.timestamp;
+        emit TaskCreated(taskDataHash, block.timestamp);
 
         //TODO: fee calculation of any kind
         uint256 fee;
 
-        //hook to manage payment for serviceObject
-        paymentToken.transferFrom(serviceObjectCreator, address(this), fee);
+        //hook to manage payment for task
+        paymentToken.transferFrom(taskCreator, address(this), fee);
     }
 
     /**
-     * @notice Used by operators to respond to a specific serviceObject.
+     * @notice Used by operators to respond to a specific task.
      */
     /**
-     * @param serviceObjectHash is the identifier for the serviceObject to which the operator is responding,
-     * @param response is the operator's response for the serviceObject.
+     * @param taskHash is the identifier for the task to which the operator is responding,
+     * @param response is the operator's response for the task.
      */
-    function respondToServiceObject(bytes32 serviceObjectHash, bytes calldata response)
+    function respondToTask(bytes32 taskHash, bytes calldata response)
         external
     {
-        _respondToServiceObject(msg.sender, serviceObjectHash, response);
+        _respondToTask(msg.sender, taskHash, response);
     }
 
-    function _respondToServiceObject(
+    function _respondToTask(
         address respondent,
-        bytes32 serviceObjectHash,
+        bytes32 taskHash,
         bytes calldata response
     ) internal {
-        // make sure serviceObject is open
-        require(block.timestamp < _serviceObjectExpiry(serviceObjectHash), "serviceObject period over");
+        // make sure task is open
+        require(block.timestamp < _taskExpiry(taskHash), "task period over");
 
         // make sure sender has not already responded to it
         require(
-            serviceObjects[serviceObjectHash].operatorWeights[respondent] == 0,
-            "duplicate response to serviceObject"
+            tasks[taskHash].operatorWeights[respondent] == 0,
+            "duplicate response to task"
         );
 
         // find respondent's weight and the hash of their response
         uint256 weightToAssign = voteWeigher.weightOfOperator(respondent, 0);
         bytes32 responseHash = keccak256(response);
 
-        // update ServiceObject struct with respondent's weight and response
-        serviceObjects[serviceObjectHash].operatorWeights[respondent] = weightToAssign;
-        serviceObjects[serviceObjectHash].responses[respondent] = responseHash;
-        serviceObjects[serviceObjectHash].cumulativeWeights[responseHash] += weightToAssign;
-        serviceObjects[serviceObjectHash].totalCumulativeWeight += weightToAssign;
+        // update Task struct with respondent's weight and response
+        tasks[taskHash].operatorWeights[respondent] = weightToAssign;
+        tasks[taskHash].responses[respondent] = responseHash;
+        tasks[taskHash].cumulativeWeights[responseHash] += weightToAssign;
+        tasks[taskHash].totalCumulativeWeight += weightToAssign;
 
         //emit event for response
         emit ResponseReceived(
             respondent,
-            serviceObjectHash,
+            taskHash,
             responseHash,
             weightToAssign
         );
 
         // check if leading response has changed. if so, update leadingResponse and emit an event
-        bytes32 leadingResponseHash = serviceObjects[serviceObjectHash].leadingResponse;
+        bytes32 leadingResponseHash = tasks[taskHash].leadingResponse;
         if (
             responseHash != leadingResponseHash &&
-            serviceObjects[serviceObjectHash].cumulativeWeights[responseHash] >
-            serviceObjects[serviceObjectHash].cumulativeWeights[leadingResponseHash]
+            tasks[taskHash].cumulativeWeights[responseHash] >
+            tasks[taskHash].cumulativeWeights[leadingResponseHash]
         ) {
-            serviceObjects[serviceObjectHash].leadingResponse = responseHash;
+            tasks[taskHash].leadingResponse = responseHash;
             emit NewLeadingResponse(
-                serviceObjectHash,
+                taskHash,
                 leadingResponseHash,
                 responseHash
             );
@@ -173,56 +173,56 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
     }
 
     /**
-     * @notice Used for finalizing the outcome of the serviceObject associated with the serviceObjectHash
+     * @notice Used for finalizing the outcome of the task associated with the taskHash
      */
-    function finalizeServiceObject(bytes32 serviceObjectHash) external {
-        // make sure serviceObjectHash is valid
-        require(serviceObjectCreated[serviceObjectHash] != 0, "invalid serviceObjectHash");
+    function finalizeTask(bytes32 taskHash) external {
+        // make sure taskHash is valid
+        require(taskCreated[taskHash] != 0, "invalid taskHash");
 
-        // make sure serviceObject period has ended
+        // make sure task period has ended
         require(
-            block.timestamp >= _serviceObjectExpiry(serviceObjectHash),
-            "serviceObject period ongoing"
+            block.timestamp >= _taskExpiry(taskHash),
+            "task period ongoing"
         );
 
-        // check that serviceObject has not already been finalized,
-        // serviceObject.outcome is always initialized as 0x0 and set after finalization
+        // check that task has not already been finalized,
+        // task.outcome is always initialized as 0x0 and set after finalization
         require(
-            serviceObjects[serviceObjectHash].outcome == bytes32(0),
+            tasks[taskHash].outcome == bytes32(0),
             "duplicate finalization request"
         );
 
         // record the leading response as the final outcome and emit an event
-        bytes32 outcome = serviceObjects[serviceObjectHash].leadingResponse;
-        serviceObjects[serviceObjectHash].outcome = outcome;
-        emit ServiceObjectFinalized(
-            serviceObjectHash,
+        bytes32 outcome = tasks[taskHash].leadingResponse;
+        tasks[taskHash].outcome = outcome;
+        emit TaskFinalized(
+            taskHash,
             outcome,
-            serviceObjects[serviceObjectHash].totalCumulativeWeight
+            tasks[taskHash].totalCumulativeWeight
         );
     }
 
-    /// @notice returns the outcome of the serviceObject associated with the serviceObjectHash
-    function getServiceObjectOutcome(bytes32 serviceObjectHash)
+    /// @notice returns the outcome of the task associated with the taskHash
+    function getTaskOutcome(bytes32 taskHash)
         external
         view
         returns (bytes32)
     {
-        return serviceObjects[serviceObjectHash].outcome;
+        return tasks[taskHash].outcome;
     }
 
-    /// @notice returns the duration of time for which an operator can respond to a serviceObject
-    function getServiceObjectDuration() external view returns (uint256) {
-        return serviceObjectDuration;
+    /// @notice returns the duration of time for which an operator can respond to a task
+    function getTaskDuration() external view returns (uint256) {
+        return taskDuration;
     }
 
-    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, was created
-    function getServiceObjectCreationTime(bytes32 serviceObjectHash)
+    /// @notice returns the time when the task, associated with taskHash, was created
+    function getTaskCreationTime(bytes32 taskHash)
         public
         view
         returns (uint256)
     {
-        uint256 timeCreated = serviceObjectCreated[serviceObjectHash];
+        uint256 timeCreated = taskCreated[taskHash];
         if (timeCreated != 0) {
             return timeCreated;
         } else {
@@ -230,17 +230,17 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
         }
     }
 
-    /// @notice returns the time when the serviceObject, associated with serviceObjectHash, will expire
-    function getServiceObjectExpiry(bytes32 serviceObjectHash)
+    /// @notice returns the time when the task, associated with taskHash, will expire
+    function getTaskExpiry(bytes32 taskHash)
         external
         view
         returns (uint256)
     {
-        return _serviceObjectExpiry(serviceObjectHash);
+        return _taskExpiry(taskHash);
     }
 
-    function _serviceObjectExpiry(bytes32 serviceObjectHash) internal view returns (uint256) {
-        return getServiceObjectCreationTime(serviceObjectHash) + serviceObjectDuration;
+    function _taskExpiry(bytes32 taskHash) internal view returns (uint256) {
+        return getTaskCreationTime(taskHash) + taskDuration;
     }
 
     /**
