@@ -312,9 +312,13 @@ contract DataLayrPaymentChallenge is DSTest{
                 "Operator stake index is too early"
             );
         }
+            require(dlsm.getDataStoreIdsForDuration(
+                searchData.duration, 
+                searchData.timestamp
+            ) == hashLinkedDataStoreMetadatas(searchData.metadatas), "search.metadatas preimage is incorrect");
 
             //TODO: Change this
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index);
+            IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
             require(metadata.globalDataStoreId == challengedDataStoreId, "Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
@@ -343,6 +347,7 @@ contract DataLayrPaymentChallenge is DSTest{
         challenge.status = 1;
     }
 
+
     function resolve(bool challengeSuccessful) internal {
         dlpcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
@@ -366,5 +371,13 @@ contract DataLayrPaymentChallenge is DSTest{
     }
     function getDiff() external view returns (uint48){
         return challenge.toDataStoreId - challenge.fromDataStoreId;
+    }
+
+    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal returns(bytes32) {
+        bytes32 res = bytes32(0);
+        for(uint i = 0; i < metadatas.length; i++) {
+            res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));
+        }
+        return res;
     }
 }

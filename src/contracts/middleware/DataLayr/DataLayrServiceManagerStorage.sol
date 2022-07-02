@@ -101,6 +101,17 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint256 y;
     }
 
+    struct DataStoresForDuration{
+        uint32 one_duration;
+        uint32 two_duration;
+        uint32 three_duration;
+        uint32 four_duration;
+        uint32 five_duration;
+        uint32 six_duration;
+        uint32 dataStoreId;
+        uint32 latestTime;
+    }
+
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
      *         DataLayr nodes.
@@ -132,7 +143,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint256 public paymentFraudProofCollateral = 1 wei;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
-    uint32 public dataStoreId = 1;
+    //uint32 public dataStoreId = 1;
     uint32 public latestTime;
 
     //total debts owed to dlns
@@ -219,7 +230,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint8 constant public MAX_DATASTORE_DURATION = 14;
 
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp
-    mapping(uint8 => mapping(uint256 => DataStoreMetadata[])) public dataStoreIdsForDuration;
+    mapping(uint8 => mapping(uint256 => bytes32)) public dataStoreIdsForDuration;
     //total number of datastores that have been stored for a certain duration
     mapping(uint8 => uint32) public totalDataStoresForDuration;
 

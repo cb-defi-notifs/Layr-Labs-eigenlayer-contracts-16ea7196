@@ -9,6 +9,12 @@ import "../../libraries/BN254_Constants.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
+
+    struct DataStoresForDuration {
+        uint256 timestamp;
+        IDataLayrServiceManager.DataStoreMetadata[] metadatas;
+    }
+
     struct HeaderHashes {
         bytes32 operatorFromHeaderHash;
         bytes32 bombHeaderHash;
@@ -68,7 +74,7 @@ contract DataLayrBombVerifier {
         HeaderHashes calldata headerHashes,
         Indexes calldata indexes,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
-        uint256[2][2][] calldata sandwichProofs,
+        DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
         {
@@ -244,7 +250,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     function verifyBombDataStoreId(
         address operator,
         bytes32 operatorFromHeaderHash,
-        uint256[2][2][] calldata sandwichProofs,
+        DataStoresForDuration[2][2][] calldata sandwichProofs,
         bytes32 detonationHeaderHash,
         uint256 bombDataStoreIndex
     ) internal view returns (uint32, uint32) {
@@ -279,13 +285,16 @@ The loop iterates through to find this next DataStore, thus determining the true
                 sandwichProofs
             );
 
+        require(sandwichProofs.length == dlsm.MAX_DATASTORE_DURATION() + 1, "Incorrect sandwich proof length. *must account for last proof of bomb datastoremetdata");
+
+        //STACK TOOOO DEEEEEEP: talk to gautham
+        require(dlsm.getDataStoreIdsForDuration(
+                durationIndex + 1,
+                detonationDataStoreInitTimestamp
+            ) == hashLinkedDataStoreMetadatas(sandwichProofs[sandwichProofs.length - 1][0][0].metadatas), "bomb metadatas preimage is incorrect");
         // fetch the durationDataStoreId and globalDataStoreId for the specific 'detonation' DataStore specified by the parameters
         IDataLayrServiceManager.DataStoreMetadata
-            memory bombDataStoreMetadata = dlsm.getDataStoreIdsForDuration(
-                durationIndex + 1,
-                detonationDataStoreInitTimestamp,
-                bombDataStoreIndex
-            );
+            memory bombDataStoreMetadata = sandwichProofs[sandwichProofs.length - 1][0][0].metadatas[bombDataStoreIndex];
         // check that the specified bombDataStore info matches the calculated info 
         require(
             bombDataStoreMetadata.durationDataStoreId == calculatedDataStoreId,
@@ -310,7 +319,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         uint256 detonationHeaderHashValue,
         uint256 fromTime,
         uint256 detonationDataStoreInitTimestamp,
-        uint256[2][2][] calldata sandwichProofs
+        DataStoresForDuration[2][2][] calldata sandwichProofs
     )
         internal view
         returns (
@@ -335,8 +344,8 @@ The loop iterates through to find this next DataStore, thus determining the true
 
             //if no DataStores for a certain duration, go to next duration
             if (
-                sandwichProofs[i][0][0] == sandwichProofs[i][0][1] &&
-                sandwichProofs[i][0][0] == 0
+                sandwichProofs[i][0][0].timestamp == sandwichProofs[i][0][1].timestamp  &&
+                sandwichProofs[i][0][0].timestamp == 0
             ) {
                 require(
                     dlsm.totalDataStoresForDuration(i + 1) == 0,
@@ -408,36 +417,39 @@ The loop iterates through to find this next DataStore, thus determining the true
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
         uint8 duration,
-        uint256[2] calldata timestamps
+        DataStoresForDuration[2] calldata sandwich
     ) internal view returns (IDataLayrServiceManager.DataStoreMetadata memory) {
         // make sure that the first timestamp is strictly before the sandwichTimestamp
         require(
-            timestamps[0] < sandwichTimestamp,
-            "timestamps[0] must be before sandwich time"
+            sandwich[0].timestamp < sandwichTimestamp,
+            "sandwich[0].timestamp must be before sandwich time"
         );
         // make sure that the second timestamp is at or after the sandwichTimestamp
         require(
-            timestamps[1] >= sandwichTimestamp,
-            "timestamps[1] must be at or after sandwich time"
+            sandwich[1].timestamp >= sandwichTimestamp,
+            "sandwich[1].timestamp must be at or after sandwich time"
         );
 
         IDataLayrServiceManager.DataStoreMetadata memory xDataStoreMetadata;
         //if not proving the first datastore
-        if (timestamps[0] != 0) {
+        if (sandwich[0].timestamp != 0) {
             // fetch the *last* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[0]' 
-            xDataStoreMetadata = dlsm.lastDataStoreIdAtTimestampForDuration(
+            require(dlsm.getDataStoreIdsForDuration(
                 duration,
-                timestamps[0]
-            );
+                sandwich[0].timestamp
+            ) == hashLinkedDataStoreMetadatas(sandwich[0].metadatas), "sandwich[0].metadatas preimage is incorrect");
+            xDataStoreMetadata = sandwich[0].metadatas[sandwich[0].metadatas.length - 1];
         }
         IDataLayrServiceManager.DataStoreMetadata memory yDataStoreMetadata;
         //if not proving the most recent datastore
-        if (timestamps[1] != 0) {
+        if (sandwich[1].timestamp != 0) {
             // fetch the *first* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[1]' 
-            yDataStoreMetadata = dlsm.firstDataStoreIdAtTimestampForDuration(
+            require(dlsm.getDataStoreIdsForDuration(
                 duration,
-                timestamps[1]
-            );
+                sandwich[1].timestamp
+            ) == hashLinkedDataStoreMetadatas(sandwich[1].metadatas), "sandwich[1].metadatas preimage is incorrect");
+            yDataStoreMetadata =sandwich[1].metadatas[1];
+
             // for the durationDataStoreId's that we just looked up, make sure that the first durationDataStoreId is just before the second durationDataStoreId
             require(
                 xDataStoreMetadata.durationDataStoreId + 1 ==
@@ -529,6 +541,14 @@ The loop iterates through to find this next DataStore, thus determining the true
             disclosureProof.pi
         );
 
+        return res;
+    }
+
+    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
+        bytes32 res = bytes32(0);
+        for(uint i = 0; i < metadatas.length; i++) {
+            res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));
+        }
         return res;
     }
 

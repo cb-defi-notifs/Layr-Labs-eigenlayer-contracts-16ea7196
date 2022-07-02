@@ -13,6 +13,7 @@ interface IDataLayrServiceManager {
         uint8 duration;
         uint256 timestamp;
         uint256 index;
+        DataStoreMetadata[] metadatas;
     }
 
     struct SignatoryRecordMinusDataStoreId {
@@ -47,11 +48,7 @@ interface IDataLayrServiceManager {
     function DURATION_SCALE() external view returns(uint256);
     function MAX_DATASTORE_DURATION() external view returns(uint8);
 
-    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreMetadata memory);
-
-    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) external view returns(DataStoreMetadata memory);
-
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 bombDataStoreIndex) external view returns(DataStoreMetadata memory);
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) external view returns(bytes32);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
     

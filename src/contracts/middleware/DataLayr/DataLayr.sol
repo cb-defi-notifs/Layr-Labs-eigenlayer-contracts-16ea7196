@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "forge-std/Test.sol";
+
 
 
 /**
@@ -12,7 +14,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *              assertion of data in DataLayr, into Ethereum.  
  *            - confirming that quorum has been obtained for storing data in DataLayr  
  */
-contract DataLayr is Ownable, IDataLayr {
+contract DataLayr is Ownable, IDataLayr ,DSTest{
     // constant used to constrain the age of 'blockNumber' specified as input to 'initDataStore' function
     uint256 internal constant BLOCK_STALE_MEASURE = 100;
 
@@ -113,10 +115,12 @@ contract DataLayr is Ownable, IDataLayr {
             blockNumber <= block.number,
             "specified blockNumber is in future"
         );
+
         require(
             blockNumber >= (block.number - BLOCK_STALE_MEASURE),
             "specified blockNumber is too far in past"
         );
+
 
         //initializes data store
         uint32 initTime = uint32(block.timestamp);
@@ -128,6 +132,7 @@ contract DataLayr is Ownable, IDataLayr {
             storePeriodLength,
             blockNumber
         );
+
         
         emit InitDataStore(dataStoreId, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
     }
