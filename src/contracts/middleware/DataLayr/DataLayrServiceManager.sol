@@ -171,7 +171,6 @@ contract DataLayrServiceManager is
         //emit log_named_uint("1", g - gasleft());
 
         //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-        g = gasleft();
         dataStoreIdsForDuration[duration][block.timestamp] =
                 keccak256(
                     abi.encodePacked(
@@ -183,7 +182,6 @@ contract DataLayrServiceManager is
                 );
 
 
-        //emit log_named_uint("2", g - gasleft());
         
         // call DataLayr contract
         g = gasleft();
@@ -209,22 +207,14 @@ contract DataLayrServiceManager is
 
         g = gasleft();
         if (_latestTime > latestTime) {
-            dataStoresForDuration.latestTime = _latestTime;
-            
+            dataStoresForDuration.latestTime = _latestTime;            
         }
 
-        
-
         incrementDataStoresForDuration(duration);
-
-        
         
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
-        //emit log_named_uint("4", g - gasleft());
-
-        
-        
+        //emit log_named_uint("4", g - gasleft()); 
     }
 
     /**
@@ -598,45 +588,45 @@ contract DataLayrServiceManager is
         if(duration==2){
             ++dataStoresForDuration.two_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==3){
+            ++dataStoresForDuration.three_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==4){
+            ++dataStoresForDuration.four_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==5){
+            ++dataStoresForDuration.five_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==6){
+            ++dataStoresForDuration.six_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==7){
+            ++dataStoresForDuration.seven_duration;
         }
 
     }
 
     function getDataStoresForDuration(uint8 duration) public returns(uint32){
         if(duration==1){
-            ++dataStoresForDuration.one_duration;
+            return dataStoresForDuration.one_duration;
         }
         if(duration==2){
             return dataStoresForDuration.two_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==3){
+            return dataStoresForDuration.three_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==4){
+            return dataStoresForDuration.four_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==5){
+            return dataStoresForDuration.five_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==6){
+            return dataStoresForDuration.six_duration;
         }
-        if(duration==1){
-            ++dataStoresForDuration.one_duration;
+        if(duration==7){
+            return dataStoresForDuration.seven_duration;
         }
 
     }
