@@ -85,6 +85,8 @@ contract DataLayrServiceManager is
         bool operatorWon
     );
 
+    DataStoresForDuration public dataStoresForDuration;
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
@@ -95,6 +97,7 @@ contract DataLayrServiceManager is
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
+        dataStoresForDuration.dataStoreId = 1;
         
     }
 
@@ -114,6 +117,11 @@ contract DataLayrServiceManager is
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
+    }
+
+    function depositFutureFees(address onBehalfOf, uint256 amount) external {
+        paymentToken.transferFrom(msg.sender, address(this), amount);
+        depositsOf[onBehalfOf] += amount;
     }
 
 
@@ -154,29 +162,39 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-        dataStoreIdsForDuration[duration][block.timestamp].push(
-            DataStoreMetadata(
-                ++totalDataStoresForDuration[duration],
-                dataStoreId,
-                uint96(fee)
-            )
-        );
-
-        // escrow the total service fees from the disperser to the DataLayr operators in this contract
-        paymentToken.transferFrom(msg.sender, address(this), fee);
-
+        // require that disperser has sent enough fees to this contract to pay for this datastore
+        // this will revert if the deposits are not high enough due to undeflow
         uint g = gasleft();
+
+        depositsOf[msg.sender] -= fee;
+        
+        //emit log_named_uint("1", g - gasleft());
+
+        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
+        dataStoreIdsForDuration[duration][block.timestamp] =
+                keccak256(
+                    abi.encodePacked(
+                        dataStoreIdsForDuration[duration][block.timestamp], 
+                        getDataStoresForDuration(duration) + 1,
+                        dataStoresForDuration.dataStoreId,
+                        uint96(fee)
+                    )
+                );
+
+
+        
         // call DataLayr contract
+        g = gasleft();
         dataLayr.initDataStore(
-            dataStoreId,
+            dataStoresForDuration.dataStoreId,
             headerHash,
             totalBytes,
             storePeriodLength,
             blockNumber,
             header
         );
-        emit log_named_uint("initdatalayr gas", g - gasleft());
+
+        //emit log_named_uint("3", g - gasleft());
 
         /**
         @notice sets the latest time until which any of the active DataLayr operators that haven't committed
@@ -184,12 +202,19 @@ contract DataLayrServiceManager is
         */
         // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
+        
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
+
+        g = gasleft();
         if (_latestTime > latestTime) {
-            latestTime = _latestTime;
+            dataStoresForDuration.latestTime = _latestTime;            
         }
+
+        incrementDataStoresForDuration(duration);
+        
         // increment the counter
-        ++dataStoreId;
+        ++dataStoresForDuration.dataStoreId;
+        //emit log_named_uint("4", g - gasleft()); 
     }
 
     /**
@@ -224,7 +249,7 @@ contract DataLayrServiceManager is
         ) = checkSignatures(data);
         emit log_named_uint("entire signature checking gas", g - gasleft());
 
-        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId, "DataStoreId is invalid");
+        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
@@ -337,7 +362,7 @@ contract DataLayrServiceManager is
             "Only registered operators can call this function"
         );
 
-        require(toDataStoreId <= dataStoreId, "Cannot claim future payments");
+        require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
@@ -545,21 +570,69 @@ contract DataLayrServiceManager is
         }
     }
 
-    function firstDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
-        return dataStoreIdsForDuration[duration][timestamp][0];
-    }
 
-    function lastDataStoreIdAtTimestampForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
-        return dataStoreIdsForDuration[duration][timestamp][dataStoreIdsForDuration[duration][timestamp].length - 1];
-    }
-
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint256 index) external view returns(DataStoreMetadata memory) {
-        return dataStoreIdsForDuration[duration][timestamp][index];
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) external view returns(bytes32) {
+        return dataStoreIdsForDuration[duration][timestamp];
     }
 
     // TODO: actually write this function
     function dataStoreIdToFee(uint32) external pure returns (uint96) {
         return 0;
+    }
+
+
+    function incrementDataStoresForDuration(uint8 duration) public {
+        if(duration==1){
+            ++dataStoresForDuration.one_duration;
+        }
+        if(duration==2){
+            ++dataStoresForDuration.two_duration;
+        }
+        if(duration==3){
+            ++dataStoresForDuration.three_duration;
+        }
+        if(duration==4){
+            ++dataStoresForDuration.four_duration;
+        }
+        if(duration==5){
+            ++dataStoresForDuration.five_duration;
+        }
+        if(duration==6){
+            ++dataStoresForDuration.six_duration;
+        }
+        if(duration==7){
+            ++dataStoresForDuration.seven_duration;
+        }
+
+    }
+
+    function getDataStoresForDuration(uint8 duration) public returns(uint32){
+        if(duration==1){
+            return dataStoresForDuration.one_duration;
+        }
+        if(duration==2){
+            return dataStoresForDuration.two_duration;
+        }
+        if(duration==3){
+            return dataStoresForDuration.three_duration;
+        }
+        if(duration==4){
+            return dataStoresForDuration.four_duration;
+        }
+        if(duration==5){
+            return dataStoresForDuration.five_duration;
+        }
+        if(duration==6){
+            return dataStoresForDuration.six_duration;
+        }
+        if(duration==7){
+            return dataStoresForDuration.seven_duration;
+        }
+
+    }
+
+    function dataStoreId() public returns (uint32){
+        return dataStoresForDuration.dataStoreId;
     }
 
     // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {

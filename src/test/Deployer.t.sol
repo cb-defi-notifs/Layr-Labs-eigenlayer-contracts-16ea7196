@@ -83,6 +83,8 @@ contract EigenLayrDeployer is
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
 
+    uint256 nonce = 69;
+
     bytes[] registrationData;
 
     // strategy index => IInvestmentStrategy
@@ -109,8 +111,8 @@ contract EigenLayrDeployer is
         0x1234567812345678123456781234567812345698123456781234567812348976;
     address acct_1 = cheats.addr(uint256(priv_key_1));
 
-
-    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public ephemeralKey =
+        0x3290567812345678123456781234577812345698123456781234567812344389;
 
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
@@ -155,9 +157,7 @@ contract EigenLayrDeployer is
         serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
-        investmentManager = new InvestmentManager(
-            delegation
-        );
+        investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
             address(
                 new TransparentUpgradeableProxy(
@@ -167,7 +167,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -191,7 +190,12 @@ contract EigenLayrDeployer is
         // initialize InvestmentStrategyBase proxy
         strat.initialize(address(investmentManager), weth);
 
-        eigenToken = new ERC20PresetFixedSupply("eigen", "EIGEN", wethInitialSupply, address(this));
+        eigenToken = new ERC20PresetFixedSupply(
+            "eigen",
+            "EIGEN",
+            wethInitialSupply,
+            address(this)
+        );
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
         eigenStrat = new InvestmentStrategyBase();
         eigenStrat = InvestmentStrategyBase(
@@ -251,21 +255,51 @@ contract EigenLayrDeployer is
 
         //loads hardcoded signer set
         _setSigners();
-        registrationData.push(hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f20fd9f812e64d2be18573054ece7aef8a3fae1618068b08cfdc9722d4254a5c1c1c3241bc604d574aef221cfa3e7abd0334554fdae446fa2258a36c1bb725110d");
-        registrationData.push(hex"2669082021fd1033646a940aabe3f459e7b7a808d959c392af45c91b3fe064960bce92bfb1a54bc1af73b41a1edb13bd9e5006471c5d4708f77ea530f1045b7a0914646c43c0b404345c7864daa76091996c36227ac5b2ad5a7468ab49ebaf7b13357d53c87adfee0aa3b2c7dbca5d00660c4c5ed1acbeebb4c9202101dab4f01d21849e7ec98d09ba242b6f5ca31407f9819acd40f4aa036e7bbacbdd3af2d42f0a64cc4b8ee3af7a898ca674219743ca599d7b0506a371ba79161524fad80d");
-        registrationData.push(hex"142b758de8ad4c74e8167d71b3667cf75e982f006480ecafdde2a403748e7d1b2dd77f6eac473a31fddba53321584cd0aa296f14d14f098093937a5b93dd61c90cc3e0a7657c894d178a7ff41ae51b5ccc4c697684c599015b003aceeb2fec641863a130465043a63a1acf5494ee76895779044613264c5f65a106834b6615901ac1b422373760d0769efe667a1af135e7447a97b906dc3b4b3d56546eb8ecc31a25249cfff25b5a742b3690ba9c88cdeba85b6b20d0c77353fe7a548efdfc8a");
-        registrationData.push(hex"2af2ac3833ce14949c9ef3fbccf620e3a13c9df686687634f9546a76ec5899f7219bfb0cf2f2817525cd89082302218c3cf83b3beae6c4fbe25ae4a790e948d307d64b5418c89567b5956590d6232c4ed95afd9d06d5a13b1f9c0c306a9260fe04783304a0c560710cb4f1bdc8096e7a67e39be589513dc644845b2e66fc19dd084bba4c75ba9dafb4e83e6c8de24ae1dff9ec06812c211321df381d09aa44691e4c3d98475d044e547281470e5dc33098943c018299e08ab3c89b70d452926a");
-        registrationData.push(hex"2c63a558d2384cf3f387db39c48c3b72595ef13adbc3ca7689bc90bae7e4ab060620e82d1bb6c52977529ece1fe1d31b0521492a06c661e06363b3be8306acd10746c80e9dacb5731c65232cf5fb5a2450e4f2e44d44fbc9d6cbf19dd30db776226488c51bfacbf7704d12065eb3ad1b9a707a4f61d41effdcb2ced3e01c4269147423e6e542b715c56e5e0b005348a71e3375e5301710c58017b78919a3c10707a9573924f2b6f5044a231d2a70a61b8b064fc97ec29f072d862f5d399a1476");
-        registrationData.push(hex"0076c0c034a6916e712bb41ed97530c4475c78c89f916137511d03ee94b670691a904a8de426166c9a7e6e3e36260973db56b218336dc89c68e2710026abe9e61612d3f5da47c52b552d66322623d688f5046baa625e4f66556cafed25c61980017458bcef061aafd36e998f0f5958439f175df8ffd3a286bc4986eafdb6d4701c07ff8c6632b0d251c106f434171de8ea44271f0e68a2b5e070376ae35aecfe1f4bde7af27b8dee86137ccf31685ec72185a52154a719087a363326a81713db");
-        registrationData.push(hex"1fb489ea26c1b85899bad2104702946ef256a7e59f26080bfddce2a64e94e3991947cd387f975963abc04838968f3eb128263b73c57c6820107395eca138fd98100bcb4ba69885f5020187520c35df6ff5b991b01bab7b83ad63c23af7e03b0c1efe7165964b7e66443b25b76fe6717739760afae192948aed7ae74f81564255190add561a44c0bd1234f01bad469e63dfd915eb9da9e49ee2f71f72cf554f021ef6b31132d974049e139f4389ec34a2b7404b67e55db7da768907d10801069a");
-        registrationData.push(hex"0e7fc7b5bca43de3fab4acc5a7a014bb9bb5aff171cb26ae31bffe2bc529db0f1269f9809e4069bddf06aaf88187192e241fb817a6c8bbb5aff3836a0520e6b61aca04d4cc4f83d755ac2e9e083197afee1ea77d42e9429fa4b3fb64276f78001e7951e39e5de9c4c89e41fc0fbcf8f59438e85a60d1ac40293ab862f1b4c3bd1182464e8fd0d33351275c3e02d0adbb593d6fc34c7b251becca6ef19e70d91025d14a460697676e73f4c259be24d71b6d59dc5f5ec3026ad9ce50f0c314af65");
-        registrationData.push(hex"18b1f796356a80ea2cc1c0e23a3e7331a97a417473cf83a5f6942ecf9a84cc351a187ceef1a2436db814c6d5a83b16b6dd48f69b23d07f7e3544cf9f3a4edd8a031b8f1c6711edff8267eb49c6a9ecd2de39eaea18621db1f601186b6c8b56ee1a7bb20411a152aaac50010240dad6f82a7dc818fe6565db4132350d69eaeec60b0306663891836f6d11cde6af281687d4703b3c45abb1b3c18519491b1986f30d38c69d223be9fb4733b490f4da70c9694bc73496b341e5fa428f1ed59ba41d");
-        registrationData.push(hex"15ba1ac04f35335cfd1c9c1fcaac012871e3543bb7876b38be193e3f07592aab0323619b00d87f3c03d4bab25c91b8bc4b7aa96818930f2b4684ae8f6e92464b30298b441eaadcfb3b86e0b3f0e41250060dbb89e34c2d67acef7ed9a2590db42108f4f14af5ff87b2b9b7d766c4be119b790f34c9b3b1a62d16f6a95935d2e01ea7023966c26530c81055e0a50c5062918357effe2eb0b9e9c5662d62ed92ce01c43aa265da0850a4b60dd33b66cc9a9ad3037c7dd2a6a0a9611a698f227d3c");
-        registrationData.push(hex"0822ccd871333690ea42c6e7fa1b594c785d8296fc8bacc8a10ddda8f3378ebb0d68db879257ec3f74d4fc1cffd17a9f1b6db08b7c421753dbce0751d6d7d23a07873fdb87a38f72a537da1cc20b48d1186594430718e15ec5e195ab3c65f8102f6a351c01b3cfc217c9ab936382a53b9a350851ecbaf43e6a0f086bf8ec395401693e8f639b1d98d81719c2f9fcdb45ba37bba1ecc4343c8daaf3e44d5f2e8e20acc7c63d987f4a5fe894c3f205b9e2425433fe6b5278d53351f8b4bd6aa705");
-        registrationData.push(hex"1a6962a7170cf4ea2ad4bd0bf9a95c4e6bf96e9302e345b9d12bfbf6fb86dc911733c8198257dc9003ba0163d217b48fdb14e6ce91691242064ae21d821980481ad1e21ac4adc2eebad1e279e490b307aafafcf43a3e63decb19f7dac7d5a26c1fa208243839cf96ee3218652239dc06119770cebe08776c1bd92af9626f04d01a0f55e82e7c08ea1d868630d37e874ba7ad3038264a13b7a5ca0939973502cb191aacc894a8abb566cd982f607deb0c18f3abf846fc3eb6843cbbaa9738d588");
-        registrationData.push(hex"13185695a1abc17847ce6a90edc65eb04c0ebd218156f122ef689674e82ebb331ad5be86a500c6b0b490cbe70610356448aa2b06442f364b138fe7cd0df5efa9294cbc1ccb8c6afdbc05938f368521351328222ac99388e7a26c4f9d51ad1024042a5a5286bbcc22f94e95555be8a193731c2c265b64aa25fde8a047202a6d95051ae01267d28a2fd5e0b1b150709f5ea825727bd6e458223ada31fa2cce53181428260faa6fc03cdde9a77b82eaece16808ff3bc767ab159adb2047081f233c");
-        registrationData.push(hex"1db8d40c46e9992c0e020568b3f1c02fa4aef44c5db1610325093280218f2ab014c3ab56f0d82ad9ff275fae94e51a17c613302e5aa2f2de7001ae181727f8d4053c3d457ad36273361e3b35d02cea6c93879a55f0d086a77e58dc0d5805c6b428fc018be860797143a2b0296ed35113addbf3c0e8aaf6ea93c0acb3db78bae105d176cce68e50136fb116ad9eb04ddf0d810bf07c2e2bf39c56dea317744fa20eb7fc03d877c15b1e6a4c021c604ce4b629a475678c3888a997a398551813b0");
-        registrationData.push(hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a414b5c501b3a03cd83ef2c1d31e0d46f6087f498b508aab54710fe6bcb7922a5a103bc846a08ed3768a9542b7293bf0d254134427070a9f2f88d47e566a21c741");
+        registrationData.push(
+            hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f20fd9f812e64d2be18573054ece7aef8a3fae1618068b08cfdc9722d4254a5c1c1c3241bc604d574aef221cfa3e7abd0334554fdae446fa2258a36c1bb725110d"
+        );
+        registrationData.push(
+            hex"2669082021fd1033646a940aabe3f459e7b7a808d959c392af45c91b3fe064960bce92bfb1a54bc1af73b41a1edb13bd9e5006471c5d4708f77ea530f1045b7a0914646c43c0b404345c7864daa76091996c36227ac5b2ad5a7468ab49ebaf7b13357d53c87adfee0aa3b2c7dbca5d00660c4c5ed1acbeebb4c9202101dab4f01d21849e7ec98d09ba242b6f5ca31407f9819acd40f4aa036e7bbacbdd3af2d42f0a64cc4b8ee3af7a898ca674219743ca599d7b0506a371ba79161524fad80d"
+        );
+        registrationData.push(
+            hex"142b758de8ad4c74e8167d71b3667cf75e982f006480ecafdde2a403748e7d1b2dd77f6eac473a31fddba53321584cd0aa296f14d14f098093937a5b93dd61c90cc3e0a7657c894d178a7ff41ae51b5ccc4c697684c599015b003aceeb2fec641863a130465043a63a1acf5494ee76895779044613264c5f65a106834b6615901ac1b422373760d0769efe667a1af135e7447a97b906dc3b4b3d56546eb8ecc31a25249cfff25b5a742b3690ba9c88cdeba85b6b20d0c77353fe7a548efdfc8a"
+        );
+        registrationData.push(
+            hex"2af2ac3833ce14949c9ef3fbccf620e3a13c9df686687634f9546a76ec5899f7219bfb0cf2f2817525cd89082302218c3cf83b3beae6c4fbe25ae4a790e948d307d64b5418c89567b5956590d6232c4ed95afd9d06d5a13b1f9c0c306a9260fe04783304a0c560710cb4f1bdc8096e7a67e39be589513dc644845b2e66fc19dd084bba4c75ba9dafb4e83e6c8de24ae1dff9ec06812c211321df381d09aa44691e4c3d98475d044e547281470e5dc33098943c018299e08ab3c89b70d452926a"
+        );
+        registrationData.push(
+            hex"2c63a558d2384cf3f387db39c48c3b72595ef13adbc3ca7689bc90bae7e4ab060620e82d1bb6c52977529ece1fe1d31b0521492a06c661e06363b3be8306acd10746c80e9dacb5731c65232cf5fb5a2450e4f2e44d44fbc9d6cbf19dd30db776226488c51bfacbf7704d12065eb3ad1b9a707a4f61d41effdcb2ced3e01c4269147423e6e542b715c56e5e0b005348a71e3375e5301710c58017b78919a3c10707a9573924f2b6f5044a231d2a70a61b8b064fc97ec29f072d862f5d399a1476"
+        );
+        registrationData.push(
+            hex"0076c0c034a6916e712bb41ed97530c4475c78c89f916137511d03ee94b670691a904a8de426166c9a7e6e3e36260973db56b218336dc89c68e2710026abe9e61612d3f5da47c52b552d66322623d688f5046baa625e4f66556cafed25c61980017458bcef061aafd36e998f0f5958439f175df8ffd3a286bc4986eafdb6d4701c07ff8c6632b0d251c106f434171de8ea44271f0e68a2b5e070376ae35aecfe1f4bde7af27b8dee86137ccf31685ec72185a52154a719087a363326a81713db"
+        );
+        registrationData.push(
+            hex"1fb489ea26c1b85899bad2104702946ef256a7e59f26080bfddce2a64e94e3991947cd387f975963abc04838968f3eb128263b73c57c6820107395eca138fd98100bcb4ba69885f5020187520c35df6ff5b991b01bab7b83ad63c23af7e03b0c1efe7165964b7e66443b25b76fe6717739760afae192948aed7ae74f81564255190add561a44c0bd1234f01bad469e63dfd915eb9da9e49ee2f71f72cf554f021ef6b31132d974049e139f4389ec34a2b7404b67e55db7da768907d10801069a"
+        );
+        registrationData.push(
+            hex"0e7fc7b5bca43de3fab4acc5a7a014bb9bb5aff171cb26ae31bffe2bc529db0f1269f9809e4069bddf06aaf88187192e241fb817a6c8bbb5aff3836a0520e6b61aca04d4cc4f83d755ac2e9e083197afee1ea77d42e9429fa4b3fb64276f78001e7951e39e5de9c4c89e41fc0fbcf8f59438e85a60d1ac40293ab862f1b4c3bd1182464e8fd0d33351275c3e02d0adbb593d6fc34c7b251becca6ef19e70d91025d14a460697676e73f4c259be24d71b6d59dc5f5ec3026ad9ce50f0c314af65"
+        );
+        registrationData.push(
+            hex"18b1f796356a80ea2cc1c0e23a3e7331a97a417473cf83a5f6942ecf9a84cc351a187ceef1a2436db814c6d5a83b16b6dd48f69b23d07f7e3544cf9f3a4edd8a031b8f1c6711edff8267eb49c6a9ecd2de39eaea18621db1f601186b6c8b56ee1a7bb20411a152aaac50010240dad6f82a7dc818fe6565db4132350d69eaeec60b0306663891836f6d11cde6af281687d4703b3c45abb1b3c18519491b1986f30d38c69d223be9fb4733b490f4da70c9694bc73496b341e5fa428f1ed59ba41d"
+        );
+        registrationData.push(
+            hex"15ba1ac04f35335cfd1c9c1fcaac012871e3543bb7876b38be193e3f07592aab0323619b00d87f3c03d4bab25c91b8bc4b7aa96818930f2b4684ae8f6e92464b30298b441eaadcfb3b86e0b3f0e41250060dbb89e34c2d67acef7ed9a2590db42108f4f14af5ff87b2b9b7d766c4be119b790f34c9b3b1a62d16f6a95935d2e01ea7023966c26530c81055e0a50c5062918357effe2eb0b9e9c5662d62ed92ce01c43aa265da0850a4b60dd33b66cc9a9ad3037c7dd2a6a0a9611a698f227d3c"
+        );
+        registrationData.push(
+            hex"0822ccd871333690ea42c6e7fa1b594c785d8296fc8bacc8a10ddda8f3378ebb0d68db879257ec3f74d4fc1cffd17a9f1b6db08b7c421753dbce0751d6d7d23a07873fdb87a38f72a537da1cc20b48d1186594430718e15ec5e195ab3c65f8102f6a351c01b3cfc217c9ab936382a53b9a350851ecbaf43e6a0f086bf8ec395401693e8f639b1d98d81719c2f9fcdb45ba37bba1ecc4343c8daaf3e44d5f2e8e20acc7c63d987f4a5fe894c3f205b9e2425433fe6b5278d53351f8b4bd6aa705"
+        );
+        registrationData.push(
+            hex"1a6962a7170cf4ea2ad4bd0bf9a95c4e6bf96e9302e345b9d12bfbf6fb86dc911733c8198257dc9003ba0163d217b48fdb14e6ce91691242064ae21d821980481ad1e21ac4adc2eebad1e279e490b307aafafcf43a3e63decb19f7dac7d5a26c1fa208243839cf96ee3218652239dc06119770cebe08776c1bd92af9626f04d01a0f55e82e7c08ea1d868630d37e874ba7ad3038264a13b7a5ca0939973502cb191aacc894a8abb566cd982f607deb0c18f3abf846fc3eb6843cbbaa9738d588"
+        );
+        registrationData.push(
+            hex"13185695a1abc17847ce6a90edc65eb04c0ebd218156f122ef689674e82ebb331ad5be86a500c6b0b490cbe70610356448aa2b06442f364b138fe7cd0df5efa9294cbc1ccb8c6afdbc05938f368521351328222ac99388e7a26c4f9d51ad1024042a5a5286bbcc22f94e95555be8a193731c2c265b64aa25fde8a047202a6d95051ae01267d28a2fd5e0b1b150709f5ea825727bd6e458223ada31fa2cce53181428260faa6fc03cdde9a77b82eaece16808ff3bc767ab159adb2047081f233c"
+        );
+        registrationData.push(
+            hex"1db8d40c46e9992c0e020568b3f1c02fa4aef44c5db1610325093280218f2ab014c3ab56f0d82ad9ff275fae94e51a17c613302e5aa2f2de7001ae181727f8d4053c3d457ad36273361e3b35d02cea6c93879a55f0d086a77e58dc0d5805c6b428fc018be860797143a2b0296ed35113addbf3c0e8aaf6ea93c0acb3db78bae105d176cce68e50136fb116ad9eb04ddf0d810bf07c2e2bf39c56dea317744fa20eb7fc03d877c15b1e6a4c021c604ce4b629a475678c3888a997a398551813b0"
+        );
+        registrationData.push(
+            hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a414b5c501b3a03cd83ef2c1d31e0d46f6087f498b508aab54710fe6bcb7922a5a103bc846a08ed3768a9542b7293bf0d254134427070a9f2f88d47e566a21c741"
+        );
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -287,13 +321,19 @@ contract EigenLayrDeployer is
         dlRepository = new Repository(delegation, investmentManager);
         ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
 
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](3);
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
+            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
+                3
+            );
         for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
             ethStratsAndMultipliers[i].strategy = strategies[i];
             // TODO: change this if needed
             ethStratsAndMultipliers[i].multiplier = 1e18;
         }
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
+            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
+                1
+            );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
         dlReg = new DataLayrRegistry(
@@ -312,7 +352,12 @@ contract EigenLayrDeployer is
             address(this)
         );
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, challengeUtils);
-        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(dlsm, dl, dlReg, challengeUtils);
+        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
+            dlsm,
+            dl,
+            dlReg,
+            challengeUtils
+        );
 
         dl.setRepository(dlRepository);
         dlsm.setRepository(dlRepository);
@@ -374,7 +419,7 @@ contract EigenLayrDeployer is
     //     emit log_named_uint("10 addition more", gas11 - gas21);
     // }
 
-// TODO: @Gautham fix this to work again?
+    // TODO: @Gautham fix this to work again?
     // function testBLS_Basic() public {
     //     BLS.verifyBLSSigOfPubKeyHash(
     //         registrationData[0]
@@ -398,7 +443,6 @@ contract EigenLayrDeployer is
         //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
         // s
 
-
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
@@ -407,7 +451,6 @@ contract EigenLayrDeployer is
             weth.transfer(sender, amountToDeposit);
             amountDeposited = 0;
         } else {
-            
             weth.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
             weth.approve(address(investmentManager), type(uint256).max);
@@ -522,7 +565,7 @@ contract EigenLayrDeployer is
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
     function _testInitDataStore() internal returns (bytes32) {
-        bytes memory header = hex"0102030405060708091011121314151617181920";
+        bytes memory header = abi.encodePacked(hex"0102030405060708091011121314151617181920");
         uint32 totalBytes = 1e6;
         uint8 duration = 2;
 
@@ -530,15 +573,17 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
+        dlsm.depositFutureFees(storer, 1e11);
+
         uint32 blockNumber = 1;
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
-        uint256 g = gasleft();
+        
         dlsm.initDataStore(header, duration, totalBytes, blockNumber);
-        emit log_named_uint("gas for init data store", g- gasleft());
-        uint32 dataStoreId = 1;
+        uint32 dataStoreId = dlsm.dataStoreId() - 1;
         bytes32 headerHash = keccak256(header);
+
         cheats.stopPrank();
         (
             uint32 dataStoreDataStoreId,
@@ -546,6 +591,9 @@ contract EigenLayrDeployer is
             uint32 dataStorePeriodLength,
             uint32 dataStoreBlockNumber
         ) = dl.dataStores(headerHash);
+        emit log_named_uint("dataStoreDataStoreId", dataStoreDataStoreId);
+        emit log_named_uint("dataStoreId", dataStoreId);
+
         assertTrue(
             dataStoreDataStoreId == dataStoreId,
             "_testInitDataStore: wrong dataStoreId"
@@ -555,7 +603,7 @@ contract EigenLayrDeployer is
             "_testInitDataStore: wrong initTime"
         );
         assertTrue(
-            dataStorePeriodLength == duration*dlsm.DURATION_SCALE(),
+            dataStorePeriodLength == duration * dlsm.DURATION_SCALE(),
             "_testInitDataStore: wrong storePeriodLength"
         );
         assertTrue(
@@ -573,7 +621,12 @@ contract EigenLayrDeployer is
         eigenToken.transfer(sender, toDeposit);
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);
-        investmentManager.depositIntoStrategy(sender, eigenStrat, eigenToken, toDeposit);
+        investmentManager.depositIntoStrategy(
+            sender,
+            eigenStrat,
+            eigenToken,
+            toDeposit
+        );
         // TODO: add this check back in
         // assertEq(
         //     investmentManager.eigenDeposited(sender),
@@ -614,19 +667,33 @@ contract EigenLayrDeployer is
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
 
         dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
-        
+
         cheats.stopPrank();
 
         // verify that registration was stored correctly
         if ((registrantType & 1) == 1 && wethToDeposit > dlReg.dlnEthStake()) {
-            assertTrue(dlReg.ethStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
+            assertTrue(
+                dlReg.ethStakedByOperator(sender) == wethToDeposit,
+                "ethStaked not increased!"
+            );
         } else {
-            assertTrue(dlReg.ethStakedByOperator(sender) == 0, "ethStaked incorrectly > 0");            
+            assertTrue(
+                dlReg.ethStakedByOperator(sender) == 0,
+                "ethStaked incorrectly > 0"
+            );
         }
-        if ((registrantType & 2) == 2 && eigenToDeposit > dlReg.dlnEigenStake()) {
-            assertTrue(dlReg.eigenStakedByOperator(sender) == eigenToDeposit, "eigenStaked not increased!");
+        if (
+            (registrantType & 2) == 2 && eigenToDeposit > dlReg.dlnEigenStake()
+        ) {
+            assertTrue(
+                dlReg.eigenStakedByOperator(sender) == eigenToDeposit,
+                "eigenStaked not increased!"
+            );
         } else {
-            assertTrue(dlReg.eigenStakedByOperator(sender) == 0, "eigenStaked incorrectly > 0");            
+            assertTrue(
+                dlReg.eigenStakedByOperator(sender) == 0,
+                "eigenStaked incorrectly > 0"
+            );
         }
     }
 
@@ -647,17 +714,29 @@ contract EigenLayrDeployer is
         bytes32 headerHash = _testInitDataStore();
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
-            uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121),
-            uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634),
-            uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960),
-            uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672)
+            uint256(
+                20820493588973199354272631301248587752629863429201347184003644368113679196121
+            ),
+            uint256(
+                18507428821816114421698399069438744284866101909563082454551586195885282320634
+            ),
+            uint256(
+                1263326262781780932600377484793962587101562728383804037421955407439695092960
+            ),
+            uint256(
+                3512517006108887301063578607317108977425754510174956792003926207778790018672
+            )
         );
         (uint256 sigma_0, uint256 sigma_1) = (
-            uint256(7155561537864411538991615376457474334371827900888029310878886991084477170996),
-            uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346)
+            uint256(
+                7155561537864411538991615376457474334371827900888029310878886991084477170996
+            ),
+            uint256(
+                10352977531892356631551102769773992282745949082157652335724669165983475588346
+            )
         );
 
-    /** 
+        /** 
      @param data This calldata is of the format:
             <
              bytes32 headerHash,
@@ -691,7 +770,9 @@ contract EigenLayrDeployer is
         );
         emit log_named_uint("number of operators", numberOfSigners);
 
-        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
+            dlsm.dataStoreId() - 1
+        );
         assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
     }
@@ -752,10 +833,16 @@ contract EigenLayrDeployer is
         ) = investmentManager.getDeposits(sender);
 
         uint256 numStrats = delegateShares.length;
-        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no investments");
+        assertTrue(
+            numStrats > 0,
+            "_testDelegateToOperator: delegating from address with no investments"
+        );
         uint256[] memory initialOperatorShares = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.getOperatorShares(operator, delegateStrategies[i]);
+            initialOperatorShares[i] = delegation.getOperatorShares(
+                operator,
+                delegateStrategies[i]
+            );
         }
 
         cheats.startPrank(sender);
@@ -774,9 +861,13 @@ contract EigenLayrDeployer is
 
         for (uint256 i = 0; i < numStrats; ++i) {
             uint256 operatorSharesBefore = initialOperatorShares[i];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(operator, delegateStrategies[i]);
+            uint256 operatorSharesAfter = delegation.getOperatorShares(
+                operator,
+                delegateStrategies[i]
+            );
             assertTrue(
-                operatorSharesAfter == (operatorSharesBefore + delegateShares[i]),
+                operatorSharesAfter ==
+                    (operatorSharesBefore + delegateShares[i]),
                 "_testDelegateToOperator: delegatedShares not increased correctly"
             );
         }
@@ -798,7 +889,10 @@ contract EigenLayrDeployer is
         uint16 numStratsToAdd
     ) internal {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        IInvestmentStrategy[] memory stratsToDepositTo = new IInvestmentStrategy[](numStratsToAdd);
+        IInvestmentStrategy[]
+            memory stratsToDepositTo = new IInvestmentStrategy[](
+                numStratsToAdd
+            );
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             stratsToDepositTo[i] = _testAddStrategy();
             _testWethDepositStrat(
@@ -808,7 +902,11 @@ contract EigenLayrDeployer is
             );
         }
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            assertTrue(investmentManager.investorStrats(sender, i) == stratsToDepositTo[i], "investorStrats array updated incorrectly");
+            assertTrue(
+                investmentManager.investorStrats(sender, i) ==
+                    stratsToDepositTo[i],
+                "investorStrats array updated incorrectly"
+            );
 
             // TODO: perhaps remove this is we can. seems brittle if we don't track the number of strategies somewhere
             //store strategy in mapping of strategies
@@ -816,11 +914,17 @@ contract EigenLayrDeployer is
         }
         // add strategies to dlRegistry
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
+                memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
+                    1
+                );
             ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
             // TODO: change this if needed
             ethStratsAndMultipliers[0].multiplier = 1e18;
-            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
+            dlReg.addStrategiesConsideredAndMultipliers(
+                0,
+                ethStratsAndMultipliers
+            );
         }
     }
 
@@ -831,6 +935,7 @@ contract EigenLayrDeployer is
         delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
+
     // function testCheckSignatures() public {
 
     // }
@@ -841,7 +946,10 @@ contract EigenLayrDeployer is
             "depositContract failed to deploy"
         );
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
-        assertTrue(address(eigenToken) != address(0), "eigenToken failed to deploy");
+        assertTrue(
+            address(eigenToken) != address(0),
+            "eigenToken failed to deploy"
+        );
         assertTrue(
             address(delegation) != address(0),
             "delegation failed to deploy"

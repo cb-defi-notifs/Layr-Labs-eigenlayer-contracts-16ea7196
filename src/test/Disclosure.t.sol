@@ -167,6 +167,7 @@ contract DisclosureDeployer is DSTest {
         );
     }
 
+
     function testMultiply() public {
         Multiplication mul = new Multiplication();
         mul.multiply();
