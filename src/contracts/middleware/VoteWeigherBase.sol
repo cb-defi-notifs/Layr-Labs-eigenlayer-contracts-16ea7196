@@ -23,14 +23,6 @@ contract VoteWeigherBase is
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
     }
 
-    modifier onlyRepositoryGovernance() {
-        require(
-            address(repository.owner()) == msg.sender,
-            "only repository governance can call this function"
-        );
-        _;
-    }
-
     function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
         uint96 weight;
         if (quorumNumber < NUMBER_OF_QUORUMS) {

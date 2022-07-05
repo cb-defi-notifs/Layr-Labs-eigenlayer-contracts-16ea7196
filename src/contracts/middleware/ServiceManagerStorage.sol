@@ -42,8 +42,6 @@ abstract contract ServiceManagerStorage is IGeneralServiceManager {
 
     IERC20 public immutable collateralToken;
 
-    IRepository public repository;
-
     /**
      * @notice service fee that will be paid out by the disperser to the nodes
      *         for storing per byte for per unit time. 

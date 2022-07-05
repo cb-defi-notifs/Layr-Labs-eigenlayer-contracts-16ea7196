@@ -29,9 +29,10 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "./Timelock.sol";
+import "../permissions/RepositoryAccess.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract Governor {
+contract Governor is RepositoryAccess {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -100,7 +101,6 @@ contract Governor {
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
     bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
 
-    IRepository public immutable REPOSITORY;
     IVoteWeigher public immutable VOTE_WEIGHTER;
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
@@ -178,7 +178,7 @@ contract Governor {
     }
 
     constructor(
-        IRepository _REPOSITORY,
+        IRepository _repository,
         IVoteWeigher _VOTE_WEIGHTER,
         Timelock _timelock,
         address _multisig,
@@ -186,8 +186,8 @@ contract Governor {
         uint16 _quorumEigenPercentage,
         uint16 _proposalThresholdEthPercentage,
         uint16 _proposalThresholdEigenPercentage
-    ) {
-        REPOSITORY = _REPOSITORY;
+    ) RepositoryAccess(_repository)
+    {
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
@@ -207,9 +207,9 @@ contract Governor {
         );
         // check percentage
         require(
-            (uint256(ethStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() >=
+            (uint256(ethStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() >=
+                (uint256(eigenStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
@@ -349,9 +349,9 @@ contract Governor {
         );
         // check percentage
         require(
-            (uint256(ethStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
+            (uint256(ethStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
+                (uint256(eigenStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
@@ -408,13 +408,13 @@ contract Governor {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IRegistrationManager(REPOSITORY.registrationManager()).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -549,7 +549,7 @@ contract Governor {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(REPOSITORY.registrationManager()).operatorStakes(user);
+        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(user);
         return (ethStaked, eigenStaked);
     }
 }

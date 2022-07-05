@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./IRepository.sol";
+import "./IRepositoryAccess.sol";
 import "./ITaskMetadata.sol";
 
 // TODO: provide more functions for this spec
-interface IGeneralServiceManager {
-	function repository() external view returns (IRepository);
+interface IGeneralServiceManager is IRepositoryAccess {
 	function getTaskCreationTime(bytes32 taskHash) external view returns (uint256);
 	function getTaskExpiry(bytes32 taskHash) external view returns (uint256);
 	function taskNumber() external returns (uint32);

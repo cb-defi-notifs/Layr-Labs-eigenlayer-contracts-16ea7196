@@ -306,19 +306,22 @@ contract EigenLayrDeployer is
     function _deployDataLayrContracts() internal {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
         dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
+
+        dlRepository = new Repository(delegation, investmentManager);
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
             weth,
             weth,
+            dlRepository,
             feePerBytePerTime,
             dataLayrPaymentChallengeFactory
         );
 
         dlpcm = new DataLayrPaymentChallengeManager(weth, address(dlsm));
-        dl = new DataLayr();
 
-        dlRepository = new Repository(delegation, investmentManager);
+        dl = new DataLayr(dlRepository);
         ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
@@ -359,8 +362,6 @@ contract EigenLayrDeployer is
             challengeUtils
         );
 
-        dl.setRepository(dlRepository);
-        dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
     }
 

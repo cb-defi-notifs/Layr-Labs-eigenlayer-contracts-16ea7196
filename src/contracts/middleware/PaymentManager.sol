@@ -55,8 +55,9 @@ contract PaymentManager is SignatureChecker {
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         IERC20 _collateralToken,
+        IRepository _repository,
         PaymentChallengeFactory _paymentChallengeFactory
-    ) ServiceManagerBase(_paymentToken, _collateralToken) {
+    ) ServiceManagerBase(_paymentToken, _collateralToken, _repository) {
         eigenLayrDelegation = _eigenLayrDelegation;
         paymentChallengeFactory = _paymentChallengeFactory;
         

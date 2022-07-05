@@ -2,15 +2,15 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
+import "../../permissions/RepositoryAccess.sol";
 
-abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager {
+abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager, RepositoryAccess {
     
     // DATA STRUCTURE
 
@@ -121,7 +121,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     IERC20 public immutable collateralToken;
 
     IDataLayr public dataLayr;
-    IRepository public repository;
 
     /**
      * @notice service fee that will be paid out by the disperser to the DataLayr nodes
@@ -238,7 +237,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
     uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins
     mapping(uint256 => bytes32) public depositRoots; // blockNumber => depositRoot
  
-    constructor(IERC20 _paymentToken, IERC20 _collateralToken) {
+    constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
+        RepositoryAccess(_repository)
+    {
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
     }

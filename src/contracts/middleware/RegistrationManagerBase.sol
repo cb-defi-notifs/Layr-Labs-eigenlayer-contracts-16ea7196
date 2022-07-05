@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IRegistrationManager.sol";
 import "../interfaces/IRepository.sol";
+import "../permissions/RepositoryAccess.sol";
 
 /**
  * @notice Simple Implementation of the IRegistrationManager Interface. Handles registration and deregistration, as well as
  *          storing ETH and EIGEN stakes of registered nodes.
  */
-contract RegistrationManagerBase is IRegistrationManager {
+contract RegistrationManagerBase is IRegistrationManager, RepositoryAccess {
     /**
      * @notice struct for storing the amount of Eigen and ETH that has been staked, as well as additional data
      *          packs two uint96's into a single storage slot
@@ -17,8 +18,6 @@ contract RegistrationManagerBase is IRegistrationManager {
         uint96 ethAmount;
         uint96 eigenAmount;
     }
-
-    IRepository public immutable repository;
 
     // variable for storing total ETH and Eigen staked into securing the middleware
     EthAndEigenAmounts public totalStake;
@@ -46,8 +45,9 @@ contract RegistrationManagerBase is IRegistrationManager {
         address registrant // who started
     );
 
-    constructor(IRepository _repository) {
-        repository = _repository;
+    constructor(IRepository _repository) 
+        RepositoryAccess(_repository)
+    {
     }
 
     /// @notice get total ETH staked for securing the middleware

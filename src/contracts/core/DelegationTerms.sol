@@ -5,7 +5,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRegistrationManager.sol";
-import "../interfaces/IRepository.sol";
+import "../permissions/RepositoryAccess.sol";
 
 import "ds-test/test.sol";
 
@@ -66,7 +66,7 @@ import "ds-test/test.sol";
  *          its ETH or Eigen stake, it has to retrieve its reward. However, other delegators whose delegated ETH or 
  *          Eigen hasn't updated, they can continue to use the above formula.          
  */
-contract DelegationTerms is IDelegationTerms, DSTest {
+contract DelegationTerms is IDelegationTerms, RepositoryAccess, DSTest {
     /// @notice Stored for each delegator that have accepted this delegation terms from the operator
     struct DelegatorStatus {
         // value of delegator's shares in different strategies in ETH
@@ -137,8 +137,6 @@ contract DelegationTerms is IDelegationTerms, DSTest {
     address public immutable eigenLayrDelegation;
     //used for weighting of delegated ETH & EIGEN
     IInvestmentManager public immutable investmentManager;
-    // used for fetching weights
-    IRepository public immutable repository;
 
     //NOTE: copied from 'DataLayrRegistry.sol'
     //consensus layer ETH counts for 'consensusLayerPercent'/100 when compared to ETH deposited in the system itself
@@ -169,12 +167,12 @@ contract DelegationTerms is IDelegationTerms, DSTest {
         IRepository _repository,
         uint16 _MAX_OPERATOR_FEE_BIPS,
         uint16 _operatorFeeBips
-    ){
+    ) RepositoryAccess(_repository)
+    {
         operator = _operator;
         investmentManager = _investmentManager;
         paymentTokens = _paymentTokens;
         eigenLayrDelegation = _eigenLayrDelegation;
-        repository = _repository;
         require(_MAX_OPERATOR_FEE_BIPS <= MAX_BIPS, "MAX_OPERATOR_FEE_BIPS cannot be above MAX_BIPS");
         MAX_OPERATOR_FEE_BIPS = _MAX_OPERATOR_FEE_BIPS;
         _setOperatorFeeBips(_operatorFeeBips);

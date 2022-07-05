@@ -4,11 +4,11 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./ServiceManagerStorage.sol";
-import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/ITaskMetadata.sol";
+import "../permissions/RepositoryAccess.sol";
 
-contract ServiceManagerBase is ServiceManagerStorage, Initializable {
+contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
     /**
      * @notice This struct is used for containing the details of a task that is created 
      *         by the middleware for validation in EigenLayr.
@@ -61,24 +61,20 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
         bytes32 indexed outcome,
         uint256 totalCumulativeWeight
     );
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(
-        address repositoryGovernance,
-        address sender
-    );
 
 // TODO: change to initializer
-    constructor(IERC20 _paymentToken, IERC20 _collateralToken) ServiceManagerStorage(_paymentToken, _collateralToken) {
+    constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository)
+        ServiceManagerStorage(_paymentToken, _collateralToken)
+        RepositoryAccess(_repository)
+    {
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
 
     function initialize(
-        IRepository _repository,
         IVoteWeigher _voteWeigher,
         ITaskMetadata _taskMetadata
     )  external initializer {
-        repository = _repository;
         voteWeigher = _voteWeigher;
         taskMetadata = _taskMetadata;
     }
@@ -261,12 +257,5 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable {
         returns (uint256)
     {
         return operatorToPayment[operator].collateral;
-    }
-
-    modifier onlyRepositoryGovernance() {
-        if (!(address(repository.owner()) == msg.sender)) {
-            revert OnlyRepositoryGovernance(address(repository.owner()), msg.sender);
-        }
-        _;
     }
 }

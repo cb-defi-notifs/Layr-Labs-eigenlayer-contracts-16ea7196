@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "../../permissions/RepositoryAccess.sol";
 import "forge-std/Test.sol";
 
 
@@ -14,12 +15,9 @@ import "forge-std/Test.sol";
  *              assertion of data in DataLayr, into Ethereum.  
  *            - confirming that quorum has been obtained for storing data in DataLayr  
  */
-contract DataLayr is Ownable, IDataLayr ,DSTest{
+contract DataLayr is Ownable, IDataLayr, RepositoryAccess, DSTest {
     // constant used to constrain the age of 'blockNumber' specified as input to 'initDataStore' function
     uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
-    // the DataLayr repository
-    IRepository public repository;
 
     /**  
      * @notice percentage of Eigen that DataLayr nodes who have agreed to serve the request
@@ -77,16 +75,10 @@ contract DataLayr is Ownable, IDataLayr ,DSTest{
      */
     mapping(bytes32 => DataStore) public dataStores;
 
-    modifier onlyServiceManager() {
-        require(msg.sender == address(repository.serviceManager()), "Only service manager can call this");
-        _;
+    constructor(IRepository _repository) 
+        RepositoryAccess(_repository)
+    {
     }
-
-    function setRepository(IRepository _repository) public onlyOwner {
-        repository = _repository;
-    }
-
-
 
     /**
      * @notice Used for precommitting for the data that would be asserted into DataLayr.

@@ -127,18 +127,20 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
 
+        dlRepository = new Repository(delegation, investmentManager);
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
             weth,
             weth,
+            dlRepository,
             feePerBytePerTime,
             dataLayrPaymentChallengeFactory
         );
 
-        dl = new DataLayr();
+        dl = new DataLayr(dlRepository);
 
-        dlRepository = new Repository(delegation, investmentManager);
         ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
         
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
@@ -158,8 +160,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             address(this)
         );
 
-        dl.setRepository(dlRepository);
-        dlsm.setRepository(dlRepository);
         dlsm.setDataLayr(dl);
         dlsm.setLowDegreeChallenge(lowDegreeChallenge);
 

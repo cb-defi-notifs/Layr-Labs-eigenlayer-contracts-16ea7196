@@ -91,28 +91,15 @@ contract DataLayrServiceManager is
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         IERC20 _collateralToken,
+        IRepository _repository,
         uint256 _feePerBytePerTime,
         DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory
-    ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken) {
+    ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken, _repository) {
         eigenLayrDelegation = _eigenLayrDelegation;
         feePerBytePerTime = _feePerBytePerTime;
         dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataStoresForDuration.dataStoreId = 1;
         
-    }
-
-
-
-    modifier onlyRepositoryGovernance() {
-        if (!(address(repository.owner()) == msg.sender)) {
-            revert OnlyRepositoryGovernance(address(repository.owner()), msg.sender);
-        }
-        _;
-    }
-
-    function setRepository(IRepository _repository) public {
-        require(address(repository) == address(0), "repository already set");
-        repository = _repository;
     }
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public {
@@ -600,10 +587,12 @@ contract DataLayrServiceManager is
         if(duration==6){
             ++dataStoresForDuration.six_duration;
         }
+// TODO: Gautham + Siddhartha, the 'DataStoresForDuration' struct does not have this property. adding it would increase the struct's storage usage by 1 32-byte slot
+/*
         if(duration==7){
             ++dataStoresForDuration.seven_duration;
         }
-
+*/
     }
 
     function getDataStoresForDuration(uint8 duration) public returns(uint32){
@@ -625,10 +614,12 @@ contract DataLayrServiceManager is
         if(duration==6){
             return dataStoresForDuration.six_duration;
         }
+// TODO: Gautham + Siddhartha, the 'DataStoresForDuration' struct does not have this property. adding it would increase the struct's storage usage by 1 32-byte slot
+/*
         if(duration==7){
             return dataStoresForDuration.seven_duration;
         }
-
+*/
     }
 
     function dataStoreId() public returns (uint32){
