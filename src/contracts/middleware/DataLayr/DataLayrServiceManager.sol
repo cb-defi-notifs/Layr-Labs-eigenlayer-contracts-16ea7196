@@ -587,12 +587,9 @@ contract DataLayrServiceManager is
         if(duration==6){
             ++dataStoresForDuration.six_duration;
         }
-// TODO: Gautham + Siddhartha, the 'DataStoresForDuration' struct does not have this property. adding it would increase the struct's storage usage by 1 32-byte slot
-/*
         if(duration==7){
             ++dataStoresForDuration.seven_duration;
         }
-*/
     }
 
     function getDataStoresForDuration(uint8 duration) public returns(uint32){
@@ -614,12 +611,9 @@ contract DataLayrServiceManager is
         if(duration==6){
             return dataStoresForDuration.six_duration;
         }
-// TODO: Gautham + Siddhartha, the 'DataStoresForDuration' struct does not have this property. adding it would increase the struct's storage usage by 1 32-byte slot
-/*
         if(duration==7){
             return dataStoresForDuration.seven_duration;
         }
-*/
     }
 
     function dataStoreId() public returns (uint32){
