@@ -373,7 +373,7 @@ contract DataLayrPaymentChallenge is DSTest{
         return challenge.toDataStoreId - challenge.fromDataStoreId;
     }
 
-    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal returns(bytes32) {
+    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
         bytes32 res = bytes32(0);
         for(uint i = 0; i < metadatas.length; i++) {
             res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));

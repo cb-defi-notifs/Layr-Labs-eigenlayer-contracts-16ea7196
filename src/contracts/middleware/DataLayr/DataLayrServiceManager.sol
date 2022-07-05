@@ -592,7 +592,7 @@ contract DataLayrServiceManager is
         }
     }
 
-    function getDataStoresForDuration(uint8 duration) public returns(uint32){
+    function getDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
         }
@@ -614,9 +614,10 @@ contract DataLayrServiceManager is
         if(duration==7){
             return dataStoresForDuration.seven_duration;
         }
+        return 0;
     }
 
-    function dataStoreId() public returns (uint32){
+    function dataStoreId() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 
