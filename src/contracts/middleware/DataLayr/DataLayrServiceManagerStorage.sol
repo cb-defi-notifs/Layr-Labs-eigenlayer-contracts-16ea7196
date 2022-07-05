@@ -108,6 +108,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, ISer
         uint32 four_duration;
         uint32 five_duration;
         uint32 six_duration;
+        uint32 seven_duration;
         uint32 dataStoreId;
         uint32 latestTime;
     }
