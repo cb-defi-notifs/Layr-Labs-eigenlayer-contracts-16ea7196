@@ -14,12 +14,17 @@ import "./BLSRegistry.sol";
 
 
 contract ServiceFactory is IServiceFactory {
-    mapping(IRepository => bool) public isRepository;
-    mapping(IRegistry => bool) public isRegistry;
+
     IInvestmentManager immutable investmentManager;
     IEigenLayrDelegation immutable delegation;
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
+    mapping(IRepository => bool) public isRepository;
+    mapping(IRegistry => bool) public isRegistry;
+
+    constructor(
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _delegation
+    ) {
         investmentManager = _investmentManager;
         delegation = _delegation;
     }
