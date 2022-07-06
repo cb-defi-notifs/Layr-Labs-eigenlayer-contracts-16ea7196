@@ -3,15 +3,13 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayr.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
+import "./DataLayrChallengeBase.sol";
 
 // TODO: collateral
-contract DataLayrLowDegreeChallenge {
+contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
         uint256 commitTime;
@@ -31,11 +29,6 @@ contract DataLayrLowDegreeChallenge {
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 public constant COLLATERAL_AMOUNT = 1e18;
 
-    IDataLayr public immutable dataLayr;
-    IDataLayrRegistry public immutable dlRegistry;
-    DataLayrChallengeUtils public immutable challengeUtils;
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
-
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
         address challenger
@@ -46,11 +39,8 @@ contract DataLayrLowDegreeChallenge {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    ) {
-        dataLayr = _dataLayr;
-        dlRegistry = _dlRegistry;
-        challengeUtils = _challengeUtils;
-        dataLayrServiceManager = _dataLayrServiceManager;
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils)
+    {
     }
 
     // headerHash => LowDegreeChallenge struct
@@ -213,90 +203,7 @@ contract DataLayrLowDegreeChallenge {
         // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, lowDegreeChallenges[headerHash].commitTime);
     }
 
-    // slash an operator who signed a headerHash but failed a subsequent LowDegreeChallenge
-    function slashOperator(
-        bytes32 headerHash,
-        address operator,
-        uint256 nonSignerIndex,
-        uint32 operatorHistoryIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId
-            calldata signatoryRecord
-    ) public {
-        // verify that the challenge has been lost
-        require(
-            lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL,
-            "Challenge not successful"
-        );
-
-        /**
-        Get information on the dataStore for which disperser is being challenged. This dataStore was 
-        constructed during call to initDataStore in DataLayr.sol by the disperser.
-        */
-        (uint32 dataStoreId, uint32 blockNumber, ,  ) = dataLayr.dataStores(
-            headerHash
-        );
-        // verify that operator was active *at the blockNumber*
-        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry
-            .getStakeFromPubkeyHashAndIndex(
-                operatorPubkeyHash,
-                operatorHistoryIndex
-            );
-        require(
-            // operator must have become active/registered before (or at) the block number
-            (operatorStake.updateBlockNumber <= blockNumber) &&
-                // operator must have still been active after (or until) the block number
-                // either there is a later update, past the specified blockNumber, or they are still active
-                (operatorStake.nextUpdateBlockNumber >= blockNumber ||
-                    operatorStake.nextUpdateBlockNumber == 0),
-            "operator was not active during blockNumber specified by dataStoreId / headerHash"
-        );
-
-        /** 
-       Check that the information supplied as input for this particular dataStore on DataLayr is correct
-       */
-        require(
-            dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) ==
-                keccak256(
-                    abi.encodePacked(
-                        dataStoreId,
-                        signatoryRecord.nonSignerPubkeyHashes,
-                        signatoryRecord.totalEthStakeSigned,
-                        signatoryRecord.totalEigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
-        );
-
-        /** 
-          @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
-                  actually part of the quorum for the @param dataStoreId.
-          
-                  The burden of responsibility lies with the challenger to show that the DataLayr operator 
-                  is not part of the non-signers for the dump. Towards that end, challenger provides
-                  @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
-                   uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
-                  then,
-                        uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
-         */
-        /**
-          @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
-               non-signers pubkey is recorded in the compressed signatory record in an  ascending
-               manner.      
-        */
-
-        {
-            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-                // check that operator was *not* in the non-signer set (i.e. they did sign)
-                //not super critic: new call here, maybe change comment
-                challengeUtils.checkExclusionFromNonSignerSet(
-                    operatorPubkeyHash,
-                    nonSignerIndex,
-                    signatoryRecord
-                );
-            }
-        }
-
-        // TODO: actually slash.
+    function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
+        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
     }
 }
