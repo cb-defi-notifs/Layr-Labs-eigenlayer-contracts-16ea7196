@@ -26,7 +26,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 pragma solidity ^0.8.9;
 
 import "../interfaces/IVoteWeigher.sol";
-import "../interfaces/IRegistrationManager.sol";
+import "../interfaces/IRegistry.sol";
 import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
@@ -205,14 +205,17 @@ contract Governor is RepositoryAccess {
             msg.sender
         );
         // check percentage
+// TODO: JEFFC restore this to working order
+/*
         require(
-            (uint256(ethStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() >=
+            (uint256(ethStaked) * 100) / IRegistry(repository.registry()).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() >=
+                (uint256(eigenStaked) * 100) / IRegistry(repository.registry()).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
         );
+*/
         require(
             targets.length == values.length &&
                 targets.length == signatures.length &&
@@ -347,14 +350,16 @@ contract Governor is RepositoryAccess {
             proposal.proposer
         );
         // check percentage
+// TODO: JEFFC restore this to working order
+/*
         require(
-            (uint256(ethStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() <
+            (uint256(ethStaked) * 100) / IRegistry(repository.registry()).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() <
+                (uint256(eigenStaked) * 100) / IRegistry(repository.registry()).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
-
+*/
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.cancelTransaction(
@@ -405,19 +410,23 @@ contract Governor is RepositoryAccess {
             return ProposalState.Active;
         } else if (
             proposal.forEthVotes <= proposal.againstEthVotes ||
-            proposal.forEigenVotes <= proposal.againstEigenVotes ||
+            proposal.forEigenVotes <= proposal.againstEigenVotes 
+// TODO: JEFFC restore this to working order
+/*
+            ||
             (
-                ((proposal.forEthVotes * 100) / IRegistrationManager(repository.registrationManager()).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IRegistry(repository.registry()).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IRegistrationManager(repository.registrationManager()).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IRegistry(repository.registry()).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
             )
+*/
         ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
@@ -548,7 +557,11 @@ contract Governor is RepositoryAccess {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IRegistrationManager(repository.registrationManager()).operatorStakes(user);
+// TODO: JEFFC restore this to working order
+/*
+        (uint96 ethStaked, uint96 eigenStaked) = IRegistry(repository.registry()).operatorStakes(user);
         return (ethStaked, eigenStaked);
+*/
+        return (1e17, 1e17);
     }
 }

@@ -84,7 +84,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
     *proof for DLN that hasn't updated their ephemeral key within the update window.  
     */
     function proveStaleEphemeralKey(address dataLayrNode) external {
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.registrationManager()));
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.registry()));
 
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");

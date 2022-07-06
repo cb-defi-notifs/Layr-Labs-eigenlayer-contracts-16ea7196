@@ -7,7 +7,6 @@ import "../interfaces/IGeneralServiceManager.sol";
 import "../interfaces/IPaymentChallengeManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "./Repository.sol";
 
 import "ds-test/test.sol";
 
@@ -273,7 +272,7 @@ contract PaymentChallenge is DSTest{
             "Sig record does not match hash"
         );
 
-        IRegistry dlRegistry = IRegistry(address(IRepository(IGeneralServiceManager(address(sm)).repository()).registrationManager()));
+        IRegistry dlRegistry = IRegistry(address(IRepository(IGeneralServiceManager(address(sm)).repository()).registry()));
 
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 

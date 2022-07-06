@@ -82,10 +82,10 @@ contract Slasher is Ownable, ISlasher {
     }
 
     // TODO: safe way to opt OUT of slashing (fraudproof)
-    // idea -- require registrationManager of repository to call function that opts you out
+    // idea -- require registry of repository to call function that opts you out
 
     // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
-    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistrationManager registrationManager) public view returns (bool) {
+    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) public view returns (bool) {
         // if the user has directly opted in to the 'repository' address being allowed to slash them
         if (optedIntoSlashing[toBeSlashed][address(repository)]
             || 
@@ -93,17 +93,17 @@ contract Slasher is Ownable, ISlasher {
                 // if specified 'serviceFactory' address is included in the approved list of service factories
                 (serviceFactories[address(serviceFactory)])
             &&
-                // if both 'repository' and 'registrationManager' were created by 'serviceFactory' (and are the correct contract type)
-                (serviceFactory.isRepository(repository) && serviceFactory.isRegistrationManager(registrationManager))
+                // if both 'repository' and 'registry' were created by 'serviceFactory' (and are the correct contract type)
+                (serviceFactory.isRepository(repository) && serviceFactory.isRegistry(registry))
             )
             )
         {
-            // if 'registrationManager' is the active RegistrationManager in 'repository'
+            // if 'registry' is the active Registry in 'repository'
             if (
-                (repository.registrationManager() == registrationManager)
+                (repository.registry() == registry)
                 &&
-                // if address 'toBeSlashed' is a registered operator in 'registrationManager'
-                (registrationManager.isRegistered(toBeSlashed))
+                // if address 'toBeSlashed' is a registered operator in 'registry'
+                (registry.isRegistered(toBeSlashed))
                 )
             {
                 return true;
@@ -113,8 +113,8 @@ contract Slasher is Ownable, ISlasher {
         return false;
     }
 
-    function slashOperator(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistrationManager registrationManager) external {
-        require(canSlash(toBeSlashed, serviceFactory, repository, registrationManager), "cannot slash operator");
+    function slashOperator(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) external {
+        require(canSlash(toBeSlashed, serviceFactory, repository, registry), "cannot slash operator");
         // TODO: add more require statements, particularly on msg.sender
         revert();
         investmentManager.slashOperator(toBeSlashed);

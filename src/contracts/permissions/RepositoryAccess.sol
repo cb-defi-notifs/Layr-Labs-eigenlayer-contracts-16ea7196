@@ -39,7 +39,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
 
     modifier onlyRegistry() {
         require(
-            msg.sender == address(repository.registrationManager()),
+            msg.sender == address(repository.registry()),
             "onlyRegistry"
         );
         _;
@@ -53,8 +53,8 @@ abstract contract RepositoryAccess is IRepositoryAccess {
     function serviceManager() internal view returns(IServiceManager) {
         return repository.serviceManager();
     }
-    function registry() internal view returns(IRegistrationManager) {
-        return repository.registrationManager();
+    function registry() internal view returns(IRegistry) {
+        return repository.registry();
     }
 
 }

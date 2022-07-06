@@ -2,7 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IRegistrationManager.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IRepository.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./RepositoryStorage.sol";
 
@@ -26,12 +27,12 @@ contract Repository is Initializable, RepositoryStorage {
     function initialize(
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,
-        IRegistrationManager _registrationManager,
+        IRegistry _registry,
         address initialOwner
     ) external initializer {
         voteWeigher = _voteWeigher;
         serviceManager = _serviceManager;
-        registrationManager = _registrationManager;
+        registry = _registry;
         _transferOwnership(initialOwner);
     }
 
@@ -40,9 +41,9 @@ contract Repository is Initializable, RepositoryStorage {
         serviceManager = _serviceManager;
     }
 
-    /// @notice sets the registration manager for the middleware's repository
-    function setRegistrationManager(IRegistrationManager _registrationManager) external onlyOwner {
-        registrationManager = _registrationManager;
+    /// @notice sets the Registry for the middleware's repository
+    function setRegistry(IRegistry _registry) external onlyOwner {
+        registry = _registry;
     }
 
     /// @notice sets the vote weigher for the middleware's repository

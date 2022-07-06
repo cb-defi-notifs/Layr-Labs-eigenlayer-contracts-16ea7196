@@ -22,7 +22,6 @@ import "ds-test/test.sol";
 contract DataLayrRegistry is
     IDataLayrRegistry,
     VoteWeigherBase,
-    IRegistrationManager,
     DSTest
 {
     using BytesLib for bytes;
@@ -930,5 +929,16 @@ contract DataLayrRegistry is
 
     function getDLNStatus(address DLN) external view returns(uint8) {
         return registry[DLN].active;
+    }
+
+    /**
+     @notice returns task number from when operator has been registered.
+     */
+    function getOperatorFromTaskNumber(address operator)
+        public
+        view
+        returns (uint32)
+    {
+        return registry[operator].fromDataStoreId;
     }
 }

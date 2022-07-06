@@ -9,7 +9,7 @@ interface ISlasher {
         address toBeSlashed,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager
+        IRegistry registry
     ) external view returns (bool);
 
     function slashOperator(

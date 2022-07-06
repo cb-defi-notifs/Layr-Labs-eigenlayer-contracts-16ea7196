@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IServiceFactory.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
-import "./RegistrationManagerBase.sol";
+import "./BLSRegistry.sol";
+// import "./RegistryBase.sol";
 
 /**
  * @notice This factory contract is used for launching new repository contracts.
@@ -14,7 +15,7 @@ import "./RegistrationManagerBase.sol";
 
 contract ServiceFactory is IServiceFactory {
     mapping(IRepository => bool) public isRepository;
-    mapping(IRegistrationManager => bool) public isRegistrationManager;
+    mapping(IRegistry => bool) public isRegistry;
     IInvestmentManager immutable investmentManager;
     IEigenLayrDelegation immutable delegation;
 
@@ -31,22 +32,22 @@ contract ServiceFactory is IServiceFactory {
      * @param serviceManager is the contract for managing fees,
      * @param voteWeigher is the contract for determining how much vote to be assigned to
      *        the response from an operator for the purpose of computing the outcome of the query, 
-     * @param registrationManager is the address of the contract that manages registration of operators
+     * @param registry is the address of the contract that manages registration of operators
      *        with the middleware of the repository that is being created,  
      * @param initialOwner is the inital owner of the repository contract 
      */ 
     function createNewRepository(
         IServiceManager serviceManager,
         IVoteWeigher voteWeigher,
-        IRegistrationManager registrationManager,
+        IRegistry registry,
         address initialOwner
     ) external returns(IRepository) {
         // register a new repository
         IRepository newRepository = new Repository(delegation, investmentManager);
-        Repository(payable(address(newRepository))).initialize(
+        Repository(address(newRepository)).initialize(
             voteWeigher,
             serviceManager,
-            registrationManager,
+            registry,
             initialOwner
         );
 
@@ -58,20 +59,22 @@ contract ServiceFactory is IServiceFactory {
     function createNewService(
         IServiceManager serviceManager,
         address initialRepositoryOwner,
-        uint8 _NUMBER_OF_QUORUMS
-    ) external returns(IRepository, IRegistrationManager, IVoteWeigher) {
+        uint8 _NUMBER_OF_QUORUMS,
+        BLSRegistry.StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
+        BLSRegistry.StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+    ) external returns(IRepository, IRegistry, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
         IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _NUMBER_OF_QUORUMS);
-        IRegistrationManager registrationManager = new RegistrationManagerBase(repository);
-        Repository(payable(address(repository))).initialize(
+        IRegistry registry = new BLSRegistry(Repository(address(repository)), delegation, investmentManager, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
+        Repository(address(repository)).initialize(
             voteWeigher,
             serviceManager,
-            registrationManager,
+            registry,
             initialRepositoryOwner
         );
-        // set the existence bit on the repository and registration manager to true
+        // set the existence bit on the repository and Registry to true
         isRepository[repository] = true;
-        isRegistrationManager[registrationManager] = true;
-        return (repository, registrationManager, voteWeigher);
+        isRegistry[registry] = true;
+        return (repository, registry, voteWeigher);
     }
 }

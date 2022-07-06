@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IRegistrationManager.sol";
+import "../interfaces/IRegistry.sol";
 import "../interfaces/IInvestmentStrategy.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -16,7 +16,7 @@ abstract contract RepositoryStorage is Ownable, IRepository {
     IEigenLayrDelegation public immutable delegation;
     IInvestmentManager public immutable investmentManager;
     IVoteWeigher public voteWeigher;
-    IRegistrationManager public registrationManager;
+    IRegistry public registry;
     IServiceManager public serviceManager;
 
     constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {

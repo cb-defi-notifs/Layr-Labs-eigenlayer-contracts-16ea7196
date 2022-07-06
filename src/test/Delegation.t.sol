@@ -28,7 +28,7 @@ contract Delegator is EigenLayrDeployer {
     Repository repository;
     IRepository newRepository;
     ServiceFactory factory;
-    IRegistrationManager regManager;
+    IRegistry regManager;
     IDataLayrPaymentChallenge dlpc;
     //ISlasher slasher;
     DelegationTerms dt;

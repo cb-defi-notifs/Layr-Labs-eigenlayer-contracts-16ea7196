@@ -587,7 +587,7 @@ contract InvestmentManager is
         bytes32 taskHash,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager
+        IRegistry registry
     ) external {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
@@ -617,7 +617,7 @@ contract InvestmentManager is
                 operator,
                 serviceFactory,
                 repository,
-                registrationManager
+                registry
             ),
             "Contract does not have rights to prevent undelegation"
         );

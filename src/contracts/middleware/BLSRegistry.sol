@@ -20,7 +20,6 @@ import "ds-test/test.sol";
 contract BLSRegistry is
     IRegistry,
     VoteWeigherBase,
-    IRegistrationManager, 
     DSTest
 {
     using BytesLib for bytes;

@@ -331,7 +331,7 @@ contract EigenLayrDelegation is
         bytes32 taskHash,
         IServiceFactory serviceFactory,
         IRepository repository,
-        IRegistrationManager registrationManager
+        IRegistry registry
     ) external {
         require(
             block.timestamp <
@@ -352,7 +352,7 @@ contract EigenLayrDelegation is
                 delegation[staker],
                 serviceFactory,
                 repository,
-                registrationManager
+                registry
             ),
             "Contract does not have rights to prevent undelegation"
         );
