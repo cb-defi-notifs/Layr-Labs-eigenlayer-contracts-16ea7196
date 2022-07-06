@@ -24,9 +24,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 pragma solidity ^0.8.9;
+// TODO: currently we rely on functions that are defined in 'IDataLayrRegistry' rather than 'IRegistry'
+// TODO: it would be better to just use functions from a more generalized interface!
 
 import "../interfaces/IVoteWeigher.sol";
-import "../interfaces/IRegistry.sol";
+import "../interfaces/IDataLayrRegistry.sol";
 import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
@@ -205,17 +207,14 @@ contract Governor is RepositoryAccess {
             msg.sender
         );
         // check percentage
-// TODO: JEFFC restore this to working order
-/*
         require(
-            (uint256(ethStaked) * 100) / IRegistry(repository.registry()).totalEthStaked() >=
+            (uint256(ethStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistry(repository.registry()).totalEigenStaked() >=
+                (uint256(eigenStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
         );
-*/
         require(
             targets.length == values.length &&
                 targets.length == signatures.length &&
@@ -350,16 +349,13 @@ contract Governor is RepositoryAccess {
             proposal.proposer
         );
         // check percentage
-// TODO: JEFFC restore this to working order
-/*
         require(
-            (uint256(ethStaked) * 100) / IRegistry(repository.registry()).totalEthStaked() <
+            (uint256(ethStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IRegistry(repository.registry()).totalEigenStaked() <
+                (uint256(eigenStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
-*/
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.cancelTransaction(
@@ -410,23 +406,19 @@ contract Governor is RepositoryAccess {
             return ProposalState.Active;
         } else if (
             proposal.forEthVotes <= proposal.againstEthVotes ||
-            proposal.forEigenVotes <= proposal.againstEigenVotes 
-// TODO: JEFFC restore this to working order
-/*
-            ||
+            proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / IRegistry(repository.registry()).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IRegistry(repository.registry()).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
             )
-*/
         ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
@@ -557,11 +549,7 @@ contract Governor is RepositoryAccess {
         internal view
         returns (uint96, uint96)
     {
-// TODO: JEFFC restore this to working order
-/*
-        (uint96 ethStaked, uint96 eigenStaked) = IRegistry(repository.registry()).operatorStakes(user);
+        (uint96 ethStaked, uint96 eigenStaked) = IDataLayrRegistry(address(repository.registry())).operatorStakes(user);
         return (ethStaked, eigenStaked);
-*/
-        return (1e17, 1e17);
     }
 }

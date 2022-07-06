@@ -4,8 +4,10 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
-import "../interfaces/IRegistry.sol";
+import "../interfaces/IDataLayrRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
+// TODO: currently we rely on functions that are defined in 'IDataLayrRegistry' rather than 'IRegistry'
+// TODO: it would be better to just use functions from a more generalized interface!
 
 import "ds-test/test.sol";
 
@@ -275,12 +277,8 @@ contract DelegationTerms is IDelegationTerms, RepositoryAccess, DSTest {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-// TODO: JEFFC restore this to working order
-       // (uint96 totalEthStaked, uint96 totalEigenStaked) = IRegistry(repository.registry()).totalStake();
-       (uint96 totalEthStaked, uint96 totalEigenStaked) = (1e18, 1e18);
-       // (uint96 operatorEthStaked, uint96 operatorEigenStaked) = IRegistry(repository.registry()).operatorStakes(operator);
-// TODO: JEFFC restore this to working order
-       (uint96 operatorEthStaked, uint96 operatorEigenStaked) = (1e17, 1e17);
+       (uint96 totalEthStaked, uint96 totalEigenStaked) = IDataLayrRegistry(address(repository.registry())).totalStake();
+       (uint96 operatorEthStaked, uint96 operatorEigenStaked) = IDataLayrRegistry(address(repository.registry())).operatorStakes(operator);
        multipleToEigenHolders = ((((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked) / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders

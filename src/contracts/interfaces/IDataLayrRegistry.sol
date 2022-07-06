@@ -30,4 +30,12 @@ interface IDataLayrRegistry is IRegistry {
     function getDLNStatus(address DLN) external view returns (uint8);
 
     function getOperatorDeregisterTime(address operator) external view returns (uint256);
+
+    function operatorStakes(address operator) external view returns (uint96, uint96);
+
+    function totalStake() external view returns (uint96, uint96);
+
+    function totalEthStaked() external view returns (uint96);
+
+    function totalEigenStaked() external view returns (uint96);
 }

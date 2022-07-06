@@ -483,6 +483,15 @@ contract DataLayrServiceManager is
         return dataStoreIdToSignatureHash[_dataStoreId];
     }
 
+    // TODO: de-duplicate functions
+    function getTaskNumberSignatureHash(uint32 _taskNumber)
+        public
+        view
+        returns (bytes32)
+    {
+        return dataStoreIdToSignatureHash[_taskNumber];
+    }
+
     function getPaymentCollateral(address operator)
         public
         view
@@ -562,8 +571,13 @@ contract DataLayrServiceManager is
         return dataStoreIdsForDuration[duration][timestamp];
     }
 
+    // TODO: de-duplicate functions
+    function dataStoreIdToFee(uint32 _dataStoreId) external pure returns (uint96) {
+        return uint96(taskNumberToFee(_dataStoreId));
+    }
+
     // TODO: actually write this function
-    function dataStoreIdToFee(uint32) external pure returns (uint96) {
+    function taskNumberToFee(uint32) public pure returns(uint256) {
         return 0;
     }
 
@@ -617,10 +631,14 @@ contract DataLayrServiceManager is
         return 0;
     }
 
+    // TODO: de-duplicate functions
     function dataStoreId() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 
+    function taskNumber() public view returns (uint32){
+        return dataStoresForDuration.dataStoreId;
+    }
     // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
     //     return dataStoreIdsForDuration[duration][timestamp][0];
     // }
