@@ -49,6 +49,7 @@ interface IDataLayrServiceManager is IServiceManager {
     function dataLayr() external view returns(IDataLayr);
 
     function DURATION_SCALE() external view returns(uint256);
+    
     function MAX_DATASTORE_DURATION() external view returns(uint8);
 
     function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) external view returns(bytes32);
