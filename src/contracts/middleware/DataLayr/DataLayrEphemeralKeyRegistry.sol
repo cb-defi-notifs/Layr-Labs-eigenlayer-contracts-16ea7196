@@ -2,12 +2,13 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
+import "../../permissions/RepositoryAccess.sol";
 import "./DataLayrRegistry.sol";
 
 // TODO: need to add minimum window for update
 // TODO: MAJOR CRITIQUE -- we need nonoverlapping windows for 'updateEphemeralKeyPreImage' and 'verifyEphemeralKeyIntegrity'
     // as-is, someone can frontrun a transaction to 'updateEphemeralKeyPreImage' by calling 'verifyEphemeralKeyIntegrity' to slash an honest operator
-contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
+contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, RepositoryAccess {
     struct HashEntry{
         bytes32 keyHash;
         uint256 timestamp;
@@ -23,26 +24,18 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     //max amout of time DLN has to submit and confirm the ephemeral key reveal transaction
     uint256 public constant REVEAL_PERIOD = 7 days;
 
-    // the DataLayr Repository contract
-    IRepository public immutable repository;
-
     mapping(address => HashEntry) public EKRegistry;
     mapping(address => EKEntry) public latestEK;
 
-    modifier onlyDLRegistry() {
-        address dlRegistry = address(repository.registrationManager());
-        require(msg.sender == dlRegistry, "onlyDLRegistry");
-        _;
-    }
-
-    constructor(IRepository _repository){
-        repository = _repository;
+    constructor(IRepository _repository)
+        RepositoryAccess(_repository)
+    {
     }
 
     /*
     * Allows DLN to post their first ephemeral key hash via DataLayrRegistry (on registration)
     */
-    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyDLRegistry {
+    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
         require(EKRegistry[operator].keyHash == 0, "previous ephemeral key already exists");
         EKRegistry[operator].keyHash = EKHash;
         EKRegistry[operator].timestamp = block.timestamp;
@@ -51,7 +44,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry{
     /*
     * Allows DLN to post their final ephemeral key preimage via DataLayrRegistry (on degregistration)
     */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external onlyDLRegistry {
+    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external onlyRegistry {
         latestEK[operator].EK = EK;
         latestEK[operator].timestamp = block.timestamp;
     }

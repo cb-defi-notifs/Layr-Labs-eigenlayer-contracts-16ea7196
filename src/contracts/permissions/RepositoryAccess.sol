@@ -7,25 +7,40 @@ import "../interfaces/IRepositoryAccess.sol";
 abstract contract RepositoryAccess is IRepositoryAccess {
     IRepository public immutable repository;
 
+    constructor(IRepository _repository) {
+        repository = _repository;
+    }
+
     modifier onlyRepository() {
-        require(address(repository) == msg.sender, "onlyRepository");
+        require(
+            msg.sender == address(repository),
+            "onlyRepository"
+        );
         _;
     }
 
     modifier onlyRepositoryGovernance() {
         require(
-            address(repository.owner()) == msg.sender,
-            "only repository governance can call this function"
+            msg.sender == address(repository.owner()),
+            "onlyRepositoryGovernance"
         );
         _;
     }
 
     modifier onlyServiceManager() {
-        require(msg.sender == address(repository.serviceManager()), "Only service manager can call this");
+        require(
+            msg.sender == address(repository.serviceManager()),
+            "onlyServiceManager"
+        );
         _;
     }
 
-    constructor(IRepository _repository) {
-        repository = _repository;
+    modifier onlyRegistry() {
+        require(
+            msg.sender == address(repository.registrationManager()),
+            "onlyRegistry"
+        );
+        _;
     }
+
 }
