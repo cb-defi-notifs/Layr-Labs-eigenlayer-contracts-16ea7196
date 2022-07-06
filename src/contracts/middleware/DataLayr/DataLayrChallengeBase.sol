@@ -13,6 +13,8 @@ abstract contract DataLayrChallengeBase {
     uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
     // length of window during which the responses can be made to the challenge
     uint256 public immutable CHALLENGE_RESPONSE_WINDOW;
+    // amount of token required to be placed as collateral when a challenge is opened
+   	uint256 public immutable COLLATERAL_AMOUNT;
 
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
@@ -24,13 +26,15 @@ abstract contract DataLayrChallengeBase {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
-        uint256 _CHALLENGE_RESPONSE_WINDOW
+        uint256 _CHALLENGE_RESPONSE_WINDOW,
+        uint256 _COLLATERAL_AMOUNT
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
         CHALLENGE_RESPONSE_WINDOW = _CHALLENGE_RESPONSE_WINDOW;
+        COLLATERAL_AMOUNT = _COLLATERAL_AMOUNT;
     }
 
 	function challengeSuccessful(bytes32 headerHash) public view virtual returns (bool);
@@ -41,7 +45,54 @@ abstract contract DataLayrChallengeBase {
 
     function challengeClosed(bytes32 headerHash) public view virtual returns (bool);
 
-    function markChallengeSuccessful(bytes32 headerHash) internal virtual;
+    function _markChallengeSuccessful(bytes32 headerHash) internal virtual;
+
+    function _recordChallengeDetails(bytes calldata header, bytes32 headerHash) internal virtual;
+
+    function _challengeCreationEvent(bytes32 headerHash) internal virtual;
+
+    function openChallenge(bytes calldata header) external {
+        // calculate headherHash from header
+        bytes32 headerHash = keccak256(header);
+
+        {
+            /**
+            Get information on the dataStore for which disperser is being challenged. This dataStore was 
+            constructed during call to initDataStore in DataLayr.sol by the disperser.
+            */
+            (
+                uint32 dataStoreId,
+                uint32 initTime,
+                uint32 storePeriodLength,
+                // uint32 blockNumber,
+            ) = dataLayr.dataStores(headerHash);
+
+            uint256 expireTime = initTime + storePeriodLength;
+
+            // check that disperser had acquire quorum for this dataStore 
+            require(dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Data store not committed");
+
+            // check that the dataStore is still ongoing
+            require(block.timestamp <= expireTime, "Dump has already expired");
+        }
+
+        // check that the challenge doesn't exist yet
+        require(
+            !challengeExists(headerHash),
+            "Challenge already opened for headerHash"
+        );
+
+        _recordChallengeDetails(header, headerHash);
+
+        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        require(
+            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
+            "collateral must be transferred when initiating challenge"
+        );
+
+        _challengeCreationEvent(headerHash);
+    }
 
     // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
     function resolveChallenge(bytes32 headerHash) public {
@@ -61,7 +112,7 @@ abstract contract DataLayrChallengeBase {
 
 	    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
     	// and to signal that the challenge has been lost by the signers
-    	markChallengeSuccessful(headerHash);
+    	_markChallengeSuccessful(headerHash);
     }
 
     // slash an operator who signed a headerHash but failed a subsequent challenge

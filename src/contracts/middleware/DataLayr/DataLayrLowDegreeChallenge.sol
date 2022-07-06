@@ -23,7 +23,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     uint32 internal constant  _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
     // amount of token required to be placed as collateral when a challenge is opened
-    uint256 public constant COLLATERAL_AMOUNT = 1e18;
+    uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
@@ -35,61 +35,12 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW)
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW, _DEGREE_CHALLENGE_COLLATERAL_AMOUNT)
     {
     }
 
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
-
-    function forceOperatorsToProveLowDegree(bytes calldata header) public {
-        bytes32 headerHash = keccak256(header);
-
-        {
-            /**
-            Get information on the dataStore for which disperser is being challenged. This dataStore was 
-            constructed during call to initDataStore in DataLayr.sol by the disperser.
-            */
-            (
-                uint32 dataStoreId,
-                uint32 initTime,
-                uint32 storePeriodLength,
-                // uint32 blockNumber,
-            ) = dataLayr.dataStores(headerHash);
-
-            uint256 expireTime = initTime + storePeriodLength;
-
-            // check that disperser had acquire quorum for this dataStore 
-            require(dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Data store not committed");
-
-            // check that the dataStore is still ongoing
-            require(block.timestamp <= expireTime, "Dump has already expired");
-        }
-
-        // check that the DataLayr operator hasn't been challenged yet
-        require(
-            !challengeExists(headerHash),
-            "LowDegreeChallenge already opened for headerHash"
-        );
-
-        // record details of low degree challenge that has been opened
-        lowDegreeChallenges[headerHash] = LowDegreeChallenge(
-            // the current timestamp when the challenge was created
-            block.timestamp,
-            // challenger's address
-            msg.sender,
-            COLLATERAL_AMOUNT
-        );
-
-        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
-        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        require(
-            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
-            "collateral must be transferred when initiating challenge"
-        );
-
-        emit LowDegreeChallengeInit(headerHash, msg.sender);
-    }
 
     function respondToLowDegreeChallenge(
         bytes calldata header,
@@ -194,8 +145,22 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
     // and to signal that the challenge has been lost by the signers
-    function markChallengeSuccessful(bytes32 headerHash) internal override {
+    function _markChallengeSuccessful(bytes32 headerHash) internal override {
         lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
     }
 
+    function _recordChallengeDetails(bytes calldata, bytes32 headerHash) internal override {
+        // record details of low degree challenge that has been opened
+        lowDegreeChallenges[headerHash] = LowDegreeChallenge(
+            // the current timestamp when the challenge was created
+            block.timestamp,
+            // challenger's address
+            msg.sender,
+            COLLATERAL_AMOUNT
+        );
+    }
+
+    function _challengeCreationEvent(bytes32 headerHash) internal override {
+        emit LowDegreeChallengeInit(headerHash, msg.sender);
+    }
 }

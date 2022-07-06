@@ -30,7 +30,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
     uint32 internal constant  _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
     // amount of token required to be placed as collateral when a challenge is opened
-    uint256 public constant COLLATERAL_AMOUNT = 1e18;
+    uint256 internal constant _DISCLOSURE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
     mapping (bytes32 => DisclosureChallenge) public disclosureChallenges;
 
@@ -48,65 +48,9 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW)
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW, _DISCLOSURE_CHALLENGE_COLLATERAL_AMOUNT)
     {
     }
-
-    function forceOperatorsToDisclose(
-        bytes calldata header
-    ) external {
-        // calculate headherHash from header
-        bytes32 headerHash = keccak256(header);
-
-        {
-            /**
-            Get information on the dataStore for which disperser is being challenged. This dataStore was 
-            constructed during call to initDataStore in DataLayr.sol by the disperser.
-            */
-            (
-                uint32 dataStoreId,
-                uint32 initTime,
-                uint32 storePeriodLength,
-                // uint32 blockNumber,
-                // ,
-                // bool committed
-            ) = dataLayr.dataStores(headerHash);
-
-            uint256 expireTime = initTime + storePeriodLength;
-
-            // check that disperser had acquire quorum for this dataStore
-            require(dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Dump is not committed yet");
-
-            // check that the dataStore is still ongoing
-            require(block.timestamp <= expireTime, "Dump has already expired");
-        }
-
-        // check that the DataLayr operator hasn't been challenged yet
-        require(
-            !challengeExists(headerHash),
-            "DisclosureChallenge already opened for headerHash"
-        );
-
-        // get numSys from header
-        (, , uint32 numSys, ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
-
-        // record details of forced disclosure challenge that has been opened
-        // the current timestamp when the challenge was created
-        disclosureChallenges[headerHash].commitTime = block.timestamp;
-        // challenger's address
-        disclosureChallenges[headerHash].challenger = msg.sender;
-        disclosureChallenges[headerHash].numSys = numSys;
-
-        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
-        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        require(
-            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
-            "collateral must be transferred when initiating challenge"
-        );
-
-        emit DisclosureChallengeInit(headerHash, msg.sender);
-    }
-
 
     /**
      @notice 
@@ -242,7 +186,23 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
     // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
     // and to signal that the challenge has been lost by the signers
-    function markChallengeSuccessful(bytes32 headerHash) internal override {
+    function _markChallengeSuccessful(bytes32 headerHash) internal override {
         disclosureChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
+    }
+
+    function _recordChallengeDetails(bytes calldata header, bytes32 headerHash) internal override {
+        // get numSys from header
+        (, , uint32 numSys, ) = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+
+        // record details of forced disclosure challenge that has been opened
+        // the current timestamp when the challenge was created
+        disclosureChallenges[headerHash].commitTime = block.timestamp;
+        // challenger's address
+        disclosureChallenges[headerHash].challenger = msg.sender;
+        disclosureChallenges[headerHash].numSys = numSys;
+    }
+
+    function _challengeCreationEvent(bytes32 headerHash) internal override {
+        emit DisclosureChallengeInit(headerHash, msg.sender);
     }
 }
