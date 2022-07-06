@@ -25,7 +25,6 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 pragma solidity ^0.8.9;
 
-import "../interfaces/IRepository.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistrationManager.sol";
 import "./Timelock.sol";

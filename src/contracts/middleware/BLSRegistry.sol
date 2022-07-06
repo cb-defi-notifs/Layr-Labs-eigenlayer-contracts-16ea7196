@@ -571,14 +571,14 @@ contract BLSRegistry is
     }
 
     function setNodeEigenStake(uint128 _nodeEigenStake)
-        public
+        external
         onlyRepositoryGovernance
     {
         nodeEigenStake = _nodeEigenStake;
     }
 
     function setNodeEthStake(uint128 _nodeEthStake)
-        public
+        external
         onlyRepositoryGovernance
     {
         nodeEthStake = _nodeEthStake;
@@ -589,7 +589,7 @@ contract BLSRegistry is
      @notice sets the latest time until which any of the active operators that haven't committed
              yet to deregistration are supposed to serve.
      */
-    function setLatestTime(uint32 _latestTime) public {
+    function setLatestTime(uint32 _latestTime) external onlyServiceManager {
         require(
             address(repository.serviceManager()) == msg.sender,
             "only service manager can call this"

@@ -10,7 +10,6 @@ import "./ServiceManagerBase.sol";
 import "./SignatureChecker.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/Merkle.sol";
-import "./Repository.sol";
 import "ds-test/test.sol";
 
 /**
