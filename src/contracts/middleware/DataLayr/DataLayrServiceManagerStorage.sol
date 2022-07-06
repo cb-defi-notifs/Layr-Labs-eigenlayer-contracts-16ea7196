@@ -10,7 +10,7 @@ import "../../interfaces/IServiceManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 import "../../permissions/RepositoryAccess.sol";
 
-abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, IServiceManager, RepositoryAccess {
+abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
     
     // DATA STRUCTURE
 

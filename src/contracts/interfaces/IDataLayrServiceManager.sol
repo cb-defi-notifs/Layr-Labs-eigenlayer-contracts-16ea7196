@@ -3,8 +3,9 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IDataLayr.sol";
+import "./IServiceManager.sol";
 
-interface IDataLayrServiceManager {
+interface IDataLayrServiceManager is IServiceManager {
     struct DataStoreMetadata {
         uint32 durationDataStoreId;
         uint32 globalDataStoreId;
