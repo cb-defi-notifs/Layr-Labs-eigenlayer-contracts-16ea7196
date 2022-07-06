@@ -469,7 +469,7 @@ contract DataLayrServiceManager is
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge),
-            "Only challenge resolver can resolve challenges"
+            "Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).slashOperator(operator);
     }
