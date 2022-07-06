@@ -7,6 +7,7 @@ import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
+import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 import "../../permissions/RepositoryAccess.sol";
 
@@ -237,6 +238,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //a deposit root is posted every depositRootInterval dumps
     uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins
     mapping(uint256 => bytes32) public depositRoots; // blockNumber => depositRoot
+
+    // TODO: set this!!! (@JEFFC)
+    IInvestmentManager public investmentManager;
  
     constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)

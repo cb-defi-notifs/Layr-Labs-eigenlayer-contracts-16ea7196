@@ -20,11 +20,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     }
 
     // length of window during which the responses can be made to the challenge
-    uint32 public constant DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
-    // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
-    uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
-    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
-    uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
+    uint32 internal constant  _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 public constant COLLATERAL_AMOUNT = 1e18;
@@ -39,7 +35,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils)
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW)
     {
     }
 
@@ -72,17 +68,17 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         // check that the DataLayr operator hasn't been challenged yet
         require(
-            lowDegreeChallenges[headerHash].commitTime == 0,
+            !challengeExists(headerHash),
             "LowDegreeChallenge already opened for headerHash"
         );
 
-        // record details of forced disclosure challenge that has been opened
+        // record details of low degree challenge that has been opened
         lowDegreeChallenges[headerHash] = LowDegreeChallenge(
             // the current timestamp when the challenge was created
             block.timestamp,
             // challenger's address
             msg.sender,
-            0
+            COLLATERAL_AMOUNT
         );
 
         // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
@@ -108,7 +104,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // check that the challenge window is still open
         require(
             (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <=
-                DEGREE_CHALLENGE_RESPONSE_WINDOW,
+                CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has already elapsed"
         );
 
@@ -180,30 +176,26 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, msg.sender, 1);
     }
 
-    function resolveLowDegreeChallenge(bytes32 headerHash) public {
-        require(
-            lowDegreeChallenges[headerHash].commitTime != 0,
-            "Challenge does not exist"
-        );
-        require(
-            lowDegreeChallenges[headerHash].commitTime !=
-                CHALLENGE_UNSUCCESSFUL,
-            "Challenge failed"
-        );
-        // check that the challenge window is no longer open
-        require(
-            (block.timestamp - lowDegreeChallenges[headerHash].commitTime) >
-                DEGREE_CHALLENGE_RESPONSE_WINDOW,
-            "Challenge response period has not yet elapsed"
-        );
-
-        // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
-        // and to signal that the challenge has been lost by the signers
-        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
-        // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, lowDegreeChallenges[headerHash].commitTime);
-    }
-
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
         return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
     }
+
+    function challengeUnsuccessful(bytes32 headerHash) public view override returns (bool) {
+        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_UNSUCCESSFUL);
+    }
+
+    function challengeExists(bytes32 headerHash) public view override returns (bool) {
+        return (lowDegreeChallenges[headerHash].commitTime != 0);
+    }
+
+    function challengeClosed(bytes32 headerHash) public view override returns (bool) {
+        return ((block.timestamp - lowDegreeChallenges[headerHash].commitTime) > CHALLENGE_RESPONSE_WINDOW);
+    }
+
+    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
+    // and to signal that the challenge has been lost by the signers
+    function markChallengeSuccessful(bytes32 headerHash) internal override {
+        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
+    }
+
 }

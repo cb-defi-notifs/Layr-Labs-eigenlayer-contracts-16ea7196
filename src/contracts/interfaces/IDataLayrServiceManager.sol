@@ -39,7 +39,7 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function getPaymentCollateral(address) external returns (uint256);
 
-    function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) external;
+    function slashOperator(address operator) external;
 
     function latestTime() external returns(uint32);
 

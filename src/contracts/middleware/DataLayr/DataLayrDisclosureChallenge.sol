@@ -27,11 +27,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
     }
 
     // length of window during which the responses can be made to the challenge
-    uint32 constant public DISCLOSURE_CHALLENGE_RESPONSE_WINDOW = 7 days;
-     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
-    uint256 constant public CHALLENGE_UNSUCCESSFUL = 1;
-    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
-    uint256 constant public CHALLENGE_SUCCESSFUL = type(uint256).max;
+    uint32 internal constant  _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 public constant COLLATERAL_AMOUNT = 1e18;
@@ -52,7 +48,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils)
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW)
     {
     }
 
@@ -87,7 +83,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
         // check that the DataLayr operator hasn't been challenged yet
         require(
-            disclosureChallenges[headerHash].commitTime == 0,
+            !challengeExists(headerHash),
             "DisclosureChallenge already opened for headerHash"
         );
 
@@ -199,7 +195,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 // TODO: some of this code resembles some of the code in 'DataLayrLowDegreeChallenge.sol' -- determine if we can de-duplicate this code
         // check that the challenge window is still open
         require(
-            (block.timestamp - disclosureChallenges[headerHash].commitTime) <= DISCLOSURE_CHALLENGE_RESPONSE_WINDOW,
+            (block.timestamp - disclosureChallenges[headerHash].commitTime) <= CHALLENGE_RESPONSE_WINDOW,
             "Challenge response period has already elapsed"
         );
 
@@ -227,24 +223,26 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
         // emit event
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
     }
-    
-    // TODO: this is essentially copy-pasted from 'DataLayrLowDegreeChallenge.sol' -- de-duplicate this code!
-    function resolveDisclosureChallenge(bytes32 headerHash) public {
-        require(disclosureChallenges[headerHash].commitTime != 0, "Challenge does not exist");
-        require(disclosureChallenges[headerHash].commitTime != CHALLENGE_UNSUCCESSFUL, "Challenge failed");
-        // check that the challenge window is no longer open
-        require(
-            (block.timestamp - disclosureChallenges[headerHash].commitTime) > DISCLOSURE_CHALLENGE_RESPONSE_WINDOW,
-            "Challenge response period has not yet elapsed"
-        );
-
-        // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
-        // and to signal that the challenge has been lost by the signers
-        disclosureChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
-        // dataLayrServiceManager.resolveDisclosureChallenge(headerHash, disclosureChallenges[headerHash].commitTime);
-    }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
         return (disclosureChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
+    }
+
+    function challengeUnsuccessful(bytes32 headerHash) public view override returns (bool) {
+        return (disclosureChallenges[headerHash].commitTime == CHALLENGE_UNSUCCESSFUL);
+    }
+
+    function challengeExists(bytes32 headerHash) public view override returns (bool) {
+        return (disclosureChallenges[headerHash].commitTime != 0);
+    }
+
+    function challengeClosed(bytes32 headerHash) public view override returns (bool) {
+        return ((block.timestamp - disclosureChallenges[headerHash].commitTime) > CHALLENGE_RESPONSE_WINDOW);
+    }
+
+    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
+    // and to signal that the challenge has been lost by the signers
+    function markChallengeSuccessful(bytes32 headerHash) internal override {
+        disclosureChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
     }
 }

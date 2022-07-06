@@ -13,6 +13,7 @@ import "../../libraries/Merkle.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 import "./DataLayrLowDegreeChallenge.sol";
+import "./DataLayrDisclosureChallenge.sol";
 import "ds-test/test.sol";
 
 /**
@@ -65,6 +66,8 @@ contract DataLayrServiceManager is
 
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
+    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
+
     // EVENTS
     event PaymentCommit(
         address operator,
@@ -102,8 +105,12 @@ contract DataLayrServiceManager is
         
     }
 
-    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public {
+    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public onlyRepositoryGovernance {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
+    }
+
+    function setDisclosureChallenge(DataLayrDisclosureChallenge _dataLayrDisclosureChallenge) public onlyRepositoryGovernance {
+        dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
@@ -457,18 +464,14 @@ contract DataLayrServiceManager is
         emit PaymentRedemption(msg.sender, amount);
     }
 
-    function resolveLowDegreeChallenge(bytes32 headerHash, address operator, uint32 commitTime) public {
-        require(msg.sender == address(dataLayrLowDegreeChallenge), "Only low degree resolver can resolve low degree challenges");
-        require(commitTime != 0, "Low degree challenge does not exist");
-        if(commitTime == 1) {
-            //pay operator
-            emit LowDegreeChallengeResolution(headerHash, operator, true);
-        } else if (block.timestamp - commitTime > lowDegreeFraudProofInterval) {
-            //pay challenger
-            emit LowDegreeChallengeResolution(headerHash, operator, false);
-        } else {
-            revert("Low degree challenge not resolvable");
-        }
+    // called in the event of challenge resolution
+    function slashOperator(address operator) external {
+        require(
+            msg.sender == address(dataLayrLowDegreeChallenge) ||
+            msg.sender == address(dataLayrDisclosureChallenge),
+            "Only challenge resolver can resolve challenges"
+        );
+        ISlasher(investmentManager.slasher()).slashOperator(operator);
     }
 
     /**

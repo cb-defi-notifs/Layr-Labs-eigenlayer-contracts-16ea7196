@@ -6,6 +6,14 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 
 abstract contract DataLayrChallengeBase {
+
+     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
+    uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
+    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
+    uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
+    // length of window during which the responses can be made to the challenge
+    uint256 public immutable CHALLENGE_RESPONSE_WINDOW;
+
     IDataLayr public immutable dataLayr;
     IDataLayrRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
@@ -15,15 +23,46 @@ abstract contract DataLayrChallengeBase {
         IDataLayrServiceManager _dataLayrServiceManager,
         IDataLayr _dataLayr,
         IDataLayrRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils
+        DataLayrChallengeUtils _challengeUtils,
+        uint256 _CHALLENGE_RESPONSE_WINDOW
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
+        CHALLENGE_RESPONSE_WINDOW = _CHALLENGE_RESPONSE_WINDOW;
     }
 
 	function challengeSuccessful(bytes32 headerHash) public view virtual returns (bool);
+
+    function challengeUnsuccessful(bytes32 headerHash) public view virtual returns (bool);
+
+    function challengeExists(bytes32 headerHash) public view virtual returns (bool);
+
+    function challengeClosed(bytes32 headerHash) public view virtual returns (bool);
+
+    function markChallengeSuccessful(bytes32 headerHash) internal virtual;
+
+    // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
+    function resolveChallenge(bytes32 headerHash) public {
+        require(
+            challengeExists(headerHash),
+            "Challenge does not exist"
+        );
+        require(
+            !challengeUnsuccessful(headerHash),
+            "Challenge failed"
+        );
+        // check that the challenge window is no longer open
+        require(
+            challengeClosed(headerHash),
+            "Challenge response period has not yet elapsed"
+        );
+
+	    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
+    	// and to signal that the challenge has been lost by the signers
+    	markChallengeSuccessful(headerHash);
+    }
 
     // slash an operator who signed a headerHash but failed a subsequent challenge
     function slashOperator(
@@ -104,6 +143,6 @@ abstract contract DataLayrChallengeBase {
             }
         }
 
-        // TODO: actually slash.
+        dataLayrServiceManager.slashOperator(operator);
     }
 }
