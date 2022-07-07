@@ -361,6 +361,10 @@ contract EigenLayrDeployer is
         );
 
         dlsm.setDataLayr(dl);
+        dlsm.setLowDegreeChallenge(dlldc);
+        dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
+        dlsm.setPaymentManager(dataLayrPaymentManager);
+        dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
     // function testE2() public {
@@ -571,7 +575,7 @@ contract EigenLayrDeployer is
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
-        weth.approve(address(dlsm), type(uint256).max);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = 1;

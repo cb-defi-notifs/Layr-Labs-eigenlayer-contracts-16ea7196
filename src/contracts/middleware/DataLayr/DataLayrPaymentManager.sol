@@ -6,6 +6,7 @@ import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
+import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../permissions/RepositoryAccess.sol";
 
@@ -14,7 +15,11 @@ import "ds-test/test.sol";
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentManager is RepositoryAccess, DSTest {
+contract DataLayrPaymentManager is 
+    RepositoryAccess, 
+    IDataLayrPaymentManager
+    ,DSTest 
+    {
     // DATA STRUCTURES
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
@@ -143,6 +148,11 @@ contract DataLayrPaymentManager is RepositoryAccess, DSTest {
     event PaymentChallengeInit(address operator, address challenger);
     event PaymentChallengeResolution(address operator, bool operatorWon);
 
+    modifier onlyDataLayrServiceManager() {
+        require(msg.sender == address(dataLayrServiceManager), "onlyDataLayrServiceManager");
+        _;
+    }
+
     constructor(
         IERC20 _paymentToken,
         IDataLayrServiceManager _dataLayrServiceManager
@@ -151,8 +161,8 @@ contract DataLayrPaymentManager is RepositoryAccess, DSTest {
         RepositoryAccess(_dataLayrServiceManager.repository()) 
     {
         paymentToken = _paymentToken;
-        collateralToken = _dataLayrServiceManager.collateralToken();
         dataLayrServiceManager = _dataLayrServiceManager;
+        collateralToken = _dataLayrServiceManager.collateralToken();
         eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
     }
 
@@ -161,8 +171,7 @@ contract DataLayrPaymentManager is RepositoryAccess, DSTest {
         depositsOf[onBehalfOf] += amount;
     }
 
-    function payFee(address payee, uint256 feeAmount) external {
-        require(msg.sender == address(dataLayrServiceManager), "onlyDataLayrServiceManager");
+    function payFee(address payee, uint256 feeAmount) external onlyDataLayrServiceManager {
         depositsOf[payee] -= feeAmount;
     }
 
@@ -643,23 +652,23 @@ contract DataLayrPaymentManager is RepositoryAccess, DSTest {
         }
     }
 
-    function getChallengeStatus(address operator) external view returns(uint8){
+    function getChallengeStatus(address operator) external view returns(uint8) {
         return operatorToPaymentChallenge[operator].status;
     }
 
-    function getAmount1(address operator) external view returns (uint120){
+    function getAmount1(address operator) external view returns (uint120) {
         return operatorToPaymentChallenge[operator].amount1;
     }
-    function getAmount2(address operator) external view returns (uint120){
+    function getAmount2(address operator) external view returns (uint120) {
         return operatorToPaymentChallenge[operator].amount2;
     }
-    function getToDataStoreId(address operator) external view returns (uint48){
+    function getToDataStoreId(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toDataStoreId;
     }
-    function getFromDataStoreId(address operator) external view returns (uint48){
+    function getFromDataStoreId(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].fromDataStoreId;
     }
-    function getDiff(address operator) external view returns (uint48){
+    function getDiff(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
     }
 
@@ -671,7 +680,7 @@ contract DataLayrPaymentManager is RepositoryAccess, DSTest {
         return operatorToPayment[operator].collateral;
     }
 
-    function dataStoreId() internal view returns (uint32){
+    function dataStoreId() internal view returns (uint32) {
         return dataLayrServiceManager.dataStoreId();
     }
 

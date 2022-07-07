@@ -287,7 +287,7 @@ contract Delegator is EigenLayrDeployer {
     //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
     function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal {
         cheats.startPrank(_challenger);
-        weth.approve(address(dlsm), type(uint256).max);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         //challenger initiates challenge
         dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
@@ -326,7 +326,7 @@ contract Delegator is EigenLayrDeployer {
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
-        weth.approve(address(dlsm), type(uint256).max);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         uint32 blockNumber = 1;
         //todo: duration
@@ -335,7 +335,7 @@ contract Delegator is EigenLayrDeployer {
 
 
         cheats.startPrank(operator);
-        weth.approve(address(dlsm), type(uint256).max);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;

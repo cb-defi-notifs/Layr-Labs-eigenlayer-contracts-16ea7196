@@ -67,7 +67,7 @@ contract DataLayrServiceManager is
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
-    function setPaymentChallenge(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
