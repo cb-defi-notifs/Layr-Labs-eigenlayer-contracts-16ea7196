@@ -1,5 +1,6 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.9;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.9;
+// TODO: decide if this contract can be properly deprecated
 
 // import "../interfaces/IRegistry.sol";
 // import "../interfaces/IRepository.sol";
