@@ -8,7 +8,7 @@ import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
-import "./DataLayrPaymentChallengeFactory.sol";
+import "./DataLayrPaymentChallenge.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrDisclosureChallenge.sol";
 import "./DataLayrEphemeralKeyRegistry.sol";
@@ -40,71 +40,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
         uint256 collateral; //account for if collateral changed
     }
 
-    struct LowDegreeChallenge {
-        uint32 commitTime; 
-        address challenge;
-        uint256 collateral; //account for if collateral changed
-    }
-
-    struct PaymentChallenge {
-        address challenger;
-        uint32 fromDataStoreId;
-        uint32 toDataStoreId;
-        uint120 amount1;
-        uint120 amount2;
-    }
-
-    /**
-     @notice used for storing information on the forced disclosure challenge    
-     */
-    struct DisclosureChallenge {
-        // instant when forced disclosure challenge was made
-        uint32 commitTime;
-
-        // challenger's address
-        address challenger; 
-
-        // address of challenge contract if there is one - updated in initInterpolatingPolynomialFraudProof function
-        // in DataLayrServiceManager.sol 
-        address challenge;
-
-        // 
-        uint48 degree;
-
-        /** 
-            Used for indicating the status of the forced disclosure challenge. The status are:
-                - 1: challenged, 
-                - 2: responded (in fraud proof period), 
-                - 3: challenged commitment, 
-                - 4: operator incorrect
-         */
-        uint8 status; 
-
-        // Proof [Pi(s).x, Pi(s).y] with respect to C(s) - I_k(s)
-        // updated in respondToDisclosureInit function in DataLayrServiceManager.sol 
-        uint256 x; //commitment coordinates
-        uint256 y;
-
-
-        bytes32 polyHash;
-
-        uint32 chunkNumber;
-
-        uint256 collateral; //account for if collateral changed
-    }
-
-    struct MultiReveal {
-        uint256 i_x;
-        uint256 i_y;
-        uint256 pi_x;
-        uint256 pi_y;
-    }
-
-    struct Commitment {
-        uint256 x;
-        uint256 y;
-    }
-
     struct DataStoresForDuration{
         uint32 one_duration;
         uint32 two_duration;
@@ -124,6 +59,16 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     IERC20 public immutable paymentToken;
 
     IERC20 public immutable collateralToken;
+
+    /**
+     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
+     *      delegators to delegate their stake to operators who would serve as DataLayr
+     *      nodes and so on.
+     */
+    /**
+      @dev For more details, see EigenLayrDelegation.sol. 
+     */
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     IDataLayr public dataLayr;
 
@@ -153,20 +98,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //total debts owed to dlns
     mapping(address => uint256) public depositsOf;
 
-    /// @notice indicates the window within which DataLayr operator must respond to the SignatoryRecordMinusDataStoreId disclosure challenge 
-    uint256 public constant disclosureFraudProofInterval = 7 days;
-
-
     uint256 disclosurePaymentPerByte;
-
-    uint256 public constant lowDegreeFraudProofInterval = 7 days;
-
-
-    /**
-     @notice map of forced disclosure challenge that has been opened against a DataLayr operator
-             for a particular DataStoreId.   
-     */
-    mapping(bytes32 => mapping(address => DisclosureChallenge)) public disclosureForOperator;
 
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
@@ -204,15 +136,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
 
     /**
-     * @notice mapping between the total service fee that would be paid out in the 
-     *         corresponding assertion of data into DataLayr 
-     */
-    //removed to batch with DataStoreMetadata
-    //mapping(uint32 => uint256) public dataStoreIdToFee;
-
-    mapping(bytes32 => mapping(address => LowDegreeChallenge)) public lowDegreeChallenges;
-
-    /**
      * @notice mapping between the operator and its current committed or payment
      *         or the last redeemed payment 
      */
@@ -226,8 +149,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
               to serve while committing deregistration.
      */
     
-    mapping(address => address) public operatorToPaymentChallenge;
-
     uint256 constant public DURATION_SCALE = 1 hours;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 constant public MIN_DATASTORE_DURATION = 1;
@@ -251,10 +172,16 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     DataLayrEphemeralKeyRegistry public dataLayrEphemeralKeyRegistry;
 
-    constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
+    /**
+     * @notice contract used for handling payment challenges
+     */
+    DataLayrPaymentChallenge public dataLayrPaymentChallenge;
+
+    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)
     {
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
+        eigenLayrDelegation = _eigenLayrDelegation;
     }
 }

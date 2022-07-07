@@ -14,6 +14,7 @@ import "../contracts/libraries/BytesLib.sol";
 
 import "../contracts/middleware/ServiceManagerBase.sol";
 
+import "../contracts/middleware/DataLayr/DataLayrPaymentChallenge.sol";
 
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
@@ -29,7 +30,6 @@ contract Delegator is EigenLayrDeployer {
     IRepository newRepository;
     ServiceFactory factory;
     IRegistry regManager;
-    IDataLayrPaymentChallenge dlpc;
     //ISlasher slasher;
     DelegationTerms dt;
 
@@ -247,12 +247,9 @@ contract Delegator is EigenLayrDeployer {
         
 
         //initiate challenge
-        challengeContract = _testInitPaymentChallenge(operator, 5, 3);
-        dlpc = IDataLayrPaymentChallenge(challengeContract);
-        
+        _testInitPaymentChallenge(operator, 5, 3);        
 
         bool half = true;
-
 
         //Challenge payment test
         operatorDisputesChallenger(operator, half, 2, 3);
@@ -264,43 +261,39 @@ contract Delegator is EigenLayrDeployer {
     function operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) public{
 
         cheats.startPrank(operator);
-        if (dlpc.getDiff() == 1){
+        if (dataLayrPaymentChallenge.getDiff(operator) == 1){
             cheats.stopPrank();
             return;
         }
         
-        dlpc.challengePaymentHalf(half, amount1, amount2);
+        dataLayrPaymentChallenge.challengePaymentHalf(operator, half, amount1, amount2);
         cheats.stopPrank();
 
         //Now we calculate the challenger's response amounts
     }
 
     // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
-    function challengerDisputesOperator(address challenger, bool half, uint120 amount1, uint120 amount2) public{
+    function challengerDisputesOperator(address challenger, address operator, bool half, uint120 amount1, uint120 amount2) public{
         cheats.startPrank(challenger);
-        if (dlpc.getDiff() == 1){
+        if (dataLayrPaymentChallenge.getDiff(operator) == 1){
             cheats.stopPrank();
             return;
         }
-        dlpc.challengePaymentHalf(half, amount1, amount2);
+        dataLayrPaymentChallenge.challengePaymentHalf(operator, half, amount1, amount2);
         cheats.stopPrank();
 
     }
 
     //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
-    function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal returns(address){
+    function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal {
         cheats.startPrank(_challenger);
         weth.approve(address(dlsm), type(uint256).max);
 
-        
-
         //challenger initiates challenge
-        dlpcm.challengePaymentInit(operator, amount1, amount2);
+        dataLayrPaymentChallenge.challengePaymentInit(operator, amount1, amount2);
         
-        address _challengeContract = dlpcm.operatorToPaymentChallenge(operator);
+        // DataLayrPaymentChallenge.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentChallenge.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
-
-        return _challengeContract;
     }
 
 

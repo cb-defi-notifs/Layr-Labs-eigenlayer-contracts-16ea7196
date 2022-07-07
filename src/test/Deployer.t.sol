@@ -21,9 +21,8 @@ import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeFactory.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentChallenge.sol";
 import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrPaymentChallengeManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
@@ -67,7 +66,6 @@ contract EigenLayrDeployer is
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
-    DataLayrPaymentChallengeManager public dlpcm;
     DataLayrLowDegreeChallenge public dlldc;
     DataLayr public dl;
 
@@ -77,7 +75,7 @@ contract EigenLayrDeployer is
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
-    DataLayrPaymentChallengeFactory public dataLayrPaymentChallengeFactory;
+    DataLayrPaymentChallenge public dataLayrPaymentChallenge;
     DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
@@ -305,7 +303,6 @@ contract EigenLayrDeployer is
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
-        dataLayrPaymentChallengeFactory = new DataLayrPaymentChallengeFactory();
 
         dlRepository = new Repository(delegation, investmentManager);
 
@@ -315,11 +312,10 @@ contract EigenLayrDeployer is
             weth,
             weth,
             dlRepository,
-            feePerBytePerTime,
-            dataLayrPaymentChallengeFactory
+            feePerBytePerTime
         );
 
-        dlpcm = new DataLayrPaymentChallengeManager(weth, address(dlsm));
+        dataLayrPaymentChallenge = new DataLayrPaymentChallenge(weth, dlsm);
 
         dl = new DataLayr(dlRepository);
         ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);

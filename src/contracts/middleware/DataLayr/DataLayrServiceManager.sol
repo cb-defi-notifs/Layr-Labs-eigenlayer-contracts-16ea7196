@@ -46,21 +46,6 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-    /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on.
-     */
-    /**
-      @dev For more details, see EigenLayrDelegation.sol. 
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
-
-    /**
-     * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
-     */
-    DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
-
     // EVENTS
     event PaymentCommit(
         address operator,
@@ -69,17 +54,7 @@ contract DataLayrServiceManager is
         uint256 fee
     );
 
-    event PaymentChallengeInit(address operator, address challenger);
-
-    event PaymentChallengeResolution(address operator, bool operatorWon);
-
     event PaymentRedemption(address operator, uint256 fee);
-
-    event LowDegreeChallengeResolution(
-        bytes32 headerHash,
-        address operator,
-        bool operatorWon
-    );
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -88,12 +63,9 @@ contract DataLayrServiceManager is
         IERC20 _paymentToken,
         IERC20 _collateralToken,
         IRepository _repository,
-        uint256 _feePerBytePerTime,
-        DataLayrPaymentChallengeFactory _dataLayrPaymentChallengeFactory
-    ) DataLayrServiceManagerStorage(_paymentToken, _collateralToken, _repository) {
-        eigenLayrDelegation = _eigenLayrDelegation;
+        uint256 _feePerBytePerTime
+    ) DataLayrServiceManagerStorage(_eigenLayrDelegation, _paymentToken, _collateralToken, _repository) {
         feePerBytePerTime = _feePerBytePerTime;
-        dataLayrPaymentChallengeFactory = _dataLayrPaymentChallengeFactory;
         dataStoresForDuration.dataStoreId = 1;
         
     }
@@ -104,6 +76,10 @@ contract DataLayrServiceManager is
 
     function setDisclosureChallenge(DataLayrDisclosureChallenge _dataLayrDisclosureChallenge) public onlyRepositoryGovernance {
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
+    }
+
+    function setPaymentChallenge(DataLayrPaymentChallenge _dataLayrPaymentChallenge) public onlyRepositoryGovernance {
+        dataLayrPaymentChallenge = _dataLayrPaymentChallenge;
     }
 
     function setEphemeralKeyRegistry(DataLayrEphemeralKeyRegistry _dataLayrEphemeralKeyRegistry) public onlyRepositoryGovernance {
@@ -503,14 +479,6 @@ contract DataLayrServiceManager is
 
     function getDepositRoot(uint256 blockNumber) public view returns (bytes32) {
         return depositRoots[blockNumber];
-    }
-
-    function getPolyHash(address operator, bytes32 headerHash)
-        public
-        view
-        returns (bytes32)
-    {
-        return disclosureForOperator[headerHash][operator].polyHash;
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
