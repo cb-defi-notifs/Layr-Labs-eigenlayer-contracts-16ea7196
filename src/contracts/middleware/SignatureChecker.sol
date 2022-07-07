@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
@@ -16,7 +15,7 @@ import "ds-test/test.sol";
  @notice This is the contract for checking that the aggregated signatures of all operators which is being 
          asserted by the disperser is valid.
  */
-abstract contract SignatureChecker is Initializable, RepositoryAccess, DSTest {
+abstract contract SignatureChecker is RepositoryAccess, DSTest {
     using BytesLib for bytes;
     ITaskMetadata public taskMetadata;
 
