@@ -12,8 +12,6 @@ import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
-import "./DataLayrLowDegreeChallenge.sol";
-import "./DataLayrDisclosureChallenge.sol";
 import "ds-test/test.sol";
 
 /**
@@ -62,11 +60,6 @@ contract DataLayrServiceManager is
      * @notice factory contract used to deploy new DataLayrPaymentChallenge contracts
      */
     DataLayrPaymentChallengeFactory public immutable dataLayrPaymentChallengeFactory;
-
-
-    DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
-
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     // EVENTS
     event PaymentCommit(

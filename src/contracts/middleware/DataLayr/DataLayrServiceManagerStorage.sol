@@ -9,6 +9,8 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
+import "./DataLayrLowDegreeChallenge.sol";
+import "./DataLayrDisclosureChallenge.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
@@ -242,6 +244,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     // TODO: set this!!! (@JEFFC)
     IInvestmentManager public investmentManager;
  
+    DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
+
+    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
+
     constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)
     {
