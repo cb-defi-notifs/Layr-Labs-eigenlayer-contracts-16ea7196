@@ -309,13 +309,15 @@ contract EigenLayrDeployer is
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             delegation,
-            weth,
-            weth,
             dlRepository,
+            weth,
             feePerBytePerTime
         );
 
-        dataLayrPaymentChallenge = new DataLayrPaymentChallenge(weth, dlsm);
+        dataLayrPaymentChallenge = new DataLayrPaymentChallenge(
+            weth,
+            dlsm
+        );
 
         dl = new DataLayr(dlRepository);
         ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
@@ -570,7 +572,7 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.depositFutureFees(storer, 1e11);
+        dataLayrPaymentChallenge.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = 1;
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)

@@ -10,12 +10,19 @@ interface IDataLayrPaymentChallenge{
     ) external;
 
     function getChallengeStatus() external returns(uint8);
+    
     function getAmount1() external returns (uint120);
+    
     function getAmount2() external returns (uint120);
+    
     function getToDataStoreId() external returns (uint48);
+    
     function getFromDataStoreId() external returns (uint48);
+    
     function getDiff() external returns (uint48);
+    
     function resolvePaymentChallenge(bool) external;
+    
     function paymentFraudProofInterval() external returns (uint256);
 
     function paymentFraudProofCollateral() external returns (uint256);

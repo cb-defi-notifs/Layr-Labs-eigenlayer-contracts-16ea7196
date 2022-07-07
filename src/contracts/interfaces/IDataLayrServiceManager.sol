@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IDataLayr.sol";
 import "./IServiceManager.sol";
+import "./IEigenLayrDelegation.sol";
 
 interface IDataLayrServiceManager is IServiceManager {
     struct DataStoreMetadata {
@@ -25,27 +26,19 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 totalEigenStakeSigned;
     }
 
-    function dataStoreId() external returns (uint32);
+    function dataStoreId() external view returns (uint32);
 
-    function dataStoreIdToFee(uint32) external returns (uint96);
+    function dataStoreIdToFee(uint32) external view returns (uint96);
 
     function getDataStoreIdSignatureHash(uint32) external view returns (bytes32);
 
-    //function resolvePaymentChallenge(address, bool) external;
-
-    function paymentFraudProofInterval() external returns (uint256);
-
-    function paymentFraudProofCollateral() external returns (uint256);
-
-    function getPaymentCollateral(address) external returns (uint256);
-
     function slashOperator(address operator) external;
 
-    function latestTime() external returns(uint32);
+    function latestTime() external view returns(uint32);
 
-    function numPowersOfTau() external returns(uint48);
-    
-    function log2NumPowersOfTau() external returns(uint48);
+    function numPowersOfTau() external view returns(uint48);
+
+    function log2NumPowersOfTau() external view returns(uint48);
     
     function dataLayr() external view returns(IDataLayr);
 
@@ -57,7 +50,7 @@ interface IDataLayrServiceManager is IServiceManager {
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 
+    function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
+
     function collateralToken() external view returns(IERC20);
-    
-    function depositFutureFees(address onBehalfOf, uint256 amount) external;
 }

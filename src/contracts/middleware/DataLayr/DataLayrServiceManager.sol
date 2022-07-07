@@ -46,25 +46,14 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-    // EVENTS
-    event PaymentCommit(
-        address operator,
-        uint32 fromDataStoreId,
-        uint32 toDataStoreId,
-        uint256 fee
-    );
-
-    event PaymentRedemption(address operator, uint256 fee);
-
     DataStoresForDuration public dataStoresForDuration;
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
-        IERC20 _paymentToken,
-        IERC20 _collateralToken,
         IRepository _repository,
+        IERC20 _collateralToken,
         uint256 _feePerBytePerTime
-    ) DataLayrServiceManagerStorage(_eigenLayrDelegation, _paymentToken, _collateralToken, _repository) {
+    ) DataLayrServiceManagerStorage(_eigenLayrDelegation, _collateralToken, _repository) {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         
@@ -85,12 +74,6 @@ contract DataLayrServiceManager is
     function setEphemeralKeyRegistry(DataLayrEphemeralKeyRegistry _dataLayrEphemeralKeyRegistry) public onlyRepositoryGovernance {
         dataLayrEphemeralKeyRegistry = _dataLayrEphemeralKeyRegistry;
     }
-
-    function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.transferFrom(msg.sender, address(this), amount);
-        depositsOf[onBehalfOf] += amount;
-    }
-
 
     /**
      * @notice This function is used for
@@ -133,7 +116,7 @@ contract DataLayrServiceManager is
         // this will revert if the deposits are not high enough due to undeflow
         uint g = gasleft();
 
-        depositsOf[msg.sender] -= fee;
+        dataLayrPaymentChallenge.payFee(msg.sender, fee);
         
         //emit log_named_uint("1", g - gasleft());
 
@@ -314,135 +297,14 @@ contract DataLayrServiceManager is
         );
     }
 
-    /**
-     @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toDataStoreId  
-     **/
-    function commitPayment(uint32 toDataStoreId, uint120 amount) external {
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
-            address(repository.voteWeigher())
-        );
-
-        // only registered DataLayr operators can call
-        require(
-            dlRegistry.getOperatorType(msg.sender) != 0,
-            "Only registered operators can call this function"
-        );
-
-        require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
-
-        // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.transferFrom(
-            msg.sender,
-            address(this),
-            paymentFraudProofCollateral
-        );
-
-        /**
-         @notice recording payment claims for the DataLayr operators
-         */
-        uint32 fromDataStoreId;
-
-        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
-        /**
-         @notice this special case also implies that the DataLayr operator must be claiming payment from 
-                 when the operator registered.   
-         */
-        if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
-            // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(msg.sender);
-
-            require(fromDataStoreId < toDataStoreId, "invalid payment range");
-
-            // record the payment information pertaining to the operator
-            operatorToPayment[msg.sender] = Payment(
-                fromDataStoreId,
-                toDataStoreId,
-                uint32(block.timestamp),
-                amount,
-                // setting to 0 to indicate commitment to payment claim
-                0,
-                paymentFraudProofCollateral
-            );
-
-            return;
-        }
-
-        // can only claim for a payment after redeeming the last payment
-        require(
-            operatorToPayment[msg.sender].status == 1,
-            "Require last payment is redeemed"
-        );
-
-        // you have to redeem starting from the last time redeemed up to
-        fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
-
-        require(fromDataStoreId < toDataStoreId, "invalid payment range");
-
-        // update the record for the commitment to payment made by the operator
-        operatorToPayment[msg.sender] = Payment(
-            fromDataStoreId,
-            toDataStoreId,
-            uint32(block.timestamp),
-            amount,
-            0,
-            paymentFraudProofCollateral
-        );
-
-        emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
-    }
-
-    /**
-     @notice This function can only be called after the challenge window for the payment claim has completed.
-     */
-    function redeemPayment() external {
-        require(
-            block.timestamp >
-                operatorToPayment[msg.sender].commitTime +
-                    paymentFraudProofInterval &&
-                operatorToPayment[msg.sender].status == 0,
-            "Still eligible for fraud proofs"
-        );
-
-        // update the status to show that operator's payment is getting redeemed
-        operatorToPayment[msg.sender].status = 1;
-
-        // transfer back the collateral to the operator as there was no successful
-        // challenge to the payment commitment made by the operator.
-        collateralToken.transfer(
-            msg.sender,
-            operatorToPayment[msg.sender].collateral
-        );
-
-        ///look up payment amount and delegation terms address for the msg.sender
-        uint256 amount = operatorToPayment[msg.sender].amount;
-        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
-
-        // i.e. if operator is not a 'self operator'
-        if (address(dt) != address(0)) {
-            // transfer the amount due in the payment claim of the operator to its delegation
-            // terms contract, where the delegators can withdraw their rewards.
-            paymentToken.transfer(address(dt), amount);
-
-            // inform the DelegationTerms contract of the payment, which would determine
-            // the rewards operator and its delegators are eligible for
-            dt.payForService(paymentToken, amount);
-
-            // i.e. if the operator *is* a 'self operator'
-        } else {
-            //simply transfer the payment amount in this case
-            paymentToken.transfer(msg.sender, amount);
-        }
-
-        emit PaymentRedemption(msg.sender, amount);
-    }
 
     // called in the event of challenge resolution
     function slashOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
-            msg.sender == address(dataLayrEphemeralKeyRegistry),
+            msg.sender == address(dataLayrEphemeralKeyRegistry) ||
+            msg.sender == address(dataLayrPaymentChallenge),
             "Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).slashOperator(operator);
@@ -469,14 +331,6 @@ contract DataLayrServiceManager is
         return dataStoreIdToSignatureHash[_taskNumber];
     }
 
-    function getPaymentCollateral(address operator)
-        public
-        view
-        returns (uint256)
-    {
-        return operatorToPayment[operator].collateral;
-    }
-
     function getDepositRoot(uint256 blockNumber) public view returns (bytes32) {
         return depositRoots[blockNumber];
     }
@@ -486,12 +340,6 @@ contract DataLayrServiceManager is
         onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
-    }
-
-    function setPaymentFraudProofCollateral(
-        uint256 _paymentFraudProofCollateral
-    ) public onlyRepositoryGovernance {
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
     }
 
     function setDataLayr(IDataLayr _dataLayr) public {
@@ -608,9 +456,6 @@ contract DataLayrServiceManager is
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
-    // function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) public view returns(DataStoreMetadata memory) {
-    //     return dataStoreIdsForDuration[duration][timestamp][0];
-    // }
 
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(

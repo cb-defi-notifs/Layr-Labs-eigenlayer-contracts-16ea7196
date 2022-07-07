@@ -327,7 +327,7 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dlsm.depositFutureFees(storer, 1e11);
+        dataLayrPaymentChallenge.depositFutureFees(storer, 1e11);
         uint32 blockNumber = 1;
         //todo: duration
         dlsm.initDataStore(header, 2, totalBytes, blockNumber);
@@ -339,7 +339,7 @@ contract Delegator is EigenLayrDeployer {
 
         // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
-        dlsm.commitPayment(newCurrentDataStoreId, _amountRewards);
+        dataLayrPaymentChallenge.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }

@@ -7,13 +7,14 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../Repository.sol";
+import "../../permissions/RepositoryAccess.sol";
 
 import "ds-test/test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentChallenge is DSTest {
+contract DataLayrPaymentChallenge is RepositoryAccess, DSTest {
     // DATA STRUCTURES
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
@@ -29,7 +30,7 @@ contract DataLayrPaymentChallenge is DSTest {
         // payment for range [fromDataStoreId, toDataStoreId)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
-        uint8 status; // 0: commited, 1: redeemed
+        uint8 status; // 0: committed, 1: redeemed
         uint256 collateral; //account for if collateral changed
     }
 
@@ -56,13 +57,13 @@ contract DataLayrPaymentChallenge is DSTest {
         uint120 amount2;
 
         // used for recording the time when challenge was created
-        uint32 commitTime; // when commited, used for fraud proof period
+        uint32 commitTime; // when committed, used for fraud proof period
 
 
         // indicates the status of the challenge
         /**
          @notice The possible status are:
-                    - 0: commited,
+                    - 0: committed,
                     - 1: redeemed,
                     - 2: operator turn (dissection),
                     - 3: challenger turn (dissection),
@@ -86,9 +87,38 @@ contract DataLayrPaymentChallenge is DSTest {
         uint256 eigenStakeSigned;
     }
 
+    /**
+     * @notice challenge window for submitting fraudproof in case of incorrect payment 
+     *         claim by the registered operator 
+     */
     uint256 public constant paymentFraudProofInterval = 7 days;
+
+// TODO: set this value
+    /**
+     @notice this is the payment that has to be made as a collateral for fraudproof 
+             during payment challenges
+     */
+    uint256 public paymentFraudProofCollateral = 1 wei;
+
+    /**
+     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
+     *         DataLayr nodes.
+     */
+    IERC20 public immutable paymentToken;
+
+    // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
-    IDataLayrServiceManager public dataLayrServiceManager;
+
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
+    /**
+     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
+     *      delegators to delegate their stake to operators who would serve as DataLayr
+     *      nodes and so on.
+     */
+    /**
+      @dev For more details, see EigenLayrDelegation.sol. 
+     */
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /*
         * @notice mapping between the operator and its current committed payment
@@ -97,19 +127,173 @@ contract DataLayrPaymentChallenge is DSTest {
     mapping(address => Payment) public operatorToPayment;
     // operator => PaymentChallenge
     mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
+    // deposits of future fees to be drawn against when paying for DataStores
+    mapping(address => uint256) public depositsOf;
 
     // EVENTS
+    // EVENTS
+    event PaymentCommit(
+        address operator,
+        uint32 fromDataStoreId,
+        uint32 toDataStoreId,
+        uint256 fee
+    );
+    event PaymentRedemption(address operator, uint256 fee);
     event PaymentBreakdown(uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
     event PaymentChallengeInit(address operator, address challenger);
     event PaymentChallengeResolution(address operator, bool operatorWon);
-    event PaymentRedemption(address operator, uint256 fee);
 
     constructor(
-        IERC20 _collateralToken,
+        IERC20 _paymentToken,
         IDataLayrServiceManager _dataLayrServiceManager
-    ) {
-        collateralToken = _collateralToken;
+    )   
+        // set repository address equal to that of dataLayrServiceManager
+        RepositoryAccess(_dataLayrServiceManager.repository()) 
+    {
+        paymentToken = _paymentToken;
+        collateralToken = _dataLayrServiceManager.collateralToken();
         dataLayrServiceManager = _dataLayrServiceManager;
+        eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
+    }
+
+    function depositFutureFees(address onBehalfOf, uint256 amount) external {
+        paymentToken.transferFrom(msg.sender, address(this), amount);
+        depositsOf[onBehalfOf] += amount;
+    }
+
+    function payFee(address payee, uint256 feeAmount) external {
+        require(msg.sender == address(dataLayrServiceManager), "onlyDataLayrServiceManager");
+        depositsOf[payee] -= feeAmount;
+    }
+
+    function setPaymentFraudProofCollateral(
+        uint256 _paymentFraudProofCollateral
+    ) public onlyRepositoryGovernance {
+        paymentFraudProofCollateral = _paymentFraudProofCollateral;
+    }
+
+    /**
+     @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
+             for their service since their last payment until @param toDataStoreId  
+     **/
+    function commitPayment(uint32 toDataStoreId, uint120 amount) external {
+        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
+            address(repository.voteWeigher())
+        );
+
+        // only registered DataLayr operators can call
+        require(
+            dlRegistry.getOperatorType(msg.sender) != 0,
+            "Only registered operators can call this function"
+        );
+
+        require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
+
+        // operator puts up collateral which can be slashed in case of wrongful payment claim
+        collateralToken.transferFrom(
+            msg.sender,
+            address(this),
+            paymentFraudProofCollateral
+        );
+
+        /**
+         @notice recording payment claims for the DataLayr operators
+         */
+        uint32 fromDataStoreId;
+
+        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
+        /**
+         @notice this special case also implies that the DataLayr operator must be claiming payment from 
+                 when the operator registered.   
+         */
+        if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
+            // get the dataStoreId when the DataLayr operator registered
+            fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(msg.sender);
+            require(fromDataStoreId < toDataStoreId, "invalid payment range");
+
+            // record the payment information pertaining to the operator
+            operatorToPayment[msg.sender] = Payment(
+                fromDataStoreId,
+                toDataStoreId,
+                uint32(block.timestamp),
+                amount,
+                // setting to 0 to indicate commitment to payment claim
+                0,
+                paymentFraudProofCollateral
+            );
+
+            emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
+
+            return;
+        }
+
+        // can only claim for a payment after redeeming the last payment
+        require(
+            operatorToPayment[msg.sender].status == 1,
+            "Require last payment is redeemed"
+        );
+
+        // you have to redeem starting from the last time redeemed up to
+        fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
+        require(fromDataStoreId < toDataStoreId, "invalid payment range");
+
+        // update the record for the commitment to payment made by the operator
+        operatorToPayment[msg.sender] = Payment(
+            fromDataStoreId,
+            toDataStoreId,
+            uint32(block.timestamp),
+            amount,
+            // set status as 0: committed
+            0,
+            paymentFraudProofCollateral
+        );
+
+        emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
+    }
+
+    /**
+     @notice This function can only be called after the challenge window for the payment claim has completed.
+     */
+    function redeemPayment() external {
+        require(
+            block.timestamp >
+                (operatorToPayment[msg.sender].commitTime +
+                    paymentFraudProofInterval) &&
+                operatorToPayment[msg.sender].status == 0,
+            "Payment still eligible for fraud proof"
+        );
+
+        // update the status to show that operator's payment is getting redeemed
+        operatorToPayment[msg.sender].status = 1;
+
+        // transfer back the collateral to the operator as there was no successful
+        // challenge to the payment commitment made by the operator.
+        collateralToken.transfer(
+            msg.sender,
+            operatorToPayment[msg.sender].collateral
+        );
+
+        ///look up payment amount and delegation terms address for the msg.sender
+        uint256 amount = operatorToPayment[msg.sender].amount;
+
+        // check if operator is a self operator, in which case sending payment is simplified
+        if (eigenLayrDelegation.isSelfOperator(msg.sender)) {
+            //simply transfer the payment amount in this case
+            paymentToken.transfer(msg.sender, amount);
+        // i.e. if operator is not a 'self operator'
+        } else {
+            IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+            // transfer the amount due in the payment claim of the operator to its delegation
+            // terms contract, where the delegators can withdraw their rewards.
+            paymentToken.transfer(address(dt), amount);
+
+            // inform the DelegationTerms contract of the payment, which will determine
+            // the rewards operator and its delegators are eligible for
+            dt.payForService(paymentToken, amount);
+
+        }
+
+        emit PaymentRedemption(msg.sender, amount);
     }
 
     /**
@@ -194,7 +378,7 @@ contract DataLayrPaymentChallenge is DSTest {
 
         require(
             block.timestamp <
-                challenge.commitTime + dataLayrServiceManager.paymentFraudProofInterval(),
+                challenge.commitTime + paymentFraudProofInterval,
             "Fraud proof interval has passed"
         );
 
@@ -310,7 +494,7 @@ contract DataLayrPaymentChallenge is DSTest {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
-        uint256 interval = dataLayrServiceManager.paymentFraudProofInterval();
+        uint256 interval = paymentFraudProofInterval;
         require(
             block.timestamp > challenge.commitTime + interval &&
                 block.timestamp < challenge.commitTime + (2 * interval),
@@ -341,7 +525,7 @@ contract DataLayrPaymentChallenge is DSTest {
 
         require(
             block.timestamp <
-                challenge.commitTime + dataLayrServiceManager.paymentFraudProofInterval(),
+                challenge.commitTime + paymentFraudProofInterval,
             "Fraud proof interval has passed"
         );
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
@@ -477,6 +661,18 @@ contract DataLayrPaymentChallenge is DSTest {
     }
     function getDiff(address operator) external view returns (uint48){
         return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
+    }
+
+    function getPaymentCollateral(address operator)
+        public
+        view
+        returns (uint256)
+    {
+        return operatorToPayment[operator].collateral;
+    }
+
+    function dataStoreId() internal view returns (uint32){
+        return dataLayrServiceManager.dataStoreId();
     }
 
     function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {

@@ -52,12 +52,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
         uint32 latestTime;
     }
 
-    /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes.
-     */
-    IERC20 public immutable paymentToken;
-
+    // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
     /**
@@ -78,25 +73,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     uint256 public feePerBytePerTime;
 
-    /**
-     * @notice challenge window for submitting fraudproof in case of incorrect payment 
-     *         claim by the registered operator 
-     */
-    uint256 public constant paymentFraudProofInterval = 7 days;
-
-
-    /**
-     @notice this is the payment that has to be made as a collateral for fraudproof 
-             during payment challenges
-     */
-    uint256 public paymentFraudProofCollateral = 1 wei;
-
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     //uint32 public dataStoreId = 1;
     uint32 public latestTime;
-
-    //total debts owed to dlns
-    mapping(address => uint256) public depositsOf;
 
     uint256 disclosurePaymentPerByte;
 
@@ -177,11 +156,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     DataLayrPaymentChallenge public dataLayrPaymentChallenge;
 
-    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
+    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)
     {
-        paymentToken = _paymentToken;
-        collateralToken = _collateralToken;
         eigenLayrDelegation = _eigenLayrDelegation;
+        collateralToken = _collateralToken;
     }
 }
