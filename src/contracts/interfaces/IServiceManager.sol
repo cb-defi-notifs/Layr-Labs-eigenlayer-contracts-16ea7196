@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "./IRepositoryAccess.sol";
-import "./ITaskMetadata.sol";
 
 // TODO: provide more functions for this spec
 interface IServiceManager is IRepositoryAccess {
