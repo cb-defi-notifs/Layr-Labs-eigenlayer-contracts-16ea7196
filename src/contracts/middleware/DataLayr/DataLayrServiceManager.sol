@@ -7,7 +7,7 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
-import "./DataLayrSignatureChecker.sol";
+import "../SignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../Repository.sol";
@@ -22,7 +22,8 @@ import "ds-test/test.sol";
             - doing payment challenge
  */
 contract DataLayrServiceManager is
-    DataLayrSignatureChecker,
+    DataLayrServiceManagerStorage,
+    SignatureChecker,
     IProofOfStakingOracle
     // ,DSTest
 {
@@ -53,7 +54,10 @@ contract DataLayrServiceManager is
         IRepository _repository,
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime
-    ) DataLayrServiceManagerStorage(_eigenLayrDelegation, _collateralToken, _repository) {
+    ) 
+        DataLayrServiceManagerStorage(_eigenLayrDelegation, _collateralToken)
+        SignatureChecker(_repository)
+    {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         
@@ -349,6 +353,8 @@ contract DataLayrServiceManager is
             "only repository governance can call this function, or DL must not be initialized"
         );
         dataLayr = _dataLayr;
+        // TODO: figure out if we need this duplicate storage
+        taskMetadata = ITaskMetadata(address(_dataLayr));
     }
 
     /// @notice returns the time when the task, associated with taskHash, was created

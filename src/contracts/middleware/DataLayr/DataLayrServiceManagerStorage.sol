@@ -127,8 +127,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     DataLayrPaymentManager public dataLayrPaymentManager;
 
-    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken, IRepository _repository) 
-        RepositoryAccess(_repository)
+    constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken) 
     {
         eigenLayrDelegation = _eigenLayrDelegation;
         collateralToken = _collateralToken;

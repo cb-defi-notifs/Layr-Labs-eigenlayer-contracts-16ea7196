@@ -127,7 +127,7 @@ contract DataLayr is Ownable, IDataLayr, RepositoryAccess, DSTest {
         emit InitDataStore(dataStoreId, headerHash, totalBytes, initTime, storePeriodLength, blockNumber, header);
     }
 
-    /**
+    /**t
      * @notice Used for confirming that quroum of signatures have been obtained from DataLayr
      */
     /**
@@ -189,4 +189,9 @@ contract DataLayr is Ownable, IDataLayr, RepositoryAccess, DSTest {
         require(_ethSignedThresholdPercentage <= 100, "percentage must be between 0 and 100 inclusive");
         ethSignedThresholdPercentage = _ethSignedThresholdPercentage;
     }
+
+    function getTaskAndBlockNumberFromTaskHash(bytes32 taskHash) external view returns(uint32, uint32) {
+        return (dataStores[taskHash].dataStoreId, dataStores[taskHash].blockNumber);
+    }
+
 }

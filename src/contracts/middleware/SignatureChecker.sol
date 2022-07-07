@@ -18,14 +18,8 @@ import "ds-test/test.sol";
  */
 abstract contract SignatureChecker is Initializable, RepositoryAccess, DSTest {
     using BytesLib for bytes;
-    ITaskMetadata public immutable taskMetadata;
+    ITaskMetadata public taskMetadata;
 
-    constructor(IRepository _repository, ITaskMetadata _taskMetadata) 
-        RepositoryAccess(_repository)
-    {
-        taskMetadata = _taskMetadata;
-    }
-    
     // DATA STRUCTURES
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
@@ -55,6 +49,11 @@ abstract contract SignatureChecker is Initializable, RepositoryAccess, DSTest {
         // uint256 totalEigenStake,
         bytes32[] pubkeyHashes
     );
+
+    constructor(IRepository _repository) 
+        RepositoryAccess(_repository)
+    {
+    }
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
