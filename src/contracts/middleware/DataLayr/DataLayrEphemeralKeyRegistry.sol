@@ -2,12 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
+import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../permissions/RepositoryAccess.sol";
 import "./DataLayrRegistry.sol";
 
-// TODO: need to add minimum window for update
-// TODO: MAJOR CRITIQUE -- we need nonoverlapping windows for 'updateEphemeralKeyPreImage' and 'verifyEphemeralKeyIntegrity'
-    // as-is, someone can frontrun a transaction to 'updateEphemeralKeyPreImage' by calling 'verifyEphemeralKeyIntegrity' to slash an honest operator
 contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, RepositoryAccess {
     struct HashEntry{
         bytes32 keyHash;
@@ -55,7 +53,8 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) external {
         require(keccak256(abi.encodePacked(prevEK)) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
 
-        require(block.timestamp <= EKRegistry[msg.sender].timestamp + UPDATE_PERIOD, "key update cannot be completed as update window has expired");
+        require(block.timestamp >= EKRegistry[msg.sender].timestamp + UPDATE_PERIOD, "key update cannot be completed too early");
+        require(block.timestamp <= EKRegistry[msg.sender].timestamp + UPDATE_PERIOD + REVEAL_PERIOD, "key update cannot be completed as update window has expired");
 
         EKRegistry[msg.sender].keyHash = currEKHash;
         EKRegistry[msg.sender].timestamp = block.timestamp;
@@ -89,9 +88,10 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
         //check if DLN is still active in the DLRegistry
         require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
 
-        if((EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD + REVEAL_PERIOD) < block.timestamp) {
-            // TODO: add slashing
+        if((block.timestamp > EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
+            IDataLayrServiceManager dataLayrServiceManager = IDataLayrServiceManager(address(repository.serviceManager()));
             //trigger slashing for DLN who hasn't updated their EK
+            dataLayrServiceManager.slashOperator(dataLayrNode);
         }
 
     }
@@ -104,7 +104,9 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
         
         if (block.timestamp < EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD){
             if (EKRegistry[dataLayrNode].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
+                IDataLayrServiceManager dataLayrServiceManager = IDataLayrServiceManager(address(repository.serviceManager()));
                 //trigger slashing function for that datalayr node address
+                dataLayrServiceManager.slashOperator(dataLayrNode);
             }
         }
     }

@@ -106,6 +106,10 @@ contract DataLayrServiceManager is
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
+    function setEphemeralKeyRegistry(DataLayrEphemeralKeyRegistry _dataLayrEphemeralKeyRegistry) public onlyRepositoryGovernance {
+        dataLayrEphemeralKeyRegistry = _dataLayrEphemeralKeyRegistry;
+    }
+
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.transferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
@@ -461,7 +465,8 @@ contract DataLayrServiceManager is
     function slashOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
-            msg.sender == address(dataLayrDisclosureChallenge),
+            msg.sender == address(dataLayrDisclosureChallenge) ||
+            msg.sender == address(dataLayrEphemeralKeyRegistry),
             "Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).slashOperator(operator);

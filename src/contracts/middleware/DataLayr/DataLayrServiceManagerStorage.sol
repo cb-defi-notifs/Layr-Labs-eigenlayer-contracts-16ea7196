@@ -11,6 +11,7 @@ import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentChallengeFactory.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrDisclosureChallenge.sol";
+import "./DataLayrEphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
@@ -247,6 +248,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
     DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
+
+    DataLayrEphemeralKeyRegistry public dataLayrEphemeralKeyRegistry;
 
     constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)
