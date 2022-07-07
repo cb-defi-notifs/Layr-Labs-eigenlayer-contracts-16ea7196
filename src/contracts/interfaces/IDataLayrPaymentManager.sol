@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "./IPaymentManager.sol";
 
-interface IDataLayrPaymentChallenge{
+interface IDataLayrPaymentManager is IPaymentManager {
     function challengePaymentHalf(
         bool half,
         uint120 amount1,
@@ -22,10 +23,4 @@ interface IDataLayrPaymentChallenge{
     function getDiff() external returns (uint48);
     
     function resolvePaymentChallenge(bool) external;
-    
-    function paymentFraudProofInterval() external returns (uint256);
-
-    function paymentFraudProofCollateral() external returns (uint256);
-
-    function getPaymentCollateral(address) external returns (uint256);
 }

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
-import "../contracts/interfaces/IDataLayrPaymentChallenge.sol";
+import "../contracts/interfaces/IDataLayrPaymentManager.sol";
 import "../contracts/interfaces/ISlasher.sol";
 import "../test/Deployer.t.sol";
 
@@ -14,7 +14,7 @@ import "../contracts/libraries/BytesLib.sol";
 
 import "../contracts/middleware/ServiceManagerBase.sol";
 
-import "../contracts/middleware/DataLayr/DataLayrPaymentChallenge.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
@@ -261,12 +261,12 @@ contract Delegator is EigenLayrDeployer {
     function operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) public{
 
         cheats.startPrank(operator);
-        if (dataLayrPaymentChallenge.getDiff(operator) == 1){
+        if (dataLayrPaymentManager.getDiff(operator) == 1){
             cheats.stopPrank();
             return;
         }
         
-        dataLayrPaymentChallenge.challengePaymentHalf(operator, half, amount1, amount2);
+        dataLayrPaymentManager.challengePaymentHalf(operator, half, amount1, amount2);
         cheats.stopPrank();
 
         //Now we calculate the challenger's response amounts
@@ -275,11 +275,11 @@ contract Delegator is EigenLayrDeployer {
     // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
     function challengerDisputesOperator(address challenger, address operator, bool half, uint120 amount1, uint120 amount2) public{
         cheats.startPrank(challenger);
-        if (dataLayrPaymentChallenge.getDiff(operator) == 1){
+        if (dataLayrPaymentManager.getDiff(operator) == 1){
             cheats.stopPrank();
             return;
         }
-        dataLayrPaymentChallenge.challengePaymentHalf(operator, half, amount1, amount2);
+        dataLayrPaymentManager.challengePaymentHalf(operator, half, amount1, amount2);
         cheats.stopPrank();
 
     }
@@ -290,9 +290,9 @@ contract Delegator is EigenLayrDeployer {
         weth.approve(address(dlsm), type(uint256).max);
 
         //challenger initiates challenge
-        dataLayrPaymentChallenge.challengePaymentInit(operator, amount1, amount2);
+        dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
         
-        // DataLayrPaymentChallenge.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentChallenge.operatorToPaymentChallenge(operator);
+        // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
     }
 
@@ -327,7 +327,7 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dataLayrPaymentChallenge.depositFutureFees(storer, 1e11);
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         uint32 blockNumber = 1;
         //todo: duration
         dlsm.initDataStore(header, 2, totalBytes, blockNumber);
@@ -339,7 +339,7 @@ contract Delegator is EigenLayrDeployer {
 
         // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
-        dataLayrPaymentChallenge.commitPayment(newCurrentDataStoreId, _amountRewards);
+        dataLayrPaymentManager.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }

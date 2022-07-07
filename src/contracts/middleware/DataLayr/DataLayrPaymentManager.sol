@@ -14,7 +14,7 @@ import "ds-test/test.sol";
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentChallenge is RepositoryAccess, DSTest {
+contract DataLayrPaymentManager is RepositoryAccess, DSTest {
     // DATA STRUCTURES
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
@@ -321,7 +321,7 @@ contract DataLayrPaymentChallenge is RepositoryAccess, DSTest {
 
 // TODO: JEFFC update documentation
     /**
-     @notice this function creates a new 'DataLayrPaymentChallenge' contract. 
+     @notice this function creates a new 'DataLayrPaymentManager' contract. 
      */
     /**
      @param operator is the DataLayr operator whose payment claim is being challenged,

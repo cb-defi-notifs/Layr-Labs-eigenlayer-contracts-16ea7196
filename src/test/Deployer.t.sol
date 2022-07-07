@@ -21,7 +21,7 @@ import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrPaymentChallenge.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
@@ -75,7 +75,7 @@ contract EigenLayrDeployer is
 
     ProxyAdmin public eigenLayrProxyAdmin;
 
-    DataLayrPaymentChallenge public dataLayrPaymentChallenge;
+    DataLayrPaymentManager public dataLayrPaymentManager;
     DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
@@ -314,7 +314,7 @@ contract EigenLayrDeployer is
             feePerBytePerTime
         );
 
-        dataLayrPaymentChallenge = new DataLayrPaymentChallenge(
+        dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
             dlsm
         );
@@ -572,7 +572,7 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dlsm), type(uint256).max);
-        dataLayrPaymentChallenge.depositFutureFees(storer, 1e11);
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = 1;
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)

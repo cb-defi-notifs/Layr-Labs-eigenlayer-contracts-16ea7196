@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IGeneralServiceManager.sol";
-import "../interfaces/IPaymentChallengeManager.sol";
+import "../interfaces/IPaymentManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 
@@ -66,7 +66,7 @@ contract PaymentChallenge is DSTest{
 
 
     IGeneralServiceManager public sm;
-    IPaymentChallengeManager public pcm;
+    IPaymentManager public pcm;
 
     // the payment challenge 
     PaymentChallengeStruct public challenge;
@@ -105,7 +105,7 @@ contract PaymentChallenge is DSTest{
         );
 
         sm = IGeneralServiceManager(serviceManager);
-        pcm = IPaymentChallengeManager(pcmAddr);
+        pcm = IPaymentManager(pcmAddr);
         
     }
 
@@ -336,8 +336,10 @@ contract PaymentChallenge is DSTest{
         challenge.status = 1;
     }
 
+
     function resolve(bool challengeSuccessful) internal {
-        pcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
+// TODO: JEFFC fix this
+        // pcm.resolvePaymentChallenge(challenge.operator, challengeSuccessful);
         selfdestruct(payable(0));
     }
 

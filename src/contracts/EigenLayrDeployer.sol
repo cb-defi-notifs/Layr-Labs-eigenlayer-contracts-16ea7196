@@ -17,7 +17,7 @@ import "./middleware/Repository.sol";
 import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
-import "./middleware/DataLayr/DataLayrPaymentChallenge.sol";
+import "./middleware/DataLayr/DataLayrPaymentManager.sol";
 
 import "./middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
@@ -55,7 +55,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     InvestmentStrategyBase public strat;
     IRepository public dlRepository;
 
-    DataLayrPaymentChallenge public dataLayrPaymentChallenge;
+    DataLayrPaymentManager public dataLayrPaymentManager;
     DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     uint256 wethInitialSupply = 10e50;
@@ -122,7 +122,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             undelegationFraudProofInterval
         );
 
-        dataLayrPaymentChallenge= new DataLayrPaymentChallenge(
+        dataLayrPaymentManager= new DataLayrPaymentManager(
             weth,
             dlsm
         );

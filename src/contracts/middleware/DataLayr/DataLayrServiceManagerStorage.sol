@@ -8,7 +8,7 @@ import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
-import "./DataLayrPaymentChallenge.sol";
+import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrDisclosureChallenge.sol";
 import "./DataLayrEphemeralKeyRegistry.sol";
@@ -154,7 +154,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     /**
      * @notice contract used for handling payment challenges
      */
-    DataLayrPaymentChallenge public dataLayrPaymentChallenge;
+    DataLayrPaymentManager public dataLayrPaymentManager;
 
     constructor(IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken, IRepository _repository) 
         RepositoryAccess(_repository)

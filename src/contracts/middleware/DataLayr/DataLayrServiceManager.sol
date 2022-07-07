@@ -67,8 +67,8 @@ contract DataLayrServiceManager is
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
-    function setPaymentChallenge(DataLayrPaymentChallenge _dataLayrPaymentChallenge) public onlyRepositoryGovernance {
-        dataLayrPaymentChallenge = _dataLayrPaymentChallenge;
+    function setPaymentChallenge(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+        dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
     function setEphemeralKeyRegistry(DataLayrEphemeralKeyRegistry _dataLayrEphemeralKeyRegistry) public onlyRepositoryGovernance {
@@ -116,7 +116,7 @@ contract DataLayrServiceManager is
         // this will revert if the deposits are not high enough due to undeflow
         uint g = gasleft();
 
-        dataLayrPaymentChallenge.payFee(msg.sender, fee);
+        dataLayrPaymentManager.payFee(msg.sender, fee);
         
         //emit log_named_uint("1", g - gasleft());
 
@@ -304,7 +304,7 @@ contract DataLayrServiceManager is
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
             msg.sender == address(dataLayrEphemeralKeyRegistry) ||
-            msg.sender == address(dataLayrPaymentChallenge),
+            msg.sender == address(dataLayrPaymentManager),
             "Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).slashOperator(operator);
