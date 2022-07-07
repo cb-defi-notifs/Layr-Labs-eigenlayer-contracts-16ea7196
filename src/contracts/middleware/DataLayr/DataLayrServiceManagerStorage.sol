@@ -17,29 +17,6 @@ import "../../permissions/RepositoryAccess.sol";
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
     
     // DATA STRUCTURE
-
-    /**
-     @notice used for storing information on the most recent payment made to the DataLayr operator
-     */
-    struct Payment {
-        // dataStoreId starting from which payment is being claimed 
-        uint32 fromDataStoreId; 
-
-        // dataStoreId until which payment is being claimed (exclusive) 
-        uint32 toDataStoreId; 
-
-        // recording when committment for payment made; used for fraud proof period
-        uint32 commitTime; 
-
-        // payment for range [fromDataStoreId, toDataStoreId)
-        /// @dev max 1.3e36, keep in mind for token decimals
-        uint120 amount; 
-
-
-        uint8 status; // 0: commited, 1: redeemed
-        uint256 collateral; //account for if collateral changed
-    }
-
     struct DataStoresForDuration{
         uint32 one_duration;
         uint32 two_duration;
@@ -77,7 +54,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //uint32 public dataStoreId = 1;
     uint32 public latestTime;
 
-    uint256 disclosurePaymentPerByte;
+    uint256 public disclosurePaymentPerByte;
 
     uint48 public numPowersOfTau; // num of leaves in the root tree
     uint48 public log2NumPowersOfTau; // num of leaves in the root tree
@@ -113,12 +90,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      *         nodes who signed up to be the part of the quorum.  
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
-
-    /**
-     * @notice mapping between the operator and its current committed or payment
-     *         or the last redeemed payment 
-     */
-    mapping(address => Payment) public operatorToPayment;
 
     /**     
       @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
