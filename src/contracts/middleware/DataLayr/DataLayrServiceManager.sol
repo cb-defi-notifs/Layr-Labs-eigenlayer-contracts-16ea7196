@@ -95,6 +95,7 @@ contract DataLayrServiceManager is
      *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
+        address feePayer,
         bytes calldata header,
         uint8 duration,
         uint32 totalBytes,
@@ -120,7 +121,7 @@ contract DataLayrServiceManager is
         // this will revert if the deposits are not high enough due to undeflow
         uint g = gasleft();
 
-        dataLayrPaymentManager.payFee(msg.sender, fee);
+        dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
         
         //emit log_named_uint("1", g - gasleft());
 
@@ -191,7 +192,7 @@ contract DataLayrServiceManager is
             >
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data) external payable {
+    function confirmDataStore(bytes calldata data) external {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
         uint g = gasleft();
