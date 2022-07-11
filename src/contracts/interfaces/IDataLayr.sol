@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-interface IDataLayr {
+import "./ITaskMetadata.sol";
+
+interface IDataLayr is ITaskMetadata {
     function initDataStore(
         uint32 dataStoreId,
         bytes32 headerHash,
