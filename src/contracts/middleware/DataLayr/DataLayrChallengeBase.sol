@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrRegistry.sol";
+import "../../interfaces/IRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 
@@ -17,14 +17,14 @@ abstract contract DataLayrChallengeBase {
    	uint256 public immutable COLLATERAL_AMOUNT;
 
     IDataLayr public immutable dataLayr;
-    IDataLayrRegistry public immutable dlRegistry;
+    IRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IDataLayr _dataLayr,
-        IDataLayrRegistry _dlRegistry,
+        IRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
         uint256 _CHALLENGE_RESPONSE_WINDOW,
         uint256 _COLLATERAL_AMOUNT
@@ -139,7 +139,7 @@ abstract contract DataLayrChallengeBase {
 
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+        IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
         require(
             // operator must have become active/registered before (or at) the block number
             (operatorStake.updateBlockNumber <= blockNumber) &&

@@ -61,7 +61,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         latestEK[msg.sender].timestamp = block.timestamp;
     }
 
-
     /*
     * retrieve a operator's current EK hash
     */
@@ -94,7 +93,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
     }
 
-    
     /*
     * proof for operator who's ephemeral key has been leaked
     */
@@ -108,7 +106,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
             }
         }
     }
-
 
     function getLastEKPostTimestamp(address operator) external view returns (uint) {
         return latestEK[operator].timestamp;

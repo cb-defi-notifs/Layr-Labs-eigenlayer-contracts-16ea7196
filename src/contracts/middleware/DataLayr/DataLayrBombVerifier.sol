@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
+import "../../interfaces/IRegistry.sol";
 import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
@@ -44,14 +44,14 @@ contract DataLayrBombVerifier {
     uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public dlsm;
-    IDataLayrRegistry public dlRegistry;
+    IRegistry public dlRegistry;
     IDataLayr public dataLayr;
     DataLayrChallengeUtils public challengeUtils;
     IEphemeralKeyRegistry public dlekRegistry;
 
     constructor(
         IDataLayrServiceManager _dlsm,
-        IDataLayrRegistry _dlRegistry,
+        IRegistry _dlRegistry,
         IDataLayr _dataLayr,
         DataLayrChallengeUtils _challengeUtils,
         IEphemeralKeyRegistry _dlekRegistry

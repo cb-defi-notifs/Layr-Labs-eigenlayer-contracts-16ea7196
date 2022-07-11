@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
+import "../../interfaces/IRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../BLSRegistry.sol";
@@ -17,8 +17,7 @@ import "ds-test/test.sol";
  */
 
 contract DataLayrRegistry is
-    BLSRegistry,
-    IDataLayrRegistry
+    BLSRegistry
     // ,DSTest
 {
     using BytesLib for bytes;

@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
@@ -76,15 +75,6 @@ contract DataLayrPaymentManager is
                     - 5: challenger turn (one step)
          */
         uint8 status;   
-    }
-
-    /**
-     @notice  
-     */
-    struct SignerMetadata {
-        address signer;
-        uint96 ethStake;
-        uint96 eigenStake;
     }
 
     struct TotalStakes {
@@ -196,7 +186,7 @@ contract DataLayrPaymentManager is
              for their service since their last payment until @param toDataStoreId  
      **/
     function commitPayment(uint32 toDataStoreId, uint120 amount) external {
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(
+        IRegistry dlRegistry = IRegistry(
             address(repository.voteWeigher())
         );
 
@@ -550,7 +540,7 @@ contract DataLayrPaymentManager is
             "Sig record does not match hash"
         );
 
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(IRepository(IServiceManager(address(dataLayrServiceManager)).repository()).registry()));
+        IRegistry dlRegistry = IRepository(IServiceManager(address(dataLayrServiceManager)).repository()).registry();
 
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
@@ -568,7 +558,7 @@ contract DataLayrPaymentManager is
                 }
             }
             //TODO: Change this
-            IDataLayrRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {
@@ -656,15 +646,19 @@ contract DataLayrPaymentManager is
     function getAmount1(address operator) external view returns (uint120) {
         return operatorToPaymentChallenge[operator].amount1;
     }
+
     function getAmount2(address operator) external view returns (uint120) {
         return operatorToPaymentChallenge[operator].amount2;
     }
+
     function getToDataStoreId(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toDataStoreId;
     }
+
     function getFromDataStoreId(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].fromDataStoreId;
     }
+
     function getDiff(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
     }

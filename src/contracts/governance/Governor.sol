@@ -24,11 +24,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 */
 
 pragma solidity ^0.8.9;
-// TODO: currently we rely on functions that are defined in 'IDataLayrRegistry' rather than 'IRegistry'
-// TODO: it would be better to just use functions from a more generalized interface!
 
 import "../interfaces/IVoteWeigher.sol";
-import "../interfaces/IDataLayrRegistry.sol";
+import "../interfaces/IRegistry.sol";
 import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
@@ -208,9 +206,9 @@ contract Governor is RepositoryAccess {
         );
         // check percentage
         require(
-            (uint256(ethStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() >=
+            (uint256(ethStaked) * 100) / repository.registry().totalEthStaked() >=
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() >=
+                (uint256(eigenStaked) * 100) / repository.registry().totalEigenStaked() >=
                 proposalThresholdEigenPercentage ||
                 msg.sender == multisig,
             "RepositoryGovernance::propose: proposer votes below proposal threshold"
@@ -350,9 +348,9 @@ contract Governor is RepositoryAccess {
         );
         // check percentage
         require(
-            (uint256(ethStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() <
+            (uint256(ethStaked) * 100) / repository.registry().totalEthStaked() <
                 proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() <
+                (uint256(eigenStaked) * 100) / repository.registry().totalEigenStaked() <
                 proposalThresholdEigenPercentage,
             "RepositoryGovernance::cancel: proposer above threshold"
         );
@@ -408,13 +406,13 @@ contract Governor is RepositoryAccess {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / IDataLayrRegistry(address(repository.registry())).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / repository.registry().totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IDataLayrRegistry(address(repository.registry())).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / repository.registry().totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -549,7 +547,7 @@ contract Governor is RepositoryAccess {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IDataLayrRegistry(address(repository.registry())).operatorStakes(user);
+        (uint96 ethStaked, uint96 eigenStaked) = repository.registry().operatorStakes(user);
         return (ethStaked, eigenStaked);
     }
 }

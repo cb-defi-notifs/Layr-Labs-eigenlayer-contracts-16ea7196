@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 interface IRegistry {
-// TODO: decide if this struct is better defined in 'IRegistry', 'IDataLayrRegistry', or a separate file
     struct OperatorStake {
         uint32 updateBlockNumber;
         uint32 nextUpdateBlockNumber;
