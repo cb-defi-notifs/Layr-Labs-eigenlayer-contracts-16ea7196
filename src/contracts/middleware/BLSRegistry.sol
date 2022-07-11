@@ -777,7 +777,9 @@ contract BLSRegistry is
         apkHashes.push(newApkHash);
 
 
-        
+        // get current task number from ServiceManager
+        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
+    
 
         /**
          @notice some book-keeping for recording info pertaining to the operator
@@ -792,8 +794,7 @@ contract BLSRegistry is
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            // CRITIC: load from memory and save it in memory the first time above this other contract was called
-            fromTaskNumber: IGeneralServiceManager(address(repository.serviceManager())).taskNumber(),
+            fromTaskNumber: currentTaskNumber,
             // extract the socket address
             socket: socket
         });
@@ -806,11 +807,8 @@ contract BLSRegistry is
         operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
         
-
+        // Update totalOperatorsHistory
         {
-            // get current task number from ServiceManager
-            uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
-            // Update totalOperatorsHistory
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
             // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators

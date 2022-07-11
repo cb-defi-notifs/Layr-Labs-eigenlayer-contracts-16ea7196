@@ -338,19 +338,6 @@ contract DataLayrPaymentManager is
             "Fraud proof interval has passed"
         );
 
-// TODO: JEFFC update documentation
-    /**
-     @notice this function creates a new 'DataLayrPaymentManager' contract. 
-     */
-    /**
-     @param operator is the DataLayr operator whose payment claim is being challenged,
-     @param challenger is the entity challenging with the fraudproof,
-     @param serviceManager is the DataLayr service manager,
-     @param fromDataStoreId is the DataStoreId from which payment has been computed,
-     @param toDataStoreId is the DataStoreId until which payment has been computed to,
-     @param amount1 x
-     @param amount2 y
-     */        
         // store challenge details
         operatorToPaymentChallenge[operator] = PaymentChallenge(
                 operator,
