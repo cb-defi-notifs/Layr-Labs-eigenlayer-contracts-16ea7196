@@ -186,13 +186,11 @@ contract DataLayrPaymentManager is
              for their service since their last payment until @param toDataStoreId  
      **/
     function commitPayment(uint32 toDataStoreId, uint120 amount) external {
-        IRegistry dlRegistry = IRegistry(
-            address(repository.voteWeigher())
-        );
+        IRegistry registry = repository.registry();
 
         // only registered DataLayr operators can call
         require(
-            dlRegistry.getOperatorType(msg.sender) != 0,
+            registry.getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
@@ -217,7 +215,7 @@ contract DataLayrPaymentManager is
          */
         if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
             // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(msg.sender);
+            fromDataStoreId = registry.getFromTaskNumberForOperator(msg.sender);
             require(fromDataStoreId < toDataStoreId, "invalid payment range");
 
             // record the payment information pertaining to the operator
@@ -540,9 +538,9 @@ contract DataLayrPaymentManager is
             "Sig record does not match hash"
         );
 
-        IRegistry dlRegistry = IRepository(IServiceManager(address(dataLayrServiceManager)).repository()).registry();
+        IRegistry registry = repository.registry();
 
-        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+        bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 
         // //calculate the true amount deserved
         uint120 trueAmount;
@@ -558,7 +556,7 @@ contract DataLayrPaymentManager is
                 }
             }
             //TODO: Change this
-            IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {

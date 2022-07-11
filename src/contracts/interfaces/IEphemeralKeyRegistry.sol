@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
-import "./IDataLayr.sol";
 
 interface IEphemeralKeyRegistry {
     function postFirstEphemeralKeyHash(
