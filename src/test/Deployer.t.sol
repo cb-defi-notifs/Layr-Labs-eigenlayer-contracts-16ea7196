@@ -22,7 +22,7 @@ import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/middleware/DataLayr/EphemeralKeyRegistry.sol";
+import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";

@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../interfaces/IServiceManager.sol";
-import "../../permissions/RepositoryAccess.sol";
-import "../BLSRegistry.sol";
+import "../interfaces/IEphemeralKeyRegistry.sol";
+import "../permissions/RepositoryAccess.sol";
 
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
-    struct HashEntry{
+    struct HashEntry {
         bytes32 keyHash;
         uint256 timestamp;
     }
-    struct EKEntry{
+    struct EKEntry {
         bytes32 EK;
         uint256 timestamp;
     }
@@ -83,7 +81,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     *proof for operator that hasn't updated their ephemeral key within the update window.  
     */
     function proveStaleEphemeralKey(address operator) external {
-        BLSRegistry registry = BLSRegistry(address(repository.registry()));
+        IRegistry registry = repository.registry();
 
         //check if operator is still active in the DLRegistry
         require(registry.getOperatorStatus(operator) == 1, "operator not active");

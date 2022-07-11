@@ -11,7 +11,7 @@ import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrDisclosureChallenge.sol";
-import "./EphemeralKeyRegistry.sol";
+import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {

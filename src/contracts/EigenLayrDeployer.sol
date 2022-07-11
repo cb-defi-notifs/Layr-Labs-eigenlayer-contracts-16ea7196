@@ -19,7 +19,7 @@ import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentManager.sol";
 
-import "./middleware/DataLayr/EphemeralKeyRegistry.sol";
+import "./middleware/EphemeralKeyRegistry.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
