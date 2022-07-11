@@ -630,12 +630,11 @@ contract EigenLayrDeployer is
             eigenToken,
             toDeposit
         );
-        // TODO: add this check back in
-        // assertEq(
-        //     investmentManager.eigenDeposited(sender),
-        //     toDeposit,
-        //     "_testDepositEigen: deposit not properly credited"
-        // );
+        assertEq(
+            investmentManager.investorStratShares(sender, eigenStrat),
+            toDeposit,
+            "_testDepositEigen: deposit not properly credited"
+        );
         cheats.stopPrank();
     }
 

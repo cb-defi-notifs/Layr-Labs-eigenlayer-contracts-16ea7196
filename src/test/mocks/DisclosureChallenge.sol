@@ -161,12 +161,8 @@ contract DataLayrDisclosureChallenge is DSTest {
         coors[0] = x_power;
         coors[1] = y_power;
         //this is the coefficient of the term with degree degree
-        //TODO: verify that multiplying by 32 is safe from overflow
         //(Q: does this automatically make the result a uint256, or is it constrained to uint48?)
         coors[2] = uint256(bytes32(poly[degree * 32:degree * 32 + 32]));
-        // emit log_uint(coors[0]);
-        // emit log_uint(coors[1]);
-        // emit log_uint(coors[2]);
         uint256[2] memory product;
         assembly {
             if iszero(
