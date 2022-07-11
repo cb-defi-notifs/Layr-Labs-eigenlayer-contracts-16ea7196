@@ -6,7 +6,6 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "./PaymentChallengeFactory.sol";
 
 abstract contract ServiceManagerStorage is IServiceManager {
     
