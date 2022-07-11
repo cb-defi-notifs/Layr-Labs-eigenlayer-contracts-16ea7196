@@ -8,6 +8,7 @@ import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
 import "../permissions/RepositoryAccess.sol";
 
 contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
@@ -33,6 +34,7 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
     IVoteWeigher public voteWeigher;
     ITaskMetadata public taskMetadata;
     IInvestmentManager public investmentManager;
+    IEigenLayrDelegation public eigenLayrDelegation;
     
     // fixed duration of all new tasks
     uint256 public taskDuration;
@@ -77,11 +79,13 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
     function initialize(
         IVoteWeigher _voteWeigher,
         ITaskMetadata _taskMetadata,
-        IInvestmentManager _investmentManager
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _eigenLayrDelegation
     )  external initializer {
         voteWeigher = _voteWeigher;
         taskMetadata = _taskMetadata;
         investmentManager = _investmentManager;
+        eigenLayrDelegation = _eigenLayrDelegation;
     }
 
     /**

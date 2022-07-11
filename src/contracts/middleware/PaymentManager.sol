@@ -2,36 +2,36 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IRepository.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IDataLayrPaymentManager.sol";
-import "../Repository.sol";
-import "../../permissions/RepositoryAccess.sol";
+import "../interfaces/IRepository.sol";
+import "../interfaces/IServiceManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IPaymentManager.sol";
+import "./Repository.sol";
+import "../permissions/RepositoryAccess.sol";
 
 import "ds-test/test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentManager is 
+contract PaymentManager is 
     RepositoryAccess, 
-    IDataLayrPaymentManager
+    IPaymentManager
     // ,DSTest 
     {
     // DATA STRUCTURES
      /**
-    @notice used for storing information on the most recent payment made to the DataLayr operator
+    @notice used for storing information on the most recent payment made to the operator
     */
 
     struct Payment {
-        // dataStoreId starting from which payment is being claimed 
-        uint32 fromDataStoreId; 
-        // dataStoreId until which payment is being claimed (exclusive) 
-        uint32 toDataStoreId; 
+        // taskNumber starting from which payment is being claimed 
+        uint32 fromTaskNumber; 
+        // taskNumber until which payment is being claimed (exclusive) 
+        uint32 toTaskNumber; 
         // recording when committment for payment made; used for fraud proof period
         uint32 commitTime; 
-        // payment for range [fromDataStoreId, toDataStoreId)
+        // payment for range [fromTaskNumber, toTaskNumber)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
         uint8 status; // 0: committed, 1: redeemed
@@ -39,20 +39,20 @@ contract DataLayrPaymentManager is
     }
 
     struct PaymentChallenge {
-        // DataLayr operator whose payment claim is being challenged,
+        // operator whose payment claim is being challenged,
         address operator;
 
         // the entity challenging with the fraudproof
         address challenger;
 
-        // address of the DataLayr service manager contract
+        // address of the service manager contract
         address serviceManager;
 
-        // the DataStoreId from which payment has been computed
-        uint32 fromDataStoreId;
+        // the TaskNumber from which payment has been computed
+        uint32 fromTaskNumber;
 
-        // the DataStoreId until which payment has been computed to
-        uint32 toDataStoreId;
+        // the TaskNumber until which payment has been computed to
+        uint32 toTaskNumber;
 
         // 
         uint120 amount1;
@@ -97,17 +97,16 @@ contract DataLayrPaymentManager is
 
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes.
+     *         middleware nodes.
      */
     IERC20 public immutable paymentToken;
 
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
     /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as DataLayr
+     * @notice The EigenLayr delegation contract for this middleware which is primarily used by
+     *      delegators to delegate their stake to operators who would serve as middleware
      *      nodes and so on.
      */
     /**
@@ -131,26 +130,26 @@ contract DataLayrPaymentManager is
     // EVENTS
     event PaymentCommit(
         address operator,
-        uint32 fromDataStoreId,
-        uint32 toDataStoreId,
+        uint32 fromTaskNumber,
+        uint32 toTaskNumber,
         uint256 fee
     );
     event PaymentRedemption(address operator, uint256 fee);
-    event PaymentBreakdown(uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
     event PaymentChallengeInit(address operator, address challenger);
     event PaymentChallengeResolution(address operator, bool operatorWon);
 
     constructor(
         IERC20 _paymentToken,
-        IDataLayrServiceManager _dataLayrServiceManager
+        IRepository _repository
     )   
-        // set repository address equal to that of dataLayrServiceManager
-        RepositoryAccess(_dataLayrServiceManager.repository()) 
+        // set repository address equal to that of serviceManager
+        RepositoryAccess(_repository) 
     {
         paymentToken = _paymentToken;
-        dataLayrServiceManager = _dataLayrServiceManager;
-        collateralToken = _dataLayrServiceManager.collateralToken();
-        eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
+        IServiceManager _serviceManager = _repository.serviceManager();
+        collateralToken = _serviceManager.collateralToken();
+        eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
     }
 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
@@ -177,19 +176,19 @@ contract DataLayrPaymentManager is
     }
 
     /**
-     @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toDataStoreId  
+     @notice This is used by an operator to make claim on the @param amount that they deserve 
+             for their service since their last payment until @param toTaskNumber  
      **/
-    function commitPayment(uint32 toDataStoreId, uint120 amount) external {
+    function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IRegistry registry = repository.registry();
 
-        // only registered DataLayr operators can call
+        // only registered operators can call
         require(
             registry.getOperatorType(msg.sender) != 0,
             "Only registered operators can call this function"
         );
 
-        require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
+        require(toTaskNumber <= taskNumber(), "Cannot claim future payments");
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
@@ -199,24 +198,24 @@ contract DataLayrPaymentManager is
         );
 
         /**
-         @notice recording payment claims for the DataLayr operators
+         @notice recording payment claims for the operator
          */
-        uint32 fromDataStoreId;
+        uint32 fromTaskNumber;
 
-        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
+        // for the special case of this being the first payment that is being claimed by the operator;
         /**
-         @notice this special case also implies that the DataLayr operator must be claiming payment from 
+         @notice this special case also implies that the operator must be claiming payment from 
                  when the operator registered.   
          */
-        if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
-            // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = registry.getFromTaskNumberForOperator(msg.sender);
-            require(fromDataStoreId < toDataStoreId, "invalid payment range");
+        if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
+            // get the taskNumber when the operator registered
+            fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
+            require(fromTaskNumber < toTaskNumber, "invalid payment range");
 
             // record the payment information pertaining to the operator
             operatorToPayment[msg.sender] = Payment(
-                fromDataStoreId,
-                toDataStoreId,
+                fromTaskNumber,
+                toTaskNumber,
                 uint32(block.timestamp),
                 amount,
                 // setting to 0 to indicate commitment to payment claim
@@ -224,7 +223,7 @@ contract DataLayrPaymentManager is
                 paymentFraudProofCollateral
             );
 
-            emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
+            emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
 
             return;
         }
@@ -236,13 +235,13 @@ contract DataLayrPaymentManager is
         );
 
         // you have to redeem starting from the last time redeemed up to
-        fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
-        require(fromDataStoreId < toDataStoreId, "invalid payment range");
+        fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
+        require(fromTaskNumber < toTaskNumber, "invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
-            fromDataStoreId,
-            toDataStoreId,
+            fromTaskNumber,
+            toTaskNumber,
             uint32(block.timestamp),
             amount,
             // set status as 0: committed
@@ -250,7 +249,7 @@ contract DataLayrPaymentManager is
             paymentFraudProofCollateral
         );
 
-        emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
+        emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
     }
 
     /**
@@ -303,9 +302,9 @@ contract DataLayrPaymentManager is
              by initiating an interactive type proof
      **/
     /**
-     @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
-     @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
-     @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
+     @param operator is the operator against whose payment claim the fraud proof is being made
+     @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
+     @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
      **/
     function challengePaymentInit(
         address operator,
@@ -325,14 +324,14 @@ contract DataLayrPaymentManager is
         operatorToPaymentChallenge[operator] = PaymentChallenge(
                 operator,
                 msg.sender,
-                address(dataLayrServiceManager),
-                operatorToPayment[operator].fromDataStoreId,
-                operatorToPayment[operator].toDataStoreId,
+                address(repository.serviceManager()),
+                operatorToPayment[operator].fromTaskNumber,
+                operatorToPayment[operator].toTaskNumber,
                 amount1,
                 amount2,
                 // recording current timestamp as the commitTime
                 uint32(block.timestamp),
-                // setting DataLayr operator to respond next
+                // setting operator to respond next
                 uint8(2)
         );
 
@@ -372,32 +371,32 @@ contract DataLayrPaymentManager is
         );
 
 
-        uint32 fromDataStoreId = challenge.fromDataStoreId;
-        uint32 toDataStoreId = challenge.toDataStoreId;
+        uint32 fromTaskNumber = challenge.fromTaskNumber;
+        uint32 toTaskNumber = challenge.toTaskNumber;
         uint32 diff;
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (half) {
-            diff = (toDataStoreId - fromDataStoreId) / 2;
-            challenge.fromDataStoreId = fromDataStoreId + diff;
+            diff = (toTaskNumber - fromTaskNumber) / 2;
+            challenge.fromTaskNumber = fromTaskNumber + diff;
             //if next step is not final
             if (updateStatus(operator, diff)) {
-                challenge.toDataStoreId = toDataStoreId;
+                challenge.toTaskNumber = toTaskNumber;
             }
             //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
             updateChallengeAmounts(operator, 3, amount1, amount2);
         } else {
-            diff = (toDataStoreId - fromDataStoreId);
+            diff = (toTaskNumber - fromTaskNumber);
             if (diff % 2 == 1) {
                 diff += 1;
             }
             diff /= 2;
             //if next step is not final
             if (updateStatus(operator, diff)) {
-                challenge.toDataStoreId = toDataStoreId - diff;
-                challenge.fromDataStoreId = fromDataStoreId;
+                challenge.toTaskNumber = toTaskNumber - diff;
+                challenge.fromTaskNumber = fromTaskNumber;
             }
             updateChallengeAmounts(operator, 1, amount1, amount2);
         }
@@ -406,7 +405,7 @@ contract DataLayrPaymentManager is
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
         
-        emit PaymentBreakdown(challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
+        emit PaymentBreakdown(challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
     }
 
 
@@ -415,11 +414,11 @@ contract DataLayrPaymentManager is
     /**
      @notice This function is used for updating the status of the challenge in terms of who
              has to respond to the interactive challenge mechanism next -  is it going to be
-             challenger or the DataLayr operator.   
+             challenger or the operator.   
      */
     /**
-     @param operator is the DataLayr operator whose payment claim is being challenged
-     @param diff is the number of DataLayr dumps across which payment is being challenged in this iteration
+     @param operator is the operator whose payment claim is being challenged
+     @param diff is the number of tasks across which payment is being challenged in this iteration
      */ 
     function updateStatus(address operator, uint32 diff)
         internal
@@ -498,7 +497,8 @@ contract DataLayrPaymentManager is
             resolve(operator, true);
         }
     }
-
+// TODO: get this working
+/*
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
         address operator,
@@ -506,8 +506,8 @@ contract DataLayrPaymentManager is
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakes,
-        bytes32 challengedDumpHeaderHash,
-        IDataLayrServiceManager.DataStoreSearchData calldata searchData
+        bytes32 challengedHeaderHash,
+        IServiceManager.DataStoreSearchData calldata searchData
     ) external {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
@@ -517,14 +517,14 @@ contract DataLayrPaymentManager is
                 challenge.commitTime + paymentFraudProofInterval,
             "Fraud proof interval has passed"
         );
-        uint32 challengedDataStoreId = challenge.fromDataStoreId;
+        uint32 challengedTaskNumber = challenge.fromTaskNumber;
         uint8 status = challenge.status;
         //check sigs
         require(
-            dataLayrServiceManager.getDataStoreIdSignatureHash(challengedDataStoreId) ==
+            serviceManager.getTaskNumberSignatureHash(challengedTaskNumber) ==
                 keccak256(
                     abi.encodePacked(
-                        challengedDataStoreId,
+                        challengedTaskNumber,
                         nonSignerPubkeyHashes,
                         totalStakes.ethStakeSigned,
                         totalStakes.eigenStakeSigned
@@ -555,8 +555,8 @@ contract DataLayrPaymentManager is
 
         // scoped block helps fix stack too deep
         {
-            (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
-            require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
+            (uint32 taskNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (serviceManager.dataLayr()).dataStores(challengedHeaderHash);
+            require(taskNumberFromHeaderHash == challengedTaskNumber, "specified taskNumber does not match provided headerHash");
             require(
                 operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
                 "Operator stake index is too late"
@@ -568,14 +568,14 @@ contract DataLayrPaymentManager is
                 "Operator stake index is too early"
             );
         }
-            require(dataLayrServiceManager.getDataStoreIdsForDuration(
+            require(serviceManager.getTaskNumbersForDuration(
                 searchData.duration, 
                 searchData.timestamp
             ) == hashLinkedDataStoreMetadatas(searchData.metadatas), "search.metadatas preimage is incorrect");
 
             //TODO: Change this
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
-            require(metadata.globalDataStoreId == challengedDataStoreId, "Loaded DataStoreId does not match challenged");
+            IServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
+            require(metadata.globalTaskNumber == challengedTaskNumber, "Loaded TaskNumber does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
@@ -605,7 +605,7 @@ contract DataLayrPaymentManager is
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
     }
-
+*/
     /*
     @notice: resolve payment challenge
     */
@@ -644,16 +644,16 @@ contract DataLayrPaymentManager is
         return operatorToPaymentChallenge[operator].amount2;
     }
 
-    function getToDataStoreId(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].toDataStoreId;
+    function getToTaskNumber(address operator) external view returns (uint48) {
+        return operatorToPaymentChallenge[operator].toTaskNumber;
     }
 
-    function getFromDataStoreId(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].fromDataStoreId;
+    function getFromTaskNumber(address operator) external view returns (uint48) {
+        return operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
     function getDiff(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
+        return operatorToPaymentChallenge[operator].toTaskNumber - operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
     function getPaymentCollateral(address operator)
@@ -664,15 +664,18 @@ contract DataLayrPaymentManager is
         return operatorToPayment[operator].collateral;
     }
 
-    function dataStoreId() internal view returns (uint32) {
-        return dataLayrServiceManager.dataStoreId();
+    function taskNumber() internal view returns (uint32) {
+        return repository.serviceManager().taskNumber();
     }
 
-    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
+// TODO: delete or replace with general solution
+/*
+    function hashLinkedDataStoreMetadatas(IServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
         bytes32 res = bytes32(0);
         for(uint i = 0; i < metadatas.length; i++) {
-            res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));
+            res = keccak256(abi.encodePacked(res, metadatas[i].durationTaskNumber, metadatas[i].globalTaskNumber, metadatas[i].fee));
         }
         return res;
     }
+*/
 }
