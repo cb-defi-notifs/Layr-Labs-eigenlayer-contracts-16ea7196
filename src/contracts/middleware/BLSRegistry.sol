@@ -24,6 +24,48 @@ contract BLSRegistry is
 {
     using BytesLib for bytes;
 
+    // DATA STRUCTURES 
+    /**
+     * @notice  Data structure for storing info on operators to be used for:
+     *           - sending data by the sequencer
+     *           - payment and associated challenges
+     */
+    struct Registrant {
+        // hash of pubkey of the operator
+        bytes32 pubkeyHash;
+
+        // id is always unique
+        uint32 id;
+
+        // corresponds to position in registrantList
+        uint64 index;
+
+        // start block from which the  operator has been registered
+        uint32 fromTaskNumber;
+
+        // UTC time until which this operator is supposed to serve its obligations to this middleware
+        // set only when committing to deregistration
+        uint32 serveUntil;
+
+        // indicates whether the operator is actively registered for storing data or not 
+        uint8 active; //bool
+
+        // socket address of the node
+        string socket;
+
+        uint256 deregisterTime;
+    }
+
+    // struct used to give definitive ordering to operators at each task number
+    struct OperatorIndex {
+        // task number at which operator index changed
+        // note that the operator's index is different *for this task number*, i.e. the new index is inclusive of this value
+        uint32 toTaskNumber;
+        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
+        uint32 index;
+    }
+
+
     // CONSTANTS
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -37,36 +79,6 @@ contract BLSRegistry is
 
     uint8 internal constant _NUMBER_OF_QUORUMS = 2;
 
-    // DATA STRUCTURES 
-    /**
-     * @notice  Data structure for storing info on OptimisticBridge operators that would be used for:
-     *           - sending data by the sequencer
-     *           - payment and associated challenges
-     */
-    struct Registrant {
-        // hash of pubkey of the OptimisticBridge operator
-        bytes32 pubkeyHash;
-
-        // id is always unique
-        uint32 id;
-
-        // corresponds to position in registrantList
-        uint64 index;
-
-        // start block from which the OptimisticBridge operator has been registered
-        uint32 fromTaskNumber;
-
-        // UTC time until which this operator is supposed to serve its obligations in 
-        // set only when committing to deregistration
-        // uint32 storeUntil;
-
-        // indicates whether the operator is actively registered for storing data or not 
-        uint8 active; //bool
-
-        // socket address of the node
-        string socket;
-    }
-
     // number of registrants of this service
     uint64 public numRegistrants;  
 
@@ -76,19 +88,8 @@ contract BLSRegistry is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /** 
-      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in OptimisticBridge;
-              updated at every call to initDataStore in OptimisticBridgeServiceManager.sol  
-
-              This would be used for recording the time until which a operator is obligated
-              to serve while committing deregistration.
-     */
-    uint32 public latestTime;
-
-
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextRegistrantId;
-
 
     /// @notice used for storing Registrant info on each operator while registration
     mapping(address => Registrant) public registry;
@@ -103,14 +104,6 @@ contract BLSRegistry is
     //     uint96 eigenStake;
     // }
 
-    // struct used to give definitive ordering to operators at each task number
-    struct OperatorIndex {
-        // task number at which operator index changed
-        // note that the operator's index is different *for this task number*, i.e. the new index is inclusive of this value
-        uint32 toTaskNumber;
-        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
-        uint32 index;
-    }
     /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
@@ -123,17 +116,14 @@ contract BLSRegistry is
     /// @notice mapping from operator's pubkeyhash to the history of their index in the array of all operators
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
-
-    /// @notice the task numbers in which the aggregated pubkeys are updated
+    /// @notice the task numbers at which the aggregated pubkeys were updated
     uint32[] public apkUpdates;
-
 
     /**
      @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
              this is updated whenever a new operator registers or deregisters
      */
     bytes32[] public apkHashes;
-
 
     /**
      @notice used for storing current aggregate public key
@@ -144,7 +134,6 @@ contract BLSRegistry is
      */
     uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
 
-    
 
     // EVENTS
     event StakeAdded(
@@ -260,7 +249,7 @@ contract BLSRegistry is
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -276,17 +265,17 @@ contract BLSRegistry is
         /**
          @notice this info is used in forced disclosure
          */
-        // registry[msg.sender].storeUntil = latestTime;
+        // registry[msg.sender].serveUntil = latestTime;
 
 
-        // committing to not signing off on any more data that is being asserted into OptimisticBridge
+        // committing to not signing off on any more data that is being asserted to this service
         registry[msg.sender].active = 0;
 
-        // get current task number from OptimisticBridgeServiceManager
+        // get current task number from ServiceManager
         uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();        
         
         /**
-         @notice verify that the sender is a OptimisticBridge operator that is doing deregistration for itself 
+         @notice verify that the sender is a operator that is doing deregistration for itself 
          */
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
@@ -583,22 +572,6 @@ contract BLSRegistry is
         nodeEthStake = _nodeEthStake;
     }
 
-
-    /**
-     @notice sets the latest time until which any of the active operators that haven't committed
-             yet to deregistration are supposed to serve.
-     */
-    function setLatestTime(uint32 _latestTime) external onlyServiceManager {
-        require(
-            address(repository.serviceManager()) == msg.sender,
-            "only service manager can call this"
-        );
-        if (_latestTime > latestTime) {
-            latestTime = _latestTime;
-        }
-    }
-
-
     /// @notice returns the unique ID of the specified operator 
     function getOperatorId(address operator) public view returns (uint32) {
         return registry[operator].id;
@@ -609,7 +582,6 @@ contract BLSRegistry is
     function getOperatorType(address operator) public view returns (uint8) {
         return registry[operator].active;
     }
-
 
     /**
      @notice get hash of a historical aggregated public key corresponding to a given index;
@@ -670,9 +642,7 @@ contract BLSRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket
-    ) public {
-        //_registerOperator(msg.sender, registrantType, data, socket);
-        
+    ) public virtual {        
         _registerOperator(msg.sender, registrantType, data, socket);
     }
 
@@ -685,7 +655,7 @@ contract BLSRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket
-    ) internal {
+    ) internal virtual {
         require(
             registry[operator].active == 0,
             "Operator is already registered"
@@ -768,18 +738,15 @@ contract BLSRegistry is
         /**
          @notice some book-keeping for aggregated pubkey
          */
+        // get current task number from ServiceManager
+        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
 
         // store the current tasknumber in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
         
         //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);
-
-
-        // get current task number from ServiceManager
-        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
-    
+        apkHashes.push(newApkHash);    
 
         /**
          @notice some book-keeping for recording info pertaining to the operator
@@ -795,8 +762,10 @@ contract BLSRegistry is
             index: numRegistrants,
             active: registrantType,
             fromTaskNumber: currentTaskNumber,
+            serveUntil: 0,
             // extract the socket address
-            socket: socket
+            socket: socket,
+            deregisterTime: 0
         });
 
         // record the operator being registered
@@ -923,6 +892,24 @@ contract BLSRegistry is
         return registry[operator].active;
     }
 
+    /**
+     @notice returns task number from when operator has been registered.
+     */
+    function getFromTaskNumberForOperator(address operator)
+        public
+        view
+        returns (uint32)
+    {
+        return registry[operator].fromTaskNumber;
+    }
+
+    function getOperatorDeregisterTime(address operator)
+        public
+        view
+        returns (uint256)
+    {
+        return registry[operator].deregisterTime;
+    }
 }
 
 

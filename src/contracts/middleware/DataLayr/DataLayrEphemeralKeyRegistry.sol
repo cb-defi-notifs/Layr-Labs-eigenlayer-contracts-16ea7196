@@ -2,9 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
+import "../../interfaces/IServiceManager.sol";
 import "../../permissions/RepositoryAccess.sol";
-import "./DataLayrRegistry.sol";
+import "../BLSRegistry.sol";
 
 contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, RepositoryAccess {
     struct HashEntry{
@@ -16,10 +16,10 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
         uint256 timestamp;
     }
 
-    // max amount of time that a DLN can take to update their ephemeral key
+    // max amount of time that an operator can take to update their ephemeral key
     uint256 public constant UPDATE_PERIOD = 7 days;
 
-    //max amout of time DLN has to submit and confirm the ephemeral key reveal transaction
+    //max amout of time operator has to submit and confirm the ephemeral key reveal transaction
     uint256 public constant REVEAL_PERIOD = 7 days;
 
     mapping(address => HashEntry) public EKRegistry;
@@ -31,7 +31,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
     }
 
     /*
-    * Allows DLN to post their first ephemeral key hash via DataLayrRegistry (on registration)
+    * Allows operator to post their first ephemeral key hash via BLSRegistry (on registration)
     */
     function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
         require(EKRegistry[operator].keyHash == 0, "previous ephemeral key already exists");
@@ -40,7 +40,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
     }
 
     /*
-    * Allows DLN to post their final ephemeral key preimage via DataLayrRegistry (on degregistration)
+    * Allows operator to post their final ephemeral key preimage via BLSRegistry (on degregistration)
     */
     function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external onlyRegistry {
         latestEK[operator].EK = EK;
@@ -48,7 +48,7 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
     }
 
      /*
-    * Allows DLN to update their ephemeral key hash and post their previous ephemeral key 
+    * Allows operator to update their ephemeral key hash and post their previous ephemeral key 
     */
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 currEKHash) external {
         require(keccak256(abi.encodePacked(prevEK)) == EKRegistry[msg.sender].keyHash, "Ephemeral key does not match previous ephemeral key commitment");
@@ -65,55 +65,55 @@ contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, Reposito
 
 
     /*
-    * retrieve a DLN's current EK hash
+    * retrieve a operator's current EK hash
     */
-    function getCurrEphemeralKeyHash(address dataLayrNode) external view returns (bytes32){
-        return EKRegistry[dataLayrNode].keyHash;
+    function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
+        return EKRegistry[operator].keyHash;
     }
 
 
-    function getLatestEphemeralKey(address dataLayrNode)
+    function getLatestEphemeralKey(address operator)
         external view
         returns (bytes32)
     {
-        return latestEK[dataLayrNode].EK;
+        return latestEK[operator].EK;
     }
 
     /*
-    *proof for DLN that hasn't updated their ephemeral key within the update window.  
+    *proof for operator that hasn't updated their ephemeral key within the update window.  
     */
-    function proveStaleEphemeralKey(address dataLayrNode) external {
-        IDataLayrRegistry dlRegistry = IDataLayrRegistry(address(repository.registry()));
+    function proveStaleEphemeralKey(address operator) external {
+        BLSRegistry registry = BLSRegistry(address(repository.registry()));
 
-        //check if DLN is still active in the DLRegistry
-        require(dlRegistry.getDLNStatus(dataLayrNode) == 1, "DLN not active");
+        //check if operator is still active in the DLRegistry
+        require(registry.getOperatorStatus(operator) == 1, "operator not active");
 
-        if((block.timestamp > EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
-            IDataLayrServiceManager dataLayrServiceManager = IDataLayrServiceManager(address(repository.serviceManager()));
-            //trigger slashing for DLN who hasn't updated their EK
-            dataLayrServiceManager.slashOperator(dataLayrNode);
+        if((block.timestamp > EKRegistry[operator].timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
+            IServiceManager serviceManager = repository.serviceManager();
+            //trigger slashing for operator who hasn't updated their EK
+            serviceManager.slashOperator(operator);
         }
 
     }
 
     
     /*
-    * proof for DLN who's ephemeral key has been leaked
+    * proof for operator who's ephemeral key has been leaked
     */
-    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external {
+    function verifyEphemeralKeyIntegrity(address operator, bytes32 leakedEphemeralKey) external {
         
-        if (block.timestamp < EKRegistry[dataLayrNode].timestamp + UPDATE_PERIOD){
-            if (EKRegistry[dataLayrNode].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
-                IDataLayrServiceManager dataLayrServiceManager = IDataLayrServiceManager(address(repository.serviceManager()));
+        if (block.timestamp < EKRegistry[operator].timestamp + UPDATE_PERIOD){
+            if (EKRegistry[operator].keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
+                IServiceManager serviceManager = repository.serviceManager();
                 //trigger slashing function for that datalayr node address
-                dataLayrServiceManager.slashOperator(dataLayrNode);
+                serviceManager.slashOperator(operator);
             }
         }
     }
 
 
-    function getLastEKPostTimestamp(address dataLayrNode) external view returns (uint) {
-        return latestEK[dataLayrNode].timestamp;
+    function getLastEKPostTimestamp(address operator) external view returns (uint) {
+        return latestEK[operator].timestamp;
     }
 
 }

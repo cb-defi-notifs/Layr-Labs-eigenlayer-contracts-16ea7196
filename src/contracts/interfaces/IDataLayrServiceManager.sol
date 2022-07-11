@@ -32,8 +32,6 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function getDataStoreIdSignatureHash(uint32) external view returns (bytes32);
 
-    function slashOperator(address operator) external;
-
     function latestTime() external view returns(uint32);
 
     function numPowersOfTau() external view returns(uint48);

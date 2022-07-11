@@ -79,7 +79,7 @@ contract DataLayrBombVerifier {
     ) external {
         {
             //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
-            uint48 fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(operator);
+            uint48 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(operator);
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(operator);
             require(fromDataStoreId != 0 && 
                 (deregisterTime == 0 || deregisterTime >= (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
@@ -259,7 +259,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
-            uint32 fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(
+            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
                 operator
             );
             (uint32 dataStoreId, uint32 fromTimeUint32, ,  ) = dataLayr

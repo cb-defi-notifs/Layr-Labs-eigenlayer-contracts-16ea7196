@@ -667,14 +667,13 @@ contract EigenLayrDeployer is
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
-        // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-
+        
         dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
 
         cheats.stopPrank();
 
         // verify that registration was stored correctly
-        if ((registrantType & 1) == 1 && wethToDeposit > dlReg.dlnEthStake()) {
+        if ((registrantType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
             assertTrue(
                 dlReg.ethStakedByOperator(sender) == wethToDeposit,
                 "ethStaked not increased!"
@@ -686,7 +685,7 @@ contract EigenLayrDeployer is
             );
         }
         if (
-            (registrantType & 2) == 2 && eigenToDeposit > dlReg.dlnEigenStake()
+            (registrantType & 2) == 2 && eigenToDeposit > dlReg.nodeEigenStake()
         ) {
             assertTrue(
                 dlReg.eigenStakedByOperator(sender) == eigenToDeposit,

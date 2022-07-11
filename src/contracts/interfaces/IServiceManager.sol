@@ -14,4 +14,6 @@ interface IServiceManager is IRepositoryAccess {
     function taskNumberToFee(uint32) external view returns (uint256);
 
     function getTaskNumberSignatureHash(uint32) external view returns (bytes32);
+
+    function slashOperator(address operator) external;
 }

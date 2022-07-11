@@ -18,7 +18,7 @@ import "ds-test/test.sol";
 contract DataLayrPaymentManager is 
     RepositoryAccess, 
     IDataLayrPaymentManager
-    ,DSTest 
+    // ,DSTest 
     {
     // DATA STRUCTURES
      /**
@@ -227,7 +227,7 @@ contract DataLayrPaymentManager is
          */
         if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
             // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = dlRegistry.getFromDataStoreIdForOperator(msg.sender);
+            fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(msg.sender);
             require(fromDataStoreId < toDataStoreId, "invalid payment range");
 
             // record the payment information pertaining to the operator
