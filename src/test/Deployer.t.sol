@@ -583,7 +583,7 @@ contract EigenLayrDeployer is
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(100);
         
-        dlsm.initDataStore(header, duration, totalBytes, blockNumber);
+        dlsm.initDataStore(storer, header, duration, totalBytes, blockNumber);
         uint32 dataStoreId = dlsm.dataStoreId() - 1;
         bytes32 headerHash = keccak256(header);
 

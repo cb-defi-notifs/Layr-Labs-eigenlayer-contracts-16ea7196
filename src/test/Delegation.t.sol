@@ -330,7 +330,7 @@ contract Delegator is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         uint32 blockNumber = 1;
         //todo: duration
-        dlsm.initDataStore(header, 2, totalBytes, blockNumber);
+        dlsm.initDataStore(storer, header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
 
 

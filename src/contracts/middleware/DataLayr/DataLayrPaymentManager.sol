@@ -134,6 +134,8 @@ contract DataLayrPaymentManager is
     mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
     // deposits of future fees to be drawn against when paying for DataStores
     mapping(address => uint256) public depositsOf;
+    // depositors => addresses approved to spend deposits => allowance
+    mapping(address => mapping(address => uint256)) public allowances;
 
     // EVENTS
     // EVENTS
@@ -171,8 +173,16 @@ contract DataLayrPaymentManager is
         depositsOf[onBehalfOf] += amount;
     }
 
-    function payFee(address payee, uint256 feeAmount) external onlyDataLayrServiceManager {
-        depositsOf[payee] -= feeAmount;
+    function setPermanentAllowance(address allowed, uint256 amount) public {
+        allowances[msg.sender][allowed] = amount;
+    }
+
+    function payFee(address initiator, address payer, uint256 feeAmount) external onlyDataLayrServiceManager {
+        //todo: can this be a permanent allowance? decreases an sstore per fee paying.
+        if(initiator != payer){
+            require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
+        }
+        depositsOf[payer] -= feeAmount;
     }
 
     function setPaymentFraudProofCollateral(
