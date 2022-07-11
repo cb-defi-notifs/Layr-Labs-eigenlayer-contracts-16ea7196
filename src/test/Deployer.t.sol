@@ -22,7 +22,7 @@ import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
+import "../contracts/middleware/DataLayr/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
@@ -61,7 +61,7 @@ contract EigenLayrDeployer is
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
-    DataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+    EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
@@ -320,7 +320,7 @@ contract EigenLayrDeployer is
         );
 
         dl = new DataLayr(dlRepository);
-        ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
             memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](

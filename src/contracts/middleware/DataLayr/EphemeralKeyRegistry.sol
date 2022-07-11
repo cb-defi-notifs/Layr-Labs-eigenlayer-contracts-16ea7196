@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
+import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../interfaces/IServiceManager.sol";
 import "../../permissions/RepositoryAccess.sol";
 import "../BLSRegistry.sol";
 
-contract DataLayrEphemeralKeyRegistry is IDataLayrEphemeralKeyRegistry, RepositoryAccess {
+contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     struct HashEntry{
         bytes32 keyHash;
         uint256 timestamp;

@@ -75,8 +75,8 @@ contract DataLayrServiceManager is
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
-    function setEphemeralKeyRegistry(DataLayrEphemeralKeyRegistry _dataLayrEphemeralKeyRegistry) public onlyRepositoryGovernance {
-        dataLayrEphemeralKeyRegistry = _dataLayrEphemeralKeyRegistry;
+    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) public onlyRepositoryGovernance {
+        ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     /**
@@ -308,7 +308,7 @@ contract DataLayrServiceManager is
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
-            msg.sender == address(dataLayrEphemeralKeyRegistry) ||
+            msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
             "Only challenge resolvers can slash operators"
         );

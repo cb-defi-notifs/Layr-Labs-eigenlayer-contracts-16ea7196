@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
-import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
+import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BytesLib.sol";
 import "../BLSRegistry.sol";
 
@@ -23,13 +23,13 @@ contract DataLayrRegistry is
 {
     using BytesLib for bytes;
 
-    IDataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+    IEphemeralKeyRegistry public ephemeralKeyRegistry;
 
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        IDataLayrEphemeralKeyRegistry _ephemeralKeyRegistry,
+        IEphemeralKeyRegistry _ephemeralKeyRegistry,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )

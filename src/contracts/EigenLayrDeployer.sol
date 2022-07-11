@@ -19,7 +19,7 @@ import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentManager.sol";
 
-import "./middleware/DataLayr/DataLayrEphemeralKeyRegistry.sol";
+import "./middleware/DataLayr/EphemeralKeyRegistry.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
@@ -44,7 +44,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     EigenLayrDelegation public delegation;
     EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
-    DataLayrEphemeralKeyRegistry public ephemeralKeyRegistry;
+    EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
@@ -142,7 +142,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         dl = new DataLayr(dlRepository);
 
-        ephemeralKeyRegistry = new DataLayrEphemeralKeyRegistry(dlRepository);
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
         
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         ethStratsAndMultipliers[0].strategy = strat;

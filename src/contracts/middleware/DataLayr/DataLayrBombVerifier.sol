@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrRegistry.sol";
 import "../../interfaces/IDataLayr.sol";
-import "../../interfaces/IDataLayrEphemeralKeyRegistry.sol";
+import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
 import "./DataLayrChallengeUtils.sol";
 
@@ -47,14 +47,14 @@ contract DataLayrBombVerifier {
     IDataLayrRegistry public dlRegistry;
     IDataLayr public dataLayr;
     DataLayrChallengeUtils public challengeUtils;
-    IDataLayrEphemeralKeyRegistry public dlekRegistry;
+    IEphemeralKeyRegistry public dlekRegistry;
 
     constructor(
         IDataLayrServiceManager _dlsm,
         IDataLayrRegistry _dlRegistry,
         IDataLayr _dataLayr,
         DataLayrChallengeUtils _challengeUtils,
-        IDataLayrEphemeralKeyRegistry _dlekRegistry
+        IEphemeralKeyRegistry _dlekRegistry
     ) {
         dlsm = _dlsm;
         dlRegistry = _dlRegistry;
