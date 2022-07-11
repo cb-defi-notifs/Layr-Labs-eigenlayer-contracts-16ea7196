@@ -6,6 +6,8 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./ServiceManagerStorage.sol";
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/ITaskMetadata.sol";
+import "../interfaces/ISlasher.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "../permissions/RepositoryAccess.sol";
 
 contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
@@ -30,6 +32,7 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
 
     IVoteWeigher public voteWeigher;
     ITaskMetadata public taskMetadata;
+    IInvestmentManager public investmentManager;
     
     // fixed duration of all new tasks
     uint256 public taskDuration;
@@ -73,10 +76,12 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
 
     function initialize(
         IVoteWeigher _voteWeigher,
-        ITaskMetadata _taskMetadata
+        ITaskMetadata _taskMetadata,
+        IInvestmentManager _investmentManager
     )  external initializer {
         voteWeigher = _voteWeigher;
         taskMetadata = _taskMetadata;
+        investmentManager = _investmentManager;
     }
 
     /**
@@ -196,6 +201,11 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
             outcome,
             tasks[taskHash].totalCumulativeWeight
         );
+    }
+
+    function slashOperator(address operator) external {
+        revert("function unfinished in this contract -- no permissions");
+        ISlasher(investmentManager.slasher()).slashOperator(operator);
     }
 
     /// @notice returns the outcome of the task associated with the taskHash

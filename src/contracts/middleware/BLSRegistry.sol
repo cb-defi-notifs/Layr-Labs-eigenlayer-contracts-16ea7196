@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IGeneralServiceManager.sol";
+import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./Repository.sol";
@@ -272,7 +272,7 @@ contract BLSRegistry is
         registry[msg.sender].active = 0;
 
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();        
+        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();        
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -739,7 +739,7 @@ contract BLSRegistry is
          @notice some book-keeping for aggregated pubkey
          */
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IGeneralServiceManager(address(repository.serviceManager())).taskNumber();
+        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
         // store the current tasknumber in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));

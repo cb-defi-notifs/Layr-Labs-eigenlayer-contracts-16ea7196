@@ -3,12 +3,12 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRepository.sol";
-import "../interfaces/IGeneralServiceManager.sol";
+import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "./PaymentChallengeFactory.sol";
 
-abstract contract ServiceManagerStorage is IGeneralServiceManager {
+abstract contract ServiceManagerStorage is IServiceManager {
     
     // DATA STRUCTURE
 
