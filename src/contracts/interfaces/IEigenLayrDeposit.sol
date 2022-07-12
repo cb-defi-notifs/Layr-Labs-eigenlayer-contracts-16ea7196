@@ -9,17 +9,17 @@ interface IEigenLayrDeposit {
         IInvestmentStrategy
     ) external payable;
 
-    function depositPOSProof(
-        uint256,
-        bytes32[] calldata,
-        address,
-        bytes calldata,
-        uint256
-    ) external;
+    // function depositPOSProof(
+    //     uint256,
+    //     bytes32[] calldata,
+    //     address,
+    //     bytes calldata,
+    //     uint256
+    // ) external;
 
-    function depositEthIntoConsensusLayer(
-        bytes calldata,
-        bytes calldata,
-        bytes32
-    ) external payable;
+    // function depositEthIntoConsensusLayer(
+    //     bytes calldata,
+    //     bytes calldata,
+    //     bytes32
+    // ) external payable;
 }

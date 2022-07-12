@@ -146,8 +146,6 @@ contract InvestmentTests is
         cheats.prank(depositor);
         deposit.proveLegacyConsensusLayerDeposit(
             proof,
-            address(0),
-            "0x",
             amount
         );
         //make sure their proofOfStakingEth has updated
@@ -172,8 +170,6 @@ contract InvestmentTests is
         cheats.expectRevert("Invalid merkle proof");
         deposit.proveLegacyConsensusLayerDeposit(
             proof,
-            address(0),
-            "0x",
             amount
         );
     }

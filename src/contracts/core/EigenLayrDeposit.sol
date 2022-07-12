@@ -198,6 +198,7 @@ contract EigenLayrDeposit is
      *            be staked in settlement layer via EigenLayr's withdrawal certificate
      *            and then be re-staked in EigenLayr.
      */
+    //TODO: MAKE DEPOSITS INTO CLE LIKE POS PROOFS DUE TO LACK OF PRECOMPILE SUPPORT
     function depositEthIntoConsensusLayer(
         bytes calldata pubkey,
         bytes calldata signature,
@@ -227,38 +228,38 @@ contract EigenLayrDeposit is
      *        The new depositor's in the settlement layer who want to participate in
      *        EigenLayr has to prove their stake against this commitment.
      */
-    function depositPOSProof(
-        uint256 blockNumber,
-        bytes32[] calldata proof,
-        address depositor,
-        bytes calldata signature,
-        uint256 amount
-    ) external {
-        // get the most recent commitment of trie in settlement layer (beacon chain) that
-        // describes the which depositor staked how much ETH.
-        bytes32 depositRoot = postOracle.getDepositRoot(blockNumber);
+    // function depositPOSProof(
+    //     uint256 blockNumber,
+    //     bytes32[] calldata proof,
+    //     address depositor,
+    //     bytes calldata signature,
+    //     uint256 amount
+    // ) external {
+    //     // get the most recent commitment of trie in settlement layer (beacon chain) that
+    //     // describes the which depositor staked how much ETH.
+    //     bytes32 depositRoot = postOracle.getDepositRoot(blockNumber);
 
-        require(
-            !depositProven[depositRoot][depositor],
-            "Depositer has already proven their stake"
-        );
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
-        );
-        require(
-            ECDSA.recover(messageHash, signature) == depositor,
-            "Invalid signature"
-        );
-        bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
-        require(
-            MerkleProof.verify(proof, depositRoot, leaf),
-            "Invalid merkle proof"
-        );
-        depositProven[depositRoot][depositor] = true;
+    //     require(
+    //         !depositProven[depositRoot][depositor],
+    //         "Depositer has already proven their stake"
+    //     );
+    //     bytes32 messageHash = keccak256(
+    //         abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
+    //     );
+    //     require(
+    //         ECDSA.recover(messageHash, signature) == depositor,
+    //         "Invalid signature"
+    //     );
+    //     bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
+    //     require(
+    //         MerkleProof.verify(proof, depositRoot, leaf),
+    //         "Invalid merkle proof"
+    //     );
+    //     depositProven[depositRoot][depositor] = true;
 
-        // TODO: @Gautham should this credit to a specified address? right now it necesarily goes to 'depositor'
-        //      -- was the intention for it to go to msg.sender?
-        // mark deposited eth in investment contract
-        investmentManager.depositProofOfStakingEth(depositor, amount);
-    }
+    //     // TODO: @Gautham should this credit to a specified address? right now it necesarily goes to 'depositor'
+    //     //      -- was the intention for it to go to msg.sender?
+    //     // mark deposited eth in investment contract
+    //     investmentManager.depositProofOfStakingEth(depositor, amount);
+    // }
 }
