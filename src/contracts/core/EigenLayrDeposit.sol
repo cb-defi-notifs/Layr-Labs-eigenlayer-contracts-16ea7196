@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
+import "../libraries/SignatureCompaction.sol";
+
 // import "ds-test/test.sol";
 
 // todo: slashing functionality
@@ -31,7 +33,9 @@ contract EigenLayrDeposit is
     IEigenLayrDeposit
     // ,DSTest
 {
-    constructor(bytes32 _consensusLayerDepositRoot) EigenLayrDepositStorage(_consensusLayerDepositRoot) {
+    constructor(bytes32 _consensusLayerDepositRoot)
+        EigenLayrDepositStorage(_consensusLayerDepositRoot)
+    {
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
@@ -66,17 +70,16 @@ contract EigenLayrDeposit is
         // );
 
         // balance of liquidStakeToken before deposit
-        uint256 depositAmount = liquidStakeToken.balanceOf(address(this));
+        uint256 lstBalanceBefore = liquidStakeToken.balanceOf(address(this));
 
         // send the ETH deposited to the ERC20 contract for liquidStakeToken
         // this liquidStakeToken is credited to EigenLayrDeposit contract (address(this))
-        
+
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
 
         // increment in balance of liquidStakeToken
-        depositAmount =
-            liquidStakeToken.balanceOf(address(this)) -
-            depositAmount;
+        uint256 depositAmount = liquidStakeToken.balanceOf(address(this)) -
+            lstBalanceBefore;
 
         // approve investmentManager contract to be able to take out liquidStakeToken
         liquidStakeToken.approve(address(investmentManager), depositAmount);
@@ -86,6 +89,67 @@ contract EigenLayrDeposit is
             strategy,
             liquidStakeToken,
             depositAmount
+        );
+    }
+
+    //this is called by parties that have a signature approving
+    //the deposit claim from consensus layer depositors themselves
+    //to claim their consensus layer eth on eigenlayer
+    function proveLegacyConsensusLayerDepositBySignature(
+            address depositor,
+            bytes32 r,
+            bytes32 vs,
+            uint256 expiry, 
+            uint256 nonce,
+            bytes32[] calldata proof,
+            uint256 amount
+    ) public {
+        require(nonces[depositor] == nonce, "invalid delegation nonce");
+        require(
+            expiry == 0 || expiry <= block.timestamp,
+            "delegation signature expired"
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(DEPOSIT_CLAIM_TYPEHASH, msg.sender)
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
+        );
+        //check validity of signature
+        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+            digestHash,
+            r,
+            vs
+        );
+        require(
+            recoveredAddress != address(0),
+            "delegateToBySignature: bad signature"
+        );
+        require(
+            recoveredAddress == depositor,
+            "delegateToBySignature: sig not from depositor"
+        );
+        // increment delegator's delegationNonce
+        ++nonces[depositor];
+        _proveLegacyConsensusLayerDeposit(
+            depositor,
+            msg.sender,
+            proof,
+            amount
+        );
+    }
+
+    //this is called by consensus layer depositors themselves
+    //to claim their consensus layer eth on eigenlayer
+    function proveLegacyConsensusLayerDeposit(
+        bytes32[] calldata proof,
+        uint256 amount
+    ) external {
+        _proveLegacyConsensusLayerDeposit(
+            msg.sender,
+            msg.sender,
+            proof,
+            amount
         );
     }
 
@@ -102,33 +166,18 @@ contract EigenLayrDeposit is
      *        to prove depositor's stake in the settlement layer.
      */
     /// @param proof is the merkle proof in the above merkle tree.
-    /// @param signature is the signature on the message "keccak256(abi.encodePacked(msg.sender, legacyDepositPermissionMessage)"
     // CRITIC - change the name to "proveLegacySettlementLayerDeposit"
-    function proveLegacyConsensusLayerDeposit(
-        bytes32[] calldata proof,
+    function _proveLegacyConsensusLayerDeposit(
         address depositor,
-        bytes calldata signature,
+        address onBehalfOf,
+        bytes32[] calldata proof,
         uint256 amount
-    ) external payable {
+    ) internal {
         require(
             !depositProven[consensusLayerDepositRoot][depositor],
             "Depositer has already proven their stake"
         );
-        if (depositor == address(0)) {
-            depositor = msg.sender;
-        } else {
-            bytes32 messageHash = keccak256(
-                abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
-            );
 
-            // recovering the address to whom the signature belongs to and verifying it
-            // is that of the depositor.
-            require(
-                ECDSA.recover(messageHash, signature) == depositor,
-                "Invalid signature"
-            );
-        }
-        
         bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
 
         // verifying the merkle proof
@@ -141,7 +190,7 @@ contract EigenLayrDeposit is
         depositProven[consensusLayerDepositRoot][depositor] = true;
 
         // mark deposited ETH in investment contract
-        investmentManager.depositProofOfStakingEth(depositor, amount);
+        investmentManager.depositProofOfStakingEth(onBehalfOf, amount);
     }
 
     /**

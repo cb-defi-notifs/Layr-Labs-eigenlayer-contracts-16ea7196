@@ -305,12 +305,14 @@ contract Delegator is EigenLayrDeployer {
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
 
+        uint32 blockNumber;
+
     // scoped block helps fix 'stack too deep' errors
     {
         IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
         uint32 numberOfNonSigners = 0;
 
-        uint32 blockNumber = uint32(block.number);
+        blockNumber = uint32(block.number);
         uint32 dataStoreId = dlsm.dataStoreId()-1;
 
         _testCommitDataStore(searchData.metadata.headerHash,  numberOfNonSigners,apks, sigmas, blockNumber, dataStoreId, searchData);
@@ -330,7 +332,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(storer);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-        uint32 blockNumber = 1;
+        blockNumber = 1;
         //todo: duration
         dlsm.initDataStore(storer, header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
@@ -344,8 +346,8 @@ contract Delegator is EigenLayrDeployer {
         dataLayrPaymentManager.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
+    
     }
-
     //commits data store to data layer
     function _testCommitDataStore(
             bytes32 headerHash, 
@@ -443,7 +445,6 @@ contract Delegator is EigenLayrDeployer {
         
     // scoped block helps fix 'stack too deep' errors
     {
-        uint8 duration = 2;
         IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
         uint32 numberOfNonSigners = 1;
         uint32 blockNumber = uint32(block.number);
@@ -476,7 +477,7 @@ contract Delegator is EigenLayrDeployer {
             nonSignerInfo memory nonsigners,
             uint32 blockNumber,
             uint32 dataStoreId
-    ) internal returns(bytes memory){
+    ) internal view returns(bytes memory){
 
         /** 
         @param data This calldata is of the format:

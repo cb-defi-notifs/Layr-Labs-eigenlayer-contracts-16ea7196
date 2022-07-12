@@ -634,8 +634,8 @@ contract EigenLayrDeployer is
                 uint96(fee),
                 bytes32(0)
             );
-        IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = IDataLayrServiceManager.DataStoreSearchData(
+        
+        searchData = IDataLayrServiceManager.DataStoreSearchData(
                 duration,
                 timestamp,
                 index,
@@ -1044,7 +1044,7 @@ contract EigenLayrDeployer is
         uint32 totalBytes,
         uint256 feePerBytePerTime,
         uint256 duration
-    ) internal returns (uint256) {
+    ) internal pure returns (uint256) {
         return
             uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
     }

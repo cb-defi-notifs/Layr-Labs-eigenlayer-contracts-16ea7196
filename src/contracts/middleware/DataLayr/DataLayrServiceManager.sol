@@ -152,7 +152,6 @@ contract DataLayrServiceManager is
            // uint g = gasleft();
             //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
             //Here we are storing the dataStore information as follows:  hash_newDS = H(hash_prevDS, {new_info});
-            uint32 initTime = uint32(block.timestamp);
             bool initializable = false;
             
             for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
@@ -327,7 +326,7 @@ contract DataLayrServiceManager is
         (
             uint32 dataStoreIdToConfirm,
             bytes32 depositFerkleHash,
-            SignatoryTotals memory signedTotals,
+            ,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 

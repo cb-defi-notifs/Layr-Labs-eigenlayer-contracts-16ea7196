@@ -506,7 +506,6 @@ contract DataLayrPaymentManager is
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakes,
-        bytes32 challengedDumpHeaderHash,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) external {
         // copy challenge struct to memory
@@ -672,7 +671,7 @@ contract DataLayrPaymentManager is
         return dataLayrServiceManager.dataStoreId();
     }
 
-    function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal returns(bytes32) {
+    function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal pure  returns(bytes32) {
         bytes32 res = keccak256(abi.encodePacked(metadata.headerHash, metadata.durationDataStoreId, metadata.globalDataStoreId, metadata.blockNumber, metadata.fee, metadata.signatoryRecordHash));
         return res;
     }
