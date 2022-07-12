@@ -256,7 +256,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         );
 
         // fetch the operator's most recent ephemeral key
-        bytes32 ek = dlekRegistry.getLatestEphemeralKey(operator);
+        bytes32 ek = dlekRegistry.getEphemeralKeyForTaskNumber(operator, dataStoreProofs.detonationDataStore.metadata.globalDataStoreId);
 
         // check bomb requirement
         require(
