@@ -9,9 +9,21 @@ import "../interfaces/IInvestmentManager.sol";
 import "../middleware/Repository.sol";
 
 abstract contract EigenLayrDepositStorage {
+    /// @notice The EIP-712 typehash for the contract's domain
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId)");
+
+    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    bytes32 public constant DEPOSIT_CLAIM_TYPEHASH = keccak256("DepositClaim(address claimer)");
+    
+    /// @notice EIP-712 Domain separator
+    bytes32 public immutable DOMAIN_SEPARATOR;
+
+    // delegator => number of signed delegation nonce (used in delegateToBySignature)
+    mapping(address => uint256) nonces;
+
+    //the withdrawal credentials for which all ETH2 deposits should be pointed
     bytes32 public withdrawalCredentials;
-    bytes32 public constant legacyDepositPermissionMessage =
-        0x656967656e4c61797252657374616b696e67596f754b6e6f7749744261626179;
+    
     IDepositContract public depositContract;
     Repository public posMiddleware;
     mapping(bytes32 => mapping(address => bool)) public depositProven;
@@ -21,5 +33,8 @@ abstract contract EigenLayrDepositStorage {
     
     constructor(bytes32 _consensusLayerDepositRoot) {
         consensusLayerDepositRoot = _consensusLayerDepositRoot;
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
+        );
     }
 }
