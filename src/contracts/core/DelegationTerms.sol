@@ -462,12 +462,12 @@ contract DelegationTerms is IDelegationTerms, RepositoryAccess, DSTest {
      *       to determine the value of delegator's shares in that investment strategy in ETH.        
      */ 
     function weightOfEth(address delegator) public returns(uint256) {
-        // TODO: make this work better. right now I believe this is broken if delegator falls below BLSRegistryWithBomb threshold
+        // TODO: make this work better. right now I believe this is broken if delegator falls below node threshold
         uint256 weight = uint256(repository.voteWeigher().weightOfOperator(delegator, 0));
         return weight;
     }
     function weightOfEigen(address delegator) public returns(uint256) {
-        // TODO: make this work better. right now I believe this is broken if delegator falls below BLSRegistryWithBomb threshold
+        // TODO: make this work better. right now I believe this is broken if delegator falls below node threshold
         uint256 weight = uint256(repository.voteWeigher().weightOfOperator(delegator, 1));
         return weight;
     }
