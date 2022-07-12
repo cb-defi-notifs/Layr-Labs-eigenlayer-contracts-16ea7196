@@ -15,7 +15,7 @@ import "./investment/Slasher.sol";
 import "./middleware/ServiceFactory.sol";
 import "./middleware/Repository.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
-import "./middleware/DataLayr/DataLayrRegistry.sol";
+import "./middleware/BLSRegistryWithBomb.sol";
 import "./middleware/DataLayr/DataLayrPaymentManager.sol";
 
 import "./middleware/EphemeralKeyRegistry.sol";
@@ -46,7 +46,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
-    DataLayrRegistry public dlReg;
+    BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
 
     IERC20 public weth;
@@ -147,7 +147,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
-        dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
+        dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dlReg, disclosureUtils);
 

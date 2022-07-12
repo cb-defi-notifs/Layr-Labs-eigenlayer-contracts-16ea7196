@@ -19,7 +19,7 @@ import "../contracts/investment/Slasher.sol";
 import "../contracts/middleware/ServiceFactory.sol";
 import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
+import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
@@ -64,7 +64,7 @@ contract EigenLayrDeployer is
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     ServiceFactory public serviceFactory;
-    DataLayrRegistry public dlReg;
+    BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
 
@@ -335,7 +335,7 @@ contract EigenLayrDeployer is
             );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
-        dlReg = new DataLayrRegistry(
+        dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
@@ -771,7 +771,7 @@ contract EigenLayrDeployer is
      @param data This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
@@ -844,7 +844,7 @@ contract EigenLayrDeployer is
      @param data This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
