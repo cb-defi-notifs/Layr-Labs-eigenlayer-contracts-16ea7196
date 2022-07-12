@@ -73,7 +73,7 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
      @dev This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,

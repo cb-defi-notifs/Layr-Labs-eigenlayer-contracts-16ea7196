@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IServiceManager.sol";
-import "../../interfaces/IRegistry.sol";
-import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../libraries/BytesLib.sol";
-import "../BLSRegistry.sol";
+import "../interfaces/IServiceManager.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IEphemeralKeyRegistry.sol";
+import "../libraries/BytesLib.sol";
+import "./BLSRegistry.sol";
 
 import "ds-test/test.sol";
 
@@ -16,7 +16,7 @@ import "ds-test/test.sol";
             - updating the stakes of the operator
  */
 
-contract DataLayrRegistry is
+contract BLSRegistryWithBomb is
     BLSRegistry
     // ,DSTest
 {

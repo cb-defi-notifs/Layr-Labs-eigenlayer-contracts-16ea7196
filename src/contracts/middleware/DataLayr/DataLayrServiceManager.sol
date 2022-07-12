@@ -220,7 +220,7 @@ contract DataLayrServiceManager is
      @param data is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,

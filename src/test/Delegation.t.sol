@@ -341,7 +341,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(operator);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
-        // uint256 fromDataStoreId = IDataLayrRegistry(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
+        // uint256 fromDataStoreId = IBLSRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
         dataLayrPaymentManager.commitPayment(newCurrentDataStoreId, _amountRewards);
         cheats.stopPrank();
@@ -363,7 +363,7 @@ contract Delegator is EigenLayrDeployer {
         @param data This calldata is of the format:
                 <
                 bytes32 headerHash,
-                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
                 uint32 blockNumber
                 uint32 dataStoreId
                 uint32 numberOfNonSigners,
@@ -483,7 +483,7 @@ contract Delegator is EigenLayrDeployer {
         @param data This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
