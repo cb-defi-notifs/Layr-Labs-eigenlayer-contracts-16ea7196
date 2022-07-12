@@ -271,7 +271,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         //todo: SLASH HERE
     }
 
-    // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
+    // return globalDataStoreId at bomb DataStore
     function verifyBombDataStoreId(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
@@ -296,7 +296,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
-            uint8 durationIndex,
+            /*uint8 durationIndex*/,
             uint32 calculatedDataStoreId,
             uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         ) = verifySandwiches(
