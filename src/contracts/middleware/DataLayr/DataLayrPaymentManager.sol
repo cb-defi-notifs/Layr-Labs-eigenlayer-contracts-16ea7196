@@ -609,6 +609,7 @@ contract DataLayrPaymentManager is
         operatorToPaymentChallenge[operator] = challenge;
     }
 
+// TODO: verify that the amounts used in this function are appropriate!
     /*
     @notice: resolve payment challenge
     */
