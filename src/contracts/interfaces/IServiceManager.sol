@@ -30,4 +30,6 @@ interface IServiceManager is IRepositoryAccess {
     function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
 
     function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external;
+
+    function latestTime() external view returns(uint32);
 }

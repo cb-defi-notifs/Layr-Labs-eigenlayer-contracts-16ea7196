@@ -272,7 +272,7 @@ contract BLSRegistry is
         registry[msg.sender].active = 0;
 
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();        
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();        
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 

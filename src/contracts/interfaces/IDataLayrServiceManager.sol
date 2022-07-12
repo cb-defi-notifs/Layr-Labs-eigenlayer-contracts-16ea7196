@@ -36,8 +36,6 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 
-    function latestTime() external view returns(uint32);
-
     function numPowersOfTau() external view returns(uint48);
 
     function log2NumPowersOfTau() external view returns(uint48);

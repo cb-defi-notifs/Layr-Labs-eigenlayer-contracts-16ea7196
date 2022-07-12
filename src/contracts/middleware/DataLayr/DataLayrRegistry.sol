@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrServiceManager.sol";
+import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BytesLib.sol";
@@ -60,13 +60,13 @@ contract DataLayrRegistry is
             "Incorrect index supplied"
         );
 
-        IDataLayrServiceManager dlsm = IDataLayrServiceManager(address(repository.serviceManager()));
+        IServiceManager serviceManager = repository.serviceManager();
 
         // must store till the latest time a dump expires
         /**
          @notice this info is used in forced disclosure
          */
-        registry[msg.sender].serveUntil = dlsm.latestTime();
+        registry[msg.sender].serveUntil = serviceManager.latestTime();
 
 
         // committing to not signing off on any more data that is being asserted into DataLayr
@@ -74,8 +74,8 @@ contract DataLayrRegistry is
 
         registry[msg.sender].deregisterTime = block.timestamp;
 
-        // get current DataStoreId from DataLayrServiceManager
-        uint32 currentDataStoreId = dlsm.dataStoreId();        
+        // get current DataStoreId from ServiceManager
+        uint32 currentTaskNumber = serviceManager.taskNumber();        
         
 
         /**
@@ -122,7 +122,7 @@ contract DataLayrRegistry is
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // Update registrant list and update index histories
-        popRegistrant(pubkeyHash,index,currentDataStoreId);
+        popRegistrant(pubkeyHash,index,currentTaskNumber);
 
 
         /**
@@ -155,7 +155,7 @@ contract DataLayrRegistry is
         apk = pk;
 
         // update aggregated pubkey coordinates
-        apkUpdates.push(currentDataStoreId);
+        apkUpdates.push(currentTaskNumber);
 
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
@@ -277,8 +277,8 @@ contract DataLayrRegistry is
         /**
          @notice some book-keeping for aggregated pubkey
          */
-        // get current DataStoreId from DataLayrServiceManager
-        uint32 currentDataStoreId = IDataLayrServiceManager(address(repository.serviceManager())).dataStoreId();
+        // get current DataStoreId from ServiceManager
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         // store the current DataStoreId in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
@@ -303,7 +303,7 @@ contract DataLayrRegistry is
             id: nextRegistrantId,
             index: numRegistrants,
             active: registrantType,
-            fromTaskNumber: currentDataStoreId,
+            fromTaskNumber: currentTaskNumber,
             serveUntil: 0,
             // extract the socket address
             socket: socket,
@@ -322,7 +322,7 @@ contract DataLayrRegistry is
         {
             // Update totalOperatorsHistory
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-            totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentDataStoreId;
+            totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
             // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
             OperatorIndex memory _totalOperators;
             _totalOperators.index = uint32(registrantList.length);

@@ -273,7 +273,14 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         return operatorToPayment[operator].collateral;
     }
 
-    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external {
+// TODO: implement function if possible
+    // function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external {
+    function stakeWithdrawalVerification(bytes calldata, uint256, uint256) external {
        
+    }
+
+// TODO: implement function if possible
+    function latestTime() external view returns(uint32) {
+
     }
 }
