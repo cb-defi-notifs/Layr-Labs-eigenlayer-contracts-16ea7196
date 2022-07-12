@@ -72,8 +72,10 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
     /** 
      @dev This calldata is of the format:
             <
-             bytes32 taskHash,
-             uint48 index of the totalStake corresponding to the taskNumber in the 'totalStakeHistory' array of the Registry
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 blockNumber
+             uint32 dataStoreId
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -97,16 +99,19 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the taskHash for which disperser is calling checkSignatures
-            taskHash := calldataload(68)
+            taskHash := calldataload(356)
 
             // get the 6 bytes immediately after the above, which represent the
             // index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(100))
+            placeholder := shr(208, calldataload(388))
         }
 
         // fetch the taskNumber to confirm and block number to use for stakes from the middlware contract
         uint32 blockNumberFromTaskHash;
-       (taskNumberToConfirm, blockNumberFromTaskHash) = taskMetadata.getTaskAndBlockNumberFromTaskHash(taskHash);
+        assembly {
+            blockNumberFromTaskHash := shr(224,calldataload(394))
+        }
+
 
         // obtain voteweigher contract for querying information on stake later
         IRegistry registry = IRegistry(
@@ -134,12 +139,12 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
         assembly {
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(106))
+            placeholder := shr(224, calldataload(402))
         }
 
         
-        // we have read (68 + 32 + 6 + 4) = 114 bytes of calldata so far
-        uint256 pointer = 110;
+        // we have read (356 + 32 + 6 + 4 + 4 + 4) = 374 bytes of calldata so far
+        uint256 pointer = 406;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -403,6 +408,11 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
 
         // check that signature is correct
         require(input[0] == 1, "Pairing unsuccessful");
+
+        assembly {
+            taskNumberToConfirm := shr(224, calldataload(398))
+        }
+        
 
         emit SignatoryRecord(
             taskHash,

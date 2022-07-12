@@ -307,13 +307,15 @@ contract Delegator is EigenLayrDeployer {
 
     // scoped block helps fix 'stack too deep' errors
     {
-        bytes32 headerHash = _testInitDataStore();
+        IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
         uint32 numberOfNonSigners = 0;
 
-        _testCommitDataStore( headerHash,  numberOfNonSigners,apks, sigmas);
+        uint32 blockNumber = uint32(block.number);
+        uint32 dataStoreId = dlsm.dataStoreId()-1;
 
-        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
-        assertTrue(sighash != bytes32(0), "Data store not committed");
+        _testCommitDataStore(searchData.metadata.headerHash,  numberOfNonSigners,apks, sigmas, blockNumber, dataStoreId, searchData);
+        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+        // assertTrue(sighash != bytes32(0), "Data store not committed");
     }
         cheats.stopPrank();
 
@@ -349,7 +351,10 @@ contract Delegator is EigenLayrDeployer {
             bytes32 headerHash, 
             uint32 numberOfNonSigners, 
             uint256[] memory apk, 
-            uint256[] memory sigma
+            uint256[] memory sigma,
+            uint32 blockNumber,
+            uint32 dataStoreId,
+            IDataLayrServiceManager.DataStoreSearchData memory searchData
             ) internal{
 
         /** 
@@ -357,19 +362,22 @@ contract Delegator is EigenLayrDeployer {
                 <
                 bytes32 headerHash,
                 uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+                uint32 blockNumber
+                uint32 dataStoreId
                 uint32 numberOfNonSigners,
                 uint256[numberOfSigners][4] pubkeys of nonsigners,
-                uint32 nonSignerStakeIndices[numberOfNonSigners]
                 uint32 apkIndex,
                 uint256[4] apk,
                 uint256[2] sigma
                 >
         */
 
-        // emit log_named_uint("current dump", currentDataStoreId);
+        
         bytes memory data = abi.encodePacked(
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            blockNumber,
+            dataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
@@ -381,7 +389,8 @@ contract Delegator is EigenLayrDeployer {
             sigma[1]
         );
 
-        dlsm.confirmDataStore(data);
+
+        dlsm.confirmDataStore(data, searchData);
 
     }
 
@@ -409,8 +418,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
 //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
-    function testForNonSigners() public{
-
+    function testForNonSigners() public {
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e18);
 
@@ -435,23 +443,26 @@ contract Delegator is EigenLayrDeployer {
         
     // scoped block helps fix 'stack too deep' errors
     {
-
-        bytes32 headerHash = _testInitDataStore();
+        uint8 duration = 2;
+        IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
         uint32 numberOfNonSigners = 1;
+        uint32 blockNumber = uint32(block.number);
+        uint32 dataStoreId = dlsm.dataStoreId()-1;
 
-        bytes memory data = _getCallData(headerHash, numberOfNonSigners, signer, nonsigner);
+
+        bytes memory data = _getCallData(searchData.metadata.headerHash, numberOfNonSigners, signer, nonsigner, blockNumber, dataStoreId);
 
         
         uint gasbefore = gasleft();
         
-        dlsm.confirmDataStore(data);
+        dlsm.confirmDataStore(data, searchData);
 
         emit log_named_uint("gas cost", gasbefore - gasleft());
 
 
 
-        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
-        assertTrue(sighash != bytes32(0), "Data store not committed");
+        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+        // assertTrue(sighash != bytes32(0), "Data store not committed");
     }
 
 
@@ -462,26 +473,30 @@ contract Delegator is EigenLayrDeployer {
             bytes32 headerHash, 
             uint32 numberOfNonSigners, 
             signerInfo memory signers,
-            nonSignerInfo memory nonsigners
+            nonSignerInfo memory nonsigners,
+            uint32 blockNumber,
+            uint32 dataStoreId
     ) internal returns(bytes memory){
 
         /** 
         @param data This calldata is of the format:
-                <
-                bytes32 headerHash,
-                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
-                uint32 numberOfNonSigners,
-                uint256[numberOfSigners][4] pubkeys of nonsigners,
-                uint32 nonSignerStakeIndices[numberOfNonSigners]
-                uint32 apkIndex,
-                uint256[4] apk,
-                uint256[2] sigma
-                >
+            <
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 blockNumber
+             uint32 dataStoreId
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >s
         */
-        emit log_named_uint("total stake history", dlReg.getLengthOfTotalStakeHistory());
         bytes memory data = abi.encodePacked(
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            blockNumber,
+            dataStoreId,
             numberOfNonSigners,
             nonsigners.xA0,
             nonsigners.xA1,
@@ -489,7 +504,6 @@ contract Delegator is EigenLayrDeployer {
             nonsigners.yA1
         );
 
-        emit log_named_uint("apk updates elng", uint32(dlReg.getApkUpdatesLength() - 1));
          data = abi.encodePacked(
             data,
             uint32(0),

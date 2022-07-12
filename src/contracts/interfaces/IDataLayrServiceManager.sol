@@ -7,17 +7,23 @@ import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 
 interface IDataLayrServiceManager is IServiceManager {
+
+    //Relevant metadata for a given datastore
     struct DataStoreMetadata {
+        bytes32 headerHash;
         uint32 durationDataStoreId;
         uint32 globalDataStoreId;
+        uint32 blockNumber;
         uint96 fee;
+        bytes32 signatoryRecordHash;
     }
 
+    //Stores the data required to index a given datastore's metadata
     struct DataStoreSearchData {
         uint8 duration;
         uint256 timestamp;
-        uint256 index;
-        DataStoreMetadata[] metadatas;
+        uint32 index;
+        DataStoreMetadata metadata;
     }
 
     struct SignatoryRecordMinusDataStoreId {
@@ -30,21 +36,17 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 
-    function getDataStoreIdSignatureHash(uint32) external view returns (bytes32);
-
     function latestTime() external view returns(uint32);
 
     function numPowersOfTau() external view returns(uint48);
 
     function log2NumPowersOfTau() external view returns(uint48);
     
-    function dataLayr() external view returns(IDataLayr);
-
     function DURATION_SCALE() external view returns(uint256);
 
     function MAX_DATASTORE_DURATION() external view returns(uint8);
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) external view returns(bytes32);
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 

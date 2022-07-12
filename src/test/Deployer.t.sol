@@ -53,6 +53,7 @@ contract EigenLayrDeployer is
 {
     using BytesLib for bytes;
 
+    uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
     DepositContract public depositContract;
     // Eigen public eigen;
@@ -67,7 +68,6 @@ contract EigenLayrDeployer is
     DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
-    DataLayr public dl;
 
     IERC20 public weth;
     InvestmentStrategyBase public strat;
@@ -319,7 +319,6 @@ contract EigenLayrDeployer is
             dlsm
         );
 
-        dl = new DataLayr(dlRepository);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
@@ -352,15 +351,13 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
         dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
             dlsm,
-            dl,
             dlReg,
             challengeUtils
         );
 
-        dlsm.setDataLayr(dl);
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);
@@ -567,8 +564,13 @@ contract EigenLayrDeployer is
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-    function _testInitDataStore() internal returns (bytes32) {
-        bytes memory header = abi.encodePacked(hex"0102030405060708091011121314151617181920");
+   function _testInitDataStore()
+        internal
+        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
+    {
+        bytes memory header = abi.encodePacked(
+            hex"0102030405060708091011121314151617181920"
+        );
         uint32 totalBytes = 1e6;
         uint8 duration = 2;
 
@@ -576,46 +578,71 @@ contract EigenLayrDeployer is
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
-        uint32 blockNumber = 1;
+        uint32 blockNumber = uint32(block.number);
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
-        cheats.roll(100);
-        
-        dlsm.initDataStore(storer, header, duration, totalBytes, blockNumber);
+        cheats.roll(block.number + 100);
+        cheats.warp(block.timestamp + 100);
+        uint256 timestamp = block.timestamp;
+
+        uint g = gasleft();
+        uint32 index = dlsm.initDataStore(
+            storer,
+            header,
+            duration,
+            totalBytes,
+            blockNumber
+        );
+        emit log_named_uint("init datastore total gas", g - gasleft());
         uint32 dataStoreId = dlsm.dataStoreId() - 1;
         bytes32 headerHash = keccak256(header);
 
-        cheats.stopPrank();
-        (
-            uint32 dataStoreDataStoreId,
-            uint32 dataStoreInitTime,
-            uint32 dataStorePeriodLength,
-            uint32 dataStoreBlockNumber
-        ) = dl.dataStores(headerHash);
-        emit log_named_uint("dataStoreDataStoreId", dataStoreDataStoreId);
-        emit log_named_uint("dataStoreId", dataStoreId);
 
-        assertTrue(
-            dataStoreDataStoreId == dataStoreId,
-            "_testInitDataStore: wrong dataStoreId"
-        );
-        assertTrue(
-            dataStoreInitTime == uint32(block.timestamp),
-            "_testInitDataStore: wrong initTime"
-        );
-        assertTrue(
-            dataStorePeriodLength == duration * dlsm.DURATION_SCALE(),
-            "_testInitDataStore: wrong storePeriodLength"
-        );
-        assertTrue(
-            dataStoreBlockNumber == blockNumber,
-            "_testInitDataStore: wrong blockNumber"
-        );
-        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dataStoreId);
-        assertTrue(sighash == bytes32(0), "Data store not committed");
-        return headerHash;
+        cheats.stopPrank();
+
+
+        uint256 fee = calculateFee(totalBytes, 1, duration);
+
+        {
+            bytes32 dataStoreHash = keccak256(
+                abi.encodePacked(
+                    headerHash,
+                    dataStoreId,
+                    blockNumber,
+                    uint96(fee),
+                    bytes32(0)
+                )
+            );
+
+            //check if computed hash matches stored hash in DLSM
+            assertTrue(
+                dataStoreHash ==
+                    dlsm.getDataStoreIdsForDuration(duration, timestamp, index),
+                "dataStore hashes do not match"
+            );
+        }
+
+
+        IDataLayrServiceManager.DataStoreMetadata
+            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
+                headerHash,
+                dataStoreId,
+                dataStoreId,
+                blockNumber,
+                uint96(fee),
+                bytes32(0)
+            );
+        IDataLayrServiceManager.DataStoreSearchData
+            memory searchData = IDataLayrServiceManager.DataStoreSearchData(
+                duration,
+                timestamp,
+                index,
+                metadata
+            );
+        return searchData;
     }
 
     // deposits a fixed amount of eigen from address 'sender'
@@ -712,7 +739,11 @@ contract EigenLayrDeployer is
                 registrationData[i]
             );
         }
-        bytes32 headerHash = _testInitDataStore();
+
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
+
+
+
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
             uint256(
@@ -742,6 +773,8 @@ contract EigenLayrDeployer is
             <
              bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 blockNumber
+             uint32 dataStoreId
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -750,8 +783,10 @@ contract EigenLayrDeployer is
             >
      */
         bytes memory data = abi.encodePacked(
-            headerHash,
+            searchData.metadata.headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            searchData.metadata.blockNumber,
+            searchData.metadata.globalDataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
@@ -764,17 +799,86 @@ contract EigenLayrDeployer is
         );
 
         uint256 gasbefore = gasleft();
-        dlsm.confirmDataStore(data);
-        emit log_named_uint(
-            "gas spent on confirm, testConfirmDataStoreSelfOperators()",
-            gasbefore - gasleft()
-        );
-        emit log_named_uint("number of operators", numberOfSigners);
 
-        bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-            dlsm.dataStoreId() - 1
+
+        
+        dlsm.confirmDataStore(data, searchData);
+        emit log_named_uint("confirm gas overall", gasbefore - gasleft());
+
+        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
+        //     dlsm.dataStoreId() - 1
+        // );
+        // assertTrue(sighash != bytes32(0), "Data store not committed");
+        cheats.stopPrank();
+    }
+
+
+    function _testConfirmDataStoreWithoutRegister() internal {
+        IDataLayrServiceManager.DataStoreSearchData
+            memory searchData = _testInitDataStore();
+
+        uint32 numberOfNonSigners = 0;
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
+            uint256(
+                20820493588973199354272631301248587752629863429201347184003644368113679196121
+            ),
+            uint256(
+                18507428821816114421698399069438744284866101909563082454551586195885282320634
+            ),
+            uint256(
+                1263326262781780932600377484793962587101562728383804037421955407439695092960
+            ),
+            uint256(
+                3512517006108887301063578607317108977425754510174956792003926207778790018672
+            )
         );
-        assertTrue(sighash != bytes32(0), "Data store not committed");
+        (uint256 sigma_0, uint256 sigma_1) = (
+            uint256(
+                7155561537864411538991615376457474334371827900888029310878886991084477170996
+            ),
+            uint256(
+                10352977531892356631551102769773992282745949082157652335724669165983475588346
+            )
+        );
+
+        /** 
+     @param data This calldata is of the format:
+            <
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the DataLayrRegistry
+             uint32 blockNumber
+             uint32 dataStoreId
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
+     */
+        bytes memory data = abi.encodePacked(
+            searchData.metadata.headerHash,
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            searchData.metadata.blockNumber,
+            searchData.metadata.globalDataStoreId,
+            numberOfNonSigners,
+            // no pubkeys here since zero nonSigners for now
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            apk_0,
+            apk_1,
+            apk_2,
+            apk_3,
+            sigma_0,
+            sigma_1
+        );
+
+        uint256 gasbefore = gasleft();
+        dlsm.confirmDataStore(data, searchData);
+        emit log_named_uint("confirm gas overall", gasbefore - gasleft());
+
+        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
+        //     dlsm.dataStoreId() - 1
+        // );
+        // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
     }
 
@@ -937,9 +1041,15 @@ contract EigenLayrDeployer is
         cheats.stopPrank();
     }
 
-    // function testCheckSignatures() public {
+    function calculateFee(
+        uint32 totalBytes,
+        uint256 feePerBytePerTime,
+        uint256 duration
+    ) internal returns (uint256) {
+        return
+            uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
+    }
 
-    // }
 
     function testDeploymentSuccessful() public {
         assertTrue(
@@ -966,7 +1076,6 @@ contract EigenLayrDeployer is
         );
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
-        assertTrue(address(dl) != address(0), "dl failed to deploy");
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
         assertTrue(
             address(dlRepository) != address(0),
@@ -981,9 +1090,6 @@ contract EigenLayrDeployer is
             dlsm.repository() == dlRepository,
             "repository set incorrectly in dlsm"
         );
-        assertTrue(
-            dl.repository() == dlRepository,
-            "repository set incorrectly in dl"
-        );
+
     }
 }

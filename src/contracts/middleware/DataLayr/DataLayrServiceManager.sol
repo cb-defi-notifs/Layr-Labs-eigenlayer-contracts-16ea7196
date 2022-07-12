@@ -2,14 +2,19 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
+
 import "./DataLayrServiceManagerStorage.sol";
 import "../SignatureChecker.sol";
+
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
+import "../../libraries/DataStoreHash.sol";
+
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 import "ds-test/test.sol";
@@ -33,6 +38,7 @@ contract DataLayrServiceManager is
     uint32 internal constant MAX_STORE_SIZE = 4e9;
     uint32 internal constant MIN_STORE_LENGTH = 60;
     uint32 internal constant MAX_STORE_LENGTH = 604800;
+    uint256 internal constant BLOCK_STALE_MEASURE = 100;
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(
         address repositoryGovernance,
@@ -47,7 +53,25 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
+    uint128 public eigenSignedThresholdPercentage = 90;
+    uint128 public ethSignedThresholdPercentage = 90;
+
     DataStoresForDuration public dataStoresForDuration;
+
+
+    event InitDataStore(
+        uint32 dataStoreId,
+        bytes32 indexed headerHash,
+        uint32 totalBytes,        
+        uint32 initTime,
+        uint32 storePeriodLength,
+        uint32 blockNumber
+    );
+
+    event ConfirmDataStore(
+        uint32 dataStoreId,
+        bytes32 headerHash
+    );
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -60,6 +84,7 @@ contract DataLayrServiceManager is
     {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
+        dataStoresForDuration.latestTime = 1;
         
     }
 
@@ -100,7 +125,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable {
+    ) external payable returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         if (totalBytes < MIN_STORE_SIZE) {
@@ -116,40 +141,55 @@ contract DataLayrServiceManager is
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
+        
 
         // require that disperser has sent enough fees to this contract to pay for this datastore
         // this will revert if the deposits are not high enough due to undeflow
-        uint g = gasleft();
-
         dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
-        
-        //emit log_named_uint("1", g - gasleft());
 
-        //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-        dataStoreIdsForDuration[duration][block.timestamp] =
-                keccak256(
-                    abi.encodePacked(
-                        dataStoreIdsForDuration[duration][block.timestamp], 
-                        getDataStoresForDuration(duration) + 1,
-                        dataStoresForDuration.dataStoreId,
-                        uint96(fee)
-                    )
-                );
-
-
-        
+        uint32 index;
+        {
+           // uint g = gasleft();
+            //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
+            //Here we are storing the dataStore information as follows:  hash_newDS = H(hash_prevDS, {new_info});
+            uint32 initTime = uint32(block.timestamp);
+            bool initializable = false;
+            
+            for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
+                if(dataStoreIdsForDuration[duration][block.timestamp][i] == 0){
+                    dataStoreIdsForDuration[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
+                                                                                                headerHash, 
+                                                                                                dataStoresForDuration.dataStoreId, 
+                                                                                                blockNumber, 
+                                                                                                uint96(fee),
+                                                                                                bytes32(0)
+                                                                                            );
+                    initializable = true; 
+                    index = i;
+                    break;   
+                }       
+            }
+            assertTrue(initializable == true, "number of initDatastores for this duration and block has reached its limit");
+        }
         // call DataLayr contract
-        g = gasleft();
-        dataLayr.initDataStore(
-            dataStoresForDuration.dataStoreId,
-            headerHash,
-            totalBytes,
-            storePeriodLength,
-            blockNumber,
-            header
-        );
+        { 
+            require(
+                blockNumber <= block.number,
+                "specified blockNumber is in future"
+            );
 
-        //emit log_named_uint("3", g - gasleft());
+            require(
+                blockNumber >= (block.number - BLOCK_STALE_MEASURE),
+                "specified blockNumber is too far in past"
+            );
+
+
+            //initializes data store
+            uint32 initTime = uint32(block.timestamp);
+
+            
+            emit InitDataStore(dataStoresForDuration.dataStoreId, headerHash, totalBytes, initTime, storePeriodLength, blockNumber);
+        }
 
         /**
         @notice sets the latest time until which any of the active DataLayr operators that haven't committed
@@ -157,10 +197,8 @@ contract DataLayrServiceManager is
         */
         // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
-        
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
 
-        g = gasleft();
         if (_latestTime > latestTime) {
             dataStoresForDuration.latestTime = _latestTime;            
         }
@@ -169,7 +207,7 @@ contract DataLayrServiceManager is
         
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
-        //emit log_named_uint("4", g - gasleft()); 
+        return index;
     }
 
     /**
@@ -192,19 +230,17 @@ contract DataLayrServiceManager is
             >
      */
     // CRITIC: there is an important todo in this function
-    function confirmDataStore(bytes calldata data) external {
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
-        uint g = gasleft();
         (
             uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
-        emit log_named_uint("entire signature checking gas", g - gasleft());
-
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
+
 
         /**
          * @notice checks that there is no need for posting a deposit root required for proving
@@ -218,22 +254,57 @@ contract DataLayrServiceManager is
             "Must post a deposit root now"
         );
 
-        // record the compressed information pertaining to this particular dump
-        /**
-         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
-         */
-        require(dataStoreIdToSignatureHash[dataStoreIdToConfirm] == bytes32(0), "Datastore has already been confirmed");
-        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
+        //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
+        bytes32 dsHash = DataStoreHash.computeDataStoreHash(
+                                            searchData.metadata.headerHash, 
+                                            searchData.metadata.globalDataStoreId, 
+                                            searchData.metadata.blockNumber, 
+                                            searchData.metadata.fee,
+                                            bytes32(0)
+                                            );
 
-        // call DataLayr contract to check whether quorum is satisfied or not and record it
-        dataLayr.confirm(
-            dataStoreIdToConfirm,
-            headerHash,
-            signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned,
-            signedTotals.totalEthStake,
-            signedTotals.totalEigenStake
-        );
+        // emit log_named_uint("compute hash", g-gasleft());
+
+
+        require(getDataStoreIdsForDuration(
+                                searchData.duration, 
+                                searchData.timestamp, 
+                                searchData.index
+                                ) == dsHash, "provided calldata does not match corresponding stored hash from initDataStore");
+
+        
+
+        //computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
+        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
+                                            searchData.metadata.headerHash, 
+                                            searchData.metadata.globalDataStoreId, 
+                                            searchData.metadata.blockNumber, 
+                                            searchData.metadata.fee,
+                                            signatoryRecordHash
+                                            );
+
+        //storing new hash
+        setDataStoreIdsForDuration(
+                            searchData.duration, 
+                            searchData.timestamp, 
+                            searchData.index, 
+                            newDsHash
+                            );
+
+
+
+        // check that signatories own at least a threshold percentage of eth 
+        // and eigen, thus, implying quorum has been acheieved
+        require(signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
+                && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
+                "signatories do not own at least a threshold percentage of eth and eigen");
+
+        // record that quorum has been achieved 
+        //TODO: We dont need to store this because signatoryRecordHash is a way to check whether a datastore is commited or not
+        // dataStores[headerHash].committed = true;
+
+        emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
+
     }
 
     /**
@@ -292,14 +363,7 @@ contract DataLayrServiceManager is
         depositRoots[block.number] = depositRoot;
 
         // call DataLayr contract to check whether quorum is satisfied or not and record it
-        dataLayr.confirm(
-            dataStoreIdToConfirm,
-            headerHash,
-            signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned,
-            signedTotals.totalEthStake,
-            signedTotals.totalEigenStake
-        );
+        
     }
 
 
@@ -315,26 +379,7 @@ contract DataLayrServiceManager is
         ISlasher(investmentManager.slasher()).slashOperator(operator);
     }
 
-    /**
-     @notice this function returns the compressed record on the signatures of DataLayr nodes 
-             that aren't part of the quorum for this @param _dataStoreId.
-     */
-    function getDataStoreIdSignatureHash(uint32 _dataStoreId)
-        public
-        view
-        returns (bytes32)
-    {
-        return dataStoreIdToSignatureHash[_dataStoreId];
-    }
-
-    // TODO: de-duplicate functions
-    function getTaskNumberSignatureHash(uint32 _taskNumber)
-        public
-        view
-        returns (bytes32)
-    {
-        return dataStoreIdToSignatureHash[_taskNumber];
-    }
+   
 
     function getDepositRoot(uint256 blockNumber) public view returns (bytes32) {
         return depositRoots[blockNumber];
@@ -347,53 +392,17 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
     }
 
-    function setDataLayr(IDataLayr _dataLayr) public {
-        require(
-            (address(dataLayr) == address(0)) ||
-                (address(repository.owner()) == msg.sender),
-            "only repository governance can call this function, or DL must not be initialized"
-        );
-        dataLayr = _dataLayr;
-        // TODO: figure out if we need this duplicate storage
-        taskMetadata = ITaskMetadata(address(_dataLayr));
-    }
-
-    /// @notice returns the time when the task, associated with taskHash, was created
-    function getTaskCreationTime(bytes32 taskHash)
-        public
-        view
-        returns (uint256)
-    {
-        (, uint32 initTime, ,  ) = dataLayr.dataStores(taskHash);
-        uint256 timeCreated = uint256(initTime);
-        if (timeCreated != 0) {
-            return timeCreated;
-        } else {
-            return type(uint256).max;
-        }
-    }
-
-    /// @notice returns the time when the task, associated with taskHash, will expire
-    function getTaskExpiry(bytes32 taskHash)
-        external
-        view
-        returns (uint256)
-    {
-        (, uint32 initTime, uint32 storePeriodLength, ) = dataLayr.dataStores(
-            taskHash
-        );
-        uint256 timeCreated = uint256(initTime);
-        if (timeCreated != 0) {
-            return (timeCreated + storePeriodLength);
-        } else {
-            return type(uint256).max;
-        }
-    }
+    
 
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp) external view returns(bytes32) {
-        return dataStoreIdsForDuration[duration][timestamp];
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) public view returns(bytes32) {
+        return dataStoreIdsForDuration[duration][timestamp][index];
     }
+
+    function setDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index, bytes32 newHash) internal {
+        dataStoreIdsForDuration[duration][timestamp][index] = newHash;
+    }
+
 
     // TODO: de-duplicate functions
     function dataStoreIdToFee(uint32 _dataStoreId) external pure returns (uint96) {
@@ -462,6 +471,45 @@ contract DataLayrServiceManager is
 
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
+    }
+
+    //TODO: CORRECT CALLDATALOAD SLOTS
+    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external  {
+        bytes32 headerHash;
+        bytes32 signatoryRecordHash;
+        uint32 dataStoreId; 
+        uint32 blockNumber; 
+        uint96 fee;
+        uint8 duration; 
+        uint256 dsInitTime; 
+        uint32 index;
+        
+
+        assembly {
+            headerHash := calldataload(68)
+            signatoryRecordHash:= calldataload(68)
+            dataStoreId := shr(224, calldataload(100))
+            blockNumber := shr(224, calldataload(104))
+            fee := shr(160, calldataload(108))
+            duration := shr(248, calldataload(120))
+            dsInitTime := calldataload(121)
+            index := shr(224, calldataload(153))
+        }
+
+
+        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, dataStoreId, blockNumber, fee, signatoryRecordHash);
+        assertTrue(getDataStoreIdsForDuration(duration, dsInitTime, index) == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+
+        //now we check if the dataStore is still active at the time
+        //TODO: check if the duration is in days or seconds
+        require(
+            initTimestamp > dsInitTime
+                 &&
+                unlockTime <
+                dsInitTime + duration*86400,
+            "task does not meet requirements"
+        );
+
     }
 
     /* function removed for now since it tries to modify an immutable variable

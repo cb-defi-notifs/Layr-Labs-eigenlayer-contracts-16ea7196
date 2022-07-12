@@ -519,19 +519,26 @@ contract DataLayrPaymentManager is
         );
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
         uint8 status = challenge.status;
+
+
+        require(dataLayrServiceManager.getDataStoreIdsForDuration(
+                searchData.duration, 
+                searchData.timestamp,
+                searchData.index
+            ) == hashDataStoreMetadata(searchData.metadata), "search.metadata preimage is incorrect");
         //check sigs
-        require(
-            dataLayrServiceManager.getDataStoreIdSignatureHash(challengedDataStoreId) ==
-                keccak256(
-                    abi.encodePacked(
-                        challengedDataStoreId,
-                        nonSignerPubkeyHashes,
-                        totalStakes.ethStakeSigned,
-                        totalStakes.eigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
-        );
+        // require(
+        //     dataLayrServiceManager.getDataStoreIdSignatureHash(challengedDataStoreId) ==
+        //         keccak256(
+        //             abi.encodePacked(
+        //                 challengedDataStoreId,
+        //                 nonSignerPubkeyHashes,
+        //                 totalStakes.ethStakeSigned,
+        //                 totalStakes.eigenStakeSigned
+        //             )
+        //         ),
+        //     "Sig record does not match hash"
+        // );
 
         IRegistry registry = repository.registry();
 
@@ -555,26 +562,22 @@ contract DataLayrPaymentManager is
 
         // scoped block helps fix stack too deep
         {
-            (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
-            require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
+            // (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
+            // require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
             require(
-                operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
+                operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
                 "Operator stake index is too late"
             );
 
             require(
                 operatorStake.nextUpdateBlockNumber == 0 ||
-                    operatorStake.nextUpdateBlockNumber > challengedDumpBlockNumber,
+                    operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
                 "Operator stake index is too early"
             );
         }
-            require(dataLayrServiceManager.getDataStoreIdsForDuration(
-                searchData.duration, 
-                searchData.timestamp
-            ) == hashLinkedDataStoreMetadatas(searchData.metadatas), "search.metadatas preimage is incorrect");
 
             //TODO: Change this
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
+            IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadata;
             require(metadata.globalDataStoreId == challengedDataStoreId, "Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
@@ -668,11 +671,8 @@ contract DataLayrPaymentManager is
         return dataLayrServiceManager.dataStoreId();
     }
 
-    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
-        bytes32 res = bytes32(0);
-        for(uint i = 0; i < metadatas.length; i++) {
-            res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));
-        }
+    function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal returns(bytes32) {
+        bytes32 res = keccak256(abi.encodePacked(metadata.headerHash, metadata.durationDataStoreId, metadata.globalDataStoreId, metadata.blockNumber, metadata.fee, metadata.signatoryRecordHash));
         return res;
     }
 }

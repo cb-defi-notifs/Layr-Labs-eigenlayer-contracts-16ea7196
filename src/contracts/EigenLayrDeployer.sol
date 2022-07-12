@@ -49,7 +49,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     ServiceFactory public serviceFactory;
     DataLayrRegistry public dlReg;
     DataLayrServiceManager public dlsm;
-    DataLayr public dl;
 
     IERC20 public weth;
     InvestmentStrategyBase public strat;
@@ -140,7 +139,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             feePerBytePerTime
         );
 
-        dl = new DataLayr(dlRepository);
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
         
@@ -152,7 +150,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         eigenStratsAndMultipliers[0].multiplier = 1e18;
         dlReg = new DataLayrRegistry(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
-        DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dl, dlReg, disclosureUtils);
+        DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dlReg, disclosureUtils);
 
         Repository(address(dlRepository)).initialize(
             dlReg,
@@ -161,7 +159,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             address(this)
         );
 
-        dlsm.setDataLayr(dl);
         dlsm.setLowDegreeChallenge(lowDegreeChallenge);
 
         deposit.initialize(depositContract, investmentManager, dlsm);

@@ -584,10 +584,9 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint256 queuedWithdrawalNonce,
-        bytes32 taskHash,
+        bytes calldata data,
         IServiceFactory serviceFactory,
-        IRepository repository,
-        IRegistry registry
+        IRepository repository
     ) external {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
@@ -597,18 +596,12 @@ contract InvestmentManager is
                 queuedWithdrawalNonce
             )
         );
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
-        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
-            WITHDRAWAL_WAITING_PERIOD;
-        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot]
-            .initTimestamp;
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
+
         require(initTimestamp > 0, "withdrawal does not exist");
-        require(
-            uint32(block.timestamp) < unlockTime,
-            "withdrawal waiting period has already passed"
-        );
+        require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
 
         address operator = delegation.delegation(depositor);
 
@@ -617,25 +610,18 @@ contract InvestmentManager is
                 operator,
                 serviceFactory,
                 repository,
-                registry
+                repository.registry()
             ),
             "Contract does not have rights to prevent undelegation"
         );
 
-        IServiceManager serviceManager = repository.serviceManager();
+        {
+            // ongoing task is still active at time when staker was finalizing undelegation
+            // and, therefore, hasn't served its obligation.
+            IServiceManager serviceManager = repository.serviceManager();
 
-        // ongoing task is still active at time when staker was finalizing undelegation
-        // and, therefore, hasn't served its obligation.
-        require(
-            initTimestamp >
-                serviceManager.getTaskCreationTime(
-                    taskHash
-                ) &&
-                unlockTime <
-                serviceManager.getTaskExpiry(taskHash),
-            "task does not meet requirements"
-        );
-
+            serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
+        }
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot]
             .latestFraudproofTimestamp = uint32(block.timestamp);

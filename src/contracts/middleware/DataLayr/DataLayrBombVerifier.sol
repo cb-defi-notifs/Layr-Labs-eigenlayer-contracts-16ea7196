@@ -3,16 +3,23 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IRegistry.sol";
-import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
+import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
 
     struct DataStoresForDuration {
         uint256 timestamp;
-        IDataLayrServiceManager.DataStoreMetadata[] metadatas;
+        uint32 index;
+        IDataLayrServiceManager.DataStoreMetadata metadata;
+    }
+
+    struct DataStoreProofs {
+        IDataLayrServiceManager.DataStoreSearchData operatorFromDataStore;
+        IDataLayrServiceManager.DataStoreSearchData bombDataStore;
+        IDataLayrServiceManager.DataStoreSearchData detonationDataStore;
     }
 
     struct HeaderHashes {
@@ -26,7 +33,6 @@ contract DataLayrBombVerifier {
         uint32 totalOperatorsIndex;
         uint256 detonationNonSignerIndex;
         uint256[] successiveSignerIndexes;
-        uint256 bombDataStoreIndex;
     }
 
     struct DisclosureProof {
@@ -45,20 +51,17 @@ contract DataLayrBombVerifier {
 
     IDataLayrServiceManager public dlsm;
     IRegistry public dlRegistry;
-    IDataLayr public dataLayr;
     DataLayrChallengeUtils public challengeUtils;
     IEphemeralKeyRegistry public dlekRegistry;
 
     constructor(
         IDataLayrServiceManager _dlsm,
         IRegistry _dlRegistry,
-        IDataLayr _dataLayr,
         DataLayrChallengeUtils _challengeUtils,
         IEphemeralKeyRegistry _dlekRegistry
     ) {
         dlsm = _dlsm;
         dlRegistry = _dlRegistry;
-        dataLayr = _dataLayr;
         challengeUtils = _challengeUtils;
         dlekRegistry = _dlekRegistry;
     }
@@ -71,12 +74,16 @@ contract DataLayrBombVerifier {
     // this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
     function verifyBomb(
         address operator,
-        HeaderHashes calldata headerHashes,
+        DataStoreProofs calldata dataStoreProofs,
         Indexes calldata indexes,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
+        require(verifyMetadata(dataStoreProofs.operatorFromDataStore), "operatorFrom metadata premiage incorrect");
+        require(verifyMetadata(dataStoreProofs.detonationDataStore), "detonation metadata premiage incorrect");
+        require(verifyMetadata(dataStoreProofs.bombDataStore), "bomb metadata premiage incorrect");
+
         {
             //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
             uint48 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(operator);
@@ -87,15 +94,11 @@ contract DataLayrBombVerifier {
         }
 
         // get globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId, based on input info
-        (
-            uint32 bombGlobalDataStoreId,
-            uint32 detonationGlobalDataStoreId
-        ) = verifyBombDataStoreId(
+
+        uint32 bombGlobalDataStoreId = verifyBombDataStoreId(
                 operator,
-                headerHashes.operatorFromHeaderHash,
-                sandwichProofs,
-                headerHashes.detonationHeaderHash,
-                indexes.bombDataStoreIndex
+                dataStoreProofs,
+                sandwichProofs
             );
         
 /*
@@ -125,18 +128,30 @@ The loop iterates through to find this next DataStore, thus determining the true
 // first we verify that the operator did indeed sign the 'detonation' DataStore
         {
             // Verify that the information supplied as input related to the 'detonation' DataStore is correct 
-            require(
-                dlsm.getDataStoreIdSignatureHash(detonationGlobalDataStoreId) ==
-                    keccak256(
-                        abi.encodePacked(
-                            detonationGlobalDataStoreId,
-                            signatoryRecords[0].nonSignerPubkeyHashes,
-                            signatoryRecords[0].totalEthStakeSigned,
-                            signatoryRecords[0].totalEigenStakeSigned
-                        )
-                    ),
-                "Sig record does not match hash"
-            );
+            // require(
+            //     dlsm.getDataStoreIdSignatureHash(dataStoreProofs.detonationDataStore.metadata.globalDataStoreId) ==
+            //         keccak256(
+            //             abi.encodePacked(
+            //                 dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
+            //                 signatoryRecords[0].nonSignerPubkeyHashes,
+            //                 signatoryRecords[0].totalEthStakeSigned,
+            //                 signatoryRecords[0].totalEigenStakeSigned
+            //             )
+            //         ),
+            //     "Sig record does not match hash"
+            // );
+
+            require(dlsm.getDataStoreIdsForDuration(
+                                                    dataStoreProofs.detonationDataStore.duration, 
+                                                    dataStoreProofs.detonationDataStore.timestamp,
+                                                    dataStoreProofs.detonationDataStore.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            dataStoreProofs.detonationDataStore.metadata.headerHash, 
+                                                                            dataStoreProofs.detonationDataStore.metadata.globalDataStoreId, 
+                                                                            dataStoreProofs.detonationDataStore.metadata.blockNumber, 
+                                                                            dataStoreProofs.detonationDataStore.metadata.fee, 
+                                                                            dataStoreProofs.detonationDataStore.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
             // fetch hash of operator's pubkey
             bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
@@ -159,18 +174,31 @@ The loop iterates through to find this next DataStore, thus determining the true
             uint256 lengthMinusOne = signatoryRecords.length - 1;
             for (uint i = 1; i < lengthMinusOne; ++i) {            
                 // Verify that the information supplied as input related to this particular DataStore is correct 
-                require(
-                    dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
-                        keccak256(
-                            abi.encodePacked(
-                                bombGlobalDataStoreId++,
-                                signatoryRecords[i].nonSignerPubkeyHashes,
-                                signatoryRecords[i].totalEthStakeSigned,
-                                signatoryRecords[i].totalEigenStakeSigned
-                            )
-                        ),
-                    "Sig record does not match hash"
-                );
+                // require(
+                //     dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
+                //         keccak256(
+                //             abi.encodePacked(
+                //                 bombGlobalDataStoreId++,
+                //                 signatoryRecords[i].nonSignerPubkeyHashes,
+                //                 signatoryRecords[i].totalEthStakeSigned,
+                //                 signatoryRecords[i].totalEigenStakeSigned
+                //             )
+                //         ),
+                //     "Sig record does not match hash"
+                // );
+
+                //
+                require(dlsm.getDataStoreIdsForDuration(
+                                                    dataStoreProofs.bombDataStore.duration, 
+                                                    dataStoreProofs.bombDataStore.timestamp,
+                                                    dataStoreProofs.bombDataStore.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            dataStoreProofs.bombDataStore.metadata.headerHash, 
+                                                                            dataStoreProofs.bombDataStore.metadata.globalDataStoreId, 
+                                                                            dataStoreProofs.bombDataStore.metadata.blockNumber, 
+                                                                            dataStoreProofs.bombDataStore.metadata.fee, 
+                                                                            dataStoreProofs.bombDataStore.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
                 require(
                     signatoryRecords[i].nonSignerPubkeyHashes[
@@ -182,18 +210,18 @@ The loop iterates through to find this next DataStore, thus determining the true
             }
 
             // Verify that the information supplied as input related to the ultimate 'bomb' DataStore is correct 
-            require(
-                dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
-                    keccak256(
-                        abi.encodePacked(
-                            detonationGlobalDataStoreId,
-                            signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes,
-                            signatoryRecords[lengthMinusOne].totalEthStakeSigned,
-                            signatoryRecords[lengthMinusOne].totalEigenStakeSigned
-                        )
-                    ),
-                "Sig record does not match hash"
-            );
+            // require(
+            //     dlsm.getDataStoreIdSignatureHash(bombGlobalDataStoreId) ==
+            //         keccak256(
+            //             abi.encodePacked(
+            //                 dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
+            //                 signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes,
+            //                 signatoryRecords[lengthMinusOne].totalEthStakeSigned,
+            //                 signatoryRecords[lengthMinusOne].totalEigenStakeSigned
+            //             )
+            //         ),
+            //     "Sig record does not match hash"
+            // );
 
             // check that operator was *not* in the non-signer set (i.e. they did sign) for the ultimate 'bomb' DataStore
             if (signatoryRecords[lengthMinusOne].nonSignerPubkeyHashes.length != 0) {
@@ -206,26 +234,23 @@ The loop iterates through to find this next DataStore, thus determining the true
                 );
             }
         }
-        {
-            // get dataStoreId from provided bomb DataStore headerHash
-            (uint32 loadedBombDataStoreId, , , ) = dataLayr.dataStores(
-                keccak256(disclosureProof.header)
-            );
-            // verify that the correct bomb dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
-            require(
-                loadedBombDataStoreId == bombGlobalDataStoreId,
-                "loaded bomb datastore id must be as calculated"
-            );
-        }
+        
+        // verify that the correct bomb dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
+        require(
+            dataStoreProofs.bombDataStore.metadata.globalDataStoreId == bombGlobalDataStoreId,
+            "loaded bomb datastore id must be as calculated"
+        );
 
         // check the disclosure of the data chunk that the operator committed to storing
         require(
             nonInteractivePolynomialProof(
-                headerHashes.bombHeaderHash,
+                // headerHashes.bombHeaderHash,
                 operator,
                 indexes.operatorIndex,
                 indexes.totalOperatorsIndex,
-                disclosureProof
+                bombGlobalDataStoreId,
+                disclosureProof,
+                dataStoreProofs.operatorFromDataStore
             ),
             "I from multireveal is not the commitment of poly"
         );
@@ -237,7 +262,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         require(
             uint256(
                 keccak256(
-                    abi.encodePacked(disclosureProof.poly, ek, headerHashes.detonationHeaderHash)
+                    abi.encodePacked(disclosureProof.poly, ek, dataStoreProofs.detonationDataStore.metadata.headerHash)
                 )
             ) < BOMB_THRESHOLD,
             "No bomb"
@@ -249,69 +274,55 @@ The loop iterates through to find this next DataStore, thus determining the true
     // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
     function verifyBombDataStoreId(
         address operator,
-        bytes32 operatorFromHeaderHash,
-        DataStoresForDuration[2][2][] calldata sandwichProofs,
-        bytes32 detonationHeaderHash,
-        uint256 bombDataStoreIndex
-    ) internal view returns (uint32, uint32) {
-        (,uint32 detonationDataStoreInitTimestamp, , ) = dataLayr.dataStores(detonationHeaderHash);
-        
+        DataStoreProofs calldata dataStoreProofs,
+        DataStoresForDuration[2][2][] calldata sandwichProofs
+    ) internal view returns (uint32) {
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
             uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
                 operator
             );
-            (uint32 dataStoreId, uint32 fromTimeUint32, ,  ) = dataLayr
-                .dataStores(operatorFromHeaderHash);
+
             // ensure that operatorFromHeaderHash corresponds to the correct dataStoreId (i.e. the one at which the operator registered)
             require(
-                fromDataStoreId == dataStoreId,
+                fromDataStoreId == dataStoreProofs.operatorFromDataStore.metadata.globalDataStoreId,
                 "headerHash is not for correct operator from datastore"
             );
             // store the initTime of the dataStoreId at which the operator registered in memory
-            fromTime = uint256(fromTimeUint32);
+            fromTime = dataStoreProofs.operatorFromDataStore.timestamp;
         }
+
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
             uint8 durationIndex,
             uint32 calculatedDataStoreId,
-            uint32 nextGlobalDataStoreIdAfterBomb
+            uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         ) = verifySandwiches(
-                uint256(detonationHeaderHash),
+                uint256(dataStoreProofs.detonationDataStore.metadata.headerHash),
                 fromTime,
-                detonationDataStoreInitTimestamp,
+                dataStoreProofs.detonationDataStore.timestamp,
                 sandwichProofs
             );
 
         require(sandwichProofs.length == dlsm.MAX_DATASTORE_DURATION() + 1, "Incorrect sandwich proof length. *must account for last proof of bomb datastoremetdata");
 
-        //STACK TOOOO DEEEEEEP: talk to gautham
-        require(dlsm.getDataStoreIdsForDuration(
-                durationIndex + 1,
-                detonationDataStoreInitTimestamp
-            ) == hashLinkedDataStoreMetadatas(sandwichProofs[sandwichProofs.length - 1][0][0].metadatas), "bomb metadatas preimage is incorrect");
         // fetch the durationDataStoreId and globalDataStoreId for the specific 'detonation' DataStore specified by the parameters
         IDataLayrServiceManager.DataStoreMetadata
-            memory bombDataStoreMetadata = sandwichProofs[sandwichProofs.length - 1][0][0].metadatas[bombDataStoreIndex];
+            memory bombDataStoreMetadata = sandwichProofs[sandwichProofs.length - 1][0][0].metadata;
         // check that the specified bombDataStore info matches the calculated info 
         require(
             bombDataStoreMetadata.durationDataStoreId == calculatedDataStoreId,
             "datastore id provided is not the same as loaded"
         );
-        {
-            // get the dataStoreId for 'detonationHeaderHash'
-            (uint32 detonationGlobalDataStoreId, , ,) = dataLayr.dataStores(detonationHeaderHash);
-            // check that the dataStoreId for the provided detonationHeaderHash matches the calculated value
-            require(detonationGlobalDataStoreId == nextGlobalDataStoreIdAfterBomb, "next datastore after bomb does not match provided detonation datastore");
-        }
+        // get the dataStoreId for 'detonationHeaderHash'
+        // check that the dataStoreId for the provided detonationHeaderHash matches the calculated value
+        require(dataStoreProofs.detonationDataStore.metadata.globalDataStoreId == nextGlobalDataStoreIdAfterDetonationTimestamp, "next datastore after bomb does not match provided detonation datastore");
         // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
-        return (
-            bombDataStoreMetadata.globalDataStoreId,
-            // note that this matches detonationGlobalDataStoreId, as checked above
-            nextGlobalDataStoreIdAfterBomb
-        );
+        return bombDataStoreMetadata.globalDataStoreId;
+        
+        // note that this matches detonationGlobalDataStoreId, as checked above;
     }
 
     // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
@@ -328,7 +339,6 @@ The loop iterates through to find this next DataStore, thus determining the true
             uint32
         )
     {
-        //returns(uint32, uint32[] memory, uint32[] memory, uint32) {
         uint32 numberActiveDataStores;
         uint32[] memory numberActiveDataStoresForDuration = new uint32[](
             dlsm.MAX_DATASTORE_DURATION()
@@ -337,7 +347,7 @@ The loop iterates through to find this next DataStore, thus determining the true
             dlsm.MAX_DATASTORE_DURATION()
         );
 
-        uint32 nextGlobalDataStoreIdAfterBomb = type(uint32).max;
+        uint32 nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
 
         for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
             // i is loop index, (i + 1) is duration
@@ -379,8 +389,8 @@ The loop iterates through to find this next DataStore, thus determining the true
             );
             // keep track of the next globalDataStoreId after the bomb
             // check this for all the durations, and reduce the value in memory whenever a value for a specific duration is lower than current value
-            if (nextGlobalDataStoreIdAfterBomb > detonationDataStoreMetadata.globalDataStoreId) {
-                nextGlobalDataStoreIdAfterBomb = detonationDataStoreMetadata.globalDataStoreId;
+            if (nextGlobalDataStoreIdAfterDetonationTimestamp > detonationDataStoreMetadata.globalDataStoreId) {
+                nextGlobalDataStoreIdAfterDetonationTimestamp = detonationDataStoreMetadata.globalDataStoreId;
             }
             //record number of DataStores for duration
             numberActiveDataStoresForDuration[i] =
@@ -408,7 +418,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         return (
             durationIndex,
             firstDataStoreForDuration[durationIndex] + offset,
-            nextGlobalDataStoreIdAfterBomb
+            nextGlobalDataStoreIdAfterDetonationTimestamp
         );
     }
 
@@ -436,9 +446,10 @@ The loop iterates through to find this next DataStore, thus determining the true
             // fetch the *last* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[0]' 
             require(dlsm.getDataStoreIdsForDuration(
                 duration,
-                sandwich[0].timestamp
-            ) == hashLinkedDataStoreMetadatas(sandwich[0].metadatas), "sandwich[0].metadatas preimage is incorrect");
-            xDataStoreMetadata = sandwich[0].metadatas[sandwich[0].metadatas.length - 1];
+                sandwich[0].timestamp,
+                sandwich[0].index
+            ) == hashDataStoreMetadata(sandwich[0].metadata), "sandwich[0].metadata preimage is incorrect");
+            xDataStoreMetadata = sandwich[0].metadata;
         }
         IDataLayrServiceManager.DataStoreMetadata memory yDataStoreMetadata;
         //if not proving the most recent datastore
@@ -446,9 +457,10 @@ The loop iterates through to find this next DataStore, thus determining the true
             // fetch the *first* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[1]' 
             require(dlsm.getDataStoreIdsForDuration(
                 duration,
-                sandwich[1].timestamp
-            ) == hashLinkedDataStoreMetadatas(sandwich[1].metadatas), "sandwich[1].metadatas preimage is incorrect");
-            yDataStoreMetadata =sandwich[1].metadatas[1];
+                sandwich[1].timestamp,
+                sandwich[1].index
+            ) == hashDataStoreMetadata(sandwich[1].metadata), "sandwich[1].metadata preimage is incorrect");
+            yDataStoreMetadata = sandwich[1].metadata;
 
             // for the durationDataStoreId's that we just looked up, make sure that the first durationDataStoreId is just before the second durationDataStoreId
             require(
@@ -487,23 +499,37 @@ The loop iterates through to find this next DataStore, thus determining the true
     }
 
     function getChunkNumber(
-        bytes32 headerHash,
         address operator,
         uint32 operatorIndex,
-        uint32 totalOperatorsIndex
+        uint32 totalOperatorsIndex,
+        uint32 dataStoreId,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) internal view returns (uint32) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayr.sol by the disperser.
         */
-        (
-            uint32 dataStoreId,
-            ,
-            ,
-        ) = dataLayr.dataStores(headerHash);
+        // (
+        //     uint32 dataStoreId,
+        //     ,
+        //     ,
+        // ) = dataLayr.dataStores(headerHash);
+
+
+        require(dlsm.getDataStoreIdsForDuration(
+                                                    searchData.duration, 
+                                                    searchData.timestamp,
+                                                    searchData.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            searchData.metadata.headerHash, 
+                                                                            searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.blockNumber, 
+                                                                            searchData.metadata.fee, 
+                                                                            searchData.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
         // check that disperser had acquire quorum for this dataStore
-        require(dlsm.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Datastore is not committed yet");
+        require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
 
         operatorIndex = dlRegistry.getOperatorIndex(
             operator,
@@ -519,17 +545,20 @@ The loop iterates through to find this next DataStore, thus determining the true
 
 
     function nonInteractivePolynomialProof(
-        bytes32 headerHash,
         address operator,
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
-        DisclosureProof calldata disclosureProof
+        uint32 dataStoreId,
+        DisclosureProof calldata disclosureProof,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData
+
     ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(
-            headerHash,
             operator,
             operatorIndex,
-            totalOperatorsIndex
+            totalOperatorsIndex,
+            dataStoreId,
+            searchData
         );
         bool res = challengeUtils.nonInteractivePolynomialProof(
             chunkNumber,
@@ -544,12 +573,23 @@ The loop iterates through to find this next DataStore, thus determining the true
         return res;
     }
 
-    function hashLinkedDataStoreMetadatas(IDataLayrServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
-        bytes32 res = bytes32(0);
-        for(uint i = 0; i < metadatas.length; i++) {
-            res = keccak256(abi.encodePacked(res, metadatas[i].durationDataStoreId, metadatas[i].globalDataStoreId, metadatas[i].fee));
-        }
+
+    function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal pure returns(bytes32) {
+
+        bytes32 res = keccak256(
+                        abi.encodePacked(
+                            metadata.headerHash, 
+                            metadata.globalDataStoreId, 
+                            metadata.globalDataStoreId, 
+                            metadata.blockNumber, 
+                            metadata.fee
+                            )
+                        );
         return res;
+    }
+
+    function verifyMetadata(IDataLayrServiceManager.DataStoreSearchData calldata searchData) internal view returns(bool) {
+        return dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index) == hashDataStoreMetadata(searchData.metadata);
     }
 
     function max(uint256 x, uint256 y) internal pure returns (uint256) {

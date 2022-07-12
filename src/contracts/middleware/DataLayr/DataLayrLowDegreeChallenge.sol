@@ -32,10 +32,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
-        IDataLayr _dataLayr,
         IRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dataLayr, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW, _DEGREE_CHALLENGE_COLLATERAL_AMOUNT)
+    )   DataLayrChallengeBase(_dataLayrServiceManager, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW, _DEGREE_CHALLENGE_COLLATERAL_AMOUNT)
     {
     }
 

@@ -325,10 +325,9 @@ contract EigenLayrDelegation is
     /// @notice This function can be called by anyone to challenger whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised
-    /// @param taskHash is the hash of the task for which staker hasn't finished its obligations
     function contestUndelegationCommit(
         address staker,
-        bytes32 taskHash,
+        bytes calldata data,
         IServiceFactory serviceFactory,
         IRepository repository,
         IRegistry registry
@@ -363,16 +362,9 @@ contract EigenLayrDelegation is
 
         // ongoing task is still active at time when staker was finalizing undelegation
         // and, therefore, hasn't served its obligation.
-        require(
-            lastUndelegationCommit[staker] >
-                serviceManager.getTaskCreationTime(
-                    taskHash
-                ) &&
-                lastUndelegationCommit[staker] <
-                serviceManager.getTaskExpiry(taskHash),
-            "task does not meet requirements"
-        );
+        serviceManager.stakeWithdrawalVerification(data, lastUndelegationCommit[staker], lastUndelegationCommit[staker]);
     }
+
         // perform the slashing itself
         slasher.slashOperator(staker); 
 

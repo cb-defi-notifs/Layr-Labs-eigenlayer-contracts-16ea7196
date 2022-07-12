@@ -8,9 +8,6 @@ import "./IEigenLayrDelegation.sol";
 
 // TODO: provide more functions for this spec
 interface IServiceManager is IRepositoryAccess {
-	function getTaskCreationTime(bytes32 taskHash) external view returns (uint256);
-	
-	function getTaskExpiry(bytes32 taskHash) external view returns (uint256);
 
     function taskNumber() external view returns (uint32);
 
@@ -26,9 +23,11 @@ interface IServiceManager is IRepositoryAccess {
 
     // function getPaymentCollateral(address) external view returns (uint256);
 
-    function getTaskNumberSignatureHash(uint32) external view returns (bytes32);
+    // function getTaskNumberSignatureHash(uint32) external view returns (bytes32);
 
     function collateralToken() external view returns(IERC20);
 
     function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
+
+    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external;
 }

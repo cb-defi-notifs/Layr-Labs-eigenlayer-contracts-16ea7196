@@ -15,7 +15,6 @@ import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
     
-    // DATA STRUCTURE
     struct DataStoresForDuration{
         uint32 one_duration;
         uint32 two_duration;
@@ -26,6 +25,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
         uint32 seven_duration;
         uint32 dataStoreId;
         uint32 latestTime;
+    }
+
+    struct DataStoreHashInputs{
+        bytes32 headerHash;
+        uint32 dataStoreId;
+        uint32 blockNumber;
+        uint256 fee;
     }
 
     // collateral token used for placing collateral on challenges & payment commits
@@ -41,7 +47,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
-    IDataLayr public dataLayr;
 
     /**
      * @notice service fee that will be paid out by the disperser to the DataLayr nodes
@@ -99,12 +104,15 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     
     uint256 constant public DURATION_SCALE = 1 hours;
+    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 5;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 constant public MIN_DATASTORE_DURATION = 1;
     uint8 constant public MAX_DATASTORE_DURATION = 14;
 
-    //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp
-    mapping(uint8 => mapping(uint256 => bytes32)) public dataStoreIdsForDuration;
+    //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
+    //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
+    //in that block
+    mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreIdsForDuration;
     //total number of datastores that have been stored for a certain duration
     mapping(uint8 => uint32) public totalDataStoresForDuration;
 

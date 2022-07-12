@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
+import "../../libraries/DataStoreHash.sol";
 
 abstract contract DataLayrChallengeBase {
 
@@ -16,21 +17,18 @@ abstract contract DataLayrChallengeBase {
     // amount of token required to be placed as collateral when a challenge is opened
    	uint256 public immutable COLLATERAL_AMOUNT;
 
-    IDataLayr public immutable dataLayr;
     IRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
-        IDataLayr _dataLayr,
         IRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
         uint256 _CHALLENGE_RESPONSE_WINDOW,
         uint256 _COLLATERAL_AMOUNT
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
-        dataLayr = _dataLayr;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
         CHALLENGE_RESPONSE_WINDOW = _CHALLENGE_RESPONSE_WINDOW;
@@ -51,30 +49,32 @@ abstract contract DataLayrChallengeBase {
 
     function _challengeCreationEvent(bytes32 headerHash) internal virtual;
 
-    function openChallenge(bytes calldata header) external {
+    function openChallenge(bytes calldata header, IDataLayrServiceManager.DataStoreSearchData calldata searchData) external {
         // calculate headherHash from header
-        bytes32 headerHash = keccak256(header);
+        
 
         {
-            /**
-            Get information on the dataStore for which disperser is being challenged. This dataStore was 
-            constructed during call to initDataStore in DataLayr.sol by the disperser.
-            */
-            (
-                uint32 dataStoreId,
-                uint32 initTime,
-                uint32 storePeriodLength,
-                // uint32 blockNumber,
-            ) = dataLayr.dataStores(headerHash);
-
-            uint256 expireTime = initTime + storePeriodLength;
+            require(dataLayrServiceManager.getDataStoreIdsForDuration(
+                                                    searchData.duration, 
+                                                    searchData.timestamp,
+                                                    searchData.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            searchData.metadata.headerHash, 
+                                                                            searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.blockNumber, 
+                                                                            searchData.metadata.fee, 
+                                                                            searchData.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
             // check that disperser had acquire quorum for this dataStore 
-            require(dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) != bytes32(0), "Data store not committed");
+            require(searchData.metadata.signatoryRecordHash != bytes32(0), "Dump is not committed yet");
 
             // check that the dataStore is still ongoing
+            uint256 expireTime = searchData.timestamp + searchData.duration;
             require(block.timestamp <= expireTime, "Dump has already expired");
         }
+
+        bytes32 headerHash = searchData.metadata.headerHash;
 
         // check that the challenge doesn't exist yet
         require(
@@ -121,50 +121,37 @@ abstract contract DataLayrChallengeBase {
         address operator,
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         // verify that the challenge has been lost by the operator side
     	require(challengeSuccessful(headerHash), "Challenge not successful");
 
-        /**
-        Get information on the dataStore for which disperser is being challenged. This dataStore was 
-        constructed during call to initDataStore in DataLayr.sol by the disperser.
-        */
-        (
-            uint32 dataStoreId,
-            /*uint32 initTime*/,
-            /*uint32 storePeriodLength*/,
-            uint32 blockNumber
-        ) = dataLayr.dataStores(headerHash);
+        require(dataLayrServiceManager.getDataStoreIdsForDuration(
+                                                    searchData.duration, 
+                                                    searchData.timestamp,
+                                                    searchData.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            searchData.metadata.headerHash, 
+                                                                            searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.blockNumber, 
+                                                                            searchData.metadata.fee, 
+                                                                            searchData.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
         IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
         require(
             // operator must have become active/registered before (or at) the block number
-            (operatorStake.updateBlockNumber <= blockNumber) &&
+            (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber) &&
             // operator must have still been active after (or until) the block number
             // either there is a later update, past the specified blockNumber, or they are still active
-            (operatorStake.nextUpdateBlockNumber >= blockNumber ||
+            (operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber ||
             operatorStake.nextUpdateBlockNumber == 0),
             "operator was not active during blockNumber specified by dataStoreId / headerHash"
         );
 
-       /** 
-       Check that the information supplied as input for this particular dataStore on DataLayr is correct
-       */
-       require(
-           dataLayrServiceManager.getDataStoreIdSignatureHash(dataStoreId) ==
-               keccak256(
-                   abi.encodePacked(
-                       dataStoreId,
-                       signatoryRecord.nonSignerPubkeyHashes,
-                       signatoryRecord.totalEthStakeSigned,
-                       signatoryRecord.totalEigenStakeSigned
-                   )
-               ),
-           "Sig record does not match hash"
-       );
 
         /** 
           @notice Check that the DataLayr operator who is getting slashed was
