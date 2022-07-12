@@ -477,7 +477,7 @@ contract Delegator is EigenLayrDeployer {
             nonSignerInfo memory nonsigners,
             uint32 blockNumber,
             uint32 dataStoreId
-    ) internal returns(bytes memory){
+    ) internal view returns(bytes memory){
 
         /** 
         @param data This calldata is of the format:
