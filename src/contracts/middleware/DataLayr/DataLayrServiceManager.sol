@@ -96,6 +96,10 @@ contract DataLayrServiceManager is
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
+    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
+        dataLayrBombVerifier = _dataLayrBombVerifier;
+    }
+
     function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
@@ -371,6 +375,7 @@ contract DataLayrServiceManager is
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
+            msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
             "Only challenge resolvers can slash operators"

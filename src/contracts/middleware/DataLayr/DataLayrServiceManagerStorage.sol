@@ -10,6 +10,7 @@ import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrDisclosureChallenge.sol";
+import "./DataLayrBombVerifier.sol";
 import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
@@ -127,7 +128,11 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
+    DataLayrBombVerifier public dataLayrBombVerifier;
+
     EphemeralKeyRegistry public ephemeralKeyRegistry;
+
+
 
     /**
      * @notice contract used for handling payment challenges
