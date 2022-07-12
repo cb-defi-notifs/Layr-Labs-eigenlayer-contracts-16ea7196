@@ -14,7 +14,6 @@ import "./investment/Slasher.sol";
 
 import "./middleware/ServiceFactory.sol";
 import "./middleware/Repository.sol";
-import "./middleware/DataLayr/DataLayr.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/DataLayr/DataLayrRegistry.sol";
 import "./middleware/DataLayr/DataLayrPaymentManager.sol";

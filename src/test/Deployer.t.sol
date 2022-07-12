@@ -18,7 +18,6 @@ import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/ServiceFactory.sol";
 import "../contracts/middleware/Repository.sol";
-import "../contracts/middleware/DataLayr/DataLayr.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/DataLayr/DataLayrRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";

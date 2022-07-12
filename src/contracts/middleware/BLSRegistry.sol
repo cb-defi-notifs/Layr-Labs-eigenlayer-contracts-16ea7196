@@ -250,6 +250,11 @@ contract BLSRegistry is
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
+        _deregisterOperator(pubkeyToRemoveAff, index);
+        return true;
+    }
+
+    function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
@@ -260,19 +265,22 @@ contract BLSRegistry is
             "Incorrect index supplied"
         );
 
+        IServiceManager serviceManager = repository.serviceManager();
 
-        // must store till the latest time a task expires
+        // must store till the latest time a dump expires
         /**
          @notice this info is used in forced disclosure
          */
-        // registry[msg.sender].serveUntil = latestTime;
+        registry[msg.sender].serveUntil = serviceManager.latestTime();
 
 
-        // committing to not signing off on any more data that is being asserted to this service
+        // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
 
-        // get current task number from ServiceManager
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();        
+        registry[msg.sender].deregisterTime = block.timestamp;
+
+        // get current DataStoreId from ServiceManager
+        uint32 currentTaskNumber = serviceManager.taskNumber();   
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -357,12 +365,11 @@ contract BLSRegistry is
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
         emit Deregistration(msg.sender);
-        return true;
     }
 
 
 
-    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal{
+    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Update index info for old operator
