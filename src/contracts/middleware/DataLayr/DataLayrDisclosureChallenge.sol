@@ -165,6 +165,8 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
         // emit event
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
+
+        // TODO: decided what to do with challenger collateral in this case
     }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
@@ -203,5 +205,10 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
     function _challengeCreationEvent(bytes32 headerHash) internal override {
         emit DisclosureChallengeInit(headerHash, msg.sender);
+    }
+
+    function _returnChallengerCollateral(bytes32 headerHash) internal override {
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        collateralToken.transfer(disclosureChallenges[headerHash].challenger, disclosureChallenges[headerHash].collateral);
     }
 }

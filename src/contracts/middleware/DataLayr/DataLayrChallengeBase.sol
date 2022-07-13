@@ -49,6 +49,8 @@ abstract contract DataLayrChallengeBase {
 
     function _challengeCreationEvent(bytes32 headerHash) internal virtual;
 
+    function _returnChallengerCollateral(bytes32 headerHash) internal virtual;
+
     function openChallenge(bytes calldata header, IDataLayrServiceManager.DataStoreSearchData calldata searchData) external {
         // calculate headherHash from header
         
@@ -113,6 +115,9 @@ abstract contract DataLayrChallengeBase {
 	    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
     	// and to signal that the challenge has been lost by the signers
     	_markChallengeSuccessful(headerHash);
+
+        // return challenger collateral
+        _returnChallengerCollateral(headerHash);
     }
 
     // slash an operator who signed a headerHash but failed a subsequent challenge

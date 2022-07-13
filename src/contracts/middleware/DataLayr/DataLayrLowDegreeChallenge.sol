@@ -8,7 +8,6 @@ import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 import "./DataLayrChallengeBase.sol";
 
-// TODO: collateral
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
@@ -123,9 +122,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // and to signal that the msg.sender correctly answered the challenge
         lowDegreeChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
 
-        // uint256 collateral = lowDegreeChallenges[headerHash].collateral;
-        // TODO: pay collateral to msg.sender
-        // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, msg.sender, 1);
+        // send challenger collateral to msg.sender
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        collateralToken.transfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
     }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
@@ -163,5 +162,10 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     function _challengeCreationEvent(bytes32 headerHash) internal override {
         emit LowDegreeChallengeInit(headerHash, msg.sender);
+    }
+
+    function _returnChallengerCollateral(bytes32 headerHash) internal override {
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        collateralToken.transfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
     }
 }
