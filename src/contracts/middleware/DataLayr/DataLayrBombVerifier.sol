@@ -108,14 +108,13 @@ that the operator did not sign the 'bomb' DataStore (note that this is different
 In this specific case, the 'bomb' is actually contained in the next DataStore that the operator did indeed sign.
 The loop iterates through to find this next DataStore, thus determining the true 'bomb' DataStore.
 */
-    // TODO: update below comment to more accurately reflect the specific usecase of this code
         /** 
-          @notice Check that the DataLayr operator against whom forced disclosure is being initiated, was
-                  actually part of the quorum for the @param dataStoreId.
+          @notice Check that the DataLayr operator against whom bomb is being verified, was
+                  actually part of the quorum for the detonation dataStoreId.
           
                   The burden of responsibility lies with the challenger to show that the DataLayr operator 
                   is not part of the non-signers for the dump. Towards that end, challenger provides
-                  @param index such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+                  an index such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
                    uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
                   then,
                         uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])

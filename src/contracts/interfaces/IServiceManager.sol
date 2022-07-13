@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IRepositoryAccess.sol";
-import "./ITaskMetadata.sol";
+// import "./ITaskMetadata.sol";
 import "./IEigenLayrDelegation.sol";
 
 // TODO: provide more functions for this spec

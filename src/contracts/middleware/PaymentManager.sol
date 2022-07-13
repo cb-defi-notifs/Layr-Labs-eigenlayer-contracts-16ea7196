@@ -163,6 +163,7 @@ contract PaymentManager is
 
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
         //todo: can this be a permanent allowance? decreases an sstore per fee paying.
+        // NOTE: (from JEFFC) this currently *is* a persistant/permanent allowance, as it isn't getting decreased anywhere
         if(initiator != payer){
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
         }
@@ -430,13 +431,13 @@ contract PaymentManager is
         // payment challenge for one data dump
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            challenge.status = msg.sender == operator ? 5 : 4;
+            challenge.status = (msg.sender == operator ? 5 : 4);
             return false;
 
         // payment challenge across more than one data dump
         } else {
             // set to dissection turn of either challenger or operator
-            challenge.status = msg.sender == operator ? 3 : 2;
+            challenge.status = (msg.sender == operator ? 3 : 2);
             return true;
         }
 
@@ -459,13 +460,13 @@ contract PaymentManager is
         if (disectionType == 1) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
-                amount1 + amount2 != challenge.amount1,
-                "Invalid amount bbbreakdown"
+                amount1 + amount2 == challenge.amount1,
+                "Invalid amount breakdown"
             );
         } else if (disectionType == 3) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
-                amount1 + amount2 != challenge.amount2,
+                amount1 + amount2 == challenge.amount2,
                 "Invalid amount breakdown"
             );
         } else {

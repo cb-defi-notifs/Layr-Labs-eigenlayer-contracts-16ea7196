@@ -116,7 +116,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
         bytes32 headerHash = keccak256(header);
 
 
-// TODO: should be add any of these checks / logic back in?
+// TODO: @Gautham should be add any of these checks / logic back in?
   //  //    // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
     //    // of the zero polynomial Merkle tree
 

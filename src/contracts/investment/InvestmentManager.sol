@@ -439,11 +439,8 @@ contract InvestmentManager is
             //TODO: call into delegationTerms contract as well?
         }
 
-        //TODO: take this nearly identically duplicated code and move it into a function
-        // had to check against this rather than store it to solve 'stack too deep' error
-        // uint256 strategiesLength = strategies.length;
-        
-        for (uint256 i = 0; i < strategies.length; ) {
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength; ) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
             

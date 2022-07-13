@@ -122,6 +122,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // set challenge commit time equal to 'CHALLENGE_UNSUCCESSFUL', so the same challenge cannot be opened a second time,
         // and to signal that the msg.sender correctly answered the challenge
         lowDegreeChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
+
+        // uint256 collateral = lowDegreeChallenges[headerHash].collateral;
         // TODO: pay collateral to msg.sender
         // dataLayrServiceManager.resolveLowDegreeChallenge(headerHash, msg.sender, 1);
     }

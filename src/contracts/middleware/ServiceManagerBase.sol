@@ -67,7 +67,6 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         uint256 totalCumulativeWeight
     );
 
-// TODO: change to initializer
     constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository)
         ServiceManagerStorage(_paymentToken, _collateralToken)
         RepositoryAccess(_repository)

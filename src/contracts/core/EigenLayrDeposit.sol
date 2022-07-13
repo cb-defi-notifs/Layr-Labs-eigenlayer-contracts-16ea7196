@@ -63,12 +63,6 @@ contract EigenLayrDeposit is
         IERC20 liquidStakeToken,
         IInvestmentStrategy strategy
     ) external payable {
-        // TODO: verify this check is 1000% not needed. I believe InvestmentManager and the Strategy itself should cover this.
-        // require(
-        //     isAllowedLiquidStakedToken[liquidStakeToken],
-        //     "This liquid staking token is not permitted in EigenLayr"
-        // );
-
         // balance of liquidStakeToken before deposit
         uint256 lstBalanceBefore = liquidStakeToken.balanceOf(address(this));
 
