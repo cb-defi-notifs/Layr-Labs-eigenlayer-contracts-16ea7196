@@ -116,7 +116,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
         bytes32 headerHash = keccak256(header);
 
 
-// TODO: should be add any of these checks / logic back in?
+// TODO: @Gautham should be add any of these checks / logic back in?
   //  //    // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
     //    // of the zero polynomial Merkle tree
 
@@ -165,6 +165,8 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
         // emit event
         emit DisclosureChallengeResponse(headerHash, msg.sender, poly);
+
+        // TODO: decided what to do with challenger collateral in this case
     }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
@@ -203,5 +205,10 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
     function _challengeCreationEvent(bytes32 headerHash) internal override {
         emit DisclosureChallengeInit(headerHash, msg.sender);
+    }
+
+    function _returnChallengerCollateral(bytes32 headerHash) internal override {
+        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
+        collateralToken.transfer(disclosureChallenges[headerHash].challenger, disclosureChallenges[headerHash].collateral);
     }
 }

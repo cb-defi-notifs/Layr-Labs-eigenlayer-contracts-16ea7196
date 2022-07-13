@@ -48,7 +48,5 @@ interface IDataLayrServiceManager is IServiceManager {
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 
-    function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
-
     function collateralToken() external view returns(IERC20);
 }

@@ -74,12 +74,13 @@ contract DataLayrServiceManager is
     );
 
     constructor(
+        IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
         IRepository _repository,
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime
     ) 
-        DataLayrServiceManagerStorage(_eigenLayrDelegation, _collateralToken)
+        DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         SignatureChecker(_repository)
     {
         feePerBytePerTime = _feePerBytePerTime;
@@ -94,6 +95,10 @@ contract DataLayrServiceManager is
 
     function setDisclosureChallenge(DataLayrDisclosureChallenge _dataLayrDisclosureChallenge) public onlyRepositoryGovernance {
         dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
+    }
+
+    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
+        dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
     function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
@@ -371,6 +376,7 @@ contract DataLayrServiceManager is
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
+            msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
             "Only challenge resolvers can slash operators"

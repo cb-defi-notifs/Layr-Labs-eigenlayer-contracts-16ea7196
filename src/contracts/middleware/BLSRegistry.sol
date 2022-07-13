@@ -97,13 +97,6 @@ contract BLSRegistry is
     /// @notice used for storing the list of current and past registered operators 
     address[] public registrantList;
 
-    // struct OperatorStake {
-    //     uint32 updateBlockNumber;
-    //     uint32 nextUpdateBlockNumber;
-    //     uint96 ethStake;
-    //     uint96 eigenStake;
-    // }
-
     /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
@@ -668,11 +661,8 @@ contract BLSRegistry is
             "Operator is already registered"
         );
 
-        // TODO: shared struct type for this + registrantType, also used in Repository?
         OperatorStake memory _operatorStake;
-
-
-
+        
         // if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the

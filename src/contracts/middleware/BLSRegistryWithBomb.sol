@@ -52,7 +52,7 @@ contract BLSRegistryWithBomb is
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
         //post last ephemeral key reveal on chain
-        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, finalEphemeralKey);
+        ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
         return true;
     }
 
@@ -67,13 +67,13 @@ contract BLSRegistryWithBomb is
      */ 
     function registerOperator(
         uint8 registrantType,
-        bytes32 ephemeralKey,
+        bytes32 ephemeralKeyHash,
         bytes calldata data,
         string calldata socket
     ) external {        
         _registerOperator(msg.sender, registrantType, data, socket);
         //add ephemeral key to epehemral key registry
-        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKey);
+        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
     }
 
     function registerOperator(

@@ -307,6 +307,7 @@ contract EigenLayrDeployer is
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
+            investmentManager,
             delegation,
             dlRepository,
             weth,

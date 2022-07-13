@@ -33,8 +33,8 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
 
     IVoteWeigher public voteWeigher;
     ITaskMetadata public taskMetadata;
-    IInvestmentManager public investmentManager;
-    IEigenLayrDelegation public eigenLayrDelegation;
+    IInvestmentManager public immutable investmentManager;
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
     
     // fixed duration of all new tasks
     uint256 public taskDuration;
@@ -67,25 +67,28 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         uint256 totalCumulativeWeight
     );
 
-// TODO: change to initializer
-    constructor(IERC20 _paymentToken, IERC20 _collateralToken, IRepository _repository)
+    constructor(
+        IERC20 _paymentToken,
+        IERC20 _collateralToken,
+        IRepository _repository,
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _eigenLayrDelegation
+    )
         ServiceManagerStorage(_paymentToken, _collateralToken)
         RepositoryAccess(_repository)
     {
+        investmentManager = _investmentManager;
+        eigenLayrDelegation = _eigenLayrDelegation;
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
 
     function initialize(
         IVoteWeigher _voteWeigher,
-        ITaskMetadata _taskMetadata,
-        IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _eigenLayrDelegation
+        ITaskMetadata _taskMetadata
     )  external initializer {
         voteWeigher = _voteWeigher;
         taskMetadata = _taskMetadata;
-        investmentManager = _investmentManager;
-        eigenLayrDelegation = _eigenLayrDelegation;
     }
 
     /**
