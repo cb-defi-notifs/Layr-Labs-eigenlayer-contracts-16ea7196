@@ -74,12 +74,13 @@ contract DataLayrServiceManager is
     );
 
     constructor(
+        IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
         IRepository _repository,
         IERC20 _collateralToken,
         uint256 _feePerBytePerTime
     ) 
-        DataLayrServiceManagerStorage(_eigenLayrDelegation, _collateralToken)
+        DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         SignatureChecker(_repository)
     {
         feePerBytePerTime = _feePerBytePerTime;

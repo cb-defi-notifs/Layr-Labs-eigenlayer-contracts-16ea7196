@@ -132,6 +132,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
+            investmentManager,
             delegation,
             dlRepository,
             weth,
