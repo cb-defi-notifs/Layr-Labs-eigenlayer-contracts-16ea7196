@@ -118,8 +118,6 @@ contract InvestmentManager is
         if (delegation.isDelegator(msg.sender)) {
             address operatorAddress = delegation.delegation(msg.sender);
             
-            
-            
             delegation.increaseOperatorShares(
                 operatorAddress,
                 strategy,
@@ -189,7 +187,6 @@ contract InvestmentManager is
             
             investorStrats[depositor].push(strategy);
 
-
         }
 
         // transfer tokens from the sender to the strategy
@@ -205,7 +202,6 @@ contract InvestmentManager is
         shares = strategy.deposit(token, amount);
 
         // add the returned shares to their existing shares for this strategy
-        
         investorStratShares[depositor][strategy] += shares;
     }
 
