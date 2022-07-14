@@ -68,8 +68,7 @@ contract BLSRegistry is
 
     // CONSTANTS
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,uint256 chainId)");
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant REGISTRATION_TYPEHASH =
@@ -178,7 +177,7 @@ contract BLSRegistry is
         //apk_0 = g2Gen
         // initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid)
+            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );
         // push an empty OperatorStake struct to the total stake history
         OperatorStake memory _totalStake;
@@ -662,7 +661,7 @@ contract BLSRegistry is
         );
 
         OperatorStake memory _operatorStake;
-        
+
         // if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the
