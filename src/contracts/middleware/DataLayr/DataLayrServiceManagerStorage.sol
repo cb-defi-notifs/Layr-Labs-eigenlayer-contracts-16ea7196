@@ -15,26 +15,6 @@ import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
-    
-    struct DataStoresForDuration{
-        uint32 one_duration;
-        uint32 two_duration;
-        uint32 three_duration;
-        uint32 four_duration;
-        uint32 five_duration;
-        uint32 six_duration;
-        uint32 seven_duration;
-        uint32 dataStoreId;
-        uint32 latestTime;
-    }
-
-    struct DataStoreHashInputs{
-        bytes32 headerHash;
-        uint32 dataStoreId;
-        uint32 blockNumber;
-        uint256 fee;
-    }
-
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
