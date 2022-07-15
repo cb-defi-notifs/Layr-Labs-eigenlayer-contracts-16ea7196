@@ -53,7 +53,6 @@ contract LightweightRegistry is
     uint64 public numRegistrants;  
 
     uint128 public nodeEthStake = 1 wei;
-    uint128 public nodeEigenStake = 1 wei;
     
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -90,8 +89,7 @@ contract LightweightRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers
     )
         VoteWeigherBase(
             _repository,
@@ -110,10 +108,6 @@ contract LightweightRegistry is
         uint256 length = _ethStrategiesConsideredAndMultipliers.length;
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
-        }
-        length = _eigenStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < length; ++i) {
-            strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
         }
     }
 
