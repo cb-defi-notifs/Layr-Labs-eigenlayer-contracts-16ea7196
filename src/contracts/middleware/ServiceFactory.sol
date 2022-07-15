@@ -6,6 +6,7 @@ import "../interfaces/IServiceFactory.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "./BLSRegistry.sol";
+import "./BLSRegistryFactory.sol";
 // import "./RegistryBase.sol";
 
 /**
@@ -17,6 +18,8 @@ contract ServiceFactory is IServiceFactory {
 
     IInvestmentManager immutable investmentManager;
     IEigenLayrDelegation immutable delegation;
+    // TODO: set the address for this, likely in the constructor
+    BLSRegistryFactory public blsRegistryFactory;
 
     mapping(IRepository => bool) public isRepository;
     mapping(IRegistry => bool) public isRegistry;
@@ -70,7 +73,7 @@ contract ServiceFactory is IServiceFactory {
     ) external returns(IRepository, IRegistry, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
         IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _NUMBER_OF_QUORUMS);
-        IRegistry registry = new BLSRegistry(Repository(address(repository)), delegation, investmentManager, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
+        IRegistry registry = blsRegistryFactory.createNewBLSRegistry(Repository(address(repository)), delegation, investmentManager, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
         Repository(address(repository)).initialize(
             voteWeigher,
             serviceManager,
