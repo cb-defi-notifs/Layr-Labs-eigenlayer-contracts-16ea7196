@@ -17,7 +17,7 @@ import "ds-test/test.sol";
             - updating the stakes of the operator
  */
 
-contract BLSRegistry is
+contract ECDSARegistry is
     IQuorumRegistry,
     VoteWeigherBase,
     DSTest
@@ -108,25 +108,6 @@ contract BLSRegistry is
     /// @notice mapping from operator's pubkeyhash to the history of their index in the array of all operators
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
-    /// @notice the task numbers at which the aggregated pubkeys were updated
-    uint32[] public apkUpdates;
-
-    /**
-     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
-             this is updated whenever a new operator registers or deregisters
-     */
-    bytes32[] public apkHashes;
-
-    /**
-     @notice used for storing current aggregate public key
-     */
-    /** 
-     @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-     addition in Jacobian coordinate system.
-     */
-    uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
-
-
     // EVENTS
     event StakeAdded(
         address operator,
@@ -151,9 +132,7 @@ contract BLSRegistry is
      */
     event Registration(
         address indexed registrant,
-        uint256[4] pk,
-        uint32 apkHashIndex,
-        bytes32 apkHash
+        bytes32 pubkeyHash
     );
 
     event Deregistration(
@@ -238,23 +217,15 @@ contract BLSRegistry is
     /**
       @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    /** 
-      @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
-     */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+    function deregisterOperator(uint32 index) external virtual returns (bool) {
+        _deregisterOperator(index);
         return true;
     }
 
-    function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
+    function _deregisterOperator(uint32 index) internal {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
-        );
-
-        require(
-            msg.sender == registrantList[index],
-            "Incorrect index supplied"
         );
 
         IServiceManager serviceManager = repository.serviceManager();
@@ -273,22 +244,8 @@ contract BLSRegistry is
 
         // get current taskNumber from ServiceManager
         uint32 currentTaskNumber = serviceManager.taskNumber();   
-        
-        /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
-         */
-        // get operator's stored pubkeyHash
+
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
-        bytes32 pubkeyHashFromInput = keccak256(
-            abi.encodePacked(
-                pubkeyToRemoveAff[0],
-                pubkeyToRemoveAff[1],
-                pubkeyToRemoveAff[2],
-                pubkeyToRemoveAff[3]
-            )
-        );
-        // verify that it matches the 'pubkeyToRemoveAff' input
-        require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
 
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
@@ -337,24 +294,6 @@ contract BLSRegistry is
         unchecked {
             --numRegistrants;
         }
-
-
-        /**
-         @notice update the aggregated public key of all registered operators and record
-                 this update in history
-         */
-        // get existing aggregate public key
-        uint256[4] memory pk = apk;
-        // remove signer's pubkey from aggregate public key
-        (pk[0], pk[1], pk[2], pk[3]) = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-        // update stored aggregate public key
-        apk = pk;
-
-        // update aggregated pubkey coordinates
-        apkUpdates.push(currentTaskNumber);
-
-        // store hash of updated aggregated pubkey
-        apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
         emit Deregistration(msg.sender);
     }
@@ -430,50 +369,6 @@ contract BLSRegistry is
         require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
         return operatorIndex.index;
         
-    }
-
-
-    /**
-     @notice This function is for removing a pubkey from aggregated pubkey. The thesis of this operation:
-              - conversion to Jacobian coordinates,
-              - do the subtraction of pubkey from aggregated pubkey,
-              - convert the updated aggregated pubkey back to affine coordinates.   
-     */
-    /**
-     @param pubkeyToRemoveAff is the pubkey that is to be removed,
-     @param existingAggPubkeyAff is the aggregated pubkey.
-     */
-    /**
-     @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
-     */ 
-    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal view returns (uint256, uint256, uint256, uint256) {
-        uint256[6] memory pubkeyToRemoveJac;
-        uint256[6] memory existingAggPubkeyJac;
-
-        // get x0, x1, y0, y1 from affine coordinates
-        for (uint256 i = 0; i < 4;) {
-            pubkeyToRemoveJac[i] = pubkeyToRemoveAff[i];
-            existingAggPubkeyJac[i] = existingAggPubkeyAff[i];
-            unchecked {
-                ++i;
-            }
-        }
-        // set z0 = 1
-        pubkeyToRemoveJac[4] = 1;
-        existingAggPubkeyJac[4] = 1;
-
-
-        /**
-         @notice subtract pubkeyToRemoveJac from the aggregate pubkey
-         */
-        // negate pubkeyToRemoveJac  
-        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
-        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
-        // add the negation to existingAggPubkeyJac
-        BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
-
-        // 'addJac' function above modifies the first input in memory, so now we can just return it (but first transform it back to affine)
-        return (BLS.jacToAff(existingAggPubkeyJac));
     }
 
     /**
@@ -582,37 +477,6 @@ contract BLSRegistry is
         return registry[operator].active;
     }
 
-    /**
-     @notice get hash of a historical aggregated public key corresponding to a given index;
-             called by checkSignatures in SignatureChecker.sol.
-     */
-    function getCorrectApkHash(uint256 index, uint32 blockNumber)
-        public
-        view
-        returns (bytes32)
-    {
-        require(
-            blockNumber >= apkUpdates[index],
-            "Index too recent"
-        );
-
-        // if not last update
-        if (index != apkUpdates.length - 1) {
-            require(
-                blockNumber < apkUpdates[index + 1],
-                "Not latest valid apk update"
-            );
-        }
-
-        return apkHashes[index];
-    }
-
-
-    function getApkUpdatesLength() public view returns (uint256) {
-        return apkUpdates.length;
-    }
-
-
     function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }
@@ -691,58 +555,37 @@ contract BLSRegistry is
 
 
         
-        /**
-         @notice evaluate the new aggregated pubkey
-         */
-        uint256[4] memory newApk;
-        uint256[4] memory pk;
+        // /**
+        //  @notice evaluate the new aggregated pubkey
+        //  */
+        // uint256[4] memory newApk;
+        // uint256[4] memory pk;
 
         
 
-        {
-            // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 164);
+        // {
+        //     // verify sig of public key and get pubkeyHash back, slice out compressed apk
+        //     (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 164);
             
-            // add pubkey to aggregated pukkey in Jacobian coordinates
-            uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
+        //     // add pubkey to aggregated pukkey in Jacobian coordinates
+        //     uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
             
-            // convert back to Affine coordinates
-            (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
+        //     // convert back to Affine coordinates
+        //     (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
 
-            apk = newApk;
-        }
+        //     apk = newApk;
+        // }
         
 
+        // TODO: fix this + above
         // getting pubkey hash 
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
-
-
-        if (apkUpdates.length != 0) {
-            // addition doesn't work in this case 
-            // our addition algorithm doesn't work
-            require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
-        }
-
-        
-        // emit log_bytes(getCompressedApk());
-        // emit log_named_uint("x", input[0]);
-        // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
-
-
-
+        bytes32 pubkeyHash = bytes32(data);
         
         /**
          @notice some book-keeping for aggregated pubkey
          */
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
-
-        // store the current tasknumber in which the aggregated pubkey is being updated 
-        apkUpdates.push(uint32(block.number));
-        
-        //store the hash of aggregate pubkey
-        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);    
 
         /**
          @notice some book-keeping for recording info pertaining to the operator
@@ -810,7 +653,7 @@ contract BLSRegistry is
             ++numRegistrants;
         }
             
-        emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash);
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
@@ -880,10 +723,6 @@ contract BLSRegistry is
         return totalStakeHistory[index];
     }
 
-    function getApkHashesLength() external view returns (uint256) {
-        return apkHashes.length;
-    }
-
     function getOperatorStatus(address operator) external view returns(uint8) {
         return registry[operator].active;
     }
@@ -906,6 +745,219 @@ contract BLSRegistry is
     {
         return registry[operator].deregisterTime;
     }
+
+
+    function getCorrectApkHash(uint256, uint32) external returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function getApkHashesLength() external view returns (uint256) {
+        return 0;
+        // return apkHashes.length;
+    }
 }
 
 
+//     /**
+//      * @notice Used for notifying that operator wants to deregister from being 
+//      *         a DataLayr node 
+//      */
+//     function commitDeregistration() external returns (bool) {
+//         require(
+//             registry[msg.sender].active > 0,
+//             "Operator is already registered"
+//         );
+        
+//         // they must store till the latest time a dump expires
+//         registry[msg.sender].to = latestTime;
+
+//         // committing to not signing off on any more data that is being asserted into DataLayr
+//         registry[msg.sender].active = 0;
+
+//         emit DeregistrationCommit(msg.sender);
+//         return true;
+//     }
+
+
+//     /**
+//      * @notice Used by an operator to de-register itself from providing service to the middleware.
+//      */
+// // TODO: decide if address input is necessary for the standard
+// // TODO: JEFFC -- delete operator out of stakes object (replace them with the last person & pop off the data)
+//     function deregisterOperator(address, bytes calldata)
+//         external
+//         returns (bool)
+//     {
+//         address operator = msg.sender;
+//         // TODO: verify this check is adequate
+//         require(
+//             registry[operator].to != 0 ||
+//                 registry[operator].to < block.timestamp,
+//             "Operator is already registered"
+//         );
+
+//         // subtract the staked Eigen and ETH of the operator that is getting deregistered
+//         // from the total stake securing the middleware
+//         totalStake.ethAmount -= operatorStakes[operator].ethAmount;
+//         totalStake.eigenAmount -= operatorStakes[operator].eigenAmount;
+
+//         // clear the staked Eigen and ETH of the operator which is getting deregistered
+//         operatorStakes[operator].ethAmount = 0;
+//         operatorStakes[operator].eigenAmount = 0;
+
+//         //decrement number of registrants
+//         unchecked {
+//             --numRegistrants;
+//         }
+
+//         return true;
+//     }
+
+//     /**
+//      * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
+//      */
+//     /**
+//      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
+//      *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
+//      *        the form 
+//      *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
+//      *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
+//      *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
+//      *          where registrantType is a uint8 and all others are a uint96
+//      * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
+//      *        getting updated
+//      * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
+//      *        getting updated  
+//      */ 
+//     function updateStakes(
+//         bytes memory stakes,
+//         address[] memory operators,
+//         uint32[] memory indexes
+//     ) public {
+//         //provided 'stakes' must be preimage of last update's hash
+//         require(
+//             keccak256(stakes) ==
+//                 stakeHashes[
+//                     stakeHashUpdates[stakeHashUpdates.length - 1]
+//                 ],
+//             "Stakes are incorrect"
+//         );
+
+//         uint256 operatorsLength = operators.length;
+//         require(
+//             indexes.length == operatorsLength,
+//             "operator len and index len don't match"
+//         );
+
+//         // get dump number from DataLayrServiceManagerStorage.sol
+//         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
+//             IDataLayrServiceManager(address(repository.serviceManager()))
+//                 .dumpNumber(),
+//             stakeHashUpdates[stakeHashUpdates.length - 1]
+//         );
+
+//         // iterating over all the tuples that are to be updated
+//         for (uint256 i = 0; i < operatorsLength; ) {
+
+//             // placing the pointer at the starting byte of the tuple 
+//             /// @dev 44 bytes per DataLayr node: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+//             uint256 start = uint256(indexes[i] * 44);
+
+//             require(start < stakes.length - 68, "Cannot point to total bytes");
+
+//             require(
+//                 stakes.toAddress(start) == operators[i],
+//                 "index is incorrect"
+//             );
+
+//             // determine current stakes
+//             EthAndEigenAmounts memory currentStakes = EthAndEigenAmounts({
+//                 ethAmount: stakes.toUint96(start + 20),
+//                 eigenAmount: stakes.toUint96(start + 32)
+//             });
+
+//             // determine new stakes
+//             EthAndEigenAmounts memory newStakes = EthAndEigenAmounts({
+//                 ethAmount: uint96(weightOfOperatorEth(operators[i])),
+//                 eigenAmount: uint96(weightOfOperatorEigen(operators[i]))
+//             });
+
+//             // check if minimum requirements have been met
+//             if (newStakes.ethAmount < dlnEthStake) {
+//                 newStakes.ethAmount = uint96(0);
+//             }
+//             if (newStakes.eigenAmount < dlnEigenStake) {
+//                 newStakes.eigenAmount = uint96(0);
+//             }
+
+//             // find new stakes object, replacing deposit of the operator with updated deposit
+//             stakes = stakes
+//             // slice until just after the address bytes of the DataLayr node
+//             .slice(0, start + 20)
+//             // concatenate the updated ETH and EIGEN deposits
+//             .concat(abi.encodePacked(newStakes.ethAmount, newStakes.eigenAmount));
+// //TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
+//             stakes = stakes
+//             // concatenate the bytes pertaining to the tuples from rest of the DataLayr 
+//             // nodes except the last 24 bytes that comprises of total ETH deposits
+//             .concat(stakes.slice(start + 44, stakes.length - (start + 68))) //68 = 44 + 24
+//             // concatenate the updated deposits in the last 24 bytes,
+//             // subtract old ETH and EIGEN deposits and add the updated deposits
+//                 .concat(
+//                     abi.encodePacked(
+//                         (stakes.toUint96(stakes.length - 24) + newStakes.ethAmount - currentStakes.ethAmount),
+//                         (stakes.toUint96(stakes.length - 12) + newStakes.eigenAmount - currentStakes.eigenAmount)
+//                     )
+//                 );
+//             // push new stake to storage
+//             operatorStakes[operators[i]] = newStakes;
+//             // update the total stake
+//             totalStake.ethAmount = totalStake.ethAmount + newStakes.ethAmount - currentStakes.ethAmount;
+//             totalStake.eigenAmount = totalStake.eigenAmount + newStakes.eigenAmount - currentStakes.eigenAmount;
+//             emit StakeUpdate(
+//                 operators[i],
+//                 newStakes.ethAmount,
+//                 newStakes.eigenAmount,
+//                 dumpNumbers.a,
+//                 dumpNumbers.b
+//             );
+//             unchecked {
+//                 ++i;
+//             }
+//         }
+//         stakeHashUpdates.push(dumpNumbers.a);
+
+//         // record the commitment
+//         stakeHashes[dumpNumbers.a] = keccak256(stakes);
+//     }
+
+
+//     function getStakesHashUpdate(uint256 index)
+//         public
+//         view
+//         returns (uint256)
+//     {
+//         return stakeHashUpdates[index];
+//     }
+
+//     function getStakesHashUpdateAndCheckIndex(
+//         uint256 index,
+//         uint48 dumpNumber
+//     ) public view returns (bytes32) {
+//         uint48 dumpNumberAtIndex = stakeHashUpdates[index];
+//         require(
+//             dumpNumberAtIndex <= dumpNumber,
+//             "DumpNumber at index is not less than or equal dumpNumber"
+//         );
+//         if (index != stakeHashUpdates.length - 1) {
+//             require(
+//                 stakeHashUpdates[index + 1] > dumpNumber,
+//                 "!(stakeHashUpdates[index + 1] > dumpNumber)"
+//             );
+//         }
+//         return stakeHashes[dumpNumberAtIndex];
+//     }
+
+//     function getStakesHashUpdateLength() public view returns (uint256) {
+//         return stakeHashUpdates.length;
+//     }
