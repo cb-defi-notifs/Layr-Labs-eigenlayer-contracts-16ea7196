@@ -154,8 +154,6 @@ contract LightweightRegistry is
             "Operator is already registered"
         );
 
-        IServiceManager serviceManager = repository.serviceManager();
-
         /**
          @notice this info is used in retroactive proofs
          */
@@ -292,9 +290,5 @@ contract LightweightRegistry is
         returns (uint32)
     {
         return registry[operator].fromBlockNumber;
-    }
-
-    function getOperatorId(address operator) external returns (uint32) {
-        return 0;
     }
 }
