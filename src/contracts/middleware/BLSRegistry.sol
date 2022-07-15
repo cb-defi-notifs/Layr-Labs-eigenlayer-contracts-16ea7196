@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IServiceManager.sol";
-import "../interfaces/IBLSRegistry.sol";
+import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
@@ -18,7 +18,7 @@ import "ds-test/test.sol";
  */
 
 contract BLSRegistry is
-    IBLSRegistry,
+    IQuorumRegistry,
     VoteWeigherBase,
     DSTest
 {

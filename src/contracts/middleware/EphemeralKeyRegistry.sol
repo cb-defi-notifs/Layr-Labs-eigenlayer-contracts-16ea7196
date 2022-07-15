@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IEphemeralKeyRegistry.sol";
-import "../interfaces/IBLSRegistry.sol";
+import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
@@ -132,7 +132,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         uint256 historyLength = EKHistory[operator].length - 1;
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
-        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
+        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         //check if operator is still active in the DLRegistry
         require(registry.getOperatorStatus(operator) == 1, "operator not active");

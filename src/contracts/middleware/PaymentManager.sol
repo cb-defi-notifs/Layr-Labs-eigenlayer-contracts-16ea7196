@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IServiceManager.sol";
-import "../interfaces/IBLSRegistry.sol";
+import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
@@ -182,7 +182,7 @@ contract PaymentManager is
              for their service since their last payment until @param toTaskNumber  
      **/
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
-        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
+        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         // only registered operators can call
         require(
@@ -553,7 +553,7 @@ contract PaymentManager is
                 }
             }
             //TODO: Change this
-            IBLSRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {

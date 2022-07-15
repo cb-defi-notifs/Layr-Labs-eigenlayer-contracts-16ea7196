@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./IRegistry.sol";
 
-interface IBLSRegistry is IRegistry {
+interface IQuorumRegistry is IRegistry {
     struct OperatorStake {
         uint32 updateBlockNumber;
         uint32 nextUpdateBlockNumber;

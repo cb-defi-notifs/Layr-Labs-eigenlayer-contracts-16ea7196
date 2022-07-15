@@ -5,7 +5,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRegistry.sol";
-import "../interfaces/IBLSRegistry.sol";
+import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 // TODO: it would be better to just use functions from a more generalized interface!
 
@@ -277,8 +277,8 @@ contract DelegationTerms is IDelegationTerms, RepositoryAccess, DSTest {
         //multiplier as a fraction of 1e18. i.e. we act as if 'multipleToEthHolders' is always 1e18 and then compare EIGEN holder earnings to that.
         //TODO: where to fetch this? this is initialized as 1e18 = EIGEN earns 50% of all middleware fees (multiple of 1 compared to ETH holders)
         uint256 multipleToEigenHolders = 1e18;
-       (uint96 totalEthStaked, uint96 totalEigenStaked) = IBLSRegistry(address(repository.registry())).totalStake();
-       (uint96 operatorEthStaked, uint96 operatorEigenStaked) = IBLSRegistry(address(repository.registry())).operatorStakes(operator);
+       (uint96 totalEthStaked, uint96 totalEigenStaked) = IQuorumRegistry(address(repository.registry())).totalStake();
+       (uint96 operatorEthStaked, uint96 operatorEigenStaked) = IQuorumRegistry(address(repository.registry())).operatorStakes(operator);
        multipleToEigenHolders = ((((multipleToEigenHolders * totalEigenStaked) / operatorEigenStaked) * totalEthStaked) / operatorEthStaked);
         uint256 amountToEigenHolders = (amount * multipleToEigenHolders) / (multipleToEigenHolders + 1e18);
         //uint256 amountToEthHolders = amount - amountToEigenHolders
