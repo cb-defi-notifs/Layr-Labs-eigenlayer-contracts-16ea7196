@@ -108,6 +108,15 @@ contract ECDSARegistry is
     /// @notice mapping from operator's pubkeyhash to the history of their index in the array of all operators
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
+    /// @notice the taskNumbers at which the stake object was updated
+    uint32[] public stakeHashUpdates;
+
+    /**
+     @notice list of keccak256(stakes) of operators, 
+             this is updated whenever a new operator registers or deregisters
+     */
+    bytes32[] public stakeHashes;
+
     // EVENTS
     event StakeAdded(
         address operator,
@@ -153,7 +162,6 @@ contract ECDSARegistry is
             _NUMBER_OF_QUORUMS
         )
     {
-        //apk_0 = g2Gen
         // initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
@@ -174,6 +182,9 @@ contract ECDSARegistry is
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
         }
+
+        // TODO: check this initialization
+        stakeHashUpdates.push(0);
     }
 
     /**
@@ -217,15 +228,29 @@ contract ECDSARegistry is
     /**
       @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    function deregisterOperator(uint32 index) external virtual returns (bool) {
-        _deregisterOperator(index);
+    /** 
+      @param stakes is the calldata that contains the preimage of the current stakesHash
+     */
+    function deregisterOperator(bytes calldata stakes, uint32 index) external virtual returns (bool) {
+        _deregisterOperator(stakes, index);
         return true;
     }
 
-    function _deregisterOperator(uint32 index) internal {
+    function _deregisterOperator(bytes calldata stakes, uint32 index) internal {
         require(
             registry[msg.sender].active > 0,
             "Operator is already registered"
+        );
+
+        require(
+            msg.sender == registrantList[index],
+            "Incorrect index supplied"
+        );
+
+        // verify integrity of supplied 'stakes' data
+        require(
+            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
+            "Supplied stakes are incorrect"
         );
 
         IServiceManager serviceManager = repository.serviceManager();
@@ -236,7 +261,6 @@ contract ECDSARegistry is
          */
         registry[msg.sender].serveUntil = serviceManager.latestTime();
 
-
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
 
@@ -244,7 +268,11 @@ contract ECDSARegistry is
 
         // get current taskNumber from ServiceManager
         uint32 currentTaskNumber = serviceManager.taskNumber();   
-
+        
+        /**
+         @notice verify that the sender is a operator that is doing deregistration for itself 
+         */
+        // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
 
         // determine current stakes
@@ -252,31 +280,31 @@ contract ECDSARegistry is
             pubkeyHash
         ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
-        /**
-         @notice recording the information pertaining to change in stake for this operator in the history
-         */
-        // determine new stakes
-        OperatorStake memory newStakes;
-        // recording the current task number where the operator stake got updated 
-        newStakes.updateBlockNumber = uint32(block.number);
+        {
+            /**
+             @notice recording the information pertaining to change in stake for this operator in the history
+             */
+            // determine new stakes
+            OperatorStake memory newStakes;
+            // recording the current task number where the operator stake got updated 
+            newStakes.updateBlockNumber = uint32(block.number); 
 
-        // setting total staked ETH for the operator to 0
-        newStakes.ethStake = uint96(0);
-        // setting total staked Eigen for the operator to 0
-        newStakes.eigenStake = uint96(0);
+            // setting total staked ETH for the operator to 0
+            newStakes.ethStake = uint96(0);
+            // setting total staked Eigen for the operator to 0
+            newStakes.eigenStake = uint96(0);   
 
+            //set nextUpdateBlockNumber in prev stakes
+            pubkeyHashToStakeHistory[pubkeyHash][
+                pubkeyHashToStakeHistory[pubkeyHash].length - 1
+            ].nextUpdateBlockNumber = uint32(block.number); 
 
-        //set nextUpdateBlockNumber in prev stakes
-        pubkeyHashToStakeHistory[pubkeyHash][
-            pubkeyHashToStakeHistory[pubkeyHash].length - 1
-        ].nextUpdateBlockNumber = uint32(block.number);
+            // push new stake to storage
+            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);   
 
-        // push new stake to storage
-        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-        // Update registrant list and update index histories
-        popRegistrant(pubkeyHash,index,currentTaskNumber);
-
+            // Update registrant list and update index histories
+            popRegistrant(pubkeyHash,index,currentTaskNumber);
+        }
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware
@@ -295,10 +323,40 @@ contract ECDSARegistry is
             --numRegistrants;
         }
 
+        // update stakeHash
+        stakeHashUpdates.push(currentTaskNumber);
+
+        // placing the pointer at the starting byte of the tuple 
+        /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+        uint256 start = uint256(index * 44);
+        require(start < stakes.length - 68, "Cannot point to total bytes");
+        require(
+            stakes.toAddress(start) == msg.sender,
+            "index is incorrect"
+        );
+
+        // find new stakes object, replacing deposit of the operator with updated deposit
+        bytes memory updatedStakesArray = stakes
+        // slice until just before the address bytes of the operator
+        .slice(0, start);
+// TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
+        updatedStakesArray = updatedStakesArray
+            // concatenate the bytes pertaining to the tuples from rest of the middleware 
+            // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
+            .concat(stakes.slice(start + 44, stakes.length - 24))
+            // concatenate the updated deposits in the last 24 bytes
+            .concat(
+                abi.encodePacked(
+                    (_totalStake.ethStake),
+                    (_totalStake.eigenStake)
+                )
+        );
+
+        // store hash of 'stakes'
+        stakeHashes[currentTaskNumber] = keccak256(updatedStakesArray);
+
         emit Deregistration(msg.sender);
     }
-
-
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
@@ -335,7 +393,6 @@ contract ECDSARegistry is
         totalOperatorsHistory.push(_totalOperators);
     }
 
-    
     function getOperatorIndex(address operator, uint32 taskNumber, uint32 index) public view returns (uint32) {
 
         Registrant memory registrant = registry[operator];
@@ -372,20 +429,60 @@ contract ECDSARegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of nodes.
+     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
      */
     /**
-     * @param operators are the nodes whose information on their ETH and EIGEN deposits
+     * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
+     *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
+     *        the form 
+     *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
+     *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
+     *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
+     *          where registrantType is a uint8 and all others are a uint96
+     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
      *        getting updated
-     */
-    function updateStakes(address[] calldata operators) public {
+     * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
+     *        getting updated  
+     */ 
+    function updateStakes(
+        bytes calldata stakes,
+        address[] memory operators,
+        uint32[] memory indexes
+    ) public {
+        //provided 'stakes' must be preimage of last update's hash
+        require(
+            keccak256(stakes) ==
+                stakeHashes[
+                    stakeHashUpdates[stakeHashUpdates.length - 1]
+                ],
+            "Stakes are incorrect"
+        );
+
+        uint256 operatorsLength = operators.length;
+        require(
+            indexes.length == operatorsLength,
+            "operator len and index len don't match"
+        );
+
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
-        // TODO: test if declaring more variables outside of loop decreases gas usage
-        uint256 operatorsLength = operators.length;
+        bytes memory updatedStakesArray = stakes;
+
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+
+            // placing the pointer at the starting byte of the tuple 
+            /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+            uint256 start = uint256(indexes[i] * 44);
+
+            require(start < stakes.length - 68, "Cannot point to total bytes");
+
+            require(
+                stakes.toAddress(start) == operators[i],
+                "index is incorrect"
+            );
+
             // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
             // determine current stakes
@@ -414,13 +511,24 @@ contract ECDSARegistry is
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
-
             /**
              * update total Eigen and ETH that are being employed by the operator for securing
              * the queries from middleware via EigenLayr
              */
             _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
             _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+
+            // find new stakes object, replacing deposit of the operator with updated deposit
+            updatedStakesArray = updatedStakesArray
+            // slice until just after the address bytes of the operator
+            .slice(0, start + 20)
+            // concatenate the updated ETH and EIGEN deposits
+            .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake));
+//TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
+            updatedStakesArray = updatedStakesArray
+            // concatenate the bytes pertaining to the tuples from rest of the operators 
+            // except the last 24 bytes that comprises of total ETH deposits
+            .concat(stakes.slice(start + 44, stakes.length - 24));
 
             emit StakeUpdate(
                 operators[i],
@@ -434,10 +542,23 @@ contract ECDSARegistry is
             }
         }
 
+        // concatenate the updated deposits in the last 24 bytes,
+        updatedStakesArray = updatedStakesArray
+        .concat(
+            abi.encodePacked(
+                (_totalStake.ethStake),
+                (_totalStake.eigenStake)
+            )
+        );
+
         // update storage of total stake
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
+
+        // get current task number from ServiceManager
+        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
+        stakeHashes[currentTaskNumber] = keccak256(stakes);
     }
 
 
@@ -477,6 +598,37 @@ contract ECDSARegistry is
         return registry[operator].active;
     }
 
+    /**
+     @notice get hash of a historical stake object corresponding to a given index;
+             called by checkSignatures in SignatureChecker.sol.
+     */
+    function getCorrectStakeHash(uint256 index, uint32 blockNumber)
+        public
+        view
+        returns (bytes32)
+    {
+        require(
+            blockNumber >= stakeHashUpdates[index],
+            "Index too recent"
+        );
+
+        // if not last update
+        if (index != stakeHashUpdates.length - 1) {
+            require(
+                blockNumber < stakeHashUpdates[index + 1],
+                "Not latest valid stakeHashUpdate"
+            );
+        }
+
+        return stakeHashes[index];
+    }
+
+
+    function getStakeHashUpdatesLength() public view returns (uint256) {
+        return stakeHashUpdates.length;
+    }
+
+
     function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }
@@ -497,26 +649,27 @@ contract ECDSARegistry is
      */
     /**
      @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     @param stakes is the calldata that contains the preimage of the current stakesHash
      @param socket is the socket address of the operator
      
      */ 
     function registerOperator(
         uint8 registrantType,
-        bytes calldata data,
+        address signingAddress,
+        bytes calldata stakes,
         string calldata socket
     ) public virtual {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, signingAddress, registrantType, stakes, socket);
     }
-
 
     /**
      @param operator is the node who is registering to be a operator
      */
     function _registerOperator(
         address operator,
+        address signingAddress,
         uint8 registrantType,
-        bytes calldata data,
+        bytes calldata stakes,
         string calldata socket
     ) internal virtual {
         require(
@@ -553,37 +706,15 @@ contract ECDSARegistry is
             "must register as at least one type of validator"
         );
 
+        //bytes to add to the existing stakes object
+        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethStake, _operatorStake.eigenStake);
 
-        
-        // /**
-        //  @notice evaluate the new aggregated pubkey
-        //  */
-        // uint256[4] memory newApk;
-        // uint256[4] memory pk;
+        // verify integrity of supplied 'stakes' data
+        require(
+            keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
+            "Supplied stakes are incorrect"
+        );
 
-        
-
-        // {
-        //     // verify sig of public key and get pubkeyHash back, slice out compressed apk
-        //     (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, 164);
-            
-        //     // add pubkey to aggregated pukkey in Jacobian coordinates
-        //     uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
-            
-        //     // convert back to Affine coordinates
-        //     (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
-
-        //     apk = newApk;
-        // }
-        
-
-        // TODO: fix this + above
-        // getting pubkey hash 
-        bytes32 pubkeyHash = bytes32(data);
-        
-        /**
-         @notice some book-keeping for aggregated pubkey
-         */
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
@@ -592,9 +723,10 @@ contract ECDSARegistry is
          */
         // record the new stake for the operator in the storage
         _operatorStake.updateBlockNumber = uint32(block.number);
+        bytes32 pubkeyHash = bytes32(uint256(uint160(signingAddress)));
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
-        
-        // store the registrant's info in relation
+
+        // store the registrant's info
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
@@ -610,11 +742,19 @@ contract ECDSARegistry is
         // record the operator being registered
         registrantList.push(operator);
 
+        // update the counter for registrant ID
+        unchecked {
+            ++nextRegistrantId;
+        }
+
+        // store the current tasknumber in which the stakeHash is being updated 
+        stakeHashUpdates.push(uint32(block.number));
+
         // record operator's index in list of operators
         OperatorIndex memory operatorIndex;
         operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-        
+
         // Update totalOperatorsHistory
         {
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
@@ -624,12 +764,6 @@ contract ECDSARegistry is
             _totalOperators.index = uint32(registrantList.length);
             totalOperatorsHistory.push(_totalOperators);
         }
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
-        
         
         {
             /**
@@ -646,13 +780,31 @@ contract ECDSARegistry is
             // linking with the most recent stake recordd in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
             totalStakeHistory.push(_totalStake);
+
+            // store the updated meta-data in the mapping with the key being the current dump number
+            /** 
+             * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+             *      at the front of the list of tuples pertaining to existing operators. 
+             *      Also, need to update the total ETH and/or EIGEN deposited by all operators.
+             */
+            stakeHashes[currentTaskNumber] = keccak256(
+                abi.encodePacked(
+                    stakes.slice(0, stakes.length - 24),
+                    // append at the end of list
+                    dataToAppend,
+                    // update the total ETH and EIGEN deposited
+                    _totalStake.ethStake,
+                    _totalStake.eigenStake
+                )
+            );
         }
 
         // increment number of registrants
         unchecked {
             ++numRegistrants;
         }
-            
+
+        emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
         emit Registration(operator, pubkeyHash);
     }
 
@@ -723,6 +875,10 @@ contract ECDSARegistry is
         return totalStakeHistory[index];
     }
 
+    function getStakeHashesLength() external view returns (uint256) {
+        return stakeHashes.length;
+    }
+
     function getOperatorStatus(address operator) external view returns(uint8) {
         return registry[operator].active;
     }
@@ -745,219 +901,4 @@ contract ECDSARegistry is
     {
         return registry[operator].deregisterTime;
     }
-
-
-    function getCorrectApkHash(uint256, uint32) external returns (bytes32) {
-        return bytes32(0);
-    }
-
-    function getApkHashesLength() external view returns (uint256) {
-        return 0;
-        // return apkHashes.length;
-    }
 }
-
-
-//     /**
-//      * @notice Used for notifying that operator wants to deregister from being 
-//      *         a DataLayr node 
-//      */
-//     function commitDeregistration() external returns (bool) {
-//         require(
-//             registry[msg.sender].active > 0,
-//             "Operator is already registered"
-//         );
-        
-//         // they must store till the latest time a dump expires
-//         registry[msg.sender].to = latestTime;
-
-//         // committing to not signing off on any more data that is being asserted into DataLayr
-//         registry[msg.sender].active = 0;
-
-//         emit DeregistrationCommit(msg.sender);
-//         return true;
-//     }
-
-
-//     /**
-//      * @notice Used by an operator to de-register itself from providing service to the middleware.
-//      */
-// // TODO: decide if address input is necessary for the standard
-// // TODO: JEFFC -- delete operator out of stakes object (replace them with the last person & pop off the data)
-//     function deregisterOperator(address, bytes calldata)
-//         external
-//         returns (bool)
-//     {
-//         address operator = msg.sender;
-//         // TODO: verify this check is adequate
-//         require(
-//             registry[operator].to != 0 ||
-//                 registry[operator].to < block.timestamp,
-//             "Operator is already registered"
-//         );
-
-//         // subtract the staked Eigen and ETH of the operator that is getting deregistered
-//         // from the total stake securing the middleware
-//         totalStake.ethAmount -= operatorStakes[operator].ethAmount;
-//         totalStake.eigenAmount -= operatorStakes[operator].eigenAmount;
-
-//         // clear the staked Eigen and ETH of the operator which is getting deregistered
-//         operatorStakes[operator].ethAmount = 0;
-//         operatorStakes[operator].eigenAmount = 0;
-
-//         //decrement number of registrants
-//         unchecked {
-//             --numRegistrants;
-//         }
-
-//         return true;
-//     }
-
-//     /**
-//      * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
-//      */
-//     /**
-//      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
-//      *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
-//      *        the form 
-//      *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
-//      *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
-//      *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
-//      *          where registrantType is a uint8 and all others are a uint96
-//      * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
-//      *        getting updated
-//      * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
-//      *        getting updated  
-//      */ 
-//     function updateStakes(
-//         bytes memory stakes,
-//         address[] memory operators,
-//         uint32[] memory indexes
-//     ) public {
-//         //provided 'stakes' must be preimage of last update's hash
-//         require(
-//             keccak256(stakes) ==
-//                 stakeHashes[
-//                     stakeHashUpdates[stakeHashUpdates.length - 1]
-//                 ],
-//             "Stakes are incorrect"
-//         );
-
-//         uint256 operatorsLength = operators.length;
-//         require(
-//             indexes.length == operatorsLength,
-//             "operator len and index len don't match"
-//         );
-
-//         // get dump number from DataLayrServiceManagerStorage.sol
-//         Uint48xUint48 memory dumpNumbers = Uint48xUint48(
-//             IDataLayrServiceManager(address(repository.serviceManager()))
-//                 .dumpNumber(),
-//             stakeHashUpdates[stakeHashUpdates.length - 1]
-//         );
-
-//         // iterating over all the tuples that are to be updated
-//         for (uint256 i = 0; i < operatorsLength; ) {
-
-//             // placing the pointer at the starting byte of the tuple 
-//             /// @dev 44 bytes per DataLayr node: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
-//             uint256 start = uint256(indexes[i] * 44);
-
-//             require(start < stakes.length - 68, "Cannot point to total bytes");
-
-//             require(
-//                 stakes.toAddress(start) == operators[i],
-//                 "index is incorrect"
-//             );
-
-//             // determine current stakes
-//             EthAndEigenAmounts memory currentStakes = EthAndEigenAmounts({
-//                 ethAmount: stakes.toUint96(start + 20),
-//                 eigenAmount: stakes.toUint96(start + 32)
-//             });
-
-//             // determine new stakes
-//             EthAndEigenAmounts memory newStakes = EthAndEigenAmounts({
-//                 ethAmount: uint96(weightOfOperatorEth(operators[i])),
-//                 eigenAmount: uint96(weightOfOperatorEigen(operators[i]))
-//             });
-
-//             // check if minimum requirements have been met
-//             if (newStakes.ethAmount < dlnEthStake) {
-//                 newStakes.ethAmount = uint96(0);
-//             }
-//             if (newStakes.eigenAmount < dlnEigenStake) {
-//                 newStakes.eigenAmount = uint96(0);
-//             }
-
-//             // find new stakes object, replacing deposit of the operator with updated deposit
-//             stakes = stakes
-//             // slice until just after the address bytes of the DataLayr node
-//             .slice(0, start + 20)
-//             // concatenate the updated ETH and EIGEN deposits
-//             .concat(abi.encodePacked(newStakes.ethAmount, newStakes.eigenAmount));
-// //TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-//             stakes = stakes
-//             // concatenate the bytes pertaining to the tuples from rest of the DataLayr 
-//             // nodes except the last 24 bytes that comprises of total ETH deposits
-//             .concat(stakes.slice(start + 44, stakes.length - (start + 68))) //68 = 44 + 24
-//             // concatenate the updated deposits in the last 24 bytes,
-//             // subtract old ETH and EIGEN deposits and add the updated deposits
-//                 .concat(
-//                     abi.encodePacked(
-//                         (stakes.toUint96(stakes.length - 24) + newStakes.ethAmount - currentStakes.ethAmount),
-//                         (stakes.toUint96(stakes.length - 12) + newStakes.eigenAmount - currentStakes.eigenAmount)
-//                     )
-//                 );
-//             // push new stake to storage
-//             operatorStakes[operators[i]] = newStakes;
-//             // update the total stake
-//             totalStake.ethAmount = totalStake.ethAmount + newStakes.ethAmount - currentStakes.ethAmount;
-//             totalStake.eigenAmount = totalStake.eigenAmount + newStakes.eigenAmount - currentStakes.eigenAmount;
-//             emit StakeUpdate(
-//                 operators[i],
-//                 newStakes.ethAmount,
-//                 newStakes.eigenAmount,
-//                 dumpNumbers.a,
-//                 dumpNumbers.b
-//             );
-//             unchecked {
-//                 ++i;
-//             }
-//         }
-//         stakeHashUpdates.push(dumpNumbers.a);
-
-//         // record the commitment
-//         stakeHashes[dumpNumbers.a] = keccak256(stakes);
-//     }
-
-
-//     function getStakesHashUpdate(uint256 index)
-//         public
-//         view
-//         returns (uint256)
-//     {
-//         return stakeHashUpdates[index];
-//     }
-
-//     function getStakesHashUpdateAndCheckIndex(
-//         uint256 index,
-//         uint48 dumpNumber
-//     ) public view returns (bytes32) {
-//         uint48 dumpNumberAtIndex = stakeHashUpdates[index];
-//         require(
-//             dumpNumberAtIndex <= dumpNumber,
-//             "DumpNumber at index is not less than or equal dumpNumber"
-//         );
-//         if (index != stakeHashUpdates.length - 1) {
-//             require(
-//                 stakeHashUpdates[index + 1] > dumpNumber,
-//                 "!(stakeHashUpdates[index + 1] > dumpNumber)"
-//             );
-//         }
-//         return stakeHashes[dumpNumberAtIndex];
-//     }
-
-//     function getStakesHashUpdateLength() public view returns (uint256) {
-//         return stakeHashUpdates.length;
-//     }

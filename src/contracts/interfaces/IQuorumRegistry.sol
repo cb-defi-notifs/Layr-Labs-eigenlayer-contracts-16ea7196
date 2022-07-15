@@ -25,8 +25,6 @@ interface IQuorumRegistry is IRegistry {
 
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index) external view returns (OperatorStake memory);
 
-    function getCorrectApkHash(uint256 index, uint32 blockNumber) external returns (bytes32);
-
     function getOperatorType(address operator) external view returns (uint8);
     
     function getFromTaskNumberForOperator(address operator) external view returns (uint32);

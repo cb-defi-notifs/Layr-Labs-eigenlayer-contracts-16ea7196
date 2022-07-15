@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../interfaces/IQuorumRegistry.sol";
+import "../interfaces/IBLSRegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/SignatureCompaction.sol";
@@ -114,7 +114,7 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
 
 
         // obtain voteweigher contract for querying information on stake later
-        IQuorumRegistry registry = IQuorumRegistry(
+        IBLSRegistry registry = IBLSRegistry(
             address(repository.voteWeigher())
         );
 
