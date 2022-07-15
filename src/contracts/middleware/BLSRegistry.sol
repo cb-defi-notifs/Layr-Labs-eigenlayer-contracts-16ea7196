@@ -584,7 +584,7 @@ contract BLSRegistry is
 
     /**
      @notice get hash of a historical aggregated public key corresponding to a given index;
-             called by checkSignatures in SignatureChecker.sol.
+             called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
