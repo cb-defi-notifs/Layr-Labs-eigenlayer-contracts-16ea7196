@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
+import "../../interfaces/IBLSRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
@@ -181,7 +182,7 @@ contract DataLayrPaymentManager is
              for their service since their last payment until @param toDataStoreId  
      **/
     function commitPayment(uint32 toDataStoreId, uint120 amount) external {
-        IRegistry registry = repository.registry();
+        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
 
         // only registered DataLayr operators can call
         require(
@@ -539,7 +540,7 @@ contract DataLayrPaymentManager is
         //     "Sig record does not match hash"
         // );
 
-        IRegistry registry = repository.registry();
+        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
 
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 
@@ -557,7 +558,7 @@ contract DataLayrPaymentManager is
                 }
             }
             //TODO: Change this
-            IRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IBLSRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
         // scoped block helps fix stack too deep
         {

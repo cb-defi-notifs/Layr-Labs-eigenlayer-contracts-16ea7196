@@ -27,6 +27,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistry.sol";
+import "../interfaces/IBLSRegistry.sol";
 import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
@@ -204,15 +205,18 @@ contract Governor is RepositoryAccess {
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
             msg.sender
         );
-        // check percentage
-        require(
-            (uint256(ethStaked) * 100) / repository.registry().totalEthStaked() >=
-                proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / repository.registry().totalEigenStaked() >=
-                proposalThresholdEigenPercentage ||
-                msg.sender == multisig,
-            "RepositoryGovernance::propose: proposer votes below proposal threshold"
-        );
+        {
+            // check percentage
+            IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
+            require(
+                (uint256(ethStaked) * 100) / registry.totalEthStaked() >=
+                    proposalThresholdEthPercentage ||
+                    (uint256(eigenStaked) * 100) / registry.totalEigenStaked() >=
+                    proposalThresholdEigenPercentage ||
+                    msg.sender == multisig,
+                "RepositoryGovernance::propose: proposer votes below proposal threshold"
+            );
+        }
         require(
             targets.length == values.length &&
                 targets.length == signatures.length &&
@@ -346,14 +350,18 @@ contract Governor is RepositoryAccess {
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
             proposal.proposer
         );
-        // check percentage
-        require(
-            (uint256(ethStaked) * 100) / repository.registry().totalEthStaked() <
-                proposalThresholdEthPercentage ||
-                (uint256(eigenStaked) * 100) / repository.registry().totalEigenStaked() <
-                proposalThresholdEigenPercentage,
-            "RepositoryGovernance::cancel: proposer above threshold"
-        );
+        {
+            // check percentage
+            IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
+            require(
+                (uint256(ethStaked) * 100) / registry.totalEthStaked() >=
+                    proposalThresholdEthPercentage ||
+                    (uint256(eigenStaked) * 100) / registry.totalEigenStaked() >=
+                    proposalThresholdEigenPercentage ||
+                    msg.sender == multisig,
+                "RepositoryGovernance::propose: proposer votes below proposal threshold"
+            );
+        }
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.cancelTransaction(
@@ -406,13 +414,13 @@ contract Governor is RepositoryAccess {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / repository.registry().totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IBLSRegistry(address(repository.registry())).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / repository.registry().totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IBLSRegistry(address(repository.registry())).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -547,7 +555,7 @@ contract Governor is RepositoryAccess {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = repository.registry().operatorStakes(user);
+        (uint96 ethStaked, uint96 eigenStaked) = IBLSRegistry(address(repository.registry())).operatorStakes(user);
         return (ethStaked, eigenStaked);
     }
 }

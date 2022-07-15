@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IRegistry.sol";
+import "../../interfaces/IBLSRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
@@ -17,13 +17,13 @@ abstract contract DataLayrChallengeBase {
     // amount of token required to be placed as collateral when a challenge is opened
    	uint256 public immutable COLLATERAL_AMOUNT;
 
-    IRegistry public immutable dlRegistry;
+    IBLSRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
-        IRegistry _dlRegistry,
+        IBLSRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
         uint256 _CHALLENGE_RESPONSE_WINDOW,
         uint256 _COLLATERAL_AMOUNT
@@ -146,7 +146,7 @@ abstract contract DataLayrChallengeBase {
 
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+        IBLSRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
         require(
             // operator must have become active/registered before (or at) the block number
             (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber) &&

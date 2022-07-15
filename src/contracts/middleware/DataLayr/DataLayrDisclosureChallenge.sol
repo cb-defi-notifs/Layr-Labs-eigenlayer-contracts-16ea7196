@@ -45,7 +45,7 @@ contract DataLayrDisclosureChallenge is DataLayrChallengeBase {
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
-        IRegistry _dlRegistry,
+        IBLSRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
     )   DataLayrChallengeBase(_dataLayrServiceManager, _dlRegistry, _challengeUtils, _DISCLOSURE_CHALLENGE_RESPONSE_WINDOW, _DISCLOSURE_CHALLENGE_COLLATERAL_AMOUNT)
     {

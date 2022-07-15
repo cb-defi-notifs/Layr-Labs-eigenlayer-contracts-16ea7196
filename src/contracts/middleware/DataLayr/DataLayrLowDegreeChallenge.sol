@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IRepository.sol";
+import "../../interfaces/IBLSRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
@@ -31,7 +32,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
-        IRegistry _dlRegistry,
+        IBLSRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
     )   DataLayrChallengeBase(_dataLayrServiceManager, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW, _DEGREE_CHALLENGE_COLLATERAL_AMOUNT)
     {

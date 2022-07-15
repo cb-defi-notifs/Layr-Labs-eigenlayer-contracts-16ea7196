@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../interfaces/IRegistry.sol";
+import "../interfaces/IBLSRegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/SignatureCompaction.sol";
@@ -114,7 +114,7 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
 
 
         // obtain voteweigher contract for querying information on stake later
-        IRegistry registry = IRegistry(
+        IBLSRegistry registry = IBLSRegistry(
             address(repository.voteWeigher())
         );
 
@@ -126,7 +126,7 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IRegistry.OperatorStake memory localStakeObject = registry
+        IBLSRegistry.OperatorStake memory localStakeObject = registry
             .getTotalStakeFromIndex(placeholder);
         // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
         _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
@@ -446,7 +446,7 @@ abstract contract SignatureChecker is RepositoryAccess, DSTest {
 
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
     function _validateOperatorStake(
-        IRegistry.OperatorStake memory opStake,
+        IBLSRegistry.OperatorStake memory opStake,
         uint32 blockNumberFromTaskHash
     ) internal pure {
         // check that the stake returned from the specified index is recent enough
