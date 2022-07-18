@@ -717,8 +717,9 @@ contract BLSRegistry is
 
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+        
 
-        require(pubkeyHashToStakeHistory[pubkeyHash].updateBlockNumber == 0, "this public key has already been registered");
+        require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "this public key has already been registered");
 
 
         if (apkUpdates.length != 0) {
@@ -909,7 +910,7 @@ contract BLSRegistry is
         returns (uint256)
     {
         return registry[operator].deregisterTime;
-    }
+    } 
 }
 
 
