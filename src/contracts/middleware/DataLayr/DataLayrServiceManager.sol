@@ -479,22 +479,35 @@ contract DataLayrServiceManager is
     }
 
     //TODO: CORRECT CALLDATALOAD SLOTS
-    // function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external  {
+
+    /** 
+     @dev This calldata is of the format:
+            <
+             bytes32 headerHash,
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+             uint32 blockNumber
+             uint32 taskNumber
+             uint32 numberOfNonSigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
+     */
     function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external  {
         bytes32 headerHash;
         bytes32 signatoryRecordHash;
-        uint32 _dataStoreId; 
+        uint32 dataStoreId; 
         uint32 blockNumber; 
         uint96 fee;
         uint8 duration; 
         uint256 dsInitTime; 
         uint32 index;
         
-
         assembly {
             headerHash := calldataload(68)
             signatoryRecordHash:= calldataload(68)
-            _dataStoreId := shr(224, calldataload(100))
+            dataStoreId := shr(224, calldataload(100))
             blockNumber := shr(224, calldataload(104))
             fee := shr(160, calldataload(108))
             duration := shr(248, calldataload(120))
@@ -503,7 +516,7 @@ contract DataLayrServiceManager is
         }
 
 
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
+        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, dataStoreId, blockNumber, fee, signatoryRecordHash);
         assertTrue(getDataStoreIdsForDuration(duration, dsInitTime, index) == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 
         //now we check if the dataStore is still active at the time

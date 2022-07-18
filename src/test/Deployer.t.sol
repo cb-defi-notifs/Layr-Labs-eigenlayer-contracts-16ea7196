@@ -726,7 +726,10 @@ contract EigenLayrDeployer is
     }
 
     // TODO: fix this to work with a variable number again, if possible
-    function _testConfirmDataStoreSelfOperators(uint8 signersInput) internal {
+    function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
+        internal 
+        returns (bytes memory)
+        {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
         uint32 numberOfSigners = uint32(signersInput);
@@ -810,6 +813,7 @@ contract EigenLayrDeployer is
         // );
         // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
+        return data;
     }
 
 

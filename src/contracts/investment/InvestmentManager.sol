@@ -336,19 +336,25 @@ contract InvestmentManager is
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
+        
+
 
         require(shareAmount <= userShares, "shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
             userShares = userShares - shareAmount;
         }
+
         
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
+
+
         if (investorStratShares[depositor][strategy] == 0) {
             // if the strategy matches with the strategy index provided
             if (investorStrats[depositor][strategyIndex] == strategy) {
+
                 
                 // replace the strategy with the last strategy in the list
                 investorStrats[depositor][strategyIndex] = investorStrats[
@@ -356,6 +362,7 @@ contract InvestmentManager is
                 ][investorStrats[depositor].length - 1];
                 
             } else {
+
 
                 //loop through all of the strategies, find the right one, then replace
                 uint256 stratsLength = investorStrats[depositor].length;
@@ -409,6 +416,7 @@ contract InvestmentManager is
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
         }
+        
         uint256 strategyIndexIndex;
 
         bytes32 withdrawalRoot = keccak256(
@@ -434,8 +442,10 @@ contract InvestmentManager is
             }
             //TODO: call into delegationTerms contract as well?
         }
+        emit log("Hell");
 
         uint256 strategiesLength = strategies.length;
+        emit log_uint(strategiesLength);
         for (uint256 i = 0; i < strategiesLength; ) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
@@ -458,6 +468,7 @@ contract InvestmentManager is
                 ++i;
             }
         }
+        emit log("Hell");
 
         
 
@@ -467,6 +478,7 @@ contract InvestmentManager is
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawerAndNonce.withdrawer
         });
+        emit log("Hell");
         
 
         emit WithdrawalQueued(

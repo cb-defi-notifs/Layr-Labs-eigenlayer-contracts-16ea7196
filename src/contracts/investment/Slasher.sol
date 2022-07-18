@@ -7,13 +7,16 @@ import "../interfaces/ISlasher.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./InvestmentManager.sol";
 
+import "forge-std/Test.sol";
+
+
 /**
  * @notice This contract specifies details on slashing. The functionalities are:
  *          - adding contracts who have permission to perform slashing,
  *          - revoking permission for slashing from specified contracts,
  *          - calling investManager to do actual slashing.          
  */
-contract Slasher is Ownable, ISlasher {
+contract Slasher is Ownable, ISlasher, DSTest {
     InvestmentManager public investmentManager;
     mapping(address => bool) public globallyPermissionedContracts;
     mapping(address => bool) public serviceFactories;
@@ -79,14 +82,21 @@ contract Slasher is Ownable, ISlasher {
     // give the contract permission to slash your funds
     function allowToSlash(address repository) external {
         optedIntoSlashing[msg.sender][repository] = true;
+
+        uint number = optedIntoSlashing[msg.sender][repository] ? uint(1) : uint(0);
+        emit log_named_uint("Permission to slash", number);
+        
     }
 
     // TODO: safe way to opt OUT of slashing (fraudproof)
     // idea -- require registry of repository to call function that opts you out
 
     // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
-    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) public view returns (bool) {
+    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) public returns (bool) {
         // if the user has directly opted in to the 'repository' address being allowed to slash them
+        emit log_address(toBeSlashed);
+        uint number = optedIntoSlashing[toBeSlashed][address(repository)] ? uint(1) : uint(0);
+        emit log_named_uint("Permission to slash", number);
         if (optedIntoSlashing[toBeSlashed][address(repository)]
             || 
             (

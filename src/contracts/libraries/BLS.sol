@@ -6,6 +6,7 @@ pragma solidity ^0.8.9;
 import "./BN254_Constants.sol";
 
 
+
 library BLS {
     /**
      @notice verification of BLS signature with the message being pubkey hash
@@ -14,7 +15,7 @@ library BLS {
      @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */ 
-    function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
+    function verifyBLSSigOfPubKeyHash(bytes calldata, address operator, uint256 offset)
         internal view
         returns (uint256, uint256, uint256, uint256)
     {
@@ -42,7 +43,7 @@ library BLS {
 
         // calculate H(m) = H(pk)
         (input[0], input[1]) = hashToG1(
-            keccak256(abi.encodePacked(input[2], input[3], input[4], input[5]))
+            keccak256(abi.encodePacked(input[2], input[3], input[4], input[5], operator))
         );
 
         assembly {

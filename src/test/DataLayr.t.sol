@@ -24,11 +24,11 @@ contract DataLayrTests is
     
     //verifies that it is possible to confirm a data store
     //checks that the store is marked as committed
-    function testLConfirmDataStore() public {
+    function testConfirmDataStore() public {
         _testConfirmDataStoreSelfOperators(15);
     }
 
-    function testConfirmDataStoreLoop() public{
+    function testLoopConfirmDataStoreLoop() public{
         _testConfirmDataStoreSelfOperators(15);
         uint g = gasleft();
         for(uint i=0; i<20; i++){

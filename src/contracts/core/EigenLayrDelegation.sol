@@ -322,7 +322,7 @@ contract EigenLayrDelegation is
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_FINALIZED;
     }
 
-    /// @notice This function can be called by anyone to challenger whether a delegator has
+    /// @notice This function can be called by anyone to challenge whether a delegator has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the delegator against whom challenge is being raised
     function contestUndelegationCommit(

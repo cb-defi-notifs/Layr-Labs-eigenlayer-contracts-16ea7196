@@ -10,7 +10,7 @@ interface ISlasher {
         IServiceFactory serviceFactory,
         IRepository repository,
         IRegistry registry
-    ) external view returns (bool);
+    ) external  returns (bool);
 
     function slashOperator(
         address toSlash
