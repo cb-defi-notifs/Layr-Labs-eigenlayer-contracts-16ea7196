@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
@@ -143,7 +142,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         }
 
         
-        // we have read (356 + 32 + 6 + 4 + 4 + 4) = 374 bytes of calldata so far
+        // we have read (356 + 32 + 6 + 4 + 4 + 4) = 406 bytes of calldata so far
         uint256 pointer = 406;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
