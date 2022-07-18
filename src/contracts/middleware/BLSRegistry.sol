@@ -7,6 +7,8 @@ import "../libraries/BytesLib.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
+import "../libraries/BN254_Constants.sol";
+
 
 import "ds-test/test.sol";
 
@@ -716,6 +718,8 @@ contract BLSRegistry is
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
+        require(pubkeyHashToStakeHistory[pubkeyHash].updateBlockNumber == 0, "this public key has already been registered");
+
 
         if (apkUpdates.length != 0) {
             // addition doesn't work in this case 
@@ -905,6 +909,60 @@ contract BLSRegistry is
         returns (uint256)
     {
         return registry[operator].deregisterTime;
+    }
+
+    function verifyBLSSigOfPubKeyHash(bytes calldata, uint256 offset)
+        internal 
+        returns (uint256, uint256, uint256, uint256)
+    {
+        // uint256 offset = 68;
+        // e(H(m), pk)e(sigma, -g2) = e(H(m), pk)(e(sigma, g2)^-1) == 1?
+        // is the same as
+        // e(H(m), pk) == e(sigma, g2)?
+        uint256[12] memory input;
+        //emit log_bytes(msg.data);
+
+
+        assembly {
+            //store pk in indexes 2-5, it is a G2 point
+            mstore(add(input, 0x40), calldataload(offset))
+            mstore(add(input, 0x60), calldataload(add(offset, 32)))
+            mstore(add(input, 0x80), calldataload(add(offset, 64)))
+            mstore(add(input, 0xA0), calldataload(add(offset, 96)))
+            //store sigma (signature) in indexes 6-7, it is a G1 point
+            mstore(add(input, 0xC0), calldataload(add(offset, 128)))
+            mstore(add(input, 0xE0), calldataload(add(offset, 160)))
+            //store the negated G2 generator in indexes 8-11
+            mstore(add(input, 0x100), nG2x1)
+            mstore(add(input, 0x120), nG2x0)
+            mstore(add(input, 0x140), nG2y1)
+            mstore(add(input, 0x160), nG2y0)
+        }
+
+        //emit log_uint(input[2]);
+
+
+        // calculate H(m) = H(pk)
+        (input[0], input[1]) = BLS.hashToG1(
+            keccak256(abi.encodePacked(input[2], input[3], input[4], input[5]))
+        );
+
+        assembly {
+            // check the pairing
+            if iszero(
+                // call ecPairing precompile with 384 bytes of data,
+                // i.e. input[0] through (including) input[11], and get 32 bytes of return data
+                staticcall(not(0), 0x08, input, 0x0180, add(input, 0x20), 0x20)
+            ) {
+                revert(0, 0)
+            }
+        }
+
+
+        require(input[1] == 1, "Pairing was unsuccessful");
+
+        // return pubkey, the format being [x1, x0, y1, y0]         
+        return (input[3], input[2], input[5], input[4]);
     }
 }
 
