@@ -719,9 +719,6 @@ contract BLSRegistry is
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
         
 
-        require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "this public key has already been registered");
-
-
         if (apkUpdates.length != 0) {
             // addition doesn't work in this case 
             // our addition algorithm doesn't work
