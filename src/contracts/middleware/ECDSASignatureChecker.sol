@@ -28,35 +28,31 @@ abstract contract ECDSASignatureChecker is
         bytes32 r;
         bytes32 vs;
         address signatory;
-        //fills the 32-byte memory slot (prevents overwriting anything important in dirty-write of 'signatory')
-        uint96 garbageData;
+        uint32 stakesIndexLocation;
     }
 
-    struct StakesMetaData {
-        //index of stakeHashUpdate
-        uint256 stakesIndex;
-        //length of stakes object
-        uint256 stakesLength;
-        //stakes object
-        bytes stakes;
-    }
+    uint256 internal constant START_OF_STAKES_BYTE_LOCATION = 438;
 
     /** 
      @dev This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-             uint32 blockNumber
-             uint32 dataStoreId
+             uint48 index of the stakeHash corresponding to the dataStoreId in the 'stakeHashes' array of the ECDSARegistry,
+             uint32 blockNumber,
+             uint32 dataStoreId,
              uint32 numberofSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
+             uint256 stakesLength,
+             bytes stakes,
+             bytes SignatureWithInfos (number of SignatureWithInfo provided here is equal to numberOfSigners)
+
+             stakes layout:
+             packed tuple of address, uint96, uint96
+                 the uint96's are the ETH and EIGEN stake of the signatory (address)
+             with last 24 bytes storing the ETH and EIGEN totals
             >
      */
     //NOTE: this assumes length 64 signatures
-    function checkSignatures(bytes calldata)
+    function checkSignatures(bytes calldata data)
         public
         returns (
             uint32 taskNumberToConfirm,
@@ -74,105 +70,45 @@ abstract contract ECDSASignatureChecker is
             taskHash := calldataload(356)
 
             // get the 6 bytes immediately after the above, which represent the
-            // index of the totalStake in the 'totalStakeHistory' array
+            // index of the stakeHash in the 'stakeHashes' array
             placeholder := shr(208, calldataload(388))
         }
 
 
-        // fetch the taskNumber to confirm and block number to use for stakes from the middlware contract
+        // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
         uint32 blockNumberFromTaskHash;
         assembly {
             blockNumberFromTaskHash := shr(224,calldataload(394))
         }
 
-        // obtain voteweigher contract for fetching the stakeHash
-        IECDSARegistry registry = IECDSARegistry(address(repository.voteWeigher()));
+        // obtain registry contract for fetching the stakeHash
+        IECDSARegistry registry = IECDSARegistry(address(repository.registry()));
         // fetch the stakeHash
         bytes32 stakeHash = registry.getCorrectStakeHash(placeholder, blockNumberFromTaskHash);
 
+        uint32 numberOfSigners;
         uint256 stakesLength;
         assembly {
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that have signed
-            placeholder := shr(224, calldataload(402))
+            numberOfSigners := shr(224, calldataload(402))
             // get the next 32 bytes, specifying the length of the stakes object
             stakesLength := calldataload(406)
         }
 
-        // we have read (356 + 32 + 6 + 4 + 4 + 4 + 32) = 438 bytes of calldata so far
-        uint256 pointer = 438;
+        bytes32 signedHash = ECDSA.toEthSignedMessageHash(taskHash);
 
-        // check OperatorStake object to keep track of ETH and EIGEN stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject;
-
-    }
-    //NOTE: this assumes length 64 signatures
-    /*
-    FULL CALLDATA FORMAT:
-    uint48 dumpNumber,
-    bytes32 headerHash,
-    uint32 numberOfSigners,
-    uint256 stakesIndex,
-    uint256 stakesLength,
-    bytes stakes,
-    bytes sigWInfos (number of sigWInfos provided here is equal to numberOfSigners)
-    stakes layout:
-    packed tuple of address, uint96, uint96
-        the uint96's are the ETH and EIGEN stake of the signatory (address)
-    sigWInfo layout:
-    bytes32 r
-    bytes32 vs
-    uint32 bytes location in 'stakes' of signatory
-    */
-    function checkSignatures(bytes calldata data)
-        public
-        // returns (
-        //     uint48 dumpNumberToConfirm,
-        //     bytes32 headerHash,
-        //     SignatoryTotals memory signedTotals,
-        //     bytes32 compressedSignatoryRecord
-        // )
-        returns (
-            uint32 taskNumberToConfirm,
-            bytes32 taskHash,
-            SignatoryTotals memory signedTotals,
-            bytes32 compressedSignatoryRecord
-        )
-    {
-        //dumpNumber corresponding to the headerHash
-        //number of different signature bins that signatures are being posted from
-        uint32 numberOfSigners;
-        StakesMetaData memory smd;
-        assembly {
-            //get the 48 bits immediately after the function signature and length encoding of bytes calldata type
-            dumpNumberToConfirm := shr(208, calldataload(68))
-            //get the 32 bytes immediately after the above
-            headerHash := calldataload(74)
-            //get the next 32 bits
-            numberOfSigners := shr(224, calldataload(106))
-            //store the next 32 bytes in the start of the 'smd' object (i.e. smd.stakesIndex)
-            mstore(smd, calldataload(110))
-            //store the next 32 bytes after the start of the 'smd' object (i.e. smd.stakesLength)
-            mstore(add(smd, 32), calldataload(142))
-        }
-
-        bytes32 signedHash = ECDSA.toEthSignedMessageHash(headerHash);
-
-        // total bytes read so far is now (6 + 32 + 4 + 64) = 106
         // load stakes into memory and verify integrity of stake hash
-        smd.stakes = data.slice(106, smd.stakesLength);
+        bytes memory stakes = data.slice(START_OF_STAKES_BYTE_LOCATION, stakesLength);
+
         require(
-            keccak256(smd.stakes) ==
-                IDataLayrVoteWeigher(address(repository.voteWeigher())).getStakesHashUpdateAndCheckIndex(
-                    smd.stakesIndex,
-                    dumpNumberToConfirm
-                ),
-            "ETH and/or EIGEN stakes are incorrect"
+            keccak256(stakes) == stakeHash,
+            "provided stakes are incorrect"
         );
 
-        // initialize at value that will be used in next calldataload (just after all the already loaded data)
-        // we add 68 to the amount of data we have read here (174 = 106 + 68), since 4 bytes (for function sig) + (32 * 2) bytes is used at start of calldata
-        uint256 pointer = 174 + smd.stakesLength;
+        // we have read (356 + 32 + 6 + 4 + 4 + 4 + 32) = 438 bytes of calldata so far
+        // set pointer equal to end of stakes object (*start* of SigWInfos)
+        uint256 pointer = START_OF_STAKES_BYTE_LOCATION;
 
         assembly {
             //fetch the totalEthStake value and store it in memory
@@ -183,7 +119,9 @@ abstract contract ECDSASignatureChecker is
                 shr(
                     160,
                     //load data beginning 24 bytes before the end of the 'stakes' object (this is where totalEthStake begins)
-                    calldataload(sub(pointer, 24))                 
+                    calldataload(
+                        sub(pointer, 24)
+                    )                 
                 )
             )
             //fetch the totalEigenStake value and store it in memory
@@ -194,69 +132,70 @@ abstract contract ECDSASignatureChecker is
                 shr(
                     160,
                     //load data beginning 12 bytes before the end of the 'stakes' object (this is where totalEigenStake begins)
-                    calldataload(sub(pointer, 12))                 
+                    calldataload(
+                        sub(pointer, 12)
+                    )                                 
                 )
             )
         }
 
-        //transitory variables to be reused in loop
-        //current signer information
+        // transitory variables to be reused in loop
+        // current signer information
         SignatureWithInfo memory sigWInfo;
-        //previous signer's address, converted to a uint160. addresses are checked to be in strict numerical order (low => high), so this is initalized as zero
+        // previous signer's address, converted to a uint160. addresses are checked to be in strict numerical order (low => high), so this is initalized as zero
         uint160 previousSigner;
 
-        //store all signers in memory, to be compressed  into 'compressedSignatoryRecord', along with the ferkle root and the dumpNumberToConfirm
+        // store all signers in memory, to be compressed  into 'compressedSignatoryRecord', along with the taskNumberToConfirm and the signed totals
         address[] memory signers = new address[](numberOfSigners);
 
-        uint32 signatoryCalldataByteLocation;
-
-        //loop for each signatures ends once all signatures have been processed
+        // loop for each signature ends once all signatures have been processed
         uint256 i;
 
-        while (i < numberOfSigners) {
+        // pointer for calldata
+        uint32 signatoryCalldataByteLocation;
+
+        // loop through signatures
+        for (; i < numberOfSigners; ) {
 
             assembly {
                 //load r
                 mstore(sigWInfo, calldataload(pointer))
                 //load vs
                 mstore(add(sigWInfo, 32), calldataload(add(pointer, 32)))
-                // signatoryCalldataByteLocation := 
-                //                 add(
-                //                     //get position in calldata for start of stakes object
-                //                     mload(smd),
-                //                             sigWInfo.stakesByteLocation
-                //                 )
+                //gets specified location of signatory in stakes object
                 signatoryCalldataByteLocation := 
-                                add(
-                                    //get position in calldata for start of stakes object
-                                    174,
-                                        mul(
-                                            //gets specified location of signatory in stakes object
-                                            shr(
-                                                224,
-                                                    //64 accounts for length of signature components
-                                                    calldataload(add(pointer, 64)
-                                                )
-                                            ),
-                                            //20 + 12*2 for (address, uint96, uint96)
-                                            44
-                                        )
+                    add(
+                        //get position in calldata for start of stakes object
+                        START_OF_STAKES_BYTE_LOCATION,
+                        mul(
+                            //gets specified index of signatory in stakes object
+                            shr(
+                                224,
+                                    //64 accounts for length of signature components
+                                    calldataload(add(pointer, 64)
                                 )
+                            ),
+                            //20 + 12*2 for (address, uint96, uint96)
+                            44
+                        )
+                    )
             }
 
+            // actually check the signature
             sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
 
-            //increase calldataPointer to account for length of signature components + 4 bytes for length of uint32 used to specify index in stakes object
+            // increase calldataPointer to account for length of signature components + 4 bytes for length of uint32 used to specify index in stakes object
             unchecked {
                 pointer += 68;                    
             }
 
-            //verify monotonic increase of address value
+            // verify monotonic increase of address value
             require(
                 uint160(sigWInfo.signatory) > previousSigner,
                 "bad sig ordering"
             );
-            //store signer info in memory variables
+
+            // store signer info in memory variables
             previousSigner = uint160(sigWInfo.signatory);
             signers[i] = sigWInfo.signatory;
 
@@ -326,23 +265,22 @@ abstract contract ECDSASignatureChecker is
             }
         }
 
-        //set compressedSignatoryRecord variable
-        //used for payment fraud proofs
+
+        // set compressedSignatoryRecord variable used for payment fraud proofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
-                // headerHash,
-                dumpNumberToConfirm,
-                abi.encodePacked(signers),
-                smd.stakes,
+                // taskHash,
+                taskNumberToConfirm,
+                signers,
                 signedTotals.ethStakeSigned,
                 signedTotals.eigenStakeSigned
             )
         );
 
-        //return dumpNumber, headerHash, eth and eigen that signed, and a hash of the signatories
+        // return taskNumber, taskHash, eth and eigen that signed, and a hash of the signatories
         return (
-            dumpNumberToConfirm,
-            headerHash,
+            taskNumberToConfirm,
+            taskHash,
             signedTotals,
             compressedSignatoryRecord
         );

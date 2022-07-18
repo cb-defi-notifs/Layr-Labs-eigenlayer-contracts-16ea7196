@@ -76,7 +76,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
              uint256[4] apk,
              uint256[2] sigma
@@ -105,17 +105,15 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             placeholder := shr(208, calldataload(388))
         }
 
-        // fetch the taskNumber to confirm and block number to use for stakes from the middlware contract
+        // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
         uint32 blockNumberFromTaskHash;
         assembly {
             blockNumberFromTaskHash := shr(224,calldataload(394))
         }
 
 
-        // obtain voteweigher contract for querying information on stake later
-        IBLSRegistry registry = IBLSRegistry(
-            address(repository.voteWeigher())
-        );
+        // obtain registry contract for querying information on stake later
+        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
 
         // to be used for holding the aggregated pub key of all operators
         // that aren't part of the quorum
