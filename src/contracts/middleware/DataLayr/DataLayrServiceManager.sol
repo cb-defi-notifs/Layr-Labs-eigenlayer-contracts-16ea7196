@@ -488,7 +488,7 @@ contract DataLayrServiceManager is
      @dev This calldata is of the format:
             <
              bytes32 headerHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+             uint32 signatoryRecordHash
              uint32 blockNumber
              uint32 taskNumber
              uint32 numberOfNonSigners,
@@ -509,22 +509,18 @@ contract DataLayrServiceManager is
         uint32 index;
 
 
- 
+        uint256 pointer = 132;
         
         assembly {
-            headerHash := calldataload(132)
-            signatoryRecordHash:= calldataload(164)
-            dataStoreId := shr(224, calldataload(196)) 
-            blockNumber := shr(224, calldataload(200)) 
-            fee := shr(160, calldataload(204)) 
-            duration := shr(248, calldataload(216))
-            dsInitTime := calldataload(217) 
-            index := shr(224, calldataload(249))
+            headerHash := calldataload(pointer)
+            signatoryRecordHash:= calldataload(add(pointer, 32))  
+            dataStoreId := shr(224, calldataload(add(pointer, 64)))  
+            blockNumber := shr(224, calldataload(add(pointer, 68))) 
+            fee := shr(160, calldataload(add(pointer, 72)))
+            duration := shr(248, calldataload(add(pointer, 84)))
+            dsInitTime := calldataload(add(pointer, 85))
+            index := shr(224, calldataload(add(pointer, 117)))
         }
-        
-
-        
-
 
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, dataStoreId, blockNumber, fee, signatoryRecordHash);
         assertTrue(getDataStoreIdsForDuration(duration, dsInitTime, index) == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
