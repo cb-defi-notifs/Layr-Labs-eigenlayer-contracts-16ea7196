@@ -69,7 +69,7 @@ contract InvestmentTests is
     }
 
     //testing queued withdrawals in the investment manager
-    function testFraudProofQueuedWithdrawal(
+    function _testFraudProofQueuedWithdrawal(
         uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
@@ -78,7 +78,13 @@ contract InvestmentTests is
 
         uint256[] memory shareAmounts = new uint256[](1);
         cheats.deal(acct_0, amountToDeposit);
+
+
         _testWethDeposit(acct_0, amountToDeposit);
+
+
+        
+
 
         uint256[] memory strategyIndexes = new uint256[](1);
         strategyIndexes[0] = 0;
@@ -86,16 +92,13 @@ contract InvestmentTests is
         //init and commit DataStore
         bytes memory data = _testConfirmDataStoreSelfOperators(15);
         
-        //queue the withdrawal
-        
-        
+        //queue the withdrawal        
         cheats.startPrank(acct_0);
+
+
 
         InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(acct_0, 0);
         investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-
-        emit log_named_address("ACCT0", acct_0);
-        slasher.allowToSlash(address(dlRepository));
 
         investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, serviceFactory, dlRepository);
 

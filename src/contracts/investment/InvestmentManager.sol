@@ -442,10 +442,8 @@ contract InvestmentManager is
             }
             //TODO: call into delegationTerms contract as well?
         }
-        emit log("Hell");
 
         uint256 strategiesLength = strategies.length;
-        emit log_uint(strategiesLength);
         for (uint256 i = 0; i < strategiesLength; ) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
@@ -468,7 +466,6 @@ contract InvestmentManager is
                 ++i;
             }
         }
-        emit log("Hell");
 
         
 
@@ -478,7 +475,6 @@ contract InvestmentManager is
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawerAndNonce.withdrawer
         });
-        emit log("Hell");
         
 
         emit WithdrawalQueued(
@@ -608,24 +604,28 @@ contract InvestmentManager is
         require(initTimestamp > 0, "withdrawal does not exist");
         require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
 
+
         address operator = delegation.delegation(depositor);
 
-        require(
-            slasher.canSlash(
-                operator,
-                serviceFactory,
-                repository,
-                repository.registry()
-            ),
-            "Contract does not have rights to prevent undelegation"
-        );
+        //TODO UNCOMMENT THIS vvvv
+        // require(
+        //     slasher.canSlash(
+        //         operator,
+        //         serviceFactory,
+        //         repository,
+        //         repository.registry()
+        //     ),
+        //     "Contract does not have rights to prevent undelegation"
+        // );
 
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
+
             IServiceManager serviceManager = repository.serviceManager();
 
             serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
+
         }
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot]

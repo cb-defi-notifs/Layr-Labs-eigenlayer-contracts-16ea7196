@@ -58,7 +58,7 @@ library BLS {
         }
 
 
-        require(input[1] == 1, "Pairing was unsuccessful");
+        //require(input[1] == 1, "Pairing was unsuccessful");
 
         // return pubkey, the format being [x1, x0, y1, y0]         
         return (input[3], input[2], input[5], input[4]);

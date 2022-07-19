@@ -237,6 +237,7 @@ contract DataLayrServiceManager is
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         // verify the signatures that disperser is claiming to be that of DataLayr operators
         // who have agreed to be in the quorum
+        
         (
             uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
@@ -244,6 +245,9 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
+
+        emit log_bytes32(headerHash);
+        emit log_bytes32(signatoryRecordHash);
 
 
         /**
@@ -503,17 +507,23 @@ contract DataLayrServiceManager is
         uint8 duration; 
         uint256 dsInitTime; 
         uint32 index;
+
+
+ 
         
         assembly {
-            headerHash := calldataload(68)
-            signatoryRecordHash:= calldataload(68)
-            dataStoreId := shr(224, calldataload(100))
-            blockNumber := shr(224, calldataload(104))
-            fee := shr(160, calldataload(108))
-            duration := shr(248, calldataload(120))
-            dsInitTime := calldataload(121)
-            index := shr(224, calldataload(153))
+            headerHash := calldataload(132)
+            signatoryRecordHash:= calldataload(164)
+            dataStoreId := shr(224, calldataload(196)) 
+            blockNumber := shr(224, calldataload(200)) 
+            fee := shr(160, calldataload(204)) 
+            duration := shr(248, calldataload(216))
+            dsInitTime := calldataload(217) 
+            index := shr(224, calldataload(249))
         }
+        
+
+        
 
 
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, dataStoreId, blockNumber, fee, signatoryRecordHash);
