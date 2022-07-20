@@ -13,7 +13,7 @@ import "../libraries/BN254_Constants.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice This contract is used to
+ * @notice This contract is used for
             - registering new operators 
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
