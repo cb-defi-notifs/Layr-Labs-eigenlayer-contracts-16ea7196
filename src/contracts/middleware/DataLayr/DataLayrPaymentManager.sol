@@ -673,7 +673,7 @@ contract DataLayrPaymentManager is
     }
 
     function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal pure  returns(bytes32) {
-        bytes32 res = keccak256(abi.encodePacked(metadata.headerHash, metadata.durationDataStoreId, metadata.globalDataStoreId, metadata.blockNumber, metadata.fee, metadata.signatoryRecordHash));
+        bytes32 res = keccak256(abi.encodePacked(metadata.headerHash, metadata.globalDataStoreId, metadata.blockNumber, metadata.fee, metadata.signatoryRecordHash));
         return res;
     }
 }
