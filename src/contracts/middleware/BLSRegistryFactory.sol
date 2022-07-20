@@ -24,11 +24,11 @@ contract BLSRegistryFactory {
                                                      with EigenLayr,   
      */
     /**
-     @dev (1) in order to leverage trust from EigenLayr, middlewares are recommended to specify 
+     @dev ALERT: 
+          (1) In order to leverage trust from EigenLayr, middlewares are recommended to specify 
               delegation and investmentManager contracts that have been deployed as part of EigenLayr.
-          (2) middlewares can specify their own repository contract and weightage vectors based 
-              on their own discretion.      
-
+          (2) Middlewares can specify their own repository contract and weightage vectors based 
+              on their own discretion.     
      */
     function createNewBLSRegistry(
         IRepository repository,

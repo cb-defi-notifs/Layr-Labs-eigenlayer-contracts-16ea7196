@@ -24,6 +24,7 @@ abstract contract RepositoryStorage is Ownable, IRepository {
         investmentManager = _investmentManager;
     }
 
+    /// @notice returns the owner of the repository contract
     function owner() public view override(Ownable, IRepository) returns (address) {
         return Ownable.owner();
     }

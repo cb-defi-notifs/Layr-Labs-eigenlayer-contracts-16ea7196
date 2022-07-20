@@ -7,11 +7,19 @@ import "./VoteWeigherBaseStorage.sol";
 
 // import "ds-test/test.sol";
 
+
+/**
+ @notice This contract is used for  
+ */
+
+
+
 contract VoteWeigherBase is 
     IVoteWeigher,
     VoteWeigherBaseStorage 
     // , DSTest
 {
+    // number of quorums that are being used by the middleware
     uint8 public override immutable NUMBER_OF_QUORUMS;
 
     constructor(
@@ -23,35 +31,58 @@ contract VoteWeigherBase is
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
     }
 
+    /**
+     @notice This function computes the total weight of the @param operator in the quorum 
+             @param quorumNumber.
+     */
     function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
         uint96 weight;
+
         if (quorumNumber < NUMBER_OF_QUORUMS) {
+            
             uint256 stratsLength = strategiesConsideredAndMultipliersLength(quorumNumber);
+            
             StrategyAndWeightingMultiplier memory strategyAndMultiplier;
+
             if (delegation.isSelfOperator(operator)) {
                 for (uint256 i = 0; i < stratsLength;) {
+
+                    // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
                     strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
+
+                    // shares of the self-operator in the investment strategy
                     uint256 sharesAmount = investmentManager.investorStratShares(operator, strategyAndMultiplier.strategy);
+                    
+                    // add the weightage from the shares to the total weight
                     if (sharesAmount > 0) {
                         weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                   
                     }
+
                     unchecked {
                         ++i;
                     }
                 }
             } else {
                 for (uint256 i = 0; i < stratsLength;) {
+                    
+                    // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
                     strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
+
+                    // shares of the operator in the investment strategy
                     uint256 sharesAmount = delegation.getOperatorShares(operator, strategyAndMultiplier.strategy);
+                    
+                    // add the weightage from the shares to the total weight
                     if (sharesAmount > 0) {
                         weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                    
                     }
+
                     unchecked {
                         ++i;
                     }
                 }
             }
         }
+
         return weight;
     }
 

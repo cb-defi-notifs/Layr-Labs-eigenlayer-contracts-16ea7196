@@ -4,6 +4,12 @@ pragma solidity ^0.8.9;
 import "../interfaces/IRepository.sol";
 import "../interfaces/IRepositoryAccess.sol";
 
+
+/**
+ @notice This contract is for enacting access control for repository contract.
+ */
+
+
 abstract contract RepositoryAccess is IRepositoryAccess {
     // the unique, immutable Repository contract associated with this contract
     IRepository public immutable repository;
@@ -11,6 +17,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
     constructor(IRepository _repository) {
         repository = _repository;
     }
+
 
     // MODIFIERS -- access controls based on stored addresses
     modifier onlyRepository() {
