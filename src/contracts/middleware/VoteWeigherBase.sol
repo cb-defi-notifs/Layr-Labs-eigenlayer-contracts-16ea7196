@@ -103,21 +103,29 @@ contract VoteWeigherBase is
      * @notice returns the total ETH delegated by delegators with this operator.
      */
     /**
-     * @dev Accounts for both ETH used for staking in settlement layer (via operator)
-     *      and the ETH-denominated value of the shares in the investment strategies.
-     *      Note that the DataLayr can decide for itself how much weight it wants to
-     *      give to the ETH that is being used for staking in settlement layer.
+      @dev Accounts for both ETH used for staking in Ethereum and the ETH-denominated value 
+           of the shares in the investment strategies.
      */
     function weightOfOperatorEth(address operator) public virtual returns (uint96) {
         return weightOfOperator(operator, 0);
     }
 
+
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
-    function addStrategiesConsideredAndMultipliers(uint256 quorumNumber, StrategyAndWeightingMultiplier[] calldata _newStrategiesConsideredAndMultipliers) external onlyRepositoryGovernance {
+
+    /**
+     @notice Add new strategies and the associated multiplier for the @param quorumNumber  
+     */
+    function addStrategiesConsideredAndMultipliers(
+        uint256 quorumNumber, 
+        StrategyAndWeightingMultiplier[] calldata _newStrategiesConsideredAndMultipliers
+    ) external onlyRepositoryGovernance {
+
         uint256 numStrats = _newStrategiesConsideredAndMultipliers.length;
+
         for (uint256 i = 0; i < numStrats;) {
             strategiesConsideredAndMultipliers[quorumNumber].push(_newStrategiesConsideredAndMultipliers[i]);
             unchecked {
@@ -126,13 +134,24 @@ contract VoteWeigherBase is
         }
     }
 
-    // NOTE: higher indices should be *first* in the list of indicesToRemove
+
+    /**
+     @notice This function is used for removing strategies and their associated weight from 
+             mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
+     */
+    /**  
+     @dev higher indices should be *first* in the list of @param indicesToRemove
+     */
     function removeStrategiesConsideredAndWeights(uint256 quorumNumber, IInvestmentStrategy[] calldata _strategiesToRemove, uint256[] calldata indicesToRemove) external onlyRepositoryGovernance {
         uint256 numStrats = indicesToRemove.length;
+
         for (uint256 i = 0; i < numStrats;) {
             require(strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]].strategy == _strategiesToRemove[i], "index incorrect");
+            
+            // removing strategies and their associated weight
             strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
+            
             unchecked {
                 ++i;
             }
