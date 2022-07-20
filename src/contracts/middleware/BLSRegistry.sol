@@ -28,7 +28,7 @@ contract BLSRegistry is
 
     // DATA STRUCTURES 
     /**
-     * @notice  Data structure for storing info on operators to be used for:
+     * @notice  Data structure used for storing info on operators to be used for:
      *           - sending data by the sequencer
      *           - payment and associated challenges
      */
@@ -50,7 +50,7 @@ contract BLSRegistry is
         uint32 serveUntil;
 
         // indicates whether the operator is actively registered for storing data or not 
-        uint8 active; //bool
+        uint8 active; // bool
 
         // socket address of the node
         string socket;
@@ -58,11 +58,13 @@ contract BLSRegistry is
         uint256 deregisterTime;
     }
 
+
     // struct used to give definitive ordering to operators at each task number
     struct OperatorIndex {
         // task number at which operator index changed
         // note that the operator's index is different *for this task number*, i.e. the new index is inclusive of this value
         uint32 toTaskNumber;
+
         // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
