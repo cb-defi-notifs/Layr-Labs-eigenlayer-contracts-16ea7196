@@ -6,6 +6,10 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
+    
+    /******************
+     Data structures    
+     ******************/
     struct EKEntry {
         bytes32 keyHash;
         bytes32 ephemeralKey;
@@ -28,9 +32,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     {
     }
 
-    /*
-    * Allows operator to post their first ephemeral key hash via BLSRegistry (on registration)
-    */
+    /**
+     @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)
+     */
+    /** 
+     @param EKHash is the hash of the Ephemeral key that is being currently used by the 
+     @param operator for signing on bomb-based queries.
+     */ 
     function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
@@ -38,43 +46,64 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         newEKEntry.keyHash = EKHash;
         newEKEntry.timestamp = uint192(block.timestamp);
         newEKEntry.startTaskNumber = currentTaskNumber;
+
+        // record the new EK entry 
         EKHistory[operator].push(newEKEntry);
     }
 
-    /*
-    * Allows operator to post their final ephemeral key preimage via BLSRegistry (on degregistration)
-    */
+    /**
+     @notice Used by the operator to post their ephemeral key preimage via BLSRegistry 
+             (on degregistration) after the expiry of its usage. This function is called only
+             when operator is going to de-register from the middleware.  
+     */
+    /**
+     @param prevEK is the preimage. 
+     */ 
     function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external onlyRegistry {
         uint256 historyLength = EKHistory[operator].length - 1;
+
+        // retrieve the most recent EK entry for the operator
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
+        // check that the preimage matches with the hash
         require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
+        // update the EK entry
         existingEKEntry.ephemeralKey = prevEK;
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
         EKHistory[operator][historyLength] = existingEKEntry;        
     }
 
-     /*
-    * Allows operator to update their ephemeral key hash and post their previous ephemeral key 
-    */
+
+
+    /**
+     @notice Used by the operator to update their ephemeral key hash and post their 
+             previous ephemeral key (on degregistration) after the expiry of its usage.  
+     */
+    /**
+     @param prevEK is the previous ephemeral key,
+     @param newEKHash is the hash of the new ephemeral key.
+     */ 
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 newEKHash) external {
         uint256 historyLength = EKHistory[msg.sender].length - 1;
         EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength];
 
         require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
 
+        // checking the validity period of the ephemeral key update
         require(block.timestamp >= existingEKEntry.timestamp + UPDATE_PERIOD, "key update cannot be completed too early");
         require(block.timestamp <= existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD, "key update cannot be completed as update window has expired");
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
+        // updating the previous EK entry
         existingEKEntry.ephemeralKey = prevEK;
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
         EKHistory[msg.sender][historyLength] = existingEKEntry;        
 
+        // new EK entry
         EKEntry memory newEKEntry;
         newEKEntry.keyHash = newEKHash;
         newEKEntry.timestamp = uint192(block.timestamp);
@@ -82,9 +111,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         EKHistory[msg.sender].push(newEKEntry);
     }
 
-    /*
-    * retrieve a operator's current EK hash
-    */
+
+
+    /**
+     @notice retrieve the operator's current EK hash
+     */
+    // CRITIC ---  getLatestEphemeralKey seems to be superior than getCurrEphemeralKeyHash
     function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
         uint256 historyLength = EKHistory[operator].length - 1;
         return EKHistory[operator][historyLength].keyHash;
