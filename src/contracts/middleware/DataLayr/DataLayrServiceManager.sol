@@ -61,11 +61,14 @@ contract DataLayrServiceManager is
 
     event InitDataStore(
         uint32 dataStoreId,
+        uint32 index,
         bytes32 indexed headerHash,
+        bytes header,
         uint32 totalBytes,        
         uint32 initTime,
         uint32 storePeriodLength,
-        uint32 blockNumber
+        uint32 blockNumber,
+        uint256 fee
     );
 
     event ConfirmDataStore(
@@ -173,7 +176,7 @@ contract DataLayrServiceManager is
                     break;   
                 }       
             }
-            assertTrue(initializable == true, "number of initDatastores for this duration and block has reached its limit");
+            require(initializable == true, "number of initDatastores for this duration and block has reached its limit");
         }
         // call DataLayr contract
         { 
@@ -186,14 +189,10 @@ contract DataLayrServiceManager is
                 blockNumber >= (block.number - BLOCK_STALE_MEASURE),
                 "specified blockNumber is too far in past"
             );
-
-
-            //initializes data store
-            uint32 initTime = uint32(block.timestamp);
-
             
-            emit InitDataStore(dataStoresForDuration.dataStoreId, headerHash, totalBytes, initTime, storePeriodLength, blockNumber);
         }
+        //initializes data store
+        emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
 
         /**
         @notice sets the latest time until which any of the active DataLayr operators that haven't committed
