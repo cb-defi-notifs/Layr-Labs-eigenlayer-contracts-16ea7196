@@ -143,7 +143,9 @@ contract BLSRegistry is
     uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
 
 
-    // EVENTS
+    /**************** 
+     EVENTS
+     ****************/
     event StakeAdded(
         address operator,
         uint96 ethStake,
@@ -162,9 +164,7 @@ contract BLSRegistry is
         uint32 prevUpdateBlockNumber
     );
 
-    /**
-     * @notice
-     */
+
     event Registration(
         address indexed registrant,
         uint256[4] pk,
