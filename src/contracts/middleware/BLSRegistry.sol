@@ -50,6 +50,8 @@ contract BLSRegistry is
         uint32 serveUntil;
 
         // indicates whether the operator is actively registered for storing data or not 
+        // CRITIC: probably better to rename it as "status" as it indicates registrantType and 
+        //         also its active status 
         uint8 active; //bool
 
         // socket address of the node
@@ -60,9 +62,11 @@ contract BLSRegistry is
 
     // struct used to give definitive ordering to operators at each task number
     struct OperatorIndex {
-        // task number at which operator index changed
-        // note that the operator's index is different *for this task number*, i.e. the new index is inclusive of this value
+
+        // next task number at which set of operators currently registered with the middleware 
+        // got updated --- could be new registratin or deregistration
         uint32 toTaskNumber;
+
         // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
@@ -162,6 +166,8 @@ contract BLSRegistry is
         address registrant
     );
 
+
+
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
@@ -177,18 +183,21 @@ contract BLSRegistry is
         )
     {
         //apk_0 = g2Gen
+
         // initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );
-        // push an empty OperatorStake struct to the total stake history
+
+        // initiate the totalStakeHistory with an empty OperatorStake struct
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
 
-        // push an empty OperatorIndex struct to the total operators history
+        // initiate the totalOperatorsHistory with an empty OperatorIndex struct
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
 
+        // initiate the strategiesConsideredAndMultipliers
         uint256 length = _ethStrategiesConsideredAndMultipliers.length;
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
@@ -216,15 +225,12 @@ contract BLSRegistry is
         return eigenAmount < nodeEigenStake ? 0 : eigenAmount;
     }
 
+
     /**
-        @notice returns the total ETH delegated by delegators with this operator.
-                Accounts for both ETH used for staking in Ethereum (via operator)
-                and the ETH-denominated value of the shares in the investment strategies.
-                Note that the middleware can decide for itself how much weight it wants to
-                give to the ETH that is being used for staking in settlement layer.
+     @notice returns the total ETH delegated by delegators with this operator.
      */
     /**
-     * @dev minimum delegation limit of nodeEthStake has to be satisfied.
+     @dev minimum delegation limit of nodeEthStake has to be satisfied.
      */
     function weightOfOperatorEth(address operator)
         public
@@ -237,6 +243,7 @@ contract BLSRegistry is
         return amount < nodeEthStake ? 0 : amount;
     }
 
+
     /**
       @notice Used by an operator to de-register itself from providing service to the middleware.
      */
@@ -247,6 +254,7 @@ contract BLSRegistry is
         _deregisterOperator(pubkeyToRemoveAff, index);
         return true;
     }
+
 
     function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         require(
@@ -637,7 +645,6 @@ contract BLSRegistry is
      @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the operator
-     
      */ 
     function registerOperator(
         uint8 registrantType,
@@ -649,7 +656,7 @@ contract BLSRegistry is
 
 
     /**
-     @param operator is the node who is registering to be a operator
+     @param operator is the node who is registering to be a operator.
      */
     function _registerOperator(
         address operator,
@@ -699,8 +706,6 @@ contract BLSRegistry is
         uint256[4] memory newApk;
         uint256[4] memory pk;
 
-        
-
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender, 164);
@@ -733,26 +738,36 @@ contract BLSRegistry is
 
 
         
-        /**
+        /*******************
          @notice some book-keeping for aggregated pubkey
-         */
+         ********************/
+
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
-        // store the current tasknumber in which the aggregated pubkey is being updated 
+        // store the block number in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
         
-        //store the hash of aggregate pubkey
+        // store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);    
 
-        /**
-         @notice some book-keeping for recording info pertaining to the operator
-         */
-        // record the new stake for the operator in the storage
+
+
+        /**********************
+         @notice some book-keeping for recording info on stake history pertaining to the operator
+         ***********************/
+
+        // record the block number where the operator was registered
         _operatorStake.updateBlockNumber = uint32(block.number);
+
+        // record the new stake for the operator in the storage
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
+
+        /**********************
+         @notice some book-keeping for recording info on the operator in registry
+         ***********************/
         // store the registrant's info in relation
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
@@ -766,19 +781,32 @@ contract BLSRegistry is
             deregisterTime: 0
         });
 
+
+        /**********************
+         @notice some book-keeping for recording info on the operator in registrantList
+         ***********************/
         // record the operator being registered
         registrantList.push(operator);
 
         // record operator's index in list of operators
         OperatorIndex memory operatorIndex;
+
+        // get the index of the operator in registrantList
         operatorIndex.index = uint32(registrantList.length - 1);
+
+        // record the index info
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
         
-        // Update totalOperatorsHistory
+        
+
+        /**********************
+         @notice some book-keeping for recording info on the total operators in totalOperatorsHistory
+         ***********************/
         {
-            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
+            // set the 'toTaskNumber' field on the last entry *so far* in 'totalOperatorsHistory'
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
-            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
+            
+            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new number of operators
             OperatorIndex memory _totalOperators;
             _totalOperators.index = uint32(registrantList.length);
             totalOperatorsHistory.push(_totalOperators);
@@ -789,21 +817,29 @@ contract BLSRegistry is
             ++nextRegistrantId;
         }
         
-        
+
+
+
+        /************************
+         @notice some book-keeping for recoding updated total stake
+        *************************/
         {
-            /**
-            @notice some book-keeping for recoding updated total stake
-            */
+            // retrieve the last entry in totalStakeHistory
             OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+
             /**
-            * update total Eigen and ETH that are being employed by the operator for securing
-            * the queries from middleware via EigenLayr
+             update total Eigen and ETH that are being employed by the operator for securing
+             the queries from middleware via EigenLayr
             */
             _totalStake.ethStake += _operatorStake.ethStake;
             _totalStake.eigenStake += _operatorStake.eigenStake;
+
+            // record the block number where the stake is updated due to new registration
             _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake recordd in the past
+
+            // linking with the most recent stake recorded in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+            
             totalStakeHistory.push(_totalStake);
         }
 
@@ -814,6 +850,8 @@ contract BLSRegistry is
             
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
+
+
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
