@@ -628,7 +628,7 @@ contract BLSRegistry is
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateBlockNumber = uint32(block.number);
 
-            
+
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
@@ -695,15 +695,19 @@ contract BLSRegistry is
         return registry[operator].active;
     }
 
+
+
     /**
      @notice get hash of a historical aggregated public key corresponding to a given index;
              called by checkSignatures in BLSSignatureChecker.sol.
      */
+    // CRITIC ---  instead of blockNumber, it shoud be taskNumber 
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
         view
         returns (bytes32)
     {
+        
         require(
             blockNumber >= apkUpdates[index],
             "Index too recent"
@@ -958,7 +962,9 @@ contract BLSRegistry is
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        
         uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
+        
         OperatorStake memory opStake;
         if (historyLength == 0) {
             return opStake;
