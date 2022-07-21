@@ -218,7 +218,7 @@ contract BLSRegistry is
 
     /**
         @notice returns the total ETH delegated by delegators with this operator.
-                Accounts for both ETH used for staking in settlement layer (via operator)
+                Accounts for both ETH used for staking in Ethereum (via operator)
                 and the ETH-denominated value of the shares in the investment strategies.
                 Note that the middleware can decide for itself how much weight it wants to
                 give to the ETH that is being used for staking in settlement layer.
