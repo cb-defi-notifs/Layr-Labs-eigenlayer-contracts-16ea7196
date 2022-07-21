@@ -8,7 +8,7 @@ import "../permissions/RepositoryAccess.sol";
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     struct EKEntry {
         bytes32 keyHash;
-        bytes32 emphemeralKey;
+        bytes32 ephemeralKey;
         uint192 timestamp;
         uint32 startTaskNumber;
         uint32 endTaskNumber;
@@ -52,7 +52,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
-        existingEKEntry.emphemeralKey = prevEK;
+        existingEKEntry.ephemeralKey = prevEK;
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
         EKHistory[operator][historyLength] = existingEKEntry;        
     }
@@ -71,7 +71,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
-        existingEKEntry.emphemeralKey = prevEK;
+        existingEKEntry.ephemeralKey = prevEK;
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
         EKHistory[msg.sender][historyLength] = existingEKEntry;        
 
@@ -95,10 +95,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         returns (bytes32)
     {
         uint256 historyLength = EKHistory[operator].length - 1;
-        if (EKHistory[operator][historyLength].emphemeralKey != bytes32(0)) {
-            return EKHistory[operator][historyLength].emphemeralKey;
+        if (EKHistory[operator][historyLength].ephemeralKey != bytes32(0)) {
+            return EKHistory[operator][historyLength].ephemeralKey;
         } else {
-            return EKHistory[operator][historyLength - 1].emphemeralKey;
+            return EKHistory[operator][historyLength - 1].ephemeralKey;
         }
     }
 
@@ -118,7 +118,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
                     &&
                     (taskNumber <= EKHistory[msg.sender][historyLength].endTaskNumber)
                 ) {
-                    return EKHistory[msg.sender][historyLength].emphemeralKey;
+                    return EKHistory[msg.sender][historyLength].ephemeralKey;
                 }
             } 
         }
