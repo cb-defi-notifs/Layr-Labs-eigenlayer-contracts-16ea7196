@@ -122,6 +122,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         return EKHistory[operator][historyLength].keyHash;
     }
 
+    /**
+     @notice retrieve the operator's current EK hash
+     */
     function getLatestEphemeralKey(address operator)
         external view
         returns (bytes32)
@@ -130,9 +133,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         if (EKHistory[operator][historyLength].ephemeralKey != bytes32(0)) {
             return EKHistory[operator][historyLength].ephemeralKey;
         } else {
+            // recent EKEntry is still within UPDATE_PERIOD
             return EKHistory[operator][historyLength - 1].ephemeralKey;
         }
     }
+
+
 
     function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber)
         external view
