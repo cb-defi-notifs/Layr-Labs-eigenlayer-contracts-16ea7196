@@ -404,8 +404,19 @@ contract BLSRegistry is
 
 
 
+    /**
+     @notice Used for updating the registrant list and index histories
+     */
+    /**
+     @param pubkeyHash is operator's pubkeyhash that is de-registering
+     @param index is the operator's entry in registrantList
+     @param currentTaskNumber is middleware's current task number
+     */ 
     function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal {
-        // Removes the registrant with the given pubkeyHash from the index in registrantList
+        
+        /***************************** 
+         Removes the registrant with the given pubkeyHash from the index in registrantList
+         *****************************/
 
         // Update index info for old operator
         // store taskNumber at which operator index changed (stopped being applicable)
@@ -413,6 +424,7 @@ contract BLSRegistry is
 
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantList.length - 1){
+            
             // get existing operator at end of list, and retrieve their pubkeyHash
             address addr = registrantList[registrantList.length - 1];
             Registrant memory registrant = registry[addr];
@@ -420,19 +432,25 @@ contract BLSRegistry is
 
             // store taskNumber at which operator index changed
             pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toTaskNumber = currentTaskNumber;
+            
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
+            // updating the registrantList
             registrantList[index] = addr;
         }
 
+        // popping out the last entry in registrantList
         registrantList.pop();
 
-        // Update totalOperatorsHistory
+        /****************************
+         Update totalOperatorsHistory
+         ****************************/
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
         totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
+        
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
