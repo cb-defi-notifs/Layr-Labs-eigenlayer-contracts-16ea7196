@@ -120,7 +120,7 @@ The loop iterates through to find this next DataStore, thus determining the true
                         uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
          */
         /**
-          @dev checkSignatures in DataLayrSignaturechecker.sol enforces the invariant that hash of 
+          @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of 
                non-signers pubkey is recorded in the compressed signatory record in an  ascending
                manner.      
         */
@@ -579,9 +579,9 @@ The loop iterates through to find this next DataStore, thus determining the true
                         abi.encodePacked(
                             metadata.headerHash, 
                             metadata.globalDataStoreId, 
-                            metadata.globalDataStoreId, 
                             metadata.blockNumber, 
-                            metadata.fee
+                            metadata.fee,
+                            metadata.signatoryRecordHash
                             )
                         );
         return res;

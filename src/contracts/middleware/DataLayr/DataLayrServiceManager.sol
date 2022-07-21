@@ -9,7 +9,7 @@ import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 
 import "./DataLayrServiceManagerStorage.sol";
-import "../SignatureChecker.sol";
+import "../BLSSignatureChecker.sol";
 
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
@@ -28,7 +28,7 @@ import "ds-test/test.sol";
  */
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
-    SignatureChecker,
+    BLSSignatureChecker,
     IProofOfStakingOracle
     // ,DSTest
 {
@@ -81,7 +81,7 @@ contract DataLayrServiceManager is
         uint256 _feePerBytePerTime
     ) 
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
-        SignatureChecker(_repository)
+        BLSSignatureChecker(_repository)
     {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;

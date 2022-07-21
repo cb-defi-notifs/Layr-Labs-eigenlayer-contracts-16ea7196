@@ -57,7 +57,7 @@ library BLS {
             }
         }
 
-
+        //TODO: unCOMMENT THIS LINE!!! once the signature scheme is all fixed
         //require(input[1] == 1, "Pairing was unsuccessful");
 
         // return pubkey, the format being [x1, x0, y1, y0]         
