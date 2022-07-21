@@ -5,6 +5,14 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
+/**
+ @notice This contract has the functionality for ---
+            (1) storing revealed ephemeral keys for each operator from past,
+            (2) checking if ephemeral keys revealed too early and then slashing if needed,
+            (3) recording when a previous ephemeral key is made inactive
+ */
+
+
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     
     /******************
@@ -139,7 +147,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
 
-
+    /**
+     @notice This function is used for getting the ephemeral key pertaining to a particular taskNumber
+     */
     function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber)
         external view
         returns (bytes32)
@@ -163,10 +173,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         revert("did not find EK");
     }   
 
-    /*
-    *proof for operator that hasn't updated their ephemeral key within the update window.  
+
+    /** 
+     @notice proof for operator that hasn't updated their ephemeral key within the update window.  
     */
     function proveStaleEphemeralKey(address operator) external {
+        // get the info on latest EK 
         uint256 historyLength = EKHistory[operator].length - 1;
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
@@ -183,8 +195,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
     }
 
-    /*
-    * proof for operator who's ephemeral key has been leaked
+
+    /**
+     @notice Used for proving that leaked key is actually the ephemeral key 
+             that was supposed to be not revealed   
     */
     function verifyEphemeralKeyIntegrity(address operator, bytes32 leakedEphemeralKey) external {
         uint256 historyLength = EKHistory[operator].length - 1;
