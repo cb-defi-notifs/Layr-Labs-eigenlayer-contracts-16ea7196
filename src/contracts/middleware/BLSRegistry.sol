@@ -450,48 +450,91 @@ contract BLSRegistry is
          ****************************/
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
         totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
-        
+
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
     }
 
-    
+
+
+
+
+
+    /**
+     @notice This function returns the index of the @param operator in the registrantList when 
+             when the middleware in @param taskNumber
+     */    
+    /**
+     @dev note that @param index in arguement of the function is for the array 
+          pubkeyHashToIndexHistory[pubkeyHash]. This is different from  operatorIndex.index.
+     */ 
+    /// CRITIC --- change the name @param index  to something else --- it confuses with the 
+    ///            operatorIndex.index.  
     function getOperatorIndex(address operator, uint32 taskNumber, uint32 index) public view returns (uint32) {
 
+        // retrieve the pubkeyHash for the operator 
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
-        // since the 'to' field represents the taskNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == taskNumber, so we check not strict inequality here
+        
+        
+        /**
+         @notice the task number of the middleware when the most recent update before @param taskNumber 
+                 occurred, must not have happened after @param taskNumber. This most recent update 
+                 is recorded in pubkeyHashToIndexHistory[pubkeyHash][index - 1].toTaskNumber.   
+         */
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toTaskNumber <= taskNumber,
             "Operator indexHistory index is too high"
         );
+
+
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
+
         // when deregistering, the operator does *not* serve the currentTaskNumber -- 'to' gets set (from zero) to the currentTaskNumber on deregistration
         // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
         require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
+        
         return operatorIndex.index;
     }
 
+
+
+
+
+
+    /**
+     @notice Returns total number of operators during @param taskNumber
+     */
+    /**
+     @dev note that @param index in arguement of the function is for the array 
+          totalOperatorsHistory. This is different from  operatorIndex.index.
+     */ 
+    /// CRITIC --- change the name @param index  to something else --- it confuses with the 
+    ///            operatorIndex.index.   
     function getTotalOperators(uint32 taskNumber, uint32 index) public view returns (uint32) {
 
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
+        
         // since the 'to' field represents the taskNumber at which a new index started
         // it is OK if the previous array entry has 'to' == taskNumber, so we check not strict inequality here
         require(
             index == 0 || totalOperatorsHistory[index - 1].toTaskNumber <= taskNumber,
             "TotalOperator indexHistory index is too high"
         );
+        
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
+        
         // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
         require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
         return operatorIndex.index;
         
     }
+
+
 
 
     /**
@@ -537,6 +580,7 @@ contract BLSRegistry is
         return (BLS.jacToAff(existingAggPubkeyJac));
     }
 
+
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of nodes.
      */
@@ -550,21 +594,25 @@ contract BLSRegistry is
 
         // TODO: test if declaring more variables outside of loop decreases gas usage
         uint256 operatorsLength = operators.length;
+
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+            
             // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
+            
             // determine current stakes
             OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
                 pubkeyHash
             ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
+
             // determine new stakes
             OperatorStake memory newStakes;
-
             newStakes.updateBlockNumber = uint32(block.number);
             newStakes.ethStake = weightOfOperatorEth(operators[i]);
             newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
+
 
             // check if minimum requirements have been met
             if (newStakes.ethStake < nodeEthStake) {
@@ -573,10 +621,14 @@ contract BLSRegistry is
             if (newStakes.eigenStake < nodeEigenStake) {
                 newStakes.eigenStake = uint96(0);
             }
+
+
             //set nextUpdateBlockNumber in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateBlockNumber = uint32(block.number);
+
+            
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
