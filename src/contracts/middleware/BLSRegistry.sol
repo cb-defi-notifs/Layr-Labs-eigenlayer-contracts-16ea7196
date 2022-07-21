@@ -26,11 +26,14 @@ contract BLSRegistry is
 {
     using BytesLib for bytes;
 
-    // DATA STRUCTURES 
+
+    /*********************  
+        DATA STRUCTURES 
+     *********************/    
     /**
-     * @notice  Data structure used for storing info on operators to be used for:
-     *           - sending data by the sequencer
-     *           - payment and associated challenges
+     *  @notice Data structure used for storing info on operators to be used for:
+     *          - sending data by the sequencer
+     *          - payment and associated challenges
      */
     struct Registrant {
         // hash of pubkey of the operator
@@ -57,23 +60,27 @@ contract BLSRegistry is
         // socket address of the node
         string socket;
 
+        // timestamp when operator de-registers from providing service to middleware
         uint256 deregisterTime;
     }
 
 
-    // struct used to give definitive ordering to operators at each task number
+    /// @notice struct used to give definitive ordering to operators at each task number
     struct OperatorIndex {
 
         // next task number at which set of operators currently registered with the middleware 
-        // got updated --- could be new registratin or deregistration
+        // got updated --- could be new registration or deregistration
         uint32 toTaskNumber;
 
-        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
+        // index of the operator in array of operators (registrantList), or 
+        // the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
 
 
-    // CONSTANTS
+    /*****************  
+     CONSTANTS
+     *****************/
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
 
@@ -83,9 +90,10 @@ contract BLSRegistry is
             "Registration(address operator,address registrationContract,uint256 expiry)"
         );
 
+    /// @notice number of quorus for the middleware 
     uint8 internal constant _NUMBER_OF_QUORUMS = 2;
 
-    // number of registrants of this service
+    /// @notice number of registrants currently for this middleware
     uint64 public numRegistrants;  
 
     uint128 public nodeEthStake = 1 wei;
@@ -94,7 +102,7 @@ contract BLSRegistry is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /// @notice a sequential counter that is incremented whenver new operator registers
+    /// @notice a sequential counter that is incremented whenever new operator registers
     uint32 public nextRegistrantId;
 
     /// @notice used for storing Registrant info on each operator while registration
@@ -103,7 +111,7 @@ contract BLSRegistry is
     /// @notice used for storing the list of current and past registered operators 
     address[] public registrantList;
 
-    /// @notice array of the history of the total stakes
+    /// @notice array of the history of the updates to total stakes with the middleware
     OperatorStake[] public totalStakeHistory;
 
     /// @notice array of the history of the number of operators, and the taskNumbers at which the number of operators changed
@@ -129,7 +137,8 @@ contract BLSRegistry is
      */
     /** 
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-     addition in Jacobian coordinate system.
+          addition in Jacobian coordinate system. We doing addition in Jacobian coordinates, 
+          instead of affine coordinates, as it is more gas optimized.
      */
     uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
 
@@ -284,7 +293,6 @@ contract BLSRegistry is
 
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
-
         registry[msg.sender].deregisterTime = block.timestamp;
 
 
