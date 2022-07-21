@@ -579,9 +579,9 @@ The loop iterates through to find this next DataStore, thus determining the true
                         abi.encodePacked(
                             metadata.headerHash, 
                             metadata.globalDataStoreId, 
-                            metadata.globalDataStoreId, 
                             metadata.blockNumber, 
-                            metadata.fee
+                            metadata.fee,
+                            metadata.signatoryRecordHash
                             )
                         );
         return res;
