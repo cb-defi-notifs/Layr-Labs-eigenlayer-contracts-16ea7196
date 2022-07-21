@@ -21,8 +21,14 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     struct EKEntry {
         bytes32 keyHash;
         bytes32 ephemeralKey;
+
+        // timestamp when the keyhash is first recorded
         uint192 timestamp;
+
+        // task number of the middleware from which ephemeral key is being used
         uint32 startTaskNumber;
+
+        // task number of the middleware  until which ephemeral key is being used
         uint32 endTaskNumber;
     }
 
@@ -62,7 +68,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     /**
      @notice Used by the operator to post their ephemeral key preimage via BLSRegistry 
              (on degregistration) after the expiry of its usage. This function is called only
-             when operator is going to de-register from the middleware.  
+             when operator is going to de-register from the middleware.  Check its usage in 
+             deregisterOperator  in BLSRegistryWithBomb.sol
      */
     /**
      @param prevEK is the preimage. 
@@ -89,6 +96,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     /**
      @notice Used by the operator to update their ephemeral key hash and post their 
              previous ephemeral key (on degregistration) after the expiry of its usage.  
+             Revealing of current ephemeral key and describing the hash of the new ephemeral
+             key done together.
      */
     /**
      @param prevEK is the previous ephemeral key,
