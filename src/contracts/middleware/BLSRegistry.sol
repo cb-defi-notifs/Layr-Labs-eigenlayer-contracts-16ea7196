@@ -250,7 +250,9 @@ contract BLSRegistry is
      */
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+      @param index is the index in registrantList where the operator is located
      */
+    /// @dev msg.sender is considered to be the operator that is getting de-registered 
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
         return true;
@@ -270,10 +272,13 @@ contract BLSRegistry is
 
         IServiceManager serviceManager = repository.serviceManager();
 
-        // must store till the latest time a dump expires
-        /**
-         @notice this info is used in forced disclosure
-         */
+
+
+        /*******************
+         Recording the information on operator that ia getting de-registered in registry   
+         ********************/
+        // recording the latest time until which the operaor is supposed to fulfil its obligation
+        // to the middleware 
         registry[msg.sender].serveUntil = serviceManager.latestTime();
 
 
@@ -282,12 +287,16 @@ contract BLSRegistry is
 
         registry[msg.sender].deregisterTime = block.timestamp;
 
+
+
+
         // get current taskNumber from ServiceManager
         uint32 currentTaskNumber = serviceManager.taskNumber();   
         
-        /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
-         */
+
+        /************************
+         verify that the sender is a operator that is doing deregistration for itself 
+         *************************/
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
         bytes32 pubkeyHashFromInput = keccak256(
@@ -301,67 +310,90 @@ contract BLSRegistry is
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
 
+
+
+
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
             pubkeyHash
         ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
-        /**
-         @notice recording the information pertaining to change in stake for this operator in the history
-         */
-        // determine new stakes
+
+
+        /*******************************
+         recording the information pertaining to change in stake for this operator in pubkeyHashToStakeHistory
+         ********************************/
         OperatorStake memory newStakes;
-        // recording the current task number where the operator stake got updated 
+
+        // recording the current block number where the operator stake got updated via de-registration 
         newStakes.updateBlockNumber = uint32(block.number);
 
-        // setting total staked ETH for the operator to 0
+        // de-registration means setting total staked ETH for the operator to 0
         newStakes.ethStake = uint96(0);
-        // setting total staked Eigen for the operator to 0
+
+        // de-registration means setting total staked Eigen for the operator to 0
         newStakes.eigenStake = uint96(0);
 
 
-        //set nextUpdateBlockNumber in prev stakes
+        // updating nextUpdateBlockNumber in last recorded stake update in the history
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateBlockNumber = uint32(block.number);
 
-        // push new stake to storage
+        // recording new stake update to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
-        // Update registrant list and update index histories
+
+
+
+        /*******************************
+         Update registrant list and update index histories
+         ********************************/
         popRegistrant(pubkeyHash,index,currentTaskNumber);
 
 
-        /**
-         @notice  update info on ETH and Eigen staked with the middleware
-         */
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
+        /********************************
+         record stake update in history of total stake for the middleware
+         *********************************/
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+
+        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
+
+        // record the current block number
         _totalStake.updateBlockNumber = uint32(block.number);
+
+        // update the last record in the history, linking with the new update
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+        
+        // record the new stake update due to de-registration in history
         totalStakeHistory.push(_totalStake);
 
-        //decrement number of registrants
+
+
+        // decrement number of registrants
         unchecked {
             --numRegistrants;
         }
 
 
-        /**
-         @notice update the aggregated public key of all registered operators and record
-                 this update in history
-         */
+        /*****************************
+         update the aggregated public key of all registered operators and record this update in history
+         *****************************/
         // get existing aggregate public key
         uint256[4] memory pk = apk;
+
         // remove signer's pubkey from aggregate public key
         (pk[0], pk[1], pk[2], pk[3]) = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
+
         // update stored aggregate public key
         apk = pk;
 
         // update aggregated pubkey coordinates
+        // CRITIC --- this is not being consitent with how apkUpdates is being updated in 
+        //            _registerOperator where block.number is being used
         apkUpdates.push(currentTaskNumber);
 
         // store hash of updated aggregated pubkey
