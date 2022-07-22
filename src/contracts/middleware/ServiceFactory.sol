@@ -64,6 +64,7 @@ contract ServiceFactory is IServiceFactory {
         return newRepository;
     }
 
+
     function createNewService(
         IServiceManager serviceManager,
         address initialRepositoryOwner,

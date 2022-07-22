@@ -16,6 +16,9 @@ contract Repository is Initializable, RepositoryStorage {
     RepositoryStorage(_delegation, _investmentManager) {
     }
 
+    /**
+     @notice used for setting the associated contracts for the middleware.
+     */
     function initialize(
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,
