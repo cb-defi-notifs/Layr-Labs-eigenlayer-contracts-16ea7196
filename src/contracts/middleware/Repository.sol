@@ -7,17 +7,9 @@ import "../interfaces/IRepository.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./RepositoryStorage.sol";
 
-/**
- * @notice This is the contract for managing queries in any middleware. Each middleware has a
- *         a repository. The main functionalities of this contract are:
- *             - Enable mechanism for an operator to register with the middleware so that it can
- *               respond to the middleware's queries,
- *             - Enable mechanism for an operator to de-register with the middleware,
- *             - Enable mechanism for updating the stake that is being deployed by an
- *               operator for validating the queries of the middleware,
- *             - Enable mechanism for creating new queries by the middleware, responding to
- *               existing queries by operators and finalize the outcome of the queries.
- */
+
+
+
 contract Repository is Initializable, RepositoryStorage {
 
     constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager)

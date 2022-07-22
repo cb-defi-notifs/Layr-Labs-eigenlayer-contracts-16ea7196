@@ -18,7 +18,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     using BytesLib for bytes;
     ITaskMetadata public taskMetadata;
 
-    // DATA STRUCTURES
+
+    /***************** 
+     DATA STRUCTURES
+     *****************/
     /**
      @notice this data structure is used for recording the details on the total stake of the registered
              operators and those operators who are part of the quorum for a particular taskNumber
@@ -34,7 +37,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         uint256 totalEigenStake;
     }
 
-    // EVENTS
+
+    /*********** 
+     EVENTS
+     ***********/
     /**
      @notice used for recording the event that signature has been checked in checkSignatures function.
      */
@@ -48,6 +54,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         bytes32[] pubkeyHashes
     );
 
+
+
     constructor(IRepository _repository) 
         RepositoryAccess(_repository)
     {
@@ -56,7 +64,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
              that are part of the quorum for a particular taskNumber and is asserting them into on-chain. The function 
-             checks that the claim for aggergated signatures are valid.
+             checks that the claim for aggregated signatures are valid.
 
              The thesis of this procedure entails:
               - computing the aggregated pubkey of all the operators that are not part of the quorum for 
@@ -67,7 +75,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 of all operators that are part of quorum.
               - use this aggregated pubkey to verify the aggregated signature under BLS scheme.
      */
-    
     /** 
      @dev This calldata is of the format:
             <
@@ -82,7 +89,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint256[2] sigma
             >
      */
-    //NOTE: this assumes length 64 signatures
+    // NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata)
         public
         returns (
@@ -92,7 +99,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             bytes32 compressedSignatoryRecord
         )
     {
-        //temporary variable used to hold various numbers
+        // temporary variable used to hold various numbers
         uint256 placeholder;
 
         assembly {
