@@ -89,6 +89,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint256[2] sigma
             >
      */
+    //  CRITIC --- seems like instead of dataStoreId, we have taskNumberToConfirm
     // NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata)
         public
@@ -105,6 +106,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the taskHash for which disperser is calling checkSignatures
+            // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument. 
             taskHash := calldataload(356)
 
             // get the 6 bytes immediately after the above, which represent the
@@ -130,8 +132,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject = registry
-            .getTotalStakeFromIndex(placeholder);
+        IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
+        
         // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
         _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
 
@@ -153,10 +155,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
 
-        /**
-         @notice next step involves computing the aggregated pub key of all the operators
-                 that are not part of the quorum for this specific taskNumber. 
-         */
+
+
+        /****************************
+         next step involves computing the aggregated pub key of all the operators
+         that are not part of the quorum for this specific taskNumber. 
+         ****************************/
         /**
          @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata; 
               Note that this need not be a special case and *could* be subsumed in the for loop below.
@@ -202,7 +206,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                  @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in 
                          Registry.sol that was recorded at the time of pre-commit.
                  */
-                
                 stakeIndex := shr(224, calldataload(add(pointer, 128)))
             }
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
@@ -230,6 +233,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 pubkeyHash,
                 stakeIndex
             );
+
             // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
             _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
            
