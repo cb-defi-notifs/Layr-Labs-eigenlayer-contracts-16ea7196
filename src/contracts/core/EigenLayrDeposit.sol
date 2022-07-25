@@ -174,7 +174,7 @@ contract EigenLayrDeposit is
 
 
     /**
-     *   @notice It is used to prove staking of ETH into settlement layer (beacon chain)
+     * @notice It is used to prove staking of ETH into settlement layer (beacon chain)
      *           before the launch of EigenLayr. We call this
      *           as legacy consensus layer deposit. EigenLayr now
      *           counts this staked ETH, under re-staking paradigm, as being
