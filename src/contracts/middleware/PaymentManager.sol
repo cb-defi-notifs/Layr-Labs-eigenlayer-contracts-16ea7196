@@ -220,7 +220,7 @@ contract PaymentManager is
 
     /**
      @notice This is used by an operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toTaskNumber  
+             for their service since their last payment until @param toTaskNumber
      */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));

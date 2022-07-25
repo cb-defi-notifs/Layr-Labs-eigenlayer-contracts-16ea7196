@@ -532,11 +532,11 @@ The loop iterates through to find this next DataStore, thus determining the true
 
         operatorIndex = dlRegistry.getOperatorIndex(
             operator,
-            dataStoreId,
+            searchData.metadata.blockNumber,
             operatorIndex
         );
         totalOperatorsIndex = dlRegistry.getTotalOperators(
-            dataStoreId,
+            searchData.metadata.blockNumber,
             totalOperatorsIndex
         );
         return (operatorIndex + dataStoreId) % totalOperatorsIndex;
