@@ -85,9 +85,11 @@ contract EigenLayrDeposit is
         );
     }
 
-    //this is called by parties that have a signature approving
-    //the deposit claim from consensus layer depositors themselves
-    //to claim their consensus layer eth on eigenlayer
+    /**
+     @notice This is called by parties that have a signature approving
+     the deposit claim from consensus layer depositors themselves
+     to claim their consensus layer ETH on eigenlayer
+     */
     function proveLegacyConsensusLayerDepositBySignature(
             address depositor,
             bytes32 r,
@@ -98,32 +100,42 @@ contract EigenLayrDeposit is
             uint256 amount
     ) public {
         require(nonces[depositor] == nonce, "invalid delegation nonce");
+
         require(
             expiry == 0 || expiry <= block.timestamp,
             "delegation signature expired"
         );
+
         bytes32 structHash = keccak256(
             abi.encode(DEPOSIT_CLAIM_TYPEHASH, msg.sender)
         );
+
         bytes32 digestHash = keccak256(
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
-        //check validity of signature
+
+        // Recovering the address of the signer from the signature.
+        // This signer is the supposed depositer.
         address recoveredAddress = SignatureCompaction.ecrecoverPacked(
             digestHash,
             r,
             vs
         );
+
         require(
             recoveredAddress != address(0),
             "delegateToBySignature: bad signature"
         );
+
         require(
             recoveredAddress == depositor,
             "delegateToBySignature: sig not from depositor"
         );
+
+
         // increment delegator's delegationNonce
         ++nonces[depositor];
+
         _proveLegacyConsensusLayerDeposit(
             depositor,
             msg.sender,
@@ -151,7 +163,7 @@ contract EigenLayrDeposit is
      *           before the launch of EigenLayr. We call this
      *           as legacy consensus layer deposit. EigenLayr now
      *           counts this staked ETH, under re-staking paradigm, as being
-     *           staked in EigenLayr.
+     *           staked in EigenLayer.
      */
     /** @dev The snapshot of which depositor has staked what amount of ETH into settlement layer
      *        (beacon chain) is captured using a merkle tree where the leaf node is given by
@@ -187,7 +199,7 @@ contract EigenLayrDeposit is
     }
 
     /**
-     *    @notice Used for letting EigenLayr know that depositor's ETH should
+     *    @notice Used for letting EigenLayer know that depositor's ETH should
      *            be staked in settlement layer via EigenLayr's withdrawal certificate
      *            and then be re-staked in EigenLayr.
      */
