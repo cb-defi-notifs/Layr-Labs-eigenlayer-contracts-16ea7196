@@ -68,7 +68,6 @@ contract EigenLayrDeposit is
 
         // send the ETH deposited to the ERC20 contract for liquidStakeToken
         // this liquidStakeToken is credited to EigenLayrDeposit contract (address(this))
-
         Address.sendValue(payable(address(liquidStakeToken)), msg.value);
 
         // increment in balance of liquidStakeToken
