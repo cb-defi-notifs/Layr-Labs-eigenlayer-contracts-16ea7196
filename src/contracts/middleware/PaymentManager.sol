@@ -219,8 +219,8 @@ contract PaymentManager is
     }
 
     /**
-     @notice This is used by an operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toTaskNumber  
+     @notice This is used by an operator to make claim on the  amount that they deserve 
+             for their service since their last payment until toTaskNumber  
      */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
@@ -421,7 +421,7 @@ contract PaymentManager is
         uint32 fromTaskNumber = challenge.fromTaskNumber;
         uint32 toTaskNumber = challenge.toTaskNumber;
         uint32 diff;
-        
+
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
