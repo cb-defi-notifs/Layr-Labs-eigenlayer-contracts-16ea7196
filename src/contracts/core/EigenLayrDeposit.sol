@@ -85,6 +85,33 @@ contract EigenLayrDeposit is
         );
     }
 
+
+    /**
+     *   @notice It is used to prove staking of ETH into beacon chain
+     *           before the launch of EigenLayer. We call this
+     *           as legacy consensus layer deposit. EigenLayr now
+     *           counts this staked ETH, under re-staking paradigm, as being
+     *           staked in EigenLayer.
+     */
+    /** @dev The snapshot of which depositor has staked what amount of ETH into 
+     *        beacon chain is captured using a merkle tree where the leaf node is given by
+     *        keccak256(abi.encodePacked(depositor, amount)). This merkle tree is then used
+     *        to prove depositor's stake in the settlement layer.
+     */
+    /// @param proof is the merkle proof in the above merkle tree.
+    function proveLegacyConsensusLayerDeposit(
+        bytes32[] calldata proof,
+        uint256 amount
+    ) external {
+        _proveLegacyConsensusLayerDeposit(
+            msg.sender,
+            msg.sender,
+            proof,
+            amount
+        );
+    }
+
+
     /**
      @notice This is called by parties that have a signature approving
      the deposit claim from consensus layer depositors themselves
@@ -144,19 +171,7 @@ contract EigenLayrDeposit is
         );
     }
 
-    //this is called by consensus layer depositors themselves
-    //to claim their consensus layer eth on eigenlayer
-    function proveLegacyConsensusLayerDeposit(
-        bytes32[] calldata proof,
-        uint256 amount
-    ) external {
-        _proveLegacyConsensusLayerDeposit(
-            msg.sender,
-            msg.sender,
-            proof,
-            amount
-        );
-    }
+
 
     /**
      *   @notice It is used to prove staking of ETH into settlement layer (beacon chain)
