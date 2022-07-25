@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IServiceManager.sol";
-import "../interfaces/IBLSRegistry.sol";
+import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
@@ -13,27 +13,24 @@ import "../libraries/BN254_Constants.sol";
 import "ds-test/test.sol";
 
 /**
- * @notice This contract is used to
+ * @notice This contract is used for 
             - registering new operators 
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
  */
 
 contract BLSRegistry is
-    IBLSRegistry,
+    IQuorumRegistry,
     VoteWeigherBase,
     DSTest
 {
     using BytesLib for bytes;
 
-
-    /*********************  
-        DATA STRUCTURES 
-     *********************/    
+    // DATA STRUCTURES 
     /**
-     *  @notice Data structure used for storing info on operators to be used for:
-     *          - sending data by the sequencer
-     *          - payment and associated challenges
+     * @notice  Data structure for storing info on operators to be used for:
+     *           - sending data by the sequencer
+     *           - payment and associated challenges
      */
     struct Registrant {
         // hash of pubkey of the operator
@@ -53,34 +50,25 @@ contract BLSRegistry is
         uint32 serveUntil;
 
         // indicates whether the operator is actively registered for storing data or not 
-        // CRITIC: probably better to rename it as "status" as it indicates registrantType and 
-        //         also its active status
-        uint8 active; // bool
+        uint8 active; //bool
 
         // socket address of the node
         string socket;
 
-        // timestamp when operator de-registers from providing service to middleware
         uint256 deregisterTime;
     }
 
-
-    /// @notice struct used to give definitive ordering to operators at each task number
+    // struct used to give definitive ordering to operators at each blockNumber
     struct OperatorIndex {
-
-        // next task number at which set of operators currently registered with the middleware 
-        // got updated --- could be new registration or deregistration
-        uint32 toTaskNumber;
-
-        // index of the operator in array of operators (registrantList), or 
-        // the total number of operators if in the 'totalOperatorsHistory'
+        // blockNumber number at which operator index changed
+        // note that the operator's index is different *for this block number*, i.e. the new index is inclusive of this value
+        uint32 toBlockNumber;
+        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;
     }
 
 
-    /*****************  
-     CONSTANTS
-     *****************/
+    // CONSTANTS
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
 
@@ -90,10 +78,9 @@ contract BLSRegistry is
             "Registration(address operator,address registrationContract,uint256 expiry)"
         );
 
-    /// @notice number of quorus for the middleware 
     uint8 internal constant _NUMBER_OF_QUORUMS = 2;
 
-    /// @notice number of registrants currently for this middleware
+    // number of registrants of this service
     uint64 public numRegistrants;  
 
     uint128 public nodeEthStake = 1 wei;
@@ -102,7 +89,7 @@ contract BLSRegistry is
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /// @notice a sequential counter that is incremented whenever new operator registers
+    /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextRegistrantId;
 
     /// @notice used for storing Registrant info on each operator while registration
@@ -111,7 +98,7 @@ contract BLSRegistry is
     /// @notice used for storing the list of current and past registered operators 
     address[] public registrantList;
 
-    /// @notice array of the history of the updates to total stakes with the middleware
+    /// @notice array of the history of the total stakes
     OperatorStake[] public totalStakeHistory;
 
     /// @notice array of the history of the number of operators, and the taskNumbers at which the number of operators changed
@@ -137,15 +124,12 @@ contract BLSRegistry is
      */
     /** 
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-          addition in Jacobian coordinate system. We doing addition in Jacobian coordinates, 
-          instead of affine coordinates, as it is more gas optimized.
+     addition in Jacobian coordinate system.
      */
     uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
 
 
-    /**************** 
-     EVENTS
-     ****************/
+    // EVENTS
     event StakeAdded(
         address operator,
         uint96 ethStake,
@@ -164,7 +148,9 @@ contract BLSRegistry is
         uint32 prevUpdateBlockNumber
     );
 
-
+    /**
+     * @notice
+     */
     event Registration(
         address indexed registrant,
         uint256[4] pk,
@@ -175,8 +161,6 @@ contract BLSRegistry is
     event Deregistration(
         address registrant
     );
-
-
 
     constructor(
         Repository _repository,
@@ -193,21 +177,18 @@ contract BLSRegistry is
         )
     {
         //apk_0 = g2Gen
-
         // initialize the DOMAIN_SEPARATOR for signatures
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );
-
-        // initiate the totalStakeHistory with an empty OperatorStake struct
+        // push an empty OperatorStake struct to the total stake history
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
 
-        // initiate the totalOperatorsHistory with an empty OperatorIndex struct
+        // push an empty OperatorIndex struct to the total operators history
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
 
-        // initiate the strategiesConsideredAndMultipliers
         uint256 length = _ethStrategiesConsideredAndMultipliers.length;
         for (uint256 i = 0; i < length; ++i) {
             strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
@@ -235,12 +216,15 @@ contract BLSRegistry is
         return eigenAmount < nodeEigenStake ? 0 : eigenAmount;
     }
 
-
     /**
-     @notice returns the total ETH delegated by delegators with this operator.
+        @notice returns the total ETH delegated by delegators with this operator.
+                Accounts for both ETH used for staking in settlement layer (via operator)
+                and the ETH-denominated value of the shares in the investment strategies.
+                Note that the middleware can decide for itself how much weight it wants to
+                give to the ETH that is being used for staking in settlement layer.
      */
     /**
-     @dev minimum delegation limit of nodeEthStake has to be satisfied.
+     * @dev minimum delegation limit of nodeEthStake has to be satisfied.
      */
     function weightOfOperatorEth(address operator)
         public
@@ -253,20 +237,16 @@ contract BLSRegistry is
         return amount < nodeEthStake ? 0 : amount;
     }
 
-
     /**
       @notice Used by an operator to de-register itself from providing service to the middleware.
      */
     /** 
       @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
-      @param index is the index in registrantList where the operator is located
      */
-    /// @dev msg.sender is considered to be the operator that is getting de-registered 
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
         return true;
     }
-
 
     function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         require(
@@ -281,30 +261,24 @@ contract BLSRegistry is
 
         IServiceManager serviceManager = repository.serviceManager();
 
-
-
-        /*******************
-         Recording the information on operator that ia getting de-registered in registry   
-         ********************/
-        // recording the latest time until which the operaor is supposed to fulfil its obligation
-        // to the middleware 
+        // must store till the latest time a dump expires
+        /**
+         @notice this info is used in forced disclosure
+         */
         registry[msg.sender].serveUntil = serviceManager.latestTime();
 
 
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
+
         registry[msg.sender].deregisterTime = block.timestamp;
 
-
-
-
-        // get current taskNumber from ServiceManager
+        // get current DataStoreId from ServiceManager
         uint32 currentTaskNumber = serviceManager.taskNumber();   
         
-
-        /************************
-         verify that the sender is a operator that is doing deregistration for itself 
-         *************************/
+        /**
+         @notice verify that the sender is a operator that is doing deregistration for itself 
+         */
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
         bytes32 pubkeyHashFromInput = keccak256(
@@ -318,90 +292,67 @@ contract BLSRegistry is
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
 
-
-
-
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
             pubkeyHash
         ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
-
-
-        /*******************************
-         recording the information pertaining to change in stake for this operator in pubkeyHashToStakeHistory
-         ********************************/
+        /**
+         @notice recording the information pertaining to change in stake for this operator in the history
+         */
+        // determine new stakes
         OperatorStake memory newStakes;
-
-        // recording the current block number where the operator stake got updated via de-registration 
+        // recording the current task number where the operator stake got updated 
         newStakes.updateBlockNumber = uint32(block.number);
 
-        // de-registration means setting total staked ETH for the operator to 0
+        // setting total staked ETH for the operator to 0
         newStakes.ethStake = uint96(0);
-
-        // de-registration means setting total staked Eigen for the operator to 0
+        // setting total staked Eigen for the operator to 0
         newStakes.eigenStake = uint96(0);
 
 
-        // updating nextUpdateBlockNumber in last recorded stake update in the history
+        //set next task number in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][
             pubkeyHashToStakeHistory[pubkeyHash].length - 1
         ].nextUpdateBlockNumber = uint32(block.number);
 
-        // recording new stake update to storage
+        // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
+        // Update registrant list and update index histories
+        popRegistrant(pubkeyHash,index);
 
 
-
-        /*******************************
-         Update registrant list and update index histories
-         ********************************/
-        popRegistrant(pubkeyHash,index,currentTaskNumber);
-
-
-        /********************************
-         record stake update in history of total stake for the middleware
-         *********************************/
+        /**
+         @notice  update info on ETH and Eigen staked with the middleware
+         */
+        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
-
-        // record the current block number
         _totalStake.updateBlockNumber = uint32(block.number);
-
-        // update the last record in the history, linking with the new update
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        
-        // record the new stake update due to de-registration in history
         totalStakeHistory.push(_totalStake);
 
-
-
-        // decrement number of registrants
+        //decrement number of registrants
         unchecked {
             --numRegistrants;
         }
 
 
-        /*****************************
-         update the aggregated public key of all registered operators and record this update in history
-         *****************************/
+        /**
+         @notice update the aggregated public key of all registered operators and record
+                 this update in history
+         */
         // get existing aggregate public key
         uint256[4] memory pk = apk;
-
         // remove signer's pubkey from aggregate public key
         (pk[0], pk[1], pk[2], pk[3]) = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-
         // update stored aggregate public key
         apk = pk;
 
         // update aggregated pubkey coordinates
-        // CRITIC --- this is not being consitent with how apkUpdates is being updated in 
-        //            _registerOperator where block.number is being used
         apkUpdates.push(currentTaskNumber);
 
         // store hash of updated aggregated pubkey
@@ -412,137 +363,76 @@ contract BLSRegistry is
 
 
 
-    /**
-     @notice Used for updating the registrant list and index histories
-     */
-    /**
-     @param pubkeyHash is operator's pubkeyhash that is de-registering
-     @param index is the operator's entry in registrantList
-     @param currentTaskNumber is middleware's current task number
-     */ 
-    function popRegistrant(bytes32 pubkeyHash, uint32 index, uint32 currentTaskNumber) internal {
-        
-        /***************************** 
-         Removes the registrant with the given pubkeyHash from the index in registrantList
-         *****************************/
+    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+        // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Update index info for old operator
-        // store taskNumber at which operator index changed (stopped being applicable)
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toTaskNumber = currentTaskNumber;
+        // store blockNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
 
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantList.length - 1){
-            
             // get existing operator at end of list, and retrieve their pubkeyHash
             address addr = registrantList[registrantList.length - 1];
             Registrant memory registrant = registry[addr];
             pubkeyHash = registrant.pubkeyHash;
 
-            // store taskNumber at which operator index changed
-            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toTaskNumber = currentTaskNumber;
-            
+            // store blockNumber at which operator index changed
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
-            // updating the registrantList
             registrantList[index] = addr;
         }
 
-        // popping out the last entry in registrantList
         registrantList.pop();
 
-        /****************************
-         Update totalOperatorsHistory
-         ****************************/
+        // Update totalOperatorsHistory
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
-
+        totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
         // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
     }
 
+    
+    function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) public view returns (uint32) {
 
-
-
-
-
-    /**
-     @notice This function returns the index of the @param operator in the registrantList when 
-             when the middleware in @param taskNumber
-     */    
-    /**
-     @dev note that @param index in arguement of the function is for the array 
-          pubkeyHashToIndexHistory[pubkeyHash]. This is different from  operatorIndex.index.
-     */ 
-    /// CRITIC --- change the name @param index  to something else --- it confuses with the 
-    ///            operatorIndex.index.  
-    function getOperatorIndex(address operator, uint32 taskNumber, uint32 index) public view returns (uint32) {
-
-        // retrieve the pubkeyHash for the operator 
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
-        
-        
-        /**
-         @notice the task number of the middleware when the most recent update before @param taskNumber 
-                 occurred, must not have happened after @param taskNumber. This most recent update 
-                 is recorded in pubkeyHashToIndexHistory[pubkeyHash][index - 1].toTaskNumber.   
-         */
+        // since the 'to' field represents the taskNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
         require(
-            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toTaskNumber <= taskNumber,
+            index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toBlockNumber <= blockNumber,
             "Operator indexHistory index is too high"
         );
-
-
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-
-        // when deregistering, the operator does *not* serve the currentTaskNumber -- 'to' gets set (from zero) to the currentTaskNumber on deregistration
-        // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
-        
+        // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
+        // on deregistration since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "indexHistory index is too low");
         return operatorIndex.index;
     }
 
-
-
-
-
-
-    /**
-     @notice Returns total number of operators during @param taskNumber
-     */
-    /**
-     @dev note that @param index in arguement of the function is for the array 
-          totalOperatorsHistory. This is different from  operatorIndex.index.
-     */ 
-    /// CRITIC --- change the name @param index  to something else --- it confuses with the 
-    ///            operatorIndex.index.   
-    function getTotalOperators(uint32 taskNumber, uint32 index) public view returns (uint32) {
+    function getTotalOperators(uint32 blockNumber, uint32 index) public view returns (uint32) {
 
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
-        
-        // since the 'to' field represents the taskNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == taskNumber, so we check not strict inequality here
+        // since the 'to' field represents the blockNumber at which a new index started
+        // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
         require(
-            index == 0 || totalOperatorsHistory[index - 1].toTaskNumber <= taskNumber,
+            index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
             "TotalOperator indexHistory index is too high"
         );
-        
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        
-        // since the 'to' field represents the taskNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.toTaskNumber == 0 || taskNumber < operatorIndex.toTaskNumber, "indexHistory index is too low");
+        // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
+        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "indexHistory index is too low");
         return operatorIndex.index;
         
     }
-
-
 
 
     /**
@@ -588,7 +478,6 @@ contract BLSRegistry is
         return (BLS.jacToAff(existingAggPubkeyJac));
     }
 
-
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of nodes.
      */
@@ -602,25 +491,21 @@ contract BLSRegistry is
 
         // TODO: test if declaring more variables outside of loop decreases gas usage
         uint256 operatorsLength = operators.length;
-
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
-            
             // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
-            
             // determine current stakes
             OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
                 pubkeyHash
             ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
-
             // determine new stakes
             OperatorStake memory newStakes;
+
             newStakes.updateBlockNumber = uint32(block.number);
             newStakes.ethStake = weightOfOperatorEth(operators[i]);
             newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
-
 
             // check if minimum requirements have been met
             if (newStakes.ethStake < nodeEthStake) {
@@ -629,14 +514,10 @@ contract BLSRegistry is
             if (newStakes.eigenStake < nodeEigenStake) {
                 newStakes.eigenStake = uint96(0);
             }
-
-
-            //set nextUpdateBlockNumber in prev stakes
+            //set next task number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateBlockNumber = uint32(block.number);
-
-
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
@@ -703,19 +584,15 @@ contract BLSRegistry is
         return registry[operator].active;
     }
 
-
-
     /**
      @notice get hash of a historical aggregated public key corresponding to a given index;
-             called by checkSignatures in BLSSignatureChecker.sol.
+             called by checkSignatures in SignatureChecker.sol.
      */
-    // CRITIC ---  instead of blockNumber, it shoud be taskNumber 
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
         view
         returns (bytes32)
     {
-        
         require(
             blockNumber >= apkUpdates[index],
             "Index too recent"
@@ -760,6 +637,7 @@ contract BLSRegistry is
      @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the operator
+     
      */ 
     function registerOperator(
         uint8 registrantType,
@@ -771,7 +649,7 @@ contract BLSRegistry is
 
 
     /**
-     @param operator is the node who is registering to be a operator.
+     @param operator is the node who is registering to be a operator
      */
     function _registerOperator(
         address operator,
@@ -821,6 +699,8 @@ contract BLSRegistry is
         uint256[4] memory newApk;
         uint256[4] memory pk;
 
+        
+
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender, 164);
@@ -853,36 +733,26 @@ contract BLSRegistry is
 
 
         
-        /*******************
+        /**
          @notice some book-keeping for aggregated pubkey
-         ********************/
-
+         */
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
-        // store the block number in which the aggregated pubkey is being updated 
+        // store the current tasknumber in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
         
-        // store the hash of aggregate pubkey
+        //store the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);    
 
-
-
-        /**********************
-         @notice some book-keeping for recording info on stake history pertaining to the operator
-         ***********************/
-
-        // record the block number where the operator was registered
-        _operatorStake.updateBlockNumber = uint32(block.number);
-
+        /**
+         @notice some book-keeping for recording info pertaining to the operator
+         */
         // record the new stake for the operator in the storage
+        _operatorStake.updateBlockNumber = uint32(block.number);
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
-
-        /**********************
-         @notice some book-keeping for recording info on the operator in registry
-         ***********************/
         // store the registrant's info in relation
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
@@ -896,32 +766,19 @@ contract BLSRegistry is
             deregisterTime: 0
         });
 
-
-        /**********************
-         @notice some book-keeping for recording info on the operator in registrantList
-         ***********************/
         // record the operator being registered
         registrantList.push(operator);
 
         // record operator's index in list of operators
         OperatorIndex memory operatorIndex;
-
-        // get the index of the operator in registrantList
         operatorIndex.index = uint32(registrantList.length - 1);
-
-        // record the index info
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
         
-        
-
-        /**********************
-         @notice some book-keeping for recording info on the total operators in totalOperatorsHistory
-         ***********************/
+        // Update totalOperatorsHistory
         {
-            // set the 'toTaskNumber' field on the last entry *so far* in 'totalOperatorsHistory'
-            totalOperatorsHistory[totalOperatorsHistory.length - 1].toTaskNumber = currentTaskNumber;
-            
-            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new number of operators
+            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
+            totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
+            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
             OperatorIndex memory _totalOperators;
             _totalOperators.index = uint32(registrantList.length);
             totalOperatorsHistory.push(_totalOperators);
@@ -932,29 +789,21 @@ contract BLSRegistry is
             ++nextRegistrantId;
         }
         
-
-
-
-        /************************
-         @notice some book-keeping for recoding updated total stake
-        *************************/
+        
         {
-            // retrieve the last entry in totalStakeHistory
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-
             /**
-             update total Eigen and ETH that are being employed by the operator for securing
-             the queries from middleware via EigenLayr
+            @notice some book-keeping for recoding updated total stake
+            */
+            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+            /**
+            * update total Eigen and ETH that are being employed by the operator for securing
+            * the queries from middleware via EigenLayr
             */
             _totalStake.ethStake += _operatorStake.ethStake;
             _totalStake.eigenStake += _operatorStake.eigenStake;
-
-            // record the block number where the stake is updated due to new registration
             _totalStake.updateBlockNumber = uint32(block.number);
-
-            // linking with the most recent stake recorded in the past
+            // linking with the most recent stake recordd in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            
             totalStakeHistory.push(_totalStake);
         }
 
@@ -966,13 +815,9 @@ contract BLSRegistry is
         emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
-
-
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        
         uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
-        
         OperatorStake memory opStake;
         if (historyLength == 0) {
             return opStake;
