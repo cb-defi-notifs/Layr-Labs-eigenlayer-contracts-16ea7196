@@ -590,8 +590,10 @@ contract DataLayrPaymentManager is
                     2
             );
         } else {
+            //either the operator must have been a non signer or the task was based off of stakes before the operator registered
             require(
-                nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash,
+                nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash
+                || searchData.metadata.blockNumber < registry.getFromBlockNumberForOperator(operator),
                 "Signer index is incorrect"
             );
         }

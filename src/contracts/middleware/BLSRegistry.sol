@@ -903,6 +903,17 @@ contract BLSRegistry is
         return registry[operator].fromTaskNumber;
     }
 
+    /**
+     @notice returns block number from when operator has been registered.
+     */
+    function getFromBlockNumberForOperator(address operator)
+        public
+        view
+        returns (uint32)
+    {
+        return registry[operator].fromBlockNumber;
+    }
+
     function getOperatorDeregisterTime(address operator)
         public
         view
