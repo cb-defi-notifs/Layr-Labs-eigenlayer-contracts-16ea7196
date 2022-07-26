@@ -118,8 +118,8 @@ contract InvestmentManager is
         uint256 amount
     ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        
         // increase delegated shares accordingly, if applicable
-
         if (delegation.isDelegator(msg.sender)) {
             address operatorAddress = delegation.delegation(msg.sender);
             
@@ -130,8 +130,8 @@ contract InvestmentManager is
             );
 
             IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
 
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
@@ -192,11 +192,8 @@ contract InvestmentManager is
         uint256 amount
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
-
         if (investorStratShares[depositor][strategy] == 0) {
-            
             investorStrats[depositor].push(strategy);
-
         }
 
         // transfer tokens from the sender to the strategy
