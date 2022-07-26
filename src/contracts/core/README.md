@@ -20,3 +20,9 @@ Any restaking of ETH that doesn't require any liquid staking is also considered 
 
 
 ## Managing Investment Strategies
+The primary contract for managing investment strategies is [InvestmentManager](../investment/InvestmentManager.sol). 
+
+### Depositing into strategies
+[`depositIntoStrategy`](https://github.com/Layr-Labs/eignlayr-contracts/blob/230dca4458576db0da944ac7beb2f44f2da19a8e/src/contracts/investment/InvestmentManager.sol#L114) and [`depositIntoStrategies`](https://github.com/Layr-Labs/eignlayr-contracts/blob/230dca4458576db0da944ac7beb2f44f2da19a8e/src/contracts/investment/InvestmentManager.sol#L151) are the two functions that are used for depositing any new token into investment startegy(s). Calling these functions require specifying the investment strategy(s) and the amount(s) of the token(s) being invested in each of the respective strategy(s).
+
+### Withdrawing from strategies
