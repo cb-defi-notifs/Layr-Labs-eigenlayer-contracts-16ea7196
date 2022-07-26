@@ -154,6 +154,7 @@ contract BLSRegistry is
      */
     event Registration(
         address indexed registrant,
+        bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
         bytes32 apkHash
@@ -816,7 +817,7 @@ contract BLSRegistry is
             ++numRegistrants;
         }
             
-        emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
