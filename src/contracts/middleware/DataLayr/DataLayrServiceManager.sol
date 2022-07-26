@@ -64,7 +64,7 @@ contract DataLayrServiceManager is
         uint32 index,
         bytes32 indexed headerHash,
         bytes header,
-        uint32 totalBytes,        
+        uint32 totalBytes,
         uint32 initTime,
         uint32 storePeriodLength,
         uint32 blockNumber,

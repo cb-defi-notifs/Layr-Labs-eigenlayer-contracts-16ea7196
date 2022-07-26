@@ -44,6 +44,7 @@ contract BLSRegistry is
 
         // start block from which the  operator has been registered
         uint32 fromTaskNumber;
+        uint32 fromBlockNumber; 
 
         // UTC time until which this operator is supposed to serve its obligations to this middleware
         // set only when committing to deregistration
@@ -760,6 +761,7 @@ contract BLSRegistry is
             index: numRegistrants,
             active: registrantType,
             fromTaskNumber: currentTaskNumber,
+            fromBlockNumber: uint32(block.number),
             serveUntil: 0,
             // extract the socket address
             socket: socket,
