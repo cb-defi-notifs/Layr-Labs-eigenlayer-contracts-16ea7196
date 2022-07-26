@@ -202,6 +202,7 @@ contract EigenLayrDeposit is
         bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
 
         // verifying the merkle proof
+        // TODO: This will likely be changed from a hardcoded root to an oracle service on EigenLayer
         require(
             MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
             "Invalid merkle proof"
@@ -222,7 +223,11 @@ contract EigenLayrDeposit is
      *            be staked in settlement layer via EigenLayr's withdrawal certificate
      *            and then be re-staked in EigenLayr.
      */
-    //TODO: MAKE DEPOSITS INTO CLE LIKE POS PROOFS DUE TO LACK OF PRECOMPILE SUPPORT
+    // TODO: MAKE DEPOSITS INTO CLE LIKE POS PROOFS DUE TO LACK OF PRECOMPILE SUPPORT
+    // THIS FUNCTION IS BROKEN, DO NOT LOOK AT IT YET
+    // We will likely use the SNARK being developed by 0xPARC + fraud proofs decribed in 
+    // https://research.lido.fi/t/optimistic-oracle-fraud-proofs-to-mitigate-consensus-layer-deposit-frontrunning/2452/7
+    // to secure against attacks such as https://research.lido.fi/t/mitigations-for-deposit-front-running-vulnerability/1239
     function depositEthIntoConsensusLayer(
         bytes calldata pubkey,
         bytes calldata signature,
@@ -252,6 +257,7 @@ contract EigenLayrDeposit is
      *        The new depositor's in the settlement layer who want to participate in
      *        EigenLayr has to prove their stake against this commitment.
      */
+    // TODO: Integrate this with consensus layer oracle eventually
     // function depositPOSProof(
     //     uint256 blockNumber,
     //     bytes32[] calldata proof,

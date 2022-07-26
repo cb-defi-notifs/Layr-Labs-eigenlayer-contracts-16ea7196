@@ -336,9 +336,6 @@ contract InvestmentManager is
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
-        
-
-
         require(shareAmount <= userShares, "shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
@@ -467,15 +464,12 @@ contract InvestmentManager is
             }
         }
 
-        
-
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawerAndNonce.withdrawer
         });
-        
 
         emit WithdrawalQueued(
             msg.sender,
@@ -687,8 +681,6 @@ contract InvestmentManager is
 
         // modify delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(slashedAddress)) {
-
-            
             address delegatedAddress = delegation.delegation(slashedAddress);
 
             delegation.decreaseOperatorShares(

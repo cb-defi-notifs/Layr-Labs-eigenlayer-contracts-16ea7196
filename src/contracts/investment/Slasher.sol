@@ -89,6 +89,7 @@ contract Slasher is Ownable, ISlasher, DSTest {
     }
 
     // TODO: safe way to opt OUT of slashing (fraudproof)
+    // TODO: Why are we passing in registry here instead of getting it from the repository?
     // idea -- require registry of repository to call function that opts you out
 
     // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
