@@ -99,6 +99,7 @@ contract EigenLayrDeposit is
      *        to prove depositor's stake in the settlement layer.
      */
     /// @param proof is the merkle proof in the above merkle tree.
+    /// CRITIC--- change name to proveBeaconChainDeposit?
     function proveLegacyConsensusLayerDeposit(
         bytes32[] calldata proof,
         uint256 amount
@@ -212,6 +213,9 @@ contract EigenLayrDeposit is
         // mark deposited ETH in investment contract
         investmentManager.depositProofOfStakingEth(onBehalfOf, amount);
     }
+
+
+
 
     /**
      *    @notice Used for letting EigenLayer know that depositor's ETH should

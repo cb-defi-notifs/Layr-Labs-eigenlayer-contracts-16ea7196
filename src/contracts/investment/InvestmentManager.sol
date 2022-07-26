@@ -747,12 +747,18 @@ contract InvestmentManager is
         }
     }
 
+
+    /**
+     @notice This function is used for updating the tally of the shares associated with ETH 
+             that has been deposited into the EigenLayer with the intention of that 
+             ETH being directly staked in beacon chain using EigenLayer's withdrawal credentials.
+     */ 
     function depositConsenusLayerEth(address depositor, uint256 amount)
         external
         onlyEigenLayrDepositContract
         returns (uint256)
     {
-        //this will be a "HollowInvestmentStrategy"
+        // this will be a "HollowInvestmentStrategy"
         uint256 shares = consensusLayerEthStrat.deposit(IERC20(address(0)), amount);
 
         // record the ETH that has been staked by the depositor
@@ -772,6 +778,13 @@ contract InvestmentManager is
         return shares;
     }
 
+
+    /**
+     @notice This function is used for updating the tally of the shares associated with ETH 
+             that has been deposited into the EigenLayer with the intention of that 
+             ETH being directly staked in beacon chain via a liquid staking service and then 
+             investing the liquid token in investment strategies for engaging in DeFi.
+     */ 
     function depositProofOfStakingEth(address depositor, uint256 amount)
         external
         onlyEigenLayrDepositContract
