@@ -154,13 +154,15 @@ contract BLSRegistry is
      */
     event Registration(
         address indexed registrant,
+        bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
         bytes32 apkHash
     );
 
     event Deregistration(
-        address registrant
+        address registrant,
+        address swapped
     );
 
     constructor(
@@ -321,8 +323,7 @@ contract BLSRegistry is
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // Update registrant list and update index histories
-        popRegistrant(pubkeyHash,index);
-
+        address swappedOperator = popRegistrant(pubkeyHash,index);
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware
@@ -359,23 +360,24 @@ contract BLSRegistry is
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
 
-        emit Deregistration(msg.sender);
+        emit Deregistration(msg.sender, swappedOperator);
     }
 
 
 
-    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
 
+        address swappedOperator;
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantList.length - 1){
             // get existing operator at end of list, and retrieve their pubkeyHash
-            address addr = registrantList[registrantList.length - 1];
-            Registrant memory registrant = registry[addr];
+            swappedOperator = registrantList[registrantList.length - 1];
+            Registrant memory registrant = registry[swappedOperator];
             pubkeyHash = registrant.pubkeyHash;
 
             // store blockNumber at which operator index changed
@@ -385,11 +387,10 @@ contract BLSRegistry is
             operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
-            registrantList[index] = addr;
+            registrantList[index] = swappedOperator;
         }
 
         registrantList.pop();
-
         // Update totalOperatorsHistory
         // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
         totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
@@ -397,6 +398,8 @@ contract BLSRegistry is
         OperatorIndex memory _totalOperators;
         _totalOperators.index = uint32(registrantList.length);
         totalOperatorsHistory.push(_totalOperators);
+        //return address of operator whose index has changed
+        return swappedOperator;
     }
 
     
@@ -814,7 +817,7 @@ contract BLSRegistry is
             ++numRegistrants;
         }
             
-        emit Registration(operator, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
