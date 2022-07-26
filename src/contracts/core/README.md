@@ -10,7 +10,14 @@ Any Ethereum account with ETH, who wants to participate in EigenLayr whether as 
 
 
 
-## Investment Strategies
 
-Any deposit of ETH for restaking purpose is considered as an investment. In order to record any of this restaked ETH as a share in the investment, there are two investment strategies -- `consensusLayerEthStrat` and `proofOfStakingEthStrat`. Both are designed to be [`HollowInvestmentStrategy`](../investment/HollowInvestmentStrategy.sol). `consensusLayerEthStrat` is for those ETH deposits that are supposed to be directly staked into securing consensus of beacon chain and then restaking that ETH into EigenLayer. In order to record any restaking of ETH with EigenLayer under this mechanism `InvestmentManager.depositConsenusLayerEth` is [called](https://github.com/Layr-Labs/eignlayr-contracts/blob/024833bb542437df97394db530c548ef8a8d1612/src/contracts/core/EigenLayrDeposit.sol#L242). On the other hand, `proofOfStakingEthStrat` is for those ETH deposits that have been staked into securing the consensus of beacon chain separately and then is being restaked into EigenLayer.  In order to record any restaking of ETH with EigenLayer under this mechanism `InvestmentManager.depositProofOfStakingEth` is [called](https://github.com/Layr-Labs/eignlayr-contracts/blob/024833bb542437df97394db530c548ef8a8d1612/src/contracts/core/EigenLayrDeposit.sol#L216). 
-<!-- [To write about connection with deposit into strategies] -->
+
+
+Any restaking of ETH that doesn't require any liquid staking is also considered as an investment. In order to record any of this restaked ETH as a share in the investment, there are two investment strategies -- `consensusLayerEthStrat` and `proofOfStakingEthStrat`. Both are designed to be [`HollowInvestmentStrategy`](../investment/HollowInvestmentStrategy.sol). `consensusLayerEthStrat` is for those ETH deposits that are supposed to be directly staked into securing consensus of beacon chain and then restaking that ETH into EigenLayer. In order to record any restaking of ETH with EigenLayer under this mechanism `InvestmentManager.depositConsenusLayerEth` is [called](https://github.com/Layr-Labs/eignlayr-contracts/blob/024833bb542437df97394db530c548ef8a8d1612/src/contracts/core/EigenLayrDeposit.sol#L242). On the other hand, `proofOfStakingEthStrat` is for those ETH deposits that have been staked into securing the consensus of beacon chain separately and then is being restaked into EigenLayer.  In order to record any restaking of ETH with EigenLayer under this mechanism `InvestmentManager.depositProofOfStakingEth` is [called](https://github.com/Layr-Labs/eignlayr-contracts/blob/024833bb542437df97394db530c548ef8a8d1612/src/contracts/core/EigenLayrDeposit.sol#L216). 
+
+
+As for deposite of 
+
+
+
+## Managing Investment Strategies

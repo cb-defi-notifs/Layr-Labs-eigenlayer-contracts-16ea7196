@@ -69,6 +69,9 @@ contract InvestmentManager is
         //_disableInitializers();
     }
 
+
+
+
     /**
      * @notice Initializes the investment manager contract with a given set of strategies
      *         and slashing rules.
@@ -89,6 +92,8 @@ contract InvestmentManager is
         slasher = _slasher;
         eigenLayrDepositContract = _eigenLayrDepositContract;
     }
+
+
 
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
@@ -136,6 +141,8 @@ contract InvestmentManager is
         }
     }
 
+
+
     /**
      * @notice used for investing a depositor's assets into multiple specified strategy, in the
      *         behalf of the depositor, with each of the investment being done in terms of a
@@ -174,6 +181,9 @@ contract InvestmentManager is
         }
         return shares;
     }
+
+
+
 
     function _depositIntoStrategy(
         address depositor,
