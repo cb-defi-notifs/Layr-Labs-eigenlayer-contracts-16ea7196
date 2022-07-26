@@ -8,4 +8,5 @@ Any Ethereum account with ETH, who wants to participate in EigenLayr whether as 
     - [`proveLegacyConsensusLayerDepositBySignature`](https://github.com/Layr-Labs/eignlayr-contracts/blob/f0724479452c9fbb7bb72cd20a86d4f0abe67050/src/contracts/core/EigenLayrDeposit.sol#L91) enables any third-party (`msg.sender`) to submit a Merkle proof of staking into beacon chain on behalf of an already-staked ETH staker `depositor`. This requires `msg.sender` to get signature for a specific message from the `depositor` which is then [verified](https://github.com/Layr-Labs/eignlayr-contracts/blob/92610099e227eca11ea94c025ba8b5eaa9bf6c50/src/contracts/core/EigenLayrDeposit.sol#L157).  
   - **Staking + Restaking.**  [`depositEthIntoConsensusLayer`](https://github.com/Layr-Labs/eignlayr-contracts/blob/7a8a4bfe90e1c0129dc97d95de28056db1b02dbe/src/contracts/core/EigenLayrDeposit.sol#L222) re-staking of ETH with EigenLayer while requiring EigenLayer to stake the same ETH into Ethereum consensus layer via [ETH2 deposit contract](https://etherscan.io/address/0x00000000219ab540356cbb839cbe05303d7705fa). Note that this deposit into ETH2 deposit contract is done using withdrawal credentials of EigenLayer.
 
-Any deposit of ETH into 
+Any deposit of ETH for restaking purpose is considered as an investment. 
+<!-- [To write about connection with deposit into strategies] -->
