@@ -500,7 +500,7 @@ contract DataLayrServiceManager is
     function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external  {
         bytes32 headerHash;
         bytes32 signatoryRecordHash;
-        uint32 dataStoreId; 
+        uint32 _dataStoreId; 
         uint32 blockNumber; 
         uint96 fee;
         uint8 duration; 
@@ -513,7 +513,7 @@ contract DataLayrServiceManager is
         assembly {
             headerHash := calldataload(pointer)
             signatoryRecordHash:= calldataload(add(pointer, 32))  
-            dataStoreId := shr(224, calldataload(add(pointer, 64)))  
+            _dataStoreId := shr(224, calldataload(add(pointer, 64)))  
             blockNumber := shr(224, calldataload(add(pointer, 68))) 
             fee := shr(160, calldataload(add(pointer, 72)))
             duration := shr(248, calldataload(add(pointer, 84)))
@@ -521,7 +521,7 @@ contract DataLayrServiceManager is
             index := shr(224, calldataload(add(pointer, 117)))
         }
 
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, dataStoreId, blockNumber, fee, signatoryRecordHash);
+        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
         assertTrue(getDataStoreIdsForDuration(duration, dsInitTime, index) == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 
         //now we check if the dataStore is still active at the time
