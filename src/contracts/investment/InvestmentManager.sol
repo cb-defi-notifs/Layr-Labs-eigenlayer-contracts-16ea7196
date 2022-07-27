@@ -539,13 +539,17 @@ contract InvestmentManager is
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
             depositor
         ][withdrawalRoot];
+
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
+
+        // to ensure there can't be multiple withdrawals for the same withdrawal request
         require(
             withdrawalStorage.initTimestamp > 0,
             "withdrawal does not exist"
         );
+
         require(
             uint32(block.timestamp) >= unlockTime ||
                 delegation.isNotDelegated(depositor),
@@ -600,6 +604,8 @@ contract InvestmentManager is
         );
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        
+        /// CRITIC --- can it be replaced with  withdrawalStorage.initTimestamp? more gas optimized
         uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
 
         require(initTimestamp > 0, "withdrawal does not exist");
