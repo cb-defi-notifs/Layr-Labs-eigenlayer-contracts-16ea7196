@@ -275,9 +275,6 @@ contract BLSRegistry is
         registry[msg.sender].active = 0;
 
         registry[msg.sender].deregisterTime = block.timestamp;
-
-        // get current DataStoreId from ServiceManager
-        uint32 currentTaskNumber = serviceManager.taskNumber();   
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -354,8 +351,8 @@ contract BLSRegistry is
         // update stored aggregate public key
         apk = pk;
 
-        // update aggregated pubkey coordinates
-        apkUpdates.push(currentTaskNumber);
+        // store the current block number in which the aggregated pubkey is being updated 
+        apkUpdates.push(uint32(block.number));
 
         // store hash of updated aggregated pubkey
         apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
@@ -381,12 +378,14 @@ contract BLSRegistry is
             pubkeyHash = registrant.pubkeyHash;
 
             // store blockNumber at which operator index changed
+            // same operation as above except pubkeyHash is now different (since different registrant)
             pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
+            // move 'swappedOperator' into 'index' slot in registrantList (swapping them with removed operator)
             registrantList[index] = swappedOperator;
         }
 
@@ -409,15 +408,19 @@ contract BLSRegistry is
         bytes32 pubkeyHash = registrant.pubkeyHash;
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
-        // since the 'to' field represents the taskNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
+        /*
+         // since the 'to' field represents the taskNumber at which a new index started
+         // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
+        */
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toBlockNumber <= blockNumber,
             "Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-        // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
-        // on deregistration since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
+        /*
+         // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
+         // since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
+        */
         require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "indexHistory index is too low");
         return operatorIndex.index;
     }
@@ -743,7 +746,7 @@ contract BLSRegistry is
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
-        // store the current tasknumber in which the aggregated pubkey is being updated 
+        // store the current block number in which the aggregated pubkey is being updated 
         apkUpdates.push(uint32(block.number));
         
         //store the hash of aggregate pubkey

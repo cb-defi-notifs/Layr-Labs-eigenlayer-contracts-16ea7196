@@ -295,6 +295,7 @@ contract DelegationTerms is IDelegationTerms, RepositoryAccess, DSTest {
         paymentsHistory[address(token)].push(updatedEarnings);
     }
 
+// TODO: discuss if parameters beyond delegator address are needed for this function + 'onDelegationWithdrawn'
     /**
      * @notice Hook for receiving new delegation   
      */

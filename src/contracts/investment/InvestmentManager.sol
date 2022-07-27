@@ -384,8 +384,10 @@ contract InvestmentManager is
                     }
                 }
             }
-            
 
+            // pop off the last entry in the list of strategies
+            investorStrats[depositor].pop();
+            
             // return true in the event that the strategy was removed from investorStrats[depositor]
             return true;
         }
