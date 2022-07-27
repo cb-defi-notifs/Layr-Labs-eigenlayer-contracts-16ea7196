@@ -610,16 +610,15 @@ contract InvestmentManager is
 
         address operator = delegation.delegation(depositor);
 
-        //TODO UNCOMMENT THIS vvvv
-        // require(
-        //     slasher.canSlash(
-        //         operator,
-        //         serviceFactory,
-        //         repository,
-        //         repository.registry()
-        //     ),
-        //     "Contract does not have rights to prevent undelegation"
-        // );
+        require(
+            slasher.canSlash(
+                operator,
+                serviceFactory,
+                repository,
+                repository.registry()
+            ),
+            "Contract does not have rights to slash operator"
+        );
 
         {
             // ongoing task is still active at time when staker was finalizing undelegation
