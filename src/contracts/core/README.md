@@ -31,5 +31,5 @@ The primary contract for managing investment strategies is [InvestmentManager](.
 
 
 #### Part 2
-In order to be able to withdraw only a specific amount of assets from its strategies without undelegating, the delegator needs to call [`queueWithdrawal`](https://github.com/Layr-Labs/eignlayr-contracts/blob/ee6588470dfe804bb0b69c232ae93a378905db21/src/contracts/investment/InvestmentManager.sol#L404). 
+In order to be able to withdraw only a specific amount of assets from its strategies without undelegating first, the delegator needs to call [`queueWithdrawal`](https://github.com/Layr-Labs/eignlayr-contracts/blob/ee6588470dfe804bb0b69c232ae93a378905db21/src/contracts/investment/InvestmentManager.sol#L404). 
 
