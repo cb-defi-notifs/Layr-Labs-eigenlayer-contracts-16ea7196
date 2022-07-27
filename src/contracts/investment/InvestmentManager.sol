@@ -759,9 +759,12 @@ contract InvestmentManager is
         returns (uint256)
     {
         // this will be a "HollowInvestmentStrategy"
-        // CRITIC --- consensusLayerEthStrat and proofOfStakingEthStrat were never added to 
-        // investorStrats  in InvestmentManager.sol .
         uint256 shares = consensusLayerEthStrat.deposit(IERC20(address(0)), amount);
+
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (shares > 0 && investorStratShares[depositor][consensusLayerEthStrat] == 0) {
+            investorStrats[depositor].push(consensusLayerEthStrat);
+        }
 
         // record the ETH that has been staked by the depositor
         investorStratShares[depositor][consensusLayerEthStrat] += shares;
@@ -795,6 +798,11 @@ contract InvestmentManager is
         //this will be a "HollowInvestmentStrategy"
         uint256 shares = proofOfStakingEthStrat.deposit(IERC20(address(0)), amount);
 
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (shares > 0 && investorStratShares[depositor][proofOfStakingEthStrat] == 0) {
+            investorStrats[depositor].push(proofOfStakingEthStrat);
+        }
+        
         // record the proof of staking ETH that has been staked by the depositor
         investorStratShares[depositor][proofOfStakingEthStrat] += shares;
 
