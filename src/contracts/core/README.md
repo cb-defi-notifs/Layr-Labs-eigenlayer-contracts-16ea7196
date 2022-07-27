@@ -33,3 +33,6 @@ The primary contract for managing investment strategies is [InvestmentManager](.
 #### Part 2
 In order to be able to withdraw only a specific amount of assets from its strategies without undelegating first, the delegator needs to call [`queueWithdrawal`](https://github.com/Layr-Labs/eignlayr-contracts/blob/ee6588470dfe804bb0b69c232ae93a378905db21/src/contracts/investment/InvestmentManager.sol#L404). This function decreases the shares that depositor holds in strategies by calling `_removeShares` and then queues the corresponding withdrawal request in `queuedWithdrawals`. In order to ensure that the delegator's stake is still subject to slashing due to any ongoing task for which it is obligated to provide service, `fraudproofQueuedWithdrawal` can be called by anyone else to extend the `latestFraudproofTimestamp` which in turn extends the `unlockTime` if there is still at least one service where the `depositer` is obligated to continue provide service. 
 
+
+
+### Delegation with EigenLayer

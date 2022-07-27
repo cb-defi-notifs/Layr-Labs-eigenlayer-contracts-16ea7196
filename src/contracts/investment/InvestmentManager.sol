@@ -629,15 +629,14 @@ contract InvestmentManager is
             "Contract does not have rights to slash operator"
         );
 
+
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
-
             IServiceManager serviceManager = repository.serviceManager();
-
             serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
-
         }
+        
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot]
             .latestFraudproofTimestamp = uint32(block.timestamp);
