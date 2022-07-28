@@ -31,5 +31,13 @@ The primary contract for managing investment strategies is [InvestmentManager](.
 
 
 #### Part 2
-In order to be able to withdraw only a specific amount of assets from its strategies without undelegating, the delegator needs to call [`queueWithdrawal`](https://github.com/Layr-Labs/eignlayr-contracts/blob/ee6588470dfe804bb0b69c232ae93a378905db21/src/contracts/investment/InvestmentManager.sol#L404). 
+In order to be able to withdraw only a specific amount of assets from its strategies without undelegating first, the delegator needs to call [`queueWithdrawal`](https://github.com/Layr-Labs/eignlayr-contracts/blob/ee6588470dfe804bb0b69c232ae93a378905db21/src/contracts/investment/InvestmentManager.sol#L404). This function decreases the shares that depositor holds in strategies by calling `_removeShares` and then queues the corresponding withdrawal request in `queuedWithdrawals`. In order to ensure that the delegator's stake is still subject to slashing due to any ongoing task for which it is obligated to provide service, `fraudproofQueuedWithdrawal` can be called by anyone else to extend the `latestFraudproofTimestamp` which in turn extends the `unlockTime` if there is still at least one service where the `depositer` is obligated to continue provide service. 
 
+
+
+### Delegation with EigenLayer
+`EigenLayrDelegation` is the contract for delegation in EigenLayer. The main functionalities of this contract are:
+   - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to.  This is done by calling `registerAsDelegate`. 
+   - for enabling anyone to register as an operator. This is done by calling `delegateToSelf`. 
+   - for a registered delegator to delegate its stake to the operator of its agreed upon delegation terms contract. This is done using `delegateTo` or `delegateToBySignature` who have to specify the `operator`. The later one requires specifying the `delegator` for whom delegation is being done by the third party by using its signature.
+   - for a delegator to undelegate its assets from EigenLayer. That requires the delegator to call `commitUndelegation` in order to notify the system that a delegator wants to stop  participating in the functioning of EigenLayer. Then, `finalizeUndelegation` must be called by a delegator to notify that its stake is no longer active on any queries, which in turn launches the challenge period. Next, anyone can call `contestUndelegationCommit` to challenge whether a delegator has finalized its undelegation after satisfying its obligations in EigenLayr or not.

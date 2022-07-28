@@ -541,13 +541,17 @@ contract InvestmentManager is
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
             depositor
         ][withdrawalRoot];
+
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
+
+        // to ensure there can't be multiple withdrawals for the same withdrawal request
         require(
             withdrawalStorage.initTimestamp > 0,
             "withdrawal does not exist"
         );
+
         require(
             uint32(block.timestamp) >= unlockTime ||
                 delegation.isNotDelegated(depositor),
@@ -582,6 +586,9 @@ contract InvestmentManager is
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
      */
     // TODO: de-duplicate this code and the code in EigenLayrDelegation's 'contestUndelegationCommit' function, if at all possible
+    /**
+     @param repository of one middleware where depositer is still obligated to provide its service 
+     */
     function fraudproofQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -602,6 +609,8 @@ contract InvestmentManager is
         );
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        
+        /// CRITIC --- can it be replaced with  withdrawalStorage.initTimestamp? more gas optimized
         uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
 
         require(initTimestamp > 0, "withdrawal does not exist");
@@ -620,15 +629,14 @@ contract InvestmentManager is
             "Contract does not have rights to slash operator"
         );
 
+
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
-
             IServiceManager serviceManager = repository.serviceManager();
-
             serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
-
         }
+        
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot]
             .latestFraudproofTimestamp = uint32(block.timestamp);
