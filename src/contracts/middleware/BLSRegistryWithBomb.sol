@@ -29,6 +29,7 @@ contract BLSRegistryWithBomb is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        uint8 _NUMBER_OF_QUORUMS,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -36,6 +37,7 @@ contract BLSRegistryWithBomb is
             _repository,
             _delegation,
             _investmentManager,
+            _NUMBER_OF_QUORUMS,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )

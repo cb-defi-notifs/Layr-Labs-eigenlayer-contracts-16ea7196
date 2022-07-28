@@ -148,7 +148,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
-        dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
+        uint8 _NUMBER_OF_QUORUMS = 2;
+        dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, _NUMBER_OF_QUORUMS, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dlReg, disclosureUtils);
 

@@ -336,11 +336,13 @@ contract EigenLayrDeployer is
             );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
+        uint8 _NUMBER_OF_QUORUMS = 2;
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            _NUMBER_OF_QUORUMS,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );

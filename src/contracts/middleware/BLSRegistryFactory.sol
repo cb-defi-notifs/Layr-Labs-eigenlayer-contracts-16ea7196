@@ -33,12 +33,13 @@ contract BLSRegistryFactory {
         IRepository repository,
         IEigenLayrDelegation delegation,
         IInvestmentManager investmentManager,
+        uint8 _NUMBER_OF_QUORUMS,
         BLSRegistry.StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         BLSRegistry.StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     ) external returns(IRegistry) {
 
         // spawns a new BLSRegistry contract.
-        BLSRegistry registry = new BLSRegistry(Repository(address(repository)), delegation, investmentManager, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
+        BLSRegistry registry = new BLSRegistry(Repository(address(repository)), delegation, investmentManager, _NUMBER_OF_QUORUMS, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
         
         return (registry);
     }

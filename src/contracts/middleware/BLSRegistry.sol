@@ -79,8 +79,6 @@ contract BLSRegistry is
             "Registration(address operator,address registrationContract,uint256 expiry)"
         );
 
-    uint8 internal constant _NUMBER_OF_QUORUMS = 2;
-
     // number of registrants of this service
     uint64 public numRegistrants;  
 
@@ -169,6 +167,7 @@ contract BLSRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        uint8 _NUMBER_OF_QUORUMS,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
