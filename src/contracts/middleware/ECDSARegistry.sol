@@ -292,6 +292,7 @@ contract ECDSARegistry is
 
         // Update registrant list and update index histories
         address swappedOperator = popRegistrant(pubkeyHash,index);
+        // event was moved up (from end of function) to solve 'stack too deep' when finding new stakes object
         emit Deregistration(msg.sender, swappedOperator);
 
         /**
