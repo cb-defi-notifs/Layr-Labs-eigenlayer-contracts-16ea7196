@@ -33,25 +33,42 @@ contract DataLayrServiceManager is
     // ,DSTest
 {
     using BytesLib for bytes;
+
+
+    /**********************
+        CONSTANTS
+     **********************/
     //TODO: mechanism to change any of these values?
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
     uint32 internal constant MIN_STORE_LENGTH = 60;
     uint32 internal constant MAX_STORE_LENGTH = 604800;
     uint256 internal constant BLOCK_STALE_MEASURE = 100;
+
+
+
+    /**********************
+        ERROR MESSAGES
+     **********************/
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(
         address repositoryGovernance,
         address sender
     );
+
     // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
     error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
+
     // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
     error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
+
     // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
     error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
+
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
+
+
 
     uint128 public eigenSignedThresholdPercentage = 90;
     uint128 public ethSignedThresholdPercentage = 90;
@@ -59,6 +76,10 @@ contract DataLayrServiceManager is
     DataStoresForDuration public dataStoresForDuration;
 
 
+
+    /*************
+        EVENTS
+     *************/
     event InitDataStore(
         uint32 dataStoreId,
         uint32 index,
@@ -75,6 +96,8 @@ contract DataLayrServiceManager is
         uint32 dataStoreId,
         bytes32 headerHash
     );
+
+
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -114,7 +137,7 @@ contract DataLayrServiceManager is
 
     /**
      * @notice This function is used for
-     *          - notifying in the settlement layer that the disperser has asserted the data
+     *          - notifying in the Ethereum that the disperser has asserted the data
      *            into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
      *          - asserting the metadata corresponding to the data asserted into DataLayr
      *          - escrow the service fees that DataLayr operators will receive from the disperser
@@ -122,7 +145,11 @@ contract DataLayrServiceManager is
      */
     /**
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * @param duration for which the data has to be stored by the DataLayr operators, scaled down by DURATION_SCALE,
+            CRITIC -- need to describe header structure
+     * @param duration for which the data has to be stored by the DataLayr operators.
+              This is a quantized parameter that describes how many factors of DURATION_SCALE
+              does this data blob needs to be stored. The quantization process comes from ease of 
+              implementation in DataLayrBombVerifier.sol.
      * @param totalBytes  is the size of the data ,
      * @param blockNumber for which the confirmation will consult total + operator stake amounts 
      *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
@@ -136,14 +163,23 @@ contract DataLayrServiceManager is
     ) external payable returns(uint32){
         bytes32 headerHash = keccak256(header);
 
+        /********************************************
+          sanity check on the parameters of data blob  
+         ********************************************/
         if (totalBytes < MIN_STORE_SIZE) {
             revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
         }
+
         if (totalBytes > MAX_STORE_SIZE) {
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
+
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
         
+
+        
+
+        // computing the actual period for which data blob needs to be stored
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
 
         // evaluate the total service fees that msg.sender has to put in escrow for paying out
