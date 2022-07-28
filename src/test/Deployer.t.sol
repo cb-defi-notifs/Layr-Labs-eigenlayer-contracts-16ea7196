@@ -442,16 +442,15 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
-        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
-        // s
+        uint256 operatorSharesBefore = investmentManager.investorStratShares(sender, stratToDepositTo);
 
+        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
             );
-
             weth.transfer(sender, amountToDeposit);
-            amountDeposited = 0;
+            amountDeposited = 0;      
         } else {
             weth.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
@@ -464,10 +463,16 @@ contract EigenLayrDeployer is
                 amountToDeposit
             );
             amountDeposited = amountToDeposit;
+            // check that strategy is appropriately added to dynamic array of all of sender's strategies
+            assertTrue(
+                investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
+                    stratToDepositTo,
+                "investorStrats array updated incorrectly"
+            );
         }
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
+            investmentManager.investorStratShares(sender, stratToDepositTo) - operatorSharesBefore,
             amountDeposited,
             "shares should match deposit"
         );
@@ -527,16 +532,18 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) internal {
-        uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
+        uint256 wethBalanceBefore = weth.balanceOf(sender);
+        _testWethDeposit(sender, amountToDeposit);
+        uint256 amountDeposited = investmentManager.investorStratShares(sender, strat);
         cheats.prank(sender);
 
-        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and short-circuit if it happens
+        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and *short-circuit* if it happens
         //TODO: figure out if making this 'expectRevert' work correctly is actually possible
         if (amountDeposited == 0) {
             // cheats.expectRevert(bytes("Index out of bounds."));
             // investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
             return;
-            //trying to withdraw more than the amountDeposited will fail, so we expect a revert and short-circuit if it happens
+        //trying to withdraw more than the amountDeposited will fail, so we expect a revert and *short-circuit* if it happens
         } else if (amountToWithdraw > amountDeposited) {
             cheats.expectRevert(bytes("shareAmount too high"));
             investmentManager.withdrawFromStrategy(
@@ -557,8 +564,8 @@ contract EigenLayrDeployer is
         uint256 wethBalanceAfter = weth.balanceOf(sender);
 
         assertEq(
-            amountToDeposit - amountDeposited + amountToWithdraw,
-            wethBalanceAfter,
+            amountToWithdraw,
+            wethBalanceAfter - wethBalanceBefore,
             "weth is missing somewhere"
         );
         cheats.stopPrank();
@@ -1013,6 +1020,7 @@ contract EigenLayrDeployer is
             );
         }
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            // check that strategy is appropriately added to dynamic array of all of sender's strategies
             assertTrue(
                 investmentManager.investorStrats(sender, i) ==
                     stratsToDepositTo[i],

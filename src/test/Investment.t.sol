@@ -27,6 +27,19 @@ contract InvestmentTests is
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
 
+    // verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
+    function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
+
+        cheats.assume(amountToDeposit > 0);
+
+        address sender = signers[0];
+        // deposit and then immediately withdraw the full amount
+        uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
+        uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(sender);
+        _testWethWithdrawal(sender, amountToDeposit, amountToDeposit + amountDeposited);
+        uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(sender);
+        require(investorStratsLengthBefore - investorStratsLengthAfter == 1, "strategy not removed from dynamic array when it should be");
+    }
 
 
     //testing queued withdrawals in the investment manager
