@@ -235,12 +235,8 @@ abstract contract RegistryBase is
 
         registrantList.pop();
         // Update totalOperatorsHistory
-        // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-        totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
-        // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
-        OperatorIndex memory _totalOperators;
-        _totalOperators.index = uint32(registrantList.length);
-        totalOperatorsHistory.push(_totalOperators);
+        _updateTotalOperatorsHistory();
+        
         //return address of operator whose index has changed
         return swappedOperator;
     }
@@ -432,7 +428,16 @@ abstract contract RegistryBase is
         returns (uint256)
     {
         return registry[operator].deregisterTime;
-    } 
+    }
+
+    function _updateTotalOperatorsHistory() internal {
+            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
+            totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
+            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
+            OperatorIndex memory _totalOperators;
+            _totalOperators.index = uint32(registrantList.length);
+            totalOperatorsHistory.push(_totalOperators);
+    }
 }
 
 

@@ -170,14 +170,7 @@ contract ECDSARegistry is
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
         // Update totalOperatorsHistory
-        {
-            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
-            totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
-            // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
-            OperatorIndex memory _totalOperators;
-            _totalOperators.index = uint32(registrantList.length);
-            totalOperatorsHistory.push(_totalOperators);
-        }
+        _updateTotalOperatorsHistory();
         
         {
             /**
@@ -262,9 +255,6 @@ contract ECDSARegistry is
         registry[msg.sender].active = 0;
 
         registry[msg.sender].deregisterTime = block.timestamp;
-
-        // get current taskNumber from ServiceManager
-        uint32 currentTaskNumber = serviceManager.taskNumber();   
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -336,12 +326,13 @@ contract ECDSARegistry is
         // find new stakes object, replacing deposit of the operator with updated deposit
         bytes memory updatedStakesArray = stakes
         // slice until just before the address bytes of the operator
-        .slice(0, start);
-// TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-        updatedStakesArray = updatedStakesArray
+        .slice(0, start)
             // concatenate the bytes pertaining to the tuples from rest of the middleware 
             // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
-            .concat(stakes.slice(start + 44, stakes.length - 24))
+            .concat(stakes.slice(start + 44, stakes.length - 24)
+        );
+// TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
+        updatedStakesArray = updatedStakesArray            
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
