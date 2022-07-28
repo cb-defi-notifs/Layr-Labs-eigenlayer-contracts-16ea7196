@@ -21,22 +21,13 @@ contract Delegator is EigenLayrDeployer {
     using Math for uint;
     uint shares;
     address[2] public delegates;
-    bytes[] headers;
     uint256[] apks; 
     uint256[] sigmas;
-    ServiceManagerBase serviceManager;
-    VoteWeigherBase voteWeigher;
-    Repository repository;
-    IRepository newRepository;
-    ServiceFactory factory;
-    IRegistry regManager;
-    //ISlasher slasher;
-    DelegationTerms dt;
+    DelegationTerms public dt;
 
-    uint256 amountEigenToDeposit = 20;
+    uint256 amountEigenToDeposit = 1e17;
     uint256 amountEthToDeposit = 2e19;
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-    address challengeContract;
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     struct nonSignerInfo{
@@ -147,7 +138,6 @@ contract Delegator is EigenLayrDeployer {
             uint256[] memory delegatorShares
         ) = investmentManager.getDeposits(msg.sender);
 
-        //mapping(IInvestmentStrategy => uint256) memory initialOperatorShares;
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             initialOperatorShares[delegatorStrategies[k]] = delegation
                 .getOperatorShares(registrant, delegatorStrategies[k]);
