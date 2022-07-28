@@ -177,8 +177,10 @@ contract DataLayrServiceManager is
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
         
 
-        
 
+        /***********************
+          compute time and fees
+         ***********************/
         // computing the actual period for which data blob needs to be stored
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
 
@@ -187,8 +189,8 @@ contract DataLayrServiceManager is
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
         
 
-        // require that disperser has sent enough fees to this contract to pay for this datastore
-        // this will revert if the deposits are not high enough due to undeflow
+        // require that disperser has sent enough fees to this contract to pay for this datastore.
+        // This will revert if the deposits are not high enough due to undeflow.
         dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
 
         uint32 index;
