@@ -143,7 +143,7 @@ contract ECDSARegistry is
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
-            index: numRegistrants,
+            index: numRegistrants(),
             active: registrantType,
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
@@ -204,11 +204,6 @@ contract ECDSARegistry is
                     _totalStake.eigenStake
                 )
             ));
-        }
-
-        // increment number of registrants
-        unchecked {
-            ++numRegistrants;
         }
 
         emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
@@ -306,11 +301,6 @@ contract ECDSARegistry is
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
-
-        //decrement number of registrants
-        unchecked {
-            --numRegistrants;
-        }
 
         // update stakeHash
         stakeHashUpdates.push(uint32(block.number));

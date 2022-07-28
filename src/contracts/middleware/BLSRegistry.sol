@@ -193,7 +193,7 @@ contract BLSRegistry is
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
-            index: numRegistrants,
+            index: numRegistrants(),
             active: registrantType,
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
@@ -235,11 +235,6 @@ contract BLSRegistry is
             // linking with the most recent stake recordd in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
             totalStakeHistory.push(_totalStake);
-        }
-
-        // increment number of registrants
-        unchecked {
-            ++numRegistrants;
         }
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
@@ -337,12 +332,6 @@ contract BLSRegistry is
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
-
-        //decrement number of registrants
-        unchecked {
-            --numRegistrants;
-        }
-
 
         /**
          @notice update the aggregated public key of all registered operators and record

@@ -83,9 +83,6 @@ abstract contract RegistryBase is
     uint128 public nodeEthStake = 1 wei;
     uint128 public nodeEigenStake = 1 wei;
     
-    // number of registrants of this service
-    uint64 public numRegistrants;  
-
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextRegistrantId;
 
@@ -428,6 +425,11 @@ abstract contract RegistryBase is
         returns (uint256)
     {
         return registry[operator].deregisterTime;
+    }
+
+    // number of registrants of this service
+    function numRegistrants() public view returns(uint64) {
+        return uint64(registrantList.length);
     }
 
     function _updateTotalOperatorsHistory() internal {
