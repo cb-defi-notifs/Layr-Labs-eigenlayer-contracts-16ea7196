@@ -98,7 +98,7 @@ contract EigenLayrDelegation is
             "invalid delegation nonce"
         );
         require(
-            expiry == 0 || expiry <= block.timestamp,
+            expiry == 0 || expiry >= block.timestamp,
             "delegation signature expired"
         );
         bytes32 structHash = keccak256(

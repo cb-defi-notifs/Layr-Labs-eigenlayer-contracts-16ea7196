@@ -126,11 +126,11 @@ contract EigenLayrDeposit is
             uint256 nonce,
             bytes32[] calldata proof,
             uint256 amount
-    ) public {
+    ) external {
         require(nonces[depositor] == nonce, "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: invalid delegation nonce");
 
         require(
-            expiry == 0 || expiry <= block.timestamp,
+            expiry == 0 || expiry >= block.timestamp,
             "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: delegation signature expired"
         );
 
