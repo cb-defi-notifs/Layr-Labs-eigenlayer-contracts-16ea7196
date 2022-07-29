@@ -293,6 +293,7 @@ contract DataLayrServiceManager is
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
         //TODO: ADD DURATION TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
+        //ALSO HAVE DLNs SIGN BLOCK.TIMESTAMP OF WHEN INIT TX WAS MINED FOR BOMB STUFF
         (
             uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
@@ -300,6 +301,7 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        //TODO: This check is redundant after we check metadatahash against it below?
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
         emit log_bytes32(headerHash);
@@ -325,7 +327,7 @@ contract DataLayrServiceManager is
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             bytes32(0)
-                                            );
+                                        );
 
         // emit log_named_uint("compute hash", g-gasleft());
 
