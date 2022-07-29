@@ -285,6 +285,8 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
+    //@TODO: a call to confirmDataStore() should be permissioned to a certain address provided in the initDataStore() of the same datastoreid
+    //this allows storers to do accounting in their own contracts before the logic in this function
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         /*******************************************************
          verify the disperser's claim on composition of quorum
@@ -353,9 +355,6 @@ contract DataLayrServiceManager is
                 && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
-        // record that quorum has been achieved 
-        //TODO: We dont need to store this because signatoryRecordHash is a way to check whether a datastore is commited or not
-        // dataStores[headerHash].committed = true;
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
 
