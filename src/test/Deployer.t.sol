@@ -114,6 +114,8 @@ contract EigenLayrDeployer is
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
+    uint8 durationToInit = 2;
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -574,7 +576,7 @@ registrationData.push(
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore()
+   function _testInitDataStore(uint256 timeStampForInit)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -582,7 +584,6 @@ registrationData.push(
             hex"0102030405060708091011121314151617181920"
         );
         uint32 totalBytes = 1e6;
-        uint8 duration = 2;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
@@ -595,14 +596,14 @@ registrationData.push(
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(block.number + 100);
-        cheats.warp(block.timestamp + 100);
+        cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
         uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
             header,
-            duration,
+            durationToInit,
             totalBytes,
             blockNumber
         );
@@ -614,7 +615,7 @@ registrationData.push(
         cheats.stopPrank();
 
 
-        uint256 fee = calculateFee(totalBytes, 1, duration);
+        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
         {
             bytes32 dataStoreHash = keccak256(
@@ -630,7 +631,7 @@ registrationData.push(
             //check if computed hash matches stored hash in DLSM
             assertTrue(
                 dataStoreHash ==
-                    dlsm.getDataStoreIdsForDuration(duration, timestamp, index),
+                    dlsm.getDataStoreIdsForDuration(durationToInit, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
@@ -647,7 +648,7 @@ registrationData.push(
             );
         
         searchData = IDataLayrServiceManager.DataStoreSearchData(
-                duration,
+                durationToInit,
                 timestamp,
                 index,
                 metadata
@@ -753,7 +754,8 @@ registrationData.push(
             );
         }
 
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
+        uint256 initTime = 1000000001;
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime);
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
@@ -772,17 +774,17 @@ registrationData.push(
         );
         (uint256 sigma_0, uint256 sigma_1) = (
             uint256(
-                3227515082877366753481082344554384723742742005849592832962567665412663301823
+                17495938995352312074042671866638379644300283276197341589218393173802359623203
             ),
             uint256(
-                417272605470211919435039030320974523411847825598612812754681380173701139632
+                9126369385140686627953696969589239917670210184443620227590862230088267251657
             )
         );
 
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -794,7 +796,7 @@ registrationData.push(
             >
      */
         bytes memory data = abi.encodePacked(
-            searchData.metadata.headerHash,
+            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,
@@ -826,8 +828,9 @@ registrationData.push(
 
 
     function _testConfirmDataStoreWithoutRegister() internal {
+        uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = _testInitDataStore();
+            memory searchData = _testInitDataStore(initTime);
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
@@ -856,7 +859,7 @@ registrationData.push(
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -867,8 +870,12 @@ registrationData.push(
              uint256[2] sigma
             >
      */
+        emit log_named_bytes("TO SIGN", abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
+        // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
-            searchData.metadata.headerHash,
+            keccak256(
+                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))
+            ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,

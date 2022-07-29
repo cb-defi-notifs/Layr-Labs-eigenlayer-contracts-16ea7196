@@ -276,7 +276,7 @@ contract DataLayrServiceManager is
     /** 
      @param data is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
@@ -294,22 +294,25 @@ contract DataLayrServiceManager is
 
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
-        //TODO: ADD DURATION, BLOCK.TIMESTAMP, and INDEX TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
-        //ALSO MESSING UP BOMB VERIFICATION
-        //easy way to do this: since dsid and taskhash are not used in sigchecker for anything other than verifying sig, 
-        //just past a generic bytes32 msgHash in place of both of them, and check in the body of this function that the msgHash is what is expected
         (
             uint32 dataStoreIdToConfirm,
             uint32 blockNumberFromTaskHash,
-            bytes32 headerHash,
+            bytes32 msgHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
+        //this keeps bomb and storage conditions stagnant
+        // TODO: need to check hash of stakesBlockNumber here?
+        emit log_named_bytes("TO SIGN", abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index));
+        require(msgHash == keccak256(abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index)), 
+                "DataLayrServiceManager.confirmDataStore: msgHash is not consistent with search data");
+
         //TODO: This check is redundant after we check metadatahash against it below?
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
-        emit log_bytes32(headerHash);
+        emit log_bytes32(searchData.metadata.headerHash);
         emit log_bytes32(signatoryRecordHash);
 
         /**
@@ -327,7 +330,7 @@ contract DataLayrServiceManager is
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(
-                                            headerHash, //the header hash should be passed in `data`
+                                            searchData.metadata.headerHash, //the header hash should be passed in `data`
                                             dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             blockNumberFromTaskHash, 
                                             searchData.metadata.fee,
@@ -342,7 +345,7 @@ contract DataLayrServiceManager is
         );
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
-                                            headerHash, 
+                                            searchData.metadata.headerHash, 
                                             dataStoreIdToConfirm, 
                                             blockNumberFromTaskHash, 
                                             searchData.metadata.fee,
@@ -359,7 +362,7 @@ contract DataLayrServiceManager is
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
 
-        emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
+        emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
 
     }
 
