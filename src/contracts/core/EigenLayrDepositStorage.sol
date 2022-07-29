@@ -12,27 +12,36 @@ abstract contract EigenLayrDepositStorage {
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
 
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
+    /// @notice The EIP-712 typehash for the deposit claim struct used by the contract
     bytes32 public constant DEPOSIT_CLAIM_TYPEHASH = keccak256("DepositClaim(address claimer)");
     
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    // delegator => number of signed delegation nonce (used in delegateToBySignature)
-    mapping(address => uint256) nonces;
+    // Merkle root for tree of beacon chain deposits at deployment of this contract
+    bytes32 public immutable consensusLayerDepositRoot;
+
+    // "ETH2" deposit contract
+    IDepositContract public immutable depositContract;
 
     //the withdrawal credentials for which all ETH2 deposits should be pointed
     bytes32 public withdrawalCredentials;
     
-    IDepositContract public depositContract;
-    Repository public posMiddleware;
-    mapping(bytes32 => mapping(address => bool)) public depositProven;
-    IInvestmentManager public investmentManager;
-    bytes32 public immutable consensusLayerDepositRoot;
+    // middleware that provides updates containing all the new beacon chain deposits
     IProofOfStakingOracle public postOracle;
+
+    // EigenLayr InvestmentManager contract
+    IInvestmentManager public investmentManager;
+
+    // delegator => number of signed nonce (used in delegateToBySignature and proveLegacyConsensusLayerDepositBySignature)
+    mapping(address => uint256) nonces;
+
+    // consensusLayerDepositRoot => depositor => whether they have proven their deposit or not
+    mapping(bytes32 => mapping(address => bool)) public depositProven;
     
-    constructor(bytes32 _consensusLayerDepositRoot) {
+    constructor(bytes32 _consensusLayerDepositRoot, IDepositContract _depositContract) {
         consensusLayerDepositRoot = _consensusLayerDepositRoot;
+        depositContract = _depositContract;
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );

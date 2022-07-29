@@ -33,22 +33,20 @@ contract EigenLayrDeposit is
     IEigenLayrDeposit
     // ,DSTest
 {
-    constructor(bytes32 _consensusLayerDepositRoot)
-        EigenLayrDepositStorage(_consensusLayerDepositRoot)
+    constructor(bytes32 _consensusLayerDepositRoot, IDepositContract _depositContract)
+        EigenLayrDepositStorage(_consensusLayerDepositRoot, _depositContract)
     {
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
 
     function initialize(
-        IDepositContract _depositContract,
         IInvestmentManager _investmentManager,
         IProofOfStakingOracle _postOracle
     ) external initializer {
         withdrawalCredentials =
             (bytes32(uint256(1)) << 62) |
             bytes32(bytes20(address(this))); //0x010000000000000000000000THISCONTRACTADDRESSHEREFORTHELAST20BYTES
-        depositContract = _depositContract;
         investmentManager = _investmentManager;
         postOracle = _postOracle;
     }

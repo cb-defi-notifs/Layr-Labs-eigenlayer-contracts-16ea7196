@@ -76,7 +76,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         // eigen = new Eigen(ownerAddr);
 
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, depositContract);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager, address(this));
@@ -162,6 +162,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         dlsm.setLowDegreeChallenge(lowDegreeChallenge);
 
-        deposit.initialize(depositContract, investmentManager, dlsm);
+        deposit.initialize(investmentManager, dlsm);
     }
 }

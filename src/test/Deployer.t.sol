@@ -126,7 +126,7 @@ contract EigenLayrDeployer is
         // eigen = new Eigen(address(this));
 
         // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
+        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, depositContract);
         deposit = EigenLayrDeposit(
             address(
                 new TransparentUpgradeableProxy(
@@ -240,7 +240,7 @@ contract EigenLayrDeployer is
 
         // initialize the deposit (proxy) contract
         // must wait until after the DL contracts are deployed since it relies on the DLSM for updates to ProofOfStaking
-        deposit.initialize(depositContract, investmentManager, dlsm);
+        deposit.initialize(investmentManager, dlsm);
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
