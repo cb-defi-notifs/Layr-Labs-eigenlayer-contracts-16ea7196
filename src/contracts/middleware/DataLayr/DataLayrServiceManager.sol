@@ -136,23 +136,26 @@ contract DataLayrServiceManager is
     }
 
     /**
-     * @notice This function is used for
-     *          - notifying in the Ethereum that the disperser has asserted the data
-     *            into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
-     *          - asserting the metadata corresponding to the data asserted into DataLayr
-     *          - escrow the service fees that DataLayr operators will receive from the disperser
-     *            on account of their service.
+      @notice This function is used for
+               - notifying in the Ethereum that the disperser has asserted the data blob
+                 into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
+               - asserting the metadata corresponding to the data asserted into DataLayr
+               - escrow the service fees that DataLayr operators will receive from the disperser
+                 on account of their service.
+              
+              This function returns the index of the data blob in dataStoreIdsForDuration[duration][block.timestamp]
      */
     /**
-     * @param header is the summary of the data that is being asserted into DataLayr,
+      @param header is the summary of the data that is being asserted into DataLayr,
             CRITIC -- need to describe header structure
-     * @param duration for which the data has to be stored by the DataLayr operators.
+      @param duration for which the data has to be stored by the DataLayr operators.
               This is a quantized parameter that describes how many factors of DURATION_SCALE
               does this data blob needs to be stored. The quantization process comes from ease of 
               implementation in DataLayrBombVerifier.sol.
-     * @param totalBytes  is the size of the data ,
-     * @param blockNumber for which the confirmation will consult total + operator stake amounts 
-     *          -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
+      @param totalBytes  is the size of the data ,
+      @param blockNumber is the block number in Ethereum for which the confirmation will 
+             consult total + operator stake amounts. 
+              -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      */
     function initDataStore(
         address feePayer,
@@ -193,13 +196,18 @@ contract DataLayrServiceManager is
         // This will revert if the deposits are not high enough due to undeflow.
         dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
 
+
+
+        /*************************************************************************
+          Recording the initialization of datablob store along with auxiliary info
+         *************************************************************************/
         uint32 index;
         {
            // uint g = gasleft();
-            //increment totalDataStoresForDuration and append it to the list of datastores stored at this timestamp
-            //Here we are storing the dataStore information as follows:  hash_newDS = H(hash_prevDS, {new_info});
+
             bool initializable = false;
             
+
             for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] == 0){
                     dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
@@ -210,13 +218,20 @@ contract DataLayrServiceManager is
                                                                                                 bytes32(0)
                                                                                             );
                     initializable = true; 
+
+                    // recording the empty slot
                     index = i;
                     break;   
                 }       
             }
+
+            // reverting if no empty slot exists
             require(initializable == true, "number of initDatastores for this duration and block has reached its limit");
         }
-        // call DataLayr contract
+
+
+
+        // sanity check on blockNumber
         { 
             require(
                 blockNumber <= block.number,
@@ -229,9 +244,15 @@ contract DataLayrServiceManager is
             );
             
         }
-        //initializes data store
+
+
+        // emit event to represent initialization of data store
         emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
 
+
+        /******************************
+          Updating dataStoresForDuration 
+         ******************************/
         /**
         @notice sets the latest time until which any of the active DataLayr operators that haven't committed
                 yet to deregistration are supposed to serve.
@@ -244,12 +265,18 @@ contract DataLayrServiceManager is
             dataStoresForDuration.latestTime = _latestTime;            
         }
 
+
         incrementDataStoresForDuration(duration);
         
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
         return index;
     }
+
+
+
+
+
 
     /**
      * @notice This function is used for
@@ -270,17 +297,20 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    // CRITIC: there is an important todo in this function
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
-        // verify the signatures that disperser is claiming to be that of DataLayr operators
+        /*******************************************************
+         verify the disperser's claim on composition of quorum
+         *******************************************************/ 
+
+        // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
-        
         (
             uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
+        
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
         emit log_bytes32(headerHash);
