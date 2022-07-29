@@ -12,13 +12,6 @@ interface IInvestmentManager {
         uint256 amount
     ) external returns (uint256);
 
-    function depositIntoStrategies(
-        address depositor,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external returns (uint256[] memory);
-
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,

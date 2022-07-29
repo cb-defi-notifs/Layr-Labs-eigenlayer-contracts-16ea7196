@@ -128,48 +128,6 @@ contract InvestmentManager is
         }
     }
 
-    /**
-     * @notice used for investing a depositor's assets into multiple specified strategy, in the
-     *         behalf of the depositor, with each of the investment being done in terms of a
-     *         specified token and their respective amount.
-     */
-    function depositIntoStrategies(
-        address depositor,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external onlyNotSlashed(msg.sender) returns (uint256[] memory) {
-        uint256 strategiesLength = strategies.length;
-        uint256[] memory shares = new uint256[](strategiesLength);
-        for (uint256 i = 0; i < strategiesLength; ) {
-            shares[i] = _depositIntoStrategy(
-                depositor,
-                strategies[i],
-                tokens[i],
-                amounts[i]
-            );
-            unchecked {
-                ++i;
-            }
-        }
-        // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            delegation.increaseOperatorShares(
-                operatorAddress,
-                strategies,
-                shares
-            );
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-            dt.onDelegationReceived(msg.sender, strategies, shares);
-        }
-        return shares;
-    }
-
-
-
-
     function _depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategy,
