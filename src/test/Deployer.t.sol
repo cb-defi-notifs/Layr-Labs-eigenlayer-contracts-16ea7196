@@ -8,7 +8,6 @@ import "../contracts/core/Eigen.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
-import "../contracts/core/EigenLayrDeposit.sol";
 import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
@@ -59,7 +58,6 @@ contract EigenLayrDeployer is
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
-    EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
@@ -124,18 +122,6 @@ contract EigenLayrDeployer is
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
-
-        // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot, depositContract);
-        deposit = EigenLayrDeposit(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(deposit),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
-        );
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -223,10 +209,8 @@ contract EigenLayrDeployer is
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
-            governor,
-            address(deposit)
+            governor
         );
 
         // initialize the delegation (proxy) contract
@@ -237,10 +221,6 @@ contract EigenLayrDeployer is
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
-
-        // initialize the deposit (proxy) contract
-        // must wait until after the DL contracts are deployed since it relies on the DLSM for updates to ProofOfStaking
-        deposit.initialize(investmentManager, dlsm);
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
@@ -474,53 +454,6 @@ registrationData.push(
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
             investmentManager.investorStratShares(sender, stratToDepositTo) - operatorSharesBefore,
-            amountDeposited,
-            "shares should match deposit"
-        );
-        cheats.stopPrank();
-    }
-
-    function _testDepositETHIntoConsensusLayer(
-        address sender,
-        uint256 amountToDeposit
-    ) internal returns (uint256 amountDeposited) {
-        bytes32 depositDataRoot = depositContract.get_deposit_root();
-
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositEthIntoConsensusLayer{value: amountToDeposit}(
-            "0x",
-            "0x",
-            depositDataRoot
-        );
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.getConsensusLayerEth(sender),
-            amountDeposited
-        );
-        cheats.stopPrank();
-    }
-
-    function _testDepositETHIntoLiquidStaking(
-        address sender,
-        uint256 amountToDeposit,
-        IERC20 liquidStakingToken,
-        IInvestmentStrategy stratToDepositTo
-    ) internal returns (uint256 amountDeposited) {
-        // sanity in the amount we are depositing
-        cheats.assume(amountToDeposit < type(uint96).max);
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(
-            liquidStakingToken,
-            stratToDepositTo
-        );
-
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
             amountDeposited,
             "shares should match deposit"
         );
@@ -1094,7 +1027,6 @@ registrationData.push(
             address(dlRepository) != address(0),
             "dlRepository failed to deploy"
         );
-        assertTrue(address(deposit) != address(0), "deposit failed to deploy");
         assertTrue(
             dlRepository.serviceManager() == dlsm,
             "ServiceManager set incorrectly"

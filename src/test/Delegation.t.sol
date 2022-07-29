@@ -248,13 +248,6 @@ contract Delegator is EigenLayrDeployer {
 
             cheats.startPrank(delegates[i]);
 
-            //depositing delegator's eth into consensus layer
-            deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}(
-                "0x",
-                "0x",
-                depositContract.get_deposit_root()
-            );
-
             //deposit delegator's eigen into investment manager
             // eigen.setApprovalForAll(address(investmentManager), true);
             // investmentManager.depositEigen(amountEigenToDeposit);
