@@ -359,66 +359,6 @@ contract DataLayrServiceManager is
 
     }
 
-    /**
-     * @notice This function is used when the  DataLayr is used to update the POSt hash
-     *         along with the regular assertion of data into the DataLayr by the disperser. This
-     *         function enables
-     *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
-     *            from quorum of DataLayr nodes have been obtained,
-     *          - check that each of the signatures are valid,
-     *          - store the POSt hash, given by depositRoot,
-     *          - call the DataLayr contract to check  whether quorum has been achieved or not.
-     */
-    function confirmDataStoreWithPOSt(
-        bytes32 depositRoot,
-        bytes32 headerHash,
-        bytes calldata data
-    ) external payable {
-        // verify the signatures that disperser is claiming to be that of DataLayr operators
-        // who have agreed to be in the quorum
-        (
-            uint32 dataStoreIdToConfirm,
-            bytes32 depositFerkleHash,
-            ,
-            bytes32 signatoryRecordHash
-        ) = checkSignatures(data);
-
-        /**
-          @notice checks that there is need for posting a deposit root required for proving
-          the new staking of ETH into Ethereum. 
-         */
-        /**
-          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
-         */
-        require(
-            dataStoreIdToConfirm % depositRootInterval == 0,
-            "Shouldn't post a deposit root now"
-        );
-
-        // record the compressed information on all the DataLayr nodes who signed
-        /**
-         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
-         */
-        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
-
-        /**
-         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
-         * instead of the usual headerHash, so the submitter must specify the preimage
-         */
-        require(
-            keccak256(abi.encodePacked(depositRoot, headerHash)) ==
-                depositFerkleHash,
-            "Ferkle or deposit root is incorrect"
-        );
-
-        // record the deposit root (POSt hash)
-        depositRoots[block.number] = depositRoot;
-
-        // call DataLayr contract to check whether quorum is satisfied or not and record it
-        
-    }
-
-
     // called in the event of challenge resolution
     function slashOperator(address operator) external {
         require(
@@ -589,4 +529,64 @@ contract DataLayrServiceManager is
         paymentToken = _paymentToken;
     }
 */
+
+// TODO: re-implement this function
+//    /**
+//     * @notice This function is used when the  DataLayr is used to update the POSt hash
+//     *         along with the regular assertion of data into the DataLayr by the disperser. This
+//     *         function enables
+//     *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
+//     *            from quorum of DataLayr nodes have been obtained,
+//     *          - check that each of the signatures are valid,
+//     *          - store the POSt hash, given by depositRoot,
+//     *          - call the DataLayr contract to check  whether quorum has been achieved or not.
+//     */
+//    function confirmDataStoreWithPOSt(
+//        bytes32 depositRoot,
+//        bytes32 headerHash,
+//        bytes calldata data
+//    ) external payable {
+//        // verify the signatures that disperser is claiming to be that of DataLayr operators
+//        // who have agreed to be in the quorum
+//        (
+//            uint32 dataStoreIdToConfirm,
+//            bytes32 depositFerkleHash,
+//            ,
+//            bytes32 signatoryRecordHash
+//        ) = checkSignatures(data);
+
+//        /**
+//          @notice checks that there is need for posting a deposit root required for proving
+//          the new staking of ETH into Ethereum. 
+//         */
+//        /**
+//          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+//         */
+//        require(
+//            dataStoreIdToConfirm % depositRootInterval == 0,
+//            "Shouldn't post a deposit root now"
+//        );
+
+//        // record the compressed information on all the DataLayr nodes who signed
+//        /**
+//         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
+//         */
+//        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
+
+//        /**
+//         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
+//         * instead of the usual headerHash, so the submitter must specify the preimage
+//         */
+//        require(
+//            keccak256(abi.encodePacked(depositRoot, headerHash)) ==
+//                depositFerkleHash,
+//            "Ferkle or deposit root is incorrect"
+//        );
+
+//        // record the deposit root (POSt hash)
+//        depositRoots[block.number] = depositRoot;
+
+//        // call DataLayr contract to check whether quorum is satisfied or not and record it
+//        
+//    }
 }
