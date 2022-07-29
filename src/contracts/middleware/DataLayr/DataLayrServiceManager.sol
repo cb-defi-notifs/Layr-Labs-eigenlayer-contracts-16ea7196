@@ -329,20 +329,17 @@ contract DataLayrServiceManager is
             "Must post a deposit root now"
         );
 
-        // check that the provided headerHash matches the one whose signature we just checked!
-        require(headerHash == searchData.metadata.headerHash, "submitted headerHash does not match that for checkSignatures");
-
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
+        //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(
-                                            searchData.metadata.headerHash, 
-                                            searchData.metadata.globalDataStoreId, 
+                                            headerHash, //the header hash should be passed in `data`
+                                            dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             bytes32(0)
                                             );
 
         // emit log_named_uint("compute hash", g-gasleft());
-
 
         require(    
                 dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,

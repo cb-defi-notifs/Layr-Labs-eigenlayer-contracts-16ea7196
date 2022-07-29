@@ -155,8 +155,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
 
-
-
         /****************************
          next step involves computing the aggregated pub key of all the operators
          that are not part of the quorum for this specific taskNumber. 
@@ -388,12 +386,19 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             );
         }
 
+        //fetch tha task number to avoid replay signing on same taskhash for different datastore
+        assembly {
+            taskNumberToConfirm := shr(224, calldataload(398))
+        }
+        
+
         /**
          @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
          */
 
         // compute the point in G1
-        (input[0], input[1]) = BLS.hashToG1(taskHash);
+        //@OFFCHAIN change dlns to sign keccak256(taskhash, taskNumberToConfirm)
+        (input[0], input[1]) = BLS.hashToG1(keccak256(abi.encodePacked(taskHash, taskNumberToConfirm)));
 
         // insert negated coordinates of the generator for G2
         input[8] = nG2x1;
@@ -416,11 +421,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         // check that signature is correct
         require(input[0] == 1, "Pairing unsuccessful");
-
-        assembly {
-            taskNumberToConfirm := shr(224, calldataload(398))
-        }
-        
 
         emit SignatoryRecord(
             taskHash,
