@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-
 import "../contracts/interfaces/IDataLayrPaymentManager.sol";
 import "../contracts/interfaces/ISlasher.sol";
 import "../test/Deployer.t.sol";
@@ -21,7 +20,7 @@ contract Delegator is EigenLayrDeployer {
     using Math for uint;
     uint shares;
     address[2] public delegates;
-    uint256[] apks; 
+    uint256[] apks;
     uint256[] sigmas;
     DelegationTerms public dt;
 
@@ -30,14 +29,14 @@ contract Delegator is EigenLayrDeployer {
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
-    struct nonSignerInfo{
+    struct nonSignerInfo {
         uint256 xA0;
         uint256 xA1;
         uint256 yA0;
         uint256 yA1;
     }
 
-    struct signerInfo{
+    struct signerInfo {
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
@@ -46,16 +45,14 @@ contract Delegator is EigenLayrDeployer {
         uint256 sigma1;
     }
 
-        
-
-    constructor(){
+    constructor() {
         delegates = [acct_0, acct_1];
     }
 
     function testSelfOperatorDelegate() public {
         _testSelfOperatorDelegate(signers[0]);
     }
-    
+
     function testSelfOperatorRegister() public {
         _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
     }
@@ -64,7 +61,7 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
         _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
     }
-    
+
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation() public {
         uint256 ethAmount = 1e18;
@@ -75,8 +72,14 @@ contract Delegator is EigenLayrDeployer {
         // uint96 registrantEigenWeightBefore = uint96(
         //     dlReg.weightOfOperatorEigen(signers[0])
         // );
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(signers[0], 0);
-        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(signers[0], 1);
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
+            signers[0],
+            0
+        );
+        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
+            signers[0],
+            1
+        );
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
         _testRegisterAsDelegate(signers[0], _dt);
         _testWethDeposit(acct_0, ethAmount);
@@ -84,27 +87,52 @@ contract Delegator is EigenLayrDeployer {
         _testDelegateToOperator(acct_0, signers[0]);
 
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
-        emit log_named_uint("registrantEthWeightBefore", registrantEthWeightBefore);
-        emit log_named_uint("registrantEthWeightAfter", registrantEthWeightAfter);
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(
+            signers[0],
+            1
+        );
+        emit log_named_uint(
+            "registrantEthWeightBefore",
+            registrantEthWeightBefore
+        );
+        emit log_named_uint(
+            "registrantEthWeightAfter",
+            registrantEthWeightAfter
+        );
         assertTrue(
-            registrantEthWeightAfter - registrantEthWeightBefore == ethAmount, 
+            registrantEthWeightAfter - registrantEthWeightBefore == ethAmount,
             "testDelegation: registrantEthWeight did not increment by the right amount"
         );
         assertTrue(
-            registrantEigenWeightAfter - registrantEigenWeightBefore == eigenAmount, 
+            registrantEigenWeightAfter - registrantEigenWeightBefore ==
+                eigenAmount,
             "Eigen weights did not increment by the right amount"
         );
-        IInvestmentStrategy _strat = investmentManager.investorStrats(acct_0, 0);
-        assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
-        assertTrue(delegation.operatorShares(signers[0], _strat) > 0, "operatorShares not updated correctly");
+        IInvestmentStrategy _strat = investmentManager.investorStrats(
+            acct_0,
+            0
+        );
+        assertTrue(
+            address(_strat) != address(0),
+            "investorStrats not updated correctly"
+        );
+        assertTrue(
+            delegation.operatorShares(signers[0], _strat) > 0,
+            "operatorShares not updated correctly"
+        );
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(signers[0], 0);
-        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(signers[0], 1);
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
+            signers[0],
+            0
+        );
+        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
+            signers[0],
+            1
+        );
         DelegationTerms _dt = _deployDelegationTerms(signers[0]);
 
         _testRegisterAsDelegate(signers[0], _dt);
@@ -112,7 +140,10 @@ contract Delegator is EigenLayrDeployer {
         _testDepositEigen(signers[1], 1e18);
         _testDelegateToOperator(signers[1], signers[0]);
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(signers[0], 1);
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(
+            signers[0],
+            1
+        );
         assertTrue(
             registrantEthWeightAfter > registrantEthWeightBefore,
             "testDelegation: registrantEthWeight did not increase!"
@@ -159,34 +190,56 @@ contract Delegator is EigenLayrDeployer {
         }
     }
 
-
-    
-    function testRewardPayouts() public {  
-
-
+    function testRewardPayouts() public {
         //G2 coordinates for aggregate PKs for 15 signers
-        apks.push(uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121));
-        apks.push(uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634));
-        apks.push(uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960));
-        apks.push(uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672));
+        apks.push(
+            uint256(
+                20820493588973199354272631301248587752629863429201347184003644368113679196121
+            )
+        );
+        apks.push(
+            uint256(
+                18507428821816114421698399069438744284866101909563082454551586195885282320634
+            )
+        );
+        apks.push(
+            uint256(
+                1263326262781780932600377484793962587101562728383804037421955407439695092960
+            )
+        );
+        apks.push(
+            uint256(
+                3512517006108887301063578607317108977425754510174956792003926207778790018672
+            )
+        );
 
         //15 signers' associated sigma
-        sigmas.push(uint256(7155561537864411538991615376457474334371827900888029310878886991084477170996));
-        sigmas.push(uint256(10352977531892356631551102769773992282745949082157652335724669165983475588346));
-             
+        sigmas.push(
+            uint256(
+                3227515082877366753481082344554384723742742005849592832962567665412663301823
+            )
+        );
+        sigmas.push(
+            uint256(
+                417272605470211919435039030320974523411847825598612812754681380173701139632
+            )
+        );
+
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e18);
         _payRewards(operator);
     }
 
-    function _testInitiateDelegation(address operator, uint256 amountToDeposit) public {
+    function _testInitiateDelegation(address operator, uint256 amountToDeposit)
+        public
+    {
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
         dt = _deployDelegationTerms(operator);
         _testRegisterAsDelegate(operator, dt);
 
-        for(uint i; i < delegates.length; i++){
+        for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
             // eigen.safeTransferFrom(address(this), delegates[i], 0, amountEigenToDeposit, "0x");
             eigenToken.transfer(delegates[i], amountEigenToDeposit);
@@ -196,13 +249,22 @@ contract Delegator is EigenLayrDeployer {
             cheats.startPrank(delegates[i]);
 
             //depositing delegator's eth into consensus layer
-            deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}("0x", "0x", depositContract.get_deposit_root());
+            deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}(
+                "0x",
+                "0x",
+                depositContract.get_deposit_root()
+            );
 
             //deposit delegator's eigen into investment manager
             // eigen.setApprovalForAll(address(investmentManager), true);
             // investmentManager.depositEigen(amountEigenToDeposit);
             eigenToken.approve(address(investmentManager), type(uint256).max);
-            investmentManager.depositIntoStrategy(delegates[i], eigenStrat, eigenToken, amountEigenToDeposit);
+            investmentManager.depositIntoStrategy(
+                delegates[i],
+                eigenStrat,
+                eigenToken,
+                amountEigenToDeposit
+            );
 
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
@@ -210,7 +272,8 @@ contract Delegator is EigenLayrDeployer {
                 delegates[i],
                 strat,
                 weth,
-                amountToDeposit);
+                amountToDeposit
+            );
 
             cheats.stopPrank();
 
@@ -223,21 +286,23 @@ contract Delegator is EigenLayrDeployer {
         uint8 registrantType = 3;
         string memory socket = "255.255.255.255";
         // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
-        dlReg.registerOperator(registrantType, ephemeralKey, registrationData[0], socket);
+        dlReg.registerOperator(
+            registrantType,
+            ephemeralKey,
+            registrationData[0],
+            socket
+        );
         cheats.stopPrank();
-
     }
 
     function _payRewards(address operator) internal {
         uint120 amountRewards = 10;
-        
 
         //Operator submits claim to rewards
         _testCommitPayment(operator, amountRewards);
-        
 
         //initiate challenge
-        _testInitPaymentChallenge(operator, 5, 3);        
+        _testInitPaymentChallenge(operator, 5, 3);
 
         bool half = true;
 
@@ -245,70 +310,99 @@ contract Delegator is EigenLayrDeployer {
         operatorDisputesChallenger(operator, half, 2, 3);
         // challengerDisputesOperator(operator, half, 1, 1);
         // operatorDisputesChallenger(operator, half, 1, 1);
-
     }
 
-    function operatorDisputesChallenger(address operator, bool half, uint120 amount1, uint120 amount2) public{
-
+    function operatorDisputesChallenger(
+        address operator,
+        bool half,
+        uint120 amount1,
+        uint120 amount2
+    ) public {
         cheats.startPrank(operator);
-        if (dataLayrPaymentManager.getDiff(operator) == 1){
+        if (dataLayrPaymentManager.getDiff(operator) == 1) {
             cheats.stopPrank();
             return;
         }
-        
-        dataLayrPaymentManager.challengePaymentHalf(operator, half, amount1, amount2);
+
+        dataLayrPaymentManager.challengePaymentHalf(
+            operator,
+            half,
+            amount1,
+            amount2
+        );
         cheats.stopPrank();
 
         //Now we calculate the challenger's response amounts
     }
 
     // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
-    function challengerDisputesOperator(address challenger, address operator, bool half, uint120 amount1, uint120 amount2) public{
+    function challengerDisputesOperator(
+        address challenger,
+        address operator,
+        bool half,
+        uint120 amount1,
+        uint120 amount2
+    ) public {
         cheats.startPrank(challenger);
-        if (dataLayrPaymentManager.getDiff(operator) == 1){
+        if (dataLayrPaymentManager.getDiff(operator) == 1) {
             cheats.stopPrank();
             return;
         }
-        dataLayrPaymentManager.challengePaymentHalf(operator, half, amount1, amount2);
+        dataLayrPaymentManager.challengePaymentHalf(
+            operator,
+            half,
+            amount1,
+            amount2
+        );
         cheats.stopPrank();
-
     }
 
     //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
-    function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal {
+    function _testInitPaymentChallenge(
+        address operator,
+        uint120 amount1,
+        uint120 amount2
+    ) internal {
         cheats.startPrank(_challenger);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         //challenger initiates challenge
         dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
-        
+
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
     }
 
-
-
-
-
-     //Operator submits claim or commit for a payment amount
-    function _testCommitPayment(address operator, uint120 _amountRewards) internal {
+    //Operator submits claim or commit for a payment amount
+    function _testCommitPayment(address operator, uint120 _amountRewards)
+        internal
+    {
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
 
         uint32 blockNumber;
 
-    // scoped block helps fix 'stack too deep' errors
-    {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
-        uint32 numberOfNonSigners = 0;
+        // scoped block helps fix 'stack too deep' errors
+        {
+            IDataLayrServiceManager.DataStoreSearchData
+                memory searchData = _testInitDataStore();
+            uint32 numberOfNonSigners = 0;
 
-        blockNumber = uint32(block.number);
-        uint32 dataStoreId = dlsm.dataStoreId()-1;
+            blockNumber = uint32(block.number);
+            uint32 dataStoreId = dlsm.dataStoreId() - 1;
 
-        _testCommitDataStore(searchData.metadata.headerHash,  numberOfNonSigners,apks, sigmas, blockNumber, dataStoreId, searchData);
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
-    }
+            _testCommitDataStore(
+                searchData.metadata.headerHash,
+                numberOfNonSigners,
+                apks,
+                sigmas,
+                blockNumber,
+                dataStoreId,
+                searchData
+            );
+            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+            // assertTrue(sighash != bytes32(0), "Data store not committed");
+        }
         cheats.stopPrank();
 
         // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
@@ -327,28 +421,29 @@ contract Delegator is EigenLayrDeployer {
         dlsm.initDataStore(storer, header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
 
-
         cheats.startPrank(operator);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
-        dataLayrPaymentManager.commitPayment(newCurrentDataStoreId, _amountRewards);
+        dataLayrPaymentManager.commitPayment(
+            newCurrentDataStoreId,
+            _amountRewards
+        );
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
-    
     }
+
     //commits data store to data layer
     function _testCommitDataStore(
-            bytes32 headerHash, 
-            uint32 numberOfNonSigners, 
-            uint256[] memory apk, 
-            uint256[] memory sigma,
-            uint32 blockNumber,
-            uint32 dataStoreId,
-            IDataLayrServiceManager.DataStoreSearchData memory searchData
-            ) internal{
-
+        bytes32 headerHash,
+        uint32 numberOfNonSigners,
+        uint256[] memory apk,
+        uint256[] memory sigma,
+        uint32 blockNumber,
+        uint32 dataStoreId,
+        IDataLayrServiceManager.DataStoreSearchData memory searchData
+    ) internal {
         /** 
         @param data This calldata is of the format:
                 <
@@ -364,7 +459,6 @@ contract Delegator is EigenLayrDeployer {
                 >
         */
 
-        
         bytes memory data = abi.encodePacked(
             headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -381,9 +475,7 @@ contract Delegator is EigenLayrDeployer {
             sigma[1]
         );
 
-
         dlsm.confirmDataStore(data, searchData);
-
     }
 
     /**
@@ -391,9 +483,11 @@ contract Delegator is EigenLayrDeployer {
     @param includeOperator is a boolean that indicates whether or not we want to also register 
     the operator no. 0, for test case where they are not already registered as a delegator.
     **/
-    function _testRegisterSigners(uint32 numberOfSigners, bool includeOperator) internal{
+    function _testRegisterSigners(uint32 numberOfSigners, bool includeOperator)
+        internal
+    {
         uint256 start = 1;
-        if (includeOperator){
+        if (includeOperator) {
             start = 0;
         }
 
@@ -406,10 +500,9 @@ contract Delegator is EigenLayrDeployer {
                 registrationData[i]
             );
         }
-
     }
 
-//testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
+    //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
     function testForNonSigners() public {
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e18);
@@ -417,58 +510,86 @@ contract Delegator is EigenLayrDeployer {
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;
 
-        nonsigner.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
-        nonsigner.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
-        nonsigner.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
-        nonsigner.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
+        nonsigner.xA0 = (
+            uint256(
+                10245738255635135293623161230197183222740738674756428343303263476182774511624
+            )
+        );
+        nonsigner.xA1 = (
+            uint256(
+                10281853605827367652226404263211738087634374304916354347419537904612128636245
+            )
+        );
+        nonsigner.yA0 = (
+            uint256(
+                3091447672609454381783218377241231503703729871039021245809464784750860882084
+            )
+        );
+        nonsigner.yA1 = (
+            uint256(
+                18210007982945446441276599406248966847525243540006051743069767984995839204266
+            )
+        );
 
+        signer.apk0 = uint256(
+            20820493588973199354272631301248587752629863429201347184003644368113679196121
+        );
+        signer.apk1 = uint256(
+            18507428821816114421698399069438744284866101909563082454551586195885282320634
+        );
+        signer.apk2 = uint256(
+            1263326262781780932600377484793962587101562728383804037421955407439695092960
+        );
+        signer.apk3 = uint256(
+            3512517006108887301063578607317108977425754510174956792003926207778790018672
+        );
+        signer.sigma0 = uint256(
+            9899285015957232293116677360852432468167350756945278912491669140421286407192
+        );
+        signer.sigma1 = uint256(
+            18868395563258986391308257006257127077769293663161831717752905882669410617923
+        );
 
-        signer.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
-        signer.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
-        signer.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
-        signer.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
-        signer.sigma0 = uint256(11158738887387636951551175125607721554638045534548101012382762810906820102473);
-        signer.sigma1 = uint256(3135580093883685723788059851431412645937134768491818213416377523852295292067 );
-        
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
-        
-    // scoped block helps fix 'stack too deep' errors
-    {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData  = _testInitDataStore();
-        uint32 numberOfNonSigners = 1;
-        uint32 blockNumber = uint32(block.number);
-        uint32 dataStoreId = dlsm.dataStoreId()-1;
 
+        // scoped block helps fix 'stack too deep' errors
+        {
+            IDataLayrServiceManager.DataStoreSearchData
+                memory searchData = _testInitDataStore();
+            uint32 numberOfNonSigners = 1;
+            uint32 blockNumber = uint32(block.number);
+            uint32 dataStoreId = dlsm.dataStoreId() - 1;
 
-        bytes memory data = _getCallData(searchData.metadata.headerHash, numberOfNonSigners, signer, nonsigner, blockNumber, dataStoreId);
+            bytes memory data = _getCallData(
+                searchData.metadata.headerHash,
+                numberOfNonSigners,
+                signer,
+                nonsigner,
+                blockNumber,
+                dataStoreId
+            );
 
-        
-        uint gasbefore = gasleft();
-        
-        dlsm.confirmDataStore(data, searchData);
+            uint gasbefore = gasleft();
 
-        emit log_named_uint("gas cost", gasbefore - gasleft());
+            dlsm.confirmDataStore(data, searchData);
 
+            emit log_named_uint("gas cost", gasbefore - gasleft());
 
-
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
-    }
-
-
+            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+            // assertTrue(sighash != bytes32(0), "Data store not committed");
+        }
     }
 
     //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
-            bytes32 headerHash, 
-            uint32 numberOfNonSigners, 
-            signerInfo memory signers,
-            nonSignerInfo memory nonsigners,
-            uint32 blockNumber,
-            uint32 dataStoreId
-    ) internal view returns(bytes memory){
-
+        bytes32 headerHash,
+        uint32 numberOfNonSigners,
+        signerInfo memory signers,
+        nonSignerInfo memory nonsigners,
+        uint32 blockNumber,
+        uint32 dataStoreId
+    ) internal view returns (bytes memory) {
         /** 
         @param data This calldata is of the format:
             <
@@ -495,7 +616,7 @@ contract Delegator is EigenLayrDeployer {
             nonsigners.yA1
         );
 
-         data = abi.encodePacked(
+        data = abi.encodePacked(
             data,
             uint32(0),
             uint32(dlReg.getApkUpdatesLength() - 1),
@@ -508,8 +629,5 @@ contract Delegator is EigenLayrDeployer {
         );
 
         return data;
-
     }
-
-
 }

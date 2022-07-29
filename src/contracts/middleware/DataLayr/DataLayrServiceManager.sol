@@ -178,8 +178,6 @@ contract DataLayrServiceManager is
         }
 
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
-        
-
 
         /***********************
           compute time and fees
@@ -229,8 +227,6 @@ contract DataLayrServiceManager is
             require(initializable == true, "number of initDatastores for this duration and block has reached its limit");
         }
 
-
-
         // sanity check on blockNumber
         { 
             require(
@@ -241,14 +237,11 @@ contract DataLayrServiceManager is
             require(
                 blockNumber >= (block.number - BLOCK_STALE_MEASURE),
                 "specified blockNumber is too far in past"
-            );
-            
+            );    
         }
-
 
         // emit event to represent initialization of data store
         emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
-
 
         /******************************
           Updating dataStoresForDuration 
@@ -265,17 +258,12 @@ contract DataLayrServiceManager is
             dataStoresForDuration.latestTime = _latestTime;            
         }
 
-
         incrementDataStoresForDuration(duration);
         
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
         return index;
     }
-
-
-
-
 
 
     /**
@@ -297,6 +285,8 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
+    //@TODO: a call to confirmDataStore() should be permissioned to a certain address provided in the initDataStore() of the same datastoreid
+    //this allows storers to do accounting in their own contracts before the logic in this function
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         /*******************************************************
          verify the disperser's claim on composition of quorum
@@ -304,6 +294,8 @@ contract DataLayrServiceManager is
 
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
+        //TODO: ADD DURATION TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
+        //ALSO HAVE DLNs SIGN BLOCK.TIMESTAMP OF WHEN INIT TX WAS MINED FOR BOMB STUFF
         (
             uint32 dataStoreIdToConfirm,
             bytes32 headerHash,
@@ -311,11 +303,11 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        //TODO: This check is redundant after we check metadatahash against it below?
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
         emit log_bytes32(headerHash);
         emit log_bytes32(signatoryRecordHash);
-
 
         /**
          * @notice checks that there is no need for posting an updated deposit root required for proving
@@ -329,27 +321,22 @@ contract DataLayrServiceManager is
             "Must post a deposit root now"
         );
 
-        // check that the provided headerHash matches the one whose signature we just checked!
-        require(headerHash == searchData.metadata.headerHash, "submitted headerHash does not match that for checkSignatures");
-
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
+        //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(
-                                            searchData.metadata.headerHash, 
-                                            searchData.metadata.globalDataStoreId, 
+                                            headerHash, //the header hash should be passed in `data`
+                                            dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             bytes32(0)
-                                            );
+                                        );
 
         // emit log_named_uint("compute hash", g-gasleft());
 
-
         require(    
-                dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
-                "provided calldata does not match corresponding stored hash from initDataStore"
+            dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
+            "provided calldata does not match corresponding stored hash from initDataStore"
         );
-        
-
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
                                             searchData.metadata.headerHash, 
@@ -368,9 +355,6 @@ contract DataLayrServiceManager is
                 && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
-        // record that quorum has been achieved 
-        //TODO: We dont need to store this because signatoryRecordHash is a way to check whether a datastore is commited or not
-        // dataStores[headerHash].committed = true;
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
 

@@ -10,7 +10,7 @@ import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
 
-    struct DataStoresForDuration {
+    struct DataStoresInfo {
         uint256 timestamp;
         uint32 index;
         IDataLayrServiceManager.DataStoreMetadata metadata;
@@ -77,7 +77,7 @@ contract DataLayrBombVerifier {
         DataStoreProofs calldata dataStoreProofs,
         Indexes calldata indexes,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
-        DataStoresForDuration[2][2][] calldata sandwichProofs,
+        DataStoresInfo[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
         require(verifyMetadata(dataStoreProofs.operatorFromDataStore), "operatorFrom metadata premiage incorrect");
@@ -274,7 +274,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     function verifyBombDataStoreId(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
-        DataStoresForDuration[2][2][] calldata sandwichProofs
+        DataStoresInfo[2][2][] calldata sandwichProofs
     ) internal view returns (uint32) {
         uint256 fromTime;
         {
@@ -329,7 +329,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         uint256 detonationHeaderHashValue,
         uint256 fromTime,
         uint256 detonationDataStoreInitTimestamp,
-        DataStoresForDuration[2][2][] calldata sandwichProofs
+        DataStoresInfo[2][2][] calldata sandwichProofs
     )
         internal view
         returns (
@@ -426,7 +426,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
         uint8 duration,
-        DataStoresForDuration[2] calldata sandwich
+        DataStoresInfo[2] calldata sandwich
     ) internal view returns (IDataLayrServiceManager.DataStoreMetadata memory) {
         // make sure that the first timestamp is strictly before the sandwichTimestamp
         require(
