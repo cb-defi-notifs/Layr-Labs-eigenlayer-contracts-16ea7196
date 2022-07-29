@@ -127,11 +127,11 @@ contract EigenLayrDeposit is
             bytes32[] calldata proof,
             uint256 amount
     ) public {
-        require(nonces[depositor] == nonce, "invalid delegation nonce");
+        require(nonces[depositor] == nonce, "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: invalid delegation nonce");
 
         require(
             expiry == 0 || expiry <= block.timestamp,
-            "delegation signature expired"
+            "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: delegation signature expired"
         );
 
         bytes32 structHash = keccak256(
@@ -152,12 +152,12 @@ contract EigenLayrDeposit is
 
         require(
             recoveredAddress != address(0),
-            "delegateToBySignature: bad signature"
+            "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: bad signature"
         );
 
         require(
             recoveredAddress == depositor,
-            "delegateToBySignature: sig not from depositor"
+            "EigenLayrDeposit.proveLegacyConsensusLayerDepositBySignature: sig not from depositor"
         );
 
 
@@ -196,7 +196,7 @@ contract EigenLayrDeposit is
     ) internal {
         require(
             !depositProven[consensusLayerDepositRoot][depositor],
-            "Depositer has already proven their stake"
+            "EigenLayrDeposit._proveLegacyConsensusLayerDeposit: Depositer has already proven their stake"
         );
 
         bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
@@ -205,7 +205,7 @@ contract EigenLayrDeposit is
         // TODO: This will likely be changed from a hardcoded root to an oracle service on EigenLayer
         require(
             MerkleProof.verify(proof, consensusLayerDepositRoot, leaf),
-            "Invalid merkle proof"
+            "EigenLayrDeposit._proveLegacyConsensusLayerDeposit: Invalid merkle proof"
         );
 
         // record that depositor has successfully proven its stake into legacy consensus layer

@@ -221,7 +221,7 @@ contract InvestmentTests is
             0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
         );
         cheats.prank(depositor);
-        cheats.expectRevert("Invalid merkle proof");
+        cheats.expectRevert("EigenLayrDeposit._proveLegacyConsensusLayerDeposit: Invalid merkle proof");
         deposit.proveLegacyConsensusLayerDeposit(
             proof,
             amount
