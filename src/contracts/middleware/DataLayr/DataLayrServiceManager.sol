@@ -294,10 +294,13 @@ contract DataLayrServiceManager is
 
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
-        //TODO: ADD DURATION TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
-        //ALSO HAVE DLNs SIGN BLOCK.TIMESTAMP OF WHEN INIT TX WAS MINED FOR BOMB STUFF
+        //TODO: ADD DURATION, BLOCK.TIMESTAMP, and INDEX TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
+        //ALSO MESSING UP BOMB VERIFICATION
+        //easy way to do this: since dsid and taskhash are not used in sigchecker for anything other than verifying sig, 
+        //just past a generic bytes32 msgHash in place of both of them, and check in the body of this function that the msgHash is what is expected
         (
             uint32 dataStoreIdToConfirm,
+            uint32 blockNumberFromTaskHash,
             bytes32 headerHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
@@ -326,7 +329,7 @@ contract DataLayrServiceManager is
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(
                                             headerHash, //the header hash should be passed in `data`
                                             dataStoreIdToConfirm, //the global data store id should be passed in `data`
-                                            searchData.metadata.blockNumber, 
+                                            blockNumberFromTaskHash, 
                                             searchData.metadata.fee,
                                             bytes32(0)
                                         );
@@ -339,9 +342,9 @@ contract DataLayrServiceManager is
         );
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
-                                            searchData.metadata.headerHash, 
-                                            searchData.metadata.globalDataStoreId, 
-                                            searchData.metadata.blockNumber, 
+                                            headerHash, 
+                                            dataStoreIdToConfirm, 
+                                            blockNumberFromTaskHash, 
                                             searchData.metadata.fee,
                                             signatoryRecordHash
                                             );

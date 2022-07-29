@@ -88,6 +88,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         public
         returns (
             uint32 taskNumberToConfirm,
+            uint32 blockNumberFromTaskHash,
             bytes32 taskHash,
             SignatoryTotals memory signedTotals,
             bytes32 compressedSignatoryRecord
@@ -108,7 +109,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         }
 
         // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
-        uint32 blockNumberFromTaskHash;
         assembly {
             blockNumberFromTaskHash := shr(224, calldataload(394))
         }
@@ -436,6 +436,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // return taskNumber, taskHash, eth and eigen that signed, and a hash of the signatories
         return (
             taskNumberToConfirm,
+            blockNumberFromTaskHash,
             taskHash,
             signedTotals,
             compressedSignatoryRecord
