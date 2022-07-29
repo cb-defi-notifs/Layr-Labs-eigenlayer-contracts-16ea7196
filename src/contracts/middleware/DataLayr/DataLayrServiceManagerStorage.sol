@@ -95,7 +95,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
     //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
     //in that block
-    mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreIdsForDuration;
+    mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreHashesForDurationAtTimestamp;
     //total number of datastores that have been stored for a certain duration
     mapping(uint8 => uint32) public totalDataStoresForDuration;
 

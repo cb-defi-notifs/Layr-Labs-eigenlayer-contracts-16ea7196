@@ -201,8 +201,8 @@ contract DataLayrServiceManager is
             bool initializable = false;
             
             for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
-                if(dataStoreIdsForDuration[duration][block.timestamp][i] == 0){
-                    dataStoreIdsForDuration[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
+                if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] == 0){
+                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
                                                                                                 headerHash, 
                                                                                                 dataStoresForDuration.dataStoreId, 
                                                                                                 blockNumber, 
@@ -299,6 +299,9 @@ contract DataLayrServiceManager is
             "Must post a deposit root now"
         );
 
+        // check that the provided headerHash matches the one whose signature we just checked!
+        require(headerHash == searchData.metadata.headerHash, "submitted headerHash does not match that for checkSignatures");
+
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(
                                             searchData.metadata.headerHash, 
@@ -311,12 +314,10 @@ contract DataLayrServiceManager is
         // emit log_named_uint("compute hash", g-gasleft());
 
 
-        require(getDataStoreIdsForDuration(
-                                searchData.duration, 
-                                searchData.timestamp, 
-                                searchData.index
-                                ) == dsHash, "provided calldata does not match corresponding stored hash from initDataStore");
-
+        require(    
+                dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
+                "provided calldata does not match corresponding stored hash from initDataStore"
+        );
         
 
         //computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
@@ -329,14 +330,7 @@ contract DataLayrServiceManager is
                                             );
 
         //storing new hash
-        setDataStoreIdsForDuration(
-                            searchData.duration, 
-                            searchData.timestamp, 
-                            searchData.index, 
-                            newDsHash
-                            );
-
-
+        dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
         // check that signatories own at least a threshold percentage of eth 
         // and eigen, thus, implying quorum has been acheieved
@@ -438,17 +432,9 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
     }
 
-    
-
-
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) public view returns(bytes32) {
-        return dataStoreIdsForDuration[duration][timestamp][index];
+    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
+        return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
-
-    function setDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index, bytes32 newHash) internal {
-        dataStoreIdsForDuration[duration][timestamp][index] = newHash;
-    }
-
 
     // TODO: de-duplicate functions
     function dataStoreIdToFee(uint32 _dataStoreId) external pure returns (uint96) {
@@ -560,7 +546,8 @@ contract DataLayrServiceManager is
         }
 
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
-        assertTrue(getDataStoreIdsForDuration(duration, dsInitTime, index) == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+        require(
+            dataStoreHashesForDurationAtTimestamp[duration][dsInitTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 
         //now we check if the dataStore is still active at the time
         //TODO: check if the duration is in days or seconds
