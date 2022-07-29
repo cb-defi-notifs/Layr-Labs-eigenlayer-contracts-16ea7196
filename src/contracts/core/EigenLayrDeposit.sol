@@ -271,19 +271,19 @@ contract EigenLayrDeposit is
 
     //     require(
     //         !depositProven[depositRoot][depositor],
-    //         "Depositer has already proven their stake"
+    //         "EigenLayrDeposit.depositPOSProof: Depositer has already proven their stake"
     //     );
     //     bytes32 messageHash = keccak256(
     //         abi.encodePacked(msg.sender, legacyDepositPermissionMessage)
     //     );
     //     require(
     //         ECDSA.recover(messageHash, signature) == depositor,
-    //         "Invalid signature"
+    //         "EigenLayrDeposit.depositPOSProof: Invalid signature"
     //     );
     //     bytes32 leaf = keccak256(abi.encodePacked(depositor, amount));
     //     require(
     //         MerkleProof.verify(proof, depositRoot, leaf),
-    //         "Invalid merkle proof"
+    //         "EigenLayrDeposit.depositPOSProof: Invalid merkle proof"
     //     );
     //     depositProven[depositRoot][depositor] = true;
 
