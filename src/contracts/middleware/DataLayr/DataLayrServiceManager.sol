@@ -310,7 +310,7 @@ contract DataLayrServiceManager is
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
-        
+
         require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
 
         emit log_bytes32(headerHash);
@@ -318,11 +318,11 @@ contract DataLayrServiceManager is
 
 
         /**
-         * @notice checks that there is no need for posting a deposit root required for proving
+         * @notice checks that there is no need for posting an updated deposit root required for proving
          * the new staking of ETH into Ethereum.
          */
         /**
-         @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
+         @dev for more details, see "proveLegacyConsensusLayerDeposit" in EigenLayrDeposit.sol.
          */
         require(
             dataStoreIdToConfirm % depositRootInterval != 0,
@@ -350,7 +350,7 @@ contract DataLayrServiceManager is
         );
         
 
-        //computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
+        // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
                                             searchData.metadata.headerHash, 
                                             searchData.metadata.globalDataStoreId, 
@@ -417,6 +417,9 @@ contract DataLayrServiceManager is
     }
 
 
+    /**
+     @notice increments the number of data stores for the @param duration
+     */
     function incrementDataStoresForDuration(uint8 duration) public {
         if(duration==1){
             ++dataStoresForDuration.one_duration;
@@ -441,6 +444,11 @@ contract DataLayrServiceManager is
         }
     }
 
+
+    /**
+     @notice returns the number of data stores for the @param duration
+     */
+    /// CRITIC -- change the name to `getNumDataStoresForDuration`?
     function getDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
