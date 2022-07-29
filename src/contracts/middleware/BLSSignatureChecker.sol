@@ -18,7 +18,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     using BytesLib for bytes;
     ITaskMetadata public taskMetadata;
 
-
     /***************** 
      DATA STRUCTURES
      *****************/
@@ -37,7 +36,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         uint256 totalEigenStake;
     }
 
-
     /*********** 
      EVENTS
      ***********/
@@ -54,12 +52,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         bytes32[] pubkeyHashes
     );
 
-
-
-    constructor(IRepository _repository) 
-        RepositoryAccess(_repository)
-    {
-    }
+    constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
@@ -106,7 +99,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the taskHash for which disperser is calling checkSignatures
-            // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument. 
+            // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument.
             taskHash := calldataload(356)
 
             // get the 6 bytes immediately after the above, which represent the
@@ -117,9 +110,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
         uint32 blockNumberFromTaskHash;
         assembly {
-            blockNumberFromTaskHash := shr(224,calldataload(394))
+            blockNumberFromTaskHash := shr(224, calldataload(394))
         }
-
 
         // obtain registry contract for querying information on stake later
         IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
@@ -132,8 +124,9 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
-        
+        IQuorumRegistry.OperatorStake memory localStakeObject = registry
+            .getTotalStakeFromIndex(placeholder);
+
         // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
         _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
 
@@ -148,7 +141,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             placeholder := shr(224, calldataload(402))
         }
 
-        
         // we have read (356 + 32 + 6 + 4 + 4 + 4) = 406 bytes of calldata so far
         uint256 pointer = 406;
 
@@ -221,9 +213,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                     aggNonSignerPubkey[3]
                 )
             );
-           
+
             pubkeyHashes[0] = pubkeyHash;
-            
 
             // querying the VoteWeigher for getting information on the operator's stake
             // at the time of pre-commit
@@ -234,19 +225,15 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
             _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
-           
-             
+
             // subtract operator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
             signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
-            
         }
-
 
         // temporary variable for storing the pubkey of operators in Jacobian coordinates
         uint256[6] memory pk;
         pk[4] = 1;
-
 
         for (uint256 i = 1; i < placeholder; ) {
             //load compressed pubkey and the index in the stakes array into memory
@@ -371,7 +358,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // do the addition in Jacobian coordinates
             BLS.addJac(pk, aggNonSignerPubkey);
-
+            
             // reorder for pairing
             (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
             // if zero non-signers
@@ -390,7 +377,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         assembly {
             taskNumberToConfirm := shr(224, calldataload(398))
         }
-        
 
         /**
          @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
@@ -398,7 +384,9 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         // compute the point in G1
         //@OFFCHAIN change dlns to sign keccak256(taskhash, taskNumberToConfirm)
-        (input[0], input[1]) = BLS.hashToG1(keccak256(abi.encodePacked(taskHash, taskNumberToConfirm)));
+        (input[0], input[1]) = BLS.hashToG1(
+            keccak256(abi.encodePacked(taskHash, taskNumberToConfirm))
+        );
 
         // insert negated coordinates of the generator for G2
         input[8] = nG2x1;
@@ -414,13 +402,15 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             mstore(add(input, 0xE0), calldataload(add(pointer, 0x20)))
 
             // check the pairing; if incorrect, revert
-            if iszero(call(not(0), 0x08, 0, input, 0x0180, input, 0x20)) {
+            if iszero(
+                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x100), 0x20)
+            ) {
                 revert(0, 0)
             }
         }
 
         // check that signature is correct
-        require(input[0] == 1, "Pairing unsuccessful");
+        require(input[8] == 1, "Pairing unsuccessful");
 
         emit SignatoryRecord(
             taskHash,
