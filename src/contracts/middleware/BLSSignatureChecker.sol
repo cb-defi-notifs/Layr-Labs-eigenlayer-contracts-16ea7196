@@ -97,20 +97,22 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // temporary variable used to hold various numbers
         uint256 placeholder;
 
+        uint256 pointer = 388;
+
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the msgHash for which disperser is calling checkSignatures
             // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument.
-            msgHash := calldataload(356)
+            msgHash := calldataload(pointer)
 
             // get the 6 bytes immediately after the above, which represent the
             // index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(388))
+            placeholder := shr(208, calldataload(add(pointer, 32)))
         }
 
-        // fetch the stakesBlockNumber, the block number from which stakes are going to be read from
+        // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber := shr(224, calldataload(394))
+            stakesBlockNumber := shr(224, calldataload(add(pointer, 38)))
         }
 
         // obtain registry contract for querying information on stake later
@@ -136,13 +138,15 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
+            //fetch tha task number to avoid replay signing on same taskhash for different datastore
+            taskNumberToConfirm := shr(224, calldataload(add(pointer, 42)))
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(402))
+            placeholder := shr(224, calldataload(add(pointer, 46)))
         }
 
-        // we have read (356 + 32 + 6 + 4 + 4 + 4) = 406 bytes of calldata so far
-        uint256 pointer = 406;
+        // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
+        pointer += 50;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -297,7 +301,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 ++i;
             }
         }
-
         // usage of a scoped block here minorly decreases gas usage
         {
             uint32 apkIndex;
@@ -358,7 +361,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // do the addition in Jacobian coordinates
             BLS.addJac(pk, aggNonSignerPubkey);
-            
+
             // reorder for pairing
             (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
             // if zero non-signers
@@ -404,11 +407,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         // check that signature is correct
         require(input[8] == 1, "Pairing unsuccessful");
-
-        //fetch tha task number to avoid replay signing on same taskhash for different datastore
-        assembly {
-            taskNumberToConfirm := shr(224, calldataload(398))
-        }
 
         emit SignatoryRecord(
             msgHash,

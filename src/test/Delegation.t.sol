@@ -387,7 +387,7 @@ contract Delegator is EigenLayrDeployer {
         {
             uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData
-                memory searchData = _testInitDataStore(initTime);
+                memory searchData = _testInitDataStore(initTime, address(this));
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
@@ -420,7 +420,7 @@ contract Delegator is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
         //todo: duration
-        dlsm.initDataStore(storer, header, 2, totalBytes, blockNumber);
+        dlsm.initDataStore(storer, address(this), header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
 
         cheats.startPrank(operator);
@@ -559,7 +559,7 @@ contract Delegator is EigenLayrDeployer {
         {
             uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData
-                memory searchData = _testInitDataStore(initTime);
+                memory searchData = _testInitDataStore(initTime, address(this));
             uint32 numberOfNonSigners = 1;
             uint32 blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.dataStoreId() - 1;

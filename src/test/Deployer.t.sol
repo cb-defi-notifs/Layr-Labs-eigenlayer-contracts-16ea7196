@@ -40,6 +40,7 @@ import "../contracts/utils/ERC1155TokenReceiver.sol";
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/SignatureCompaction.sol";
+import "../contracts/libraries/DataStoreHash.sol";
 
 import "./utils/Signers.sol";
 
@@ -576,7 +577,7 @@ registrationData.push(
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit)
+   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -602,13 +603,13 @@ registrationData.push(
         uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
+            confirmer,
             header,
             durationToInit,
             totalBytes,
             blockNumber
         );
         emit log_named_uint("init datastore total gas", g - gasleft());
-        uint32 dataStoreId = dlsm.dataStoreId() - 1;
         bytes32 headerHash = keccak256(header);
 
 
@@ -617,16 +618,19 @@ registrationData.push(
 
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
-        {
-            bytes32 dataStoreHash = keccak256(
-                abi.encodePacked(
-                    headerHash,
-                    dataStoreId,
-                    blockNumber,
-                    uint96(fee),
-                    bytes32(0)
-                )
+        IDataLayrServiceManager.DataStoreMetadata
+            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
+                headerHash,
+                dlsm.getDataStoresForDuration(durationToInit)-1,
+                dlsm.dataStoreId() - 1,
+                blockNumber,
+                uint96(fee),
+                confirmer,
+                bytes32(0)
             );
+
+        {
+            bytes32 dataStoreHash = DataStoreHash.computeDataStoreHash(metadata);
 
             //check if computed hash matches stored hash in DLSM
             assertTrue(
@@ -635,17 +639,6 @@ registrationData.push(
                 "dataStore hashes do not match"
             );
         }
-
-
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
-                headerHash,
-                dataStoreId,
-                dataStoreId,
-                blockNumber,
-                uint96(fee),
-                bytes32(0)
-            );
         
         searchData = IDataLayrServiceManager.DataStoreSearchData(
                 durationToInit,
@@ -755,7 +748,7 @@ registrationData.push(
         }
 
         uint256 initTime = 1000000001;
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime);
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
@@ -789,12 +782,13 @@ registrationData.push(
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
              uint256[4] apk,
              uint256[2] sigma
             >
      */
+        emit log_named_bytes32("asfsadfa", keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))));
         bytes memory data = abi.encodePacked(
             keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -812,8 +806,6 @@ registrationData.push(
         );
 
         uint256 gasbefore = gasleft();
-
-
         
         dlsm.confirmDataStore(data, searchData);
         emit log_named_uint("confirm gas overall", gasbefore - gasleft());
@@ -830,7 +822,7 @@ registrationData.push(
     function _testConfirmDataStoreWithoutRegister() internal {
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = _testInitDataStore(initTime);
+            memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
