@@ -8,7 +8,6 @@ import "../contracts/core/Eigen.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
-import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
@@ -829,7 +828,7 @@ registrationData.push(
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsDelegate(address sender, DelegationTerms dt)
+    function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
         internal
     {
         cheats.startPrank(sender);
@@ -839,33 +838,6 @@ registrationData.push(
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
         );
         cheats.stopPrank();
-    }
-
-    // deploys a DelegationTerms contract on behalf of 'operator', with several hard-coded values
-    // does a simple check that deployment was successful
-    // currently hard-codes 'weth' as the only payment token
-    function _deployDelegationTerms(address operator)
-        internal
-        returns (DelegationTerms)
-    {
-        address[] memory paymentTokens = new address[](1);
-        paymentTokens[0] = address(weth);
-        uint16 _MAX_OPERATOR_FEE_BIPS = 500;
-        uint16 _operatorFeeBips = 500;
-        DelegationTerms dt = new DelegationTerms(
-            operator,
-            investmentManager,
-            paymentTokens,
-            address(delegation),
-            dlRepository,
-            _MAX_OPERATOR_FEE_BIPS,
-            _operatorFeeBips
-        );
-        assertTrue(
-            address(dt) != address(0),
-            "_deployDelegationTerms: DelegationTerms failed to deploy"
-        );
-        return dt;
     }
 
     // tries to delegate from 'sender' to 'operator'

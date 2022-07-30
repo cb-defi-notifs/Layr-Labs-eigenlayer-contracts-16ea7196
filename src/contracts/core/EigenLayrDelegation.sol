@@ -38,6 +38,7 @@ contract EigenLayrDelegation is
         //_disableInitializers();
     }
 
+    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     function initialize(
@@ -165,11 +166,20 @@ contract EigenLayrDelegation is
         }
 
         // call into hook in delegationTerms contract
-        dt.onDelegationReceived(
+        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+        // TODO: we also need a max gas budget to avoid griefing here
+        (bool success, bytes memory returnData) = address(dt).call(
+            abi.encodeWithSelector(
+                IDelegationTerms.onDelegationReceived.selector,
                 delegator,
                 strategies,
                 shares
+            )
         );
+        // if the internal call fails, we emit a special event rather than reverting
+        if (!success) {
+            emit OnDelegationReceivedCallFailure(dt, returnData);
+        }
     }
 
     /// @notice This function is used to notify the system that a delegator wants to stop

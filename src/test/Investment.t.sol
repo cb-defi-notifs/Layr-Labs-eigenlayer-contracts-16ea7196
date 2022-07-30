@@ -162,10 +162,9 @@ contract InvestmentTests is
         amountToDeposit = 1e7;
 
         //register registrant as an operator
-        DelegationTerms _dt = _deployDelegationTerms(registrant);
         cheats.deal(registrant, amountToDeposit);
         _testWethDeposit(registrant, amountToDeposit);
-        _testRegisterAsDelegate(registrant, _dt);
+        _testRegisterAsDelegate(registrant, IDelegationTerms(registrant));
 
         //make deposits in WETH strategy
         for (uint i=0; i<accounts.length; i++){
