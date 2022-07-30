@@ -9,6 +9,8 @@ import "../interfaces/IServiceFactory.sol";
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     address public constant SELF_DELEGATION_ADDRESS = address(1);
 
+    uint96 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
+
     // maximum value that 'undelegationFraudProofInterval' may take
     uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
 

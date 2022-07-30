@@ -167,8 +167,7 @@ contract EigenLayrDelegation is
 
         // call into hook in delegationTerms contract
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        // TODO: we also need a max gas budget to avoid griefing here
-        (bool success, bytes memory returnData) = address(dt).call(
+        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
             abi.encodeWithSelector(
                 IDelegationTerms.onDelegationReceived.selector,
                 delegator,
@@ -240,8 +239,7 @@ contract EigenLayrDelegation is
 
             // call into hook in delegationTerms contract
             // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-            // TODO: do we also need a max gas budget to avoid griefing here?
-            (bool success, bytes memory returnData) = address(delegationTerms[operator]).call(
+            (bool success, bytes memory returnData) = address(delegationTerms[operator]).call{gas: LOW_LEVEL_GAS_BUDGET}(
                 abi.encodeWithSelector(
                     IDelegationTerms.onDelegationWithdrawn.selector,
                     msg.sender,
