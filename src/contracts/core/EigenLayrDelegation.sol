@@ -260,54 +260,6 @@ contract EigenLayrDelegation is
         }
     }
 
-    function decreaseOperatorShares(
-        address operator,
-        IInvestmentStrategy strategy,
-        uint256 shares
-    ) external onlyInvestmentManager {
-        // subtract strategy shares from delegate's shares
-        operatorShares[operator][strategy] -= shares;
-    }
-
-    function decreaseOperatorShares(
-        address operator,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata shares
-    ) external onlyInvestmentManager {
-        // subtract strategy shares from delegate's shares
-        uint256 stratsLength = strategies.length;
-        for (uint256 i = 0; i < stratsLength;) {
-            operatorShares[operator][strategies[i]] -= shares[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function increaseOperatorShares(
-        address operator,
-        IInvestmentStrategy strategy,
-        uint256 shares
-    ) external onlyInvestmentManager {
-        // add strategy shares to delegate's shares
-        operatorShares[operator][strategy] += shares;
-     }
-
-    function increaseOperatorShares(
-        address operator,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata shares
-    ) external onlyInvestmentManager {
-        // add strategy shares to delegate's shares
-        uint256 stratsLength = strategies.length;
-        for (uint256 i = 0; i < stratsLength;) {
-            operatorShares[operator][strategies[i]] += shares[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     /// @notice This function must be called by a delegator to notify that its stake is
     ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
@@ -421,6 +373,59 @@ contract EigenLayrDelegation is
     {
         address delegatedAddress = delegation[staker];
         return (delegatedAddress != address(0) && delegatedAddress != SELF_DELEGATION_ADDRESS);
+    }
+
+    function decreaseOperatorShares(
+        address operator,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external onlyInvestmentManager {
+        // subtract strategy shares from delegate's shares
+        uint256 stratsLength = strategies.length;
+        for (uint256 i = 0; i < stratsLength;) {
+            operatorShares[operator][strategies[i]] -= shares[i];
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
+    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) public {
+        require(msg.sender == address(investmentManager), "EigenLayrDelegation.increaseDelegatedShares: not authorized to increase delegated shares");
+        //if the staker is delegated to an operator
+        if(isDelegator(staker)) {
+            address operator = delegation[staker];
+            // add strategy shares to delegate's shares
+            operatorShares[operator][strategy] += shares;
+
+            IDelegationTerms dt = delegationTerms[operator];
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shares;
+            dt.onDelegationReceived(staker, investorStrats, investorShares);
+        }
+    }
+
+    //decreases a stakers delegated shares to a certain strategy, usually whenever they withdraw from EigenLayr
+    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) public {
+        require(msg.sender == address(investmentManager), "EigenLayrDelegation.decreaseDelegatedShares: not authorized to decrease delegated shares");
+        //if the staker is delegated to an operator
+        if(isDelegator(staker)) {
+            address operator = delegation[staker];
+            // add strategy shares to delegate's shares
+            operatorShares[operator][strategy] -= shares;
+
+            IDelegationTerms dt = delegationTerms[operator];
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shares;
+            dt.onDelegationWithdrawn(staker, investorStrats, investorShares);
+        }
     }
 
     function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {

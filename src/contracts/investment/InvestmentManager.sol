@@ -107,25 +107,7 @@ contract InvestmentManager is
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
         
         // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            
-            delegation.increaseOperatorShares(
-                operatorAddress,
-                strategy,
-                shares
-            );
-
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shares;
-            dt.onDelegationReceived(msg.sender, investorStrats, investorShares);
-
-        }
+        delegation.increaseDelegatedShares(depositor, strategy, shares);
     }
 
     function _depositIntoStrategy(
@@ -180,26 +162,8 @@ contract InvestmentManager is
             token,
             shareAmount
         );
-        // decrease delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            delegation.decreaseOperatorShares(
-                operatorAddress,
-                strategy,
-                shareAmount
-            );
-
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shareAmount;
-
-            dt.onDelegationWithdrawn(msg.sender,investorStrats, investorShares);
-
-        }
+        //decrease corresponding operator's shares, if applicable
+        delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
     }
 
     // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
