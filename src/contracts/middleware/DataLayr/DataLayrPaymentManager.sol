@@ -20,9 +20,7 @@ contract DataLayrPaymentManager is
     IDataLayrPaymentManager
     // ,DSTest 
     {
-    /****************
-     DATA STRUCTURES
-     ****************/
+    // DATA STRUCTURES
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
     */
