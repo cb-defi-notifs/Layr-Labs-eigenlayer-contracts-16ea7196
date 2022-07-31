@@ -20,8 +20,7 @@ library DataStoreHash {
         uint32 dataStoreId, 
         uint32 blockNumber, 
         uint96 fee,
-        bytes32 signatoryRecordHash,
-        address sender
+        bytes32 signatoryRecordHash
     ) internal pure returns(bytes32){
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         bytes32 dsHash = keccak256(
@@ -30,8 +29,7 @@ library DataStoreHash {
                                     dataStoreId,
                                     blockNumber,
                                     fee,
-                                    signatoryRecordHash,
-                                    sender
+                                    signatoryRecordHash
                                     )
                                 );
 
