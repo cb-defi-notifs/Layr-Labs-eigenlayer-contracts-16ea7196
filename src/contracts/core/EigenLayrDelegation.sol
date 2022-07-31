@@ -391,8 +391,7 @@ contract EigenLayrDelegation is
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
-    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) public {
-        require(msg.sender == address(investmentManager), "EigenLayrDelegation.increaseDelegatedShares: not authorized to increase delegated shares");
+    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
         if(isDelegator(staker)) {
             address operator = delegation[staker];
@@ -410,8 +409,7 @@ contract EigenLayrDelegation is
     }
 
     //decreases a stakers delegated shares to a certain strategy, usually whenever they withdraw from EigenLayr
-    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) public {
-        require(msg.sender == address(investmentManager), "EigenLayrDelegation.decreaseDelegatedShares: not authorized to decrease delegated shares");
+    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
         if(isDelegator(staker)) {
             address operator = delegation[staker];
