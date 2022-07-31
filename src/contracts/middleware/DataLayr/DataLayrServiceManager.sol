@@ -146,6 +146,8 @@ contract DataLayrServiceManager is
               This function returns the index of the data blob in dataStoreIdsForDuration[duration][block.timestamp]
      */
     /**
+      @param feePayer is the address of the balance paying the fees for this datastore. check DataLayrPaymentManager for further details
+      @param confirmer is the address that must confirm the datastore
       @param header is the summary of the data that is being asserted into DataLayr,
             CRITIC -- need to describe header structure
       @param duration for which the data has to be stored by the DataLayr operators.
@@ -159,6 +161,7 @@ contract DataLayrServiceManager is
      */
     function initDataStore(
         address feePayer,
+        address confirmer,
         bytes calldata header,
         uint8 duration,
         uint32 totalBytes,
@@ -194,37 +197,37 @@ contract DataLayrServiceManager is
         // This will revert if the deposits are not high enough due to undeflow.
         dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
 
-
-
         /*************************************************************************
           Recording the initialization of datablob store along with auxiliary info
          *************************************************************************/
+        //store metadata locally to be stored
+        IDataLayrServiceManager.DataStoreMetadata memory metadata = 
+            IDataLayrServiceManager.DataStoreMetadata(
+                headerHash, 
+                getDataStoresForDuration(duration),
+                dataStoresForDuration.dataStoreId, 
+                blockNumber, 
+                uint96(fee),
+                confirmer,
+                bytes32(0)
+            );
+
         uint32 index;
+
         {
            // uint g = gasleft();
 
-            bool initializable = false;
-            
-
-            for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
-                if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] == 0){
-                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
-                                                                                                headerHash, 
-                                                                                                dataStoresForDuration.dataStoreId, 
-                                                                                                blockNumber, 
-                                                                                                uint96(fee),
-                                                                                                bytes32(0)
-                                                                                            );
-                    initializable = true; 
-
+            //iterate the index throughout the loop
+            for (; index < NUM_DS_PER_BLOCK_PER_DURATION; index++){
+                if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] == 0){
+                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] = DataStoreHash.computeDataStoreHash(metadata);
                     // recording the empty slot
-                    index = i;
                     break;   
                 }       
             }
 
-            // reverting if no empty slot exists
-            require(initializable == true, "number of initDatastores for this duration and block has reached its limit");
+            // reverting we looped through all of the indecies without finding an empty element
+            require(index != NUM_DS_PER_BLOCK_PER_DURATION, "DataLayrServiceManager.initDataStore: number of initDatastores for this duration and block has reached its limit");
         }
 
         // sanity check on blockNumber
@@ -276,7 +279,7 @@ contract DataLayrServiceManager is
     /** 
      @param data is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 numberOfNonSigners,
              uint256[numberOfSigners][4] pubkeys of nonsigners,
@@ -294,57 +297,46 @@ contract DataLayrServiceManager is
 
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
-        //TODO: ADD DURATION TO HEADER IN CASE OF REORG AND SAME ID, SAME HEADERHASH SUBMITTED FOR DIFFERENT DURATION
-        //ALSO HAVE DLNs SIGN BLOCK.TIMESTAMP OF WHEN INIT TX WAS MINED FOR BOMB STUFF
         (
             uint32 dataStoreIdToConfirm,
-            bytes32 headerHash,
+            uint32 blockNumberFromTaskHash,
+            bytes32 msgHash,
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+        //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
+        //this keeps bomb and storage conditions stagnant
+        // TODO: need to check hash of stakesBlockNumber here?
+        require(msgHash == keccak256(abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index)), 
+                "DataLayrServiceManager.confirmDataStore: msgHash is not consistent with search data");
+
+        //make sure the address confirming is the prespecified `confirmer`
+        require(msg.sender == searchData.metadata.confirmer, "DataLayrServiceManager.confirmDataStore: Sender is not authorized to confirm this datastore");
+        require(searchData.metadata.signatoryRecordHash == bytes32(0), "DataLayrServiceManager.confirmDataStore: SignatoryRecord must be bytes32(0)");
+        require(searchData.metadata.globalDataStoreId == dataStoreIdToConfirm, "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data");
+        require(searchData.metadata.blockNumber == blockNumberFromTaskHash, "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data");
+
         //TODO: This check is redundant after we check metadatahash against it below?
-        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
+        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataLayrServiceManager.confirmDataStore: DataStoreId is invalid");
 
-        emit log_bytes32(headerHash);
+        emit log_bytes32(searchData.metadata.headerHash);
         emit log_bytes32(signatoryRecordHash);
-
-        /**
-         * @notice checks that there is no need for posting an updated deposit root required for proving
-         * the new staking of ETH into Ethereum.
-         */
-        /**
-         @dev for more details, see "proveLegacyConsensusLayerDeposit" in EigenLayrDeposit.sol.
-         */
-        require(
-            dataStoreIdToConfirm % depositRootInterval != 0,
-            "Must post a deposit root now"
-        );
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(
-                                            headerHash, //the header hash should be passed in `data`
-                                            dataStoreIdToConfirm, //the global data store id should be passed in `data`
-                                            searchData.metadata.blockNumber, 
-                                            searchData.metadata.fee,
-                                            bytes32(0)
-                                        );
+        bytes32 dsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
 
-        // emit log_named_uint("compute hash", g-gasleft());
+        emit log_named_uint("compute hash", gasleft());
 
         require(    
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "provided calldata does not match corresponding stored hash from initDataStore"
         );
+
+        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
-        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
-                                            searchData.metadata.headerHash, 
-                                            searchData.metadata.globalDataStoreId, 
-                                            searchData.metadata.blockNumber, 
-                                            searchData.metadata.fee,
-                                            signatoryRecordHash
-                                            );
+        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
 
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
@@ -356,7 +348,7 @@ contract DataLayrServiceManager is
                 "signatories do not own at least a threshold percentage of eth and eigen");
 
 
-        emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
+        emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
 
     }
 
@@ -428,7 +420,6 @@ contract DataLayrServiceManager is
         }
     }
 
-
     /**
      @notice returns the number of data stores for the @param duration
      */
@@ -485,39 +476,44 @@ contract DataLayrServiceManager is
      */
     function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external  {
         bytes32 headerHash;
-        bytes32 signatoryRecordHash;
-        uint32 _dataStoreId; 
+        uint32 globalDataStoreId; 
+        uint32 durationDataStoreId;
         uint32 blockNumber; 
+        address confirmer;
         uint96 fee;
-        uint8 duration; 
-        uint256 dsInitTime; 
-        uint32 index;
+        bytes32 signatoryRecordHash;
 
+        uint8 duration; 
+        uint256 initTime; 
+        uint32 index;
 
         uint256 pointer = 132;
         
         assembly {
             headerHash := calldataload(pointer)
-            signatoryRecordHash:= calldataload(add(pointer, 32))  
-            _dataStoreId := shr(224, calldataload(add(pointer, 64)))  
-            blockNumber := shr(224, calldataload(add(pointer, 68))) 
-            fee := shr(160, calldataload(add(pointer, 72)))
-            duration := shr(248, calldataload(add(pointer, 84)))
-            dsInitTime := calldataload(add(pointer, 85))
-            index := shr(224, calldataload(add(pointer, 117)))
+            globalDataStoreId := shr(224, calldataload(add(pointer, 32)))
+            durationDataStoreId := shr(224, calldataload(add(pointer, 36)))
+            blockNumber := shr(224, calldataload(add(pointer, 40)))
+            confirmer := shr(96, calldataload(add(pointer, 44)))
+            fee := shr(160, calldataload(add(pointer, 64)))
+            signatoryRecordHash:= calldataload(add(pointer, 76))
+
+            duration := shr(248, calldataload(add(pointer, 108)))
+            initTime := calldataload(add(pointer, 109))
+            index := shr(224, calldataload(add(pointer, 141)))
         }
 
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
+        bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, globalDataStoreId, durationDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
         require(
-            dataStoreHashesForDurationAtTimestamp[duration][dsInitTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+            dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 
         //now we check if the dataStore is still active at the time
         //TODO: check if the duration is in days or seconds
         require(
-            initTimestamp > dsInitTime
+            initTimestamp > initTime
                  &&
                 unlockTime <
-                dsInitTime + duration*86400,
+                initTime + duration*86400,
             "task does not meet requirements"
         );
 
