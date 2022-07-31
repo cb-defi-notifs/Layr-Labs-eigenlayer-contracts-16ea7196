@@ -16,6 +16,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint32 blockNumber;
         uint96 fee;
         bytes32 signatoryRecordHash;
+        address sender;
     }
 
     //Stores the data required to index a given datastore's metadata

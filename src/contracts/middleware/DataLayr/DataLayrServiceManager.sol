@@ -213,7 +213,8 @@ contract DataLayrServiceManager is
                                                                                                 dataStoresForDuration.dataStoreId, 
                                                                                                 blockNumber, 
                                                                                                 uint96(fee),
-                                                                                                bytes32(0)
+                                                                                                bytes32(0),
+                                                                                                msg.sender
                                                                                             );
                     initializable = true; 
 
@@ -242,6 +243,8 @@ contract DataLayrServiceManager is
 
         // emit event to represent initialization of data store
         emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
+
+
 
         /******************************
           Updating dataStoresForDuration 
@@ -328,7 +331,8 @@ contract DataLayrServiceManager is
                                             dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
-                                            bytes32(0)
+                                            bytes32(0),
+                                            msg.sender
                                         );
 
         // emit log_named_uint("compute hash", g-gasleft());
