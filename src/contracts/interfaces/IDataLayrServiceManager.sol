@@ -15,7 +15,6 @@ interface IDataLayrServiceManager is IServiceManager {
         uint32 globalDataStoreId;
         uint32 blockNumber;
         uint96 fee;
-        address confirmer;
         bytes32 signatoryRecordHash;
     }
 

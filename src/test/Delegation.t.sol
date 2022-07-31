@@ -216,15 +216,14 @@ contract Delegator is EigenLayrDeployer {
         //15 signers' associated sigma
         sigmas.push(
             uint256(
-                17495938995352312074042671866638379644300283276197341589218393173802359623203
+                3227515082877366753481082344554384723742742005849592832962567665412663301823
             )
         );
         sigmas.push(
             uint256(
-                9126369385140686627953696969589239917670210184443620227590862230088267251657
+                417272605470211919435039030320974523411847825598612812754681380173701139632
             )
         );
-
 
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e18);
@@ -385,20 +384,19 @@ contract Delegator is EigenLayrDeployer {
 
         // scoped block helps fix 'stack too deep' errors
         {
-            uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData
-                memory searchData = _testInitDataStore(initTime, address(this));
+                memory searchData = _testInitDataStore();
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.dataStoreId() - 1;
-            emit log_named_bytes("fff", abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
+
             _testCommitDataStore(
-                keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
+                searchData.metadata.headerHash,
                 numberOfNonSigners,
                 apks,
                 sigmas,
-                searchData.metadata.blockNumber,
+                blockNumber,
                 dataStoreId,
                 searchData
             );
@@ -420,7 +418,7 @@ contract Delegator is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
         //todo: duration
-        dlsm.initDataStore(storer, address(this), header, 2, totalBytes, blockNumber);
+        dlsm.initDataStore(storer, header, 2, totalBytes, blockNumber);
         cheats.stopPrank();
 
         cheats.startPrank(operator);
@@ -438,7 +436,7 @@ contract Delegator is EigenLayrDeployer {
 
     //commits data store to data layer
     function _testCommitDataStore(
-        bytes32 msgHash,
+        bytes32 headerHash,
         uint32 numberOfNonSigners,
         uint256[] memory apk,
         uint256[] memory sigma,
@@ -462,7 +460,7 @@ contract Delegator is EigenLayrDeployer {
         */
 
         bytes memory data = abi.encodePacked(
-            msgHash,
+            headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             blockNumber,
             dataStoreId,
@@ -546,10 +544,10 @@ contract Delegator is EigenLayrDeployer {
             3512517006108887301063578607317108977425754510174956792003926207778790018672
         );
         signer.sigma0 = uint256(
-            7232102842299801988888616268506476902050501317623869691846247376690344395462
+            9899285015957232293116677360852432468167350756945278912491669140421286407192
         );
         signer.sigma1 = uint256(
-            14957250584972173579780704932503635695261143933757715744951524340217507753217
+            18868395563258986391308257006257127077769293663161831717752905882669410617923
         );
 
         uint32 numberOfSigners = 15;
@@ -557,19 +555,18 @@ contract Delegator is EigenLayrDeployer {
 
         // scoped block helps fix 'stack too deep' errors
         {
-            uint256 initTime = 1000000001;
             IDataLayrServiceManager.DataStoreSearchData
-                memory searchData = _testInitDataStore(initTime, address(this));
+                memory searchData = _testInitDataStore();
             uint32 numberOfNonSigners = 1;
             uint32 blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.dataStoreId() - 1;
 
             bytes memory data = _getCallData(
-                keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
+                searchData.metadata.headerHash,
                 numberOfNonSigners,
                 signer,
                 nonsigner,
-                searchData.metadata.blockNumber,
+                blockNumber,
                 dataStoreId
             );
 
@@ -586,7 +583,7 @@ contract Delegator is EigenLayrDeployer {
 
     //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
-        bytes32 msgHash,
+        bytes32 headerHash,
         uint32 numberOfNonSigners,
         signerInfo memory signers,
         nonSignerInfo memory nonsigners,
@@ -596,7 +593,7 @@ contract Delegator is EigenLayrDeployer {
         /** 
         @param data This calldata is of the format:
             <
-             bytes32 msgHash,
+             bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -608,7 +605,7 @@ contract Delegator is EigenLayrDeployer {
             >s
         */
         bytes memory data = abi.encodePacked(
-            msgHash,
+            headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             blockNumber,
             dataStoreId,

@@ -7,14 +7,15 @@ import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
 
 abstract contract DataLayrChallengeBase {
-    // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
+
+     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
     uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
     // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
     uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
     // length of window during which the responses can be made to the challenge
     uint256 public immutable CHALLENGE_RESPONSE_WINDOW;
     // amount of token required to be placed as collateral when a challenge is opened
-    uint256 public immutable COLLATERAL_AMOUNT;
+   	uint256 public immutable COLLATERAL_AMOUNT;
 
     IQuorumRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
@@ -34,61 +35,41 @@ abstract contract DataLayrChallengeBase {
         COLLATERAL_AMOUNT = _COLLATERAL_AMOUNT;
     }
 
-    function challengeSuccessful(bytes32 headerHash)
-        public
-        view
-        virtual
-        returns (bool);
+	function challengeSuccessful(bytes32 headerHash) public view virtual returns (bool);
 
-    function challengeUnsuccessful(bytes32 headerHash)
-        public
-        view
-        virtual
-        returns (bool);
+    function challengeUnsuccessful(bytes32 headerHash) public view virtual returns (bool);
 
-    function challengeExists(bytes32 headerHash)
-        public
-        view
-        virtual
-        returns (bool);
+    function challengeExists(bytes32 headerHash) public view virtual returns (bool);
 
-    function challengeClosed(bytes32 headerHash)
-        public
-        view
-        virtual
-        returns (bool);
+    function challengeClosed(bytes32 headerHash) public view virtual returns (bool);
 
     function _markChallengeSuccessful(bytes32 headerHash) internal virtual;
 
-    function _recordChallengeDetails(bytes calldata header, bytes32 headerHash)
-        internal
-        virtual;
+    function _recordChallengeDetails(bytes calldata header, bytes32 headerHash) internal virtual;
 
     function _challengeCreationEvent(bytes32 headerHash) internal virtual;
 
     function _returnChallengerCollateral(bytes32 headerHash) internal virtual;
 
-    function openChallenge(
-        bytes calldata header,
-        IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) external {
+    function openChallenge(bytes calldata header, IDataLayrServiceManager.DataStoreSearchData calldata searchData) external {
         // calculate headherHash from header
+        
 
         {
-            require(
-                dataLayrServiceManager.getDataStoreIdsForDuration(
-                    searchData.duration,
-                    searchData.timestamp,
-                    searchData.index
-                ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
-                "search.metadataclear preimage is incorrect"
-            );
+            require(dataLayrServiceManager.getDataStoreIdsForDuration(
+                                                    searchData.duration, 
+                                                    searchData.timestamp,
+                                                    searchData.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            searchData.metadata.headerHash, 
+                                                                            searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.blockNumber, 
+                                                                            searchData.metadata.fee, 
+                                                                            searchData.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
-            // check that disperser had acquire quorum for this dataStore
-            require(
-                searchData.metadata.signatoryRecordHash != bytes32(0),
-                "Dump is not committed yet"
-            );
+            // check that disperser had acquire quorum for this dataStore 
+            require(searchData.metadata.signatoryRecordHash != bytes32(0), "Dump is not committed yet");
 
             // check that the dataStore is still ongoing
             uint256 expireTime = searchData.timestamp + searchData.duration;
@@ -105,14 +86,10 @@ abstract contract DataLayrChallengeBase {
 
         _recordChallengeDetails(header, headerHash);
 
-        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger
+        // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger 
         IERC20 collateralToken = dataLayrServiceManager.collateralToken();
         require(
-            collateralToken.transferFrom(
-                msg.sender,
-                address(this),
-                COLLATERAL_AMOUNT
-            ),
+            collateralToken.transferFrom(msg.sender, address(this), COLLATERAL_AMOUNT),
             "collateral must be transferred when initiating challenge"
         );
 
@@ -121,17 +98,23 @@ abstract contract DataLayrChallengeBase {
 
     // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
     function resolveChallenge(bytes32 headerHash) public {
-        require(challengeExists(headerHash), "Challenge does not exist");
-        require(!challengeUnsuccessful(headerHash), "Challenge failed");
+        require(
+            challengeExists(headerHash),
+            "Challenge does not exist"
+        );
+        require(
+            !challengeUnsuccessful(headerHash),
+            "Challenge failed"
+        );
         // check that the challenge window is no longer open
         require(
             challengeClosed(headerHash),
             "Challenge response period has not yet elapsed"
         );
 
-        // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
-        // and to signal that the challenge has been lost by the signers
-        _markChallengeSuccessful(headerHash);
+	    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
+    	// and to signal that the challenge has been lost by the signers
+    	_markChallengeSuccessful(headerHash);
 
         // return challenger collateral
         _returnChallengerCollateral(headerHash);
@@ -144,39 +127,36 @@ abstract contract DataLayrChallengeBase {
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData,
-        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId
-            calldata signatoryRecord
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         // verify that the challenge has been lost by the operator side
-        require(challengeSuccessful(headerHash), "Challenge not successful");
+    	require(challengeSuccessful(headerHash), "Challenge not successful");
 
-        require(
-            dataLayrServiceManager.getDataStoreIdsForDuration(
-                searchData.duration,
-                searchData.timestamp,
-                searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
-            "search.metadata preimage is incorrect"
-        );
+        require(dataLayrServiceManager.getDataStoreIdsForDuration(
+                                                    searchData.duration, 
+                                                    searchData.timestamp,
+                                                    searchData.index
+                                                ) == DataStoreHash.computeDataStoreHash(
+                                                                            searchData.metadata.headerHash, 
+                                                                            searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.blockNumber, 
+                                                                            searchData.metadata.fee, 
+                                                                            searchData.metadata.signatoryRecordHash
+                                                                        ), "search.metadataclear preimage is incorrect");
 
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IQuorumRegistry.OperatorStake memory operatorStake = dlRegistry
-            .getStakeFromPubkeyHashAndIndex(
-                operatorPubkeyHash,
-                operatorHistoryIndex
-            );
+        IQuorumRegistry.OperatorStake memory operatorStake = dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
         require(
             // operator must have become active/registered before (or at) the block number
-            (operatorStake.updateBlockNumber <=
-                searchData.metadata.blockNumber) &&
-                // operator must have still been active after (or until) the block number
-                // either there is a later update, past the specified blockNumber, or they are still active
-                (operatorStake.nextUpdateBlockNumber >=
-                    searchData.metadata.blockNumber ||
-                    operatorStake.nextUpdateBlockNumber == 0),
+            (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber) &&
+            // operator must have still been active after (or until) the block number
+            // either there is a later update, past the specified blockNumber, or they are still active
+            (operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber ||
+            operatorStake.nextUpdateBlockNumber == 0),
             "operator was not active during blockNumber specified by dataStoreId / headerHash"
         );
+
 
         /** 
           @notice Check that the DataLayr operator who is getting slashed was
