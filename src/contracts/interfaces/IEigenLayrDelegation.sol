@@ -7,8 +7,8 @@ interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
         DELEGATED,
-        UNDELEGATION_COMMITTED,
-        UNDELEGATION_FINALIZED
+        UNDELEGATION_INITIALIZED,
+        UNDELEGATION_COMMITTED
     }
 
     function registerAsDelegate(IDelegationTerms dt) external;

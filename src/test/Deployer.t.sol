@@ -955,8 +955,8 @@ registrationData.push(
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
         cheats.warp(block.timestamp + 365 days);
+        delegation.initUndelegation();
         delegation.commitUndelegation();
-        delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
 
