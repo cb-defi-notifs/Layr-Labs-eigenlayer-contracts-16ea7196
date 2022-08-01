@@ -38,9 +38,18 @@ contract EigenLayrDelegation is
         //_disableInitializers();
     }
 
+    /**
+     * @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
+     */
     event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    /**
+     * @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
+     */
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
+    // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
+    // sets the `undelegationFraudProofInterval` value (**currently modifiable by contract owner -- see below**)
+    // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
         uint256 _undelegationFraudProofInterval
@@ -62,22 +71,6 @@ contract EigenLayrDelegation is
         // store the address of the delegation contract that operator is providing.
         delegationTerms[msg.sender] = dt;
         _delegate(msg.sender, msg.sender);
-    }
-
-    /// @notice This will be called by a staker if it wants to act as its own operator.
-    function delegateToSelf() external {
-        require(
-            address(delegationTerms[msg.sender]) == address(0),
-            "delegateToSelf: Delegate has already registered"
-        );
-        require(
-            isNotDelegated(msg.sender),
-            "delegateToSelf: Staker has existing delegation or pending undelegation commitment"
-        );
-        // store delegation relation that the staker (msg.sender) is its own operator
-        delegation[msg.sender] = SELF_DELEGATION_ADDRESS;
-        // store the flag that the staker is delegated
-        delegated[msg.sender] = DelegationStatus.DELEGATED;
     }
 
     /// @notice This will be called by a registered delegator to delegate its assets to some operator
@@ -200,41 +193,32 @@ contract EigenLayrDelegation is
             "Last commit has not been confirmed yet"
         );
 
-        // if not delegated to self
-        if (operator != SELF_DELEGATION_ADDRESS) {
-            // checks that operator has not been slashed
-            require(!investmentManager.slashedStatus(operator),
-                "operator has been slashed. must wait for resolution before undelegation"
-            );
+        // checks that operator has not been slashed
+        require(!investmentManager.slashedStatus(operator),
+            "operator has been slashed. must wait for resolution before undelegation"
+        );
 
-            // retrieve list of strategies and their shares from investment manager
-            (
-                IInvestmentStrategy[] memory strategies,
-                uint256[] memory shares
-            ) = investmentManager.getDeposits(msg.sender);
-            // remove strategy shares from delegate's shares
-            uint256 stratsLength = strategies.length;
-            for (uint256 i = 0; i < stratsLength;) {
-                // update the total share deposited in favor of the strategy in the operator's portfolio
-                operatorShares[operator][strategies[i]] -= shares[i];
-                unchecked {
-                    ++i;
-                }
+        // retrieve list of strategies and their shares from investment manager
+        (
+            IInvestmentStrategy[] memory strategies,
+            uint256[] memory shares
+        ) = investmentManager.getDeposits(msg.sender);
+        // remove strategy shares from delegate's shares
+        uint256 stratsLength = strategies.length;
+        for (uint256 i = 0; i < stratsLength;) {
+            // update the total share deposited in favor of the strategy in the operator's portfolio
+            operatorShares[operator][strategies[i]] -= shares[i];
+            unchecked {
+                ++i;
             }
-
-            // set that they are no longer delegated to anyone
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
-
-            // call into hook in delegationTerms contract
-            IDelegationTerms dt = delegationTerms[operator];
-            _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
-        } else {
-            // checks that operator has not been slashed
-            require(!investmentManager.slashedStatus(msg.sender),
-                "operator has been slashed. must wait for resolution before undelegation"
-            );
-            delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
         }
+
+        // set that they are no longer delegated to anyone
+        delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
+
+        // call into hook in delegationTerms contract
+        IDelegationTerms dt = delegationTerms[operator];
+        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
     }
 
     /// @notice This function must be called by a delegator to notify that its stake is
@@ -329,18 +313,7 @@ contract EigenLayrDelegation is
         address operator,
         IInvestmentStrategy investmentStrategy
     ) public view returns (uint256) {
-        return
-            isSelfOperator(operator)
-                ? investmentManager.investorStratShares(operator, investmentStrategy)
-                : operatorShares[operator][investmentStrategy];
-    }
-
-    function isSelfOperator(address operator)
-        public
-        view
-        returns (bool)
-    {
-        return (delegation[operator] == SELF_DELEGATION_ADDRESS);
+        return operatorShares[operator][investmentStrategy];
     }
 
     function isDelegator(address staker)
@@ -348,8 +321,7 @@ contract EigenLayrDelegation is
         view
         returns (bool)
     {
-        address delegatedAddress = delegation[staker];
-        return (delegatedAddress != address(0) && delegatedAddress != SELF_DELEGATION_ADDRESS);
+        return (delegation[staker] != address(0));
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr

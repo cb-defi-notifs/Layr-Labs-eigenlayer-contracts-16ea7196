@@ -608,17 +608,18 @@ registrationData.push(
     }
 
     function _testSelfOperatorDelegate(address sender) internal {
-        cheats.prank(sender);
-        delegation.delegateToSelf();
-        assertTrue(
-            delegation.isSelfOperator(sender),
-            "_testSelfOperatorDelegate: self delegation not properly recorded"
-        );
-        assertTrue(
-            //TODO: write this properly to use the enum type defined in delegation
-            uint8(delegation.delegated(sender)) == 1,
-            "_testSelfOperatorDelegate: delegation not credited?"
-        );
+        // cheats.prank(sender);
+        // delegation.delegateToSelf();
+        // assertTrue(
+        //     delegation.isSelfOperator(sender),
+        //     "_testSelfOperatorDelegate: self delegation not properly recorded"
+        // );
+        // assertTrue(
+        //     //TODO: write this properly to use the enum type defined in delegation
+        //     uint8(delegation.delegated(sender)) == 1,
+        //     "_testSelfOperatorDelegate: delegation not credited?"
+        // );
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
     function _testRegisterAdditionalSelfOperator(
@@ -839,7 +840,7 @@ registrationData.push(
         );
         cheats.stopPrank();
     }
-
+    
     // tries to delegate from 'sender' to 'operator'
     // verifies that:
     //                  delegator has at least some shares

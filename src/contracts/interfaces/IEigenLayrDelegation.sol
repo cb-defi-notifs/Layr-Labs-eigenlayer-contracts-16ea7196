@@ -33,11 +33,6 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
-    function isSelfOperator(address operator)
-        external
-        view
-        returns (bool);
-
     function isDelegator(address operator)
         external
         view
