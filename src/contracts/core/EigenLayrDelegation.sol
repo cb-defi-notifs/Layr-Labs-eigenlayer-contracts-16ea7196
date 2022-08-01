@@ -159,7 +159,7 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
 
-        // set that the staker has begun the undelegation process, i.e. "committed" to it
+        // set that the staker has begun the undelegation process, i.e. "initialized" it
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
     }
 
@@ -179,7 +179,7 @@ contract EigenLayrDelegation is
     /// @notice This function can be called by anyone to challenge whether a staker has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the staker against whom challenge is being raised
-    function contestUndelegation(
+    function contestUndelegationCommit(
         address staker,
         bytes calldata data,
         IServiceFactory serviceFactory,
