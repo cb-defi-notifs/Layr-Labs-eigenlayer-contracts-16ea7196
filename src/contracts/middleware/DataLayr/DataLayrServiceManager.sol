@@ -254,7 +254,7 @@ contract DataLayrServiceManager is
         // part of the quorum, have to store the data
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
 
-        if (_latestTime > latestTime) {
+        if (_latestTime > dataStoresForDuration.latestTime) {
             dataStoresForDuration.latestTime = _latestTime;            
         }
 
