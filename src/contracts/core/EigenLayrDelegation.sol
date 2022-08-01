@@ -125,26 +125,26 @@ contract EigenLayrDelegation is
         _delegate(staker, operator);
     }
 
+    /// @notice checks whether a staker is currently undelegated and not
+    ///         within challenge period from its last undelegation.
+    function isNotDelegated(address staker) public view returns (bool) {
+        // CRITIC: if delegation[staker] is set to address(0) during commitUndelegation,
+        //         we can probably remove "(delegation[staker] == address(0)"
+        return
+            delegated[staker] == DelegationStatus.UNDELEGATED ||
+            (delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED &&
+                block.timestamp >
+                undelegationFraudProofInterval +
+                    lastUndelegationCommit[staker]);
+    }
+
     /// @notice This function is used to notify the system that a staker wants to stop
     ///         participating in the functioning of EigenLayr.
-
-    /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes:
-    ///          Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
-    ///          Consider that, as a consequence of undelegation by staker,
-    ///             for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have
-    ///                 operatorShares[operator][s] = 0.
-    ///          Here, i1, i2, ..., ik are the indices of the corresponding strategies
-    ///          in operatorStrats[operator].
-    ///          Then, strategyIndexes = [i1, i2, ..., ik].
-    ///      (2) In order to notify the system that staker wants to undelegate,
-    ///          it is necessary to make sure that staker is not within challenge
-    ///          window for a previous undelegation.
     function commitUndelegation() external {
         // get the current operator for the staker (msg.sender)
         address operator = delegation[msg.sender];
         require(
-            operator != address(0) &&
-                delegated[msg.sender] == DelegationStatus.DELEGATED,
+            isDelegated(msg.sender)
             "EigenLayrDelegation.commitUndelegation: Staker does not have existing delegation"
         );
 
@@ -425,6 +425,6 @@ contract EigenLayrDelegation is
         view
         returns (bool)
     {
-        return (!isNotDelegated(staker));
+        return (delegated[staker] == DelegationStatus.DELEGATED);
     }
 }
