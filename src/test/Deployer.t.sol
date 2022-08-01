@@ -862,7 +862,7 @@ registrationData.push(
         );
         uint256[] memory initialOperatorShares = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.getOperatorShares(
+            initialOperatorShares[i] = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -884,7 +884,7 @@ registrationData.push(
 
         for (uint256 i = 0; i < numStrats; ++i) {
             uint256 operatorSharesBefore = initialOperatorShares[i];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(
+            uint256 operatorSharesAfter = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );

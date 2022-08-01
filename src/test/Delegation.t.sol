@@ -166,7 +166,7 @@ contract Delegator is EigenLayrDeployer {
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             initialOperatorShares[delegatorStrategies[k]] = delegation
-                .getOperatorShares(registrant, delegatorStrategies[k]);
+                .operatorShares(registrant, delegatorStrategies[k]);
         }
 
         _testUndelegation(acct_0);
@@ -175,7 +175,7 @@ contract Delegator is EigenLayrDeployer {
             uint256 operatorSharesBefore = initialOperatorShares[
                 delegatorStrategies[k]
             ];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(
+            uint256 operatorSharesAfter = delegation.operatorShares(
                 registrant,
                 delegatorStrategies[k]
             );

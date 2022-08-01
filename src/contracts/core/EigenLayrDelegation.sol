@@ -427,15 +427,4 @@ contract EigenLayrDelegation is
     {
         return (!isNotDelegated(staker));
     }
-
-    /**
-     * @notice returns the shares in a specified strategy either held directly by or delegated to the operator
-     **/
-
-    function getOperatorShares(
-        address operator,
-        IInvestmentStrategy investmentStrategy
-    ) public view returns (uint256) {
-        return operatorShares[operator][investmentStrategy];
-    }
 }

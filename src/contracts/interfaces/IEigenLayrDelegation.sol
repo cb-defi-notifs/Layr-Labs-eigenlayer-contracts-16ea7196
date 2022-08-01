@@ -18,7 +18,7 @@ interface IEigenLayrDelegation {
         view
         returns (IDelegationTerms);
 
-    function getOperatorShares(address operator, IInvestmentStrategy investmentStrategy)
+    function operatorShares(address operator, IInvestmentStrategy investmentStrategy)
         external
         view
         returns (uint256);
