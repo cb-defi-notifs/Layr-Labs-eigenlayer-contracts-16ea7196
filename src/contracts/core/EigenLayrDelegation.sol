@@ -16,9 +16,9 @@ import "../investment/Slasher.sol";
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
  *            - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
  *            - for enabling anyone to register as an operator
- *            - for a registered delegator to delegate its stake to the operator of its agreed upon delegation terms contract
- *            - for a delegator to undelegate its assets from EigenLayr
- *            - for anyone to challenge a delegator's claim to have fulfilled all its obligation before undelegation
+ *            - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
+ *            - for a staker to undelegate its assets from EigenLayr
+ *            - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is
     Initializable,
@@ -73,14 +73,15 @@ contract EigenLayrDelegation is
         _delegate(msg.sender, msg.sender);
     }
 
-    /// @notice This will be called by a registered delegator to delegate its assets to some operator
-    /// @param operator is the operator to whom delegator (msg.sender) is delegating its assets
+    /// @notice This will be called by a staker to delegate its assets to some operator
+    /// @param operator is the operator to whom staker (msg.sender) is delegating its assets
     function delegateTo(address operator) external {
         _delegate(msg.sender, operator);
     }
 
+    // delegates from ''
     function delegateToBySignature(
-        address delegator,
+        address staker,
         address operator,
         uint256 nonce,
         uint256 expiry,
@@ -88,7 +89,7 @@ contract EigenLayrDelegation is
         bytes32 vs
     ) external {
         require(
-            nonces[delegator] == nonce,
+            nonces[staker] == nonce,
             "invalid delegation nonce"
         );
         require(
@@ -96,7 +97,7 @@ contract EigenLayrDelegation is
             "delegation signature expired"
         );
         bytes32 structHash = keccak256(
-            abi.encode(DELEGATION_TYPEHASH, delegator, operator, nonce, expiry)
+            abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry)
         );
         bytes32 digestHash = keccak256(
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
@@ -112,41 +113,41 @@ contract EigenLayrDelegation is
             "delegateToBySignature: bad signature"
         );
         require(
-            recoveredAddress == delegator,
-            "delegateToBySignature: sig not from delegator"
+            recoveredAddress == staker,
+            "delegateToBySignature: sig not from staker"
         );
-        // increment delegator's delegationNonce
-        ++nonces[delegator];
-        _delegate(delegator, operator);
+        // increment staker's delegationNonce
+        ++nonces[staker];
+        _delegate(staker, operator);
     }
 
-    // internal function implementing the delegation of 'delegator' to 'operator'
-    function _delegate(address delegator, address operator) internal {
+    // internal function implementing the delegation of 'staker' to 'operator'
+    function _delegate(address staker, address operator) internal {
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
             "_delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
-            isNotDelegated(delegator),
-            "_delegate: delegator has existing delegation"
+            isNotDelegated(staker),
+            "_delegate: staker has existing delegation"
         );
         // checks that operator has not been slashed
         require(!investmentManager.slashedStatus(operator),
             "cannot delegate to a slashed operator"
         );
 
-        // record delegation relation between the delegator and operator
-        delegation[delegator] = operator;
+        // record delegation relation between the staker and operator
+        delegation[staker] = operator;
 
         // record that the staker is delegated
-        delegated[delegator] = DelegationStatus.DELEGATED;
+        delegated[staker] = DelegationStatus.DELEGATED;
 
         // retrieve list of strategies and their shares from investment manager
         (
             IInvestmentStrategy[] memory strategies,
             uint256[] memory shares
-        ) = investmentManager.getDeposits(delegator);
+        ) = investmentManager.getDeposits(staker);
 
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
@@ -159,25 +160,25 @@ contract EigenLayrDelegation is
         }
 
         // call into hook in delegationTerms contract
-        _delegationReceivedHook(dt, delegator, strategies, shares);
+        _delegationReceivedHook(dt, staker, strategies, shares);
     }
 
-    /// @notice This function is used to notify the system that a delegator wants to stop
+    /// @notice This function is used to notify the system that a staker wants to stop
     ///         participating in the functioning of EigenLayr.
 
     /// @dev (1) Here is a formal explanation in how this function uses strategyIndexes:
     ///          Suppose operatorStrats[operator] = [s_1, s_2, s_3, ..., s_n].
-    ///          Consider that, as a consequence of undelegation by delegator,
+    ///          Consider that, as a consequence of undelegation by staker,
     ///             for strategy s in {s_{i1}, s_{i2}, ..., s_{ik}}, we have
     ///                 operatorShares[operator][s] = 0.
     ///          Here, i1, i2, ..., ik are the indices of the corresponding strategies
     ///          in operatorStrats[operator].
     ///          Then, strategyIndexes = [i1, i2, ..., ik].
-    ///      (2) In order to notify the system that delegator wants to undelegate,
-    ///          it is necessary to make sure that delegator is not within challenge
+    ///      (2) In order to notify the system that staker wants to undelegate,
+    ///          it is necessary to make sure that staker is not within challenge
     ///          window for a previous undelegation.
     function commitUndelegation() external {
-        // get the current operator for the delegator (msg.sender)
+        // get the current operator for the staker (msg.sender)
         address operator = delegation[msg.sender];
         require(
             operator != address(0) &&
@@ -185,7 +186,7 @@ contract EigenLayrDelegation is
             "Staker does not have existing delegation"
         );
 
-        // checks that delegator is not within challenge window for a previous undelegation
+        // checks that staker is not within challenge window for a previous undelegation
         require(
             block.timestamp >
                 undelegationFraudProofInterval +
@@ -221,7 +222,7 @@ contract EigenLayrDelegation is
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
     }
 
-    /// @notice This function must be called by a delegator to notify that its stake is
+    /// @notice This function must be called by a staker to notify that its stake is
     ///         no longer active on any queries, which in turn launches the challenge period.
     function finalizeUndelegation() external {
         require(
@@ -229,7 +230,7 @@ contract EigenLayrDelegation is
             "Staker is not in the post commit phase"
         );
 
-        // checks that delegator is not within challenger period for a previous undelegation
+        // checks that staker is not within challenger period for a previous undelegation
         require(
             block.timestamp >
                 lastUndelegationCommit[msg.sender] +
@@ -243,9 +244,9 @@ contract EigenLayrDelegation is
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_FINALIZED;
     }
 
-    /// @notice This function can be called by anyone to challenge whether a delegator has
+    /// @notice This function can be called by anyone to challenge whether a staker has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
-    /// @param staker is the delegator against whom challenge is being raised
+    /// @param staker is the staker against whom challenge is being raised
     function contestUndelegationCommit(
         address staker,
         bytes calldata data,
@@ -332,7 +333,7 @@ contract EigenLayrDelegation is
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
 
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
@@ -353,7 +354,7 @@ contract EigenLayrDelegation is
             // subtract strategy shares from delegate's shares
             operatorShares[operator][strategy] -= shares;
 
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
