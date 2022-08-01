@@ -25,6 +25,14 @@ contract DataLayrPaymentManager is
     @notice used for storing information on the most recent payment made to the DataLayr operator
     */
 
+    enum Status{ 
+        COMMITED, 
+        REDEEMED, 
+        OPERATOR_TURN, 
+        CHALLENGER_TURN, 
+        OPERATOR_TURN_ONE_STEP, 
+        CHALLENGER_TURN_ONE_STEP
+    }
     struct Payment {
         // dataStoreId starting from which payment is being claimed 
         uint32 fromDataStoreId; 
@@ -75,7 +83,9 @@ contract DataLayrPaymentManager is
                     - 4: operator turn (one step),
                     - 5: challenger turn (one step)
          */
-        uint8 status;   
+        uint8 status;
+
+        Status status;   
     }
 
     struct TotalStakes {
@@ -518,7 +528,7 @@ contract DataLayrPaymentManager is
             "Fraud proof interval has passed"
         );
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
-        uint8 status = challenge.status;
+        Status status = challenge.status;
 
 
         require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
@@ -599,10 +609,21 @@ contract DataLayrPaymentManager is
             );
         }
 
-        if (status == 4) {
-            resolve(operator, trueAmount != challenge.amount1);
-        } else if (status == 5) {
-            resolve(operator, trueAmount == challenge.amount1);
+
+        /*
+        * if status is OPERATOR_TURN_ONE_STEP, it is the operator's turn. This means the challenger was the one who set challenge.amount1 last.  
+        * If trueAmount != challenge.amount1, then the challenger is wrong (doesn't mean operator is right).
+        */
+        if (status == Status.OPERATOR_TURN_ONE_STEP) {
+            resolve(challenge, trueAmount != challenge.amount1);
+        } 
+        /*
+        * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
+        * If trueAmount == challenge.amount1, then the challenger is correct and the operator is wrong
+        */
+        
+        else if (status == Status.CHALLENGER_TURN_ONE_STEP) {
+            resolve(challenge, trueAmount == challenge.amount1);
         } else {
             revert("Not in one step challenge phase");
         }
@@ -613,15 +634,24 @@ contract DataLayrPaymentManager is
     }
 
 // TODO: verify that the amounts used in this function are appropriate!
-    /*
+    /** 
     @notice: resolve payment challenge
-    */
-    function resolve(address operator, bool challengeSuccessful) internal {
-        if (challengeSuccessful) {
+    
+    @param winner is the party who wins the challenge, either the challenger or the operator
+    @param operatorSuccessful is true when the challenger wins the challenge agains the operator
+    **/
+    function resolve(PaymentChallenge memory challenge, bool operatorSuccessful) internal {
+        address operator = challenge.operator;
+        address challenger = challenge.challenger;
+        if (operatorSuccessful) {
             // operator was correct, allow for another challenge
             operatorToPayment[operator].status = 0;
             operatorToPayment[operator].commitTime = uint32(block.timestamp);
-            //give them previous challengers collateral
+            /*
+            * Since the operator hasn't been proved right (only challenger has been proved wrong)
+            * transfer them only challengers collateral, not their own collateral (which is still
+            * locked up in this contract)
+             */
             collateralToken.transfer(
                 operator,
                 operatorToPayment[operator].collateral
