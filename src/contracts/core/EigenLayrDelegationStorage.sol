@@ -46,7 +46,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
-    mapping(address => uint256) nonces;
+    mapping(address => uint256) public nonces;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(

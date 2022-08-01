@@ -335,7 +335,6 @@ contract EigenLayrDelegation is
         }
     }
 
-
     // internal function implementing the delegation of 'staker' to 'operator'
     function _delegate(address staker, address operator) internal {
         IDelegationTerms dt = delegationTerms[operator];
