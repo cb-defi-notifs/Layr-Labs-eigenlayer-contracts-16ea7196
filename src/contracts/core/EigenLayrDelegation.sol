@@ -125,37 +125,16 @@ contract EigenLayrDelegation is
         _delegate(staker, operator);
     }
 
-    /// @notice checks whether a staker is currently undelegated and not
-    ///         within challenge period from its last undelegation.
-    function isNotDelegated(address staker) public view returns (bool) {
-        // CRITIC: if delegation[staker] is set to address(0) during commitUndelegation,
-        //         we can probably remove "(delegation[staker] == address(0)"
-        return
-            delegated[staker] == DelegationStatus.UNDELEGATED ||
-            (delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED &&
-                block.timestamp >
-                undelegationFraudProofInterval +
-                    lastUndelegationCommit[staker]);
-    }
-
     /// @notice This function is used to notify the system that a staker wants to stop
     ///         participating in the functioning of EigenLayr.
     function commitUndelegation() external {
-        // get the current operator for the staker (msg.sender)
-        address operator = delegation[msg.sender];
         require(
-            isDelegated(msg.sender)
+            isDelegated(msg.sender),
             "EigenLayrDelegation.commitUndelegation: Staker does not have existing delegation"
         );
 
-        // checks that staker is not within challenge window for a previous undelegation
-        require(
-            block.timestamp >
-                undelegationFraudProofInterval +
-                    lastUndelegationCommit[msg.sender],
-            "EigenLayrDelegation.commitUndelegation: Last commit has not been confirmed yet"
-        );
-
+        // get the current operator for the staker (msg.sender)
+        address operator = delegation[msg.sender];
         // checks that operator has not been slashed
         require(!investmentManager.slashedStatus(operator),
             "EigenLayrDelegation.commitUndelegation: operator has been slashed. must wait for resolution before undelegation"
@@ -176,12 +155,12 @@ contract EigenLayrDelegation is
             }
         }
 
-        // set that they are no longer delegated to anyone
-        delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
-
         // call into hook in delegationTerms contract
         IDelegationTerms dt = delegationTerms[operator];
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
+
+        // set that the staker has begun the undelegation process, i.e. "committed" to it
+        delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
     }
 
     /// @notice This function must be called by a staker to notify that its stake is
@@ -189,14 +168,6 @@ contract EigenLayrDelegation is
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
-            "EigenLayrDelegation.finalizeUndelegation: Staker is not in the post commit phase"
-        );
-
-        // checks that staker is not within challenger period for a previous undelegation
-        require(
-            block.timestamp >
-                lastUndelegationCommit[msg.sender] +
-                    undelegationFraudProofInterval,
             "EigenLayrDelegation.finalizeUndelegation: Staker is not in the post commit phase"
         );
 
@@ -217,18 +188,17 @@ contract EigenLayrDelegation is
         IRegistry registry
     ) external {
         require(
+            delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
+            "EigenLayrDelegation.contestUndelegationCommit: Challenge period hasn't yet started"
+        );
+
+        require(
             block.timestamp <
                 undelegationFraudProofInterval + lastUndelegationCommit[staker],
             "EigenLayrDelegation.contestUndelegationCommit: Challenge was raised after the end of challenge period"
         );
 
-        require(
-            delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
-            "EigenLayrDelegation.contestUndelegationCommit: Challenge period hasn't yet started"
-        );
-
         ISlasher slasher = investmentManager.slasher();
-
         // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
         require(
             slasher.canSlash(
@@ -245,14 +215,15 @@ contract EigenLayrDelegation is
         IServiceManager serviceManager = repository.serviceManager();
 
         // ongoing task is still active at time when staker was finalizing undelegation
-        // and, therefore, hasn't served its obligation.
+        // and, therefore, staker hasn't fully served its obligation yet
         serviceManager.stakeWithdrawalVerification(data, lastUndelegationCommit[staker], lastUndelegationCommit[staker]);
     }
 
         // perform the slashing itself
         slasher.slashOperator(staker); 
 
-        // TODO: reset status of staker to having not committed to de-delegation?
+        // reset status of staker to having committed to undelegation but not yet finalized
+        delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
