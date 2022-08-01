@@ -529,20 +529,6 @@ contract DataLayrPaymentManager is
                 searchData.timestamp,
                 searchData.index
             ) == hashDataStoreMetadata(searchData.metadata), "search.metadata preimage is incorrect");
-        // TODO: @Siddhartha @Gautham -- please re-implement this
-        //check sigs
-        // require(
-        //     dataLayrServiceManager.getDataStoreIdSignatureHash(challengedDataStoreId) ==
-        //         keccak256(
-        //             abi.encodePacked(
-        //                 challengedDataStoreId,
-        //                 nonSignerPubkeyHashes,
-        //                 totalStakes.ethStakeSigned,
-        //                 totalStakes.eigenStakeSigned
-        //             )
-        //         ),
-        //     "Sig record does not match hash"
-        // );
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
