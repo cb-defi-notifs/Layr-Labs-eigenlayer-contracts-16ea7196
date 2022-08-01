@@ -7,6 +7,7 @@ import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
 import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
+import "../../libraries/DataStoreHash.sol";
 
 contract DataLayrBombVerifier {
 
@@ -44,8 +45,12 @@ contract DataLayrBombVerifier {
         uint256[4] pi;
     }
 
-    // bomb will trigger every once every ~2^(256-250) = 2^6 = 64 chances
-    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(250);
+    // bomb will trigger every once every ~2^(256-249) = 2^7 = 128 chances
+    // BOMB_THRESHOLD can be tuned up to increase the chance of bombs and therefore 
+    // reduce the expected value of not storing the data
+    // BOMB_THRESHOLD can be tuned down to decrease the chance of bombs and therefore 
+    // increase the amount of nodes that will sign off on datastores
+    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
 
     uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
@@ -81,26 +86,31 @@ contract DataLayrBombVerifier {
         DisclosureProof calldata disclosureProof
     ) external {
         require(
-            verifyMetadata(dataStoreProofs.operatorFromDataStore),
+            verifyMetadataPreImage(dataStoreProofs.operatorFromDataStore),
             "operatorFrom metadata premiage incorrect"
         );
         require(
-            verifyMetadata(dataStoreProofs.detonationDataStore),
+            verifyMetadataPreImage(dataStoreProofs.detonationDataStore),
             "detonation metadata premiage incorrect"
         );
         require(
-            verifyMetadata(dataStoreProofs.bombDataStore),
+            verifyMetadataPreImage(dataStoreProofs.bombDataStore),
             "bomb metadata premiage incorrect"
         );
 
         {
             //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
-            uint48 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
+            //get the id of the datastore the operator has been serving since
+            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
                 operator
             );
+            //deregisterTime is 0 if the operator is still registered and serving
+            //otherwise it is the time at will/have stopped serving all of their existing datstores
+            //TODO: Check this definition ^
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
+            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraud proof interval has passed
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
@@ -110,7 +120,6 @@ contract DataLayrBombVerifier {
         }
 
         // get globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId, based on input info
-
         uint32 bombGlobalDataStoreId = verifyBombDataStoreId(
             operator,
             dataStoreProofs,
@@ -118,12 +127,12 @@ contract DataLayrBombVerifier {
         );
 
         /*
-this large block with for loop is used to iterate through DataStores
-although technically the pseudo-random DataStore containing the bomb is already determined, it is possible
-that the operator did not sign the 'bomb' DataStore (note that this is different than signing the 'detonator' DataStore!).
-In this specific case, the 'bomb' is actually contained in the next DataStore that the operator did indeed sign.
-The loop iterates through to find this next DataStore, thus determining the true 'bomb' DataStore.
-*/
+            this large block with for loop is used to iterate through DataStores
+            although technically the pseudo-random DataStore containing the bomb is already determined, it is possible
+            that the operator did not sign the 'bomb' DataStore (note that this is different than signing the 'detonator' DataStore!).
+            In this specific case, the 'bomb' is actually contained in the next DataStore that the operator did indeed sign.
+            The loop iterates through to find this next DataStore, thus determining the true 'bomb' DataStore.
+        */
         /** 
           @notice Check that the DataLayr operator against whom bomb is being verified, was
                   actually part of the quorum for the detonation dataStoreId.
@@ -282,7 +291,12 @@ The loop iterates through to find this next DataStore, thus determining the true
             dataStoreProofs.detonationDataStore.metadata.globalDataStoreId
         );
 
-        // check bomb requirement
+        // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
+        // If it is was met, there was a .....  ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+        // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
+        // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
+        // 💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥
+        // 💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥
         require(
             uint256(
                 keccak256(
@@ -628,22 +642,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         return res;
     }
 
-    function hashDataStoreMetadata(
-        IDataLayrServiceManager.DataStoreMetadata memory metadata
-    ) internal pure returns (bytes32) {
-        bytes32 res = keccak256(
-            abi.encodePacked(
-                metadata.headerHash,
-                metadata.globalDataStoreId,
-                metadata.blockNumber,
-                metadata.fee,
-                metadata.signatoryRecordHash
-            )
-        );
-        return res;
-    }
-
-    function verifyMetadata(
+    function verifyMetadataPreImage(
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) internal view returns (bool) {
         return
@@ -651,7 +650,7 @@ The loop iterates through to find this next DataStore, thus determining the true
                 searchData.duration,
                 searchData.timestamp,
                 searchData.index
-            ) == hashDataStoreMetadata(searchData.metadata);
+            ) == DataStoreHash.computeDataStoreHash(searchData.metadata);
     }
 
     function max(uint256 x, uint256 y) internal pure returns (uint256) {
