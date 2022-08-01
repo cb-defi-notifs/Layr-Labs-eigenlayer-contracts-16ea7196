@@ -159,6 +159,9 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
 
+        // store the time at which the staker began undelegation
+        undelegationInitTime[msg.sender] = block.timestamp;
+
         // set that the staker has begun the undelegation process, i.e. "initialized" it
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
     }
@@ -173,6 +176,8 @@ contract EigenLayrDelegation is
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
         undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval;
+
+        // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
     }
 
@@ -212,9 +217,8 @@ contract EigenLayrDelegation is
     {
         IServiceManager serviceManager = repository.serviceManager();
 
-        // ongoing task is still active at time when staker was finalizing undelegation
-        // and, therefore, staker hasn't fully served its obligation yet
-        serviceManager.stakeWithdrawalVerification(data, undelegationFinalizedTime[staker], undelegationFinalizedTime[staker]);
+        // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
+        serviceManager.stakeWithdrawalVerification(data, undelegationInitTime[staker], undelegationInitTime[staker]);
     }
 
         // perform the slashing itself
