@@ -140,7 +140,7 @@ The loop iterates through to find this next DataStore, thus determining the true
             //     "Sig record does not match hash"
             // );
 
-            require(dlsm.getDataStoreIdsForDuration(
+            require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     dataStoreProofs.detonationDataStore.duration, 
                                                     dataStoreProofs.detonationDataStore.timestamp,
                                                     dataStoreProofs.detonationDataStore.index
@@ -187,7 +187,7 @@ The loop iterates through to find this next DataStore, thus determining the true
                 // );
 
                 //
-                require(dlsm.getDataStoreIdsForDuration(
+                require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     dataStoreProofs.bombDataStore.duration, 
                                                     dataStoreProofs.bombDataStore.timestamp,
                                                     dataStoreProofs.bombDataStore.index
@@ -443,7 +443,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         //if not proving the first datastore
         if (sandwich[0].timestamp != 0) {
             // fetch the *last* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[0]' 
-            require(dlsm.getDataStoreIdsForDuration(
+            require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                 duration,
                 sandwich[0].timestamp,
                 sandwich[0].index
@@ -454,7 +454,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         //if not proving the most recent datastore
         if (sandwich[1].timestamp != 0) {
             // fetch the *first* durationDataStoreId and globalDataStoreId, created at the exact UTC timestamp specified by 'timestamp[1]' 
-            require(dlsm.getDataStoreIdsForDuration(
+            require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                 duration,
                 sandwich[1].timestamp,
                 sandwich[1].index
@@ -515,7 +515,7 @@ The loop iterates through to find this next DataStore, thus determining the true
         // ) = dataLayr.dataStores(headerHash);
 
 
-        require(dlsm.getDataStoreIdsForDuration(
+        require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
@@ -588,7 +588,7 @@ The loop iterates through to find this next DataStore, thus determining the true
     }
 
     function verifyMetadata(IDataLayrServiceManager.DataStoreSearchData calldata searchData) internal view returns(bool) {
-        return dlsm.getDataStoreIdsForDuration(searchData.duration, searchData.timestamp, searchData.index) == hashDataStoreMetadata(searchData.metadata);
+        return dlsm.getDataStoreHashesForDurationAtTimestamp(searchData.duration, searchData.timestamp, searchData.index) == hashDataStoreMetadata(searchData.metadata);
     }
 
     function max(uint256 x, uint256 y) internal pure returns (uint256) {

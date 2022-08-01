@@ -386,7 +386,7 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
     }
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
         return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
 

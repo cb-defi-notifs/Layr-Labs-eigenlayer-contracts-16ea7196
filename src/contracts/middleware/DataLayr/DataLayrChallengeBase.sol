@@ -56,7 +56,7 @@ abstract contract DataLayrChallengeBase {
         
 
         {
-            require(dataLayrServiceManager.getDataStoreIdsForDuration(
+            require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
@@ -132,7 +132,7 @@ abstract contract DataLayrChallengeBase {
         // verify that the challenge has been lost by the operator side
     	require(challengeSuccessful(headerHash), "Challenge not successful");
 
-        require(dataLayrServiceManager.getDataStoreIdsForDuration(
+        require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
