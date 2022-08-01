@@ -218,7 +218,7 @@ contract EigenLayrDelegation is
         IServiceManager serviceManager = repository.serviceManager();
 
         // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
-        serviceManager.stakeWithdrawalVerification(data, undelegationInitTime[staker], undelegationInitTime[staker]);
+        serviceManager.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
     }
 
         // perform the slashing itself
