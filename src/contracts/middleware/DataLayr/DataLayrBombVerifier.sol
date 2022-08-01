@@ -71,6 +71,18 @@ contract DataLayrBombVerifier {
         dlekRegistry = _dlekRegistry;
     }
 
+    // The DETONATION datastore is the datastore whose header hash is mapped to one of the active datastores at its time of initialization
+    // The datastore that the DETONATION datastore is mapped to is called the BOMB datastore
+    // The BOMB datastore is the datastore whose data, when hashed with some auxillary information was below BOMB_THRESHOLD (the BOMB condition)
+    // If such was the case, the operator should not have signed the DETONATION datastore
+
+    // In datalayr, every datastore is a potential DETONATION datastore, and it's corresponding potential BOMB datastore should
+    // always be checked for the BOMB condition
+    // The sender of this function is a party that is proving the existence of a certain operator that signed a DETONATION datastore whose corresponding
+    // BOMB datastore met the BOMB condition
+
+    //tick, tick, tick, tick, ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+
     // signatoryRecords input is formatted as following, with 'n' being its length:
     // signatoryRecords[0] is for the 'detonation' DataStore
     // signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb'
