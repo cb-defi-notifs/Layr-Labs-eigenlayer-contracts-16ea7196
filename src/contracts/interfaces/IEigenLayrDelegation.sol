@@ -43,7 +43,7 @@ interface IEigenLayrDelegation {
         view
         returns (bool);
     
-    function decreaseOperatorShares(
+    function decreaseDelegatedShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares

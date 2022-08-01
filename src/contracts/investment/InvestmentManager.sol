@@ -105,9 +105,6 @@ contract InvestmentManager is
         uint256 amount
     ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
-        
-        // increase delegated shares accordingly, if applicable
-        delegation.increaseDelegatedShares(depositor, strategy, shares);
     }
 
     function _depositIntoStrategy(
@@ -135,6 +132,11 @@ contract InvestmentManager is
 
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        delegation.increaseDelegatedShares(depositor, strategy, shares);
+
+        return shares;
     }
 
     /**
@@ -289,20 +291,8 @@ contract InvestmentManager is
             )
         );
         
-
-        // enter a scoped block here so we can declare 'delegatedAddress' and have it be cleared ASAP
-        // this solves a 'stack too deep' error on compilation
-        {
-            if (delegation.isDelegator(msg.sender)) {
-                address operatorAddress = delegation.delegation(msg.sender);
-                delegation.decreaseOperatorShares(
-                    operatorAddress,
-                    strategies,
-                    shareAmounts
-                );
-            }
-            //TODO: call into delegationTerms contract as well?
-        }
+        // modify delegated shares accordingly, if applicable
+        delegation.decreaseDelegatedShares(msg.sender, strategies, shareAmounts);
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -551,15 +541,7 @@ contract InvestmentManager is
         }
 
         // modify delegated shares accordingly, if applicable
-        if (!delegation.isSelfOperator(slashedAddress)) {
-            address delegatedAddress = delegation.delegation(slashedAddress);
-
-            delegation.decreaseOperatorShares(
-                delegatedAddress,
-                strategies,
-                shareAmounts
-            );
-        }
+        delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
     function slashQueuedWithdrawal(       

@@ -166,19 +166,7 @@ contract EigenLayrDelegation is
         }
 
         // call into hook in delegationTerms contract
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(
-                IDelegationTerms.onDelegationReceived.selector,
-                delegator,
-                strategies,
-                shares
-            )
-        );
-        // if the internal call fails, we emit a special event rather than reverting
-        if (!success) {
-            emit OnDelegationReceivedCallFailure(dt, returnData);
-        }
+        _delegationReceivedHook(dt, delegator, strategies, shares);
     }
 
     /// @notice This function is used to notify the system that a delegator wants to stop
@@ -238,19 +226,8 @@ contract EigenLayrDelegation is
             delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
 
             // call into hook in delegationTerms contract
-            // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-            (bool success, bytes memory returnData) = address(delegationTerms[operator]).call{gas: LOW_LEVEL_GAS_BUDGET}(
-                abi.encodeWithSelector(
-                    IDelegationTerms.onDelegationWithdrawn.selector,
-                    msg.sender,
-                    strategies,
-                    shares    
-                )            
-            );
-            // if the internal call fails, we emit a special event rather than reverting
-            if (!success) {
-                emit OnDelegationWithdrawnCallFailure(delegationTerms[operator], returnData);
-            }
+            IDelegationTerms dt = delegationTerms[operator];
+            _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
         } else {
             // checks that operator has not been slashed
             require(!investmentManager.slashedStatus(msg.sender),
@@ -375,21 +352,6 @@ contract EigenLayrDelegation is
         return (delegatedAddress != address(0) && delegatedAddress != SELF_DELEGATION_ADDRESS);
     }
 
-    function decreaseOperatorShares(
-        address operator,
-        IInvestmentStrategy[] calldata strategies,
-        uint256[] calldata shares
-    ) external onlyInvestmentManager {
-        // subtract strategy shares from delegate's shares
-        uint256 stratsLength = strategies.length;
-        for (uint256 i = 0; i < stratsLength;) {
-            operatorShares[operator][strategies[i]] -= shares[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
@@ -398,13 +360,15 @@ contract EigenLayrDelegation is
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
 
-            IDelegationTerms dt = delegationTerms[operator];
             //Calls into operator's delegationTerms contract to update weights of individual delegator
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
-            dt.onDelegationReceived(staker, investorStrats, investorShares);
+
+            // call into hook in delegationTerms contract
+            IDelegationTerms dt = delegationTerms[operator];
+            _delegationReceivedHook(dt, staker, investorStrats, investorShares);
         }
     }
 
@@ -413,16 +377,42 @@ contract EigenLayrDelegation is
         //if the staker is delegated to an operator
         if(isDelegator(staker)) {
             address operator = delegation[staker];
-            // add strategy shares to delegate's shares
+
+            // subtract strategy shares from delegate's shares
             operatorShares[operator][strategy] -= shares;
 
-            IDelegationTerms dt = delegationTerms[operator];
             //Calls into operator's delegationTerms contract to update weights of individual delegator
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
-            dt.onDelegationWithdrawn(staker, investorStrats, investorShares);
+
+            // call into hook in delegationTerms contract
+            IDelegationTerms dt = delegationTerms[operator];
+            _delegationWithdrawnHook(dt, staker, investorStrats, investorShares);
+        }
+    }
+
+    function decreaseDelegatedShares(
+        address staker,
+        IInvestmentStrategy[] calldata strategies,
+        uint256[] calldata shares
+    ) external onlyInvestmentManager {
+        if(isDelegator(staker)) {
+            address operator = delegation[staker];
+
+            // subtract strategy shares from delegate's shares
+            uint256 stratsLength = strategies.length;
+            for (uint256 i = 0; i < stratsLength;) {
+                operatorShares[operator][strategies[i]] -= shares[i];
+                unchecked {
+                    ++i;
+                }
+            }
+
+            // call into hook in delegationTerms contract
+            IDelegationTerms dt = delegationTerms[operator];
+            _delegationWithdrawnHook(dt, staker, strategies, shares);
         }
     }
 
@@ -433,5 +423,37 @@ contract EigenLayrDelegation is
     function setUndelegationFraudProofInterval(uint256 _undelegationFraudProofInterval) external onlyOwner {
         require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
+    }
+
+    function _delegationReceivedHook(IDelegationTerms dt, address staker, IInvestmentStrategy[] memory strategies, uint256[] memory shares) internal {
+        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
+            abi.encodeWithSelector(
+                IDelegationTerms.onDelegationReceived.selector,
+                staker,
+                strategies,
+                shares
+            )
+        );
+        // if the internal call fails, we emit a special event rather than reverting
+        if (!success) {
+            emit OnDelegationReceivedCallFailure(dt, returnData);
+        }
+    }
+
+    function _delegationWithdrawnHook(IDelegationTerms dt, address staker, IInvestmentStrategy[] memory strategies, uint256[] memory shares) internal {
+        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
+            abi.encodeWithSelector(
+                IDelegationTerms.onDelegationWithdrawn.selector,
+                staker,
+                strategies,
+                shares    
+            )            
+        );
+        // if the internal call fails, we emit a special event rather than reverting
+        if (!success) {
+            emit OnDelegationWithdrawnCallFailure(dt, returnData);
+        }
     }
 }
