@@ -79,7 +79,8 @@ contract EigenLayrDelegation is
         _delegate(msg.sender, operator);
     }
 
-    // delegates from ''
+    // delegates from `staker` to `operator`
+    // requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
     function delegateToBySignature(
         address staker,
         address operator,
