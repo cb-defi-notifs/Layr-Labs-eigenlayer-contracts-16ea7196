@@ -66,7 +66,7 @@ contract EigenLayrDelegation is
     function registerAsDelegate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "Delegate has already registered"
+            "EigenLayrDelegation.registerAsDelegate: Delegate has already registered"
         );
         // store the address of the delegation contract that operator is providing.
         delegationTerms[msg.sender] = dt;
@@ -111,11 +111,11 @@ contract EigenLayrDelegation is
         );
         require(
             recoveredAddress != address(0),
-            "delegateToBySignature: bad signature"
+            "EigenLayrDelegation.delegateToBySignature: bad signature"
         );
         require(
             recoveredAddress == staker,
-            "delegateToBySignature: sig not from staker"
+            "EigenLayrDelegation.delegateToBySignature: sig not from staker"
         );
         // increment staker's delegationNonce
         ++nonces[staker];
@@ -127,15 +127,15 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "_delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
         );
         require(
             isNotDelegated(staker),
-            "_delegate: staker has existing delegation"
+            "EigenLayrDelegation._delegate: staker has existing delegation"
         );
         // checks that operator has not been slashed
         require(!investmentManager.slashedStatus(operator),
-            "cannot delegate to a slashed operator"
+            "EigenLayrDelegation._delegate: cannot delegate to a slashed operator"
         );
 
         // record delegation relation between the staker and operator
@@ -184,7 +184,7 @@ contract EigenLayrDelegation is
         require(
             operator != address(0) &&
                 delegated[msg.sender] == DelegationStatus.DELEGATED,
-            "Staker does not have existing delegation"
+            "EigenLayrDelegation.commitUndelegation: Staker does not have existing delegation"
         );
 
         // checks that staker is not within challenge window for a previous undelegation
@@ -192,12 +192,12 @@ contract EigenLayrDelegation is
             block.timestamp >
                 undelegationFraudProofInterval +
                     lastUndelegationCommit[msg.sender],
-            "Last commit has not been confirmed yet"
+            "EigenLayrDelegation.commitUndelegation: Last commit has not been confirmed yet"
         );
 
         // checks that operator has not been slashed
         require(!investmentManager.slashedStatus(operator),
-            "operator has been slashed. must wait for resolution before undelegation"
+            "EigenLayrDelegation.commitUndelegation: operator has been slashed. must wait for resolution before undelegation"
         );
 
         // retrieve list of strategies and their shares from investment manager
@@ -228,7 +228,7 @@ contract EigenLayrDelegation is
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
-            "Staker is not in the post commit phase"
+            "EigenLayrDelegation.finalizeUndelegation: Staker is not in the post commit phase"
         );
 
         // checks that staker is not within challenger period for a previous undelegation
@@ -236,7 +236,7 @@ contract EigenLayrDelegation is
             block.timestamp >
                 lastUndelegationCommit[msg.sender] +
                     undelegationFraudProofInterval,
-            "Staker is not in the post commit phase"
+            "EigenLayrDelegation.finalizeUndelegation: Staker is not in the post commit phase"
         );
 
         // set time of last undelegation commit which is the beginning of the corresponding
@@ -258,12 +258,12 @@ contract EigenLayrDelegation is
         require(
             block.timestamp <
                 undelegationFraudProofInterval + lastUndelegationCommit[staker],
-            "Challenge was raised after the end of challenge period"
+            "EigenLayrDelegation.contestUndelegationCommit: Challenge was raised after the end of challenge period"
         );
 
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_FINALIZED,
-            "Challenge period hasn't yet started"
+            "EigenLayrDelegation.contestUndelegationCommit: Challenge period hasn't yet started"
         );
 
         ISlasher slasher = investmentManager.slasher();
@@ -276,7 +276,7 @@ contract EigenLayrDelegation is
                 repository,
                 registry
             ),
-            "Contract does not have rights to prevent undelegation"
+            "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
     // scoped block to help solve stack too deep
