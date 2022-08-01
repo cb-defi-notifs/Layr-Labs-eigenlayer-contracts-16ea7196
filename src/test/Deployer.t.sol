@@ -630,7 +630,7 @@ registrationData.push(
             //check if computed hash matches stored hash in DLSM
             assertTrue(
                 dataStoreHash ==
-                    dlsm.getDataStoreIdsForDuration(duration, timestamp, index),
+                    dlsm.getDataStoreHashesForDurationAtTimestamp(duration, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
