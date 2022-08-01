@@ -47,7 +47,7 @@ contract InvestmentManager is
 
     modifier onlyNotSlashed(address staker) {
         require(!slashedStatus[staker], "staker has been slashed");
-        if (delegation.isDelegator(staker)) {
+        if (delegation.isDelegated(staker)) {
             address operatorAddress = delegation.delegation(staker);
             require(!slashedStatus[operatorAddress], "operator has been slashed");
         }
@@ -712,7 +712,7 @@ contract InvestmentManager is
     function hasBeenSlashed(address staker) public view returns (bool) {
         if (slashedStatus[staker]) {
             return true;
-        } else if (delegation.isDelegator(staker)) {
+        } else if (delegation.isDelegated(staker)) {
             address operatorAddress = delegation.delegation(staker);
             return(slashedStatus[operatorAddress]);
         } else {

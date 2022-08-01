@@ -33,7 +33,7 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
-    function isDelegator(address operator)
+    function isDelegated(address operator)
         external
         view
         returns (bool);

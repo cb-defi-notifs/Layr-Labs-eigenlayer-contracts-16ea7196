@@ -305,6 +305,14 @@ contract EigenLayrDelegation is
                     lastUndelegationCommit[staker]);
     }
 
+    function isDelegated(address staker)
+        public
+        view
+        returns (bool)
+    {
+        return (!isNotDelegated(staker));
+    }
+
     /**
      * @notice returns the shares in a specified strategy either held directly by or delegated to the operator
      **/
@@ -316,18 +324,10 @@ contract EigenLayrDelegation is
         return operatorShares[operator][investmentStrategy];
     }
 
-    function isDelegator(address staker)
-        public
-        view
-        returns (bool)
-    {
-        return (delegation[staker] != address(0));
-    }
-
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
-        if(isDelegator(staker)) {
+        if(isDelegated(staker)) {
             address operator = delegation[staker];
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
@@ -347,7 +347,7 @@ contract EigenLayrDelegation is
     //decreases a stakers delegated shares to a certain strategy, usually whenever they withdraw from EigenLayr
     function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
-        if(isDelegator(staker)) {
+        if(isDelegated(staker)) {
             address operator = delegation[staker];
 
             // subtract strategy shares from delegate's shares
@@ -370,7 +370,7 @@ contract EigenLayrDelegation is
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external onlyInvestmentManager {
-        if(isDelegator(staker)) {
+        if(isDelegated(staker)) {
             address operator = delegation[staker];
 
             // subtract strategy shares from delegate's shares
