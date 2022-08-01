@@ -177,7 +177,7 @@ contract DataLayrServiceManager is
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
 
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "dataLayrServiceManager.initDataStore: Invalid duration");
 
         /***********************
           compute time and fees
@@ -224,19 +224,19 @@ contract DataLayrServiceManager is
             }
 
             // reverting if no empty slot exists
-            require(initializable == true, "number of initDatastores for this duration and block has reached its limit");
+            require(initializable == true, "dataLayrServiceManager.initDataStore: number of initDatastores for this duration and block has reached its limit");
         }
 
         // sanity check on blockNumber
         { 
             require(
                 blockNumber <= block.number,
-                "specified blockNumber is in future"
+                "dataLayrServiceManager.initDataStore: specified blockNumber is in future"
             );
 
             require(
                 blockNumber >= (block.number - BLOCK_STALE_MEASURE),
-                "specified blockNumber is too far in past"
+                "dataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
             );    
         }
 
@@ -304,7 +304,7 @@ contract DataLayrServiceManager is
         ) = checkSignatures(data);
 
         //TODO: This check is redundant after we check metadatahash against it below?
-        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataStoreId is invalid");
+        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "dataLayrServiceManager.confirmDataStore: DataStoreId is invalid");
 
         emit log_bytes32(headerHash);
         emit log_bytes32(signatoryRecordHash);
@@ -318,7 +318,7 @@ contract DataLayrServiceManager is
          */
         require(
             dataStoreIdToConfirm % depositRootInterval != 0,
-            "Must post a deposit root now"
+            "dataLayrServiceManager.confirmDataStore: Must post a deposit root now"
         );
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
@@ -335,7 +335,7 @@ contract DataLayrServiceManager is
 
         require(    
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
-            "provided calldata does not match corresponding stored hash from initDataStore"
+            "dataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
         );
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
@@ -353,7 +353,7 @@ contract DataLayrServiceManager is
         // and eigen, thus, implying quorum has been acheieved
         require(signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
                 && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
-                "signatories do not own at least a threshold percentage of eth and eigen");
+                "dataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen");
 
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, headerHash);
@@ -368,7 +368,7 @@ contract DataLayrServiceManager is
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
-            "Only challenge resolvers can slash operators"
+            "dataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).slashOperator(operator);
     }
@@ -509,7 +509,7 @@ contract DataLayrServiceManager is
 
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
         require(
-            dataStoreHashesForDurationAtTimestamp[duration][dsInitTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+            dataStoreHashesForDurationAtTimestamp[duration][dsInitTime][index] == dsHash, "dataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)");
 
         //now we check if the dataStore is still active at the time
         //TODO: check if the duration is in days or seconds
@@ -518,7 +518,7 @@ contract DataLayrServiceManager is
                  &&
                 unlockTime <
                 dsInitTime + duration*86400,
-            "task does not meet requirements"
+            "dataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
         );
 
     }
