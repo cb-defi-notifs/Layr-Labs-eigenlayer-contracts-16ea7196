@@ -303,9 +303,6 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        //TODO: This check is redundant after we check metadatahash against it below?
-        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "dataLayrServiceManager.confirmDataStore: DataStoreId is invalid");
-
         emit log_bytes32(headerHash);
         emit log_bytes32(signatoryRecordHash);
 
@@ -458,10 +455,6 @@ contract DataLayrServiceManager is
         return 0;
     }
 
-    // TODO: de-duplicate functions
-    function dataStoreId() public view returns (uint32){
-        return dataStoresForDuration.dataStoreId;
-    }
 
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;

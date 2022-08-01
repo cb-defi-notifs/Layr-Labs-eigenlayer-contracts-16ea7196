@@ -51,7 +51,6 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 fee;
     }
 
-    function dataStoreId() external view returns (uint32);
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 

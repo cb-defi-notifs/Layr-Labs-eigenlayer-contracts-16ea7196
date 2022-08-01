@@ -683,7 +683,7 @@ contract DataLayrPaymentManager is
     }
 
     function dataStoreId() internal view returns (uint32) {
-        return dataLayrServiceManager.dataStoreId();
+        return dataLayrServiceManager.taskNumber();
     }
 
     function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal pure  returns(bytes32) {

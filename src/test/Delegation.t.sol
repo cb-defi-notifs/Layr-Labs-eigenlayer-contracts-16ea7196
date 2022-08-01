@@ -389,7 +389,7 @@ contract Delegator is EigenLayrDeployer {
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
-            uint32 dataStoreId = dlsm.dataStoreId() - 1;
+            uint32 dataStoreId = dlsm.taskNumber() - 1;
 
             _testCommitDataStore(
                 searchData.metadata.headerHash,
@@ -400,7 +400,7 @@ contract Delegator is EigenLayrDeployer {
                 dataStoreId,
                 searchData
             );
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
             // assertTrue(sighash != bytes32(0), "Data store not committed");
         }
         cheats.stopPrank();
@@ -425,7 +425,7 @@ contract Delegator is EigenLayrDeployer {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
-        uint32 newCurrentDataStoreId = dlsm.dataStoreId() - 1;
+        uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
         dataLayrPaymentManager.commitPayment(
             newCurrentDataStoreId,
             _amountRewards
@@ -559,7 +559,7 @@ contract Delegator is EigenLayrDeployer {
                 memory searchData = _testInitDataStore();
             uint32 numberOfNonSigners = 1;
             uint32 blockNumber = uint32(block.number);
-            uint32 dataStoreId = dlsm.dataStoreId() - 1;
+            uint32 dataStoreId = dlsm.taskNumber() - 1;
 
             bytes memory data = _getCallData(
                 searchData.metadata.headerHash,
@@ -576,7 +576,7 @@ contract Delegator is EigenLayrDeployer {
 
             emit log_named_uint("gas cost", gasbefore - gasleft());
 
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.dataStoreId() - 1);
+            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
             // assertTrue(sighash != bytes32(0), "Data store not committed");
         }
     }

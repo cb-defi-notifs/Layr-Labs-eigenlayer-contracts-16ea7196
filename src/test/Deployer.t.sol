@@ -607,7 +607,7 @@ registrationData.push(
             blockNumber
         );
         emit log_named_uint("init datastore total gas", g - gasleft());
-        uint32 dataStoreId = dlsm.dataStoreId() - 1;
+        uint32 dataStoreId = dlsm.taskNumber() - 1;
         bytes32 headerHash = keccak256(header);
 
 
