@@ -61,7 +61,7 @@ contract InvestmentManager is
         //_disableInitializers();
     }
 
-
+    // EXTERNAL FUNCTIONS
 
 
     /**
@@ -107,38 +107,6 @@ contract InvestmentManager is
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
-    function _depositIntoStrategy(
-        address depositor,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 amount
-    ) internal returns (uint256 shares) {
-        // if they dont have existing shares of this strategy, add it to their strats
-        if (investorStratShares[depositor][strategy] == 0) {
-            investorStrats[depositor].push(strategy);
-        }
-
-        // transfer tokens from the sender to the strategy
-        bool success = token.transferFrom(
-            msg.sender,
-            address(strategy),
-            amount
-        );
-        require(success, "failed to transfer token");
-
-        // deposit the assets into the specified strategy and get the equivalent amount of
-        // shares in that strategy
-        shares = strategy.deposit(token, amount);
-
-        // add the returned shares to their existing shares for this strategy
-        investorStratShares[depositor][strategy] += shares;
-
-        // increase delegated shares accordingly, if applicable
-        delegation.increaseDelegatedShares(depositor, strategy, shares);
-
-        return shares;
-    }
-
     /**
      * @notice Used to withdraw the given token and shareAmount from the given strategy.
      */
@@ -166,90 +134,6 @@ contract InvestmentManager is
         );
         //decrease corresponding operator's shares, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
-    }
-
-    // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
-    // if the amount of shares represents all of the depositor's shares in said strategy,
-    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
-    function _withdrawFromStrategy(
-        address depositor,
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    ) internal returns (bool strategyRemovedFromArray) {
-        strategyRemovedFromArray = _removeShares(
-            depositor,
-            strategyIndex,
-            strategy,
-            shareAmount
-        );
-        // tell the strategy to send the appropriate amount of funds to the depositor
-        strategy.withdraw(depositor, token, shareAmount);
-    }
-
-    // decreases the shares that 'depositor' holds in 'strategy' by 'shareAmount'
-    // if the amount of shares represents all of the depositor's shares in said strategy,
-    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
-    function _removeShares(
-        address depositor,
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        uint256 shareAmount
-    ) internal returns (bool) {
-        //check that the user has sufficient shares
-        uint256 userShares = investorStratShares[depositor][strategy];
-
-        require(shareAmount <= userShares, "shareAmount too high");
-        //unchecked arithmetic since we just checked this above
-        unchecked {
-            userShares = userShares - shareAmount;
-        }
-
-        
-        // subtract the shares from the depositor's existing shares for this strategy
-        investorStratShares[depositor][strategy] = userShares;
-        // if no existing shares, remove is from this investors strats
-
-
-        if (investorStratShares[depositor][strategy] == 0) {
-            // if the strategy matches with the strategy index provided
-            if (investorStrats[depositor][strategyIndex] == strategy) {
-
-                
-                // replace the strategy with the last strategy in the list
-                investorStrats[depositor][strategyIndex] = investorStrats[
-                    depositor
-                ][investorStrats[depositor].length - 1];
-                
-            } else {
-
-
-                //loop through all of the strategies, find the right one, then replace
-                uint256 stratsLength = investorStrats[depositor].length;
-
-                for (uint256 j = 0; j < stratsLength; ) {
-                    if (investorStrats[depositor][j] == strategy) {
-                        //replace the strategy with the last strategy in the list
-                        investorStrats[depositor][j] = investorStrats[
-                            depositor
-                        ][investorStrats[depositor].length - 1];
-                        break;
-                    }
-                    unchecked {
-                        ++j;
-                    }
-                }
-            }
-
-            // pop off the last entry in the list of strategies
-            investorStrats[depositor].pop();
-            
-            // return true in the event that the strategy was removed from investorStrats[depositor]
-            return true;
-        }
-        // return false in the event that the strategy was *not* removed from investorStrats[depositor]
-        return false;
     }
 
    // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
@@ -330,37 +214,6 @@ contract InvestmentManager is
             withdrawerAndNonce.withdrawer,
             withdrawalRoot
         );
-    }
-
-    /**
-     * @notice Used to check if a queued withdrawal can be completed
-     */
-    function canCompleteQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address depositor,
-        uint96 queuedWithdrawalNonce
-    ) external view returns (bool) {
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
-        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
-            WITHDRAWAL_WAITING_PERIOD;
-        require(
-            withdrawalStorage.initTimestamp > 0,
-            "withdrawal does not exist"
-        );
-        return (uint32(block.timestamp) >= unlockTime ||
-            delegation.isNotDelegated(depositor));
     }
 
     //TODO: add something related to slashing for queued withdrawals
@@ -592,6 +445,157 @@ contract InvestmentManager is
         }
     }
 
+    // INTERNAL FUNCTIONS
+
+    function _depositIntoStrategy(
+        address depositor,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 amount
+    ) internal returns (uint256 shares) {
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (investorStratShares[depositor][strategy] == 0) {
+            investorStrats[depositor].push(strategy);
+        }
+
+        // transfer tokens from the sender to the strategy
+        bool success = token.transferFrom(
+            msg.sender,
+            address(strategy),
+            amount
+        );
+        require(success, "failed to transfer token");
+
+        // deposit the assets into the specified strategy and get the equivalent amount of
+        // shares in that strategy
+        shares = strategy.deposit(token, amount);
+
+        // add the returned shares to their existing shares for this strategy
+        investorStratShares[depositor][strategy] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        delegation.increaseDelegatedShares(depositor, strategy, shares);
+
+        return shares;
+    }
+    
+    // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    function _withdrawFromStrategy(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 shareAmount
+    ) internal returns (bool strategyRemovedFromArray) {
+        strategyRemovedFromArray = _removeShares(
+            depositor,
+            strategyIndex,
+            strategy,
+            shareAmount
+        );
+        // tell the strategy to send the appropriate amount of funds to the depositor
+        strategy.withdraw(depositor, token, shareAmount);
+    }
+
+    // decreases the shares that 'depositor' holds in 'strategy' by 'shareAmount'
+    // if the amount of shares represents all of the depositor's shares in said strategy,
+    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    function _removeShares(
+        address depositor,
+        uint256 strategyIndex,
+        IInvestmentStrategy strategy,
+        uint256 shareAmount
+    ) internal returns (bool) {
+        //check that the user has sufficient shares
+        uint256 userShares = investorStratShares[depositor][strategy];
+
+        require(shareAmount <= userShares, "shareAmount too high");
+        //unchecked arithmetic since we just checked this above
+        unchecked {
+            userShares = userShares - shareAmount;
+        }
+
+        
+        // subtract the shares from the depositor's existing shares for this strategy
+        investorStratShares[depositor][strategy] = userShares;
+        // if no existing shares, remove is from this investors strats
+
+
+        if (investorStratShares[depositor][strategy] == 0) {
+            // if the strategy matches with the strategy index provided
+            if (investorStrats[depositor][strategyIndex] == strategy) {
+
+                
+                // replace the strategy with the last strategy in the list
+                investorStrats[depositor][strategyIndex] = investorStrats[
+                    depositor
+                ][investorStrats[depositor].length - 1];
+                
+            } else {
+
+
+                //loop through all of the strategies, find the right one, then replace
+                uint256 stratsLength = investorStrats[depositor].length;
+
+                for (uint256 j = 0; j < stratsLength; ) {
+                    if (investorStrats[depositor][j] == strategy) {
+                        //replace the strategy with the last strategy in the list
+                        investorStrats[depositor][j] = investorStrats[
+                            depositor
+                        ][investorStrats[depositor].length - 1];
+                        break;
+                    }
+                    unchecked {
+                        ++j;
+                    }
+                }
+            }
+
+            // pop off the last entry in the list of strategies
+            investorStrats[depositor].pop();
+            
+            // return true in the event that the strategy was removed from investorStrats[depositor]
+            return true;
+        }
+        // return false in the event that the strategy was *not* removed from investorStrats[depositor]
+        return false;
+    }
+
+    // VIEW FUNCTIONS
+
+    /**
+     * @notice Used to check if a queued withdrawal can be completed
+     */
+    function canCompleteQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor,
+        uint96 queuedWithdrawalNonce
+    ) external view returns (bool) {
+        bytes32 withdrawalRoot = keccak256(
+            abi.encode(
+                strategies,
+                tokens,
+                shareAmounts,
+                queuedWithdrawalNonce
+            )
+        );
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
+            depositor
+        ][withdrawalRoot];
+        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
+            WITHDRAWAL_WAITING_PERIOD;
+        require(
+            withdrawalStorage.initTimestamp > 0,
+            "withdrawal does not exist"
+        );
+        return (uint32(block.timestamp) >= unlockTime ||
+            delegation.isNotDelegated(depositor));
+    }
+    
     /**
      * @notice gets depositor's strategies
      */
