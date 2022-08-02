@@ -177,7 +177,7 @@ contract DataLayrServiceManager is
             revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
         }
 
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
 
         /***********************
           compute time and fees
@@ -231,12 +231,12 @@ contract DataLayrServiceManager is
         { 
             require(
                 blockNumber <= block.number,
-                "specified blockNumber is in future"
+                "DataLayrServiceManager.initDataStore: specified blockNumber is in future"
             );
 
             require(
                 blockNumber >= (block.number - BLOCK_STALE_MEASURE),
-                "specified blockNumber is too far in past"
+                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
             );    
         }
 

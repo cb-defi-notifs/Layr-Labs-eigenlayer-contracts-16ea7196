@@ -32,7 +32,7 @@ contract DataLayrChallengeUtils {
                     (uint256(
                         signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]
                     ) > uint256(operatorPubkeyHash)),
-                "Wrong index"
+                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong greater index"
             );
 
             //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
@@ -44,7 +44,7 @@ contract DataLayrChallengeUtils {
                             nonSignerIndex - 1
                         ]
                     ) < uint256(operatorPubkeyHash),
-                    "Wrong index"
+                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong lower index"
                 );
             }
         }
@@ -59,7 +59,7 @@ contract DataLayrChallengeUtils {
     ) public pure {
         require(
             operatorPubkeyHash == signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex],
-            "operator not included in non-signer set"
+            "DataLayrChallengeUtils.checkInclusionInNonSignerSet: operator not included in non-signer set"
         );
     }
 
@@ -129,9 +129,9 @@ contract DataLayrChallengeUtils {
                     uint32((i - numSys) + numSysE)
                 ) * 512) / numNodeE;
         } else {
-            revert("Cannot create number of frame higher than possible");
+            revert("DataLayrChallengeUtils.getLeadingCosetIndexFromHighestRootOfUnity: Cannot create number of frame higher than possible");
         }
-        revert("Cannot create number of frame higher than possible");
+        revert("DataLayrChallengeUtils.getLeadingCosetIndexFromHighestRootOfUnity: Cannot create number of frame higher than possible");
         return 0;
     }
 
@@ -157,7 +157,7 @@ contract DataLayrChallengeUtils {
 
     //takes the log base 2 of n and returns it
     function log2(uint256 n) internal pure returns (uint256) {
-        require(n > 0, "Log must be defined");
+        require(n > 0, "DataLayrChallengeUtils.log2: Log must be defined");
         uint256 log = 0;
         while (n >> log != 1) {
             log++;
@@ -223,7 +223,7 @@ contract DataLayrChallengeUtils {
             return
                 0x062b58a8cf8d73d7d75d1eabb10c8f578ee9e943478db743fddb03bac8ddcfb4;
         } else {
-            revert("Log not in valid range");
+            revert("DataLayrChallengeUtils.getZeroPolyMerkleRoot: Log not in valid range");
         }
     }
 
@@ -347,16 +347,14 @@ contract DataLayrChallengeUtils {
             }
         }
 
+        // store -g2, where g2 is the negation of the generator of group G2
+        pairingInput[8] = nG2x1;
+        pairingInput[9] = nG2x0;
+        pairingInput[10] = nG2y1;
+        pairingInput[11] = nG2y0;
+
         //check e(z, pi)e(C-[s]_1, -g2) = 1
         assembly {
-            // store -g2, where g2 is the negation of the generator of group G2
-            // point gets stored in slots pairingInput[8] through (including) pairingInput[11]
-            // note that the free memory pointer is not updated, so we should not do additional memory allocation after this assembly block
-            mstore(add(pairingInput, 0x100), nG2x1)
-            mstore(add(pairingInput, 0x120), nG2x0)
-            mstore(add(pairingInput, 0x140), nG2y1)
-            mstore(add(pairingInput, 0x160), nG2y0)
-
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 staticcall(
@@ -368,8 +366,8 @@ contract DataLayrChallengeUtils {
                     pairingInput,
                     // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]
                     0x180,
-                    // store return data starting from pairingInput[0]
-                    pairingInput,
+                    // store return data starting from pairingInput[12]
+                    add(pairingInput, 0x180),
                     // store 32 bytes of return data, i.e. overwrite pairingInput[0] with the return data
                     0x20
                 )
@@ -379,7 +377,7 @@ contract DataLayrChallengeUtils {
             }
         }
         // check whether the call to the ecPairing precompile was successful (returns 1 if correct pairing, 0 otherwise)
-        return pairingInput[0] == 1;
+        return pairingInput[12] == 1;
     }
 
     function validateDisclosureResponse(
@@ -436,32 +434,18 @@ contract DataLayrChallengeUtils {
         //get the commitment to the zero polynomial of multireveal degree
 
         uint256[13] memory pairingInput;
-
-
-        assembly {
-            // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(multireveal))
-            mstore(add(pairingInput, 0x20), calldataload(add(multireveal, 0x20)))
-
-            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x60), mload(zeroPoly))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
-
-            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-            mstore(add(pairingInput, 0xC0), mload(c))
-            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
-
-            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
-            // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(add(multireveal, 0x40)))
-            // obtain -I_k(s).y
-            mstore(
-                add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(add(multireveal, 0x60))), MODULUS)
-            )
-        }
+        // extract the proof [Pi(s).x, Pi(s).y]
+        (pairingInput[0], pairingInput[1]) = (multireveal[0], multireveal[1]);
+        // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
+        (pairingInput[2], pairingInput[3], pairingInput[4], pairingInput[5])
+            = (zeroPoly[1], zeroPoly[0], zeroPoly[3], zeroPoly[2]);
+        // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
+        (pairingInput[6], pairingInput[7]) = (c[0], c[1]);
+        // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
+        // to get [I_k(s).x, -I_k(s).y]
+        pairingInput[8] = multireveal[3];
+        // obtain -I_k(s).y        
+        pairingInput[9] = (MODULUS - multireveal[4]) % MODULUS;
 
         assembly {
             // overwrite C(s) with C(s) - I(s)
@@ -482,14 +466,14 @@ contract DataLayrChallengeUtils {
             }
         }
 
+        // store -g2, where g2 is the negation of the generator of group G2
+        pairingInput[8] = nG2x1;
+        pairingInput[9] = nG2x0;
+        pairingInput[10] = nG2y1;
+        pairingInput[11] = nG2y0;
+
         // check e(pi, z)e(C - I, -g2) == 1
         assembly {
-            // store -g2, where g2 is the negation of the generator of group G2
-            mstore(add(pairingInput, 0x100), nG2x1)
-            mstore(add(pairingInput, 0x120), nG2x0)
-            mstore(add(pairingInput, 0x140), nG2y1)
-            mstore(add(pairingInput, 0x160), nG2y0)
-
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 // call ecPairing precompile with 384 bytes of data,
@@ -547,7 +531,8 @@ contract DataLayrChallengeUtils {
        );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint256(keccak256(poly)) % MODULUS;
+        //using FS transform, we use keccak(poly, kzg.commit(poly)) to make the randomness intrisic to the solution
+        uint256 r = uint256(keccak256(abi.encodePacked(poly, multireveal[2], multireveal[3]))) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool res = openPolynomialAtPoint(c, pi, r, s); 
 
