@@ -32,7 +32,7 @@ contract DataLayrChallengeUtils {
                     (uint256(
                         signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]
                     ) > uint256(operatorPubkeyHash)),
-                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong greater index"
+                "Wrong index"
             );
 
             //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
@@ -44,7 +44,7 @@ contract DataLayrChallengeUtils {
                             nonSignerIndex - 1
                         ]
                     ) < uint256(operatorPubkeyHash),
-                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong lower index"
+                    "Wrong index"
                 );
             }
         }
@@ -59,7 +59,7 @@ contract DataLayrChallengeUtils {
     ) public pure {
         require(
             operatorPubkeyHash == signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex],
-            "DataLayrChallengeUtils.checkInclusionInNonSignerSet: operator not included in non-signer set"
+            "operator not included in non-signer set"
         );
     }
 
@@ -129,9 +129,9 @@ contract DataLayrChallengeUtils {
                     uint32((i - numSys) + numSysE)
                 ) * 512) / numNodeE;
         } else {
-            revert("DataLayrChallengeUtils.getLeadingCosetIndexFromHighestRootOfUnity: Cannot create number of frame higher than possible");
+            revert("Cannot create number of frame higher than possible");
         }
-        revert("DataLayrChallengeUtils.getLeadingCosetIndexFromHighestRootOfUnity: Cannot create number of frame higher than possible");
+        revert("Cannot create number of frame higher than possible");
         return 0;
     }
 
@@ -157,7 +157,7 @@ contract DataLayrChallengeUtils {
 
     //takes the log base 2 of n and returns it
     function log2(uint256 n) internal pure returns (uint256) {
-        require(n > 0, "DataLayrChallengeUtils.log2: Log must be defined");
+        require(n > 0, "Log must be defined");
         uint256 log = 0;
         while (n >> log != 1) {
             log++;
@@ -223,7 +223,7 @@ contract DataLayrChallengeUtils {
             return
                 0x062b58a8cf8d73d7d75d1eabb10c8f578ee9e943478db743fddb03bac8ddcfb4;
         } else {
-            revert("DataLayrChallengeUtils.getZeroPolyMerkleRoot: Log not in valid range");
+            revert("Log not in valid range");
         }
     }
 
@@ -347,14 +347,16 @@ contract DataLayrChallengeUtils {
             }
         }
 
-        // store -g2, where g2 is the negation of the generator of group G2
-        pairingInput[8] = nG2x1;
-        pairingInput[9] = nG2x0;
-        pairingInput[10] = nG2y1;
-        pairingInput[11] = nG2y0;
-
         //check e(z, pi)e(C-[s]_1, -g2) = 1
         assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            // point gets stored in slots pairingInput[8] through (including) pairingInput[11]
+            // note that the free memory pointer is not updated, so we should not do additional memory allocation after this assembly block
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 staticcall(
@@ -466,14 +468,14 @@ contract DataLayrChallengeUtils {
             }
         }
 
-        // store -g2, where g2 is the negation of the generator of group G2
-        pairingInput[8] = nG2x1;
-        pairingInput[9] = nG2x0;
-        pairingInput[10] = nG2y1;
-        pairingInput[11] = nG2y0;
-
         // check e(pi, z)e(C - I, -g2) == 1
         assembly {
+            // store -g2, where g2 is the negation of the generator of group G2
+            mstore(add(pairingInput, 0x100), nG2x1)
+            mstore(add(pairingInput, 0x120), nG2x0)
+            mstore(add(pairingInput, 0x140), nG2y1)
+            mstore(add(pairingInput, 0x160), nG2y0)
+
             // call the precompiled ec2 pairing contract at 0x08
             if iszero(
                 // call ecPairing precompile with 384 bytes of data,
@@ -531,8 +533,7 @@ contract DataLayrChallengeUtils {
        );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        //using FS transform, we use keccak(poly, kzg.commit(poly)) to make the randomness intrisic to the solution
-        uint256 r = uint256(keccak256(abi.encodePacked(poly, multireveal[2], multireveal[3]))) % MODULUS;
+        uint256 r = uint256(keccak256(poly)) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool res = openPolynomialAtPoint(c, pi, r, s); 
 
