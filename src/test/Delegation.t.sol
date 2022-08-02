@@ -22,7 +22,6 @@ contract Delegator is EigenLayrDeployer {
     address[2] public delegates;
     uint256[] apks;
     uint256[] sigmas;
-    DelegationTerms public dt;
 
     uint256 amountEigenToDeposit = 1e17;
     uint256 amountEthToDeposit = 2e19;
@@ -80,8 +79,7 @@ contract Delegator is EigenLayrDeployer {
             signers[0],
             1
         );
-        DelegationTerms _dt = _deployDelegationTerms(signers[0]);
-        _testRegisterAsDelegate(signers[0], _dt);
+        _testRegisterAsDelegate(signers[0], IDelegationTerms(signers[0]));
         _testWethDeposit(acct_0, ethAmount);
         _testDepositEigen(acct_0, eigenAmount);
         _testDelegateToOperator(acct_0, signers[0]);
@@ -133,9 +131,7 @@ contract Delegator is EigenLayrDeployer {
             signers[0],
             1
         );
-        DelegationTerms _dt = _deployDelegationTerms(signers[0]);
-
-        _testRegisterAsDelegate(signers[0], _dt);
+        _testRegisterAsDelegate(signers[0], IDelegationTerms(signers[0]));
         _testDepositStrategies(signers[1], 1e18, numStratsToAdd);
         _testDepositEigen(signers[1], 1e18);
         _testDelegateToOperator(signers[1], signers[0]);
@@ -157,8 +153,7 @@ contract Delegator is EigenLayrDeployer {
     //TODO: add tests for contestDelegationCommit()
     function testUndelegation() public {
         //delegate
-        DelegationTerms _dt = _deployDelegationTerms(registrant);
-        _testRegisterAsDelegate(registrant, _dt);
+        _testRegisterAsDelegate(registrant, IDelegationTerms(registrant));
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0, 1e18);
         _testDelegateToOperator(acct_0, registrant);
@@ -236,8 +231,7 @@ contract Delegator is EigenLayrDeployer {
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
-        dt = _deployDelegationTerms(operator);
-        _testRegisterAsDelegate(operator, dt);
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
 
         for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
@@ -247,13 +241,6 @@ contract Delegator is EigenLayrDeployer {
             cheats.deal(delegates[i], amountEthToDeposit);
 
             cheats.startPrank(delegates[i]);
-
-            //depositing delegator's eth into consensus layer
-            deposit.depositEthIntoConsensusLayer{value: amountEthToDeposit}(
-                "0x",
-                "0x",
-                depositContract.get_deposit_root()
-            );
 
             //deposit delegator's eigen into investment manager
             // eigen.setApprovalForAll(address(investmentManager), true);
