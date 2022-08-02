@@ -39,8 +39,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     //uint32 public dataStoreId = 1;
     
-    uint32 public latestTime;
-
     uint256 public disclosurePaymentPerByte;
 
     uint48 public numPowersOfTau; // num of leaves in the root tree

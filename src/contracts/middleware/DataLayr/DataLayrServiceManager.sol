@@ -516,6 +516,10 @@ contract DataLayrServiceManager is
 
     }
 
+    function latestTime() external view returns (uint32) {
+        return dataStoresForDuration.latestTime;
+    }
+
     /* function removed for now since it tries to modify an immutable variable
     function setPaymentToken(
         IERC20 _paymentToken
