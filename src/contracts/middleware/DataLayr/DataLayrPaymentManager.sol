@@ -9,6 +9,7 @@ import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../permissions/RepositoryAccess.sol";
+import "../../libraries/DataStoreHash.sol";
 
 import "ds-test/test.sol";
 
@@ -197,6 +198,12 @@ contract DataLayrPaymentManager is
 
         require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
 
+        // can only claim for a payment after redeeming the last payment
+        require(
+            operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
+            "Require last payment is redeemed"
+        );
+
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
             msg.sender,
@@ -235,12 +242,6 @@ contract DataLayrPaymentManager is
 
             return;
         }
-
-        // can only claim for a payment after redeeming the last payment
-        require(
-            operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
-            "Require last payment is redeemed"
-        );
 
         // you have to redeem starting from the last time redeemed up to
         fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
@@ -398,7 +399,7 @@ contract DataLayrPaymentManager is
             }
             diff /= 2;
             //if next step is not final
-            //TODO: Why are we making this check? Just update status?
+            //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
             if (updateStatus(operator, diff)) {
                 challenge.toDataStoreId = toDataStoreId - diff;
                 challenge.fromDataStoreId = fromDataStoreId;
@@ -413,9 +414,7 @@ contract DataLayrPaymentManager is
         emit PaymentBreakdown(challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
     }
 
-
-
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
+    // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     /**
      @notice This function is used for updating the status of the challenge in terms of who
              has to respond to the interactive challenge mechanism next -  is it going to be
@@ -507,15 +506,15 @@ contract DataLayrPaymentManager is
             block.timestamp < challenge.confirmAt,
             "Fraud proof interval has passed"
         );
+
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
         ChallengeStatus status = challenge.status;
-
 
         require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration, 
                 searchData.timestamp,
                 searchData.index
-            ) == hashDataStoreMetadata(searchData.metadata), "search.metadata preimage is incorrect");
+            ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "search.metadata preimage is incorrect");
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
@@ -537,21 +536,21 @@ contract DataLayrPaymentManager is
             //TODO: Change this
             IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
-        // scoped block helps fix stack too deep
-        {
-            // (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
-            // require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
-            require(
-                operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
-                "Operator stake index is too late"
-            );
+            // scoped block helps fix stack too deep
+            {
+                // (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
+                // require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
+                require(
+                    operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
+                    "Operator stake index is too late"
+                );
 
-            require(
-                operatorStake.nextUpdateBlockNumber == 0 ||
-                    operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
-                "Operator stake index is too early"
-            );
-        }
+                require(
+                    operatorStake.nextUpdateBlockNumber == 0 ||
+                        operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
+                    "Operator stake index is too early"
+                );
+            }
 
             //TODO: Change this
             IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadata;
@@ -671,10 +670,5 @@ contract DataLayrPaymentManager is
 
     function dataStoreId() internal view returns (uint32) {
         return dataLayrServiceManager.taskNumber();
-    }
-
-    function hashDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata) internal pure  returns(bytes32) {
-        bytes32 res = keccak256(abi.encodePacked(metadata.headerHash, metadata.globalDataStoreId, metadata.blockNumber, metadata.fee, metadata.signatoryRecordHash));
-        return res;
     }
 }
