@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./InvestmentManagerStorage.sol";
 import "../utils/ERC1155TokenReceiver.sol";
 import "forge-std/Test.sol";
@@ -26,6 +27,7 @@ contract InvestmentManager is
     ERC1155TokenReceiver,
     DSTest
 {
+    using SafeERC20 for IERC20;
     event WithdrawalQueued(
         address indexed depositor,
         address indexed withdrawer,
@@ -459,12 +461,7 @@ contract InvestmentManager is
         }
 
         // transfer tokens from the sender to the strategy
-        bool success = token.transferFrom(
-            msg.sender,
-            address(strategy),
-            amount
-        );
-        require(success, "failed to transfer token");
+        token.safeTransferFrom(msg.sender, address(strategy), amount);
 
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy
