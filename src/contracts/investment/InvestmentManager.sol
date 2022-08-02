@@ -45,6 +45,14 @@ contract InvestmentManager is
         _;
     }
 
+    modifier onlyEigenLayrDepositContract() {
+        require(
+            msg.sender == eigenLayrDepositContract,
+            "InvestmentManager: onlyEigenLayrDepositContract"
+        );
+        _;
+    }
+
     modifier onlyNotSlashed(address staker) {
         require(!slashedStatus[staker], "staker has been slashed");
         if (delegation.isDelegator(staker)) {
@@ -73,11 +81,16 @@ contract InvestmentManager is
      *        this investment manager contract   
      */
     function initialize(
+        IInvestmentStrategy[] memory strategies,
         ISlasher _slasher,
-        address _governor
+        address _governor,
+        address _eigenLayrDepositContract
     ) external initializer {
+        consensusLayerEthStrat = strategies[0];
+        proofOfStakingEthStrat = strategies[1];
         _transferOwnership(_governor);
         slasher = _slasher;
+        eigenLayrDepositContract = _eigenLayrDepositContract;
     }
 
 
@@ -107,8 +120,70 @@ contract InvestmentManager is
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
         
         // increase delegated shares accordingly, if applicable
-        delegation.increaseDelegatedShares(depositor, strategy, shares);
+        if (delegation.isDelegator(msg.sender)) {
+            address operatorAddress = delegation.delegation(msg.sender);
+            
+            delegation.increaseOperatorShares(
+                operatorAddress,
+                strategy,
+                shares
+            );
+
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shares;
+            dt.onDelegationReceived(msg.sender, investorStrats, investorShares);
+
+        }
     }
+
+
+
+    /**
+     * @notice used for investing a depositor's assets into multiple specified strategy, in the
+     *         behalf of the depositor, with each of the investment being done in terms of a
+     *         specified token and their respective amount.
+     */
+    function depositIntoStrategies(
+        address depositor,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata amounts
+    ) external onlyNotSlashed(msg.sender) returns (uint256[] memory) {
+        uint256 strategiesLength = strategies.length;
+        uint256[] memory shares = new uint256[](strategiesLength);
+        for (uint256 i = 0; i < strategiesLength; ) {
+            shares[i] = _depositIntoStrategy(
+                depositor,
+                strategies[i],
+                tokens[i],
+                amounts[i]
+            );
+            unchecked {
+                ++i;
+            }
+        }
+        // increase delegated shares accordingly, if applicable
+        if (delegation.isDelegator(msg.sender)) {
+            address operatorAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                operatorAddress,
+                strategies,
+                shares
+            );
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+            dt.onDelegationReceived(msg.sender, strategies, shares);
+        }
+        return shares;
+    }
+
+
+
 
     function _depositIntoStrategy(
         address depositor,
@@ -162,8 +237,78 @@ contract InvestmentManager is
             token,
             shareAmount
         );
-        //decrease corresponding operator's shares, if applicable
-        delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
+        // decrease delegated shares accordingly, if applicable
+        if (delegation.isDelegator(msg.sender)) {
+            address operatorAddress = delegation.delegation(msg.sender);
+            delegation.decreaseOperatorShares(
+                operatorAddress,
+                strategy,
+                shareAmount
+            );
+
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            //Calls into operator's delegationTerms contract to update weights of individual delegator
+
+            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
+            uint[] memory investorShares = new uint[](1);
+            investorStrats[0] = strategy;
+            investorShares[0] = shareAmount;
+
+            dt.onDelegationWithdrawn(msg.sender,investorStrats, investorShares);
+
+        }
+    }
+
+    /**
+     * @notice Used by stakers to withdraw the given token and shareAmount from the given strategies.
+     */
+    /**
+     * @dev Only those stakers who have notified the system that they want to undelegate
+     *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
+     *      call this function.
+     */
+    function withdrawFromStrategies(
+        uint256[] calldata strategyIndexes,
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts
+    ) external onlyNotSlashed(msg.sender) onlyNotDelegated(msg.sender) {
+        uint256 strategyIndexIndex;
+        address depositor = msg.sender;
+
+        uint256 strategiesLength = strategies.length;
+        for (uint256 i = 0; i < strategiesLength; ) {
+            // the internal function will return 'true' in the event the strategy was
+            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
+            if (
+                _withdrawFromStrategy(
+                    depositor,
+                    strategyIndexes[strategyIndexIndex],
+                    strategies[i],
+                    tokens[i],
+                    shareAmounts[i]
+                )
+            ) {
+                unchecked {
+                    ++strategyIndexIndex;
+                }
+            }
+            //increment the loop
+            unchecked {
+                ++i;
+            }
+        }
+        // decrease delegated shares accordingly, if applicable
+        if (delegation.isDelegator(msg.sender)) {
+            address operatorAddress = delegation.delegation(msg.sender);
+            delegation.decreaseOperatorShares(
+                operatorAddress,
+                strategies,
+                shareAmounts
+            );
+            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
+            dt.onDelegationWithdrawn(msg.sender, strategies, shareAmounts);
+        }
     }
 
     // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
@@ -373,7 +518,6 @@ contract InvestmentManager is
             delegation.isNotDelegated(depositor));
     }
 
-    //TODO: add something related to slashing for queued withdrawals
     /**
      * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
      *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
@@ -610,6 +754,80 @@ contract InvestmentManager is
         }
     }
 
+
+    /**
+     @notice This function is used for updating the tally of the shares associated with ETH 
+             that has been deposited into the EigenLayer with the intention of that 
+             ETH being directly staked in beacon chain using EigenLayer's withdrawal credentials.
+     */ 
+    function depositConsenusLayerEth(address depositor, uint256 amount)
+        external
+        onlyEigenLayrDepositContract
+        returns (uint256)
+    {
+        // this will be a "HollowInvestmentStrategy"
+        uint256 shares = consensusLayerEthStrat.deposit(IERC20(address(0)), amount);
+
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (shares > 0 && investorStratShares[depositor][consensusLayerEthStrat] == 0) {
+            investorStrats[depositor].push(consensusLayerEthStrat);
+        }
+
+        // record the ETH that has been staked by the depositor
+        investorStratShares[depositor][consensusLayerEthStrat] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        if (delegation.isDelegator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                consensusLayerEthStrat,
+                shares
+            );
+            //TODO: call into delegationTerms contract as well?
+        }
+
+        return shares;
+    }
+
+
+    /**
+     @notice This function is used for updating the tally of the shares associated with ETH 
+             that has been deposited into the EigenLayer with the intention of that 
+             ETH being directly staked in beacon chain via a liquid staking service and then 
+             investing the liquid token in investment strategies for engaging in DeFi.
+     */ 
+    function depositProofOfStakingEth(address depositor, uint256 amount)
+        external
+        onlyEigenLayrDepositContract
+        returns (uint256)
+    {
+        //this will be a "HollowInvestmentStrategy"
+        uint256 shares = proofOfStakingEthStrat.deposit(IERC20(address(0)), amount);
+
+        // if they dont have existing shares of this strategy, add it to their strats
+        if (shares > 0 && investorStratShares[depositor][proofOfStakingEthStrat] == 0) {
+            investorStrats[depositor].push(proofOfStakingEthStrat);
+        }
+        
+        // record the proof of staking ETH that has been staked by the depositor
+        investorStratShares[depositor][proofOfStakingEthStrat] += shares;
+
+        // increase delegated shares accordingly, if applicable
+        if (delegation.isDelegator(msg.sender)) {
+            address delegatedAddress = delegation.delegation(msg.sender);
+            delegation.increaseOperatorShares(
+                delegatedAddress,
+                proofOfStakingEthStrat,
+                shares
+            );
+            //TODO: call into delegationTerms contract as well?
+        }
+
+        return shares;
+    }
+
+
     /**
      * @notice gets depositor's strategies
      */
@@ -672,6 +890,25 @@ contract InvestmentManager is
             investorStrats[depositor],
             shares
         );
+    }
+
+    /**
+     * @notice gets depositor's ETH that has been deposited directly to settlement layer
+     */
+    function getConsensusLayerEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][consensusLayerEthStrat];
+    }
+
+    function getProofOfStakingEth(address depositor)
+        external
+        view
+        returns (uint256)
+    {
+        return investorStratShares[depositor][proofOfStakingEthStrat];
     }
 
     /**
