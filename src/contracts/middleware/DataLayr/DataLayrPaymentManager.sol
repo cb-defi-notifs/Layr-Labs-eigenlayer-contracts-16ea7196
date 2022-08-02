@@ -223,7 +223,7 @@ contract DataLayrPaymentManager is
             operatorToPayment[msg.sender] = Payment(
                 fromDataStoreId,
                 toDataStoreId,
-                uint32(block.timestamp),
+                uint32(block.timestamp + paymentFraudProofInterval),
                 amount,
                 // setting to 0 to indicate commitment to payment claim
                 PaymentStatus.COMMITTED,
@@ -250,7 +250,7 @@ contract DataLayrPaymentManager is
         operatorToPayment[msg.sender] = Payment(
             fromDataStoreId,
             toDataStoreId,
-            uint32(block.timestamp),
+            uint32(block.timestamp + paymentFraudProofInterval),
             amount,
             // set status as 0: committed
             PaymentStatus.COMMITTED,
@@ -298,7 +298,6 @@ contract DataLayrPaymentManager is
             // inform the DelegationTerms contract of the payment, which will determine
             // the rewards operator and its delegators are eligible for
             dt.payForService(paymentToken, amount);
-
         }
 
         emit PaymentRedemption(msg.sender, amount);
@@ -370,12 +369,10 @@ contract DataLayrPaymentManager is
             "Must be challenger and their turn or operator and their turn"
         );
 
-
         require(
             block.timestamp < challenge.confirmAt,
             "Fraud proof interval has passed"
         );
-
 
         uint32 fromDataStoreId = challenge.fromDataStoreId;
         uint32 toDataStoreId = challenge.toDataStoreId;
@@ -383,11 +380,12 @@ contract DataLayrPaymentManager is
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+        //  or a "to" endpoint at (end - (2n + 1 + 1)/2 = end - (n + 1) = start + n) if the first half is challenged
         if (firstHalf) {
             diff = (toDataStoreId - fromDataStoreId) / 2;
             challenge.fromDataStoreId = fromDataStoreId + diff;
             //if next step is not final
+            //TODO: Why are we making this check? Just update status?
             if (updateStatus(operator, diff)) {
                 challenge.toDataStoreId = toDataStoreId;
             }
@@ -400,6 +398,7 @@ contract DataLayrPaymentManager is
             }
             diff /= 2;
             //if next step is not final
+            //TODO: Why are we making this check? Just update status?
             if (updateStatus(operator, diff)) {
                 challenge.toDataStoreId = toDataStoreId - diff;
                 challenge.fromDataStoreId = fromDataStoreId;
@@ -430,24 +429,18 @@ contract DataLayrPaymentManager is
         internal
         returns (bool)
     {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
         // payment challenge for one data dump
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            challenge.status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
+            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
         // payment challenge across more than one data dump
         } else {
             // set to dissection turn of either challenger or operator
-            challenge.status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
+            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
             return true;
         }
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
    }
 
 
@@ -459,9 +452,6 @@ contract DataLayrPaymentManager is
         uint120 amount1,
         uint120 amount2
     ) internal {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
         if (disectionType == 1) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
@@ -477,11 +467,8 @@ contract DataLayrPaymentManager is
         } else {
             revert("Not in operator challenge phase");
         }
-        challenge.amount1 = amount1;
-        challenge.amount2 = amount2;
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
+        operatorToPaymentChallenge[operator].amount1 = amount1;
+        operatorToPaymentChallenge[operator].amount2 = amount2;
     }
 
     function resolveChallenge(address operator) public {
