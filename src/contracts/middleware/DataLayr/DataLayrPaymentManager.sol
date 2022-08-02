@@ -169,6 +169,9 @@ contract DataLayrPaymentManager is
         //todo: can this be a permanent allowance? decreases an sstore per fee paying.
         if(initiator != payer){
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
+            if(allowances[payer][initiator] != type(uint256).max) {
+                allowances[payer][initiator] -= feeAmount;
+            }
         }
         depositsOf[payer] -= feeAmount;
     }
