@@ -223,7 +223,7 @@ contract DataLayrPaymentManager is
                 uint32(block.timestamp),
                 amount,
                 // setting to 0 to indicate commitment to payment claim
-                PaymentStatus.COMMITED,
+                PaymentStatus.COMMITTED,
                 paymentFraudProofCollateral
             );
 
@@ -249,7 +249,7 @@ contract DataLayrPaymentManager is
             uint32(block.timestamp),
             amount,
             // set status as 0: committed
-            PaymentStatus.COMMITED,
+            PaymentStatus.COMMITTED,
             paymentFraudProofCollateral
         );
 
@@ -264,7 +264,7 @@ contract DataLayrPaymentManager is
             block.timestamp >
                 (operatorToPayment[msg.sender].commitTime +
                     paymentFraudProofInterval) &&
-                operatorToPayment[msg.sender].status == PaymentStatus.COMMITED,
+                operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "Payment still eligible for fraud proof"
         );
 
@@ -320,7 +320,7 @@ contract DataLayrPaymentManager is
             block.timestamp <
                 operatorToPayment[operator].commitTime +
                     paymentFraudProofInterval &&
-                operatorToPayment[operator].status == PaymentStatus.COMMITED,
+                operatorToPayment[operator].status == PaymentStatus.COMMITTED,
             "Fraud proof interval has passed"
         );
 
@@ -626,7 +626,7 @@ contract DataLayrPaymentManager is
         address challenger = challenge.challenger;
         if (operatorSuccessful) {
             // operator was correct, allow for another challenge
-            operatorToPayment[operator].status = PaymentStatus.COMMITED;
+            operatorToPayment[operator].status = PaymentStatus.COMMITTED;
             operatorToPayment[operator].commitTime = uint32(block.timestamp);
             /*
             * Since the operator hasn't been proved right (only challenger has been proved wrong)

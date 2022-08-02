@@ -12,12 +12,12 @@ interface IDataLayrPaymentManager is IPaymentManager {
     ) external;
 
     enum PaymentStatus{ 
-        COMMITED, 
+        COMMITTED, 
         REDEEMED
     }
 
     enum ChallengeStatus{ 
-        COMMITED, 
+        COMMITTED, 
         REDEEMED, 
         OPERATOR_TURN, 
         CHALLENGER_TURN, 
