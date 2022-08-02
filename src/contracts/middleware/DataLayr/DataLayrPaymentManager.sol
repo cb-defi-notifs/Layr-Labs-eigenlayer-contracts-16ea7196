@@ -483,10 +483,10 @@ contract DataLayrPaymentManager is
         ChallengeStatus status = challenge.status;
         if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
             // operator did not respond
-            resolve(challenge, false);
+            resolve(challenge, challenge.challenger);
         } else if (status == ChallengeStatus.CHALLENGER_TURN || status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
             // challenger did not respond
-            resolve(challenge, true);
+            resolve(challenge, challenge.operator);
         }
     }
 
@@ -574,13 +574,13 @@ contract DataLayrPaymentManager is
             );
         }
 
-
+        bool finalEntityCorrect = trueAmount != challenge.amount1;
         /*
         * if status is OPERATOR_TURN_ONE_STEP, it is the operator's turn. This means the challenger was the one who set challenge.amount1 last.  
         * If trueAmount != challenge.amount1, then the challenger is wrong (doesn't mean operator is right).
         */
         if (status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
-            resolve(challenge, trueAmount != challenge.amount1);
+            resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
         } 
         /*
         * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
@@ -588,7 +588,7 @@ contract DataLayrPaymentManager is
         */
         
         else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            resolve(challenge, trueAmount == challenge.amount1);
+            resolve(challenge, !finalEntityCorrect ? challenge.challenger : challenge.operator);
         } else {
             revert("Not in one step challenge phase");
         }
@@ -607,10 +607,10 @@ contract DataLayrPaymentManager is
     @param winner is the party who wins the challenge, either the challenger or the operator
     @param operatorSuccessful is true when the operator wins the challenge agains the challenger
     */
-    function resolve(PaymentChallenge memory challenge, bool operatorSuccessful) internal {
+    function resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
         address challenger = challenge.challenger;
-        if (operatorSuccessful) {
+        if (winner == operator) {
             // operator was correct, allow for another challenge
             operatorToPayment[operator].status = PaymentStatus.COMMITTED;
             operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
