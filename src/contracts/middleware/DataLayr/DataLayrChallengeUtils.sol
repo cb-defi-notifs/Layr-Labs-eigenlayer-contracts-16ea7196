@@ -367,7 +367,7 @@ contract DataLayrChallengeUtils {
                     // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]
                     0x180,
                     // store return data starting from pairingInput[12]
-                    add(pairingInput, 0x180),
+                    add(pairingInput, 0x160),
                     // store 32 bytes of return data, i.e. overwrite pairingInput[0] with the return data
                     0x20
                 )
@@ -377,7 +377,7 @@ contract DataLayrChallengeUtils {
             }
         }
         // check whether the call to the ecPairing precompile was successful (returns 1 if correct pairing, 0 otherwise)
-        return pairingInput[12] == 1;
+        return pairingInput[11] == 1;
     }
 
     function validateDisclosureResponse(
@@ -443,9 +443,9 @@ contract DataLayrChallengeUtils {
         (pairingInput[6], pairingInput[7]) = (c[0], c[1]);
         // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
         // to get [I_k(s).x, -I_k(s).y]
-        pairingInput[8] = multireveal[3];
+        pairingInput[8] = multireveal[2];
         // obtain -I_k(s).y        
-        pairingInput[9] = (MODULUS - multireveal[4]) % MODULUS;
+        pairingInput[9] = (MODULUS - multireveal[3]) % MODULUS;
 
         assembly {
             // overwrite C(s) with C(s) - I(s)
@@ -483,7 +483,7 @@ contract DataLayrChallengeUtils {
                     0x08,
                     pairingInput,
                     0x180,
-                    add(pairingInput, 0x180),
+                    add(pairingInput, 0x160),
                     0x20
                 )
             ) {
@@ -491,7 +491,7 @@ contract DataLayrChallengeUtils {
             }
         }
 
-        require(pairingInput[12] == 1, "Pairing unsuccessful");
+        require(pairingInput[11] == 1, "Pairing unsuccessful");
         return degree;
     }
 
