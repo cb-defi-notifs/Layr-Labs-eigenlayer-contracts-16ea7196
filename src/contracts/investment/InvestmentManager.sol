@@ -466,6 +466,7 @@ contract InvestmentManager is
         // deposit the assets into the specified strategy and get the equivalent amount of
         // shares in that strategy
         shares = strategy.deposit(token, amount);
+        require(shares != 0, "InvestmentManager._depositIntoStrategy: shares should not be zero!");
 
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
