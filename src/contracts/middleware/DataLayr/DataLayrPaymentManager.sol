@@ -31,8 +31,8 @@ contract DataLayrPaymentManager is
         uint32 fromDataStoreId; 
         // dataStoreId until which payment is being claimed (exclusive) 
         uint32 toDataStoreId; 
-        // recording when committment for payment made; used for fraud proof period
-        uint32 commitTime; 
+        // recording when the payment will optimistically be confirmed; used for fraud proof period
+        uint32 confirmAt; 
         // payment for range [fromDataStoreId, toDataStoreId)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
@@ -62,8 +62,8 @@ contract DataLayrPaymentManager is
         // 
         uint120 amount2;
 
-        // used for recording the time when challenge was created
-        uint32 commitTime; // when committed, used for fraud proof period
+        // used for recording the time when challenge will be settled
+        uint32 confirmAt; // when will be confirmed, used for fraud proof period
 
 
         // indicates the status of the challenge
@@ -262,9 +262,8 @@ contract DataLayrPaymentManager is
      */
     function redeemPayment() external {
         require(
-            block.timestamp >
-                (operatorToPayment[msg.sender].commitTime +
-                    paymentFraudProofInterval) &&
+                block.timestamp > operatorToPayment[msg.sender].confirmAt
+                    &&
                 operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "Payment still eligible for fraud proof"
         );
@@ -318,9 +317,8 @@ contract DataLayrPaymentManager is
     ) external {
         
         require(
-            block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval &&
+            block.timestamp < operatorToPayment[operator].confirmAt 
+                &&
                 operatorToPayment[operator].status == PaymentStatus.COMMITTED,
             "Fraud proof interval has passed"
         );
@@ -334,8 +332,8 @@ contract DataLayrPaymentManager is
                 operatorToPayment[operator].toDataStoreId,
                 amount1,
                 amount2,
-                // recording current timestamp as the commitTime
-                uint32(block.timestamp),
+                // recording current timestamp plus the fruad proof interval as the confirmAt
+                uint32(block.timestamp + paymentFraudProofInterval),
                 ChallengeStatus.OPERATOR_TURN
         );
 
@@ -346,7 +344,7 @@ contract DataLayrPaymentManager is
 
         //@TODO: what is payment status = 2?  Definition only has committed or redeemed (aka 0 or 1) @gpsanant
         //operatorToPayment[operator].status = 2;
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
+        operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
     }
 
@@ -371,8 +369,7 @@ contract DataLayrPaymentManager is
 
 
         require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
+            block.timestamp < challenge.confirmAt,
             "Fraud proof interval has passed"
         );
 
@@ -406,7 +403,7 @@ contract DataLayrPaymentManager is
             }
             updateChallengeAmounts(operator, 1, amount1, amount2);
         }
-        challenge.commitTime = uint32(block.timestamp);
+        challenge.confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
@@ -490,8 +487,8 @@ contract DataLayrPaymentManager is
 
         uint256 interval = paymentFraudProofInterval;
         require(
-            block.timestamp > challenge.commitTime + interval &&
-                block.timestamp < challenge.commitTime + (2 * interval),
+            block.timestamp > challenge.confirmAt &&
+                block.timestamp < challenge.confirmAt + interval,
             "Fraud proof interval has passed"
         );
         ChallengeStatus status = challenge.status;
@@ -517,8 +514,7 @@ contract DataLayrPaymentManager is
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
         require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
+            block.timestamp < challenge.confirmAt,
             "Fraud proof interval has passed"
         );
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
@@ -628,7 +624,7 @@ contract DataLayrPaymentManager is
         if (operatorSuccessful) {
             // operator was correct, allow for another challenge
             operatorToPayment[operator].status = PaymentStatus.COMMITTED;
-            operatorToPayment[operator].commitTime = uint32(block.timestamp);
+            operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
             /*
             * Since the operator hasn't been proved right (only challenger has been proved wrong)
             * transfer them only challengers collateral, not their own collateral (which is still

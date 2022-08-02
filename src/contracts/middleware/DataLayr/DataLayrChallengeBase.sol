@@ -8,7 +8,7 @@ import "../../libraries/DataStoreHash.sol";
 
 abstract contract DataLayrChallengeBase {
 
-     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
+     // confirmAt is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
     uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
     // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
     uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
