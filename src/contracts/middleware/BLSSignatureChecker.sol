@@ -43,7 +43,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
      @notice used for recording the event that signature has been checked in checkSignatures function.
      */
     event SignatoryRecord(
-        bytes32 msgHash,
+        bytes32 taskHash,
         uint32 taskNumber,
         uint256 ethStakeSigned,
         uint256 eigenStakeSigned,
@@ -71,7 +71,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     /** 
      @dev This calldata is of the format:
             <
-             bytes32 msgHash,
+             bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -88,8 +88,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         public
         returns (
             uint32 taskNumberToConfirm,
-            uint32 stakesBlockNumber,
-            bytes32 msgHash,
+            bytes32 taskHash,
             SignatoryTotals memory signedTotals,
             bytes32 compressedSignatoryRecord
         )
@@ -97,22 +96,21 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // temporary variable used to hold various numbers
         uint256 placeholder;
 
-        uint256 pointer = 388;
-
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
-            // calldata type, which represents the msgHash for which disperser is calling checkSignatures
+            // calldata type, which represents the taskHash for which disperser is calling checkSignatures
             // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument.
-            msgHash := calldataload(pointer)
+            taskHash := calldataload(356)
 
             // get the 6 bytes immediately after the above, which represent the
             // index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(add(pointer, 32)))
+            placeholder := shr(208, calldataload(388))
         }
 
-        // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
+        // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
+        uint32 blockNumberFromTaskHash;
         assembly {
-            stakesBlockNumber := shr(224, calldataload(add(pointer, 38)))
+            blockNumberFromTaskHash := shr(224, calldataload(394))
         }
 
         // obtain registry contract for querying information on stake later
@@ -129,8 +127,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         IQuorumRegistry.OperatorStake memory localStakeObject = registry
             .getTotalStakeFromIndex(placeholder);
 
-        // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-        _validateOperatorStake(localStakeObject, stakesBlockNumber);
+        // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
+        _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
 
         signedTotals.ethStakeSigned = localStakeObject.ethStake;
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
@@ -138,15 +136,13 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
-            //fetch tha task number to avoid replay signing on same taskhash for different datastore
-            taskNumberToConfirm := shr(224, calldataload(add(pointer, 42)))
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(add(pointer, 46)))
+            placeholder := shr(224, calldataload(402))
         }
 
-        // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
-        pointer += 50;
+        // we have read (356 + 32 + 6 + 4 + 4 + 4) = 406 bytes of calldata so far
+        uint256 pointer = 406;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -227,8 +223,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 stakeIndex
             );
 
-            // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-            _validateOperatorStake(localStakeObject, stakesBlockNumber);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
+            _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
 
             // subtract operator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
@@ -287,8 +283,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 pubkeyHash,
                 stakeIndex
             );
-            // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
-            _validateOperatorStake(localStakeObject, stakesBlockNumber);
+            // check that the returned OperatorStake object is the most recent for the blockNumberFromTaskHash
+            _validateOperatorStake(localStakeObject, blockNumberFromTaskHash);
 
             //subtract validator stakes from totals
             signedTotals.ethStakeSigned -= localStakeObject.ethStake;
@@ -301,6 +297,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 ++i;
             }
         }
+
         // usage of a scoped block here minorly decreases gas usage
         {
             uint32 apkIndex;
@@ -327,7 +324,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // make sure they have provided the correct aggPubKey
             require(
-                registry.getCorrectApkHash(apkIndex, stakesBlockNumber) ==
+                registry.getCorrectApkHash(apkIndex, blockNumberFromTaskHash) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
                 "Incorrect apk provided"
             );
@@ -361,7 +358,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // do the addition in Jacobian coordinates
             BLS.addJac(pk, aggNonSignerPubkey);
-
+            
             // reorder for pairing
             (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
             // if zero non-signers
@@ -376,13 +373,20 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             );
         }
 
+        //fetch tha task number to avoid replay signing on same taskhash for different datastore
+        assembly {
+            taskNumberToConfirm := shr(224, calldataload(398))
+        }
+
         /**
          @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
          */
 
         // compute the point in G1
-        //@OFFCHAIN change dlns to sign msgHash defined in DLSM
-        (input[0], input[1]) = BLS.hashToG1(msgHash);
+        //@OFFCHAIN change dlns to sign keccak256(taskhash, taskNumberToConfirm)
+        (input[0], input[1]) = BLS.hashToG1(
+            keccak256(abi.encodePacked(taskHash, taskNumberToConfirm))
+        );
 
         // insert negated coordinates of the generator for G2
         input[8] = nG2x1;
@@ -409,7 +413,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         require(input[8] == 1, "Pairing unsuccessful");
 
         emit SignatoryRecord(
-            msgHash,
+            taskHash,
             taskNumberToConfirm,
             signedTotals.ethStakeSigned,
             signedTotals.eigenStakeSigned,
@@ -429,11 +433,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             )
         );
 
-        // return taskNumber, stakesBlockNumber, msgHash, eth and eigen that signed, and a hash of the signatories
+        // return taskNumber, taskHash, eth and eigen that signed, and a hash of the signatories
         return (
             taskNumberToConfirm,
-            stakesBlockNumber,
-            msgHash,
+            taskHash,
             signedTotals,
             compressedSignatoryRecord
         );
@@ -442,21 +445,21 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     // simple internal function for validating that the OperatorStake returned from a specified index is the correct one
     function _validateOperatorStake(
         IQuorumRegistry.OperatorStake memory opStake,
-        uint32 stakesBlockNumber
+        uint32 blockNumberFromTaskHash
     ) internal pure {
         // check that the stake returned from the specified index is recent enough
         require(
-            opStake.updateBlockNumber <= stakesBlockNumber,
+            opStake.updateBlockNumber <= blockNumberFromTaskHash,
             "Provided stake index is too early"
         );
 
         /** 
           check that stake is either the most recent update for the total stake (or the operator), 
-          or latest before the stakesBlockNumber
+          or latest before the blockNumberFromTaskHash
          */
         require(
             opStake.nextUpdateBlockNumber == 0 ||
-                opStake.nextUpdateBlockNumber > stakesBlockNumber,
+                opStake.nextUpdateBlockNumber > blockNumberFromTaskHash,
             "Provided stake index is not the most recent for blockNumber"
         );
     }

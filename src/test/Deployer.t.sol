@@ -8,8 +8,6 @@ import "../contracts/core/Eigen.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
-import "../contracts/core/EigenLayrDeposit.sol";
-import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
@@ -40,7 +38,6 @@ import "../contracts/utils/ERC1155TokenReceiver.sol";
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/SignatureCompaction.sol";
-import "../contracts/libraries/DataStoreHash.sol";
 
 import "./utils/Signers.sol";
 
@@ -60,7 +57,6 @@ contract EigenLayrDeployer is
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
-    EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
@@ -115,8 +111,6 @@ contract EigenLayrDeployer is
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
-    uint8 durationToInit = 2;
-
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -127,18 +121,6 @@ contract EigenLayrDeployer is
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
-
-        // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
-        deposit = EigenLayrDeposit(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(deposit),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
-        );
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -226,10 +208,8 @@ contract EigenLayrDeployer is
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
-            governor,
-            address(deposit)
+            governor
         );
 
         // initialize the delegation (proxy) contract
@@ -240,10 +220,6 @@ contract EigenLayrDeployer is
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
-
-        // initialize the deposit (proxy) contract
-        // must wait until after the DL contracts are deployed since it relies on the DLSM for updates to ProofOfStaking
-        deposit.initialize(depositContract, investmentManager, dlsm);
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
@@ -483,53 +459,6 @@ registrationData.push(
         cheats.stopPrank();
     }
 
-    function _testDepositETHIntoConsensusLayer(
-        address sender,
-        uint256 amountToDeposit
-    ) internal returns (uint256 amountDeposited) {
-        bytes32 depositDataRoot = depositContract.get_deposit_root();
-
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositEthIntoConsensusLayer{value: amountToDeposit}(
-            "0x",
-            "0x",
-            depositDataRoot
-        );
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.getConsensusLayerEth(sender),
-            amountDeposited
-        );
-        cheats.stopPrank();
-    }
-
-    function _testDepositETHIntoLiquidStaking(
-        address sender,
-        uint256 amountToDeposit,
-        IERC20 liquidStakingToken,
-        IInvestmentStrategy stratToDepositTo
-    ) internal returns (uint256 amountDeposited) {
-        // sanity in the amount we are depositing
-        cheats.assume(amountToDeposit < type(uint96).max);
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(
-            liquidStakingToken,
-            stratToDepositTo
-        );
-
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
-            amountDeposited,
-            "shares should match deposit"
-        );
-        cheats.stopPrank();
-    }
-
     //checks that it is possible to withdraw WETH
     function _testWethWithdrawal(
         address sender,
@@ -577,7 +506,7 @@ registrationData.push(
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
+   function _testInitDataStore()
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -585,6 +514,7 @@ registrationData.push(
             hex"0102030405060708091011121314151617181920"
         );
         uint32 totalBytes = 1e6;
+        uint8 duration = 2;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
@@ -597,51 +527,59 @@ registrationData.push(
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(block.number + 100);
-        cheats.warp(timeStampForInit);
+        cheats.warp(block.timestamp + 100);
         uint256 timestamp = block.timestamp;
 
         uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
-            confirmer,
             header,
-            durationToInit,
+            duration,
             totalBytes,
             blockNumber
         );
         emit log_named_uint("init datastore total gas", g - gasleft());
+        uint32 dataStoreId = dlsm.dataStoreId() - 1;
         bytes32 headerHash = keccak256(header);
 
 
         cheats.stopPrank();
 
 
-        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
-
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
-                headerHash,
-                dlsm.getDataStoresForDuration(durationToInit)-1,
-                dlsm.dataStoreId() - 1,
-                blockNumber,
-                uint96(fee),
-                confirmer,
-                bytes32(0)
-            );
+        uint256 fee = calculateFee(totalBytes, 1, duration);
 
         {
-            bytes32 dataStoreHash = DataStoreHash.computeDataStoreHash(metadata);
+            bytes32 dataStoreHash = keccak256(
+                abi.encodePacked(
+                    headerHash,
+                    dataStoreId,
+                    blockNumber,
+                    uint96(fee),
+                    bytes32(0)
+                )
+            );
 
             //check if computed hash matches stored hash in DLSM
             assertTrue(
                 dataStoreHash ==
-                    dlsm.getDataStoreIdsForDuration(durationToInit, timestamp, index),
+                    dlsm.getDataStoreIdsForDuration(duration, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
+
+
+        IDataLayrServiceManager.DataStoreMetadata
+            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
+                headerHash,
+                dataStoreId,
+                dataStoreId,
+                blockNumber,
+                uint96(fee),
+                bytes32(0)
+            );
         
         searchData = IDataLayrServiceManager.DataStoreSearchData(
-                durationToInit,
+                duration,
                 timestamp,
                 index,
                 metadata
@@ -747,8 +685,7 @@ registrationData.push(
             );
         }
 
-        uint256 initTime = 1000000001;
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
@@ -767,30 +704,29 @@ registrationData.push(
         );
         (uint256 sigma_0, uint256 sigma_1) = (
             uint256(
-                17495938995352312074042671866638379644300283276197341589218393173802359623203
+                3227515082877366753481082344554384723742742005849592832962567665412663301823
             ),
             uint256(
-                9126369385140686627953696969589239917670210184443620227590862230088267251657
+                417272605470211919435039030320974523411847825598612812754681380173701139632
             )
         );
 
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 msgHash,
+             bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
-             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
+             uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
              uint256[4] apk,
              uint256[2] sigma
             >
      */
-        emit log_named_bytes32("asfsadfa", keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))));
         bytes memory data = abi.encodePacked(
-            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
+            searchData.metadata.headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,
@@ -806,6 +742,8 @@ registrationData.push(
         );
 
         uint256 gasbefore = gasleft();
+
+
         
         dlsm.confirmDataStore(data, searchData);
         emit log_named_uint("confirm gas overall", gasbefore - gasleft());
@@ -820,9 +758,8 @@ registrationData.push(
 
 
     function _testConfirmDataStoreWithoutRegister() internal {
-        uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = _testInitDataStore(initTime, address(this));
+            memory searchData = _testInitDataStore();
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
@@ -851,7 +788,7 @@ registrationData.push(
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 msgHash,
+             bytes32 headerHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -862,12 +799,8 @@ registrationData.push(
              uint256[2] sigma
             >
      */
-        emit log_named_bytes("TO SIGN", abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
-        // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
-            keccak256(
-                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))
-            ),
+            searchData.metadata.headerHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,
@@ -895,7 +828,7 @@ registrationData.push(
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsDelegate(address sender, DelegationTerms dt)
+    function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
         internal
     {
         cheats.startPrank(sender);
@@ -905,33 +838,6 @@ registrationData.push(
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
         );
         cheats.stopPrank();
-    }
-
-    // deploys a DelegationTerms contract on behalf of 'operator', with several hard-coded values
-    // does a simple check that deployment was successful
-    // currently hard-codes 'weth' as the only payment token
-    function _deployDelegationTerms(address operator)
-        internal
-        returns (DelegationTerms)
-    {
-        address[] memory paymentTokens = new address[](1);
-        paymentTokens[0] = address(weth);
-        uint16 _MAX_OPERATOR_FEE_BIPS = 500;
-        uint16 _operatorFeeBips = 500;
-        DelegationTerms dt = new DelegationTerms(
-            operator,
-            investmentManager,
-            paymentTokens,
-            address(delegation),
-            dlRepository,
-            _MAX_OPERATOR_FEE_BIPS,
-            _operatorFeeBips
-        );
-        assertTrue(
-            address(dt) != address(0),
-            "_deployDelegationTerms: DelegationTerms failed to deploy"
-        );
-        return dt;
     }
 
     // tries to delegate from 'sender' to 'operator'
@@ -1093,7 +999,6 @@ registrationData.push(
             address(dlRepository) != address(0),
             "dlRepository failed to deploy"
         );
-        assertTrue(address(deposit) != address(0), "deposit failed to deploy");
         assertTrue(
             dlRepository.serviceManager() == dlsm,
             "ServiceManager set incorrectly"
