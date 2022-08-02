@@ -224,6 +224,7 @@ contract DataLayrPaymentManager is
                 amount,
                 // setting to 0 to indicate commitment to payment claim
                 PaymentStatus.COMMITTED,
+                // storing collateral amount deposited
                 paymentFraudProofCollateral
             );
 
@@ -598,7 +599,7 @@ contract DataLayrPaymentManager is
         } 
         /*
         * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
-        * If trueAmount == challenge.amount1, then the challenger is correct and the operator is wrong
+        * If trueAmount == challenge.amount1, then the operator is correct and the challenger is wrong
         */
         
         else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
