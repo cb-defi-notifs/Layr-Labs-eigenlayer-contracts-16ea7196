@@ -158,12 +158,12 @@ contract DataLayrPaymentManager is
         depositsOf[onBehalfOf] += amount;
     }
 
-    function setPermanentAllowance(address allowed, uint256 amount) public {
+    function setAllowance(address allowed, uint256 amount) public {
         allowances[msg.sender][allowed] = amount;
     }
 
+    // called by the serviceManager when a DataStore is initialized. decreases the depositsOf `payer` by `feeAmount`
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
-        //todo: can this be a permanent allowance? decreases an sstore per fee paying.
         if(initiator != payer){
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
             if(allowances[payer][initiator] != type(uint256).max) {
@@ -180,12 +180,12 @@ contract DataLayrPaymentManager is
     }
 
     /**
-     @notice This is used by a DataLayr operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toDataStoreId  
+     @notice This is used by a DataLayr operator to make a claim on the @param amount that they deserve 
+             for their service, since their last payment until @param toDataStoreId  
      **/
     function commitPayment(uint32 toDataStoreId, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-
+// TODO: IMO we should *not* be checking against a value here -- this should be calling something like `registry.isOperator` or `registry.isRegistered`
         // only registered DataLayr operators can call
         require(
             registry.getOperatorType(msg.sender) != 0,
@@ -208,9 +208,12 @@ contract DataLayrPaymentManager is
         );
 
         /**
-         @notice recording payment claims for the DataLayr operators
+         @notice recording payment claims for the DataLayr operator
          */
         uint32 fromDataStoreId;
+
+        // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
+        uint32 confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
 
         // for the special case of this being the first payment that is being claimed by the DataLayr operator;
         /**
@@ -220,37 +223,22 @@ contract DataLayrPaymentManager is
         if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
             // get the dataStoreId when the DataLayr operator registered
             fromDataStoreId = registry.getFromTaskNumberForOperator(msg.sender);
-            require(fromDataStoreId < toDataStoreId, "invalid payment range");
-
-            // record the payment information pertaining to the operator
-            operatorToPayment[msg.sender] = Payment(
-                fromDataStoreId,
-                toDataStoreId,
-                uint32(block.timestamp + paymentFraudProofInterval),
-                amount,
-                // setting to 0 to indicate commitment to payment claim
-                PaymentStatus.COMMITTED,
-                // storing collateral amount deposited
-                paymentFraudProofCollateral
-            );
-
-            emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
-
-            return;
+        } else {
+            // you have to redeem starting from the last time redeemed up to
+            fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
         }
 
-        // you have to redeem starting from the last time redeemed up to
-        fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
         require(fromDataStoreId < toDataStoreId, "invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromDataStoreId,
             toDataStoreId,
-            uint32(block.timestamp + paymentFraudProofInterval),
+            confirmAt,
             amount,
-            // set status as 0: committed
+            // set payment status as 1: committed
             PaymentStatus.COMMITTED,
+            // storing collateral amount deposited
             paymentFraudProofCollateral
         );
 
