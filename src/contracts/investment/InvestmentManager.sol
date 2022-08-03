@@ -563,40 +563,6 @@ contract InvestmentManager is
     }
     
     /**
-     * @notice gets depositor's strategies
-     */
-    function getStrategies(address depositor)
-        external
-        view
-        returns (IInvestmentStrategy[] memory)
-    {
-        return investorStrats[depositor];
-    }
-
-    /**
-     * @notice gets depositor's shares in its strategies
-     */
-    function getStrategyShares(address depositor)
-        external
-        view
-        returns (uint256[] memory)
-    {
-        uint256 strategiesLength = investorStrats[depositor].length;
-        uint256[] memory shares = new uint256[](strategiesLength);
-
-        for (uint256 i = 0; i < strategiesLength;) {
-            shares[i] = investorStratShares[depositor][
-                investorStrats[depositor][i]
-            ];
-            unchecked {
-                ++i;
-            }
-        }
-
-        return shares;
-    }
-    
-    /**
      * @notice get all details on the depositor's investments and shares
      */
     /**
@@ -625,51 +591,6 @@ contract InvestmentManager is
             shares
         );
     }
-
-    /**
-     * @notice get the underlying-denominated value of shares in specified investment strategies
-     */
-    function getUnderlyingValueOfStrategyShares(
-        IInvestmentStrategy[] calldata strats,
-        uint256[] calldata shares
-    ) external returns (uint256) {
-        uint256 stake;
-        uint256 numStrats = strats.length;
-        require(
-            numStrats == shares.length,
-            "shares and strats must be same length"
-        );
-
-        // for all strats find uderlying eth value of shares
-        for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].sharesToUnderlying(shares[i]);
-            unchecked {
-                ++i;
-            }
-        }
-        return stake;
-    }
-
-    function getUnderlyingValueOfStrategySharesView(
-        IInvestmentStrategy[] calldata strats,
-        uint256[] calldata shares
-    ) external view returns (uint256) {
-        uint256 stake;
-        uint256 numStrats = strats.length;
-        require(
-            numStrats == shares.length,
-            "shares and strats must be same length"
-        );
-        // for all strats find uderlying eth value of shares
-        for (uint256 i = 0; i < numStrats;) {
-            stake += strats[i].sharesToUnderlyingView(shares[i]);
-            unchecked {
-                ++i;
-            }
-        }
-        return stake;
-    }
-
 
     function investorStratsLength(address investor)
         external
