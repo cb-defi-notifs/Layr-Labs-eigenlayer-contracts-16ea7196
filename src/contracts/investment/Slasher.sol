@@ -43,6 +43,7 @@ contract Slasher is
         //_disableInitializers();
     }
 
+    // EXTERNAL FUNCTIONS
     function initialize(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _delegation,
@@ -175,17 +176,7 @@ contract Slasher is
         }
     }
 
-    function hasBeenSlashed(address staker) external view returns (bool) {
-        if (slashedStatus[staker]) {
-            return true;
-        } else if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegation(staker);
-            return(slashedStatus[operatorAddress]);
-        } else {
-            return false;
-        }
-    }
-
+    // INTERNAL FUNCTIONS
     function _optIntoSlashing(address operator, address contractAddress) internal {
         if (!optedIntoSlashing[operator][contractAddress]) {
             optedIntoSlashing[operator][contractAddress] = true;
@@ -211,6 +202,18 @@ contract Slasher is
         if (globallyPermissionedContracts[contractToRemove]) {
             globallyPermissionedContracts[contractToRemove] = false;
             emit GloballyPermissionedContractRemoved(contractToRemove);
+        }
+    }
+
+    // VIEW FUNCTIONS
+    function hasBeenSlashed(address staker) external view returns (bool) {
+        if (slashedStatus[staker]) {
+            return true;
+        } else if (delegation.isDelegated(staker)) {
+            address operatorAddress = delegation.delegation(staker);
+            return(slashedStatus[operatorAddress]);
+        } else {
+            return false;
         }
     }
 }
