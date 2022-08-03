@@ -188,9 +188,7 @@ contract EigenLayrDelegation is
     function contestUndelegationCommit(
         address staker,
         bytes calldata data,
-        IServiceFactory serviceFactory,
-        IRepository repository,
-        IRegistry registry
+        IServiceManager slashingContract
     ) external {
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED,
@@ -207,19 +205,15 @@ contract EigenLayrDelegation is
         require(
             slasher.canSlash(
                 delegation[staker],
-                serviceFactory,
-                repository,
-                registry
+                address(slashingContract)
             ),
             "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
     // scoped block to help solve stack too deep
     {
-        IServiceManager serviceManager = repository.serviceManager();
-
         // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
-        serviceManager.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
+        slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
     }
 
         // perform the slashing itself

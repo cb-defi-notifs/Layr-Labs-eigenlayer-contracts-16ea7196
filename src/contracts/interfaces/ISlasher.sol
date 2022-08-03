@@ -5,13 +5,6 @@ import "./IServiceFactory.sol";
 import "./IInvestmentStrategy.sol";
 
 interface ISlasher {
-    function canSlash(
-        address toBeSlashed,
-        IServiceFactory serviceFactory,
-        IRepository repository,
-        IRegistry registry
-    ) external returns (bool);
-
     function slashOperator(
         address toSlash
     ) external;

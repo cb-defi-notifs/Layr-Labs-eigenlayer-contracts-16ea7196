@@ -287,9 +287,6 @@ contract InvestmentManager is
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
      */
     // TODO: de-duplicate this code and the code in EigenLayrDelegation's 'contestUndelegationCommit' function, if at all possible
-    /**
-     @param repository of one middleware where depositer is still obligated to provide its service 
-     */
     function fraudproofQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -297,8 +294,7 @@ contract InvestmentManager is
         address depositor,
         uint256 queuedWithdrawalNonce,
         bytes calldata data,
-        IServiceFactory serviceFactory,
-        IRepository repository
+        IServiceManager slashingContract
     ) external {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
@@ -323,9 +319,7 @@ contract InvestmentManager is
         require(
             slasher.canSlash(
                 operator,
-                serviceFactory,
-                repository,
-                repository.registry()
+                address(slashingContract)
             ),
             "Contract does not have rights to slash operator"
         );
@@ -334,8 +328,7 @@ contract InvestmentManager is
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
-            IServiceManager serviceManager = repository.serviceManager();
-            serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
+            slashingContract.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
         }
         
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal

@@ -113,7 +113,7 @@ contract InvestmentTests is
         InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(acct_0, 0);
         investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
 
-        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, serviceFactory, dlRepository);
+        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, dlsm);
 
 
         cheats.stopPrank();
