@@ -340,7 +340,6 @@ contract DataLayrPaymentManager is
         collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
 
         // update the payment status and reset the fraudproof window for this payment
-// TODO: @gpsanant if 'confirmAt' and 'settleAt' are set to *the same UTC timestamp*, how are we preventing someone challenging themselves to run out the fraudproof clock?
         operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
         operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
