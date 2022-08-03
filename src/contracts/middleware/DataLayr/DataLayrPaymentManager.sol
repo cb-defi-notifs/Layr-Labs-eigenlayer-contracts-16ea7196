@@ -111,7 +111,7 @@ contract DataLayrPaymentManager is
              during payment challenges
      */
     uint256 public paymentFraudProofCollateral;
-    
+
     /*
         * @notice mapping between the operator and its current committed payment
         *  or last redeemed payment 
@@ -125,17 +125,16 @@ contract DataLayrPaymentManager is
     mapping(address => mapping(address => uint256)) public allowances;
 
     // EVENTS
-    // EVENTS
     event PaymentCommit(
-        address operator,
+        address indexed operator,
         uint32 fromDataStoreId,
         uint32 toDataStoreId,
         uint256 fee
     );
-    event PaymentRedemption(address operator, uint256 fee);
-    event PaymentBreakdown(uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
-    event PaymentChallengeInit(address operator, address challenger);
-    event PaymentChallengeResolution(address operator, bool operatorWon);
+    event PaymentRedemption(address indexed operator, uint256 fee);
+    event PaymentBreakdown(address indexed operator, uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
+    event PaymentChallengeInit(address indexed operator, address challenger);
+    event PaymentChallengeResolution(address indexed operator, bool operatorWon);
 
     constructor(
         IERC20 _paymentToken,
@@ -406,7 +405,7 @@ contract DataLayrPaymentManager is
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
         
-        emit PaymentBreakdown(challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
+        emit PaymentBreakdown(operator, challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
     }
 
     // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
