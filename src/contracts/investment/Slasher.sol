@@ -46,7 +46,8 @@ contract Slasher is
         investmentManager = _investmentManager;
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
-        // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
+        // add EigenLayrDelegation to list of permissioned contracts
+        globallyPermissionedContracts[address(_delegation)] = true;
     }
 
     /**
