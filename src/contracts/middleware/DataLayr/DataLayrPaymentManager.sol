@@ -593,8 +593,7 @@ contract DataLayrPaymentManager is
             revert("Not in one step challenge phase");
         }
 
-        //@TODO: Verify that it is correct to set challenge Status to redeemed here
-        challenge.status = ChallengeStatus.REDEEMED;
+        challenge.status = ChallengeStatus.RESOLVED;
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;

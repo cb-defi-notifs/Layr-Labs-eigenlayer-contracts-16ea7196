@@ -17,12 +17,12 @@ interface IDataLayrPaymentManager is IPaymentManager {
     }
 
     enum ChallengeStatus{ 
-        REDEEMED,
-        COMMITTED, 
+        UNINITIALIZED,
         OPERATOR_TURN, 
         CHALLENGER_TURN, 
         OPERATOR_TURN_ONE_STEP, 
-        CHALLENGER_TURN_ONE_STEP
+        CHALLENGER_TURN_ONE_STEP,
+        RESOLVED
     }
 
     function getChallengeStatus(address operator) external view returns(ChallengeStatus);
