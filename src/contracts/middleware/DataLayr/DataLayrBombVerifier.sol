@@ -9,7 +9,6 @@ import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
 
 contract DataLayrBombVerifier {
-
     struct DataStoresForDuration {
         uint256 timestamp;
         uint32 index;
@@ -76,7 +75,8 @@ contract DataLayrBombVerifier {
         address operator,
         DataStoreProofs calldata dataStoreProofs,
         Indexes calldata indexes,
-        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[]
+            calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
@@ -532,11 +532,11 @@ The loop iterates through to find this next DataStore, thus determining the true
 
         operatorIndex = dlRegistry.getOperatorIndex(
             operator,
-            dataStoreId,
+            searchData.metadata.blockNumber,
             operatorIndex
         );
         totalOperatorsIndex = dlRegistry.getTotalOperators(
-            dataStoreId,
+            searchData.metadata.blockNumber,
             totalOperatorsIndex
         );
         return (operatorIndex + dataStoreId) % totalOperatorsIndex;

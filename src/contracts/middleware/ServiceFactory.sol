@@ -64,6 +64,7 @@ contract ServiceFactory is IServiceFactory {
         return newRepository;
     }
 
+
     function createNewService(
         IServiceManager serviceManager,
         address initialRepositoryOwner,
@@ -73,7 +74,7 @@ contract ServiceFactory is IServiceFactory {
     ) external returns(IRepository, IRegistry, IVoteWeigher) {
         IRepository repository = new Repository(delegation, investmentManager);
         IVoteWeigher voteWeigher = new VoteWeigherBase(repository, delegation, investmentManager, _NUMBER_OF_QUORUMS);
-        IRegistry registry = blsRegistryFactory.createNewBLSRegistry(Repository(address(repository)), delegation, investmentManager, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
+        IRegistry registry = blsRegistryFactory.createNewBLSRegistry(Repository(address(repository)), delegation, investmentManager, _NUMBER_OF_QUORUMS, _ethStrategiesConsideredAndMultipliers, _eigenStrategiesConsideredAndMultipliers);
         Repository(address(repository)).initialize(
             voteWeigher,
             serviceManager,

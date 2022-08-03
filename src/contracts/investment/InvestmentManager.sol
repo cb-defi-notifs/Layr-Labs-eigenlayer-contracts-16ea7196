@@ -45,14 +45,6 @@ contract InvestmentManager is
         _;
     }
 
-    modifier onlyEigenLayrDepositContract() {
-        require(
-            msg.sender == eigenLayrDepositContract,
-            "InvestmentManager: onlyEigenLayrDepositContract"
-        );
-        _;
-    }
-
     modifier onlyNotSlashed(address staker) {
         require(!slashedStatus[staker], "staker has been slashed");
         if (delegation.isDelegator(staker)) {
@@ -69,6 +61,9 @@ contract InvestmentManager is
         //_disableInitializers();
     }
 
+
+
+
     /**
      * @notice Initializes the investment manager contract with a given set of strategies
      *         and slashing rules.
@@ -78,17 +73,14 @@ contract InvestmentManager is
      *        this investment manager contract   
      */
     function initialize(
-        IInvestmentStrategy[] memory strategies,
         ISlasher _slasher,
-        address _governor,
-        address _eigenLayrDepositContract
+        address _governor
     ) external initializer {
-        consensusLayerEthStrat = strategies[0];
-        proofOfStakingEthStrat = strategies[1];
         _transferOwnership(_governor);
         slasher = _slasher;
-        eigenLayrDepositContract = _eigenLayrDepositContract;
     }
+
+
 
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
@@ -113,66 +105,9 @@ contract InvestmentManager is
         uint256 amount
     ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        
         // increase delegated shares accordingly, if applicable
-
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            
-            delegation.increaseOperatorShares(
-                operatorAddress,
-                strategy,
-                shares
-            );
-
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shares;
-            dt.onDelegationReceived(msg.sender, investorStrats, investorShares);
-
-        }
-    }
-
-    /**
-     * @notice used for investing a depositor's assets into multiple specified strategy, in the
-     *         behalf of the depositor, with each of the investment being done in terms of a
-     *         specified token and their respective amount.
-     */
-    function depositIntoStrategies(
-        address depositor,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata amounts
-    ) external onlyNotSlashed(msg.sender) returns (uint256[] memory) {
-        uint256 strategiesLength = strategies.length;
-        uint256[] memory shares = new uint256[](strategiesLength);
-        for (uint256 i = 0; i < strategiesLength; ) {
-            shares[i] = _depositIntoStrategy(
-                depositor,
-                strategies[i],
-                tokens[i],
-                amounts[i]
-            );
-            unchecked {
-                ++i;
-            }
-        }
-        // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            delegation.increaseOperatorShares(
-                operatorAddress,
-                strategies,
-                shares
-            );
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-            dt.onDelegationReceived(msg.sender, strategies, shares);
-        }
-        return shares;
+        delegation.increaseDelegatedShares(depositor, strategy, shares);
     }
 
     function _depositIntoStrategy(
@@ -182,11 +117,8 @@ contract InvestmentManager is
         uint256 amount
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
-
         if (investorStratShares[depositor][strategy] == 0) {
-            
             investorStrats[depositor].push(strategy);
-
         }
 
         // transfer tokens from the sender to the strategy
@@ -230,78 +162,8 @@ contract InvestmentManager is
             token,
             shareAmount
         );
-        // decrease delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            delegation.decreaseOperatorShares(
-                operatorAddress,
-                strategy,
-                shareAmount
-            );
-
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            //Calls into operator's delegationTerms contract to update weights of individual delegator
-
-            IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
-            investorStrats[0] = strategy;
-            investorShares[0] = shareAmount;
-
-            dt.onDelegationWithdrawn(msg.sender,investorStrats, investorShares);
-
-        }
-    }
-
-    /**
-     * @notice Used by stakers to withdraw the given token and shareAmount from the given strategies.
-     */
-    /**
-     * @dev Only those stakers who have notified the system that they want to undelegate
-     *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
-     *      call this function.
-     */
-    function withdrawFromStrategies(
-        uint256[] calldata strategyIndexes,
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts
-    ) external onlyNotSlashed(msg.sender) onlyNotDelegated(msg.sender) {
-        uint256 strategyIndexIndex;
-        address depositor = msg.sender;
-
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength; ) {
-            // the internal function will return 'true' in the event the strategy was
-            // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
-            if (
-                _withdrawFromStrategy(
-                    depositor,
-                    strategyIndexes[strategyIndexIndex],
-                    strategies[i],
-                    tokens[i],
-                    shareAmounts[i]
-                )
-            ) {
-                unchecked {
-                    ++strategyIndexIndex;
-                }
-            }
-            //increment the loop
-            unchecked {
-                ++i;
-            }
-        }
-        // decrease delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address operatorAddress = delegation.delegation(msg.sender);
-            delegation.decreaseOperatorShares(
-                operatorAddress,
-                strategies,
-                shareAmounts
-            );
-            IDelegationTerms dt = delegation.delegationTerms(operatorAddress);
-            dt.onDelegationWithdrawn(msg.sender, strategies, shareAmounts);
-        }
+        //decrease corresponding operator's shares, if applicable
+        delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
     }
 
     // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
@@ -335,9 +197,6 @@ contract InvestmentManager is
     ) internal returns (bool) {
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
-
-        
-
 
         require(shareAmount <= userShares, "shareAmount too high");
         //unchecked arithmetic since we just checked this above
@@ -380,8 +239,10 @@ contract InvestmentManager is
                     }
                 }
             }
-            
 
+            // pop off the last entry in the list of strategies
+            investorStrats[depositor].pop();
+            
             // return true in the event that the strategy was removed from investorStrats[depositor]
             return true;
         }
@@ -467,15 +328,12 @@ contract InvestmentManager is
             }
         }
 
-        
-
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             latestFraudproofTimestamp: uint32(block.timestamp),
             withdrawer: withdrawerAndNonce.withdrawer
         });
-        
 
         emit WithdrawalQueued(
             msg.sender,
@@ -538,13 +396,17 @@ contract InvestmentManager is
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
             depositor
         ][withdrawalRoot];
+
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
         address withdrawer = withdrawalStorage.withdrawer;
+
+        // to ensure there can't be multiple withdrawals for the same withdrawal request
         require(
             withdrawalStorage.initTimestamp > 0,
             "withdrawal does not exist"
         );
+
         require(
             uint32(block.timestamp) >= unlockTime ||
                 delegation.isNotDelegated(depositor),
@@ -579,6 +441,9 @@ contract InvestmentManager is
      *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
      */
     // TODO: de-duplicate this code and the code in EigenLayrDelegation's 'contestUndelegationCommit' function, if at all possible
+    /**
+     @param repository of one middleware where depositer is still obligated to provide its service 
+     */
     function fraudproofQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -599,6 +464,8 @@ contract InvestmentManager is
         );
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        
+        /// CRITIC --- can it be replaced with  withdrawalStorage.initTimestamp? more gas optimized
         uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
 
         require(initTimestamp > 0, "withdrawal does not exist");
@@ -607,26 +474,24 @@ contract InvestmentManager is
 
         address operator = delegation.delegation(depositor);
 
-        //TODO UNCOMMENT THIS vvvv
-        // require(
-        //     slasher.canSlash(
-        //         operator,
-        //         serviceFactory,
-        //         repository,
-        //         repository.registry()
-        //     ),
-        //     "Contract does not have rights to prevent undelegation"
-        // );
+        require(
+            slasher.canSlash(
+                operator,
+                serviceFactory,
+                repository,
+                repository.registry()
+            ),
+            "Contract does not have rights to slash operator"
+        );
+
 
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
-
             IServiceManager serviceManager = repository.serviceManager();
-
             serviceManager.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
-
         }
+        
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
         queuedWithdrawals[depositor][withdrawalRoot]
             .latestFraudproofTimestamp = uint32(block.timestamp);
@@ -687,8 +552,6 @@ contract InvestmentManager is
 
         // modify delegated shares accordingly, if applicable
         if (!delegation.isSelfOperator(slashedAddress)) {
-
-            
             address delegatedAddress = delegation.delegation(slashedAddress);
 
             delegation.decreaseOperatorShares(
@@ -746,57 +609,6 @@ contract InvestmentManager is
             unchecked { ++i; }
         }
     }
-
-    function depositConsenusLayerEth(address depositor, uint256 amount)
-        external
-        onlyEigenLayrDepositContract
-        returns (uint256)
-    {
-        //this will be a "HollowInvestmentStrategy"
-        uint256 shares = consensusLayerEthStrat.deposit(IERC20(address(0)), amount);
-
-        // record the ETH that has been staked by the depositor
-        investorStratShares[depositor][consensusLayerEthStrat] += shares;
-
-        // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.increaseOperatorShares(
-                delegatedAddress,
-                consensusLayerEthStrat,
-                shares
-            );
-            //TODO: call into delegationTerms contract as well?
-        }
-
-        return shares;
-    }
-
-    function depositProofOfStakingEth(address depositor, uint256 amount)
-        external
-        onlyEigenLayrDepositContract
-        returns (uint256)
-    {
-        //this will be a "HollowInvestmentStrategy"
-        uint256 shares = proofOfStakingEthStrat.deposit(IERC20(address(0)), amount);
-
-        // record the proof of staking ETH that has been staked by the depositor
-        investorStratShares[depositor][proofOfStakingEthStrat] += shares;
-
-        // increase delegated shares accordingly, if applicable
-        if (delegation.isDelegator(msg.sender)) {
-            address delegatedAddress = delegation.delegation(msg.sender);
-            delegation.increaseOperatorShares(
-                delegatedAddress,
-                proofOfStakingEthStrat,
-                shares
-            );
-            //TODO: call into delegationTerms contract as well?
-        }
-
-        return shares;
-    }
-
 
     /**
      * @notice gets depositor's strategies
@@ -860,25 +672,6 @@ contract InvestmentManager is
             investorStrats[depositor],
             shares
         );
-    }
-
-    /**
-     * @notice gets depositor's ETH that has been deposited directly to settlement layer
-     */
-    function getConsensusLayerEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][consensusLayerEthStrat];
-    }
-
-    function getProofOfStakingEth(address depositor)
-        external
-        view
-        returns (uint256)
-    {
-        return investorStratShares[depositor][proofOfStakingEthStrat];
     }
 
     /**

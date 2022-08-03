@@ -16,6 +16,12 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
      * @notice This struct is used for containing the details of a task that is created 
      *         by the middleware for validation in EigenLayr.
      */
+
+    /**************************
+        DATA STRUCTURES
+     **************************/ 
+
+    /// @notice contains details of the task  
     struct Task {
         // hash(reponse) with the greatest cumulative weight
         bytes32 leadingResponse;
@@ -31,12 +37,13 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         mapping(address => uint256) operatorWeights;
     }
 
+
     IVoteWeigher public voteWeigher;
     ITaskMetadata public taskMetadata;
     IInvestmentManager public immutable investmentManager;
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     
-    // fixed duration of all new tasks
+    /// @notice fixed duration of all new tasks
     uint256 public taskDuration;
 
     /**
@@ -49,18 +56,25 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
      */
     mapping(bytes32 => Task) public tasks;
 
+
+    /*****************
+        EVENTS
+     *****************/
     event TaskCreated(bytes32 indexed taskDataHash, uint256 blockTimestamp);
+
     event ResponseReceived(
         address indexed submitter,
         bytes32 indexed taskDataHash,
         bytes32 indexed responseHash,
         uint256 weightAssigned
     );
+
     event NewLeadingResponse(
         bytes32 indexed taskDataHash,
         bytes32 indexed previousLeadingResponseHash,
         bytes32 indexed newLeadingResponseHash
     );
+    
     event TaskFinalized(
         bytes32 indexed taskDataHash,
         bytes32 indexed outcome,
