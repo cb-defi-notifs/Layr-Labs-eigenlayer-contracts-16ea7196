@@ -6,7 +6,8 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "forge-std/Test.sol";
 
@@ -17,7 +18,12 @@ import "forge-std/Test.sol";
  *          - revoking permission for slashing from specified contracts,
  *          - calling investManager to do actual slashing.          
  */
-contract Slasher is Ownable, ISlasher, DSTest {
+contract Slasher is 
+    Initializable,
+    OwnableUpgradeable,
+    ISlasher
+    ,DSTest 
+{
     IInvestmentManager public investmentManager;
     IEigenLayrDelegation public delegation;
     mapping(address => bool) public globallyPermissionedContracts;
@@ -27,7 +33,16 @@ contract Slasher is Ownable, ISlasher, DSTest {
     // staker => if they are 'slashed' or not
     mapping(address => bool) public slashedStatus;
 
-    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation, address _eigenLayrGovernance) {
+    constructor(){
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
+
+    function initialize(
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _delegation,
+        address _eigenLayrGovernance
+    ) external initializer {
         investmentManager = _investmentManager;
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
