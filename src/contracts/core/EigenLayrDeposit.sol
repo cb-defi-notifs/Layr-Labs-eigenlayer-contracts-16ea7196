@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
-import "../libraries/SignatureCompaction.sol";
 
 // import "ds-test/test.sol";
 
@@ -110,7 +109,7 @@ contract EigenLayrDeposit is
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
         //check validity of signature
-        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+        address recoveredAddress = ECDSA.recover(
             digestHash,
             r,
             vs
