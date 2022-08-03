@@ -191,10 +191,9 @@ contract DataLayrPaymentManager is
      **/
     function commitPayment(uint32 toDataStoreId, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-// TODO: IMO we should *not* be checking against a value here -- this should be calling something like `registry.isOperator` or `registry.isRegistered`
         // only registered DataLayr operators can call
         require(
-            registry.getOperatorType(msg.sender) != 0,
+            registry.isRegistered(msg.sender),
             "DataLayrPaymentManager.commitPayment: Only registered operators can call this function"
         );
 
