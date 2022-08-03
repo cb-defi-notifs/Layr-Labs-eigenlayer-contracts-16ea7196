@@ -33,6 +33,9 @@ contract Slasher is
     // staker => if they are 'slashed' or not
     mapping(address => bool) public slashedStatus;
 
+    event GloballyPermissionedContractAdded(address indexed contractAdded);
+    event GloballyPermissionedContractRemoved(address indexed contractRemoved);
+
     constructor(){
         // TODO: uncomment for production use!
         //_disableInitializers();
@@ -47,7 +50,7 @@ contract Slasher is
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
         // add EigenLayrDelegation to list of permissioned contracts
-        globallyPermissionedContracts[address(_delegation)] = true;
+        _addGloballyPermissionedContract(address(_delegation));
     }
 
     /**
@@ -55,7 +58,7 @@ contract Slasher is
      */
     function addPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
-            globallyPermissionedContracts[contracts[i]] = true;
+            _addGloballyPermissionedContract(contracts[i]);
             unchecked {
                 ++i;
             }
@@ -67,7 +70,7 @@ contract Slasher is
      */
     function removePermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
-            globallyPermissionedContracts[contracts[i]] = false;
+            _removeGloballyPermissionedContract(contracts[i]);
             unchecked {
                 ++i;
             }
@@ -179,6 +182,20 @@ contract Slasher is
             return(slashedStatus[operatorAddress]);
         } else {
             return false;
+        }
+    }
+
+    function _addGloballyPermissionedContract(address contractToAdd) internal {
+        if (!globallyPermissionedContracts[contractToAdd]) {
+            globallyPermissionedContracts[contractToAdd] = true;
+            emit GloballyPermissionedContractAdded(contractToAdd);
+        }
+    }
+
+    function _removeGloballyPermissionedContract(address contractToRemove) internal {
+        if (globallyPermissionedContracts[contractToRemove]) {
+            globallyPermissionedContracts[contractToRemove] = false;
+            emit GloballyPermissionedContractRemoved(contractToRemove);
         }
     }
 }
