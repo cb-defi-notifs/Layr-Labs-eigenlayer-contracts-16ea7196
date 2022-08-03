@@ -18,7 +18,6 @@ interface IDataLayrPaymentManager is IPaymentManager {
     }
 
     enum ChallengeStatus{ 
-        UNINITIALIZED,
         OPERATOR_TURN, 
         CHALLENGER_TURN, 
         OPERATOR_TURN_ONE_STEP, 
