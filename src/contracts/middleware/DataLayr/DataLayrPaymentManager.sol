@@ -82,6 +82,12 @@ contract DataLayrPaymentManager is
         uint256 eigenStakeSigned;
     }
 
+    enum DissectionType {
+        INVALID,
+        FIRST_HALF,
+        SECOND_HALF
+    }
+
     /**
      * @notice challenge window for submitting fraudproof in case of incorrect payment 
      *         claim by the registered operator 
@@ -380,8 +386,7 @@ contract DataLayrPaymentManager is
                 // TODO: this line doesn't appear to be doing anything!
                 challenge.toDataStoreId = toDataStoreId;
             }
-            //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
-            _updateChallengeAmounts(operator, 3, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
         } else {
             diff = (toDataStoreId - fromDataStoreId);
             if (diff % 2 == 1) {
@@ -394,7 +399,7 @@ contract DataLayrPaymentManager is
                 challenge.toDataStoreId = toDataStoreId - diff;
                 challenge.fromDataStoreId = fromDataStoreId;
             }
-            _updateChallengeAmounts(operator, 1, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         }
         challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
 
@@ -438,24 +443,24 @@ contract DataLayrPaymentManager is
     //an operator can respond to challenges and breakdown the amount
     function _updateChallengeAmounts(
         address operator, 
-        uint8 dissectionType,
+        DissectionType dissectionType,
         uint120 amount1,
         uint120 amount2
     ) internal {
-        if (dissectionType == 1) {
+        if (dissectionType == DissectionType.FIRST_HALF) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
                 "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount bbbreakdown"
             );
-        } else if (dissectionType == 3) {
+        } else if (dissectionType == DissectionType.SECOND_HALF) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
                 "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("DataLayrPaymentManager._updateChallengeAmounts: Not in operator challenge phase");
+            revert("DataLayrPaymentManager._updateChallengeAmounts: invalid DissectionType");
         }
         operatorToPaymentChallenge[operator].amount1 = amount1;
         operatorToPaymentChallenge[operator].amount2 = amount2;
