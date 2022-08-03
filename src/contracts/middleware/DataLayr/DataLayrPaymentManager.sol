@@ -25,8 +25,6 @@ contract DataLayrPaymentManager is
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
     */
-
-    
     struct Payment {
         // dataStoreId starting from which payment is being claimed 
         uint32 fromDataStoreId; 
@@ -36,48 +34,44 @@ contract DataLayrPaymentManager is
         uint32 confirmAt; 
         // payment for range [fromDataStoreId, toDataStoreId)
         /// @dev max 1.3e36, keep in mind for token decimals
-        uint120 amount; 
+        uint120 amount;
+        // indicates the status of the payment
+        /**
+         @notice The possible statuses are:
+                    - 0: REDEEMED,
+                    - 1: COMMITTED,
+                    - 2: CHALLENGED
+         */
         PaymentStatus status; 
-        uint256 collateral; //account for if collateral changed
+        //amount of collateral placed on this payment. stored in case `paymentFraudProofCollateral` changes
+        uint256 collateral;
     }
 
     struct PaymentChallenge {
-        // DataLayr operator whose payment claim is being challenged,
+        // DataLayr operator whose payment claim is being challenged
         address operator;
-
         // the entity challenging with the fraudproof
         address challenger;
-
         // address of the DataLayr service manager contract
         address serviceManager;
-
-        // the DataStoreId from which payment has been computed
+        // the DataStoreId from which payment has been claimed
         uint32 fromDataStoreId;
-
-        // the DataStoreId until which payment has been computed to
+        // the DataStoreId until which payment has been claimed
         uint32 toDataStoreId;
-
-        // 
+        // bisection amounts -- interactive fraudproof involves repeated bisection claims
         uint120 amount1;
-
-        // 
         uint120 amount2;
-
-        // used for recording the time when challenge will be settled
-        uint32 confirmAt; // when will be confirmed, used for fraud proof period
-
-
+        // used for recording the time when challenge will be settled, used for fraud proof period
+        uint32 settleAt;
         // indicates the status of the challenge
         /**
-         @notice The possible status are:
-                    - 0: committed,
-                    - 1: redeemed,
-                    - 2: operator turn (dissection),
-                    - 3: challenger turn (dissection),
-                    - 4: operator turn (one step),
-                    - 5: challenger turn (one step)
+         @notice The possible statuses are:
+                    - 0: RESOLVED,
+                    - 1: operator turn (dissection),
+                    - 2: challenger turn (dissection),
+                    - 3: operator turn (one step),
+                    - 4: challenger turn (one step)
          */
-
         ChallengeStatus status;   
     }
 
@@ -371,7 +365,7 @@ contract DataLayrPaymentManager is
         );
 
         require(
-            block.timestamp < challenge.confirmAt,
+            block.timestamp < challenge.settleAt,
             "Fraud proof interval has passed"
         );
 
@@ -406,7 +400,7 @@ contract DataLayrPaymentManager is
             }
             updateChallengeAmounts(operator, 1, amount1, amount2);
         }
-        challenge.confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
+        challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
@@ -454,13 +448,13 @@ contract DataLayrPaymentManager is
         if (disectionType == 1) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
-                amount1 + amount2 != challenge.amount1,
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
                 "Invalid amount bbbreakdown"
             );
         } else if (disectionType == 3) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
-                amount1 + amount2 != challenge.amount2,
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
                 "Invalid amount breakdown"
             );
         } else {
@@ -476,8 +470,8 @@ contract DataLayrPaymentManager is
 
         uint256 interval = paymentFraudProofInterval;
         require(
-            block.timestamp > challenge.confirmAt &&
-                block.timestamp < challenge.confirmAt + interval,
+            block.timestamp > challenge.settleAt &&
+                block.timestamp < challenge.settleAt + interval,
             "Fraud proof interval has passed"
         );
         ChallengeStatus status = challenge.status;
@@ -503,7 +497,7 @@ contract DataLayrPaymentManager is
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
         require(
-            block.timestamp < challenge.confirmAt,
+            block.timestamp < challenge.settleAt,
             "Fraud proof interval has passed"
         );
 
