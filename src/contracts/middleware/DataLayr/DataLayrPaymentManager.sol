@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
@@ -21,6 +22,7 @@ contract DataLayrPaymentManager is
     IDataLayrPaymentManager
     // ,DSTest 
     {
+    using SafeERC20 for IERC20;
     // DATA STRUCTURES
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
@@ -152,7 +154,7 @@ contract DataLayrPaymentManager is
     }
 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.transferFrom(msg.sender, address(this), amount);
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
@@ -199,7 +201,7 @@ contract DataLayrPaymentManager is
         );
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.transferFrom(
+        collateralToken.safeTransferFrom(
             msg.sender,
             address(this),
             paymentFraudProofCollateral
@@ -271,7 +273,7 @@ contract DataLayrPaymentManager is
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
-        collateralToken.transfer(
+        collateralToken.safeTransfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
@@ -282,13 +284,13 @@ contract DataLayrPaymentManager is
         // check if operator is a self operator, in which case sending payment is simplified
         if (eigenLayrDelegation.isSelfOperator(msg.sender)) {
             //simply transfer the payment amount in this case
-            paymentToken.transfer(msg.sender, amount);
+            paymentToken.safeTransfer(msg.sender, amount);
         // i.e. if operator is not a 'self operator'
         } else {
             IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
             // transfer the amount due in the payment claim of the operator to its delegation
             // terms contract, where the delegators can withdraw their rewards.
-            paymentToken.transfer(address(dt), amount);
+            paymentToken.safeTransfer(address(dt), amount);
 
             // inform the DelegationTerms contract of the payment, which will determine
             // the rewards operator and its delegators are eligible for
@@ -336,7 +338,7 @@ contract DataLayrPaymentManager is
 
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.transferFrom(msg.sender, address(this), collateral);
+        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
         //update payment
 
         //@TODO: what is payment status = 2?  Definition only has committed or redeemed (aka 0 or 1) @gpsanant
@@ -612,7 +614,7 @@ contract DataLayrPaymentManager is
             * transfer them only challengers collateral, not their own collateral (which is still
             * locked up in this contract)
              */
-            collateralToken.transfer(
+            collateralToken.safeTransfer(
                 operator,
                 operatorToPayment[operator].collateral
             );
@@ -621,7 +623,7 @@ contract DataLayrPaymentManager is
             // challeger was correct, reset payment
             operatorToPayment[operator].status = PaymentStatus.REDEEMED;
             //give them their collateral and the operators
-            collateralToken.transfer(
+            collateralToken.safeTransfer(
                 challenger,
                 2 * operatorToPayment[operator].collateral
             );
