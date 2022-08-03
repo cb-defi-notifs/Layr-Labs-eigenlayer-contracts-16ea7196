@@ -22,7 +22,7 @@ contract Slasher is
     Initializable,
     OwnableUpgradeable,
     ISlasher
-    ,DSTest 
+    // ,DSTest 
 {
     IInvestmentManager public investmentManager;
     IEigenLayrDelegation public delegation;
@@ -37,6 +37,7 @@ contract Slasher is
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
+    event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
 
     constructor(){
         // TODO: uncomment for production use!
@@ -120,9 +121,6 @@ contract Slasher is
     // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
     function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) public returns (bool) {
         // if the user has directly opted in to the 'repository' address being allowed to slash them
-        emit log_address(toBeSlashed);
-        uint number = optedIntoSlashing[toBeSlashed][address(repository)] ? uint(1) : uint(0);
-        emit log_named_uint("Permission to slash", number);
         if (optedIntoSlashing[toBeSlashed][address(repository)]
             || 
             (
@@ -160,13 +158,13 @@ contract Slasher is
     }
 
     /**
-     * @notice used for calling slashing function in investmentManager contract.
+     * @notice Used for slashing a certain operator
      */
     function slashOperator(
         address toBeSlashed
     ) external {
-        require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        slashedStatus[toBeSlashed] = true;
+        require(canSlash(toBeSlashed, msg.sender), "Slasher.slashOperator: msg.sender does not have permission to slash this operator");
+        _slashOperator(toBeSlashed, msg.sender);
     }
 
     function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
@@ -205,6 +203,13 @@ contract Slasher is
         }
     }
 
+    function _slashOperator(address toBeSlashed, address slashingContract) internal {
+        if (!slashedStatus[toBeSlashed]) {
+            slashedStatus[toBeSlashed] = true;
+            emit OperatorSlashed(toBeSlashed, slashingContract);
+        }
+    }
+
     // VIEW FUNCTIONS
     function hasBeenSlashed(address staker) external view returns (bool) {
         if (slashedStatus[staker]) {
@@ -212,6 +217,16 @@ contract Slasher is
         } else if (delegation.isDelegated(staker)) {
             address operatorAddress = delegation.delegation(staker);
             return(slashedStatus[operatorAddress]);
+        } else {
+            return false;
+        }
+    }
+
+    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
+        if (globallyPermissionedContracts[slashingContract]) {
+            return true;
+        } else if (optedIntoSlashing[toBeSlashed][slashingContract]) {
+            return true;
         } else {
             return false;
         }

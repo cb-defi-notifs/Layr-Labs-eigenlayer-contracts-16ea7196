@@ -23,4 +23,6 @@ interface ISlasher {
     function slashedStatus(address operator) external view returns (bool);
 
     function resetSlashedStatus(address[] calldata slashedAddresses) external;
+
+    function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
 }
