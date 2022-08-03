@@ -37,7 +37,6 @@ import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/SignatureCompaction.sol";
 
 import "./utils/Signers.sol";
 
