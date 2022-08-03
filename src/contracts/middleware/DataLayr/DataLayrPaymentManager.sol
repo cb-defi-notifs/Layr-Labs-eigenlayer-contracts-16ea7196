@@ -271,6 +271,7 @@ contract DataLayrPaymentManager is
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
+// TODO: we need to update this to work with the (pending as of 8/3/22) changes to the Delegation contract
         // check if operator is a self operator, in which case sending payment is simplified
         if (eigenLayrDelegation.isSelfOperator(msg.sender)) {
             //simply transfer the payment amount in this case
@@ -291,13 +292,13 @@ contract DataLayrPaymentManager is
     }
 
     /**
-    @notice This function would be called by a fraud prover to challenge a payment 
-             by initiating an interactive type proof
+    @notice This function is called by a fraud prover to challenge a payment,
+            initiating an interactive fraudproof
      **/
     /**
-     @param operator is the DataLayr operator against whose payment claim the fraud proof is being made
-     @param amount1 is the reward amount the challenger in that round claims is for the first half of dumps
-     @param amount2 is the reward amount the challenger in that round claims is for the second half of dumps
+     @param operator is the DataLayr operator against whose payment claim the fraudproof is being made
+     @param amount1 is the reward amount the challenger claims is the correct value earned by the operator for the first half of the dataStore range
+     @param amount2 is the reward amount the challenger claims is the correct value earned by the operator for the second half of the dataStore range
      **/
     function challengePaymentInit(
         address operator,
@@ -309,35 +310,37 @@ contract DataLayrPaymentManager is
             block.timestamp < operatorToPayment[operator].confirmAt 
                 &&
                 operatorToPayment[operator].status == PaymentStatus.COMMITTED,
-            "DataLayrPaymentManager.challengePaymentInit: Fraud proof interval has passed"
+            "DataLayrPaymentManager.challengePaymentInit: Fraudproof interval has passed"
         );
 
         // store challenge details
         operatorToPaymentChallenge[operator] = PaymentChallenge(
                 operator,
+                // store `msg.sender` as the challenger
                 msg.sender,
                 address(dataLayrServiceManager),
                 operatorToPayment[operator].fromDataStoreId,
                 operatorToPayment[operator].toDataStoreId,
                 amount1,
                 amount2,
-                // recording current timestamp plus the fruad proof interval as the confirmAt
+                // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
                 uint32(block.timestamp + paymentFraudProofInterval),
+                // set the status for the operator to respond next
                 ChallengeStatus.OPERATOR_TURN
         );
 
-        //move collateral over
+        // transfer challenge collateral from the challenger (`msg.sender`) to this contract
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
-        //update payment
 
-        //@TODO: what is payment status = 2?  Definition only has committed or redeemed (aka 0 or 1) @gpsanant
+        // update the payment status and reset the fraudproof window for this payment
+// TODO: @gpsanant if 'confirmAt' and 'settleAt' are set to *the same UTC timestamp*, how are we preventing someone challenging themselves to run out the fraudproof clock?
         operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
         operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
     }
 
-
+    // used for a single bisection step in the interactive fraudproof
     //challenger challenges a particular half of the payment
     function challengePaymentHalf(
         address operator,
@@ -358,7 +361,7 @@ contract DataLayrPaymentManager is
 
         require(
             block.timestamp < challenge.settleAt,
-            "DataLayrPaymentManager.challengePaymentHalf: Fraud proof interval has passed"
+            "DataLayrPaymentManager.challengePaymentHalf: Fraudproof interval has passed"
         );
 
         uint32 fromDataStoreId = challenge.fromDataStoreId;
@@ -373,11 +376,12 @@ contract DataLayrPaymentManager is
             challenge.fromDataStoreId = fromDataStoreId + diff;
             //if next step is not final
             //TODO: Why are we making this check? Just update status?
-            if (updateStatus(operator, diff)) {
+            if (_updateStatus(operator, diff)) {
+                // TODO: this line doesn't appear to be doing anything!
                 challenge.toDataStoreId = toDataStoreId;
             }
             //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
-            updateChallengeAmounts(operator, 3, amount1, amount2);
+            _updateChallengeAmounts(operator, 3, amount1, amount2);
         } else {
             diff = (toDataStoreId - fromDataStoreId);
             if (diff % 2 == 1) {
@@ -386,11 +390,11 @@ contract DataLayrPaymentManager is
             diff /= 2;
             //if next step is not final
             //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
-            if (updateStatus(operator, diff)) {
+            if (_updateStatus(operator, diff)) {
                 challenge.toDataStoreId = toDataStoreId - diff;
                 challenge.fromDataStoreId = fromDataStoreId;
             }
-            updateChallengeAmounts(operator, 1, amount1, amount2);
+            _updateChallengeAmounts(operator, 1, amount1, amount2);
         }
         challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
 
@@ -401,6 +405,7 @@ contract DataLayrPaymentManager is
     }
 
     // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
+    // function returns 'true' if 'diff != 1'
     /**
      @notice This function is used for updating the status of the challenge in terms of who
              has to respond to the interactive challenge mechanism next -  is it going to be
@@ -410,7 +415,7 @@ contract DataLayrPaymentManager is
      @param operator is the DataLayr operator whose payment claim is being challenged
      @param diff is the number of DataLayr dumps across which payment is being challenged in this iteration
      */ 
-    function updateStatus(address operator, uint32 diff)
+    function _updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
@@ -431,26 +436,26 @@ contract DataLayrPaymentManager is
 
 // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     //an operator can respond to challenges and breakdown the amount
-    function updateChallengeAmounts(
+    function _updateChallengeAmounts(
         address operator, 
-        uint8 disectionType,
+        uint8 dissectionType,
         uint120 amount1,
         uint120 amount2
     ) internal {
-        if (disectionType == 1) {
+        if (dissectionType == 1) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
-                "DataLayrPaymentManager.updateChallengeAmounts: Invalid amount bbbreakdown"
+                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount bbbreakdown"
             );
-        } else if (disectionType == 3) {
+        } else if (dissectionType == 3) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
-                "DataLayrPaymentManager.updateChallengeAmounts: Invalid amount breakdown"
+                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("DataLayrPaymentManager.updateChallengeAmounts: Not in operator challenge phase");
+            revert("DataLayrPaymentManager._updateChallengeAmounts: Not in operator challenge phase");
         }
         operatorToPaymentChallenge[operator].amount1 = amount1;
         operatorToPaymentChallenge[operator].amount2 = amount2;
@@ -464,7 +469,7 @@ contract DataLayrPaymentManager is
         require(
             block.timestamp > challenge.settleAt &&
                 block.timestamp < challenge.settleAt + interval,
-            "DataLayrPaymentManager.resolveChallenge: Fraud proof interval has passed"
+            "DataLayrPaymentManager.resolveChallenge: Fraudproof interval has passed"
         );
         ChallengeStatus status = challenge.status;
         if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
@@ -490,7 +495,7 @@ contract DataLayrPaymentManager is
 
         require(
             block.timestamp < challenge.settleAt,
-            "DataLayrPaymentManager.respondToPaymentChallengeFinal: Fraud proof interval has passed"
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: Fraudproof interval has passed"
         );
 
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
