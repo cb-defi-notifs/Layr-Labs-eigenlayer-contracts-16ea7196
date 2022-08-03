@@ -294,8 +294,10 @@ registrationData.push(
             feePerBytePerTime
         );
 
+        uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
+            paymentFraudProofCollateral,
             dlsm
         );
 

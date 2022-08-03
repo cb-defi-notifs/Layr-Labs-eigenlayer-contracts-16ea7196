@@ -86,12 +86,11 @@ contract DataLayrPaymentManager is
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
-// TODO: set this value
     /**
      @notice this is the payment that has to be made as a collateral for fraudproof 
              during payment challenges
      */
-    uint256 public paymentFraudProofCollateral = 1 wei;
+    uint256 public paymentFraudProofCollateral;
 
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
@@ -140,12 +139,14 @@ contract DataLayrPaymentManager is
 
     constructor(
         IERC20 _paymentToken,
+        uint256 _paymentFraudProofCollateral,
         IDataLayrServiceManager _dataLayrServiceManager
     )   
         // set repository address equal to that of dataLayrServiceManager
         RepositoryAccess(_dataLayrServiceManager.repository()) 
     {
         paymentToken = _paymentToken;
+        paymentFraudProofCollateral = _paymentFraudProofCollateral;
         dataLayrServiceManager = _dataLayrServiceManager;
         collateralToken = _dataLayrServiceManager.collateralToken();
         eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
