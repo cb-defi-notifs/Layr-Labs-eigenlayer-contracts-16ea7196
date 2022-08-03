@@ -165,7 +165,7 @@ contract DataLayrPaymentManager is
     // called by the serviceManager when a DataStore is initialized. decreases the depositsOf `payer` by `feeAmount`
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
         if(initiator != payer){
-            require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
+            require(allowances[payer][initiator] >= feeAmount, "DataLayrPaymentManager.payFee: initiator not allowed to spend payers balance");
             if(allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;
             }
@@ -189,15 +189,15 @@ contract DataLayrPaymentManager is
         // only registered DataLayr operators can call
         require(
             registry.getOperatorType(msg.sender) != 0,
-            "Only registered operators can call this function"
+            "DataLayrPaymentManager.commitPayment: Only registered operators can call this function"
         );
 
-        require(toDataStoreId <= dataStoreId(), "Cannot claim future payments");
+        require(toDataStoreId <= dataStoreId(), "DataLayrPaymentManager.commitPayment: Cannot claim future payments");
 
         // can only claim for a payment after redeeming the last payment
         require(
             operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
-            "Require last payment is redeemed"
+            "DataLayrPaymentManager.commitPayment: Require last payment is redeemed"
         );
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
@@ -228,7 +228,7 @@ contract DataLayrPaymentManager is
             fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
         }
 
-        require(fromDataStoreId < toDataStoreId, "invalid payment range");
+        require(fromDataStoreId < toDataStoreId, "DataLayrPaymentManager.commitPayment: invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
@@ -250,12 +250,12 @@ contract DataLayrPaymentManager is
      */
     function redeemPayment() external {
         require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
-            "Payment Status is not 'COMMITTED'"
+            "DataLayrPaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
 
         require(
             block.timestamp > operatorToPayment[msg.sender].confirmAt,
-            "Payment still eligible for fraud proof"
+            "DataLayrPaymentManager.redeemPayment: Payment still eligible for fraud proof"
         );
 
         // update the status to show that operator's payment is getting redeemed
@@ -309,7 +309,7 @@ contract DataLayrPaymentManager is
             block.timestamp < operatorToPayment[operator].confirmAt 
                 &&
                 operatorToPayment[operator].status == PaymentStatus.COMMITTED,
-            "Fraud proof interval has passed"
+            "DataLayrPaymentManager.challengePaymentInit: Fraud proof interval has passed"
         );
 
         // store challenge details
@@ -353,12 +353,12 @@ contract DataLayrPaymentManager is
         require(
             (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender) ||
                 (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
-            "Must be challenger and their turn or operator and their turn"
+            "DataLayrPaymentManager.challengePaymentHalf: Must be challenger and their turn or operator and their turn"
         );
 
         require(
             block.timestamp < challenge.settleAt,
-            "Fraud proof interval has passed"
+            "DataLayrPaymentManager.challengePaymentHalf: Fraud proof interval has passed"
         );
 
         uint32 fromDataStoreId = challenge.fromDataStoreId;
@@ -441,16 +441,16 @@ contract DataLayrPaymentManager is
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
-                "Invalid amount bbbreakdown"
+                "DataLayrPaymentManager.updateChallengeAmounts: Invalid amount bbbreakdown"
             );
         } else if (disectionType == 3) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
-                "Invalid amount breakdown"
+                "DataLayrPaymentManager.updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("Not in operator challenge phase");
+            revert("DataLayrPaymentManager.updateChallengeAmounts: Not in operator challenge phase");
         }
         operatorToPaymentChallenge[operator].amount1 = amount1;
         operatorToPaymentChallenge[operator].amount2 = amount2;
@@ -464,7 +464,7 @@ contract DataLayrPaymentManager is
         require(
             block.timestamp > challenge.settleAt &&
                 block.timestamp < challenge.settleAt + interval,
-            "Fraud proof interval has passed"
+            "DataLayrPaymentManager.resolveChallenge: Fraud proof interval has passed"
         );
         ChallengeStatus status = challenge.status;
         if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
@@ -490,7 +490,7 @@ contract DataLayrPaymentManager is
 
         require(
             block.timestamp < challenge.settleAt,
-            "Fraud proof interval has passed"
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: Fraud proof interval has passed"
         );
 
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
@@ -500,7 +500,7 @@ contract DataLayrPaymentManager is
                 searchData.duration, 
                 searchData.timestamp,
                 searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "search.metadata preimage is incorrect");
+            ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect");
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
@@ -513,7 +513,7 @@ contract DataLayrPaymentManager is
         //the challenger marks 2^32 as the index to show that operator has not signed
         if (nonSignerIndex == 1 << 32) {
             for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
-                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "Operator was not a signatory");
+                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator was not a signatory");
 
                 unchecked {
                     ++i;
@@ -528,19 +528,19 @@ contract DataLayrPaymentManager is
                 // require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
                 require(
                     operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
-                    "Operator stake index is too late"
+                    "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too late"
                 );
 
                 require(
                     operatorStake.nextUpdateBlockNumber == 0 ||
                         operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
-                    "Operator stake index is too early"
+                    "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too early"
                 );
             }
 
             //TODO: Change this
             IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadata;
-            require(metadata.globalDataStoreId == challengedDataStoreId, "Loaded DataStoreId does not match challenged");
+            require(metadata.globalDataStoreId == challengedDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
@@ -556,7 +556,7 @@ contract DataLayrPaymentManager is
             require(
                 nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash
                 || searchData.metadata.blockNumber < registry.getFromBlockNumberForOperator(operator),
-                "Signer index is incorrect"
+                "DataLayrPaymentManager.respondToPaymentChallengeFinal: Signer index is incorrect"
             );
         }
 
@@ -576,7 +576,7 @@ contract DataLayrPaymentManager is
         else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
             resolve(challenge, !finalEntityCorrect ? challenge.challenger : challenge.operator);
         } else {
-            revert("Not in one step challenge phase");
+            revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
         }
 
         challenge.status = ChallengeStatus.RESOLVED;
