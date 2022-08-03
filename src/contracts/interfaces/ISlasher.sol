@@ -10,9 +10,17 @@ interface ISlasher {
         IServiceFactory serviceFactory,
         IRepository repository,
         IRegistry registry
-    ) external  returns (bool);
+    ) external returns (bool);
 
     function slashOperator(
         address toSlash
     ) external;
+
+    function hasBeenSlashed(
+        address staker
+    ) external view returns(bool);
+
+    function slashedStatus(address operator) external view returns (bool);
+
+    function resetSlashedStatus(address[] calldata slashedAddresses) external;
 }

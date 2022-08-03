@@ -135,7 +135,7 @@ contract EigenLayrDeployer is
         );
 
         // deploy slasher and service factory contracts
-        slasher = new Slasher(investmentManager, address(this));
+        slasher = new Slasher(investmentManager, delegation, address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation

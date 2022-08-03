@@ -53,6 +53,4 @@ interface IInvestmentManager {
         );
 
     function slasher() external view returns (ISlasher);
-
-    function slashedStatus(address operator) external view returns (bool);
 }

@@ -48,11 +48,12 @@ contract InvestmentManager is
     }
 
     modifier onlyNotSlashed(address staker) {
-        require(!slashedStatus[staker], "staker has been slashed");
-        if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegation(staker);
-            require(!slashedStatus[operatorAddress], "operator has been slashed");
-        }
+        require(!slasher.hasBeenSlashed(staker), "staker has been slashed");
+        _;
+    }
+
+    modifier onlySlashed(address staker) {
+        require(slasher.hasBeenSlashed(staker), "staker has not been slashed");
         _;
     }
 
@@ -342,21 +343,6 @@ contract InvestmentManager is
             .latestFraudproofTimestamp = uint32(block.timestamp);
     }
 
-
-
-    /**
-     * @notice Used for slashing a certain operator
-     */
-    /**
-     * @dev only Slasher contract can call this function
-     */
-    function slashOperator(
-        address slashedOperator
-    ) external {
-        require(msg.sender == address(slasher), "Only Slasher");
-        slashedStatus[slashedOperator] = true;
-    }
-
     function slashShares(
         address slashedAddress,
         address recipient,
@@ -364,9 +350,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external onlyOwner {
-        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
-
+    ) external onlyOwner onlySlashed(slashedAddress) {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -406,9 +390,7 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         uint96 queuedWithdrawalNonce
-    ) external onlyOwner {
-        require(hasBeenSlashed(slashedAddress), "account has not been slashed");
-
+    ) external onlyOwner onlySlashed(slashedAddress) {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,
@@ -437,13 +419,6 @@ contract InvestmentManager is
             unchecked {
                 ++i;
             }
-        }
-    }
-
-    function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
-        for (uint256 i = 0; i < slashedAddresses.length; ) {
-            slashedStatus[slashedAddresses[i]] = false;
-            unchecked { ++i; }
         }
     }
 
@@ -709,16 +684,5 @@ contract InvestmentManager is
         returns (uint256)
     {
         return investorStrats[investor].length;
-    }
-
-    function hasBeenSlashed(address staker) public view returns (bool) {
-        if (slashedStatus[staker]) {
-            return true;
-        } else if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegation(staker);
-            return(slashedStatus[operatorAddress]);
-        } else {
-            return false;
-        }
     }
 }

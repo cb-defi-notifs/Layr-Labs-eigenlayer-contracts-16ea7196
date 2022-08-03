@@ -4,8 +4,9 @@ pragma solidity ^0.8.9;
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./InvestmentManager.sol";
 
 import "forge-std/Test.sol";
 
@@ -17,16 +18,19 @@ import "forge-std/Test.sol";
  *          - calling investManager to do actual slashing.          
  */
 contract Slasher is Ownable, ISlasher, DSTest {
-    InvestmentManager public investmentManager;
+    IInvestmentManager public investmentManager;
+    IEigenLayrDelegation public delegation;
     mapping(address => bool) public globallyPermissionedContracts;
     mapping(address => bool) public serviceFactories;
     // user => contract => if that contract can slash the user
     mapping(address => mapping(address => bool)) public optedIntoSlashing;
+    // staker => if they are 'slashed' or not
+    mapping(address => bool) public slashedStatus;
 
-
-    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance) {
-        _transferOwnership(_eigenLayrGovernance);
+    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation, address _eigenLayrGovernance) {
         investmentManager = _investmentManager;
+        delegation = _delegation;
+        _transferOwnership(_eigenLayrGovernance);
         // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
     }
 
@@ -124,11 +128,14 @@ contract Slasher is Ownable, ISlasher, DSTest {
         return false;
     }
 
+    /**
+     * @notice Used for slashing a certain operator
+     */
     function slashOperator(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) external {
         require(canSlash(toBeSlashed, serviceFactory, repository, registry), "cannot slash operator");
         // TODO: add more require statements, particularly on msg.sender
         revert();
-        investmentManager.slashOperator(toBeSlashed);
+        slashedStatus[toBeSlashed] = true;
     }
 
     /**
@@ -138,7 +145,24 @@ contract Slasher is Ownable, ISlasher, DSTest {
         address toBeSlashed
     ) external {
         require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        //investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    
-        investmentManager.slashOperator(toBeSlashed);
+        slashedStatus[toBeSlashed] = true;
+    }
+
+    function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
+        for (uint256 i = 0; i < slashedAddresses.length; ) {
+            slashedStatus[slashedAddresses[i]] = false;
+            unchecked { ++i; }
+        }
+    }
+
+    function hasBeenSlashed(address staker) external view returns (bool) {
+        if (slashedStatus[staker]) {
+            return true;
+        } else if (delegation.isDelegated(staker)) {
+            address operatorAddress = delegation.delegation(staker);
+            return(slashedStatus[operatorAddress]);
+        } else {
+            return false;
+        }
     }
 }

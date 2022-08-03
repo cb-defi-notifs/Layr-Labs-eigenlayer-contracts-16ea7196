@@ -75,7 +75,7 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         // eigen = new Eigen(ownerAddr);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
-        slasher = new Slasher(investmentManager, address(this));
+        slasher = new Slasher(investmentManager, delegation, address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(delegation);
         //used in the one ETH investment strategy
