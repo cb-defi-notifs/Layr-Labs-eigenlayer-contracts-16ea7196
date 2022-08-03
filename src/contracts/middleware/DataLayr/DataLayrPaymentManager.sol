@@ -249,10 +249,12 @@ contract DataLayrPaymentManager is
      @notice This function can only be called after the challenge window for the payment claim has completed.
      */
     function redeemPayment() external {
+        require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
+            "Payment Status is not 'COMMITTED'"
+        );
+
         require(
-                block.timestamp > operatorToPayment[msg.sender].confirmAt
-                    &&
-                operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
+            block.timestamp > operatorToPayment[msg.sender].confirmAt,
             "Payment still eligible for fraud proof"
         );
 
