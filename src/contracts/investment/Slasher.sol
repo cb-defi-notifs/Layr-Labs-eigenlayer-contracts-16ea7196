@@ -35,6 +35,8 @@ contract Slasher is
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
+    event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
 
     constructor(){
         // TODO: uncomment for production use!
@@ -101,17 +103,16 @@ contract Slasher is
         }
     }
 
-// TODO: make it so a repository contract can revoke its ability to slash your funds
-    // give the contract permission to slash your funds
-    function allowToSlash(address repository) external {
-        optedIntoSlashing[msg.sender][repository] = true;
-
-        uint number = optedIntoSlashing[msg.sender][repository] ? uint(1) : uint(0);
-        emit log_named_uint("Permission to slash", number);
-        
+    // give the `contractAddress` permission to slash your funds
+    function allowToSlash(address contractAddress) external {
+        _optIntoSlashing(msg.sender, contractAddress);        
     }
 
-    // TODO: safe way to opt OUT of slashing (fraudproof)
+    // called by a contract to revoke its ability to slash `operator`
+    function revokeSlashingAbility(address operator) external {
+        _revokeSlashingAbility(operator, msg.sender);
+    }
+
     // TODO: Why are we passing in registry here instead of getting it from the repository?
     // idea -- require registry of repository to call function that opts you out
 
@@ -182,6 +183,20 @@ contract Slasher is
             return(slashedStatus[operatorAddress]);
         } else {
             return false;
+        }
+    }
+
+    function _optIntoSlashing(address operator, address contractAddress) internal {
+        if (!optedIntoSlashing[operator][contractAddress]) {
+            optedIntoSlashing[operator][contractAddress] = true;
+            emit OptedIntoSlashing(operator, contractAddress);        
+        }
+    }
+
+    function _revokeSlashingAbility(address operator, address contractAddress) internal {
+        if (optedIntoSlashing[operator][contractAddress]) {
+            optedIntoSlashing[operator][contractAddress] = false;
+            emit SlashingAbilityRevoked(operator, contractAddress);        
         }
     }
 
