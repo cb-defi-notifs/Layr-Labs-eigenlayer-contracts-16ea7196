@@ -13,7 +13,8 @@ interface IDataLayrPaymentManager is IPaymentManager {
 
     enum PaymentStatus{ 
         REDEEMED,
-        COMMITTED 
+        COMMITTED,
+        CHALLENGED
     }
 
     enum ChallengeStatus{ 

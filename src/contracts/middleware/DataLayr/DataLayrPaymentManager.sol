@@ -346,7 +346,7 @@ contract DataLayrPaymentManager is
         //update payment
 
         //@TODO: what is payment status = 2?  Definition only has committed or redeemed (aka 0 or 1) @gpsanant
-        //operatorToPayment[operator].status = 2;
+        operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
         operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
     }
