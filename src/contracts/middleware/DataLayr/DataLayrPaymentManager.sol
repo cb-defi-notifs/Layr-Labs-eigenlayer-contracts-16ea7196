@@ -87,12 +87,6 @@ contract DataLayrPaymentManager is
     uint256 public constant paymentFraudProofInterval = 7 days;
 
     /**
-     @notice this is the payment that has to be made as a collateral for fraudproof 
-             during payment challenges
-     */
-    uint256 public paymentFraudProofCollateral;
-
-    /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
      *         DataLayr nodes.
      */
@@ -112,6 +106,12 @@ contract DataLayrPaymentManager is
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
+    /**
+     @notice this is the payment that has to be made as a collateral for fraudproof 
+             during payment challenges
+     */
+    uint256 public paymentFraudProofCollateral;
+    
     /*
         * @notice mapping between the operator and its current committed payment
         *  or last redeemed payment 
