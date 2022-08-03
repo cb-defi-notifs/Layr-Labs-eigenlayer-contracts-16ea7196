@@ -40,6 +40,7 @@ contract Slasher is
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
+    event SlashedStatusReset(address indexed previouslySlashedAddress);
 
     constructor(){
         // TODO: uncomment for production use!
@@ -87,7 +88,10 @@ contract Slasher is
     function allowToSlash(address contractAddress) external {
         _optIntoSlashing(msg.sender, contractAddress);        
     }
-
+    /*
+     TODO: we still need to figure out how/when to appropriately call this function
+     perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
+    */
     // called by a contract to revoke its ability to slash `operator`
     function revokeSlashingAbility(address operator) external {
         _revokeSlashingAbility(operator, msg.sender);
@@ -105,7 +109,7 @@ contract Slasher is
 
     function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
         for (uint256 i = 0; i < slashedAddresses.length; ) {
-            slashedStatus[slashedAddresses[i]] = false;
+            _resetSlashedStatus(slashedAddresses[i]);
             unchecked { ++i; }
         }
     }
@@ -143,6 +147,13 @@ contract Slasher is
         if (!slashedStatus[toBeSlashed]) {
             slashedStatus[toBeSlashed] = true;
             emit OperatorSlashed(toBeSlashed, slashingContract);
+        }
+    }
+
+    function _resetSlashedStatus(address previouslySlashedAddress) internal {
+        if (slashedStatus[previouslySlashedAddress]) {
+            slashedStatus[previouslySlashedAddress] = false;
+            emit SlashedStatusReset(previouslySlashedAddress);
         }
     }
 
