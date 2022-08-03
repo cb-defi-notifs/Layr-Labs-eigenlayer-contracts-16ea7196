@@ -181,7 +181,7 @@ contract DataLayrPaymentManager is
 
     function setPaymentFraudProofCollateral(
         uint256 _paymentFraudProofCollateral
-    ) public onlyRepositoryGovernance {
+    ) external onlyRepositoryGovernance {
         paymentFraudProofCollateral = _paymentFraudProofCollateral;
     }
 
@@ -316,7 +316,7 @@ contract DataLayrPaymentManager is
             block.timestamp < operatorToPayment[operator].confirmAt 
                 &&
                 operatorToPayment[operator].status == PaymentStatus.COMMITTED,
-            "DataLayrPaymentManager.challengePaymentInit: Fraudproof interval has passed"
+            "DataLayrPaymentManager.challengePaymentInit: Fraudproof interval has passed for payment"
         );
 
         // store challenge details
@@ -367,7 +367,7 @@ contract DataLayrPaymentManager is
 
         require(
             block.timestamp < challenge.settleAt,
-            "DataLayrPaymentManager.challengePaymentHalf: Fraudproof interval has passed"
+            "DataLayrPaymentManager.challengePaymentHalf: Challenge has already settled"
         );
 
         uint32 fromDataStoreId = challenge.fromDataStoreId;
@@ -397,20 +397,23 @@ contract DataLayrPaymentManager is
             //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
             if (_updateStatus(operator, diff)) {
                 challenge.toDataStoreId = toDataStoreId - diff;
+                // TODO: this line doesn't appear to be doing anything!
                 challenge.fromDataStoreId = fromDataStoreId;
             }
             _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         }
+
+        // extend the settlement time for the challenge, giving the next participant in the interactive fraudproof `paymentFraudProofInterval` to respond
         challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
         
+        // TODO: should this event reflect anything about whose turn is next (challenger vs. operator?)
         emit PaymentBreakdown(operator, challenge.fromDataStoreId, challenge.toDataStoreId, challenge.amount1, challenge.amount2);
     }
 
-    // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
-    // function returns 'true' if 'diff != 1'
+    // function returns 'true' if 'diff != 1' -- TODO: this seems unnecessary? kind of just 'pure' behavior of turning a uint (input) into a boolean (return value)?
     /**
      @notice This function is used for updating the status of the challenge in terms of who
              has to respond to the interactive challenge mechanism next -  is it going to be
@@ -438,9 +441,7 @@ contract DataLayrPaymentManager is
         }
    }
 
-
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
-    //an operator can respond to challenges and breakdown the amount
+    // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
     function _updateChallengeAmounts(
         address operator, 
         DissectionType dissectionType,
@@ -451,7 +452,7 @@ contract DataLayrPaymentManager is
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
-                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount bbbreakdown"
+                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else if (dissectionType == DissectionType.SECOND_HALF) {
             //if second half is challenged, break the second half of the payment into two halves
@@ -462,27 +463,26 @@ contract DataLayrPaymentManager is
         } else {
             revert("DataLayrPaymentManager._updateChallengeAmounts: invalid DissectionType");
         }
+        // update the stored payment halves
         operatorToPaymentChallenge[operator].amount1 = amount1;
         operatorToPaymentChallenge[operator].amount2 = amount2;
     }
 
-    function resolveChallenge(address operator) public {
+    function resolveChallenge(address operator) external {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
-        uint256 interval = paymentFraudProofInterval;
         require(
-            block.timestamp > challenge.settleAt &&
-                block.timestamp < challenge.settleAt + interval,
-            "DataLayrPaymentManager.resolveChallenge: Fraudproof interval has passed"
+            block.timestamp > challenge.settleAt,
+            "DataLayrPaymentManager.resolveChallenge: challenge has not yet reached settlement time"
         );
         ChallengeStatus status = challenge.status;
+        // if operator did not respond
         if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
-            // operator did not respond
-            resolve(challenge, challenge.challenger);
+            _resolve(challenge, challenge.challenger);
+        // if challenger did not respond
         } else if (status == ChallengeStatus.CHALLENGER_TURN || status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            // challenger did not respond
-            resolve(challenge, challenge.operator);
+            _resolve(challenge, challenge.operator);
         }
     }
 
@@ -500,7 +500,7 @@ contract DataLayrPaymentManager is
 
         require(
             block.timestamp < challenge.settleAt,
-            "DataLayrPaymentManager.respondToPaymentChallengeFinal: Fraudproof interval has passed"
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: challenge has already passed settlement time"
         );
 
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
@@ -576,7 +576,7 @@ contract DataLayrPaymentManager is
         * If trueAmount != challenge.amount1, then the challenger is wrong (doesn't mean operator is right).
         */
         if (status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
-            resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
+            _resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
         } 
         /*
         * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
@@ -584,7 +584,7 @@ contract DataLayrPaymentManager is
         */
         
         else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            resolve(challenge, !finalEntityCorrect ? challenge.challenger : challenge.operator);
+            _resolve(challenge, !finalEntityCorrect ? challenge.challenger : challenge.operator);
         } else {
             revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
         }
@@ -602,7 +602,7 @@ contract DataLayrPaymentManager is
     @param winner is the party who wins the challenge, either the challenger or the operator
     @param operatorSuccessful is true when the operator wins the challenge agains the challenger
     */
-    function resolve(PaymentChallenge memory challenge, address winner) internal {
+    function _resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
         address challenger = challenge.challenger;
         if (winner == operator) {
@@ -655,10 +655,7 @@ contract DataLayrPaymentManager is
         return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
     }
 
-    function getPaymentCollateral(address operator)
-        public
-        view
-        returns (uint256)
+    function getPaymentCollateral(address operator) external view returns (uint256)
     {
         return operatorToPayment[operator].collateral;
     }
