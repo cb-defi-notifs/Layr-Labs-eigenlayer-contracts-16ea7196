@@ -516,7 +516,7 @@ contract DataLayrPaymentManager is
 
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 
-        // //calculate the true amount deserved
+        // calculate the true amount deserved
         uint120 trueAmount;
 
         //2^32 is an impossible index because it is more than the max number of registrants
@@ -529,13 +529,10 @@ contract DataLayrPaymentManager is
                     ++i;
                 }
             }
-            //TODO: Change this
             IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
             // scoped block helps fix stack too deep
             {
-                // (uint32 dataStoreIdFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (dataLayrServiceManager.dataLayr()).dataStores(challengedDumpHeaderHash);
-                // require(dataStoreIdFromHeaderHash == challengedDataStoreId, "specified dataStoreId does not match provided headerHash");
                 require(
                     operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
                     "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too late"
@@ -548,16 +545,14 @@ contract DataLayrPaymentManager is
                 );
             }
 
-            //TODO: Change this
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = searchData.metadata;
-            require(metadata.globalDataStoreId == challengedDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
+            require(searchData.metadata.globalDataStoreId == challengedDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
-                (metadata.fee * operatorStake.ethStake) /
+                (searchData.metadata.fee * operatorStake.ethStake) /
                     totalStakes.ethStakeSigned /
                     2 +
-                    (metadata.fee * operatorStake.eigenStake) /
+                    (searchData.metadata.fee * operatorStake.eigenStake) /
                     totalStakes.eigenStakeSigned /
                     2
             );
@@ -622,7 +617,7 @@ contract DataLayrPaymentManager is
         } else {
             // challeger was correct, reset payment
             operatorToPayment[operator].status = PaymentStatus.REDEEMED;
-            //give them their collateral and the operators
+            //give them their collateral and the operator's
             collateralToken.safeTransfer(
                 challenger,
                 2 * operatorToPayment[operator].collateral
