@@ -43,7 +43,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
     constructor(IRepository _repository)
         RepositoryAccess(_repository)
-    {}
+    {
+    }
 
     /**
      @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)
