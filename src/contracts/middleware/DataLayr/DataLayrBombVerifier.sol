@@ -546,7 +546,7 @@ contract DataLayrBombVerifier {
             // Verify that the provided metadata of the datastore before sandwichTimestamp (sandwich[0])
             // agrees with the stored hash
             require(
-                dlsm.getDataStoreIdsForDuration(
+                dlsm.getDataStoreHashesForDurationAtTimestamp(
                     duration,
                     sandwich[0].timestamp,
                     sandwich[0].index
@@ -561,7 +561,7 @@ contract DataLayrBombVerifier {
             // Verify that the provided metadata of the datastore after sandwichTimestamp (sandwich[1])
             // agrees with the stored hash            
             require(
-                dlsm.getDataStoreIdsForDuration(
+                dlsm.getDataStoreHashesForDurationAtTimestamp(
                     duration,
                     sandwich[1].timestamp,
                     sandwich[1].index
@@ -621,7 +621,7 @@ contract DataLayrBombVerifier {
         */
 
 
-        require(dlsm.getDataStoreIdsForDuration(
+        require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
@@ -682,7 +682,7 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) internal view returns (bool) {
         return
-            dlsm.getDataStoreIdsForDuration(
+            dlsm.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration,
                 searchData.timestamp,
                 searchData.index
