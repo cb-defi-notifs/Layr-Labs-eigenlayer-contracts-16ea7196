@@ -28,6 +28,10 @@ contract Repository is Ownable, Initializable, IRepository {
     // the ServiceManager contract for this middleware, where tasks are created / initiated
     IServiceManager public serviceManager;
 
+    event VoteWeigherSet(IVoteWeigher indexed previousAddress, IVoteWeigher indexed newAddress);
+    event ServiceManagerSet(IServiceManager indexed previousAddress, IServiceManager indexed newAddress);
+    event RegistrySet(IRegistry indexed previousAddress, IRegistry indexed newAddress);
+
     // set the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
     constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
         delegation = _delegation;
@@ -48,24 +52,51 @@ contract Repository is Ownable, Initializable, IRepository {
         IRegistry _registry,
         address initialOwner
     ) external initializer {
-        voteWeigher = _voteWeigher;
-        serviceManager = _serviceManager;
-        registry = _registry;
+        _setVoteWeigher(_voteWeigher);
+        _setServiceManager(_serviceManager);
+        _setRegistry(_registry);
         _transferOwnership(initialOwner);
-    }
-
-    /// @notice sets the ServiceManager for the middleware
-    function setServiceManager(IServiceManager _serviceManager) external onlyOwner {
-        serviceManager = _serviceManager;
-    }
-
-    /// @notice sets the Registry for the middleware
-    function setRegistry(IRegistry _registry) external onlyOwner {
-        registry = _registry;
     }
 
     /// @notice sets the vote weigher for the middleware
     function setVoteWeigher(IVoteWeigher _voteWeigher) external onlyOwner {
+        _setVoteWeigher(_voteWeigher);
+    }
+
+    /// @notice sets the ServiceManager for the middleware
+    function setServiceManager(IServiceManager _serviceManager) external onlyOwner {
+        _setServiceManager(_serviceManager);
+    }
+
+    /// @notice sets the Registry for the middleware
+    function setRegistry(IRegistry _registry) external onlyOwner {
+        _setRegistry(_registry);
+    }
+
+    function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
+        require(
+            address(_voteWeigher) != address(0),
+            "Repository._setVoteWeigher: zero address bad!"
+        );
+        emit VoteWeigherSet(voteWeigher, _voteWeigher);
         voteWeigher = _voteWeigher;
+    }
+
+    function _setServiceManager(IServiceManager _serviceManager) internal {
+        require(
+            address(_serviceManager) != address(0),
+            "Repository._setServiceManager: zero address bad!"
+        );
+        emit ServiceManagerSet(serviceManager, _serviceManager);
+        serviceManager = _serviceManager;
+    }
+
+    function _setRegistry(IRegistry _registry) internal {
+        require(
+            address(_registry) != address(0),
+            "Repository._setRegistry: zero address bad!"
+        );
+        emit RegistrySet(registry, _registry);
+        registry = _registry;
     }
 }
