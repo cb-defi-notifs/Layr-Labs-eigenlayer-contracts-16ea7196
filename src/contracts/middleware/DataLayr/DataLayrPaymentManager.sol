@@ -563,6 +563,7 @@ contract DataLayrPaymentManager is
             );
         }
 
+        //final entity is the entity calling this function, i.e., it is their turn to make the final response
         bool finalEntityCorrect = trueAmount != challenge.amount1;
         /*
         * if status is OPERATOR_TURN_ONE_STEP, it is the operator's turn. This means the challenger was the one who set challenge.amount1 last.  
@@ -573,11 +574,11 @@ contract DataLayrPaymentManager is
         } 
         /*
         * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
-        * If trueAmount == challenge.amount1, then the operator is correct and the challenger is wrong
+        * If trueAmount != challenge.amount1, then the operator is wrong and the challenger is correct
         */
         
         else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            _resolve(challenge, !finalEntityCorrect ? challenge.challenger : challenge.operator);
+            _resolve(challenge, finalEntityCorrect ? challenge.challenger : challenge.operator);
         } else {
             revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
         }
