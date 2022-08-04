@@ -348,7 +348,7 @@ contract DataLayrPaymentManager is
     //challenger challenges a particular half of the payment
     function challengePaymentHalf(
         address operator,
-        bool firstHalf,
+        bool secondHalf,
         uint120 amount1,
         uint120 amount2
     ) external {
@@ -375,7 +375,7 @@ contract DataLayrPaymentManager is
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
         //  or a "to" endpoint at (end - (2n + 1 + 1)/2 = end - (n + 1) = start + n) if the first half is challenged
-        if (firstHalf) {
+        if (secondHalf) {
             diff = (toDataStoreId - fromDataStoreId) / 2;
             challenge.fromDataStoreId = fromDataStoreId + diff;
             //if next step is not final
