@@ -384,7 +384,7 @@ contract DataLayrPaymentManager is
                 // TODO: this line doesn't appear to be doing anything!
                 challenge.toDataStoreId = toDataStoreId;
             }
-            _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         } else {
             diff = (toDataStoreId - fromDataStoreId);
             if (diff % 2 == 1) {
