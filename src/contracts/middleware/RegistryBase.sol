@@ -165,44 +165,6 @@ abstract contract RegistryBase is
         }
     }
 
-    /**
-     * @notice returns the total Eigen delegated by delegators with this operator
-     */
-    /**
-     * @dev minimum delegation limit of nodeEigenStake has to be satisfied.
-     */
-    function weightOfOperatorEigen(address operator)
-        public
-        override
-        returns (uint96)
-    {
-        uint96 eigenAmount = super.weightOfOperatorEigen(operator);
-
-        // check that minimum delegation limit is satisfied
-        return eigenAmount < nodeEigenStake ? 0 : eigenAmount;
-    }
-
-    /**
-        @notice returns the total ETH delegated by delegators with this operator.
-                Accounts for both ETH used for staking in settlement layer (via operator)
-                and the ETH-denominated value of the shares in the investment strategies.
-                Note that the middleware can decide for itself how much weight it wants to
-                give to the ETH that is being used for staking in settlement layer.
-     */
-    /**
-     * @dev minimum delegation limit of nodeEthStake has to be satisfied.
-     */
-    function weightOfOperatorEth(address operator)
-        public
-        override
-        returns (uint96)
-    {
-        uint96 amount = super.weightOfOperatorEth(operator);
-
-        // check that minimum delegation limit is satisfied
-        return amount < nodeEthStake ? 0 : amount;
-    }
-
     function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 

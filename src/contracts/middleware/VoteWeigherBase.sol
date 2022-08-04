@@ -90,32 +90,11 @@ contract VoteWeigherBase is
         return weight;
     }
 
-    /**
-     * @notice returns the total Eigen delegated by delegators with this operator
-     */
-    /**
-     * @dev minimum delegation limit has to be satisfied.
-     */
-    function weightOfOperatorEigen(address operator)
-        public virtual
-        returns (uint96)
-    {
-        return weightOfOperator(operator, 1);
-    }
-
-    /**
-     * @notice returns the total ETH delegated by delegators with this operator.
-     */
-    /**
-      @dev Accounts for both ETH used for staking in Ethereum and the ETH-denominated value 
-           of the shares in the investment strategies.
-     */
-    function weightOfOperatorEth(address operator) public virtual returns (uint96) {
-        return weightOfOperator(operator, 0);
-    }
-
-
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
+        require(
+            quorumNumber < NUMBER_OF_QUORUMS,
+            "VoteWeigherBase.strategiesConsideredAndMultipliersLength: quorumNumber input exceeds NUMBER_OF_QUORUMS"
+        );
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
@@ -150,7 +129,10 @@ contract VoteWeigherBase is
         uint256 numStrats = indicesToRemove.length;
 
         for (uint256 i = 0; i < numStrats;) {
-            require(strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]].strategy == _strategiesToRemove[i], "index incorrect");
+            require(
+                strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]].strategy == _strategiesToRemove[i],
+                "VoteWeigherBase.removeStrategiesConsideredAndWeights: index incorrect"
+            );
             
             // removing strategies and their associated weight
             strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
