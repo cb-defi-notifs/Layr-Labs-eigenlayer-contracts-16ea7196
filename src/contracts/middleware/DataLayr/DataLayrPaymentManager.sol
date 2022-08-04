@@ -398,7 +398,7 @@ contract DataLayrPaymentManager is
                 // TODO: this line doesn't appear to be doing anything!
                 challenge.fromDataStoreId = fromDataStoreId;
             }
-            _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
         }
 
         // extend the settlement time for the challenge, giving the next participant in the interactive fraudproof `paymentFraudProofInterval` to respond
@@ -504,11 +504,25 @@ contract DataLayrPaymentManager is
         uint32 challengedDataStoreId = challenge.fromDataStoreId;
         ChallengeStatus status = challenge.status;
 
+        //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration, 
                 searchData.timestamp,
                 searchData.index
             ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect");
+
+        //TODO: ensure that totalStakes and signedTotals from signatureChecker are the same quantity.
+        bytes32 providedSigantoryRecordHash = keccak256(
+            abi.encodePacked(
+                searchData.metadata.headerHash,
+                searchData.metadata.globalDataStoreId,
+                nonSignerPubkeyHashes,
+                totalStakes.ethStakeSigned,
+                totalStakes.eigenStakeSigned
+            )
+        );
+        //checking that nonSignerPubKeyHashes is correct, now that we know that searchData is valid
+        require(providedSigantoryRecordHash == searchData.metadata.signatoryRecordHash, "provided nonSignerPubKeyHashes or totalStakes is incorrect");
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
