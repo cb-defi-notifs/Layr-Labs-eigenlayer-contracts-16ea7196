@@ -1,19 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IRepository.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "./RepositoryStorage.sol";
 
+contract Repository is Ownable, Initializable, IRepository {
+    IEigenLayrDelegation public immutable delegation;
+    IInvestmentManager public immutable investmentManager;
+    IVoteWeigher public voteWeigher;
+    IRegistry public registry;
+    IServiceManager public serviceManager;
 
+    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
+        delegation = _delegation;
+        investmentManager = _investmentManager;
+    }
 
-
-contract Repository is Initializable, RepositoryStorage {
-
-    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager)
-    RepositoryStorage(_delegation, _investmentManager) {
+    /// @notice returns the owner of the repository contract
+    function owner() public view override(Ownable, IRepository) returns (address) {
+        return Ownable.owner();
     }
 
     /**
