@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./EigenLayrDepositStorage.sol";
-import "../libraries/SignatureCompaction.sol";
 
 // import "ds-test/test.sol";
 
@@ -146,7 +145,7 @@ contract EigenLayrDeposit is
 
         // Recovering the address of the signer from the signature.
         // This signer is the supposed depositer.
-        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+        address recoveredAddress = ECDSA.recover(
             digestHash,
             r,
             vs

@@ -145,11 +145,7 @@ The loop iterates through to find this next DataStore, thus determining the true
                                                     dataStoreProofs.detonationDataStore.timestamp,
                                                     dataStoreProofs.detonationDataStore.index
                                                 ) == DataStoreHash.computeDataStoreHash(
-                                                                            dataStoreProofs.detonationDataStore.metadata.headerHash, 
-                                                                            dataStoreProofs.detonationDataStore.metadata.globalDataStoreId, 
-                                                                            dataStoreProofs.detonationDataStore.metadata.blockNumber, 
-                                                                            dataStoreProofs.detonationDataStore.metadata.fee, 
-                                                                            dataStoreProofs.detonationDataStore.metadata.signatoryRecordHash
+                                                                            dataStoreProofs.detonationDataStore.metadata
                                                                         ), "search.metadataclear preimage is incorrect");
 
             // fetch hash of operator's pubkey
@@ -192,35 +188,9 @@ The loop iterates through to find this next DataStore, thus determining the true
                                                     dataStoreProofs.bombDataStore.timestamp,
                                                     dataStoreProofs.bombDataStore.index
                                                 ) == DataStoreHash.computeDataStoreHash(
-                                                                            dataStoreProofs.bombDataStore.metadata.headerHash, 
-                                                                            dataStoreProofs.bombDataStore.metadata.globalDataStoreId, 
-                                                                            dataStoreProofs.bombDataStore.metadata.blockNumber, 
-                                                                            dataStoreProofs.bombDataStore.metadata.fee, 
-                                                                            dataStoreProofs.bombDataStore.metadata.signatoryRecordHash
-                                                                        ), "search.metadataclear preimage is incorrect");
+                                                                            dataStoreProofs.bombDataStore.metadata
+                                                                        ), "search.metadata preimage is incorrect");
 
-// TODO: @gpsanant please resolve this merge difference
-// HEAD
-            // Verify that the signatoryRecord supplied as input related to the 'detonation' DataStore is correct
-            //NOTE that signatoryRecords[signatoryRecords.length - 1] is the signatory record for the DETONATION datastore
-            require(
-                dataStoreProofs.detonationDataStore.metadata.signatoryRecordHash ==
-                    keccak256(
-                        abi.encodePacked(
-                            dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
-                            signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes,
-                            signatoryRecords[lastSignatoryRecordIndex].totalEthStakeSigned,
-                            signatoryRecords[lastSignatoryRecordIndex].totalEigenStakeSigned
-                        )
-                    ),
-                "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
-            );
-
-            //require that the detonation is happening for a datastore using the operators stake
-            require(dataStoreProofs.detonationDataStore.metadata.blockNumber > operatorActiveFromBlockNumber, 
-                "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake");
-// TODO: @gpsanant please resolve this merge difference
-// =======
                 require(
                     signatoryRecords[i].nonSignerPubkeyHashes[
                         indexes.successiveSignerIndexes[i - 1]
@@ -229,8 +199,6 @@ The loop iterates through to find this next DataStore, thus determining the true
                 );
                 ++bombGlobalDataStoreId;
             }
-// TODO: @gpsanant please resolve this merge difference
-// >>>>>>> d918703ced2220259cb8de9742d4e069b4ff365d
 
             // Verify that the information supplied as input related to the ultimate 'bomb' DataStore is correct 
             // require(
