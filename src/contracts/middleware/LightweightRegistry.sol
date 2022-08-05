@@ -105,10 +105,7 @@ contract LightweightRegistry is
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );
 
-        uint256 length = _ethStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < length; ++i) {
-            strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
-        }
+        _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
     }
 
     /**

@@ -98,18 +98,9 @@ contract VoteWeigherBase is
      */
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber, 
-        StrategyAndWeightingMultiplier[] calldata _newStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
     ) external onlyRepositoryGovernance {
-
-        uint256 numStrats = _newStrategiesConsideredAndMultipliers.length;
-
-        for (uint256 i = 0; i < numStrats;) {
-            strategiesConsideredAndMultipliers[quorumNumber].push(_newStrategiesConsideredAndMultipliers[i]);
-            emit StrategyAddedToQuorum(quorumNumber, _newStrategiesConsideredAndMultipliers[i].strategy);
-            unchecked {
-                ++i;
-            }
-        }
+        _addStrategiesConsideredAndMultipliers(quorumNumber, _newStrategiesConsideredAndMultipliers);
     }
 
     /**
@@ -151,6 +142,20 @@ contract VoteWeigherBase is
             "VoteWeigherBase.strategiesConsideredAndMultipliersLength: quorumNumber input exceeds NUMBER_OF_QUORUMS"
         );
         return strategiesConsideredAndMultipliers[quorumNumber].length;
+    }
+
+    function _addStrategiesConsideredAndMultipliers(
+        uint256 quorumNumber, 
+        StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
+    ) internal {
+        uint256 numStrats = _newStrategiesConsideredAndMultipliers.length;
+        for (uint256 i = 0; i < numStrats;) {
+            strategiesConsideredAndMultipliers[quorumNumber].push(_newStrategiesConsideredAndMultipliers[i]);
+            emit StrategyAddedToQuorum(quorumNumber, _newStrategiesConsideredAndMultipliers[i].strategy);
+            unchecked {
+                ++i;
+            }
+        }
     }
 
 }

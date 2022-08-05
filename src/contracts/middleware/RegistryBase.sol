@@ -155,14 +155,8 @@ abstract contract RegistryBase is
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
 
-        uint256 length = _ethStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < length; ++i) {
-            strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
-        }
-        length = _eigenStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < length; ++i) {
-            strategiesConsideredAndMultipliers[1].push(_eigenStrategiesConsideredAndMultipliers[i]);            
-        }
+        _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
+        _addStrategiesConsideredAndMultipliers(1, _eigenStrategiesConsideredAndMultipliers);
     }
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
