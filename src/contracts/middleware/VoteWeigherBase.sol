@@ -23,6 +23,9 @@ contract VoteWeigherBase is
     // number of quorums that are being used by the middleware
     uint8 public override immutable NUMBER_OF_QUORUMS;
 
+    event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+    event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
@@ -36,7 +39,10 @@ contract VoteWeigherBase is
      @notice This function computes the total weight of the @param operator in the quorum 
              @param quorumNumber.
      */
-    function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
+    function weightOfOperator(
+        address operator,
+        uint256 quorumNumber
+    ) public virtual returns (uint96) {
         uint96 weight;
 
         if (quorumNumber < NUMBER_OF_QUORUMS) {
@@ -87,17 +93,8 @@ contract VoteWeigherBase is
         return weight;
     }
 
-    function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
-        require(
-            quorumNumber < NUMBER_OF_QUORUMS,
-            "VoteWeigherBase.strategiesConsideredAndMultipliersLength: quorumNumber input exceeds NUMBER_OF_QUORUMS"
-        );
-        return strategiesConsideredAndMultipliers[quorumNumber].length;
-    }
-
-
     /**
-     @notice Add new strategies and the associated multiplier for the @param quorumNumber  
+     @notice Add new strategies and the associated multiplier to the @param quorumNumber  
      */
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber, 
@@ -108,21 +105,26 @@ contract VoteWeigherBase is
 
         for (uint256 i = 0; i < numStrats;) {
             strategiesConsideredAndMultipliers[quorumNumber].push(_newStrategiesConsideredAndMultipliers[i]);
+            emit StrategyAddedToQuorum(quorumNumber, _newStrategiesConsideredAndMultipliers[i].strategy);
             unchecked {
                 ++i;
             }
         }
     }
 
-
     /**
      @notice This function is used for removing strategies and their associated weight from 
              mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
      */
     /**  
-     @dev higher indices should be *first* in the list of @param indicesToRemove
+     @dev higher indices should be *first* in the list of @param indicesToRemove, since otherwise
+            the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove
      */
-    function removeStrategiesConsideredAndWeights(uint256 quorumNumber, IInvestmentStrategy[] calldata _strategiesToRemove, uint256[] calldata indicesToRemove) external onlyRepositoryGovernance {
+    function removeStrategiesConsideredAndMultipliers(
+        uint256 quorumNumber,
+        IInvestmentStrategy[] calldata _strategiesToRemove,
+        uint256[] calldata indicesToRemove
+    ) external onlyRepositoryGovernance {
         uint256 numStrats = indicesToRemove.length;
 
         for (uint256 i = 0; i < numStrats;) {
@@ -134,10 +136,21 @@ contract VoteWeigherBase is
             // removing strategies and their associated weight
             strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
+            emit StrategyRemovedFromQuorum(quorumNumber, _strategiesToRemove[i]);
             
             unchecked {
                 ++i;
             }
         }
     }
+
+    // returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber]
+    function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
+        require(
+            quorumNumber < NUMBER_OF_QUORUMS,
+            "VoteWeigherBase.strategiesConsideredAndMultipliersLength: quorumNumber input exceeds NUMBER_OF_QUORUMS"
+        );
+        return strategiesConsideredAndMultipliers[quorumNumber].length;
+    }
+
 }
