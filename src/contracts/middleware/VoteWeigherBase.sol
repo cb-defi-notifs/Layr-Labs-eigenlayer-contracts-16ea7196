@@ -144,6 +144,7 @@ contract VoteWeigherBase is
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
+// TODO: add check that makes sure that the *same* strategy cannot be added multiple times
     function _addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber, 
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
