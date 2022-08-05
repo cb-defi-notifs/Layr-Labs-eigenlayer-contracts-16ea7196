@@ -22,19 +22,19 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess {
         uint96 multiplier;
     }
 
+    // constant used as a divisor in calculating weights
+    uint256 internal constant WEIGHTING_DIVISOR = 1e18;
+
+    // the address of the Delegation contract for EigenLayr
+    IEigenLayrDelegation public immutable delegation;
+    // the address of the InvestmentManager contract for EigenLayr
+    IInvestmentManager public immutable investmentManager;
 
     /** 
      @notice mapping from quorum number to the list of strategies considered and their 
              corresponding weights for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
-
-
-    uint256 internal constant WEIGHTING_DIVISOR = 1e18;
-
-
-    IEigenLayrDelegation public immutable delegation;
-    IInvestmentManager public immutable investmentManager;
 
 
     constructor(IRepository _repository, IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager)
