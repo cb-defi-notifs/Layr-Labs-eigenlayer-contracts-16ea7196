@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
-import "../libraries/SignatureCompaction.sol";
 import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 

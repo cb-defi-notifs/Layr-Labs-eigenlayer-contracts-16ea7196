@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
-import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
 
 // TODO: updating of stored addresses by governance?
@@ -108,7 +108,7 @@ contract EigenLayrDelegation is
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
         //check validity of signature
-        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+        address recoveredAddress = ECDSA.recover(
             digestHash,
             r,
             vs
