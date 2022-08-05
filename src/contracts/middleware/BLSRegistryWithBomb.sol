@@ -29,6 +29,7 @@ contract BLSRegistryWithBomb is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        uint8 _NUMBER_OF_QUORUMS,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -36,6 +37,7 @@ contract BLSRegistryWithBomb is
             _repository,
             _delegation,
             _investmentManager,
+            _NUMBER_OF_QUORUMS,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
@@ -45,26 +47,21 @@ contract BLSRegistryWithBomb is
 
     /**
       @notice Used by an operator to de-register itself from providing service to the middleware.
-     */
-    /** 
-      @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+              For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
+
         //post last ephemeral key reveal on chain
         ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
+        
         return true;
     }
 
     /**
-     @notice called for registering as an operator
+     @notice called for registering as an operator. For detailed comments, see 
+             registerOperator in BLSRegistry.sol.
      */
-    /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @param socket is the socket address of the operator
-     
-     */ 
     function registerOperator(
         uint8 registrantType,
         bytes32 ephemeralKeyHash,
@@ -72,10 +69,12 @@ contract BLSRegistryWithBomb is
         string calldata socket
     ) external {        
         _registerOperator(msg.sender, registrantType, data, socket);
-        //add ephemeral key to epehemral key registry
+
+        //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
     }
 
+    // CRITIC  @ChaoticWalrus, @Sidu28 --- what are following funcs for?
     function registerOperator(
         uint8,
         bytes calldata,

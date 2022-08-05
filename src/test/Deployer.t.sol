@@ -8,8 +8,6 @@ import "../contracts/core/Eigen.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
-import "../contracts/core/EigenLayrDeposit.sol";
-import "../contracts/core/DelegationTerms.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
@@ -39,7 +37,6 @@ import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/SignatureCompaction.sol";
 
 import "./utils/Signers.sol";
 
@@ -59,7 +56,6 @@ contract EigenLayrDeployer is
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
-    EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
@@ -124,18 +120,6 @@ contract EigenLayrDeployer is
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
-
-        // deploy deposit contract implementation, then create upgradeable proxy that points to implementation
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
-        deposit = EigenLayrDeposit(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(deposit),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
-        );
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -223,10 +207,8 @@ contract EigenLayrDeployer is
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
-            governor,
-            address(deposit)
+            governor
         );
 
         // initialize the delegation (proxy) contract
@@ -238,10 +220,6 @@ contract EigenLayrDeployer is
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
 
-        // initialize the deposit (proxy) contract
-        // must wait until after the DL contracts are deployed since it relies on the DLSM for updates to ProofOfStaking
-        deposit.initialize(depositContract, investmentManager, dlsm);
-
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new InvestmentStrategyBase();
@@ -252,7 +230,8 @@ contract EigenLayrDeployer is
 
         //loads hardcoded signer set
         _setSigners();
-        registrationData.push(
+
+registrationData.push(
             hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f20fd9f812e64d2be18573054ece7aef8a3fae1618068b08cfdc9722d4254a5c1c1c3241bc604d574aef221cfa3e7abd0334554fdae446fa2258a36c1bb725110d"
         );
         registrationData.push(
@@ -336,11 +315,13 @@ contract EigenLayrDeployer is
             );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
+        uint8 _NUMBER_OF_QUORUMS = 2;
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            _NUMBER_OF_QUORUMS,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
@@ -440,16 +421,15 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         InvestmentStrategyBase stratToDepositTo
     ) internal returns (uint256 amountDeposited) {
-        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
-        // s
+        uint256 operatorSharesBefore = investmentManager.investorStratShares(sender, stratToDepositTo);
 
+        //trying to deposit more than the wethInitialSupply will fail, so in this case we expect a revert and return '0' if it happens
         if (amountToDeposit > wethInitialSupply) {
             cheats.expectRevert(
                 bytes("ERC20: transfer amount exceeds balance")
             );
-
             weth.transfer(sender, amountToDeposit);
-            amountDeposited = 0;
+            amountDeposited = 0;      
         } else {
             weth.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
@@ -462,57 +442,16 @@ contract EigenLayrDeployer is
                 amountToDeposit
             );
             amountDeposited = amountToDeposit;
+            // check that strategy is appropriately added to dynamic array of all of sender's strategies
+            assertTrue(
+                investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
+                    stratToDepositTo,
+                "investorStrats array updated incorrectly"
+            );
         }
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
-            amountDeposited,
-            "shares should match deposit"
-        );
-        cheats.stopPrank();
-    }
-
-    function _testDepositETHIntoConsensusLayer(
-        address sender,
-        uint256 amountToDeposit
-    ) internal returns (uint256 amountDeposited) {
-        bytes32 depositDataRoot = depositContract.get_deposit_root();
-
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositEthIntoConsensusLayer{value: amountToDeposit}(
-            "0x",
-            "0x",
-            depositDataRoot
-        );
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.getConsensusLayerEth(sender),
-            amountDeposited
-        );
-        cheats.stopPrank();
-    }
-
-    function _testDepositETHIntoLiquidStaking(
-        address sender,
-        uint256 amountToDeposit,
-        IERC20 liquidStakingToken,
-        IInvestmentStrategy stratToDepositTo
-    ) internal returns (uint256 amountDeposited) {
-        // sanity in the amount we are depositing
-        cheats.assume(amountToDeposit < type(uint96).max);
-        cheats.deal(sender, amountToDeposit);
-        cheats.startPrank(sender);
-        deposit.depositETHIntoLiquidStaking{value: amountToDeposit}(
-            liquidStakingToken,
-            stratToDepositTo
-        );
-
-        amountDeposited = amountToDeposit;
-
-        assertEq(
-            investmentManager.investorStratShares(sender, stratToDepositTo),
+            investmentManager.investorStratShares(sender, stratToDepositTo) - operatorSharesBefore,
             amountDeposited,
             "shares should match deposit"
         );
@@ -525,16 +464,18 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) internal {
-        uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
+        uint256 wethBalanceBefore = weth.balanceOf(sender);
+        _testWethDeposit(sender, amountToDeposit);
+        uint256 amountDeposited = investmentManager.investorStratShares(sender, strat);
         cheats.prank(sender);
 
-        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and short-circuit if it happens
+        //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and *short-circuit* if it happens
         //TODO: figure out if making this 'expectRevert' work correctly is actually possible
         if (amountDeposited == 0) {
             // cheats.expectRevert(bytes("Index out of bounds."));
             // investmentManager.withdrawFromStrategy(0, strat, weth, amountToWithdraw);
             return;
-            //trying to withdraw more than the amountDeposited will fail, so we expect a revert and short-circuit if it happens
+        //trying to withdraw more than the amountDeposited will fail, so we expect a revert and *short-circuit* if it happens
         } else if (amountToWithdraw > amountDeposited) {
             cheats.expectRevert(bytes("shareAmount too high"));
             investmentManager.withdrawFromStrategy(
@@ -555,8 +496,8 @@ contract EigenLayrDeployer is
         uint256 wethBalanceAfter = weth.balanceOf(sender);
 
         assertEq(
-            amountToDeposit - amountDeposited + amountToWithdraw,
-            wethBalanceAfter,
+            amountToWithdraw,
+            wethBalanceAfter - wethBalanceBefore,
             "weth is missing somewhere"
         );
         cheats.stopPrank();
@@ -745,8 +686,6 @@ contract EigenLayrDeployer is
 
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
 
-
-
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
             uint256(
@@ -764,10 +703,10 @@ contract EigenLayrDeployer is
         );
         (uint256 sigma_0, uint256 sigma_1) = (
             uint256(
-                7155561537864411538991615376457474334371827900888029310878886991084477170996
+                3227515082877366753481082344554384723742742005849592832962567665412663301823
             ),
             uint256(
-                10352977531892356631551102769773992282745949082157652335724669165983475588346
+                417272605470211919435039030320974523411847825598612812754681380173701139632
             )
         );
 
@@ -838,10 +777,10 @@ contract EigenLayrDeployer is
         );
         (uint256 sigma_0, uint256 sigma_1) = (
             uint256(
-                7155561537864411538991615376457474334371827900888029310878886991084477170996
+                17994461740782094388047737382005374640168513116024457805993196913920000628928
             ),
             uint256(
-                10352977531892356631551102769773992282745949082157652335724669165983475588346
+                6768731106897328299553074458255796105021387405000087556189762367503757131907
             )
         );
 
@@ -888,7 +827,7 @@ contract EigenLayrDeployer is
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsDelegate(address sender, DelegationTerms dt)
+    function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
         internal
     {
         cheats.startPrank(sender);
@@ -898,33 +837,6 @@ contract EigenLayrDeployer is
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
         );
         cheats.stopPrank();
-    }
-
-    // deploys a DelegationTerms contract on behalf of 'operator', with several hard-coded values
-    // does a simple check that deployment was successful
-    // currently hard-codes 'weth' as the only payment token
-    function _deployDelegationTerms(address operator)
-        internal
-        returns (DelegationTerms)
-    {
-        address[] memory paymentTokens = new address[](1);
-        paymentTokens[0] = address(weth);
-        uint16 _MAX_OPERATOR_FEE_BIPS = 500;
-        uint16 _operatorFeeBips = 500;
-        DelegationTerms dt = new DelegationTerms(
-            operator,
-            investmentManager,
-            paymentTokens,
-            address(delegation),
-            dlRepository,
-            _MAX_OPERATOR_FEE_BIPS,
-            _operatorFeeBips
-        );
-        assertTrue(
-            address(dt) != address(0),
-            "_deployDelegationTerms: DelegationTerms failed to deploy"
-        );
-        return dt;
     }
 
     // tries to delegate from 'sender' to 'operator'
@@ -1011,6 +923,7 @@ contract EigenLayrDeployer is
             );
         }
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            // check that strategy is appropriately added to dynamic array of all of sender's strategies
             assertTrue(
                 investmentManager.investorStrats(sender, i) ==
                     stratsToDepositTo[i],
@@ -1085,7 +998,6 @@ contract EigenLayrDeployer is
             address(dlRepository) != address(0),
             "dlRepository failed to deploy"
         );
-        assertTrue(address(deposit) != address(0), "deposit failed to deploy");
         assertTrue(
             dlRepository.serviceManager() == dlsm,
             "ServiceManager set incorrectly"

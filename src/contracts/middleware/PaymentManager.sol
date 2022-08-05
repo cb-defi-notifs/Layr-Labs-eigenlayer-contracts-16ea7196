@@ -13,32 +13,44 @@ import "../permissions/RepositoryAccess.sol";
 import "ds-test/test.sol";
 
 /**
- @notice This contract is used for doing interactive payment challenge
+ @notice This contract is used for doing interactive payment challenge.
  */
+
+
 contract PaymentManager is 
     RepositoryAccess, 
     IPaymentManager
     // ,DSTest 
     {
-    // DATA STRUCTURES
-     /**
-    @notice used for storing information on the most recent payment made to the operator
-    */
+    /**********************
+     DATA STRUCTURES
+     **********************/
 
+    /**
+      @notice used for storing information on the most recent payment made to the operator
+     */
     struct Payment {
         // taskNumber starting from which payment is being claimed 
         uint32 fromTaskNumber; 
+
         // taskNumber until which payment is being claimed (exclusive) 
         uint32 toTaskNumber; 
+
         // recording when committment for payment made; used for fraud proof period
         uint32 commitTime; 
+
         // payment for range [fromTaskNumber, toTaskNumber)
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
+
         uint8 status; // 0: committed, 1: redeemed
+
         uint256 collateral; //account for if collateral changed
     }
 
+    /**
+      @notice used for storing information on the payment challenge as part of the interactive process
+     */
     struct PaymentChallenge {
         // operator whose payment claim is being challenged,
         address operator;
@@ -55,10 +67,10 @@ contract PaymentManager is
         // the TaskNumber until which payment has been computed to
         uint32 toTaskNumber;
 
-        // 
+        // reward amount the challenger claims is for the first half of tasks
         uint120 amount1;
 
-        // 
+        // reward amount the challenger claims is for the second half of tasks
         uint120 amount2;
 
         // used for recording the time when challenge was created
@@ -77,6 +89,7 @@ contract PaymentManager is
          */
         uint8 status;   
     }
+
 
     struct TotalStakes {
         uint256 ethStakeSigned;
@@ -115,20 +128,27 @@ contract PaymentManager is
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
-    /*
-        * @notice mapping between the operator and its current committed payment
-        *  or last redeemed payment 
+    /**
+        @notice mapping between the operator and its current committed payment
+        or last redeemed payment 
     */
     mapping(address => Payment) public operatorToPayment;
+
     // operator => PaymentChallenge
     mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
-    // deposits of future fees to be drawn against when paying for DataStores
+
+    // deposits of future fees to be drawn against when paying for taking service for the task
     mapping(address => uint256) public depositsOf;
+
     // depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
 
-    // EVENTS
-    // EVENTS
+
+
+
+    /******** 
+     EVENTS
+     ********/
     event PaymentCommit(
         address operator,
         uint32 fromTaskNumber,
@@ -136,9 +156,14 @@ contract PaymentManager is
         uint256 fee
     );
     event PaymentRedemption(address operator, uint256 fee);
+
     event PaymentBreakdown(uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
+
     event PaymentChallengeInit(address operator, address challenger);
+
     event PaymentChallengeResolution(address operator, bool operatorWon);
+
+
 
     constructor(
         IERC20 _paymentToken,
@@ -153,23 +178,39 @@ contract PaymentManager is
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
     }
 
+
+    /**
+     @notice deposit one-time fees by the middleware with this contract for set number of tasks 
+     */
+    /**
+     @param onBehalfOf could be the msg.sender or someone lese who is depositing 
+     this future fees           
+     */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.transferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
+
     function setPermanentAllowance(address allowed, uint256 amount) public {
         allowances[msg.sender][allowed] = amount;
     }
 
+
+    /**
+     @notice Used for deducting the fees from the payer to the 
+     */
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
         //todo: can this be a permanent allowance? decreases an sstore per fee paying.
         // NOTE: (from JEFFC) this currently *is* a persistant/permanent allowance, as it isn't getting decreased anywhere
         if(initiator != payer){
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
         }
+
         depositsOf[payer] -= feeAmount;
     }
+
+
 
     function setPaymentFraudProofCollateral(
         uint256 _paymentFraudProofCollateral
@@ -178,9 +219,9 @@ contract PaymentManager is
     }
 
     /**
-     @notice This is used by an operator to make claim on the @param amount that they deserve 
-             for their service since their last payment until @param toTaskNumber  
-     **/
+     @notice This is used by an operator to make claim on the  amount that they deserve 
+             for their service since their last payment until toTaskNumber  
+     */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
@@ -199,9 +240,12 @@ contract PaymentManager is
             paymentFraudProofCollateral
         );
 
-        /**
-         @notice recording payment claims for the operator
-         */
+
+
+        /********************
+         recording payment claims for the operator
+         ********************/
+
         uint32 fromTaskNumber;
 
         // for the special case of this being the first payment that is being claimed by the operator;
@@ -210,6 +254,7 @@ contract PaymentManager is
                  when the operator registered.   
          */
         if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
+
             // get the taskNumber when the operator registered
             fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
             require(fromTaskNumber < toTaskNumber, "invalid payment range");
@@ -376,6 +421,7 @@ contract PaymentManager is
         uint32 fromTaskNumber = challenge.fromTaskNumber;
         uint32 toTaskNumber = challenge.toTaskNumber;
         uint32 diff;
+
         //change interval to the one challenger cares about
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,

@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IECDSARegistry.sol";
 import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
-import "../libraries/SignatureCompaction.sol";
 import "../permissions/RepositoryAccess.sol";
 
 import "ds-test/test.sol";
@@ -182,7 +181,7 @@ abstract contract ECDSASignatureChecker is
             }
 
             // actually check the signature
-            sigWInfo.signatory = SignatureCompaction.ecrecoverPacked(signedHash, sigWInfo.r, sigWInfo.vs);
+            sigWInfo.signatory = ECDSA.recover(signedHash, sigWInfo.r, sigWInfo.vs);
 
             // increase calldataPointer to account for length of signature components + 4 bytes for length of uint32 used to specify index in stakes object
             unchecked {

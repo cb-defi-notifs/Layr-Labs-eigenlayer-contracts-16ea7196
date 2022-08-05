@@ -6,7 +6,6 @@ import "./mock/DepositContract.sol";
 import "./core/Eigen.sol";
 
 import "./core/EigenLayrDelegation.sol";
-import "./core/EigenLayrDeposit.sol";
 
 import "./investment/InvestmentManager.sol";
 import "./investment/InvestmentStrategyBase.sol";
@@ -31,7 +30,6 @@ import "./utils/ERC165_Universal.sol";
 import "./utils/ERC1155TokenReceiver.sol";
 
 import "./libraries/BytesLib.sol";
-import "./libraries/SignatureCompaction.sol";
 
 contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     using BytesLib for bytes;
@@ -41,7 +39,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
-    EigenLayrDeposit public deposit;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
@@ -75,8 +72,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         // eigen = new Eigen(ownerAddr);
-
-        deposit = new EigenLayrDeposit(consensusLayerDepositRoot);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher(investmentManager, address(this));
@@ -109,10 +104,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
 
         address governor = address(this);
         investmentManager.initialize(
-            strats,
             slasher,
-            governor,
-            address(deposit)
+            governor
         );
 
         delegation.initialize(
@@ -148,7 +141,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = 1e18;
-        dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, ethStratsAndMultipliers, eigenStratsAndMultipliers);
+        uint8 _NUMBER_OF_QUORUMS = 2;
+        dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, _NUMBER_OF_QUORUMS, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dlReg, disclosureUtils);
 
@@ -160,7 +154,5 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         );
 
         dlsm.setLowDegreeChallenge(lowDegreeChallenge);
-
-        deposit.initialize(depositContract, investmentManager, dlsm);
     }
 }

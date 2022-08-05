@@ -23,15 +23,17 @@ interface IQuorumRegistry is IRegistry {
 
     function getOperatorFromTaskNumber(address operator) external view returns (uint32);
 
+    function getFromBlockNumberForOperator(address operator) external view returns (uint32);
+
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index) external view returns (OperatorStake memory);
 
     function getOperatorType(address operator) external view returns (uint8);
     
     function getFromTaskNumberForOperator(address operator) external view returns (uint32);
             
-    function getOperatorIndex(address operator, uint32 dataStoreId, uint32 index) external view returns (uint32);
+    function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32);
 
-    function getTotalOperators(uint32 dataStoreId, uint32 index) external view returns (uint32);
+    function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32);
     
     function getOperatorDeregisterTime(address operator) external view returns (uint256);
 
