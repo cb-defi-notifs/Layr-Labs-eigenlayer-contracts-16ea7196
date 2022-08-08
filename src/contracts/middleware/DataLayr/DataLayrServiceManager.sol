@@ -210,8 +210,8 @@ contract DataLayrServiceManager is
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] == 0){
                     dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHashFromArgs(
                                                                                                 headerHash, 
+                                                                                                getNumDataStoresForDuration(duration), 
                                                                                                 dataStoresForDuration.dataStoreId,
-                                                                                                getDataStoresForDuration(duration), 
                                                                                                 blockNumber, 
                                                                                                 uint96(fee),
                                                                                                 bytes32(0)
@@ -304,8 +304,7 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        emit log_bytes32(headerHash);
-        emit log_bytes32(signatoryRecordHash);
+
 
         /**
          * @notice checks that there is no need for posting an updated deposit root required for proving
@@ -323,8 +322,8 @@ contract DataLayrServiceManager is
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(
                                             headerHash, //the header hash should be passed in `data`
-                                            dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             searchData.metadata.durationDataStoreId,
+                                            dataStoreIdToConfirm, //the global data store id should be passed in `data`
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             bytes32(0)
@@ -339,8 +338,8 @@ contract DataLayrServiceManager is
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHashFromArgs(
                                             searchData.metadata.headerHash, 
-                                            searchData.metadata.globalDataStoreId, 
                                             searchData.metadata.durationDataStoreId,
+                                            searchData.metadata.globalDataStoreId, 
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             signatoryRecordHash
@@ -433,7 +432,7 @@ contract DataLayrServiceManager is
      @notice returns the number of data stores for the @param duration
      */
     /// CRITIC -- change the name to `getNumDataStoresForDuration`?
-    function getDataStoresForDuration(uint8 duration) public view returns(uint32){
+    function getNumDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
         }
@@ -479,7 +478,7 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external  {
+    function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external view {
         bytes32 headerHash;
         bytes32 signatoryRecordHash;
         uint32 _dataStoreId; 

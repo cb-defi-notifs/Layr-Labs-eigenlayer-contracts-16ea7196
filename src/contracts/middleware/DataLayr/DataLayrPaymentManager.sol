@@ -501,9 +501,6 @@ contract DataLayrPaymentManager is
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: challenge has already passed settlement time"
         );
 
-        uint32 challengedDataStoreId = challenge.fromDataStoreId;
-        ChallengeStatus status = challenge.status;
-
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration, 
@@ -557,7 +554,7 @@ contract DataLayrPaymentManager is
                 );
             }
 
-            require(searchData.metadata.globalDataStoreId == challengedDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
+            require(searchData.metadata.globalDataStoreId == challenge.fromDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
@@ -577,13 +574,14 @@ contract DataLayrPaymentManager is
             );
         }
 
+    {   
         //final entity is the entity calling this function, i.e., it is their turn to make the final response
         bool finalEntityCorrect = trueAmount != challenge.amount1;
         /*
         * if status is OPERATOR_TURN_ONE_STEP, it is the operator's turn. This means the challenger was the one who set challenge.amount1 last.  
         * If trueAmount != challenge.amount1, then the challenger is wrong (doesn't mean operator is right).
         */
-        if (status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
+        if (challenge.status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
             _resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
         } 
         /*
@@ -591,13 +589,14 @@ contract DataLayrPaymentManager is
         * If trueAmount != challenge.amount1, then the operator is wrong and the challenger is correct
         */
         
-        else if (status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
+        else if (challenge.status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
             _resolve(challenge, finalEntityCorrect ? challenge.challenger : challenge.operator);
         } else {
             revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
         }
 
         challenge.status = ChallengeStatus.RESOLVED;
+    }
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;

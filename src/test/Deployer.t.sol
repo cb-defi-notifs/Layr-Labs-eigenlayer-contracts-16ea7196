@@ -540,7 +540,7 @@ registrationData.push(
             totalBytes,
             blockNumber
         );
-        emit log_named_uint("init datastore total gas", g - gasleft());
+        //emit log_named_uint("init datastore total gas", g - gasleft());
         uint32 dataStoreId = dlsm.taskNumber() - 1;
         bytes32 headerHash = keccak256(header);
 
@@ -554,7 +554,8 @@ registrationData.push(
             bytes32 dataStoreHash = keccak256(
                 abi.encodePacked(
                     headerHash,
-                    dataStoreId,
+                    dlsm.getNumDataStoresForDuration(duration)-1,
+                    dlsm.taskNumber()-1,
                     blockNumber,
                     uint96(fee),
                     bytes32(0)
@@ -573,8 +574,8 @@ registrationData.push(
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata(
                 headerHash,
-                dataStoreId,
-                dataStoreId,
+                dlsm.getNumDataStoresForDuration(duration)-1,
+                dlsm.taskNumber() - 1,
                 blockNumber,
                 uint96(fee),
                 bytes32(0)
@@ -688,6 +689,7 @@ registrationData.push(
         }
 
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
+
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
