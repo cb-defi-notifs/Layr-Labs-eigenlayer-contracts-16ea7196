@@ -368,7 +368,7 @@ contract DataLayrChallengeUtils {
                     pairingInput,
                     // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]
                     0x180,
-// TODO: @gpsanant this comment conflicted with a comment that said this was pairingInput[12] -- as-is, this refers to pairingInput[11] -- should it be pairingInput[12] instead?
+                    // TODO: @gpsanant this comment conflicted with a comment that said this was pairingInput[12] -- as-is, this refers to pairingInput[11] -- should it be pairingInput[12] instead?
                     // store return data starting from pairingInput[11]
                     add(pairingInput, 0x160),
                     // store 32 bytes of return data, i.e. overwrite pairingInput[0] with the return data

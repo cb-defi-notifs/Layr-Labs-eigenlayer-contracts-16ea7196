@@ -157,77 +157,6 @@ contract InvestmentTests is
     // TODOs:
     // testDepositPOSProof
 
-    //Testing deposits in Eigen Layr Contracts - check msg.value
-    function testDepositETHIntoConsensusLayer()
-        public
-        returns (uint256 amountDeposited)
-    {
-        amountDeposited = _testDepositETHIntoConsensusLayer(
-            signers[0],
-            amountDeposited
-        );
-    }
-
-    // tests that it is possible to deposit ETH into liquid staking through the 'deposit' contract
-    // also verifies that the subsequent strategy shares are credited correctly
-    function testDepositETHIntoLiquidStaking()
-        public
-        returns (uint256 amountDeposited)
-    {
-        return
-            _testDepositETHIntoLiquidStaking(
-                signers[0],
-                1e18,
-                liquidStakingMockToken,
-                liquidStakingMockStrat
-            );
-    }
-
-    //checks that it is possible to prove a consensus layer deposit
-    function testCleProof() public {
-        address depositor = address(0x1234123412341234123412341234123412341235);
-        uint256 amount = 100;
-        bytes32[] memory proof = new bytes32[](3);
-        proof[0] = bytes32(
-            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
-        );
-        proof[1] = bytes32(
-            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
-        );
-        proof[2] = bytes32(
-            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
-        );
-        cheats.prank(depositor);
-        deposit.proveLegacyConsensusLayerDeposit(
-            proof,
-            amount
-        );
-        //make sure their proofOfStakingEth has updated
-        assertEq(investmentManager.getProofOfStakingEth(depositor), amount);
-    }
-
-    //checks that an incorrect proof for a consensus layer deposit reverts properly
-    function testConfirmRevertIncorrectCleProof() public {
-        address depositor = address(0x1234123412341234123412341234123412341235);
-        uint256 amount = 1000;
-        bytes32[] memory proof = new bytes32[](3);
-        proof[0] = bytes32(
-            0x0c70933f97e33ce23514f82854b7000db6f226a3c6dd2cf42894ce71c9bb9e8b
-        );
-        proof[1] = bytes32(
-            0x200634f4269b301e098769ce7fd466ca8259daad3965b977c69ca5e2330796e1
-        );
-        proof[2] = bytes32(
-            0x1944162db3ee014776b5da7dbb53c9d7b9b11b620267f3ea64a7f46a5edb403b
-        );
-        cheats.prank(depositor);
-        cheats.expectRevert("Invalid merkle proof");
-        deposit.proveLegacyConsensusLayerDeposit(
-            proof,
-            amount
-        );
-    }
-
     function testSlashing(uint256 amountToDeposit) public{
 
         address[2] memory accounts = [acct_0, acct_1];
@@ -237,10 +166,9 @@ contract InvestmentTests is
         amountToDeposit = 1e7;
 
         //register registrant as an operator
-        DelegationTerms _dt = _deployDelegationTerms(registrant);
         cheats.deal(registrant, amountToDeposit);
         _testWethDeposit(registrant, amountToDeposit);
-        _testRegisterAsDelegate(registrant, _dt);
+        _testRegisterAsDelegate(registrant, IDelegationTerms(registrant));
 
         //make deposits in WETH strategy
         for (uint i=0; i<accounts.length; i++){

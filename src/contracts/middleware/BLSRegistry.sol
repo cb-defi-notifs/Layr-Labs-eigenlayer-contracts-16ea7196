@@ -471,7 +471,7 @@ contract BLSRegistry is
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
         public
-        // view
+        view
         returns (bytes32)
     {
         require(
