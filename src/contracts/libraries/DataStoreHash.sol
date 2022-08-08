@@ -12,8 +12,8 @@ library DataStoreHash {
         bytes32 dsHash = keccak256(
             abi.encodePacked(
                 metadata.headerHash,
-                metadata.globalDataStoreId,
                 metadata.durationDataStoreId,
+                metadata.globalDataStoreId,
                 metadata.blockNumber,
                 metadata.fee,
                 metadata.confirmer,
@@ -26,8 +26,8 @@ library DataStoreHash {
 
     function computeDataStoreHashFromArgs(
         bytes32 headerHash,
-        uint32 globalDataStoreId,
         uint32 durationDataStoreId,
+        uint32 globalDataStoreId,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -38,8 +38,8 @@ library DataStoreHash {
         bytes32 dsHash = keccak256(
             abi.encodePacked(
                 headerHash,
-                globalDataStoreId,
                 durationDataStoreId,
+                globalDataStoreId,
                 blockNumber,
                 fee,
                 confirmer,
