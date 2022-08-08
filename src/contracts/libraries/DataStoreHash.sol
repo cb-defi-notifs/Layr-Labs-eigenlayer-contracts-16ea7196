@@ -2,36 +2,47 @@
 
 pragma solidity ^0.8.9;
 
-
-/*
- * @title Solidity Bytes Arrays Utils
- * @author Gonçalo Sá <goncalo.sa@consensys.net>
- *
- * @dev Bytes tightly packed arrays utility library for ethereum contracts written in Solidity.
- *      The library lets you concatenate, slice and type cast bytes arrays both in memory and storage.
- */
-
-
+import "../interfaces/IDataLayrServiceManager.sol";
 
 library DataStoreHash {
-
     function computeDataStoreHash(
-        bytes32 headerHash, 
-        uint32 dataStoreId, 
-        uint32 blockNumber, 
-        uint96 fee,
-        bytes32 signatoryRecordHash
-    ) internal pure returns(bytes32){
+        IDataLayrServiceManager.DataStoreMetadata memory metadata
+    ) internal pure returns (bytes32) {
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         bytes32 dsHash = keccak256(
-                                abi.encodePacked(
-                                    headerHash,
-                                    dataStoreId,
-                                    blockNumber,
-                                    fee,
-                                    signatoryRecordHash
-                                    )
-                                );
+            abi.encodePacked(
+                metadata.headerHash,
+                metadata.globalDataStoreId,
+                metadata.durationDataStoreId,
+                metadata.blockNumber,
+                metadata.fee,
+                metadata.signatoryRecordHash
+            )
+        );
+
+        return dsHash;
+    }
+
+    function computeDataStoreHashFromArgs(
+        bytes32 headerHash,
+        uint32 globalDataStoreId,
+        uint32 durationDataStoreId,
+        uint32 blockNumber,
+        uint96 fee,
+        bytes32 signatoryRecordHash
+    ) internal pure returns (bytes32) {
+        //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
+
+        bytes32 dsHash = keccak256(
+            abi.encodePacked(
+                headerHash,
+                globalDataStoreId,
+                durationDataStoreId,
+                blockNumber,
+                fee,
+                signatoryRecordHash
+            )
+        );
 
         return dsHash;
     }

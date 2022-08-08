@@ -208,9 +208,10 @@ contract DataLayrServiceManager is
 
             for (uint32 i = 0; i < NUM_DS_PER_BLOCK_PER_DURATION; i++){
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] == 0){
-                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHash(
+                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][i] = DataStoreHash.computeDataStoreHashFromArgs(
                                                                                                 headerHash, 
-                                                                                                dataStoresForDuration.dataStoreId, 
+                                                                                                dataStoresForDuration.dataStoreId,
+                                                                                                getDataStoresForDuration(duration), 
                                                                                                 blockNumber, 
                                                                                                 uint96(fee),
                                                                                                 bytes32(0)
@@ -320,9 +321,10 @@ contract DataLayrServiceManager is
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(
+        bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(
                                             headerHash, //the header hash should be passed in `data`
                                             dataStoreIdToConfirm, //the global data store id should be passed in `data`
+                                            searchData.metadata.durationDataStoreId,
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             bytes32(0)
@@ -335,9 +337,10 @@ contract DataLayrServiceManager is
             "DataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
         );
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
-        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(
+        bytes32 newDsHash = DataStoreHash.computeDataStoreHashFromArgs(
                                             searchData.metadata.headerHash, 
                                             searchData.metadata.globalDataStoreId, 
+                                            searchData.metadata.durationDataStoreId,
                                             searchData.metadata.blockNumber, 
                                             searchData.metadata.fee,
                                             signatoryRecordHash
@@ -480,6 +483,7 @@ contract DataLayrServiceManager is
         bytes32 headerHash;
         bytes32 signatoryRecordHash;
         uint32 _dataStoreId; 
+        uint32 _durationDataStoreId; 
         uint32 blockNumber; 
         uint96 fee;
         uint8 duration; 
@@ -492,15 +496,16 @@ contract DataLayrServiceManager is
         assembly {
             headerHash := calldataload(pointer)
             signatoryRecordHash:= calldataload(add(pointer, 32))  
-            _dataStoreId := shr(224, calldataload(add(pointer, 64)))  
-            blockNumber := shr(224, calldataload(add(pointer, 68))) 
-            fee := shr(160, calldataload(add(pointer, 72)))
-            duration := shr(248, calldataload(add(pointer, 84)))
-            dsInitTime := calldataload(add(pointer, 85))
-            index := shr(224, calldataload(add(pointer, 117)))
+            _dataStoreId := shr(224, calldataload(add(pointer, 64)))
+            _durationDataStoreId := shr(224, calldataload(add(pointer, 68)))
+            blockNumber := shr(224, calldataload(add(pointer, 72))) 
+            fee := shr(160, calldataload(add(pointer, 76)))
+            duration := shr(248, calldataload(add(pointer, 88)))
+            dsInitTime := calldataload(add(pointer, 89))
+            index := shr(224, calldataload(add(pointer, 121)))
         }
 
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(headerHash, _dataStoreId, blockNumber, fee, signatoryRecordHash);
+        bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, _dataStoreId, _durationDataStoreId, blockNumber, fee, signatoryRecordHash);
         require(
             dataStoreHashesForDurationAtTimestamp[duration][dsInitTime][index] == dsHash, "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)");
 

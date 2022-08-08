@@ -60,9 +60,10 @@ abstract contract DataLayrChallengeBase {
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
-                                                ) == DataStoreHash.computeDataStoreHash(
+                                                ) == DataStoreHash.computeDataStoreHashFromArgs(
                                                                             searchData.metadata.headerHash, 
                                                                             searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.durationDataStoreId, 
                                                                             searchData.metadata.blockNumber, 
                                                                             searchData.metadata.fee, 
                                                                             searchData.metadata.signatoryRecordHash
@@ -136,9 +137,10 @@ abstract contract DataLayrChallengeBase {
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
-                                                ) == DataStoreHash.computeDataStoreHash(
+                                                ) == DataStoreHash.computeDataStoreHashFromArgs(
                                                                             searchData.metadata.headerHash, 
                                                                             searchData.metadata.globalDataStoreId, 
+                                                                            searchData.metadata.durationDataStoreId, 
                                                                             searchData.metadata.blockNumber, 
                                                                             searchData.metadata.fee, 
                                                                             searchData.metadata.signatoryRecordHash
