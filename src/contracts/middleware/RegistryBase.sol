@@ -158,41 +158,6 @@ abstract contract RegistryBase is
         _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
         _addStrategiesConsideredAndMultipliers(1, _eigenStrategiesConsideredAndMultipliers);
     }
-
-    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
-        // Removes the registrant with the given pubkeyHash from the index in registrantList
-
-        // Update index info for old operator
-        // store blockNumber at which operator index changed (stopped being applicable)
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
-
-        address swappedOperator;
-        // Update index info for operator at end of list, if they are not the same as the removed operator
-        if (index < registrantList.length - 1){
-            // get existing operator at end of list, and retrieve their pubkeyHash
-            swappedOperator = registrantList[registrantList.length - 1];
-            Registrant memory registrant = registry[swappedOperator];
-            pubkeyHash = registrant.pubkeyHash;
-
-            // store blockNumber at which operator index changed
-            // same operation as above except pubkeyHash is now different (since different registrant)
-            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
-            // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
-            OperatorIndex memory operatorIndex;
-            operatorIndex.index = index;
-            pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-
-            // move 'swappedOperator' into 'index' slot in registrantList (swapping them with removed operator)
-            registrantList[index] = swappedOperator;
-        }
-
-        registrantList.pop();
-        // Update totalOperatorsHistory
-        _updateTotalOperatorsHistory();
-        
-        //return address of operator whose index has changed
-        return swappedOperator;
-    }
     
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) public view returns (uint32) {
 
@@ -388,6 +353,8 @@ abstract contract RegistryBase is
         return uint64(registrantList.length);
     }
 
+    // INTERNAL FUNCTIONS
+
     function _updateTotalOperatorsHistory() internal {
             // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
@@ -395,6 +362,41 @@ abstract contract RegistryBase is
             OperatorIndex memory _totalOperators;
             _totalOperators.index = uint32(registrantList.length);
             totalOperatorsHistory.push(_totalOperators);
+    }
+
+    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
+        // Removes the registrant with the given pubkeyHash from the index in registrantList
+
+        // Update index info for old operator
+        // store blockNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
+
+        address swappedOperator;
+        // Update index info for operator at end of list, if they are not the same as the removed operator
+        if (index < registrantList.length - 1){
+            // get existing operator at end of list, and retrieve their pubkeyHash
+            swappedOperator = registrantList[registrantList.length - 1];
+            Registrant memory registrant = registry[swappedOperator];
+            pubkeyHash = registrant.pubkeyHash;
+
+            // store blockNumber at which operator index changed
+            // same operation as above except pubkeyHash is now different (since different registrant)
+            pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
+            // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
+            OperatorIndex memory operatorIndex;
+            operatorIndex.index = index;
+            pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+
+            // move 'swappedOperator' into 'index' slot in registrantList (swapping them with removed operator)
+            registrantList[index] = swappedOperator;
+        }
+
+        registrantList.pop();
+        // Update totalOperatorsHistory
+        _updateTotalOperatorsHistory();
+        
+        //return address of operator whose index has changed
+        return swappedOperator;
     }
 }
 
