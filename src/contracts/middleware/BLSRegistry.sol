@@ -319,7 +319,7 @@ contract BLSRegistry is
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // Update registrant list and update index histories
-        address swappedOperator = popRegistrant(pubkeyHash,index);
+        address swappedOperator = _popRegistrant(pubkeyHash,index);
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware

@@ -364,7 +364,7 @@ abstract contract RegistryBase is
             totalOperatorsHistory.push(_totalOperators);
     }
 
-    function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
+    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
         // Update index info for old operator
