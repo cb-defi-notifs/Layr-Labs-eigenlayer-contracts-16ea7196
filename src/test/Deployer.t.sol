@@ -600,17 +600,18 @@ registrationData.push(
     }
 
     function _testSelfOperatorDelegate(address sender) internal {
-        cheats.prank(sender);
-        delegation.delegateToSelf();
-        assertTrue(
-            delegation.isSelfOperator(sender),
-            "_testSelfOperatorDelegate: self delegation not properly recorded"
-        );
-        assertTrue(
-            //TODO: write this properly to use the enum type defined in delegation
-            uint8(delegation.delegated(sender)) == 1,
-            "_testSelfOperatorDelegate: delegation not credited?"
-        );
+        // cheats.prank(sender);
+        // delegation.delegateToSelf();
+        // assertTrue(
+        //     delegation.isSelfOperator(sender),
+        //     "_testSelfOperatorDelegate: self delegation not properly recorded"
+        // );
+        // assertTrue(
+        //     //TODO: write this properly to use the enum type defined in delegation
+        //     uint8(delegation.delegated(sender)) == 1,
+        //     "_testSelfOperatorDelegate: delegation not credited?"
+        // );
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
     function _testRegisterAdditionalSelfOperator(
@@ -836,7 +837,7 @@ registrationData.push(
         );
         cheats.stopPrank();
     }
-
+    
     // tries to delegate from 'sender' to 'operator'
     // verifies that:
     //                  delegator has at least some shares
@@ -858,7 +859,7 @@ registrationData.push(
         );
         uint256[] memory initialOperatorShares = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.getOperatorShares(
+            initialOperatorShares[i] = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -880,7 +881,7 @@ registrationData.push(
 
         for (uint256 i = 0; i < numStrats; ++i) {
             uint256 operatorSharesBefore = initialOperatorShares[i];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(
+            uint256 operatorSharesAfter = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -951,8 +952,8 @@ registrationData.push(
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
         cheats.warp(block.timestamp + 365 days);
+        delegation.initUndelegation();
         delegation.commitUndelegation();
-        delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
 

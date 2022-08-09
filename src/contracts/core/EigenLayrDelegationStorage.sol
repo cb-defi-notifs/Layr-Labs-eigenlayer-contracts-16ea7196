@@ -7,8 +7,6 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IServiceFactory.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
-    address public constant SELF_DELEGATION_ADDRESS = address(1);
-
     uint96 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
     // maximum value that 'undelegationFraudProofInterval' may take
@@ -38,14 +36,17 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // staker => operator
     mapping(address => address) public delegation;
 
-    // staker => time of last undelegation commit
-    mapping(address => uint256) public lastUndelegationCommit;
+    // staker => UTC time at which undelegation is finalized
+    mapping(address => uint256) public undelegationFinalizedTime;
+
+    // staker => UTC time at which undelegation was initialized
+    mapping(address => uint256) public undelegationInitTime;
 
     // staker => whether they are delegated or not
     mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
-    mapping(address => uint256) nonces;
+    mapping(address => uint256) public nonces;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
