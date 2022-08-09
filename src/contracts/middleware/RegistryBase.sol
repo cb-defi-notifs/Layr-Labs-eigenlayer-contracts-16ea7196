@@ -198,17 +198,6 @@ abstract contract RegistryBase is
         
     }
 
-    /**
-     @notice returns task number from when operator has been registered.
-     */
-    function getOperatorFromTaskNumber(address operator)
-        external
-        view
-        returns (uint32)
-    {
-        return registry[operator].fromTaskNumber;
-    }
-
     function setNodeEigenStake(uint128 _nodeEigenStake)
         external
         onlyRepositoryGovernance
@@ -242,8 +231,7 @@ abstract contract RegistryBase is
         external
         view
         returns (OperatorStake memory)
-    {
-        
+    {   
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
