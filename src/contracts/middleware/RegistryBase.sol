@@ -159,10 +159,14 @@ abstract contract RegistryBase is
         _addStrategiesConsideredAndMultipliers(1, _eigenStrategiesConsideredAndMultipliers);
     }
     
+    /*
+     looks up the `operator`'s index in the dynamic array `registrantList` at the specified `blockNumber`.
+     The `index` input is used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]`
+     to read data from, where `pubkeyHash` is looked up from `operator`'s registration info
+    */
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32) {
-
-        Registrant memory registrant = registry[operator];
-        bytes32 pubkeyHash = registrant.pubkeyHash;
+        // look up the operator's stored pubkeyHash
+        bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
 
         require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
         /*
@@ -182,8 +186,11 @@ abstract contract RegistryBase is
         return operatorIndex.index;
     }
 
+    /*
+     looks up the number of total operators at the specified `blockNumber`.
+     The `index` input is used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from
+    */
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
-
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
         // since the 'to' field represents the blockNumber at which a new index started
         // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
@@ -223,7 +230,7 @@ abstract contract RegistryBase is
         return registry[operator].active;
     }
 
-    function getOperatorPubkeyHash(address operator) external view returns(bytes32) {
+    function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }
 
@@ -236,7 +243,7 @@ abstract contract RegistryBase is
     }
 
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
-        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
         uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
         OperatorStake memory opStake;
         if (historyLength == 0) {
@@ -344,7 +351,7 @@ abstract contract RegistryBase is
     // INTERNAL FUNCTIONS
 
     function _updateTotalOperatorsHistory() internal {
-            // set the 'to' field on the last entry *so far* in 'totalOperatorsHistory'
+            // set the 'toBlockNumber' field on the last entry *so far* in 'totalOperatorsHistory' to the current block number
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
             // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
             OperatorIndex memory _totalOperators;
@@ -352,9 +359,8 @@ abstract contract RegistryBase is
             totalOperatorsHistory.push(_totalOperators);
     }
 
+    // Removes the registrant with the given pubkeyHash from the index in registrantList
     function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
-        // Removes the registrant with the given pubkeyHash from the index in registrantList
-
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
