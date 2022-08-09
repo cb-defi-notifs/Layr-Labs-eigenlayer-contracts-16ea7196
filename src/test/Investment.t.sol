@@ -153,6 +153,10 @@ contract InvestmentTests is
     }
     */
 
+    // Coverage for EigenLayrDeposit contract //
+    // TODOs:
+    // testDepositPOSProof
+
     function testSlashing(uint256 amountToDeposit) public{
 
         address[2] memory accounts = [acct_0, acct_1];

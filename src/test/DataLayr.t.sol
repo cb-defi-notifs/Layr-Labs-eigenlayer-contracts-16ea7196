@@ -11,10 +11,11 @@ contract DataLayrTests is
 {
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
-        return _testInitDataStore().metadata.headerHash;
+        //change the current timestamp to be in the future 100 seconds and init
+        return _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
     }
 
-    function testInitDataStoreLoop() public{
+    function testLoopInitDataStore() public{
         uint g = gasleft();
         for(uint i=0; i<20; i++){
             testInitDataStore();
