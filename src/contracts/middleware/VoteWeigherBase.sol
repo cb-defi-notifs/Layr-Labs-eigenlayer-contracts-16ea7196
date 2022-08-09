@@ -144,13 +144,23 @@ contract VoteWeigherBase is
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
-// TODO: add check that makes sure that the *same* strategy cannot be added multiple times
     function _addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber, 
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
     ) internal {
-        uint256 numStrats = _newStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < numStrats;) {
+        uint256 numStratsToAdd = _newStrategiesConsideredAndMultipliers.length;
+        uint256 numStratsExisting = strategiesConsideredAndMultipliers[quorumNumber].length;
+        for (uint256 i = 0; i < numStratsToAdd;) {
+            // fairly gas-expensive internal loop to make sure that the *same* strategy cannot be added multiple times
+            for (uint256 j = 0; j < (numStratsExisting + i);) {
+                require(
+                    strategiesConsideredAndMultipliers[quorumNumber][j].strategy != _newStrategiesConsideredAndMultipliers[i].strategy,
+                    "VoteWeigherBase._addStrategiesConsideredAndMultipliers: cannot add same strategy 2x"
+                );
+                unchecked {
+                    ++j;
+                }
+            }
             strategiesConsideredAndMultipliers[quorumNumber].push(_newStrategiesConsideredAndMultipliers[i]);
             emit StrategyAddedToQuorum(quorumNumber, _newStrategiesConsideredAndMultipliers[i].strategy);
             unchecked {
