@@ -30,7 +30,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
 
     modifier onlyRepositoryGovernance() {
         require(
-            msg.sender == address(repositoryGovernance()),
+            msg.sender == address(_repositoryGovernance()),
             "onlyRepositoryGovernance"
         );
         _;
@@ -38,7 +38,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
 
     modifier onlyServiceManager() {
         require(
-            msg.sender == address(repository.serviceManager()),
+            msg.sender == address(_serviceManager()),
             "onlyServiceManager"
         );
         _;
@@ -46,21 +46,21 @@ abstract contract RepositoryAccess is IRepositoryAccess {
 
     modifier onlyRegistry() {
         require(
-            msg.sender == address(repository.registry()),
+            msg.sender == address(_registry()),
             "onlyRegistry"
         );
         _;
     }
 
     // INTERNAL FUNCTIONS -- fetch info from repository
-    function repositoryGovernance() internal view returns(address) {
+    function _repositoryGovernance() internal view returns(address) {
         return repository.owner();
     }
 
-    function serviceManager() internal view returns(IServiceManager) {
+    function _serviceManager() internal view returns(IServiceManager) {
         return repository.serviceManager();
     }
-    function registry() internal view returns(IRegistry) {
+    function _registry() internal view returns(IRegistry) {
         return repository.registry();
     }
 

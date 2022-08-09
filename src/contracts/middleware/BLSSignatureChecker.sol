@@ -116,7 +116,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         }
 
         // obtain registry contract for querying information on stake later
-        IBLSRegistry registry = IBLSRegistry(address(repository.registry()));
+        IBLSRegistry registry = IBLSRegistry(address(_registry()));
 
         // to be used for holding the aggregated pub key of all operators
         // that aren't part of the quorum
