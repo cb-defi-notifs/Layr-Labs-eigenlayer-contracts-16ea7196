@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
-import "../libraries/SignatureCompaction.sol";
 import "../investment/Slasher.sol";
 
 // TODO: updating of stored addresses by governance?
@@ -107,7 +107,7 @@ contract EigenLayrDelegation is
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
         //check validity of signature
-        address recoveredAddress = SignatureCompaction.ecrecoverPacked(
+        address recoveredAddress = ECDSA.recover(
             digestHash,
             r,
             vs
@@ -375,11 +375,9 @@ contract EigenLayrDelegation is
 
     // VIEW FUNCTIONS
 
-    /// @notice checks whether a staker is currently undelegated and not
-    ///         within challenge period from its last undelegation.
+    /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
+    ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
-        // CRITIC: if delegation[staker] is set to address(0) during initUndelegation,
-        //         we can probably remove "(delegation[staker] == address(0)"
         return
             delegated[staker] == DelegationStatus.UNDELEGATED ||
             (delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED &&

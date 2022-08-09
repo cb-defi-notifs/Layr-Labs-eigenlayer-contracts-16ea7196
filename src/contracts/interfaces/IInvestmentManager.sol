@@ -5,6 +5,7 @@ import "./IInvestmentStrategy.sol";
 import "./ISlasher.sol";
 
 interface IInvestmentManager {
+
     function depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategies,

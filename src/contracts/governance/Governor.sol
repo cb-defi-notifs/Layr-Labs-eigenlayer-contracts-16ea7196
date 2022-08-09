@@ -352,7 +352,7 @@ contract Governor is RepositoryAccess {
         );
         {
             // check percentage
-            IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
+            IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
             require(
                 (uint256(ethStaked) * 100) / registry.totalEthStaked() >=
                     proposalThresholdEthPercentage ||
@@ -414,13 +414,13 @@ contract Governor is RepositoryAccess {
             proposal.forEthVotes <= proposal.againstEthVotes ||
             proposal.forEigenVotes <= proposal.againstEigenVotes ||
             (
-                ((proposal.forEthVotes * 100) / IQuorumRegistry(address(repository.registry())).totalEthStaked() <
+                ((proposal.forEthVotes * 100) / IQuorumRegistry(address(_registry())).totalEthStaked() <
                 quorumEthPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IQuorumRegistry(address(repository.registry())).totalEigenStaked() <
+                ((proposal.forEigenVotes * 100) / IQuorumRegistry(address(_registry())).totalEigenStaked() <
                 quorumEigenPercentage)
                 &&
                 (proposal.proposer != multisig)
@@ -555,7 +555,7 @@ contract Governor is RepositoryAccess {
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IQuorumRegistry(address(repository.registry())).operatorStakes(user);
+        (uint96 ethStaked, uint96 eigenStaked) = IQuorumRegistry(address(_registry())).operatorStakes(user);
         return (ethStaked, eigenStaked);
     }
 }

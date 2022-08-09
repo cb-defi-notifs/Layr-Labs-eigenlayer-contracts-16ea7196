@@ -368,8 +368,8 @@ contract DataLayrChallengeUtils {
                     pairingInput,
                     // send 384 byes of arguments, i.e. pairingInput[0] through (including) pairingInput[11]
                     0x180,
-                    // store return data starting from pairingInput[0]
-                    pairingInput,
+                    // store return data starting from pairingInput[11] -- it is OK to overwrite this slot!
+                    add(pairingInput, 0x160),
                     // store 32 bytes of return data, i.e. overwrite pairingInput[0] with the return data
                     0x20
                 )
@@ -379,7 +379,7 @@ contract DataLayrChallengeUtils {
             }
         }
         // check whether the call to the ecPairing precompile was successful (returns 1 if correct pairing, 0 otherwise)
-        return pairingInput[0] == 1;
+        return pairingInput[11] == 1;
     }
 
     function validateDisclosureResponse(
@@ -436,32 +436,18 @@ contract DataLayrChallengeUtils {
         //get the commitment to the zero polynomial of multireveal degree
 
         uint256[13] memory pairingInput;
-
-
-        assembly {
-            // extract the proof [Pi(s).x, Pi(s).y]
-            mstore(pairingInput, calldataload(multireveal))
-            mstore(add(pairingInput, 0x20), calldataload(add(multireveal, 0x20)))
-
-            // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
-            mstore(add(pairingInput, 0x40), mload(add(zeroPoly, 0x20)))
-            mstore(add(pairingInput, 0x60), mload(zeroPoly))
-            mstore(add(pairingInput, 0x80), mload(add(zeroPoly, 0x60)))
-            mstore(add(pairingInput, 0xA0), mload(add(zeroPoly, 0x40)))
-
-            // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-            mstore(add(pairingInput, 0xC0), mload(c))
-            mstore(add(pairingInput, 0xE0), mload(add(c, 0x20)))
-
-            // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
-            // to get [I_k(s).x, -I_k(s).y]
-            mstore(add(pairingInput, 0x100), calldataload(add(multireveal, 0x40)))
-            // obtain -I_k(s).y
-            mstore(
-                add(pairingInput, 0x120),
-                addmod(0, sub(MODULUS, calldataload(add(multireveal, 0x60))), MODULUS)
-            )
-        }
+        // extract the proof [Pi(s).x, Pi(s).y]
+        (pairingInput[0], pairingInput[1]) = (multireveal[0], multireveal[1]);
+        // extract the commitment to the zero polynomial: [Z_k(s).x0, Z_k(s).x1, Z_k(s).y0, Z_k(s).y1]
+        (pairingInput[2], pairingInput[3], pairingInput[4], pairingInput[5])
+            = (zeroPoly[1], zeroPoly[0], zeroPoly[3], zeroPoly[2]);
+        // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
+        (pairingInput[6], pairingInput[7]) = (c[0], c[1]);
+        // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
+        // to get [I_k(s).x, -I_k(s).y]
+        pairingInput[8] = multireveal[2];
+        // obtain -I_k(s).y        
+        pairingInput[9] = (MODULUS - multireveal[3]) % MODULUS;
 
         assembly {
             // overwrite C(s) with C(s) - I(s)
@@ -499,7 +485,7 @@ contract DataLayrChallengeUtils {
                     0x08,
                     pairingInput,
                     0x180,
-                    add(pairingInput, 0x180),
+                    add(pairingInput, 0x160),
                     0x20
                 )
             ) {
@@ -507,7 +493,7 @@ contract DataLayrChallengeUtils {
             }
         }
 
-        require(pairingInput[12] == 1, "Pairing unsuccessful");
+        require(pairingInput[11] == 1, "Pairing unsuccessful");
         return degree;
     }
 
