@@ -16,6 +16,7 @@ library DataStoreHash {
                 metadata.globalDataStoreId,
                 metadata.blockNumber,
                 metadata.fee,
+                metadata.confirmer,
                 metadata.signatoryRecordHash
             )
         );
@@ -29,6 +30,7 @@ library DataStoreHash {
         uint32 globalDataStoreId,
         uint32 blockNumber,
         uint96 fee,
+        address confirmer,
         bytes32 signatoryRecordHash
     ) internal pure returns (bytes32) {
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
@@ -40,6 +42,7 @@ library DataStoreHash {
                 globalDataStoreId,
                 blockNumber,
                 fee,
+                confirmer,
                 signatoryRecordHash
             )
         );

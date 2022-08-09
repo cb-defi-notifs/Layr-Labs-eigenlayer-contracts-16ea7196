@@ -153,6 +153,10 @@ contract InvestmentTests is
     }
     */
 
+    // Coverage for EigenLayrDeposit contract //
+    // TODOs:
+    // testDepositPOSProof
+
     function testSlashing(uint256 amountToDeposit) public{
 
         address[2] memory accounts = [acct_0, acct_1];
@@ -189,7 +193,7 @@ contract InvestmentTests is
         cheats.stopPrank();
 
 
-        uint prev_shares = delegation.getOperatorShares(registrant, strategy_arr[0]);
+        uint prev_shares = delegation.operatorShares(registrant, strategy_arr[0]);
 
         investmentManager.slashShares(
             registrant, 
@@ -200,7 +204,7 @@ contract InvestmentTests is
             shareAmounts
         );
 
-        require(delegation.getOperatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+        require(delegation.operatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
         
         //initiate withdrawal
 

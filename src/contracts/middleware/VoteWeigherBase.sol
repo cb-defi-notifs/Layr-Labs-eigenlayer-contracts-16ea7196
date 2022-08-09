@@ -48,41 +48,21 @@ contract VoteWeigherBase is
             
             StrategyAndWeightingMultiplier memory strategyAndMultiplier;
 
-            if (delegation.isSelfOperator(operator)) {
-                for (uint256 i = 0; i < stratsLength;) {
-
-                    // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
-                    strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
-
-                    // shares of the self-operator in the investment strategy
-                    uint256 sharesAmount = investmentManager.investorStratShares(operator, strategyAndMultiplier.strategy);
+            for (uint256 i = 0; i < stratsLength;) {
                     
-                    // add the weightage from the shares to the total weight
-                    if (sharesAmount > 0) {
-                        weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                   
-                    }
+                // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
+                strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
 
-                    unchecked {
-                        ++i;
-                    }
+                // shares of the operator in the investment strategy
+                uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
+                
+                // add the weightage from the shares to the total weight
+                if (sharesAmount > 0) {
+                    weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                    
                 }
-            } else {
-                for (uint256 i = 0; i < stratsLength;) {
-                    
-                    // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
-                    strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
 
-                    // shares of the operator in the investment strategy
-                    uint256 sharesAmount = delegation.getOperatorShares(operator, strategyAndMultiplier.strategy);
-                    
-                    // add the weightage from the shares to the total weight
-                    if (sharesAmount > 0) {
-                        weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                    
-                    }
-
-                    unchecked {
-                        ++i;
-                    }
+                unchecked {
+                    ++i;
                 }
             }
         }

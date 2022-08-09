@@ -7,8 +7,8 @@ interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
         DELEGATED,
-        UNDELEGATION_COMMITTED,
-        UNDELEGATION_FINALIZED
+        UNDELEGATION_INITIALIZED,
+        UNDELEGATION_COMMITTED
     }
 
     function registerAsDelegate(IDelegationTerms dt) external;
@@ -18,7 +18,7 @@ interface IEigenLayrDelegation {
         view
         returns (IDelegationTerms);
 
-    function getOperatorShares(address operator, IInvestmentStrategy investmentStrategy)
+    function operatorShares(address operator, IInvestmentStrategy investmentStrategy)
         external
         view
         returns (uint256);
@@ -33,17 +33,12 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
-    function isSelfOperator(address operator)
-        external
-        view
-        returns (bool);
-
-    function isDelegator(address operator)
+    function isDelegated(address operator)
         external
         view
         returns (bool);
     
-    function decreaseOperatorShares(
+    function decreaseDelegatedShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares

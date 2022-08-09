@@ -625,14 +625,7 @@ contract DataLayrBombVerifier {
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
-                                                ) == DataStoreHash.computeDataStoreHashFromArgs(
-                                                                            searchData.metadata.headerHash, 
-                                                                            searchData.metadata.globalDataStoreId, 
-                                                                            searchData.metadata.durationDataStoreId, 
-                                                                            searchData.metadata.blockNumber, 
-                                                                            searchData.metadata.fee, 
-                                                                            searchData.metadata.signatoryRecordHash
-                                                                        ), "search.metadataclear preimage is incorrect");
+                                                ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "search.metadataclear preimage is incorrect");
 
         // check that disperser had acquire quorum for this dataStore
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
