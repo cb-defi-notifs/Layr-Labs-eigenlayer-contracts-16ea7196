@@ -186,6 +186,6 @@ abstract contract DataLayrChallengeBase {
             }
         }
 
-        dataLayrServiceManager.slashOperator(operator);
+        dataLayrServiceManager.freezeOperator(operator);
     }
 }

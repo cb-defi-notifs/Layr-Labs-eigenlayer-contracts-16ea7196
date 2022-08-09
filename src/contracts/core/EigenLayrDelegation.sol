@@ -137,7 +137,7 @@ contract EigenLayrDelegation is
         address operator = delegation[msg.sender];
         // checks that operator has not been slashed
         ISlasher slasher = investmentManager.slasher();
-        require(!slasher.slashedStatus(operator),
+        require(!slasher.frozenStatus(operator),
             "EigenLayrDelegation.initUndelegation: operator has been slashed. must wait for resolution before undelegation"
         );
 
@@ -217,7 +217,7 @@ contract EigenLayrDelegation is
     }
 
         // perform the slashing itself
-        slasher.slashOperator(staker); 
+        slasher.freezeOperator(staker); 
 
         // reset status of staker to having committed to undelegation but not yet finalized
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
@@ -343,7 +343,7 @@ contract EigenLayrDelegation is
         );
         // checks that operator has not been slashed
         ISlasher slasher = investmentManager.slasher();
-        require(!slasher.slashedStatus(operator),
+        require(!slasher.frozenStatus(operator),
             "EigenLayrDelegation._delegate: cannot delegate to a slashed operator"
         );
 

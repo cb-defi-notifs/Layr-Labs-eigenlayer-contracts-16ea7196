@@ -32,15 +32,15 @@ contract Slasher is
     mapping(address => bool) public globallyPermissionedContracts;
     // user => contract => if that contract can slash the user
     mapping(address => mapping(address => bool)) public optedIntoSlashing;
-    // staker => if they are 'slashed' or not
-    mapping(address => bool) public slashedStatus;
+    // staker => if their funds are 'frozen' and potentially subject to slashing or not
+    mapping(address => bool) public frozenStatus;
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
-    event SlashedStatusReset(address indexed previouslySlashedAddress);
+    event FrozenStatusReset(address indexed previouslySlashedAddress);
 
     constructor(){
         // TODO: uncomment for production use!
@@ -100,16 +100,16 @@ contract Slasher is
     /**
      * @notice Used for slashing a certain operator
      */
-    function slashOperator(
-        address toBeSlashed
+    function freezeOperator(
+        address toBeFrozen
     ) external {
-        require(canSlash(toBeSlashed, msg.sender), "Slasher.slashOperator: msg.sender does not have permission to slash this operator");
-        _slashOperator(toBeSlashed, msg.sender);
+        require(canSlash(toBeFrozen, msg.sender), "Slasher.freezeOperator: msg.sender does not have permission to slash this operator");
+        _freezeOperator(toBeFrozen, msg.sender);
     }
 
-    function resetSlashedStatus(address[] calldata slashedAddresses) external onlyOwner {
-        for (uint256 i = 0; i < slashedAddresses.length; ) {
-            _resetSlashedStatus(slashedAddresses[i]);
+    function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
+        for (uint256 i = 0; i < frozenAddresses.length; ) {
+            _resetFrozenStatus(frozenAddresses[i]);
             unchecked { ++i; }
         }
     }
@@ -143,27 +143,27 @@ contract Slasher is
         }
     }
 
-    function _slashOperator(address toBeSlashed, address slashingContract) internal {
-        if (!slashedStatus[toBeSlashed]) {
-            slashedStatus[toBeSlashed] = true;
-            emit OperatorSlashed(toBeSlashed, slashingContract);
+    function _freezeOperator(address toBeFrozen, address slashingContract) internal {
+        if (!frozenStatus[toBeFrozen]) {
+            frozenStatus[toBeFrozen] = true;
+            emit OperatorSlashed(toBeFrozen, slashingContract);
         }
     }
 
-    function _resetSlashedStatus(address previouslySlashedAddress) internal {
-        if (slashedStatus[previouslySlashedAddress]) {
-            slashedStatus[previouslySlashedAddress] = false;
-            emit SlashedStatusReset(previouslySlashedAddress);
+    function _resetFrozenStatus(address previouslySlashedAddress) internal {
+        if (frozenStatus[previouslySlashedAddress]) {
+            frozenStatus[previouslySlashedAddress] = false;
+            emit FrozenStatusReset(previouslySlashedAddress);
         }
     }
 
     // VIEW FUNCTIONS
-    function hasBeenSlashed(address staker) external view returns (bool) {
-        if (slashedStatus[staker]) {
+    function isFrozen(address staker) external view returns (bool) {
+        if (frozenStatus[staker]) {
             return true;
         } else if (delegation.isDelegated(staker)) {
             address operatorAddress = delegation.delegation(staker);
-            return(slashedStatus[operatorAddress]);
+            return(frozenStatus[operatorAddress]);
         } else {
             return false;
         }

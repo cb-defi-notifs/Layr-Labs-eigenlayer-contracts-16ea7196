@@ -267,7 +267,7 @@ The loop iterates through to find this next DataStore, thus determining the true
             "No bomb"
         );
 
-        dlsm.slashOperator(operator);
+        dlsm.freezeOperator(operator);
     }
 
     // return globalDataStoreId at bomb DataStore

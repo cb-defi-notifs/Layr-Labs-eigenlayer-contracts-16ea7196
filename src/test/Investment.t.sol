@@ -185,7 +185,7 @@ contract InvestmentTests is
 
         //investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
         cheats.startPrank(address(slasher.delegation()));
-        slasher.slashOperator(registrant);
+        slasher.freezeOperator(registrant);
         cheats.stopPrank();
 
 

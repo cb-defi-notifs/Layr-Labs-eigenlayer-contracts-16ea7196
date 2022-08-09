@@ -47,13 +47,13 @@ contract InvestmentManager is
         _;
     }
 
-    modifier onlyNotSlashed(address staker) {
-        require(!slasher.hasBeenSlashed(staker), "staker has been slashed");
+    modifier onlyNotFrozen(address staker) {
+        require(!slasher.isFrozen(staker), "staker has been frozen and may be subject to slashing");
         _;
     }
 
-    modifier onlySlashed(address staker) {
-        require(slasher.hasBeenSlashed(staker), "staker has not been slashed");
+    modifier onlyFrozen(address staker) {
+        require(slasher.isFrozen(staker), "staker has not been frozen");
         _;
     }
 
@@ -106,7 +106,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external onlyNotSlashed(msg.sender) returns (uint256 shares) {
+    ) external onlyNotFrozen(msg.sender) returns (uint256 shares) {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -127,7 +127,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyNotSlashed(msg.sender) onlyNotDelegated(msg.sender) {
+    ) external onlyNotFrozen(msg.sender) onlyNotDelegated(msg.sender) {
         _withdrawFromStrategy(
             msg.sender,
             strategyIndex,
@@ -157,7 +157,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce memory withdrawerAndNonce
-    ) external onlyNotSlashed(msg.sender) {
+    ) external onlyNotFrozen(msg.sender) {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "provided nonce incorrect"
@@ -230,7 +230,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint96 queuedWithdrawalNonce
-    ) external onlyNotSlashed(depositor) {
+    ) external onlyNotFrozen(depositor) {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,
@@ -343,7 +343,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external onlyOwner onlySlashed(slashedAddress) {
+    ) external onlyOwner onlyFrozen(slashedAddress) {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -383,7 +383,7 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         uint96 queuedWithdrawalNonce
-    ) external onlyOwner onlySlashed(slashedAddress) {
+    ) external onlyOwner onlyFrozen(slashedAddress) {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,
