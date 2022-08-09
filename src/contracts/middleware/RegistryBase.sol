@@ -159,7 +159,7 @@ abstract contract RegistryBase is
         _addStrategiesConsideredAndMultipliers(1, _eigenStrategiesConsideredAndMultipliers);
     }
     
-    function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) public view returns (uint32) {
+    function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32) {
 
         Registrant memory registrant = registry[operator];
         bytes32 pubkeyHash = registrant.pubkeyHash;
@@ -182,7 +182,7 @@ abstract contract RegistryBase is
         return operatorIndex.index;
     }
 
-    function getTotalOperators(uint32 blockNumber, uint32 index) public view returns (uint32) {
+    function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
 
         require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
         // since the 'to' field represents the blockNumber at which a new index started
@@ -202,7 +202,7 @@ abstract contract RegistryBase is
      @notice returns task number from when operator has been registered.
      */
     function getOperatorFromTaskNumber(address operator)
-        public
+        external
         view
         returns (uint32)
     {
@@ -224,22 +224,22 @@ abstract contract RegistryBase is
     }
 
     /// @notice returns the unique ID of the specified operator 
-    function getOperatorId(address operator) public view returns (uint32) {
+    function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
     }
 
 
     /// @notice returns the active status for the specified operator
-    function getOperatorType(address operator) public view returns (uint8) {
+    function getOperatorType(address operator) external view returns (uint8) {
         return registry[operator].active;
     }
 
-    function getOperatorPubkeyHash(address operator) public view returns(bytes32) {
+    function getOperatorPubkeyHash(address operator) external view returns(bytes32) {
         return registry[operator].pubkeyHash;
     }
 
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index)
-        public
+        external
         view
         returns (OperatorStake memory)
     {
@@ -322,7 +322,7 @@ abstract contract RegistryBase is
      @notice returns task number from when operator has been registered.
      */
     function getFromTaskNumberForOperator(address operator)
-        public
+        external
         view
         returns (uint32)
     {
@@ -333,7 +333,7 @@ abstract contract RegistryBase is
      @notice returns block number from when operator has been registered.
      */
     function getFromBlockNumberForOperator(address operator)
-        public
+        external
         view
         returns (uint32)
     {
@@ -341,7 +341,7 @@ abstract contract RegistryBase is
     }
 
     function getOperatorDeregisterTime(address operator)
-        public
+        external
         view
         returns (uint256)
     {
