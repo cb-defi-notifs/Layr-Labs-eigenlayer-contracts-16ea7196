@@ -379,11 +379,9 @@ contract EigenLayrDelegation is
 
     // VIEW FUNCTIONS
 
-    /// @notice checks whether a staker is currently undelegated and not
-    ///         within challenge period from its last undelegation.
+    /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
+    ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
-        // CRITIC: if delegation[staker] is set to address(0) during initUndelegation,
-        //         we can probably remove "(delegation[staker] == address(0)"
         return
             delegated[staker] == DelegationStatus.UNDELEGATED ||
             (delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED &&
