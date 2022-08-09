@@ -295,8 +295,10 @@ registrationData.push(
             feePerBytePerTime
         );
 
+        uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
+            paymentFraudProofCollateral,
             dlsm
         );
 
@@ -539,6 +541,8 @@ registrationData.push(
             totalBytes,
             blockNumber
         );
+        uint32 dataStoreId = dlsm.taskNumber() - 1;
+
         emit log_named_uint("init datastore total gas", g - gasleft());
         bytes32 headerHash = keccak256(header);
 
@@ -548,11 +552,12 @@ registrationData.push(
 
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
+
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata(
                 headerHash,
-                dlsm.getDataStoresForDuration(durationToInit)-1,
-                dlsm.dataStoreId() - 1,
+                dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                dlsm.taskNumber() - 1,
                 blockNumber,
                 uint96(fee),
                 confirmer,
@@ -565,7 +570,7 @@ registrationData.push(
             //check if computed hash matches stored hash in DLSM
             assertTrue(
                 dataStoreHash ==
-                    dlsm.getDataStoreIdsForDuration(durationToInit, timestamp, index),
+                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
@@ -680,6 +685,7 @@ registrationData.push(
 
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
