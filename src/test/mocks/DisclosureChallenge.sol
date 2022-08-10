@@ -10,7 +10,7 @@ contract DataLayrDisclosureChallenge is DSTest {
     struct DisclosureChallenge {
         address operator;
         address challenger;
-        uint32 commitTime; // when commited, used for fraud proof period
+        uint32 commitTime; // when committed, used for fraud proof period
         bool turn; // false: operator's turn, true: challengers turn
         uint256 x_low; // claimed x and y coordinate of the commitment to the lower half degrees of the polynomial
         uint256 y_low; // interpolating the data the operator receives

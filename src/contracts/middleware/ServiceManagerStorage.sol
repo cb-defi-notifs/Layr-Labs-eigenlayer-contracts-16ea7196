@@ -29,7 +29,7 @@ abstract contract ServiceManagerStorage is IServiceManager {
         uint120 amount; 
 
 
-        uint8 status; // 0: commited, 1: redeemed
+        uint8 status; // 0: committed, 1: redeemed
         uint256 collateral; //account for if collateral changed
     }
 
