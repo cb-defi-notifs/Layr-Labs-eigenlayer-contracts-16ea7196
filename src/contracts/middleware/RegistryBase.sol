@@ -24,49 +24,6 @@ abstract contract RegistryBase is
 {
     using BytesLib for bytes;
 
-    // DATA STRUCTURES 
-    /**
-     * @notice  Data structure for storing info on operators to be used for:
-     *           - sending data by the sequencer
-     *           - payment and associated challenges
-     */
-    struct Registrant {
-        // hash of pubkey of the operator
-        bytes32 pubkeyHash;
-
-        // id is always unique
-        uint32 id;
-
-        // corresponds to position in registrantList
-        uint64 index;
-
-        // start block from which the  operator has been registered
-        uint32 fromTaskNumber;
-        uint32 fromBlockNumber; 
-
-        // UTC time until which this operator is supposed to serve its obligations to this middleware
-        // set only when committing to deregistration
-        uint32 serveUntil;
-
-        // indicates whether the operator is actively registered for storing data or not 
-        uint8 active; //bool
-
-        // socket address of the node
-        string socket;
-
-        uint256 deregisterTime;
-    }
-
-    // struct used to give definitive ordering to operators at each blockNumber
-    struct OperatorIndex {
-        // blockNumber number at which operator index changed
-        // note that the operator's index is different *for this block number*, i.e. the new index is inclusive of this value
-        uint32 toBlockNumber;
-        // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
-        uint32 index;
-    }
-
-
     // CONSTANTS
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
@@ -92,8 +49,8 @@ abstract contract RegistryBase is
     /// @notice used for storing the list of current and past registered operators 
     address[] public registrantList;
 
-    /// @notice array of the history of the total stakes
-    OperatorStake[] public totalStakeHistory;
+    /// @notice array of the history of the total stakes -- marked as internal since getTotalStakeFromIndex is a getter for this
+    OperatorStake[] internal totalStakeHistory;
 
     /// @notice array of the history of the number of operators, and the taskNumbers at which the number of operators changed
     OperatorIndex[] public totalOperatorsHistory;
