@@ -248,13 +248,11 @@ contract BLSRegistry is
             "BLSRegistry._deregisterOperator: Incorrect index supplied"
         );
 
-        IServiceManager serviceManager = repository.serviceManager();
-
-        // must store till the latest time a dump expires
+        // must continue to serve until the latest time at which an active task expires
         /**
          @notice this info is used in forced disclosure
          */
-        registry[msg.sender].serveUntil = serviceManager.latestTime();
+        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
 
 
         // committing to not signing off on any more data that is being asserted into DataLayr
@@ -375,7 +373,7 @@ contract BLSRegistry is
             if (newStakes.eigenStake < nodeEigenStake) {
                 newStakes.eigenStake = uint96(0);
             }
-            //set next task number in prev stakes
+            //set next block number in prev stakes
             pubkeyHashToStakeHistory[pubkeyHash][
                 pubkeyHashToStakeHistory[pubkeyHash].length - 1
             ].nextUpdateBlockNumber = uint32(block.number);
