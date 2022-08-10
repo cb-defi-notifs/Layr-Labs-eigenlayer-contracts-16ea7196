@@ -95,7 +95,7 @@ contract BLSRegistry is
     ) internal {
         require(
             registry[operator].active == 0,
-            "Operator is already registered"
+            "BLSRegistry._registerOperator: Operator is already registered"
         );
 
         OperatorStake memory _operatorStake;
@@ -107,7 +107,7 @@ contract BLSRegistry is
             _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
             require(
                 _operatorStake.ethStake >= nodeEthStake,
-                "Not enough eth value staked"
+                "BLSRegistry._registerOperator: Not enough eth value staked"
             );
         }
 
@@ -118,13 +118,13 @@ contract BLSRegistry is
             _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
             require(
                 _operatorStake.eigenStake >= nodeEigenStake,
-                "Not enough eigen staked"
+                "BLSRegistry._registerOperator: Not enough eigen staked"
             );
         }
 
         require(
             _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
-            "must register as at least one type of validator"
+            "BLSRegistry._registerOperator: Must register as at least one type of validator"
         );
 
         /**
@@ -153,7 +153,7 @@ contract BLSRegistry is
         if (apkUpdates.length != 0) {
             // addition doesn't work in this case 
             // our addition algorithm doesn't work
-            require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
+            require(pubkeyHash != apkHashes[apkHashes.length - 1], "BLSRegistry._registerOperator: Apk and pubkey cannot be the same");
         }
         
         /**
@@ -240,12 +240,12 @@ contract BLSRegistry is
     function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         require(
             registry[msg.sender].active > 0,
-            "Operator is already registered"
+            "BLSRegistry._deregisterOperator: Operator is already registered"
         );
 
         require(
             msg.sender == registrantList[index],
-            "Incorrect index supplied"
+            "BLSRegistry._deregisterOperator: Incorrect index supplied"
         );
 
         IServiceManager serviceManager = repository.serviceManager();
@@ -276,7 +276,7 @@ contract BLSRegistry is
             )
         );
         // verify that it matches the 'pubkeyToRemoveAff' input
-        require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
+        require(pubkeyHash == pubkeyHashFromInput, "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash");
 
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
@@ -419,14 +419,14 @@ contract BLSRegistry is
     {
         require(
             blockNumber >= apkUpdates[index],
-            "Index too recent"
+            "BLSRegistry.getCorrectApkHash: Index too recent"
         );
 
         // if not last update
         if (index != apkUpdates.length - 1) {
             require(
                 blockNumber < apkUpdates[index + 1],
-                "Not latest valid apk update"
+                "BLSRegistry.getCorrectApkHash: Not latest valid apk update"
             );
         }
 
