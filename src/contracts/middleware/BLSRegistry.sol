@@ -34,7 +34,7 @@ contract BLSRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
+    uint256[4] public apk;
 
 
     // EVENTS
@@ -65,7 +65,15 @@ contract BLSRegistry is
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
-    {}
+    {
+        /** 
+         @dev Initialized value is the generator of G2 group. It is necessary in order to do 
+         addition in Jacobian coordinate system.
+         */
+        uint256[4] memory initApk = [G2x0, G2x1, G2y0, G2y1];
+        // TODO: verify this initialization is correct
+        _processApkUpdate(initApk);
+    }
 
     /**
      @notice called for registering as a operator
@@ -142,19 +150,14 @@ contract BLSRegistry is
             
             // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
-
-            apk = newApk;
         }
         
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
         
-
-        if (apkUpdates.length != 0) {
-            // addition doesn't work in this case 
-            // our addition algorithm doesn't work
-            require(pubkeyHash != apkHashes[apkHashes.length - 1], "BLSRegistry._registerOperator: Apk and pubkey cannot be the same");
-        }
+        // addition doesn't work in this case 
+        // our addition algorithm doesn't work
+        require(pubkeyHash != apkHashes[apkHashes.length - 1], "BLSRegistry._registerOperator: Apk and pubkey cannot be the same");
         
         /**
          @notice some book-keeping for aggregated pubkey
@@ -162,12 +165,8 @@ contract BLSRegistry is
         // get current task number from ServiceManager
         uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
 
-        // store the current block number in which the aggregated pubkey is being updated 
-        apkUpdates.push(uint32(block.number));
-        
-        //store the hash of aggregate pubkey
-        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);    
+        // record the APK update and get the hash of the new APK
+        bytes32 newApkHash = _processApkUpdate(newApk);
 
         /**
          @notice some book-keeping for recording info pertaining to the operator
@@ -324,14 +323,9 @@ contract BLSRegistry is
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
         (pk[0], pk[1], pk[2], pk[3]) = BLS.removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-        // update stored aggregate public key
-        apk = pk;
 
-        // store the current block number in which the aggregated pubkey is being updated 
-        apkUpdates.push(uint32(block.number));
-
-        // store hash of updated aggregated pubkey
-        apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
+        // record the APK update
+        _processApkUpdate(pk);
 
         emit Deregistration(msg.sender, swappedOperator);
     }
@@ -403,6 +397,21 @@ contract BLSRegistry is
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
+    }
+
+    // updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
+    // returns the hash of `newApk
+    function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
+        // update stored aggregate public key
+        apk = newApk;
+
+        // store the current block number in which the aggregated pubkey is being updated 
+        apkUpdates.push(uint32(block.number));
+        
+        //store the hash of aggregate pubkey
+        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
+        apkHashes.push(newApkHash);
+        return newApkHash;
     }
 
     /**

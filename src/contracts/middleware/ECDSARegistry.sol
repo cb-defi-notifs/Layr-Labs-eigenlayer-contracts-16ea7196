@@ -53,7 +53,7 @@ contract ECDSARegistry is
             _eigenStrategiesConsideredAndMultipliers
         )
     {
-        // TODO: check this initialization
+        // TODO: verify this initialization is correct
         stakeHashUpdates.push(0);
     }
 
