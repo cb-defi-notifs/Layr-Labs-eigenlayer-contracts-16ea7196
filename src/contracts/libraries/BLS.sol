@@ -471,4 +471,47 @@ library BLS {
         }
         require(callSuccess, "BLS: sqrt modexp call failed");
     }
+
+    /**
+     @notice This function is for removing a pubkey from aggregated pubkey. The thesis of this operation:
+              - conversion to Jacobian coordinates,
+              - do the subtraction of pubkey from aggregated pubkey,
+              - convert the updated aggregated pubkey back to affine coordinates.   
+     */
+    /**
+     @param pubkeyToRemoveAff is the pubkey that is to be removed,
+     @param existingAggPubkeyAff is the aggregated pubkey.
+     */
+    /**
+     @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
+     */ 
+    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal view returns (uint256, uint256, uint256, uint256) {
+        uint256[6] memory pubkeyToRemoveJac;
+        uint256[6] memory existingAggPubkeyJac;
+
+        // get x0, x1, y0, y1 from affine coordinates
+        for (uint256 i = 0; i < 4;) {
+            pubkeyToRemoveJac[i] = pubkeyToRemoveAff[i];
+            existingAggPubkeyJac[i] = existingAggPubkeyAff[i];
+            unchecked {
+                ++i;
+            }
+        }
+        // set z0 = 1
+        pubkeyToRemoveJac[4] = 1;
+        existingAggPubkeyJac[4] = 1;
+
+
+        /**
+         @notice subtract pubkeyToRemoveJac from the aggregate pubkey
+         */
+        // negate pubkeyToRemoveJac  
+        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
+        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
+        // add the negation to existingAggPubkeyJac
+        addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
+
+        // 'addJac' function above modifies the first input in memory, so now we can just return it (but first transform it back to affine)
+        return (jacToAff(existingAggPubkeyJac));
+    }
 }
