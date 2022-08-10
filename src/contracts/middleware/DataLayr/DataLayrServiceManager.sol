@@ -204,7 +204,7 @@ contract DataLayrServiceManager is
         IDataLayrServiceManager.DataStoreMetadata memory metadata = 
             IDataLayrServiceManager.DataStoreMetadata(
                 headerHash, 
-                getDataStoresForDuration(duration),
+                getNumDataStoresForDuration(duration),
                 dataStoresForDuration.dataStoreId, 
                 blockNumber, 
                 uint96(fee),
@@ -216,7 +216,6 @@ contract DataLayrServiceManager is
 
         {
            // uint g = gasleft();
-
             //iterate the index throughout the loop
             for (; index < NUM_DS_PER_BLOCK_PER_DURATION; index++){
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] == 0){
@@ -228,6 +227,7 @@ contract DataLayrServiceManager is
 
             // reverting we looped through all of the indecies without finding an empty element
             require(index != NUM_DS_PER_BLOCK_PER_DURATION, "DataLayrServiceManager.initDataStore: number of initDatastores for this duration and block has reached its limit");
+
         }
 
         // sanity check on blockNumber
@@ -257,7 +257,7 @@ contract DataLayrServiceManager is
         // part of the quorum, have to store the data
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
 
-        if (_latestTime > latestTime) {
+        if (_latestTime > dataStoresForDuration.latestTime) {
             dataStoresForDuration.latestTime = _latestTime;            
         }
 
@@ -305,6 +305,7 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
+
         //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
         //this keeps bomb and storage conditions stagnant
         // TODO: need to check hash of stakesBlockNumber here?
@@ -317,8 +318,6 @@ contract DataLayrServiceManager is
         require(searchData.metadata.globalDataStoreId == dataStoreIdToConfirm, "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data");
         require(searchData.metadata.blockNumber == blockNumberFromTaskHash, "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data");
 
-        //TODO: This check is redundant after we check metadatahash against it below?
-        require(dataStoreIdToConfirm > 0 && dataStoreIdToConfirm < dataStoreId(), "DataLayrServiceManager.confirmDataStore: DataStoreId is invalid");
 
         emit log_bytes32(searchData.metadata.headerHash);
         emit log_bytes32(signatoryRecordHash);
@@ -331,12 +330,14 @@ contract DataLayrServiceManager is
 
         require(    
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
-            "provided calldata does not match corresponding stored hash from initDataStore"
+            "DataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
         );
 
         searchData.metadata.signatoryRecordHash = signatoryRecordHash;
+
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
+
 
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
@@ -345,7 +346,7 @@ contract DataLayrServiceManager is
         // and eigen, thus, implying quorum has been acheieved
         require(signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
                 && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
-                "signatories do not own at least a threshold percentage of eth and eigen");
+                "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen");
 
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
@@ -360,7 +361,7 @@ contract DataLayrServiceManager is
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
-            "Only challenge resolvers can slash operators"
+            "DataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
@@ -378,7 +379,7 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
     }
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
         return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
 
@@ -424,7 +425,7 @@ contract DataLayrServiceManager is
      @notice returns the number of data stores for the @param duration
      */
     /// CRITIC -- change the name to `getNumDataStoresForDuration`?
-    function getDataStoresForDuration(uint8 duration) public view returns(uint32){
+    function getNumDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
         }
@@ -449,10 +450,6 @@ contract DataLayrServiceManager is
         return 0;
     }
 
-    // TODO: de-duplicate functions
-    function dataStoreId() public view returns (uint32){
-        return dataStoresForDuration.dataStoreId;
-    }
 
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
@@ -474,7 +471,7 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external  {
+    function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external view {
         bytes32 headerHash;
         uint32 globalDataStoreId; 
         uint32 durationDataStoreId;
@@ -517,6 +514,10 @@ contract DataLayrServiceManager is
             "task does not meet requirements"
         );
 
+    }
+
+    function latestTime() external view returns (uint32) {
+        return dataStoresForDuration.latestTime;
     }
 
     /* function removed for now since it tries to modify an immutable variable
