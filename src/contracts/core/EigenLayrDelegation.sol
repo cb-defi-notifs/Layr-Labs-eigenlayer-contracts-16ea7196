@@ -135,10 +135,10 @@ contract EigenLayrDelegation is
 
         // get the current operator for the staker (msg.sender)
         address operator = delegation[msg.sender];
-        // checks that operator has not been slashed
+        // checks that operator has not been frozen
         ISlasher slasher = investmentManager.slasher();
         require(!slasher.frozenStatus(operator),
-            "EigenLayrDelegation.initUndelegation: operator has been slashed. must wait for resolution before undelegation"
+            "EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"
         );
 
         // retrieve list of strategies and their shares from investment manager
@@ -341,10 +341,10 @@ contract EigenLayrDelegation is
             isNotDelegated(staker),
             "EigenLayrDelegation._delegate: staker has existing delegation"
         );
-        // checks that operator has not been slashed
+        // checks that operator has not been frozen
         ISlasher slasher = investmentManager.slasher();
         require(!slasher.frozenStatus(operator),
-            "EigenLayrDelegation._delegate: cannot delegate to a slashed operator"
+            "EigenLayrDelegation._delegate: cannot delegate to a frozen operator"
         );
 
         // record delegation relation between the staker and operator
