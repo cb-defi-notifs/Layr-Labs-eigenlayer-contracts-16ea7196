@@ -238,13 +238,11 @@ contract ECDSARegistry is
             "Supplied stakes are incorrect"
         );
 
-        IServiceManager serviceManager = repository.serviceManager();
-
-        // must store till the latest time a dump expires
+        // must continue to serve until the latest time at which an active task expires
         /**
-         @notice this info is used in forced disclosure
+         @notice this info is used in challenges
          */
-        registry[msg.sender].serveUntil = serviceManager.latestTime();
+        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
 
         // committing to not signing off on any more data that is being asserted into DataLayr
         registry[msg.sender].active = 0;
