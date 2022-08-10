@@ -325,7 +325,7 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyBomb: No bomb"
         );
 
-        dlsm.slashOperator(operator);
+        dlsm.freezeOperator(operator);
     }
 
     // return globalDataStoreId at bomb DataStore

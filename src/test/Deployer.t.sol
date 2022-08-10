@@ -136,7 +136,8 @@ contract EigenLayrDeployer is
         );
 
         // deploy slasher and service factory contracts
-        slasher = new Slasher(investmentManager, address(this));
+        slasher = new Slasher();
+        slasher.initialize(investmentManager, delegation, address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
@@ -416,6 +417,8 @@ registrationData.push(
         internal
         returns (uint256 amountDeposited)
     {
+        // deposits will revert when amountToDeposit is 0
+        cheats.assume(amountToDeposit > 0);
         amountDeposited = _testWethDepositStrat(sender, amountToDeposit, strat);
     }
 
@@ -587,6 +590,8 @@ registrationData.push(
     // deposits a fixed amount of eigen from address 'sender'
     // checks that the deposit is credited correctly
     function _testDepositEigen(address sender, uint256 toDeposit) public {
+        // deposits will revert when amountToDeposit is 0
+        cheats.assume(toDeposit > 0);
         eigenToken.transfer(sender, toDeposit);
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);

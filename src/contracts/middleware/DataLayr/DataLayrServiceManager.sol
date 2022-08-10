@@ -354,7 +354,7 @@ contract DataLayrServiceManager is
     }
 
     // called in the event of challenge resolution
-    function slashOperator(address operator) external {
+    function freezeOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrDisclosureChallenge) ||
@@ -363,7 +363,7 @@ contract DataLayrServiceManager is
             msg.sender == address(dataLayrPaymentManager),
             "DataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
         );
-        ISlasher(investmentManager.slasher()).slashOperator(operator);
+        ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
    

@@ -224,9 +224,9 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         );
     }
 
-    function slashOperator(address operator) external {
+    function freezeOperator(address operator) external {
         revert("function unfinished in this contract -- no permissions");
-        ISlasher(investmentManager.slasher()).slashOperator(operator);
+        ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
     /// @notice returns the outcome of the task associated with the taskHash
