@@ -127,15 +127,11 @@ contract BLSRegistry is
             "must register as at least one type of validator"
         );
 
-
-        
         /**
          @notice evaluate the new aggregated pubkey
          */
         uint256[4] memory newApk;
         uint256[4] memory pk;
-
-        
 
         {
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
@@ -150,7 +146,6 @@ contract BLSRegistry is
             apk = newApk;
         }
         
-
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
         
@@ -160,14 +155,6 @@ contract BLSRegistry is
             // our addition algorithm doesn't work
             require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
-
-        
-        // emit log_bytes(getCompressedApk());
-        // emit log_named_uint("x", input[0]);
-        // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
-
-
-
         
         /**
          @notice some book-keeping for aggregated pubkey
@@ -218,7 +205,6 @@ contract BLSRegistry is
         unchecked {
             ++nextRegistrantId;
         }
-        
         
         {
             /**
@@ -360,7 +346,7 @@ contract BLSRegistry is
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
-    function updateStakes(address[] calldata operators) public {
+    function updateStakes(address[] calldata operators) external {
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
