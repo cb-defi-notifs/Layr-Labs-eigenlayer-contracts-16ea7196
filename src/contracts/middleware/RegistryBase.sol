@@ -125,21 +125,21 @@ abstract contract RegistryBase is
         // look up the operator's stored pubkeyHash
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
 
-        require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "Operator indexHistory index exceeds array length");
+        require(index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length), "RegistryBase.getOperatorIndex: Operator indexHistory index exceeds array length");
         /*
          // since the 'to' field represents the taskNumber at which a new index started
          // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
         */
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toBlockNumber <= blockNumber,
-            "Operator indexHistory index is too high"
+            "RegistryBase.getOperatorIndex: Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
         /*
          // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
          // since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
         */
-        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "indexHistory index is too low");
+        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "RegistryBase.getOperatorIndex: indexHistory index is too low");
         return operatorIndex.index;
     }
 
@@ -148,16 +148,16 @@ abstract contract RegistryBase is
      The `index` input is used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from
     */
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
-        require(index < uint32(totalOperatorsHistory.length), "TotalOperator indexHistory index exceeds array length");
+        require(index < uint32(totalOperatorsHistory.length), "RegistryBase.getTotalOperators: TotalOperator indexHistory index exceeds array length");
         // since the 'to' field represents the blockNumber at which a new index started
         // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
         require(
             index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
-            "TotalOperator indexHistory index is too high"
+            "RegistryBase.getTotalOperators: TotalOperator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
         // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
-        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "indexHistory index is too low");
+        require(operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber, "RegistryBase.getTotalOperators: indexHistory index is too low");
         return operatorIndex.index;
         
     }
@@ -301,7 +301,7 @@ abstract contract RegistryBase is
     }
 
     // number of registrants of this service
-    function numRegistrants() public view returns(uint64) {
+    function numRegistrants() public view returns (uint64) {
         return uint64(registrantList.length);
     }
 
@@ -317,7 +317,7 @@ abstract contract RegistryBase is
     }
 
     // Removes the registrant with the given pubkeyHash from the index in registrantList
-    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
+    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address) {
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
@@ -348,6 +348,48 @@ abstract contract RegistryBase is
         
         //return address of operator whose index has changed
         return swappedOperator;
+    }
+
+    // 
+    function _registrationStakeEvaluation(address operator, uint8 registrantType) internal returns (OperatorStake memory) {
+        require(
+            registry[operator].active == 0,
+            "_registrationStakeEvaluation._registrationStakeEvaluation: Operator is already registered"
+        );
+
+        OperatorStake memory _operatorStake;
+
+        // if first bit of registrantType is '1', then operator wants to be an ETH validator
+        if ((registrantType & 1) == 1) {
+            // if operator want to be an "ETH" validator, check that they meet the
+            // minimum requirements on how much ETH it must deposit
+            _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
+            require(
+                _operatorStake.ethStake >= nodeEthStake,
+
+                "_registrationStakeEvaluation._registrationStakeEvaluation: Not enough eth value staked"
+            );
+        }
+
+        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
+        if ((registrantType & 2) == 2) {
+            // if operator want to be an "Eigen" validator, check that they meet the
+            // minimum requirements on how much Eigen it must deposit
+            _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
+            require(
+                _operatorStake.eigenStake >= nodeEigenStake,
+
+                "_registrationStakeEvaluation._registrationStakeEvaluation: Not enough eigen staked"
+            );
+        }
+
+        require(
+            _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
+
+            "_registrationStakeEvaluation._registrationStakeEvaluation: Must register as at least one type of validator"
+        );
+
+        return _operatorStake;
     }
 }
 

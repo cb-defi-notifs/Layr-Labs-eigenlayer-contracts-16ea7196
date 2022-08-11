@@ -85,39 +85,8 @@ contract ECDSARegistry is
         bytes calldata stakes,
         string calldata socket
     ) internal {
-        require(
-            registry[operator].active == 0,
-            "Operator is already registered"
-        );
 
-        OperatorStake memory _operatorStake;
-
-        // if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 1) == 1) {
-            // if operator want to be an "ETH" validator, check that they meet the
-            // minimum requirements on how much ETH it must deposit
-            _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
-            require(
-                _operatorStake.ethStake >= nodeEthStake,
-                "Not enough eth value staked"
-            );
-        }
-
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 2) == 2) {
-            // if operator want to be an "Eigen" validator, check that they meet the
-            // minimum requirements on how much Eigen it must deposit
-            _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
-            require(
-                _operatorStake.eigenStake >= nodeEigenStake,
-                "Not enough eigen staked"
-            );
-        }
-
-        require(
-            _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
-            "must register as at least one type of validator"
-        );
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, registrantType);
 
         //bytes to add to the existing stakes object
         bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethStake, _operatorStake.eigenStake);
