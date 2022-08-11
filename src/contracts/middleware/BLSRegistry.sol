@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
-import "../libraries/BLSSHIT.sol";
 
 import "ds-test/test.sol";
 
@@ -14,7 +13,7 @@ import "ds-test/test.sol";
  */
 
 contract BLSRegistry is
-    RegistryBase, BLSSHIT
+    RegistryBase
 {
     using BytesLib for bytes;
 
@@ -138,9 +137,9 @@ contract BLSRegistry is
         
 
         {
-            emit log_named_bytes("DATA", msg.data);
+
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = verifyBLS(data, operator, 164); 
+            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, operator, 164); 
             //verifyBLS(data, msg.sender, 164);
             
             // add pubkey to aggregated pukkey in Jacobian coordinates
