@@ -294,49 +294,9 @@ contract BLSRegistry is
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
-            // get operator's pubkeyHash
-            bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
-            // determine current stakes
-            OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-                pubkeyHash
-            ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
 
-            // determine new stakes
-            OperatorStake memory newStakes;
+            (_totalStake, ) = _updateOperatorStake(operators[i], _totalStake);
 
-            newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = weightOfOperator(operators[i], 0);
-            newStakes.eigenStake = weightOfOperator(operators[i], 1);
-
-            // check if minimum requirements have been met
-            if (newStakes.ethStake < nodeEthStake) {
-                newStakes.ethStake = uint96(0);
-            }
-            if (newStakes.eigenStake < nodeEigenStake) {
-                newStakes.eigenStake = uint96(0);
-            }
-            //set next block number in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number);
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-
-            /**
-             * update total Eigen and ETH that are being employed by the operator for securing
-             * the queries from middleware via EigenLayr
-             */
-            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
-
-            emit StakeUpdate(
-                operators[i],
-                newStakes.ethStake,
-                newStakes.eigenStake,
-                uint32(block.number),
-                currentStakes.updateBlockNumber
-            );
             unchecked {
                 ++i;
             }

@@ -419,6 +419,45 @@ abstract contract RegistryBase is
             totalStakeHistory.push(_totalStake);
             return _totalStake;
     }
+
+    // 
+    function _updateOperatorStake(address operator, OperatorStake memory _totalStake) internal returns (OperatorStake memory, OperatorStake memory newStakes) {
+            // get operator's pubkeyHash
+            bytes32 pubkeyHash = registry[operator].pubkeyHash;
+            // determine current stakes
+            OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
+                pubkeyHash
+            ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+
+            // determine new stakes
+            newStakes.updateBlockNumber = uint32(block.number);
+            newStakes.ethStake = weightOfOperator(operator, 0);
+            newStakes.eigenStake = weightOfOperator(operator, 1);
+
+            // check if minimum requirements have been met
+            if (newStakes.ethStake < nodeEthStake) {
+                newStakes.ethStake = uint96(0);
+            }
+            if (newStakes.eigenStake < nodeEigenStake) {
+                newStakes.eigenStake = uint96(0);
+            }
+            //set nextUpdateBlockNumber in prev stakes
+            pubkeyHashToStakeHistory[pubkeyHash][
+                pubkeyHashToStakeHistory[pubkeyHash].length - 1
+            ].nextUpdateBlockNumber = uint32(block.number);
+            // push new stake to storage
+            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+
+            emit StakeUpdate(
+                operator,
+                newStakes.ethStake,
+                newStakes.eigenStake,
+                uint32(block.number),
+                currentStakes.updateBlockNumber
+            );
+
+            return (_totalStake, newStakes);
+    }
 }
 
 

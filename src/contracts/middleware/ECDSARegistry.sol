@@ -319,6 +319,9 @@ contract ECDSARegistry is
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
+        // placeholder to be reused inside loop
+        OperatorStake memory newStakes;
+
         bytes memory updatedStakesArray = stakes;
 
         // iterating over all the tuples that are to be updated
@@ -335,40 +338,7 @@ contract ECDSARegistry is
                 "index is incorrect"
             );
 
-            // get operator's pubkeyHash
-            bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
-            // determine current stakes
-            OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-                pubkeyHash
-            ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-
-            // determine new stakes
-            OperatorStake memory newStakes;
-
-            newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = weightOfOperator(operators[i], 0);
-            newStakes.eigenStake = weightOfOperator(operators[i], 1);
-
-            // check if minimum requirements have been met
-            if (newStakes.ethStake < nodeEthStake) {
-                newStakes.ethStake = uint96(0);
-            }
-            if (newStakes.eigenStake < nodeEigenStake) {
-                newStakes.eigenStake = uint96(0);
-            }
-            //set nextUpdateBlockNumber in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number);
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-            /**
-             * update total Eigen and ETH that are being employed by the operator for securing
-             * the queries from middleware via EigenLayr
-             */
-            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+            (_totalStake, newStakes)  = _updateOperatorStake(operators[i], _totalStake);
 
             // find new stakes object, replacing deposit of the operator with updated deposit
             updatedStakesArray = updatedStakesArray
@@ -382,13 +352,6 @@ contract ECDSARegistry is
             // except the last 24 bytes that comprises of total ETH deposits
             .concat(stakes.slice(start + 44, stakes.length - 24));
 
-            emit StakeUpdate(
-                operators[i],
-                newStakes.ethStake,
-                newStakes.eigenStake,
-                uint32(block.number),
-                currentStakes.updateBlockNumber
-            );
             unchecked {
                 ++i;
             }
