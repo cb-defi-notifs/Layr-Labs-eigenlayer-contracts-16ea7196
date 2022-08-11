@@ -318,10 +318,13 @@ abstract contract RegistryBase is
 
     // Removes the registrant with the given pubkeyHash from the index in registrantList
     function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address) {
+        // gas saving by caching lengths here
+        uint256 pubkeyHashToStakeHistoryLength = pubkeyHashToStakeHistory[pubkeyHash].length;
+        uint256 totalStakeHistoryLengthMinusOne = totalStakeHistory.length - 1;
+        uint256 registrantListLengthMinusOne = registrantList.length - 1;
+
         // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-            pubkeyHash
-        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength - 1];
 
         /**
          @notice recording the information pertaining to change in stake for this operator in the history
@@ -336,10 +339,8 @@ abstract contract RegistryBase is
         // setting total staked Eigen for the operator to 0
         newStakes.eigenStake = uint96(0);
 
-        //set next task number in prev stakes
-        pubkeyHashToStakeHistory[pubkeyHash][
-            pubkeyHashToStakeHistory[pubkeyHash].length - 1
-        ].nextUpdateBlockNumber = uint32(block.number);
+        //set next task number in prev stakes -- we use `pubkeyHashToStakeHistoryLength` here since we've pushed a new entry, so this is now the last index
+        pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength].nextUpdateBlockNumber = uint32(block.number);
 
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
@@ -349,11 +350,11 @@ abstract contract RegistryBase is
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistoryLengthMinusOne];
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
         _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistoryLengthMinusOne].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
 
         // Update index info for old operator
@@ -362,9 +363,9 @@ abstract contract RegistryBase is
 
         address swappedOperator;
         // Update index info for operator at end of list, if they are not the same as the removed operator
-        if (index < registrantList.length - 1){
+        if (index < registrantListLengthMinusOne){
             // get existing operator at end of list, and retrieve their pubkeyHash
-            swappedOperator = registrantList[registrantList.length - 1];
+            swappedOperator = registrantList[registrantListLengthMinusOne];
             Registrant memory registrant = registry[swappedOperator];
             pubkeyHash = registrant.pubkeyHash;
 
