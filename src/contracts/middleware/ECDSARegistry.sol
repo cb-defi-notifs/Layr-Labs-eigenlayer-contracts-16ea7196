@@ -334,9 +334,7 @@ contract ECDSARegistry is
         );
 
         // update storage of total stake
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        _recordTotalStakeUpdate(_totalStake);
 
         stakeHashes.push(keccak256(stakes));
     }

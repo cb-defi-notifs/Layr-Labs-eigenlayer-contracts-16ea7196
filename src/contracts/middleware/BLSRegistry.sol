@@ -252,7 +252,6 @@ contract BLSRegistry is
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
-        // TODO: test if declaring more variables outside of loop decreases gas usage
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
@@ -266,9 +265,7 @@ contract BLSRegistry is
         }
 
         // update storage of total stake
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        _recordTotalStakeUpdate(_totalStake);
     }
 
     // updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays

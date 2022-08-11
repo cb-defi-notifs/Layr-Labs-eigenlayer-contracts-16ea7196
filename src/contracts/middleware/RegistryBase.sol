@@ -349,13 +349,12 @@ abstract contract RegistryBase is
          @notice  update info on ETH and Eigen staked with the middleware
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        // copy total stake to memory
+        // copy total stake to memory and update it
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistoryLengthMinusOne];
         _totalStake.ethStake -= currentStakes.ethStake;
         _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistoryLengthMinusOne].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
 
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
@@ -449,14 +448,15 @@ abstract contract RegistryBase is
 
     // update total Eigen and ETH that are being employed by the middleware for securing tasks
     function _addToTotalStake(uint96 ethStakeToAdd, uint96 eigenStakeToAdd) internal returns (OperatorStake memory) {
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-            _totalStake.ethStake += ethStakeToAdd;
-            _totalStake.eigenStake += eigenStakeToAdd;
-            _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake record in the past
-            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            totalStakeHistory.push(_totalStake);
-            return _totalStake;
+        // copy latest totalStakes to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake += ethStakeToAdd;
+        _totalStake.eigenStake += eigenStakeToAdd;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        // linking with the most recent stake record in the past
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
+        return _totalStake;
     }
 
     // Finds the updated stake for `operator`, stores it and records the update. Calculates the change to `_totalStake`, but **DOES NOT UPDATE THE `totalStake` STORAGE SLOT**
@@ -500,6 +500,13 @@ abstract contract RegistryBase is
             );
 
             return (_totalStake, newStakes);
+    }
+
+    // records that the `totalStake` is now equal to the input param @_totalStake
+    function _recordTotalStakeUpdate(OperatorStake memory _totalStake) internal {
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+        totalStakeHistory.push(_totalStake);
     }
 }
 
