@@ -201,53 +201,10 @@ contract ECDSARegistry is
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
 
-        // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-            pubkeyHash
-        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-
-        {
-            /**
-             @notice recording the information pertaining to change in stake for this operator in the history
-             */
-            // determine new stakes
-            OperatorStake memory newStakes;
-            // recording the current task number where the operator stake got updated 
-            newStakes.updateBlockNumber = uint32(block.number); 
-
-            // setting total staked ETH for the operator to 0
-            newStakes.ethStake = uint96(0);
-            // setting total staked Eigen for the operator to 0
-            newStakes.eigenStake = uint96(0);   
-
-            //set nextUpdateBlockNumber in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number); 
-
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-        }
-
         // Update registrant list and update index histories
-        address swappedOperator = _popRegistrant(pubkeyHash,index);
+        address swappedOperator = _popRegistrant(pubkeyHash, index);
         // event was moved up (from end of function) to solve 'stack too deep' when finding new stakes object
         emit Deregistration(msg.sender, swappedOperator);
-
-        /**
-         @notice  update info on ETH and Eigen staked with the middleware
-         */
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake -= currentStakes.ethStake;
-        _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
-
-        // update stakeHash
-        stakeHashUpdates.push(uint32(block.number));
 
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
@@ -275,11 +232,14 @@ contract ECDSARegistry is
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
-                    (_totalStake.ethStake),
-                    (_totalStake.eigenStake)
+                    (totalStakeHistory[totalStakeHistory.length - 1].ethStake),
+                    (totalStakeHistory[totalStakeHistory.length - 1].eigenStake)
                 )
             )
         );
+
+        // update stakeHash
+        stakeHashUpdates.push(uint32(block.number));
 
         // store hash of 'stakes'
         stakeHashes.push(keccak256(updatedStakesArray));

@@ -318,6 +318,44 @@ abstract contract RegistryBase is
 
     // Removes the registrant with the given pubkeyHash from the index in registrantList
     function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address) {
+        // determine current stakes
+        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
+            pubkeyHash
+        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+
+        /**
+         @notice recording the information pertaining to change in stake for this operator in the history
+         */
+        // determine new stakes
+        OperatorStake memory newStakes;
+        // recording the current task number where the operator stake got updated 
+        newStakes.updateBlockNumber = uint32(block.number);
+
+        // setting total staked ETH for the operator to 0
+        newStakes.ethStake = uint96(0);
+        // setting total staked Eigen for the operator to 0
+        newStakes.eigenStake = uint96(0);
+
+        //set next task number in prev stakes
+        pubkeyHashToStakeHistory[pubkeyHash][
+            pubkeyHashToStakeHistory[pubkeyHash].length - 1
+        ].nextUpdateBlockNumber = uint32(block.number);
+
+        // push new stake to storage
+        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+
+        /**
+         @notice  update info on ETH and Eigen staked with the middleware
+         */
+        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
+        // copy total stake to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake -= currentStakes.ethStake;
+        _totalStake.eigenStake -= currentStakes.eigenStake;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+        totalStakeHistory.push(_totalStake);
+
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
