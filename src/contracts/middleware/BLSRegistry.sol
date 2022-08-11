@@ -195,17 +195,6 @@ contract BLSRegistry is
             msg.sender == registrantList[index],
             "BLSRegistry._deregisterOperator: Incorrect index supplied"
         );
-
-        // must continue to serve until the latest time at which an active task expires
-        /**
-         @notice this info is used in challenges
-         */
-        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
-
-        // committing to not signing off on any more data that is being asserted into DataLayr
-        registry[msg.sender].active = 0;
-
-        registry[msg.sender].deregisterTime = block.timestamp;
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -223,8 +212,8 @@ contract BLSRegistry is
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash");
 
-        // Update registrant list and update index histories
-        address swappedOperator = _popRegistrant(pubkeyHash, index);
+        // Update registrant list and index histories
+        _popRegistrant(pubkeyHash, index);
 
         /**
          @notice update the aggregated public key of all registered operators and record
@@ -237,8 +226,6 @@ contract BLSRegistry is
 
         // record the APK update
         _processApkUpdate(pk);
-
-        emit Deregistration(msg.sender, swappedOperator);
     }
 
     /**

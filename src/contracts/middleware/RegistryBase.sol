@@ -317,7 +317,18 @@ abstract contract RegistryBase is
     }
 
     // Removes the registrant with the given pubkeyHash from the index in registrantList
-    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address) {
+    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+        // must continue to serve until the latest time at which an active task expires
+        /**
+         @notice this info is used in challenges
+         */
+        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
+
+        // committing to not signing off on any more data that is being asserted into DataLayr
+        registry[msg.sender].active = 0;
+
+        registry[msg.sender].deregisterTime = block.timestamp;
+        
         // gas saving by caching lengths here
         uint256 pubkeyHashToStakeHistoryLength = pubkeyHashToStakeHistory[pubkeyHash].length;
         uint256 totalStakeHistoryLengthMinusOne = totalStakeHistory.length - 1;
@@ -383,9 +394,9 @@ abstract contract RegistryBase is
         registrantList.pop();
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
-        
-        //return address of operator whose index has changed
-        return swappedOperator;
+
+        // Emit `Deregistration` event
+        emit Deregistration(msg.sender, swappedOperator);
     }
 
     // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`

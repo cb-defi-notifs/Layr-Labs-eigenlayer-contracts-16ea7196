@@ -183,17 +183,6 @@ contract ECDSARegistry is
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
             "ECDSARegistry._deregisterOperator: Supplied stakes are incorrect"
         );
-
-        // must continue to serve until the latest time at which an active task expires
-        /**
-         @notice this info is used in challenges
-         */
-        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
-
-        // committing to not signing off on any more data that is being asserted into DataLayr
-        registry[msg.sender].active = 0;
-
-        registry[msg.sender].deregisterTime = block.timestamp;
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
@@ -201,10 +190,8 @@ contract ECDSARegistry is
         // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
 
-        // Update registrant list and update index histories
-        address swappedOperator = _popRegistrant(pubkeyHash, index);
-        // event was moved up (from end of function) to solve 'stack too deep' when finding new stakes object
-        emit Deregistration(msg.sender, swappedOperator);
+        // Update registrant list and index histories
+        _popRegistrant(pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
