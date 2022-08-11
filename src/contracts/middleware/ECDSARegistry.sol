@@ -122,21 +122,8 @@ contract ECDSARegistry is
             deregisterTime: 0
         });
 
-        // record the operator being registered
-        registrantList.push(operator);
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
-
-        // store the current tasknumber in which the stakeHash is being updated 
-        stakeHashUpdates.push(uint32(block.number));
-
-        // record operator's index in list of operators
-        OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
-        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+        // add the operator to the list of registrants and do accounting
+        _pushRegistrant(operator, pubkeyHash);
 
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
@@ -145,17 +132,7 @@ contract ECDSARegistry is
             /**
             @notice some book-keeping for recoding updated total stake
             */
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-            /**
-            * update total Eigen and ETH that are being employed by the operator for securing
-            * the queries from middleware via EigenLayr
-            */
-            _totalStake.ethStake += _operatorStake.ethStake;
-            _totalStake.eigenStake += _operatorStake.eigenStake;
-            _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake recordd in the past
-            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            totalStakeHistory.push(_totalStake);
+            OperatorStake memory _totalStake = _addToTotalStake(_operatorStake.ethStake, _operatorStake.eigenStake);
 
             // store the updated meta-data in the mapping with the key being the current dump number
             /** 

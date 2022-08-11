@@ -350,7 +350,23 @@ abstract contract RegistryBase is
         return swappedOperator;
     }
 
-    // 
+    // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`
+    function _pushRegistrant(address operator, bytes32 pubkeyHash) internal {
+        // record the operator being registered
+        registrantList.push(operator);
+
+        // record operator's index in list of operators
+        OperatorIndex memory operatorIndex;
+        operatorIndex.index = uint32(registrantList.length - 1);
+        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
+
+        // update the counter for registrant ID
+        unchecked {
+            ++nextRegistrantId;
+        }
+    }
+
+    // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
     function _registrationStakeEvaluation(address operator, uint8 registrantType) internal returns (OperatorStake memory) {
         require(
             registry[operator].active == 0,
@@ -390,6 +406,18 @@ abstract contract RegistryBase is
         );
 
         return _operatorStake;
+    }
+
+    // update total Eigen and ETH that are being employed by the middleware for securing tasks
+    function _addToTotalStake(uint96 ethStakeToAdd, uint96 eigenStakeToAdd) internal returns (OperatorStake memory) {
+            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+            _totalStake.ethStake += ethStakeToAdd;
+            _totalStake.eigenStake += eigenStakeToAdd;
+            _totalStake.updateBlockNumber = uint32(block.number);
+            // linking with the most recent stake record in the past
+            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
+            totalStakeHistory.push(_totalStake);
+            return _totalStake;
     }
 }
 

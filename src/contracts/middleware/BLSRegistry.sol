@@ -158,37 +158,17 @@ contract BLSRegistry is
             deregisterTime: 0
         });
 
-        // record the operator being registered
-        registrantList.push(operator);
+        // add the operator to the list of registrants and do accounting
+        _pushRegistrant(operator, pubkeyHash);
 
-        // record operator's index in list of operators
-        OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
-        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-        
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
         
         {
             /**
             @notice some book-keeping for recoding updated total stake
             */
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-            /**
-            * update total Eigen and ETH that are being employed by the operator for securing
-            * the queries from middleware via EigenLayr
-            */
-            _totalStake.ethStake += _operatorStake.ethStake;
-            _totalStake.eigenStake += _operatorStake.eigenStake;
-            _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake recordd in the past
-            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            totalStakeHistory.push(_totalStake);
+            _addToTotalStake(_operatorStake.ethStake, _operatorStake.eigenStake);
         }
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
