@@ -325,7 +325,6 @@ contract DataLayrServiceManager is
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
 
-        emit log_named_uint("compute hash", gasleft());
 
         require(    
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,

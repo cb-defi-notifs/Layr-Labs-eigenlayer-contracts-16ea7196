@@ -33,8 +33,8 @@ contract DataLayrTests is
     function testLoopConfirmDataStoreLoop() public{
         _testConfirmDataStoreSelfOperators(15);
         uint g = gasleft();
-        for(uint i=1; i<4; i++){
-            _testConfirmDataStoreWithoutRegister(i);
+        for(uint i=1; i<5; i++){
+            _testConfirmDataStoreWithoutRegister(i, 15);
         }
         emit log_named_uint("gas", g - gasleft());
     }
