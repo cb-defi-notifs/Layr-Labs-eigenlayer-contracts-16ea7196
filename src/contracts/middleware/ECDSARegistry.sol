@@ -238,11 +238,9 @@ contract ECDSARegistry is
             )
         );
 
-        // update stakeHash
-        stakeHashUpdates.push(uint32(block.number));
-
-        // store hash of 'stakes'
+        // store hash of 'stakes' and record that an update has occurred
         stakeHashes.push(keccak256(updatedStakesArray));
+        stakeHashUpdates.push(uint32(block.number));
     }
 
     /**
@@ -308,6 +306,7 @@ contract ECDSARegistry is
                 );
             }
 
+            // update the stake for the i-th operator
             (_totalStake, newStakes)  = _updateOperatorStake(operators[i], _totalStake);
 
             // find new stakes object, replacing deposit of the operator with updated deposit

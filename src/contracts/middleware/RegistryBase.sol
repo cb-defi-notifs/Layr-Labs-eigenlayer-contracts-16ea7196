@@ -459,7 +459,7 @@ abstract contract RegistryBase is
             return _totalStake;
     }
 
-    // 
+    // Finds the updated stake for `operator`, stores it and records the update. Calculates the change to `_totalStake`, but **DOES NOT UPDATE THE `totalStake` STORAGE SLOT**
     function _updateOperatorStake(address operator, OperatorStake memory _totalStake) internal returns (OperatorStake memory, OperatorStake memory newStakes) {
             // get operator's pubkeyHash
             bytes32 pubkeyHash = registry[operator].pubkeyHash;
@@ -486,6 +486,10 @@ abstract contract RegistryBase is
             ].nextUpdateBlockNumber = uint32(block.number);
             // push new stake to storage
             pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+
+            // calculate the change to _totalStake
+            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
+            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
 
             emit StakeUpdate(
                 operator,

@@ -257,6 +257,7 @@ contract BLSRegistry is
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
 
+            // update the stake for the i-th operator
             (_totalStake, ) = _updateOperatorStake(operators[i], _totalStake);
 
             unchecked {
