@@ -382,6 +382,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         // compute the point in G1
         //@OFFCHAIN change dlns to sign msgHash defined in DLSM
+        emit log_named_bytes32("msg hash", msgHash);
         (input[0], input[1]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
@@ -404,9 +405,13 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 revert(0, 0)
             }
         }
+        emit log_named_uint("hashToG1", input[0]);
+        emit log_named_uint("hashToG1", input[1]);
 
+        emit log_named_uint("GO sig x", input[6]);
+        emit log_named_uint("GO sig y", input[7]);
         // check that signature is correct
-        require(input[8] == 1, "Pairing unsuccessful");
+        require(input[8] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
 
         emit SignatoryRecord(
             msgHash,

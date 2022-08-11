@@ -293,7 +293,7 @@ contract DataLayrServiceManager is
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         /*******************************************************
          verify the disperser's claim on composition of quorum
-         *******************************************************/ 
+         *******************************************************/
 
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
@@ -308,7 +308,7 @@ contract DataLayrServiceManager is
 
         //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
         //this keeps bomb and storage conditions stagnant
-        // TODO: need to check hash of stakesBlockNumber here?
+
         require(msgHash == keccak256(abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index)), 
                 "DataLayrServiceManager.confirmDataStore: msgHash is not consistent with search data");
 
@@ -319,8 +319,7 @@ contract DataLayrServiceManager is
         require(searchData.metadata.blockNumber == blockNumberFromTaskHash, "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data");
 
 
-        emit log_bytes32(searchData.metadata.headerHash);
-        emit log_bytes32(signatoryRecordHash);
+
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
