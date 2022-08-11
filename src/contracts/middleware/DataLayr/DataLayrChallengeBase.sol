@@ -7,9 +7,10 @@ import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
 
 abstract contract DataLayrChallengeBase {
+
     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
     uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
-    // commitTime is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
+    // confirmAt is marked as equal to 'CHALLENGE_SUCCESSFUL' in the event that a challenge succeeds
     uint256 public constant CHALLENGE_SUCCESSFUL = type(uint256).max;
     // length of window during which the responses can be made to the challenge
     uint256 public immutable CHALLENGE_RESPONSE_WINDOW;
@@ -76,7 +77,7 @@ abstract contract DataLayrChallengeBase {
 
         {
             require(
-                dataLayrServiceManager.getDataStoreIdsForDuration(
+                dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                     searchData.duration,
                     searchData.timestamp,
                     searchData.index
@@ -151,7 +152,7 @@ abstract contract DataLayrChallengeBase {
         require(challengeSuccessful(headerHash), "Challenge not successful");
 
         require(
-            dataLayrServiceManager.getDataStoreIdsForDuration(
+            dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration,
                 searchData.timestamp,
                 searchData.index
@@ -206,6 +207,6 @@ abstract contract DataLayrChallengeBase {
             }
         }
 
-        dataLayrServiceManager.slashOperator(operator);
+        dataLayrServiceManager.freezeOperator(operator);
     }
 }

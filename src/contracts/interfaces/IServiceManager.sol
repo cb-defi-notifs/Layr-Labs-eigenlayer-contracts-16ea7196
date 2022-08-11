@@ -15,7 +15,7 @@ interface IServiceManager is IRepositoryAccess {
 
     function taskNumberToFee(uint32) external view returns (uint256);
 
-    function slashOperator(address operator) external;
+    function freezeOperator(address operator) external;
 
     // function paymentFraudProofInterval() external view returns (uint256);
 

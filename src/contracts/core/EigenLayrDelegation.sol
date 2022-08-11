@@ -135,9 +135,10 @@ contract EigenLayrDelegation is
 
         // get the current operator for the staker (msg.sender)
         address operator = delegation[msg.sender];
-        // checks that operator has not been slashed
-        require(!investmentManager.slashedStatus(operator),
-            "EigenLayrDelegation.initUndelegation: operator has been slashed. must wait for resolution before undelegation"
+        // checks that operator has not been frozen
+        ISlasher slasher = investmentManager.slasher();
+        require(!slasher.frozenStatus(operator),
+            "EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"
         );
 
         // retrieve list of strategies and their shares from investment manager
@@ -187,9 +188,7 @@ contract EigenLayrDelegation is
     function contestUndelegationCommit(
         address staker,
         bytes calldata data,
-        IServiceFactory serviceFactory,
-        IRepository repository,
-        IRegistry registry
+        IServiceManager slashingContract
     ) external {
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED,
@@ -206,23 +205,19 @@ contract EigenLayrDelegation is
         require(
             slasher.canSlash(
                 delegation[staker],
-                serviceFactory,
-                repository,
-                registry
+                address(slashingContract)
             ),
             "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
     // scoped block to help solve stack too deep
     {
-        IServiceManager serviceManager = repository.serviceManager();
-
         // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
-        serviceManager.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
+        slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
     }
 
         // perform the slashing itself
-        slasher.slashOperator(staker); 
+        slasher.freezeOperator(staker); 
 
         // reset status of staker to having committed to undelegation but not yet finalized
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
@@ -346,9 +341,10 @@ contract EigenLayrDelegation is
             isNotDelegated(staker),
             "EigenLayrDelegation._delegate: staker has existing delegation"
         );
-        // checks that operator has not been slashed
-        require(!investmentManager.slashedStatus(operator),
-            "EigenLayrDelegation._delegate: cannot delegate to a slashed operator"
+        // checks that operator has not been frozen
+        ISlasher slasher = investmentManager.slasher();
+        require(!slasher.frozenStatus(operator),
+            "EigenLayrDelegation._delegate: cannot delegate to a frozen operator"
         );
 
         // record delegation relation between the staker and operator

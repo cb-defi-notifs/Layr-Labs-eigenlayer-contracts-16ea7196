@@ -199,7 +199,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
             IServiceManager serviceManager = repository.serviceManager();
             //trigger slashing for operator who hasn't updated their EK
-            serviceManager.slashOperator(operator);
+            serviceManager.freezeOperator(operator);
         }
 
     }
@@ -217,7 +217,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
                 IServiceManager serviceManager = repository.serviceManager();
                 //trigger slashing function for that datalayr node address
-                serviceManager.slashOperator(operator);
+                serviceManager.freezeOperator(operator);
             }
         }
     }

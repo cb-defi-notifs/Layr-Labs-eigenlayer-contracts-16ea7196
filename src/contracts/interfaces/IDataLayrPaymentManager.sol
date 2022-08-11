@@ -11,7 +11,21 @@ interface IDataLayrPaymentManager is IPaymentManager {
         uint120 amount2
     ) external;
 
-    function getChallengeStatus(address operator) external view returns(uint8);
+    enum PaymentStatus{ 
+        REDEEMED,
+        COMMITTED,
+        CHALLENGED
+    }
+
+    enum ChallengeStatus{ 
+        RESOLVED,
+        OPERATOR_TURN, 
+        CHALLENGER_TURN, 
+        OPERATOR_TURN_ONE_STEP, 
+        CHALLENGER_TURN_ONE_STEP
+    }
+
+    function getChallengeStatus(address operator) external view returns(ChallengeStatus);
         
     function getAmount1(address operator) external returns (uint120);
     
