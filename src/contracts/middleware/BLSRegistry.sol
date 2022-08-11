@@ -2,8 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
+import "../libraries/BLSSHIT.sol";
 
-// import "ds-test/test.sol";
+import "ds-test/test.sol";
 
 /**
  * @notice This contract is used for 
@@ -13,8 +14,7 @@ import "./RegistryBase.sol";
  */
 
 contract BLSRegistry is
-    RegistryBase
-    // ,DSTest
+    RegistryBase, BLSSHIT
 {
     using BytesLib for bytes;
 
@@ -36,7 +36,7 @@ contract BLSRegistry is
      */
     uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
 
-
+    
     // EVENTS
     /**
      * @notice
@@ -138,8 +138,10 @@ contract BLSRegistry is
         
 
         {
+            emit log_named_bytes("DATA", msg.data);
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender, 164);
+            (pk[0], pk[1], pk[2], pk[3]) = verifyBLS(data, operator, 164); 
+            //verifyBLS(data, msg.sender, 164);
             
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);

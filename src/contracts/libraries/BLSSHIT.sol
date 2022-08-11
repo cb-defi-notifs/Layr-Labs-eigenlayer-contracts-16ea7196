@@ -4,10 +4,12 @@
 pragma solidity ^0.8.9;
 
 import "./BN254_Constants.sol";
+import "ds-test/test.sol";
 
 
 
-library BLS {
+
+contract BLSSHIT is DSTest{
     /**
      @notice verification of BLS signature with the message being pubkey hash
      */
@@ -15,8 +17,8 @@ library BLS {
      @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */ 
-    function verifyBLSSigOfPubKeyHash(bytes calldata, address operator, uint256 offset)
-        internal view
+    function verifyBLS(bytes calldata, address operator, uint256 offset)
+        public
         returns (uint256, uint256, uint256, uint256)
     {
         // uint256 offset = 68;
@@ -24,6 +26,7 @@ library BLS {
         // is the same as
         // e(H(m), pk) == e(sigma, g2)?
         uint256[12] memory input;
+
 
         assembly {
             //store pk in indexes 2-5, it is a G2 point
@@ -41,10 +44,15 @@ library BLS {
             mstore(add(input, 0x160), nG2y0)
         }
 
+        emit log("HELL");
+
         // calculate H(m) = H(pk)
         (input[0], input[1]) = hashToG1(
             keccak256(abi.encodePacked(input[2], input[3], input[4], input[5], operator))
         );
+        for (uint256 index = 0; index < input.length; index++) {
+            emit log_uint(input[index]);
+        }
 
         assembly {
             // check the pairing
@@ -56,6 +64,9 @@ library BLS {
                 revert(0, 0)
             }
         }
+        emit log("HELL");
+
+        
 
         //TODO: unCOMMENT THIS LINE!!! once the signature scheme is all fixed
         require(input[1] == 1, "Pairing was unsuccessful");
