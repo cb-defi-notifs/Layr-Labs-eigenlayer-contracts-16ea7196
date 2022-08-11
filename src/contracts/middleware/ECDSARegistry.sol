@@ -94,7 +94,7 @@ contract ECDSARegistry is
         // verify integrity of supplied 'stakes' data
         require(
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
-            "Supplied stakes are incorrect"
+            "ECDSARegistry._registerOperator: Supplied stakes are incorrect"
         );
 
         // get current task number from ServiceManager
@@ -170,18 +170,18 @@ contract ECDSARegistry is
     function _deregisterOperator(bytes calldata stakes, uint32 index) internal {
         require(
             registry[msg.sender].active > 0,
-            "Operator is already registered"
+            "ECDSARegistry._deregisterOperator: Operator is already registered"
         );
 
         require(
             msg.sender == registrantList[index],
-            "Incorrect index supplied"
+            "ECDSARegistry._deregisterOperator: Incorrect index supplied"
         );
 
         // verify integrity of supplied 'stakes' data
         require(
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
-            "Supplied stakes are incorrect"
+            "ECDSARegistry._deregisterOperator: Supplied stakes are incorrect"
         );
 
         // must continue to serve until the latest time at which an active task expires
@@ -252,11 +252,18 @@ contract ECDSARegistry is
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
         uint256 start = uint256(index * 44);
-        require(start < stakes.length - 68, "Cannot point to total bytes");
-        require(
-            stakes.toAddress(start) == msg.sender,
-            "index is incorrect"
-        );
+
+        // scoped block helps prevent stack too deep
+        {
+            require(
+                start < stakes.length - 68,
+                "ECDSARegistry._deregisterOperator: Cannot point to total bytes"
+            );
+            require(
+                stakes.toAddress(start) == msg.sender,
+                "ECDSARegistry._deregisterOperator: index is incorrect"
+            );
+        }
 
         // find new stakes object, replacing deposit of the operator with updated deposit
         bytes memory updatedStakesArray = stakes
@@ -265,15 +272,13 @@ contract ECDSARegistry is
             // concatenate the bytes pertaining to the tuples from rest of the middleware 
             // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
             .concat(stakes.slice(start + 44, stakes.length - 24)
-        );
-// TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-        updatedStakesArray = updatedStakesArray            
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
                     (_totalStake.ethStake),
                     (_totalStake.eigenStake)
                 )
+            )
         );
 
         // store hash of 'stakes'
@@ -307,13 +312,13 @@ contract ECDSARegistry is
                 stakeHashes[
                     stakeHashUpdates[stakeHashUpdates.length - 1]
                 ],
-            "Stakes are incorrect"
+            "ECDSARegistry.updateStakes: Stakes are incorrect"
         );
 
         uint256 operatorsLength = operators.length;
         require(
             indexes.length == operatorsLength,
-            "operator len and index len don't match"
+            "ECDSARegistry.updateStakes: operator len and index len don't match"
         );
 
         // copy total stake to memory
@@ -331,12 +336,17 @@ contract ECDSARegistry is
             /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
             uint256 start = uint256(indexes[i] * 44);
 
-            require(start < stakes.length - 68, "Cannot point to total bytes");
-
-            require(
-                stakes.toAddress(start) == operators[i],
-                "index is incorrect"
-            );
+            // scoped block helps prevent stack too deep
+            {
+                require(
+                    start < stakes.length - 68,
+                    "ECDSARegistry.updateStakes: Cannot point to total bytes"
+                );
+                require(
+                    stakes.toAddress(start) == operators[i],
+                    "ECDSARegistry.updateStakes: index is incorrect"
+                );
+            }
 
             (_totalStake, newStakes)  = _updateOperatorStake(operators[i], _totalStake);
 
@@ -345,9 +355,7 @@ contract ECDSARegistry is
             // slice until just after the address bytes of the operator
             .slice(0, start + 20)
             // concatenate the updated ETH and EIGEN deposits
-            .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake));
-//TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-            updatedStakesArray = updatedStakesArray
+            .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake))
             // concatenate the bytes pertaining to the tuples from rest of the operators 
             // except the last 24 bytes that comprises of total ETH deposits
             .concat(stakes.slice(start + 44, stakes.length - 24));
@@ -385,14 +393,14 @@ contract ECDSARegistry is
     {
         require(
             blockNumber >= stakeHashUpdates[index],
-            "Index too recent"
+            "ECDSARegistry.getCorrectStakeHash: Index too recent"
         );
 
         // if not last update
         if (index != stakeHashUpdates.length - 1) {
             require(
                 blockNumber < stakeHashUpdates[index + 1],
-                "Not latest valid stakeHashUpdate"
+                "ECDSARegistry.getCorrectStakeHash: Not latest valid stakeHashUpdate"
             );
         }
 
