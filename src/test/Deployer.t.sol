@@ -589,7 +589,6 @@ contract EigenLayrDeployer is
         cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
-        uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
@@ -598,7 +597,6 @@ contract EigenLayrDeployer is
             totalBytes,
             blockNumber
         );
-        uint32 dataStoreId = dlsm.taskNumber() - 1;
 
         bytes32 headerHash = keccak256(header);
 
@@ -723,7 +721,7 @@ contract EigenLayrDeployer is
         }
     }
 
-    // TODO: fix this to work with a variable number again, if possible
+    
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
         internal 
         returns (bytes memory)
@@ -782,15 +780,8 @@ contract EigenLayrDeployer is
             sigma_1
         );
 
-        uint256 gasbefore = gasleft();
         
         dlsm.confirmDataStore(data, searchData);
-        //emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-        //     dlsm.dataStoreId() - 1
-        // );
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
         return data;
     }
