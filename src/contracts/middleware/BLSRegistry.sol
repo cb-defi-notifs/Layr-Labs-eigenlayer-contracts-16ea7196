@@ -159,17 +159,7 @@ contract BLSRegistry is
         });
 
         // add the operator to the list of registrants and do accounting
-        _pushRegistrant(operator, pubkeyHash);
-
-        // Update totalOperatorsHistory
-        _updateTotalOperatorsHistory();
-        
-        {
-            /**
-            @notice some book-keeping for recoding updated total stake
-            */
-            _addToTotalStake(_operatorStake.ethStake, _operatorStake.eigenStake);
-        }
+        _pushRegistrant(operator, pubkeyHash, _operatorStake);
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }

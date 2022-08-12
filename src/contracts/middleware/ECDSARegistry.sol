@@ -123,17 +123,9 @@ contract ECDSARegistry is
         });
 
         // add the operator to the list of registrants and do accounting
-        _pushRegistrant(operator, pubkeyHash);
-
-        // Update totalOperatorsHistory
-        _updateTotalOperatorsHistory();
+        _pushRegistrant(operator, pubkeyHash, _operatorStake);
         
         {
-            /**
-            @notice some book-keeping for recoding updated total stake
-            */
-            OperatorStake memory _totalStake = _addToTotalStake(_operatorStake.ethStake, _operatorStake.eigenStake);
-
             // store the updated meta-data in the mapping with the key being the current dump number
             /** 
              * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
@@ -146,8 +138,8 @@ contract ECDSARegistry is
                     // append at the end of list
                     dataToAppend,
                     // update the total ETH and EIGEN deposited
-                    _totalStake.ethStake,
-                    _totalStake.eigenStake
+                    totalStakeHistory[totalStakeHistory.length - 1].ethStake,
+                    totalStakeHistory[totalStakeHistory.length - 1].eigenStake
                 )
             ));
         }

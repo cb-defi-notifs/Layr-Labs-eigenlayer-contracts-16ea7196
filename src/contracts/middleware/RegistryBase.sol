@@ -360,12 +360,7 @@ abstract contract RegistryBase is
          @notice  update info on ETH and Eigen staked with the middleware
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        // copy total stake to memory and update it
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistoryLengthMinusOne];
-        _totalStake.ethStake -= currentStakes.ethStake;
-        _totalStake.eigenStake -= currentStakes.eigenStake;
-        // update storage of total stake
-        _recordTotalStakeUpdate(_totalStake);
+        _subtractFromTotalStake(currentStakes);
 
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
@@ -400,7 +395,7 @@ abstract contract RegistryBase is
     }
 
     // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`
-    function _pushRegistrant(address operator, bytes32 pubkeyHash) internal {
+    function _pushRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake) internal {
         // record the operator being registered
         registrantList.push(operator);
 
@@ -413,13 +408,18 @@ abstract contract RegistryBase is
         unchecked {
             ++nextRegistrantId;
         }
+
+        _addToTotalStake(_operatorStake);
+
+        // Update totalOperatorsHistory array
+        _updateTotalOperatorsHistory();
     }
 
     // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
     function _registrationStakeEvaluation(address operator, uint8 registrantType) internal returns (OperatorStake memory) {
         require(
             registry[operator].active == 0,
-            "_registrationStakeEvaluation._registrationStakeEvaluation: Operator is already registered"
+            "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
 
         OperatorStake memory _operatorStake;
@@ -432,7 +432,7 @@ abstract contract RegistryBase is
             require(
                 _operatorStake.ethStake >= nodeEthStake,
 
-                "_registrationStakeEvaluation._registrationStakeEvaluation: Not enough eth value staked"
+                "RegistryBase._registrationStakeEvaluation: Not enough eth value staked"
             );
         }
 
@@ -444,30 +444,41 @@ abstract contract RegistryBase is
             require(
                 _operatorStake.eigenStake >= nodeEigenStake,
 
-                "_registrationStakeEvaluation._registrationStakeEvaluation: Not enough eigen staked"
+                "RegistryBase._registrationStakeEvaluation: Not enough eigen staked"
             );
         }
 
         require(
             _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
 
-            "_registrationStakeEvaluation._registrationStakeEvaluation: Must register as at least one type of validator"
+            "RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"
         );
 
         return _operatorStake;
     }
 
     // update total Eigen and ETH that are being employed by the middleware for securing tasks
-    function _addToTotalStake(uint96 ethStakeToAdd, uint96 eigenStakeToAdd) internal returns (OperatorStake memory) {
+    function _addToTotalStake(OperatorStake memory _operatorStake) internal {
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake += ethStakeToAdd;
-        _totalStake.eigenStake += eigenStakeToAdd;
+        _totalStake.ethStake += _operatorStake.ethStake;
+        _totalStake.eigenStake += _operatorStake.eigenStake;
         _totalStake.updateBlockNumber = uint32(block.number);
         // linking with the most recent stake record in the past
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
-        return _totalStake;
+    }
+
+    // update total Eigen and ETH that are being employed by the middleware for securing tasks
+    function _subtractFromTotalStake(OperatorStake memory _operatorStake) internal {
+        // copy latest totalStakes to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake -= _operatorStake.ethStake;
+        _totalStake.eigenStake -= _operatorStake.eigenStake;
+        _totalStake.updateBlockNumber = uint32(block.number);
+        // linking with the most recent stake record in the past
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
     }
 
     // Finds the updated stake for `operator`, stores it and records the update. Calculates the change to `_totalStake`, but **DOES NOT UPDATE THE `totalStake` STORAGE SLOT**
@@ -521,7 +532,7 @@ abstract contract RegistryBase is
     }
 
     // verify that the `operator` is an active operator and that they've provided the correct `index`
-    function _deregistrationCheck(address operator, uint32 index) internal {
+    function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
             registry[operator].active > 0,
             "RegistryBase._deregistrationCheck: Operator is already registered"
