@@ -427,7 +427,6 @@ contract InvestmentManager is
         if (investorStratShares[depositor][strategy] == 0) {
             investorStrats[depositor].push(strategy);
         }
-
         // transfer tokens from the sender to the strategy
         token.safeTransferFrom(msg.sender, address(strategy), amount);
 

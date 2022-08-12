@@ -39,13 +39,15 @@ import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreHash.sol";
 
 import "./utils/Signers.sol";
+import "./utils/SignatureUtils.sol";
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     DSTest,
     ERC165_Universal,
     ERC1155TokenReceiver,
-    Signers
+    Signers,
+    SignatureUtils
 {
     using BytesLib for bytes;
 
@@ -230,7 +232,10 @@ contract EigenLayrDeployer is
         //loads hardcoded signer set
         _setSigners();
 
-registrationData.push(
+        //loads signatures
+        setSignatures();
+
+        registrationData.push(
             hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f202a45cfe62ffb797ab25355a7f54788277f7fd9fda544ac6a7e38623d75fdd001074a61258b73d4773971a8073f04a6dd072409bea915d4ece0583c65f09fbfe"
         );
         registrationData.push(
@@ -275,6 +280,55 @@ registrationData.push(
         registrationData.push(
             hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a41ae35db861ea707fc72c6b7756a6139e8cccf15392e59297c21af365de013b4312caa1e05d5aac7c5513fff386248f1955298f11e0e165ed9a20c9beefe2f8a0"
         );
+
+        //We need to generate different signatures for every datastore, because each msgHash is different.  Here there
+        // are 5 different signatures for 5 datastores being made by the testLoopConfirmDataStoreLoop() in 
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(17495938995352312074042671866638379644300283276197341589218393173802359623203)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(9126369385140686627953696969589239917670210184443620227590862230088267251657)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(8528577148191764833611657152174462549210362961117123234946268547773819967468)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(12327969281291293902781100249451937778030476843597859113014633987742778388515)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(17717264659294506723357044248913560483603638283216958290715934634714856502042)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(16175010538989710606381988436521433111107391792149336131385412257451345649557)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(13634672549209768891995273226026110254116368188641023296736353558981756191079)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(1785013485497898832511190470667377540198821342030868981614348293548355133071)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(14314878115196120635834581315654915934806820731149597554562572642636028600046)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(11127341031659236634094533494380792345546001913442488974163761094820943932055)
+        // );
+
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -531,7 +585,6 @@ registrationData.push(
         cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
-        uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
@@ -540,9 +593,7 @@ registrationData.push(
             totalBytes,
             blockNumber
         );
-        uint32 dataStoreId = dlsm.taskNumber() - 1;
 
-        emit log_named_uint("init datastore total gas", g - gasleft());
         bytes32 headerHash = keccak256(header);
 
 
@@ -666,7 +717,7 @@ registrationData.push(
         }
     }
 
-    // TODO: fix this to work with a variable number again, if possible
+    
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
         internal 
         returns (bytes memory)
@@ -689,29 +740,12 @@ registrationData.push(
 
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
-            uint256(
-                20820493588973199354272631301248587752629863429201347184003644368113679196121
-            ),
-            uint256(
-                18507428821816114421698399069438744284866101909563082454551586195885282320634
-            ),
-            uint256(
-                1263326262781780932600377484793962587101562728383804037421955407439695092960
-            ),
-            uint256(
-                3512517006108887301063578607317108977425754510174956792003926207778790018672
-            )
-        );
-        (uint256 sigma_0, uint256 sigma_1) = (
-            uint256(
-                17495938995352312074042671866638379644300283276197341589218393173802359623203
-            ),
-            uint256(
-                9126369385140686627953696969589239917670210184443620227590862230088267251657
-            )
-        );
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
 
+
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
+        
+        
         /** 
      @param data This calldata is of the format:
             <
@@ -726,7 +760,6 @@ registrationData.push(
              uint256[2] sigma
             >
      */
-        emit log_named_bytes32("asfsadfa", keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))));
         bytes memory data = abi.encodePacked(
             keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -743,48 +776,22 @@ registrationData.push(
             sigma_1
         );
 
-        uint256 gasbefore = gasleft();
         
         dlsm.confirmDataStore(data, searchData);
-        emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-        //     dlsm.dataStoreId() - 1
-        // );
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
         return data;
     }
 
 
-    function _testConfirmDataStoreWithoutRegister() internal {
+    function _testConfirmDataStoreWithoutRegister(uint index, uint256 numSigners) internal {
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData
             memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
-            uint256(
-                20820493588973199354272631301248587752629863429201347184003644368113679196121
-            ),
-            uint256(
-                18507428821816114421698399069438744284866101909563082454551586195885282320634
-            ),
-            uint256(
-                1263326262781780932600377484793962587101562728383804037421955407439695092960
-            ),
-            uint256(
-                3512517006108887301063578607317108977425754510174956792003926207778790018672
-            )
-        );
-        (uint256 sigma_0, uint256 sigma_1) = (
-            uint256(
-                17994461740782094388047737382005374640168513116024457805993196913920000628928
-            ),
-            uint256(
-                6768731106897328299553074458255796105021387405000087556189762367503757131907
-            )
-        );
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(numSigners);
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(numSigners, index);//(signatureData[index*2], signatureData[2*index + 1]);
+
 
         /** 
      @param data This calldata is of the format:
@@ -800,11 +807,12 @@ registrationData.push(
              uint256[2] sigma
             >
      */
-        emit log_named_bytes("TO SIGN", abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
+        
+
         // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
             keccak256(
-                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))
+                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
             ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
@@ -1010,4 +1018,6 @@ registrationData.push(
         );
 
     }
+
+
 }

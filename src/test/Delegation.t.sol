@@ -548,7 +548,6 @@ contract Delegator is EigenLayrDeployer {
             IDataLayrServiceManager.DataStoreSearchData
                 memory searchData = _testInitDataStore(initTime, address(this));
             uint32 numberOfNonSigners = 1;
-            uint32 blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.taskNumber() - 1;
 
             bytes memory data = _getCallData(

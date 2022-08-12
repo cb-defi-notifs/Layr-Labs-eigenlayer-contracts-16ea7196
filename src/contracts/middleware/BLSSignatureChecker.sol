@@ -326,10 +326,11 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             }
 
             // make sure they have provided the correct aggPubKey
+            
             require(
                 registry.getCorrectApkHash(apkIndex, stakesBlockNumber) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
-                "Incorrect apk provided"
+                "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }
 
