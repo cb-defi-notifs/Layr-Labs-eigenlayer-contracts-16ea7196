@@ -25,15 +25,11 @@ import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "forge-std/Test.sol";
-
-import "../contracts/utils/ERC165_Universal.sol";
-import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
@@ -45,8 +41,6 @@ import "./utils/SignatureUtils.sol";
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     DSTest,
-    ERC165_Universal,
-    ERC1155TokenReceiver,
     Signers,
     SignatureUtils
 {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mock/DepositContract.sol";
+import "../test/mocks/DepositContract.sol";
 
 import "./core/Eigen.sol";
 
@@ -23,15 +23,10 @@ import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-
-
-import "./utils/ERC165_Universal.sol";
-import "./utils/ERC1155TokenReceiver.sol";
 
 import "./libraries/BytesLib.sol";
 
-contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
+contract EigenLayrDeployer {
     using BytesLib for bytes;
 
     DepositContract public depositContract;
@@ -70,9 +65,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
     constructor() {
         //eth2 deposit contract
         depositContract = new DepositContract();
-        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
-        // eigen = new Eigen(ownerAddr);
-        //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, address(this));
