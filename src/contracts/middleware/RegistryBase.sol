@@ -328,7 +328,7 @@ abstract contract RegistryBase is
         registry[msg.sender].active = 0;
 
         registry[msg.sender].deregisterTime = block.timestamp;
-        
+
         // gas saving by caching lengths here
         uint256 pubkeyHashToStakeHistoryLength = pubkeyHashToStakeHistory[pubkeyHash].length;
         uint256 totalStakeHistoryLengthMinusOne = totalStakeHistory.length - 1;
@@ -518,6 +518,19 @@ abstract contract RegistryBase is
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
+    }
+
+    // verify that the `operator` is an active operator and that they've provided the correct `index`
+    function _deregistrationCheck(address operator, uint32 index) internal {
+        require(
+            registry[operator].active > 0,
+            "RegistryBase._deregistrationCheck: Operator is already registered"
+        );
+
+        require(
+            operator == registrantList[index],
+            "RegistryBase._deregistrationCheck: Incorrect index supplied"
+        );
     }
 }
 

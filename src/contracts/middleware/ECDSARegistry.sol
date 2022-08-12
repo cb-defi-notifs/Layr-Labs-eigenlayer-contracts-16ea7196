@@ -168,15 +168,8 @@ contract ECDSARegistry is
     }
 
     function _deregisterOperator(bytes calldata stakes, uint32 index) internal {
-        require(
-            registry[msg.sender].active > 0,
-            "ECDSARegistry._deregisterOperator: Operator is already registered"
-        );
-
-        require(
-            msg.sender == registrantList[index],
-            "ECDSARegistry._deregisterOperator: Incorrect index supplied"
-        );
+        // verify that the `msg.sender` is an active operator and that they've provided the correct `index`
+        _deregistrationCheck(msg.sender, index);
 
         // verify integrity of supplied 'stakes' data
         require(

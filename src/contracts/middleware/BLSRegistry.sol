@@ -186,15 +186,8 @@ contract BLSRegistry is
     }
 
     function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
-        require(
-            registry[msg.sender].active > 0,
-            "BLSRegistry._deregisterOperator: Operator is already registered"
-        );
-
-        require(
-            msg.sender == registrantList[index],
-            "BLSRegistry._deregisterOperator: Incorrect index supplied"
-        );
+        // verify that the `msg.sender` is an active operator and that they've provided the correct `index`
+        _deregistrationCheck(msg.sender, index);
         
         /**
          @notice verify that the sender is a operator that is doing deregistration for itself 
