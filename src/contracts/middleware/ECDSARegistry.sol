@@ -176,15 +176,9 @@ contract ECDSARegistry is
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
             "ECDSARegistry._deregisterOperator: Supplied stakes are incorrect"
         );
-        
-        /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
-         */
-        // get operator's stored pubkeyHash
-        bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
 
         // Update registrant list and index histories
-        _popRegistrant(pubkeyHash, index);
+        _popRegistrant(registry[msg.sender].pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
