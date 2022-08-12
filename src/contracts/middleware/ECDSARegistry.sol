@@ -55,8 +55,7 @@ contract ECDSARegistry is
     {
         // TODO: verify this initialization is correct
         bytes memory emptyBytes;
-        stakeHashes.push(keccak256(emptyBytes));
-        stakeHashUpdates.push(uint32(block.number));
+        _processStakeHashUpdate(keccak256(emptyBytes));
     }
 
     /**
@@ -134,7 +133,7 @@ contract ECDSARegistry is
              *      at the front of the list of tuples pertaining to existing operators. 
              *      Also, need to update the total ETH and/or EIGEN deposited by all operators.
              */
-            stakeHashes.push(keccak256(
+            _processStakeHashUpdate(keccak256(
                 abi.encodePacked(
                     stakes.slice(0, stakes.length - 24),
                     // append at the end of list
@@ -144,7 +143,6 @@ contract ECDSARegistry is
                     totalStakeHistory[totalStakeHistory.length - 1].eigenStake
                 )
             ));
-            stakeHashUpdates.push(uint32(block.number));
         }
 
         emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
@@ -208,8 +206,7 @@ contract ECDSARegistry is
         );
 
         // store hash of 'stakes' and record that an update has occurred
-        stakeHashes.push(keccak256(updatedStakesArray));
-        stakeHashUpdates.push(uint32(block.number));
+        _processStakeHashUpdate(keccak256(updatedStakesArray));
     }
 
     /**
@@ -306,7 +303,12 @@ contract ECDSARegistry is
         _recordTotalStakeUpdate(_totalStake);
 
         // store hash of 'stakes' and record that an update has occurred
-        stakeHashes.push(keccak256(stakes));
+        _processStakeHashUpdate(keccak256(stakes));
+    }
+
+    // updates the stored stakeHash by pushing new entries to the `stakeHashes` and `stakeHashUpdates` arrays
+    function _processStakeHashUpdate(bytes32 newStakeHash) internal {
+        stakeHashes.push(newStakeHash);
         stakeHashUpdates.push(uint32(block.number));
     }
 
