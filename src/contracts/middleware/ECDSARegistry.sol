@@ -11,14 +11,14 @@ import "./RegistryBase.sol";
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
  */
-
+// TODO: this contract has known concurrency issues with multiple updates to the 'stakes' object landing in quick succession -- need to evaluate potential solutions
 contract ECDSARegistry is
     RegistryBase
     // ,DSTest
 {
     using BytesLib for bytes;
 
-    /// @notice the taskNumbers at which the stake object was updated
+    /// @notice the block numbers at which the stake object was updated
     uint32[] public stakeHashUpdates;
 
     /**
@@ -54,7 +54,9 @@ contract ECDSARegistry is
         )
     {
         // TODO: verify this initialization is correct
-        stakeHashUpdates.push(0);
+        bytes memory emptyBytes;
+        stakeHashes.push(keccak256(emptyBytes));
+        stakeHashUpdates.push(uint32(block.number));
     }
 
     /**
@@ -142,6 +144,7 @@ contract ECDSARegistry is
                     totalStakeHistory[totalStakeHistory.length - 1].eigenStake
                 )
             ));
+            stakeHashUpdates.push(uint32(block.number));
         }
 
         emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
@@ -302,7 +305,9 @@ contract ECDSARegistry is
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
 
+        // store hash of 'stakes' and record that an update has occurred
         stakeHashes.push(keccak256(stakes));
+        stakeHashUpdates.push(uint32(block.number));
     }
 
     /**
