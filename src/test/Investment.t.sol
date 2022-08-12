@@ -113,7 +113,7 @@ contract InvestmentTests is
         InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(acct_0, 0);
         investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
 
-        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, serviceFactory, dlRepository);
+        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, dlsm);
 
 
         cheats.stopPrank();
@@ -134,6 +134,26 @@ contract InvestmentTests is
         _testDepositEigen(signers[0], eigenToDeposit);
     }
 
+    function testDepositUnsupportedToken() public {
+        
+
+        IERC20 token = new ERC20PresetFixedSupply(
+            "badToken",
+            "BADTOKEN",
+            100,
+            address(this)
+        );
+        
+        token.approve(address(investmentManager), type(uint256).max);
+        
+        cheats.expectRevert(bytes("Can only deposit underlyingToken"));
+        investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
+        
+
+    }
+
+    
+
     // TODO: FIX THIS!
     /*
     //verifies that it is possible to deposit eigen and then withdraw it
@@ -152,6 +172,10 @@ contract InvestmentTests is
         assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
     }
     */
+
+    // Coverage for EigenLayrDeposit contract //
+    // TODOs:
+    // testDepositPOSProof
 
     function testSlashing(uint256 amountToDeposit) public{
 
@@ -184,12 +208,12 @@ contract InvestmentTests is
         strategyIndexes[0] = 0;
 
         //investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-        cheats.startPrank(address(slasher));
-        investmentManager.slashOperator(registrant);
+        cheats.startPrank(address(slasher.delegation()));
+        slasher.freezeOperator(registrant);
         cheats.stopPrank();
 
 
-        uint prev_shares = delegation.getOperatorShares(registrant, strategy_arr[0]);
+        uint prev_shares = delegation.operatorShares(registrant, strategy_arr[0]);
 
         investmentManager.slashShares(
             registrant, 
@@ -200,7 +224,7 @@ contract InvestmentTests is
             shareAmounts
         );
 
-        require(delegation.getOperatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+        require(delegation.operatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
         
         //initiate withdrawal
 

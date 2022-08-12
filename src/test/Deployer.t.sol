@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mocks/DepositContract.sol";
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/core/Eigen.sol";
@@ -37,21 +36,23 @@ import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
+import "../contracts/libraries/DataStoreHash.sol";
 
 import "./utils/Signers.sol";
+import "./utils/SignatureUtils.sol";
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     DSTest,
     ERC165_Universal,
     ERC1155TokenReceiver,
-    Signers
+    Signers,
+    SignatureUtils
 {
     using BytesLib for bytes;
 
     uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
-    DepositContract public depositContract;
     // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
@@ -90,8 +91,6 @@ contract EigenLayrDeployer is
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
-    bytes32 consensusLayerDepositRoot =
-        0x9c4bad94539254189bb933df374b1c2eb9096913a1f6a3326b84133d2b9b9bad;
     address storer = address(420);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
 
@@ -110,16 +109,17 @@ contract EigenLayrDeployer is
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
+    uint8 durationToInit = 2;
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        //eth2 deposit contract
-        depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
+
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -132,10 +132,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
-        // deploy slasher and service factory contracts
-        slasher = new Slasher(investmentManager, address(this));
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
@@ -206,6 +202,11 @@ contract EigenLayrDeployer is
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
+        // deploy slasher and service factory contracts
+        slasher = new Slasher();
+        slasher.initialize(investmentManager, delegation, governor);
+        serviceFactory = new ServiceFactory(investmentManager, delegation);
+
         investmentManager.initialize(
             slasher,
             governor
@@ -231,51 +232,103 @@ contract EigenLayrDeployer is
         //loads hardcoded signer set
         _setSigners();
 
-registrationData.push(
-            hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f20fd9f812e64d2be18573054ece7aef8a3fae1618068b08cfdc9722d4254a5c1c1c3241bc604d574aef221cfa3e7abd0334554fdae446fa2258a36c1bb725110d"
+        //loads signatures
+        setSignatures();
+
+        registrationData.push(
+            hex"075dcd2e66658b1f4f61aa809f001bb79324b91089af99b9a78e27284e8c73130d884d46e54bf17137028ddc3fd38d5b89686b7c433099b28149f9c8f771c8431f5bda9b7d94f525e0f9b667127df9fa884e9917453db7fe3119820b994b5e5d2428c354c0019c338afd3994e186d7d443ec1d8abab2e2d1e19bac019ee295f202a45cfe62ffb797ab25355a7f54788277f7fd9fda544ac6a7e38623d75fdd001074a61258b73d4773971a8073f04a6dd072409bea915d4ece0583c65f09fbfe"
         );
         registrationData.push(
-            hex"2669082021fd1033646a940aabe3f459e7b7a808d959c392af45c91b3fe064960bce92bfb1a54bc1af73b41a1edb13bd9e5006471c5d4708f77ea530f1045b7a0914646c43c0b404345c7864daa76091996c36227ac5b2ad5a7468ab49ebaf7b13357d53c87adfee0aa3b2c7dbca5d00660c4c5ed1acbeebb4c9202101dab4f01d21849e7ec98d09ba242b6f5ca31407f9819acd40f4aa036e7bbacbdd3af2d42f0a64cc4b8ee3af7a898ca674219743ca599d7b0506a371ba79161524fad80d"
+            hex"2669082021fd1033646a940aabe3f459e7b7a808d959c392af45c91b3fe064960bce92bfb1a54bc1af73b41a1edb13bd9e5006471c5d4708f77ea530f1045b7a0914646c43c0b404345c7864daa76091996c36227ac5b2ad5a7468ab49ebaf7b13357d53c87adfee0aa3b2c7dbca5d00660c4c5ed1acbeebb4c9202101dab4f00953b9e7b44ec5991070966ed70c1cd37b03b06797059b6828b0a2abc1d5210c134a2cc96c98c4ed34e2c7399695d25c0c2dfce27e0885ad13b979eb1c465b99"
         );
         registrationData.push(
-            hex"142b758de8ad4c74e8167d71b3667cf75e982f006480ecafdde2a403748e7d1b2dd77f6eac473a31fddba53321584cd0aa296f14d14f098093937a5b93dd61c90cc3e0a7657c894d178a7ff41ae51b5ccc4c697684c599015b003aceeb2fec641863a130465043a63a1acf5494ee76895779044613264c5f65a106834b6615901ac1b422373760d0769efe667a1af135e7447a97b906dc3b4b3d56546eb8ecc31a25249cfff25b5a742b3690ba9c88cdeba85b6b20d0c77353fe7a548efdfc8a"
+            hex"142b758de8ad4c74e8167d71b3667cf75e982f006480ecafdde2a403748e7d1b2dd77f6eac473a31fddba53321584cd0aa296f14d14f098093937a5b93dd61c90cc3e0a7657c894d178a7ff41ae51b5ccc4c697684c599015b003aceeb2fec641863a130465043a63a1acf5494ee76895779044613264c5f65a106834b6615902def894e6c296e5b789398128a3b8f05054314ee82739e8e51cea9e4432a000d028d664abd661c75fe7ed0506c347f3b94d782d82e2259c7ecb39c9796922b04"
         );
         registrationData.push(
-            hex"2af2ac3833ce14949c9ef3fbccf620e3a13c9df686687634f9546a76ec5899f7219bfb0cf2f2817525cd89082302218c3cf83b3beae6c4fbe25ae4a790e948d307d64b5418c89567b5956590d6232c4ed95afd9d06d5a13b1f9c0c306a9260fe04783304a0c560710cb4f1bdc8096e7a67e39be589513dc644845b2e66fc19dd084bba4c75ba9dafb4e83e6c8de24ae1dff9ec06812c211321df381d09aa44691e4c3d98475d044e547281470e5dc33098943c018299e08ab3c89b70d452926a"
+            hex"2af2ac3833ce14949c9ef3fbccf620e3a13c9df686687634f9546a76ec5899f7219bfb0cf2f2817525cd89082302218c3cf83b3beae6c4fbe25ae4a790e948d307d64b5418c89567b5956590d6232c4ed95afd9d06d5a13b1f9c0c306a9260fe04783304a0c560710cb4f1bdc8096e7a67e39be589513dc644845b2e66fc19dd24fddaf89dd8e1f6ed4d5d8750fed28b4159442ea7edd367c9335bb07a3a00ea00bbc408f2a7336e2ac8694db6df7603708293aac6ee702cdfc0eefb32c37b27"
         );
         registrationData.push(
-            hex"2c63a558d2384cf3f387db39c48c3b72595ef13adbc3ca7689bc90bae7e4ab060620e82d1bb6c52977529ece1fe1d31b0521492a06c661e06363b3be8306acd10746c80e9dacb5731c65232cf5fb5a2450e4f2e44d44fbc9d6cbf19dd30db776226488c51bfacbf7704d12065eb3ad1b9a707a4f61d41effdcb2ced3e01c4269147423e6e542b715c56e5e0b005348a71e3375e5301710c58017b78919a3c10707a9573924f2b6f5044a231d2a70a61b8b064fc97ec29f072d862f5d399a1476"
+            hex"2c63a558d2384cf3f387db39c48c3b72595ef13adbc3ca7689bc90bae7e4ab060620e82d1bb6c52977529ece1fe1d31b0521492a06c661e06363b3be8306acd10746c80e9dacb5731c65232cf5fb5a2450e4f2e44d44fbc9d6cbf19dd30db776226488c51bfacbf7704d12065eb3ad1b9a707a4f61d41effdcb2ced3e01c42691f7631be59f69c691c082e7d192e4c4bbedab7c296ff6fc879e6f5511f3fc9a316f8e0f3a57a58ee42165206ec70f94ee1e80a41907f3ec36fb8cdeaaa08ca52"
         );
         registrationData.push(
-            hex"0076c0c034a6916e712bb41ed97530c4475c78c89f916137511d03ee94b670691a904a8de426166c9a7e6e3e36260973db56b218336dc89c68e2710026abe9e61612d3f5da47c52b552d66322623d688f5046baa625e4f66556cafed25c61980017458bcef061aafd36e998f0f5958439f175df8ffd3a286bc4986eafdb6d4701c07ff8c6632b0d251c106f434171de8ea44271f0e68a2b5e070376ae35aecfe1f4bde7af27b8dee86137ccf31685ec72185a52154a719087a363326a81713db"
+            hex"0076c0c034a6916e712bb41ed97530c4475c78c89f916137511d03ee94b670691a904a8de426166c9a7e6e3e36260973db56b218336dc89c68e2710026abe9e61612d3f5da47c52b552d66322623d688f5046baa625e4f66556cafed25c61980017458bcef061aafd36e998f0f5958439f175df8ffd3a286bc4986eafdb6d47015e186650610a8d2d336913f53adff244280748c91ffc37d21179f2051deef662ce36aca626ad16812b5a8ffe3bb8c258154b7e962a90e72bd4732f21f808645"
         );
         registrationData.push(
-            hex"1fb489ea26c1b85899bad2104702946ef256a7e59f26080bfddce2a64e94e3991947cd387f975963abc04838968f3eb128263b73c57c6820107395eca138fd98100bcb4ba69885f5020187520c35df6ff5b991b01bab7b83ad63c23af7e03b0c1efe7165964b7e66443b25b76fe6717739760afae192948aed7ae74f81564255190add561a44c0bd1234f01bad469e63dfd915eb9da9e49ee2f71f72cf554f021ef6b31132d974049e139f4389ec34a2b7404b67e55db7da768907d10801069a"
+            hex"1fb489ea26c1b85899bad2104702946ef256a7e59f26080bfddce2a64e94e3991947cd387f975963abc04838968f3eb128263b73c57c6820107395eca138fd98100bcb4ba69885f5020187520c35df6ff5b991b01bab7b83ad63c23af7e03b0c1efe7165964b7e66443b25b76fe6717739760afae192948aed7ae74f81564255264d1fac1a8f1c5d6f2d8e7e38ebdfc59a512c7281b5abfb727aa883a688f4381a970b882e097f1c1c754c9fd8ebc503a30488ffe821ac98bf79062f9b1d81c5"
         );
         registrationData.push(
-            hex"0e7fc7b5bca43de3fab4acc5a7a014bb9bb5aff171cb26ae31bffe2bc529db0f1269f9809e4069bddf06aaf88187192e241fb817a6c8bbb5aff3836a0520e6b61aca04d4cc4f83d755ac2e9e083197afee1ea77d42e9429fa4b3fb64276f78001e7951e39e5de9c4c89e41fc0fbcf8f59438e85a60d1ac40293ab862f1b4c3bd1182464e8fd0d33351275c3e02d0adbb593d6fc34c7b251becca6ef19e70d91025d14a460697676e73f4c259be24d71b6d59dc5f5ec3026ad9ce50f0c314af65"
+            hex"0e7fc7b5bca43de3fab4acc5a7a014bb9bb5aff171cb26ae31bffe2bc529db0f1269f9809e4069bddf06aaf88187192e241fb817a6c8bbb5aff3836a0520e6b61aca04d4cc4f83d755ac2e9e083197afee1ea77d42e9429fa4b3fb64276f78001e7951e39e5de9c4c89e41fc0fbcf8f59438e85a60d1ac40293ab862f1b4c3bd0e225ae617a66cfc67ae42283156ff19878b9857cce60a2ae322075579cc8ed207d30ecd2feac39c5e2a7cacf6fe38c78a41b1b97313060b41a41b499477148c"
         );
         registrationData.push(
-            hex"18b1f796356a80ea2cc1c0e23a3e7331a97a417473cf83a5f6942ecf9a84cc351a187ceef1a2436db814c6d5a83b16b6dd48f69b23d07f7e3544cf9f3a4edd8a031b8f1c6711edff8267eb49c6a9ecd2de39eaea18621db1f601186b6c8b56ee1a7bb20411a152aaac50010240dad6f82a7dc818fe6565db4132350d69eaeec60b0306663891836f6d11cde6af281687d4703b3c45abb1b3c18519491b1986f30d38c69d223be9fb4733b490f4da70c9694bc73496b341e5fa428f1ed59ba41d"
+            hex"18b1f796356a80ea2cc1c0e23a3e7331a97a417473cf83a5f6942ecf9a84cc351a187ceef1a2436db814c6d5a83b16b6dd48f69b23d07f7e3544cf9f3a4edd8a031b8f1c6711edff8267eb49c6a9ecd2de39eaea18621db1f601186b6c8b56ee1a7bb20411a152aaac50010240dad6f82a7dc818fe6565db4132350d69eaeec62a47a927850ea2e09f6d0757d3f3201000eb58c24a9fa0160076433be84960ef031aeb05ae95495541e544f3a8345331f016ed542d05b64ca5076112faeb9b1a"
         );
         registrationData.push(
-            hex"15ba1ac04f35335cfd1c9c1fcaac012871e3543bb7876b38be193e3f07592aab0323619b00d87f3c03d4bab25c91b8bc4b7aa96818930f2b4684ae8f6e92464b30298b441eaadcfb3b86e0b3f0e41250060dbb89e34c2d67acef7ed9a2590db42108f4f14af5ff87b2b9b7d766c4be119b790f34c9b3b1a62d16f6a95935d2e01ea7023966c26530c81055e0a50c5062918357effe2eb0b9e9c5662d62ed92ce01c43aa265da0850a4b60dd33b66cc9a9ad3037c7dd2a6a0a9611a698f227d3c"
+            hex"15ba1ac04f35335cfd1c9c1fcaac012871e3543bb7876b38be193e3f07592aab0323619b00d87f3c03d4bab25c91b8bc4b7aa96818930f2b4684ae8f6e92464b30298b441eaadcfb3b86e0b3f0e41250060dbb89e34c2d67acef7ed9a2590db42108f4f14af5ff87b2b9b7d766c4be119b790f34c9b3b1a62d16f6a95935d2e00463223946956732c65085bd6b2f3651944757099d6f643c0370fac983c27f1e0dc2b54a54fde7495e81d43c6346549cf824fb45ecd18f77d4537e8fba7e7e0c"
         );
         registrationData.push(
-            hex"0822ccd871333690ea42c6e7fa1b594c785d8296fc8bacc8a10ddda8f3378ebb0d68db879257ec3f74d4fc1cffd17a9f1b6db08b7c421753dbce0751d6d7d23a07873fdb87a38f72a537da1cc20b48d1186594430718e15ec5e195ab3c65f8102f6a351c01b3cfc217c9ab936382a53b9a350851ecbaf43e6a0f086bf8ec395401693e8f639b1d98d81719c2f9fcdb45ba37bba1ecc4343c8daaf3e44d5f2e8e20acc7c63d987f4a5fe894c3f205b9e2425433fe6b5278d53351f8b4bd6aa705"
+            hex"0822ccd871333690ea42c6e7fa1b594c785d8296fc8bacc8a10ddda8f3378ebb0d68db879257ec3f74d4fc1cffd17a9f1b6db08b7c421753dbce0751d6d7d23a07873fdb87a38f72a537da1cc20b48d1186594430718e15ec5e195ab3c65f8102f6a351c01b3cfc217c9ab936382a53b9a350851ecbaf43e6a0f086bf8ec395409fe90efaeae3703fbddaf8f331451d3dd3d138fce006af813b579d8c67313d71353b0fd3e02d50c77889d7095d09eb4874a7425604f20c3d7b619bf5efe3274"
         );
         registrationData.push(
-            hex"1a6962a7170cf4ea2ad4bd0bf9a95c4e6bf96e9302e345b9d12bfbf6fb86dc911733c8198257dc9003ba0163d217b48fdb14e6ce91691242064ae21d821980481ad1e21ac4adc2eebad1e279e490b307aafafcf43a3e63decb19f7dac7d5a26c1fa208243839cf96ee3218652239dc06119770cebe08776c1bd92af9626f04d01a0f55e82e7c08ea1d868630d37e874ba7ad3038264a13b7a5ca0939973502cb191aacc894a8abb566cd982f607deb0c18f3abf846fc3eb6843cbbaa9738d588"
+            hex"1a6962a7170cf4ea2ad4bd0bf9a95c4e6bf96e9302e345b9d12bfbf6fb86dc911733c8198257dc9003ba0163d217b48fdb14e6ce91691242064ae21d821980481ad1e21ac4adc2eebad1e279e490b307aafafcf43a3e63decb19f7dac7d5a26c1fa208243839cf96ee3218652239dc06119770cebe08776c1bd92af9626f04d025cc5bff6c03978aab365592207f4e24fe1cce9eece22e86c84535ce3b0851732fb29f8709e77f2c38ee09f4eb3143fa17eb2381785485fa7990ee0b161367e7"
         );
         registrationData.push(
-            hex"13185695a1abc17847ce6a90edc65eb04c0ebd218156f122ef689674e82ebb331ad5be86a500c6b0b490cbe70610356448aa2b06442f364b138fe7cd0df5efa9294cbc1ccb8c6afdbc05938f368521351328222ac99388e7a26c4f9d51ad1024042a5a5286bbcc22f94e95555be8a193731c2c265b64aa25fde8a047202a6d95051ae01267d28a2fd5e0b1b150709f5ea825727bd6e458223ada31fa2cce53181428260faa6fc03cdde9a77b82eaece16808ff3bc767ab159adb2047081f233c"
+            hex"13185695a1abc17847ce6a90edc65eb04c0ebd218156f122ef689674e82ebb331ad5be86a500c6b0b490cbe70610356448aa2b06442f364b138fe7cd0df5efa9294cbc1ccb8c6afdbc05938f368521351328222ac99388e7a26c4f9d51ad1024042a5a5286bbcc22f94e95555be8a193731c2c265b64aa25fde8a047202a6d9501b635713a31a9322e81ad50f9331775856e610bfdb5546aadeb681143dc015023b5d07f7004ad42a5a2c74fd1c87991326b7575a75e73a347a7c59741d21db5"
         );
         registrationData.push(
-            hex"1db8d40c46e9992c0e020568b3f1c02fa4aef44c5db1610325093280218f2ab014c3ab56f0d82ad9ff275fae94e51a17c613302e5aa2f2de7001ae181727f8d4053c3d457ad36273361e3b35d02cea6c93879a55f0d086a77e58dc0d5805c6b428fc018be860797143a2b0296ed35113addbf3c0e8aaf6ea93c0acb3db78bae105d176cce68e50136fb116ad9eb04ddf0d810bf07c2e2bf39c56dea317744fa20eb7fc03d877c15b1e6a4c021c604ce4b629a475678c3888a997a398551813b0"
+            hex"1db8d40c46e9992c0e020568b3f1c02fa4aef44c5db1610325093280218f2ab014c3ab56f0d82ad9ff275fae94e51a17c613302e5aa2f2de7001ae181727f8d4053c3d457ad36273361e3b35d02cea6c93879a55f0d086a77e58dc0d5805c6b428fc018be860797143a2b0296ed35113addbf3c0e8aaf6ea93c0acb3db78bae1216edaa7fff2998dfd2adee5620745512c2faca1f547b996892eef199fe8bfd515696133c1920636012e494103e3c592283583296d73924bbacba7d299ca0e7d"
         );
         registrationData.push(
-            hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a414b5c501b3a03cd83ef2c1d31e0d46f6087f498b508aab54710fe6bcb7922a5a103bc846a08ed3768a9542b7293bf0d254134427070a9f2f88d47e566a21c741"
+            hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a41ae35db861ea707fc72c6b7756a6139e8cccf15392e59297c21af365de013b4312caa1e05d5aac7c5513fff386248f1955298f11e0e165ed9a20c9beefe2f8a0"
         );
+
+        //We need to generate different signatures for every datastore, because each msgHash is different.  Here there
+        // are 5 different signatures for 5 datastores being made by the testLoopConfirmDataStoreLoop() in 
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(17495938995352312074042671866638379644300283276197341589218393173802359623203)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(9126369385140686627953696969589239917670210184443620227590862230088267251657)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(8528577148191764833611657152174462549210362961117123234946268547773819967468)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(12327969281291293902781100249451937778030476843597859113014633987742778388515)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(17717264659294506723357044248913560483603638283216958290715934634714856502042)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(16175010538989710606381988436521433111107391792149336131385412257451345649557)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(13634672549209768891995273226026110254116368188641023296736353558981756191079)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(1785013485497898832511190470667377540198821342030868981614348293548355133071)
+        // );
+
+        // //X-coordinate for signature
+        // signatureData.push(
+        //     uint256(14314878115196120635834581315654915934806820731149597554562572642636028600046)
+        // );
+        // //Y-coordinate for signature
+        // signatureData.push(
+        //     uint256(11127341031659236634094533494380792345546001913442488974163761094820943932055)
+        // );
+
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -293,8 +346,10 @@ registrationData.push(
             feePerBytePerTime
         );
 
+        uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
+            paymentFraudProofCollateral,
             dlsm
         );
 
@@ -412,6 +467,8 @@ registrationData.push(
         internal
         returns (uint256 amountDeposited)
     {
+        // deposits will revert when amountToDeposit is 0
+        cheats.assume(amountToDeposit > 0);
         amountDeposited = _testWethDepositStrat(sender, amountToDeposit, strat);
     }
 
@@ -505,7 +562,7 @@ registrationData.push(
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore()
+   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -513,7 +570,6 @@ registrationData.push(
             hex"0102030405060708091011121314151617181920"
         );
         uint32 totalBytes = 1e6;
-        uint8 duration = 2;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
@@ -526,59 +582,51 @@ registrationData.push(
         // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
         // and 'BLOCK_STALE_MEASURE' is currently 100
         cheats.roll(block.number + 100);
-        cheats.warp(block.timestamp + 100);
+        cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
-        uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
+            confirmer,
             header,
-            duration,
+            durationToInit,
             totalBytes,
             blockNumber
         );
-        emit log_named_uint("init datastore total gas", g - gasleft());
-        uint32 dataStoreId = dlsm.dataStoreId() - 1;
+
         bytes32 headerHash = keccak256(header);
 
 
         cheats.stopPrank();
 
 
-        uint256 fee = calculateFee(totalBytes, 1, duration);
-
-        {
-            bytes32 dataStoreHash = keccak256(
-                abi.encodePacked(
-                    headerHash,
-                    dataStoreId,
-                    blockNumber,
-                    uint96(fee),
-                    bytes32(0)
-                )
-            );
-
-            //check if computed hash matches stored hash in DLSM
-            assertTrue(
-                dataStoreHash ==
-                    dlsm.getDataStoreIdsForDuration(duration, timestamp, index),
-                "dataStore hashes do not match"
-            );
-        }
+        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
 
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata(
                 headerHash,
-                dataStoreId,
-                dataStoreId,
+                dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                dlsm.taskNumber() - 1,
                 blockNumber,
                 uint96(fee),
+                confirmer,
                 bytes32(0)
             );
+
+        {
+            bytes32 dataStoreHash = DataStoreHash.computeDataStoreHash(metadata);
+
+            //check if computed hash matches stored hash in DLSM
+            assertTrue(
+                dataStoreHash ==
+                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
+                "dataStore hashes do not match"
+            );
+        }
         
         searchData = IDataLayrServiceManager.DataStoreSearchData(
-                duration,
+                durationToInit,
                 timestamp,
                 index,
                 metadata
@@ -589,6 +637,8 @@ registrationData.push(
     // deposits a fixed amount of eigen from address 'sender'
     // checks that the deposit is credited correctly
     function _testDepositEigen(address sender, uint256 toDeposit) public {
+        // deposits will revert when amountToDeposit is 0
+        cheats.assume(toDeposit > 0);
         eigenToken.transfer(sender, toDeposit);
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);
@@ -607,17 +657,18 @@ registrationData.push(
     }
 
     function _testSelfOperatorDelegate(address sender) internal {
-        cheats.prank(sender);
-        delegation.delegateToSelf();
-        assertTrue(
-            delegation.isSelfOperator(sender),
-            "_testSelfOperatorDelegate: self delegation not properly recorded"
-        );
-        assertTrue(
-            //TODO: write this properly to use the enum type defined in delegation
-            uint8(delegation.delegated(sender)) == 1,
-            "_testSelfOperatorDelegate: delegation not credited?"
-        );
+        // cheats.prank(sender);
+        // delegation.delegateToSelf();
+        // assertTrue(
+        //     delegation.isSelfOperator(sender),
+        //     "_testSelfOperatorDelegate: self delegation not properly recorded"
+        // );
+        // assertTrue(
+        //     //TODO: write this properly to use the enum type defined in delegation
+        //     uint8(delegation.delegated(sender)) == 1,
+        //     "_testSelfOperatorDelegate: delegation not credited?"
+        // );
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
     function _testRegisterAdditionalSelfOperator(
@@ -666,7 +717,7 @@ registrationData.push(
         }
     }
 
-    // TODO: fix this to work with a variable number again, if possible
+    
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
         internal 
         returns (bytes memory)
@@ -684,48 +735,33 @@ registrationData.push(
             );
         }
 
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore();
+        uint256 initTime = 1000000001;
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
-            uint256(
-                20820493588973199354272631301248587752629863429201347184003644368113679196121
-            ),
-            uint256(
-                18507428821816114421698399069438744284866101909563082454551586195885282320634
-            ),
-            uint256(
-                1263326262781780932600377484793962587101562728383804037421955407439695092960
-            ),
-            uint256(
-                3512517006108887301063578607317108977425754510174956792003926207778790018672
-            )
-        );
-        (uint256 sigma_0, uint256 sigma_1) = (
-            uint256(
-                3227515082877366753481082344554384723742742005849592832962567665412663301823
-            ),
-            uint256(
-                417272605470211919435039030320974523411847825598612812754681380173701139632
-            )
-        );
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
 
+
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
+        
+        
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
              uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
+             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
              uint256[4] apk,
              uint256[2] sigma
             >
      */
         bytes memory data = abi.encodePacked(
-            searchData.metadata.headerHash,
+            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,
@@ -740,54 +776,27 @@ registrationData.push(
             sigma_1
         );
 
-        uint256 gasbefore = gasleft();
-
-
         
         dlsm.confirmDataStore(data, searchData);
-        emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-        //     dlsm.dataStoreId() - 1
-        // );
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
         return data;
     }
 
 
-    function _testConfirmDataStoreWithoutRegister() internal {
+    function _testConfirmDataStoreWithoutRegister(uint index, uint256 numSigners) internal {
+        uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = _testInitDataStore();
+            memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = (
-            uint256(
-                20820493588973199354272631301248587752629863429201347184003644368113679196121
-            ),
-            uint256(
-                18507428821816114421698399069438744284866101909563082454551586195885282320634
-            ),
-            uint256(
-                1263326262781780932600377484793962587101562728383804037421955407439695092960
-            ),
-            uint256(
-                3512517006108887301063578607317108977425754510174956792003926207778790018672
-            )
-        );
-        (uint256 sigma_0, uint256 sigma_1) = (
-            uint256(
-                17994461740782094388047737382005374640168513116024457805993196913920000628928
-            ),
-            uint256(
-                6768731106897328299553074458255796105021387405000087556189762367503757131907
-            )
-        );
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(numSigners);
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(numSigners, index);//(signatureData[index*2], signatureData[2*index + 1]);
+
 
         /** 
      @param data This calldata is of the format:
             <
-             bytes32 headerHash,
+             bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
              uint32 dataStoreId
@@ -798,8 +807,13 @@ registrationData.push(
              uint256[2] sigma
             >
      */
+        
+
+        // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
-            searchData.metadata.headerHash,
+            keccak256(
+                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
+            ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
             searchData.metadata.globalDataStoreId,
@@ -838,7 +852,7 @@ registrationData.push(
         );
         cheats.stopPrank();
     }
-
+    
     // tries to delegate from 'sender' to 'operator'
     // verifies that:
     //                  delegator has at least some shares
@@ -860,7 +874,7 @@ registrationData.push(
         );
         uint256[] memory initialOperatorShares = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.getOperatorShares(
+            initialOperatorShares[i] = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -882,7 +896,7 @@ registrationData.push(
 
         for (uint256 i = 0; i < numStrats; ++i) {
             uint256 operatorSharesBefore = initialOperatorShares[i];
-            uint256 operatorSharesAfter = delegation.getOperatorShares(
+            uint256 operatorSharesAfter = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -953,8 +967,8 @@ registrationData.push(
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
         cheats.warp(block.timestamp + 365 days);
+        delegation.initUndelegation();
         delegation.commitUndelegation();
-        delegation.finalizeUndelegation();
         cheats.stopPrank();
     }
 
@@ -969,10 +983,6 @@ registrationData.push(
 
 
     function testDeploymentSuccessful() public {
-        assertTrue(
-            address(depositContract) != address(0),
-            "depositContract failed to deploy"
-        );
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(
             address(eigenToken) != address(0),
@@ -1008,4 +1018,6 @@ registrationData.push(
         );
 
     }
+
+
 }

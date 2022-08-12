@@ -74,7 +74,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         // eigen = new Eigen(ownerAddr);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
-        slasher = new Slasher(investmentManager, address(this));
+        slasher = new Slasher();
+        slasher.initialize(investmentManager, delegation, address(this));
         serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(delegation);
         //used in the one ETH investment strategy
@@ -113,8 +114,10 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             undelegationFraudProofInterval
         );
 
+        uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager= new DataLayrPaymentManager(
             weth,
+            paymentFraudProofCollateral,
             dlsm
         );
         // dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge();

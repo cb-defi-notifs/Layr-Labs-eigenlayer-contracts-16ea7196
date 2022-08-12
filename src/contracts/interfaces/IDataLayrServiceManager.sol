@@ -15,6 +15,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint32 globalDataStoreId;
         uint32 blockNumber;
         uint96 fee;
+        address confirmer;
         bytes32 signatoryRecordHash;
     }
 
@@ -51,7 +52,6 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 fee;
     }
 
-    function dataStoreId() external view returns (uint32);
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 
@@ -63,7 +63,7 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function MAX_DATASTORE_DURATION() external view returns(uint8);
 
-    function getDataStoreIdsForDuration(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
     
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 
