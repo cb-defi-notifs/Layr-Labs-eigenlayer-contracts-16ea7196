@@ -176,11 +176,13 @@ contract ECDSARegistry is
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
         uint256 start = uint256(index * 44);
+        // storage caching to save gas (less SLOADs)
+        uint256 stakesLength = stakes.length;
 
         // scoped block helps prevent stack too deep
         {
             require(
-                start < stakes.length - 68,
+                start < stakesLength - 68,
                 "ECDSARegistry._deregisterOperator: Cannot point to total bytes"
             );
             require(
@@ -195,7 +197,7 @@ contract ECDSARegistry is
         .slice(0, start)
             // concatenate the bytes pertaining to the tuples from rest of the middleware 
             // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
-            .concat(stakes.slice(start + 44, stakes.length - 24)
+            .concat(stakes.slice(start + 44, stakesLength - 24)
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
@@ -248,8 +250,11 @@ contract ECDSARegistry is
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
-        // placeholder to be reused inside loop
+        // placeholders to be reused inside loop
         OperatorStake memory newStakes;
+        uint256 start;
+        // storage caching to save gas (less SLOADs)
+        uint256 stakesLength = stakes.length;
 
         bytes memory updatedStakesArray = stakes;
 
@@ -258,12 +263,12 @@ contract ECDSARegistry is
 
             // placing the pointer at the starting byte of the tuple 
             /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
-            uint256 start = uint256(indexes[i] * 44);
+            start = uint256(indexes[i] * 44);
 
             // scoped block helps prevent stack too deep
             {
                 require(
-                    start < stakes.length - 68,
+                    start < stakesLength - 68,
                     "ECDSARegistry.updateStakes: Cannot point to total bytes"
                 );
                 require(
@@ -283,14 +288,14 @@ contract ECDSARegistry is
             .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake))
             // concatenate the bytes pertaining to the tuples from rest of the operators 
             // except the last 24 bytes that comprises of total ETH deposits
-            .concat(stakes.slice(start + 44, stakes.length - 24));
+            .concat(stakes.slice(start + 44, stakesLength - 24));
 
             unchecked {
                 ++i;
             }
         }
 
-        // concatenate the updated total stakes in the last 24 bytes,
+        // concatenate the updated total stakes in the last 24 bytes of stakes
         updatedStakesArray = updatedStakesArray
         .concat(
             abi.encodePacked(
