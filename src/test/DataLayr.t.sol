@@ -11,10 +11,11 @@ contract DataLayrTests is
 {
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
-        return _testInitDataStore().metadata.headerHash;
+        //change the current timestamp to be in the future 100 seconds and init
+        return _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
     }
 
-    function testInitDataStoreLoop() public{
+    function testLoopInitDataStore() public{
         uint g = gasleft();
         for(uint i=0; i<20; i++){
             testInitDataStore();
@@ -29,20 +30,20 @@ contract DataLayrTests is
     }
 
     // @TODO: Add this back and generate correct signatures!
-    // function testLoopConfirmDataStoreLoop() public{
-    //     _testConfirmDataStoreSelfOperators(15);
-    //     uint g = gasleft();
-    //     for(uint i=0; i<20; i++){
-    //         _testConfirmDataStoreWithoutRegister();
-    //     }
-    //     emit log_named_uint("gas", g - gasleft());
-    // }
+    function testLoopConfirmDataStoreLoop() public{
+        _testConfirmDataStoreSelfOperators(15);
+        uint g = gasleft();
+        for(uint i=1; i<5; i++){
+            _testConfirmDataStoreWithoutRegister(i, 15);
+        }
+        emit log_named_uint("gas", g - gasleft());
+    }
 
-    // function testConfirmDataStoreTwoOperators() public {
-    //     _testConfirmDataStoreSelfOperators(2);
-    // }
+    function testConfirmDataStoreTwoOperators() public {
+        _testConfirmDataStoreSelfOperators(2);
+    }
 
-    // function testConfirmDataStoreTwelveOperators() public {
-    //     _testConfirmDataStoreSelfOperators(12);
-    // }
+    function testConfirmDataStoreTwelveOperators() public {
+        _testConfirmDataStoreSelfOperators(12);
+    }
 }

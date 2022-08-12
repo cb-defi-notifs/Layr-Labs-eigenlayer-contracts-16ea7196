@@ -4,8 +4,10 @@ pragma solidity ^0.8.9;
 import "../interfaces/IServiceFactory.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./InvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "forge-std/Test.sol";
 
@@ -16,18 +18,46 @@ import "forge-std/Test.sol";
  *          - revoking permission for slashing from specified contracts,
  *          - calling investManager to do actual slashing.          
  */
-contract Slasher is Ownable, ISlasher, DSTest {
-    InvestmentManager public investmentManager;
+contract Slasher is 
+    Initializable,
+    OwnableUpgradeable,
+    ISlasher
+    // ,DSTest 
+{
+    // the InvestmentManager contract for EigenLayr
+    IInvestmentManager public investmentManager;
+    // the EigenLayrDelegation contract
+    IEigenLayrDelegation public delegation;
+    // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
-    mapping(address => bool) public serviceFactories;
     // user => contract => if that contract can slash the user
     mapping(address => mapping(address => bool)) public optedIntoSlashing;
+    // staker => if their funds are 'frozen' and potentially subject to slashing or not
+    mapping(address => bool) public frozenStatus;
 
+    event GloballyPermissionedContractAdded(address indexed contractAdded);
+    event GloballyPermissionedContractRemoved(address indexed contractRemoved);
+    event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
+    event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
+    event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(InvestmentManager _investmentManager, address _eigenLayrGovernance) {
-        _transferOwnership(_eigenLayrGovernance);
+    constructor(){
+        // TODO: uncomment for production use!
+        //_disableInitializers();
+    }
+
+    // EXTERNAL FUNCTIONS
+    function initialize(
+        IInvestmentManager _investmentManager,
+        IEigenLayrDelegation _delegation,
+        address _eigenLayrGovernance
+    ) external initializer {
         investmentManager = _investmentManager;
-        // TODO: add EigenLayrDelegation to list of permissioned contracts -- at least in testing, but possibly here in the constructor
+        delegation = _delegation;
+        _transferOwnership(_eigenLayrGovernance);
+        // add EigenLayrDelegation to list of permissioned contracts
+        _addGloballyPermissionedContract(address(_delegation));
     }
 
     /**
@@ -35,7 +65,7 @@ contract Slasher is Ownable, ISlasher, DSTest {
      */
     function addPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
-            globallyPermissionedContracts[contracts[i]] = true;
+            _addGloballyPermissionedContract(contracts[i]);
             unchecked {
                 ++i;
             }
@@ -47,98 +77,105 @@ contract Slasher is Ownable, ISlasher, DSTest {
      */
     function removePermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
-            globallyPermissionedContracts[contracts[i]] = false;
+            _removeGloballyPermissionedContract(contracts[i]);
             unchecked {
                 ++i;
             }
         }
     }
 
-    /**
-     * @notice used for marking approved service factories 
-     */
-    function addserviceFactories(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            serviceFactories[contracts[i]] = true;
-            unchecked {
-                ++i;
-            }
-        } 
+    // give the `contractAddress` permission to slash your funds
+    function allowToSlash(address contractAddress) external {
+        _optIntoSlashing(msg.sender, contractAddress);        
+    }
+    /*
+     TODO: we still need to figure out how/when to appropriately call this function
+     perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
+    */
+    // called by a contract to revoke its ability to slash `operator`
+    function revokeSlashingAbility(address operator) external {
+        _revokeSlashingAbility(operator, msg.sender);
     }
 
     /**
-     * @notice used for revoking approval of service factories
+     * @notice Used for slashing a certain operator
      */
-    function removeserviceFactories(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            serviceFactories[contracts[i]] = false;
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-// TODO: make it so a repository contract can revoke its ability to slash your funds
-    // give the contract permission to slash your funds
-    function allowToSlash(address repository) external {
-        optedIntoSlashing[msg.sender][repository] = true;
-
-        uint number = optedIntoSlashing[msg.sender][repository] ? uint(1) : uint(0);
-        emit log_named_uint("Permission to slash", number);
-        
-    }
-
-    // TODO: safe way to opt OUT of slashing (fraudproof)
-    // TODO: Why are we passing in registry here instead of getting it from the repository?
-    // idea -- require registry of repository to call function that opts you out
-
-    // NOTE: 'serviceFactory' does not have to be supplied in the event that the user has opted-in directly
-    function canSlash(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) public returns (bool) {
-        // if the user has directly opted in to the 'repository' address being allowed to slash them
-        emit log_address(toBeSlashed);
-        uint number = optedIntoSlashing[toBeSlashed][address(repository)] ? uint(1) : uint(0);
-        emit log_named_uint("Permission to slash", number);
-        if (optedIntoSlashing[toBeSlashed][address(repository)]
-            || 
-            (
-                // if specified 'serviceFactory' address is included in the approved list of service factories
-                (serviceFactories[address(serviceFactory)])
-            &&
-                // if both 'repository' and 'registry' were created by 'serviceFactory' (and are the correct contract type)
-                (serviceFactory.isRepository(repository) && serviceFactory.isRegistry(registry))
-            )
-            )
-        {
-            // if 'registry' is the active Registry in 'repository'
-            if (
-                (repository.registry() == registry)
-                &&
-                // if address 'toBeSlashed' is a registered operator in 'registry'
-                (registry.isRegistered(toBeSlashed))
-                )
-            {
-                return true;
-            }
-        }
-        // else return 'false'
-        return false;
-    }
-
-    function slashOperator(address toBeSlashed, IServiceFactory serviceFactory, IRepository repository, IRegistry registry) external {
-        require(canSlash(toBeSlashed, serviceFactory, repository, registry), "cannot slash operator");
-        // TODO: add more require statements, particularly on msg.sender
-        revert();
-        investmentManager.slashOperator(toBeSlashed);
-    }
-
-    /**
-     * @notice used for calling slashing function in investmentManager contract.
-     */
-    function slashOperator(
-        address toBeSlashed
+    function freezeOperator(
+        address toBeFrozen
     ) external {
-        require(globallyPermissionedContracts[msg.sender], "Only permissioned contracts can slash");
-        //investmentManager.slashShares(slashed, slashingRecipient, strategies, strategyIndexes, amounts, maxSlashedAmount);    
-        investmentManager.slashOperator(toBeSlashed);
+        require(canSlash(toBeFrozen, msg.sender), "Slasher.freezeOperator: msg.sender does not have permission to slash this operator");
+        _freezeOperator(toBeFrozen, msg.sender);
+    }
+
+    function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
+        for (uint256 i = 0; i < frozenAddresses.length; ) {
+            _resetFrozenStatus(frozenAddresses[i]);
+            unchecked { ++i; }
+        }
+    }
+
+    // INTERNAL FUNCTIONS
+    function _optIntoSlashing(address operator, address contractAddress) internal {
+        if (!optedIntoSlashing[operator][contractAddress]) {
+            optedIntoSlashing[operator][contractAddress] = true;
+            emit OptedIntoSlashing(operator, contractAddress);        
+        }
+    }
+
+    function _revokeSlashingAbility(address operator, address contractAddress) internal {
+        if (optedIntoSlashing[operator][contractAddress]) {
+            optedIntoSlashing[operator][contractAddress] = false;
+            emit SlashingAbilityRevoked(operator, contractAddress);        
+        }
+    }
+
+    function _addGloballyPermissionedContract(address contractToAdd) internal {
+        if (!globallyPermissionedContracts[contractToAdd]) {
+            globallyPermissionedContracts[contractToAdd] = true;
+            emit GloballyPermissionedContractAdded(contractToAdd);
+        }
+    }
+
+    function _removeGloballyPermissionedContract(address contractToRemove) internal {
+        if (globallyPermissionedContracts[contractToRemove]) {
+            globallyPermissionedContracts[contractToRemove] = false;
+            emit GloballyPermissionedContractRemoved(contractToRemove);
+        }
+    }
+
+    function _freezeOperator(address toBeFrozen, address slashingContract) internal {
+        if (!frozenStatus[toBeFrozen]) {
+            frozenStatus[toBeFrozen] = true;
+            emit OperatorSlashed(toBeFrozen, slashingContract);
+        }
+    }
+
+    function _resetFrozenStatus(address previouslySlashedAddress) internal {
+        if (frozenStatus[previouslySlashedAddress]) {
+            frozenStatus[previouslySlashedAddress] = false;
+            emit FrozenStatusReset(previouslySlashedAddress);
+        }
+    }
+
+    // VIEW FUNCTIONS
+    function isFrozen(address staker) external view returns (bool) {
+        if (frozenStatus[staker]) {
+            return true;
+        } else if (delegation.isDelegated(staker)) {
+            address operatorAddress = delegation.delegation(staker);
+            return(frozenStatus[operatorAddress]);
+        } else {
+            return false;
+        }
+    }
+
+    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
+        if (globallyPermissionedContracts[slashingContract]) {
+            return true;
+        } else if (optedIntoSlashing[toBeSlashed][slashingContract]) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

@@ -324,22 +324,15 @@ contract PaymentManager is
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
-        // check if operator is a self operator, in which case sending payment is simplified
-        if (eigenLayrDelegation.isSelfOperator(msg.sender)) {
-            //simply transfer the payment amount in this case
-            paymentToken.transfer(msg.sender, amount);
-        // i.e. if operator is not a 'self operator'
-        } else {
-            IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
-            // transfer the amount due in the payment claim of the operator to its delegation
-            // terms contract, where the delegators can withdraw their rewards.
-            paymentToken.transfer(address(dt), amount);
+        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+        // transfer the amount due in the payment claim of the operator to its delegation
+        // terms contract, where the delegators can withdraw their rewards.
+        paymentToken.transfer(address(dt), amount);
 
-            // inform the DelegationTerms contract of the payment, which will determine
-            // the rewards operator and its delegators are eligible for
-            dt.payForService(paymentToken, amount);
-
-        }
+// TODO: make this a low-level call with gas budget that ignores reverts
+        // inform the DelegationTerms contract of the payment, which will determine
+        // the rewards operator and its delegators are eligible for
+        dt.payForService(paymentToken, amount);
 
         emit PaymentRedemption(msg.sender, amount);
     }

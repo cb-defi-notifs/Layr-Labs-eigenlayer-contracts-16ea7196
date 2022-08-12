@@ -51,14 +51,14 @@ library BLS {
             if iszero(
                 // call ecPairing precompile with 384 bytes of data,
                 // i.e. input[0] through (including) input[11], and get 32 bytes of return data
-                staticcall(not(0), 0x08, input, 0x0180, add(input, 0x20), 0x20)
+                staticcall(not(0), 0x08, input, 0x180, add(input, 0x20), 0x20)
             ) {
                 revert(0, 0)
             }
         }
 
         //TODO: unCOMMENT THIS LINE!!! once the signature scheme is all fixed
-        //require(input[1] == 1, "Pairing was unsuccessful");
+        require(input[1] == 1, "Pairing was unsuccessful");
 
         // return pubkey, the format being [x1, x0, y1, y0]         
         return (input[3], input[2], input[5], input[4]);

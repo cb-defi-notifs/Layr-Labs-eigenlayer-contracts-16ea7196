@@ -113,7 +113,7 @@ contract InvestmentTests is
         InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(acct_0, 0);
         investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
 
-        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, serviceFactory, dlRepository);
+        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, dlsm);
 
 
         cheats.stopPrank();
@@ -153,6 +153,10 @@ contract InvestmentTests is
     }
     */
 
+    // Coverage for EigenLayrDeposit contract //
+    // TODOs:
+    // testDepositPOSProof
+
     function testSlashing(uint256 amountToDeposit) public{
 
         address[2] memory accounts = [acct_0, acct_1];
@@ -184,12 +188,12 @@ contract InvestmentTests is
         strategyIndexes[0] = 0;
 
         //investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-        cheats.startPrank(address(slasher));
-        investmentManager.slashOperator(registrant);
+        cheats.startPrank(address(slasher.delegation()));
+        slasher.freezeOperator(registrant);
         cheats.stopPrank();
 
 
-        uint prev_shares = delegation.getOperatorShares(registrant, strategy_arr[0]);
+        uint prev_shares = delegation.operatorShares(registrant, strategy_arr[0]);
 
         investmentManager.slashShares(
             registrant, 
@@ -200,7 +204,7 @@ contract InvestmentTests is
             shareAmounts
         );
 
-        require(delegation.getOperatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+        require(delegation.operatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
         
         //initiate withdrawal
 

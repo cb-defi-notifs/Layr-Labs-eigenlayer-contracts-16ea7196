@@ -5,14 +5,17 @@ import "./IServiceFactory.sol";
 import "./IInvestmentStrategy.sol";
 
 interface ISlasher {
-    function canSlash(
-        address toBeSlashed,
-        IServiceFactory serviceFactory,
-        IRepository repository,
-        IRegistry registry
-    ) external  returns (bool);
-
-    function slashOperator(
+    function freezeOperator(
         address toSlash
     ) external;
+
+    function isFrozen(
+        address staker
+    ) external view returns(bool);
+
+    function frozenStatus(address operator) external view returns (bool);
+
+    function resetFrozenStatus(address[] calldata frozenAddresses) external;
+
+    function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
 }
