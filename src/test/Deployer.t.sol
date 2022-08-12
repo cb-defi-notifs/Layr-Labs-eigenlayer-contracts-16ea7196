@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mocks/DepositContract.sol";
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/core/Eigen.sol";
@@ -52,7 +51,6 @@ contract EigenLayrDeployer is
 
     uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
-    DepositContract public depositContract;
     // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
@@ -116,8 +114,6 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        //eth2 deposit contract
-        depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
@@ -134,11 +130,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
-        // deploy slasher and service factory contracts
-        slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, address(this));
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
@@ -209,6 +200,11 @@ contract EigenLayrDeployer is
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
+        // deploy slasher and service factory contracts
+        slasher = new Slasher();
+        slasher.initialize(investmentManager, delegation, governor);
+        serviceFactory = new ServiceFactory(investmentManager, delegation);
+
         investmentManager.initialize(
             slasher,
             governor
@@ -979,10 +975,6 @@ registrationData.push(
 
 
     function testDeploymentSuccessful() public {
-        assertTrue(
-            address(depositContract) != address(0),
-            "depositContract failed to deploy"
-        );
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(
             address(eigenToken) != address(0),

@@ -82,11 +82,11 @@ contract DataLayrServiceManager is
      *************/
     event InitDataStore(
         uint32 dataStoreId,
+        uint32 durationDataStoreId,
         uint32 index,
         bytes32 indexed headerHash,
         bytes header,
         uint32 totalBytes,
-        uint32 initTime,
         uint32 storePeriodLength,
         uint32 blockNumber,
         uint256 fee
@@ -244,7 +244,7 @@ contract DataLayrServiceManager is
         }
 
         // emit event to represent initialization of data store
-        emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
+        emit InitDataStore(dataStoresForDuration.dataStoreId, getNumDataStoresForDuration(duration), index, headerHash, header, totalBytes, storePeriodLength, blockNumber, fee);
 
         /******************************
           Updating dataStoresForDuration 
