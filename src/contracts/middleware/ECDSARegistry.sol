@@ -290,7 +290,7 @@ contract ECDSARegistry is
             }
         }
 
-        // concatenate the updated deposits in the last 24 bytes,
+        // concatenate the updated total stakes in the last 24 bytes,
         updatedStakesArray = updatedStakesArray
         .concat(
             abi.encodePacked(
