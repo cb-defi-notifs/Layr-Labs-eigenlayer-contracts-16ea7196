@@ -179,13 +179,13 @@ contract PaymentManager is
         uint32 toTaskNumber,
         uint256 fee
     );
-    event PaymentRedemption(address operator, uint256 fee);
+    event PaymentRedemption(address indexed operator, uint256 fee);
 
-    event PaymentBreakdown(uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
 
-    event PaymentChallengeInit(address operator, address challenger);
+    event PaymentChallengeInit(address indexed operator, address challenger);
 
-    event PaymentChallengeResolution(address operator, bool operatorWon);
+    event PaymentChallengeResolution(address indexed operator, bool operatorWon);
 
 
 
@@ -406,26 +406,24 @@ contract PaymentManager is
     //challenger challenges a particular half of the payment
     function challengePaymentHalf(
         address operator,
-        bool half,
+        bool secondHalf,
         uint120 amount1,
         uint120 amount2
     ) external {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
-        uint8 status = challenge.status;
+        ChallengeStatus status = challenge.status;
 
         require(
-            (status == 3 && challenge.challenger == msg.sender) ||
-                (status == 2 && challenge.operator == msg.sender),
-            "Must be challenger and their turn or operator and their turn"
+            (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender) ||
+                (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
+            "PaymentManager.challengePaymentHalf: Must be challenger and their turn or operator and their turn"
         );
 
-
         require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
-            "Fraud proof interval has passed"
+            block.timestamp < challenge.settleAt,
+            "PaymentManager.challengePaymentHalf: Challenge has already settled"
         );
 
 
@@ -437,15 +435,16 @@ contract PaymentManager is
         // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
         // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
         //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
-        if (half) {
+        if (secondHalf) {
             diff = (toTaskNumber - fromTaskNumber) / 2;
             challenge.fromTaskNumber = fromTaskNumber + diff;
             //if next step is not final
-            if (updateStatus(operator, diff)) {
+            //TODO: Why are we making this check? Just update status?
+            if (_updateStatus(operator, diff)) {
+                // TODO: this line doesn't appear to be doing anything!
                 challenge.toTaskNumber = toTaskNumber;
             }
-            //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
-            updateChallengeAmounts(operator, 3, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         } else {
             diff = (toTaskNumber - fromTaskNumber);
             if (diff % 2 == 1) {
@@ -453,18 +452,23 @@ contract PaymentManager is
             }
             diff /= 2;
             //if next step is not final
-            if (updateStatus(operator, diff)) {
+            //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
+            if (_updateStatus(operator, diff)) {
                 challenge.toTaskNumber = toTaskNumber - diff;
+                // TODO: this line doesn't appear to be doing anything!
                 challenge.fromTaskNumber = fromTaskNumber;
             }
-            updateChallengeAmounts(operator, 1, amount1, amount2);
+            _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
         }
-        challenge.commitTime = uint32(block.timestamp);
+
+        // extend the settlement time for the challenge, giving the next participant in the interactive fraudproof `paymentFraudProofInterval` to respond
+        challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
         
-        emit PaymentBreakdown(challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
+        // TODO: should this event reflect anything about whose turn is next (challenger vs. operator?)
+        emit PaymentBreakdown(operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
     }
 
 
@@ -479,62 +483,52 @@ contract PaymentManager is
      @param operator is the operator whose payment claim is being challenged
      @param diff is the number of tasks across which payment is being challenged in this iteration
      */ 
-    function updateStatus(address operator, uint32 diff)
+    function _updateStatus(address operator, uint32 diff)
         internal
         returns (bool)
     {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
         // payment challenge for one data dump
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            challenge.status = (msg.sender == operator ? 5 : 4);
+            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
         // payment challenge across more than one data dump
         } else {
             // set to dissection turn of either challenger or operator
-            challenge.status = (msg.sender == operator ? 3 : 2);
+            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
             return true;
         }
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
    }
 
 
 // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     //an operator can respond to challenges and breakdown the amount
-    function updateChallengeAmounts(
+    // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
+    function _updateChallengeAmounts(
         address operator, 
-        uint8 disectionType,
+        DissectionType dissectionType,
         uint120 amount1,
         uint120 amount2
     ) internal {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
-        if (disectionType == 1) {
+        if (dissectionType == DissectionType.FIRST_HALF) {
             //if first half is challenged, break the first half of the payment into two halves
             require(
-                amount1 + amount2 == challenge.amount1,
-                "Invalid amount breakdown"
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
+                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
-        } else if (disectionType == 3) {
+        } else if (dissectionType == DissectionType.SECOND_HALF) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
-                amount1 + amount2 == challenge.amount2,
-                "Invalid amount breakdown"
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
+                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("Not in operator challenge phase");
+            revert("DataLayrPaymentManager._updateChallengeAmounts: invalid DissectionType");
         }
-        challenge.amount1 = amount1;
-        challenge.amount2 = amount2;
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
+        // update the stored payment halves
+        operatorToPaymentChallenge[operator].amount1 = amount1;
+        operatorToPaymentChallenge[operator].amount2 = amount2;
     }
 
     function resolveChallenge(address operator) public {
