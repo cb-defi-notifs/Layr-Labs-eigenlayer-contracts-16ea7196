@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mock/DepositContract.sol";
 
 import "./core/Eigen.sol";
 
@@ -11,7 +10,6 @@ import "./investment/InvestmentManager.sol";
 import "./investment/InvestmentStrategyBase.sol";
 import "./investment/Slasher.sol";
 
-import "./middleware/ServiceFactory.sol";
 import "./middleware/Repository.sol";
 import "./middleware/DataLayr/DataLayrServiceManager.sol";
 import "./middleware/BLSRegistryWithBomb.sol";
@@ -20,7 +18,6 @@ import "./middleware/DataLayr/DataLayrPaymentManager.sol";
 import "./middleware/EphemeralKeyRegistry.sol";
 import "./middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "./middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "./middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -37,7 +34,6 @@ import "ds-test/test.sol";
 contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
     using BytesLib for bytes;
 
-    DepositContract public depositContract;
     // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
@@ -45,7 +41,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
-    ServiceFactory public serviceFactory;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
 
@@ -54,7 +49,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
     IRepository public dlRepository;
 
     DataLayrPaymentManager public dataLayrPaymentManager;
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudProofInterval = 7 days;
@@ -72,14 +66,12 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
 
     constructor() {
         //eth2 deposit contract
-        depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer,'
         // eigen = new Eigen(ownerAddr);
         //do stuff this eigen token here
         delegation = new EigenLayrDelegation();
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, address(this));
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
         investmentManager = new InvestmentManager(delegation);
         //used in the one ETH investment strategy
         weth = new ERC20PresetFixedSupply(

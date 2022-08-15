@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
 import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
@@ -21,6 +20,9 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval!
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
+
+    // maximum length of dynamic arrays in `investorStrats` mapping
+    uint8 internal constant MAX_INVESTOR_STRATS_LENGTH = 32;
 
     IEigenLayrDelegation public immutable delegation;
     ISlasher public slasher;
