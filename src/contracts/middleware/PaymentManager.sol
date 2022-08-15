@@ -197,7 +197,7 @@ contract PaymentManager is
     }
 
 
-    function setPermanentAllowance(address allowed, uint256 amount) public {
+    function setAllowance(address allowed, uint256 amount) public {
         allowances[msg.sender][allowed] = amount;
     }
 
@@ -420,11 +420,8 @@ contract PaymentManager is
             diff = (toTaskNumber - fromTaskNumber) / 2;
             challenge.fromTaskNumber = fromTaskNumber + diff;
             //if next step is not final
-            //TODO: Why are we making this check? Just update status?
-            if (_updateStatus(operator, diff)) {
-                // TODO: this line doesn't appear to be doing anything!
-                challenge.toTaskNumber = toTaskNumber;
-            }
+            _updateStatus(operator, diff);
+
             _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         } else {
             diff = (toTaskNumber - fromTaskNumber);
@@ -432,13 +429,11 @@ contract PaymentManager is
                 diff += 1;
             }
             diff /= 2;
-            //if next step is not final
+            challenge.toTaskNumber = toTaskNumber - diff;
+
             //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
-            if (_updateStatus(operator, diff)) {
-                challenge.toTaskNumber = toTaskNumber - diff;
-                // TODO: this line doesn't appear to be doing anything!
-                challenge.fromTaskNumber = fromTaskNumber;
-            }
+            _updateStatus(operator, diff);
+
             _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
         }
 
