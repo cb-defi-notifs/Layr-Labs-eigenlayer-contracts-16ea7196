@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IProofOfStakingOracle.sol";
 import "../../interfaces/IDelegationTerms.sol";
 
 import "./DataLayrServiceManagerStorage.sol";
@@ -23,13 +22,11 @@ import "ds-test/test.sol";
  * @notice This contract is used for:
             - initializing the data store by the disperser
             - confirming the data store by the disperser with inferred aggregated signatures of the quorum
-            - doing forced disclosure challenge
             - doing payment challenge
  */
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
-    BLSSignatureChecker,
-    IProofOfStakingOracle
+    BLSSignatureChecker
     // ,DSTest
 {
     using BytesLib for bytes;
@@ -82,11 +79,11 @@ contract DataLayrServiceManager is
      *************/
     event InitDataStore(
         uint32 dataStoreId,
+        uint32 durationDataStoreId,
         uint32 index,
         bytes32 indexed headerHash,
         bytes header,
         uint32 totalBytes,
-        uint32 initTime,
         uint32 storePeriodLength,
         uint32 blockNumber,
         uint256 fee
@@ -117,10 +114,6 @@ contract DataLayrServiceManager is
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public onlyRepositoryGovernance {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
-    }
-
-    function setDisclosureChallenge(DataLayrDisclosureChallenge _dataLayrDisclosureChallenge) public onlyRepositoryGovernance {
-        dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
     }
 
     function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
@@ -244,7 +237,7 @@ contract DataLayrServiceManager is
         }
 
         // emit event to represent initialization of data store
-        emit InitDataStore(dataStoresForDuration.dataStoreId, index, headerHash, header, totalBytes, uint32(block.timestamp), storePeriodLength, blockNumber, fee);
+        emit InitDataStore(dataStoresForDuration.dataStoreId, getNumDataStoresForDuration(duration), index, headerHash, header, totalBytes, storePeriodLength, blockNumber, fee);
 
         /******************************
           Updating dataStoresForDuration 
@@ -355,19 +348,12 @@ contract DataLayrServiceManager is
     function freezeOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
-            msg.sender == address(dataLayrDisclosureChallenge) ||
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
             "DataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
-    }
-
-   
-
-    function getDepositRoot(uint256 blockNumber) public view returns (bytes32) {
-        return depositRoots[blockNumber];
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
@@ -524,65 +510,5 @@ contract DataLayrServiceManager is
     ) public onlyRepositoryGovernance {
         paymentToken = _paymentToken;
     }
-*/
-
-// TODO: re-implement this function
-//    /**
-//     * @notice This function is used when the  DataLayr is used to update the POSt hash
-//     *         along with the regular assertion of data into the DataLayr by the disperser. This
-//     *         function enables
-//     *          - disperser to notify that signatures, comprising of hash(depositRoot || headerHash),
-//     *            from quorum of DataLayr nodes have been obtained,
-//     *          - check that each of the signatures are valid,
-//     *          - store the POSt hash, given by depositRoot,
-//     *          - call the DataLayr contract to check  whether quorum has been achieved or not.
-//     */
-//    function confirmDataStoreWithPOSt(
-//        bytes32 depositRoot,
-//        bytes32 headerHash,
-//        bytes calldata data
-//    ) external payable {
-//        // verify the signatures that disperser is claiming to be that of DataLayr operators
-//        // who have agreed to be in the quorum
-//        (
-//            uint32 dataStoreIdToConfirm,
-//            bytes32 depositFerkleHash,
-//            ,
-//            bytes32 signatoryRecordHash
-//        ) = checkSignatures(data);
-
-//        /**
-//          @notice checks that there is need for posting a deposit root required for proving
-//          the new staking of ETH into Ethereum. 
-//         */
-//        /**
-//          @dev for more details, see "depositPOSProof" in EigenLayrDeposit.sol.
-//         */
-//        require(
-//            dataStoreIdToConfirm % depositRootInterval == 0,
-//            "Shouldn't post a deposit root now"
-//        );
-
-//        // record the compressed information on all the DataLayr nodes who signed
-//        /**
-//         @notice signatoryRecordHash records pubkey hashes of DataLayr operators who didn't sign
-//         */
-//        dataStoreIdToSignatureHash[dataStoreIdToConfirm] = signatoryRecordHash;
-
-//        /**
-//         * when posting a deposit root, DataLayr nodes will sign hash(depositRoot || headerHash)
-//         * instead of the usual headerHash, so the submitter must specify the preimage
-//         */
-//        require(
-//            keccak256(abi.encodePacked(depositRoot, headerHash)) ==
-//                depositFerkleHash,
-//            "Ferkle or deposit root is incorrect"
-//        );
-
-//        // record the deposit root (POSt hash)
-//        depositRoots[block.number] = depositRoot;
-
-//        // call DataLayr contract to check whether quorum is satisfied or not and record it
-//        
-//    }
+    */
 }

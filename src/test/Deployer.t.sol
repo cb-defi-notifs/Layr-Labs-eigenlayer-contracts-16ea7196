@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mocks/DepositContract.sol";
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/core/Eigen.sol";
@@ -14,7 +13,6 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
-import "../contracts/middleware/ServiceFactory.sol";
 import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
@@ -22,18 +20,13 @@ import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "forge-std/Test.sol";
-
-import "../contracts/utils/ERC165_Universal.sol";
-import "../contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
@@ -45,8 +38,6 @@ import "./utils/SignatureUtils.sol";
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     DSTest,
-    ERC165_Universal,
-    ERC1155TokenReceiver,
     Signers,
     SignatureUtils
 {
@@ -54,7 +45,6 @@ contract EigenLayrDeployer is
 
     uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
-    DepositContract public depositContract;
     // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
@@ -62,7 +52,6 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
-    ServiceFactory public serviceFactory;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
@@ -74,7 +63,6 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentManager public dataLayrPaymentManager;
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
@@ -118,8 +106,6 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        //eth2 deposit contract
-        depositContract = new DepositContract();
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
@@ -136,11 +122,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
-        // deploy slasher and service factory contracts
-        slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, address(this));
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
@@ -211,6 +192,10 @@ contract EigenLayrDeployer is
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
+        // deploy slasher and service factory contracts
+        slasher = new Slasher();
+        slasher.initialize(investmentManager, delegation, governor);
+
         investmentManager.initialize(
             slasher,
             governor
@@ -391,15 +376,8 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
-        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
-            dlsm,
-            dlReg,
-            challengeUtils
-        );
 
         dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
@@ -589,7 +567,6 @@ contract EigenLayrDeployer is
         cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
-        uint g = gasleft();
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
@@ -598,7 +575,6 @@ contract EigenLayrDeployer is
             totalBytes,
             blockNumber
         );
-        uint32 dataStoreId = dlsm.taskNumber() - 1;
 
         bytes32 headerHash = keccak256(header);
 
@@ -723,7 +699,7 @@ contract EigenLayrDeployer is
         }
     }
 
-    // TODO: fix this to work with a variable number again, if possible
+    
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
         internal 
         returns (bytes memory)
@@ -782,15 +758,8 @@ contract EigenLayrDeployer is
             sigma_1
         );
 
-        uint256 gasbefore = gasleft();
         
         dlsm.confirmDataStore(data, searchData);
-        //emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-        //     dlsm.dataStoreId() - 1
-        // );
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
         cheats.stopPrank();
         return data;
     }
@@ -996,10 +965,6 @@ contract EigenLayrDeployer is
 
 
     function testDeploymentSuccessful() public {
-        assertTrue(
-            address(depositContract) != address(0),
-            "depositContract failed to deploy"
-        );
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(
             address(eigenToken) != address(0),
@@ -1014,10 +979,6 @@ contract EigenLayrDeployer is
             "investmentManager failed to deploy"
         );
         assertTrue(address(slasher) != address(0), "slasher failed to deploy");
-        assertTrue(
-            address(serviceFactory) != address(0),
-            "serviceFactory failed to deploy"
-        );
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");

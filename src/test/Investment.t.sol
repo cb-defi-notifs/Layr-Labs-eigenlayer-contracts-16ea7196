@@ -134,6 +134,26 @@ contract InvestmentTests is
         _testDepositEigen(signers[0], eigenToDeposit);
     }
 
+    function testDepositUnsupportedToken() public {
+        
+
+        IERC20 token = new ERC20PresetFixedSupply(
+            "badToken",
+            "BADTOKEN",
+            100,
+            address(this)
+        );
+        
+        token.approve(address(investmentManager), type(uint256).max);
+        
+        cheats.expectRevert(bytes("Can only deposit underlyingToken"));
+        investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
+        
+
+    }
+
+    
+
     // TODO: FIX THIS!
     /*
     //verifies that it is possible to deposit eigen and then withdraw it
