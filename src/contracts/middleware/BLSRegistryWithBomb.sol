@@ -74,17 +74,18 @@ contract BLSRegistryWithBomb is
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
     }
 
-    // CRITIC  @ChaoticWalrus, @Sidu28 --- what are following funcs for?
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function registerOperator(
         uint8,
         bytes calldata,
         string calldata
     ) public override pure {        
-        revert("must register with ephemeral key");
+        revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
 
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
-        revert("must deregister with ephemeral key");
+        revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
         return false;
     }
 }
