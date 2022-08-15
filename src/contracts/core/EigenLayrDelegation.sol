@@ -87,21 +87,17 @@ contract EigenLayrDelegation is
     function delegateToBySignature(
         address staker,
         address operator,
-        uint256 nonce,
         uint256 expiry,
         bytes32 r,
         bytes32 vs
     ) external {
         require(
-            nonces[staker] == nonce,
-            "invalid delegation nonce"
-        );
-        require(
             expiry == 0 || expiry >= block.timestamp,
             "delegation signature expired"
         );
+        // calculate struct hash, then increment `staker`'s nonce
         bytes32 structHash = keccak256(
-            abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, expiry)
+            abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry)
         );
         bytes32 digestHash = keccak256(
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
@@ -113,15 +109,9 @@ contract EigenLayrDelegation is
             vs
         );
         require(
-            recoveredAddress != address(0),
-            "EigenLayrDelegation.delegateToBySignature: bad signature"
-        );
-        require(
             recoveredAddress == staker,
             "EigenLayrDelegation.delegateToBySignature: sig not from staker"
         );
-        // increment staker's delegationNonce
-        ++nonces[staker];
         _delegate(staker, operator);
     }
 

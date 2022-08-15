@@ -326,10 +326,11 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             }
 
             // make sure they have provided the correct aggPubKey
+            
             require(
                 registry.getCorrectApkHash(apkIndex, stakesBlockNumber) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
-                "Incorrect apk provided"
+                "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }
 
@@ -399,14 +400,14 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // check the pairing; if incorrect, revert
             if iszero(
-                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x100), 0x20)
+                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x160), 0x20)
             ) {
                 revert(0, 0)
             }
         }
 
         // check that signature is correct
-        require(input[8] == 1, "Pairing unsuccessful");
+        require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
 
         emit SignatoryRecord(
             msgHash,

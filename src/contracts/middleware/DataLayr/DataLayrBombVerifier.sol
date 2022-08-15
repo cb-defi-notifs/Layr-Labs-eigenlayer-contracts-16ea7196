@@ -22,12 +22,6 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.DataStoreSearchData detonationDataStore;
     }
 
-    struct HeaderHashes {
-        bytes32 operatorFromHeaderHash;
-        bytes32 bombHeaderHash;
-        bytes32 detonationHeaderHash;
-    }
-
     struct Indexes {
         uint32 operatorIndex;
         uint32 totalOperatorsIndex;
@@ -659,6 +653,8 @@ contract DataLayrBombVerifier {
             totalOperatorsIndex,
             searchData
         );
+        require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
+        require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
         bool res = challengeUtils.nonInteractivePolynomialProof(
             chunkNumber,
             disclosureProof.header,
