@@ -31,7 +31,10 @@ import "./utils/ERC1155TokenReceiver.sol";
 
 import "./libraries/BytesLib.sol";
 
-contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
+import "ds-test/test.sol";
+
+
+contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
     using BytesLib for bytes;
 
     DepositContract public depositContract;
@@ -134,6 +137,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         );
 
 
+
+
         dataLayrPaymentManager= new DataLayrPaymentManager(
             weth,
             dlRepository,
@@ -153,6 +158,8 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         dlReg = new BLSRegistryWithBomb(Repository(address(dlRepository)), delegation, investmentManager, ephemeralKeyRegistry, _NUMBER_OF_QUORUMS, ethStratsAndMultipliers, eigenStratsAndMultipliers);
 
         DataLayrLowDegreeChallenge lowDegreeChallenge = new DataLayrLowDegreeChallenge(dlsm, dlReg, disclosureUtils);
+
+        emit log("INITALIZE");
 
         Repository(address(dlRepository)).initialize(
             dlReg,

@@ -184,6 +184,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
+       
         // initialize InvestmentStrategyBase proxy
         eigenStrat.initialize(address(investmentManager), eigenToken);
 
@@ -206,7 +207,7 @@ contract EigenLayrDeployer is
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, governor);
         serviceFactory = new ServiceFactory(investmentManager, delegation);
-
+         
         investmentManager.initialize(
             slasher,
             governor
@@ -280,55 +281,6 @@ contract EigenLayrDeployer is
         registrationData.push(
             hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a41ae35db861ea707fc72c6b7756a6139e8cccf15392e59297c21af365de013b4312caa1e05d5aac7c5513fff386248f1955298f11e0e165ed9a20c9beefe2f8a0"
         );
-
-        //We need to generate different signatures for every datastore, because each msgHash is different.  Here there
-        // are 5 different signatures for 5 datastores being made by the testLoopConfirmDataStoreLoop() in 
-
-        // //X-coordinate for signature
-        // signatureData.push(
-        //     uint256(17495938995352312074042671866638379644300283276197341589218393173802359623203)
-        // );
-        // //Y-coordinate for signature
-        // signatureData.push(
-        //     uint256(9126369385140686627953696969589239917670210184443620227590862230088267251657)
-        // );
-
-        // //X-coordinate for signature
-        // signatureData.push(
-        //     uint256(8528577148191764833611657152174462549210362961117123234946268547773819967468)
-        // );
-        // //Y-coordinate for signature
-        // signatureData.push(
-        //     uint256(12327969281291293902781100249451937778030476843597859113014633987742778388515)
-        // );
-
-        // //X-coordinate for signature
-        // signatureData.push(
-        //     uint256(17717264659294506723357044248913560483603638283216958290715934634714856502042)
-        // );
-        // //Y-coordinate for signature
-        // signatureData.push(
-        //     uint256(16175010538989710606381988436521433111107391792149336131385412257451345649557)
-        // );
-
-        // //X-coordinate for signature
-        // signatureData.push(
-        //     uint256(13634672549209768891995273226026110254116368188641023296736353558981756191079)
-        // );
-        // //Y-coordinate for signature
-        // signatureData.push(
-        //     uint256(1785013485497898832511190470667377540198821342030868981614348293548355133071)
-        // );
-
-        // //X-coordinate for signature
-        // signatureData.push(
-        //     uint256(14314878115196120635834581315654915934806820731149597554562572642636028600046)
-        // );
-        // //Y-coordinate for signature
-        // signatureData.push(
-        //     uint256(11127341031659236634094533494380792345546001913442488974163761094820943932055)
-        // );
-
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -347,11 +299,8 @@ contract EigenLayrDeployer is
         );
 
         uint256 paymentFraudProofCollateral = 1 wei;
-        dataLayrPaymentManager = new DataLayrPaymentManager(
-            weth,
-            dlRepository,
-            dlsm
-        );
+        emit log("HELLOss");
+        
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
@@ -387,6 +336,12 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
+        dataLayrPaymentManager = new DataLayrPaymentManager(
+            weth,
+            dlRepository,
+            dlsm
+        );
+
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
         dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
             dlsm,
