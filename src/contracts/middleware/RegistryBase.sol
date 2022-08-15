@@ -333,7 +333,7 @@ abstract contract RegistryBase is
         if (historyLength == 0) {
             return opStake;
         } else {
-            opStake = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            opStake = pubkeyHashToStakeHistory[pubkeyHash][historyLength - 1];
             return opStake;
         }
     }
