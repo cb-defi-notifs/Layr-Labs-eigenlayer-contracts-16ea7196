@@ -102,7 +102,7 @@ abstract contract ECDSASignatureChecker is
 
         require(
             keccak256(stakes) == stakeHash,
-            "provided stakes are incorrect"
+            "ECDSASignatureChecker.checkSignatures: provided stakes are incorrect"
         );
 
         // we have read (356 + 32 + 6 + 4 + 4 + 4 + 32) = 438 bytes of calldata so far
@@ -191,7 +191,7 @@ abstract contract ECDSASignatureChecker is
             // verify monotonic increase of address value
             require(
                 uint160(sigWInfo.signatory) > previousSigner,
-                "bad sig ordering"
+                "ECDSASignatureChecker.checkSignatures: bad sig ordering"
             );
 
             // store signer info in memory variables
