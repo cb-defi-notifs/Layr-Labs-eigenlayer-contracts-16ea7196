@@ -11,6 +11,7 @@ import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../permissions/RepositoryAccess.sol";
 import "../../libraries/DataStoreHash.sol";
+import "../../middleware/PaymentManager.sol";
 
 import "ds-test/test.sol";
 
@@ -19,7 +20,8 @@ import "ds-test/test.sol";
  */
 contract DataLayrPaymentManager is 
     RepositoryAccess, 
-    IDataLayrPaymentManager
+    IDataLayrPaymentManager,
+    PaymentManager
     // ,DSTest 
     {
     using SafeERC20 for IERC20;
@@ -27,60 +29,8 @@ contract DataLayrPaymentManager is
      /**
     @notice used for storing information on the most recent payment made to the DataLayr operator
     */
-    struct Payment {
-        // dataStoreId starting from which payment is being claimed 
-        uint32 fromDataStoreId; 
-        // dataStoreId until which payment is being claimed (exclusive) 
-        uint32 toDataStoreId; 
-        // recording when the payment will optimistically be confirmed; used for fraud proof period
-        uint32 confirmAt; 
-        // payment for range [fromDataStoreId, toDataStoreId)
-        /// @dev max 1.3e36, keep in mind for token decimals
-        uint120 amount;
-        // indicates the status of the payment
-        /**
-         @notice The possible statuses are:
-                    - 0: REDEEMED,
-                    - 1: COMMITTED,
-                    - 2: CHALLENGED
-         */
-        PaymentStatus status; 
-        //amount of collateral placed on this payment. stored in case `paymentFraudProofCollateral` changes
-        uint256 collateral;
-    }
+    
 
-    struct PaymentChallenge {
-        // DataLayr operator whose payment claim is being challenged
-        address operator;
-        // the entity challenging with the fraudproof
-        address challenger;
-        // address of the DataLayr service manager contract
-        address serviceManager;
-        // the DataStoreId from which payment has been claimed
-        uint32 fromDataStoreId;
-        // the DataStoreId until which payment has been claimed
-        uint32 toDataStoreId;
-        // bisection amounts -- interactive fraudproof involves repeated bisection claims
-        uint120 amount1;
-        uint120 amount2;
-        // used for recording the time when challenge will be settled, used for fraud proof period
-        uint32 settleAt;
-        // indicates the status of the challenge
-        /**
-         @notice The possible statuses are:
-                    - 0: RESOLVED,
-                    - 1: operator turn (dissection),
-                    - 2: challenger turn (dissection),
-                    - 3: operator turn (one step),
-                    - 4: challenger turn (one step)
-         */
-        ChallengeStatus status;   
-    }
-
-    struct TotalStakes {
-        uint256 ethStakeSigned;
-        uint256 eigenStakeSigned;
-    }
 
     enum DissectionType {
         INVALID,
@@ -100,8 +50,7 @@ contract DataLayrPaymentManager is
      */
     IERC20 public immutable paymentToken;
 
-    // collateral token used for placing collateral on challenges & payment commits
-    IERC20 public immutable collateralToken;
+
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
     /**
@@ -109,10 +58,6 @@ contract DataLayrPaymentManager is
      *      delegators to delegate their stake to operators who would serve as DataLayr
      *      nodes and so on.
      */
-    /**
-      @dev For more details, see EigenLayrDelegation.sol. 
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /**
      @notice this is the payment that has to be made as a collateral for fraudproof 
@@ -120,17 +65,8 @@ contract DataLayrPaymentManager is
      */
     uint256 public paymentFraudProofCollateral;
 
-    /*
-        * @notice mapping between the operator and its current committed payment
-        *  or last redeemed payment 
-    */
-    mapping(address => Payment) public operatorToPayment;
-    // operator => PaymentChallenge
-    mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
-    // deposits of future fees to be drawn against when paying for DataStores
-    mapping(address => uint256) public depositsOf;
-    // depositors => addresses approved to spend deposits => allowance
-    mapping(address => mapping(address => uint256)) public allowances;
+
+
 
     // EVENTS
     event PaymentCommit(
@@ -159,24 +95,10 @@ contract DataLayrPaymentManager is
         eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
     }
 
-    function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
-        depositsOf[onBehalfOf] += amount;
-    }
-
-    function setAllowance(address allowed, uint256 amount) public {
-        allowances[msg.sender][allowed] = amount;
-    }
 
     // called by the serviceManager when a DataStore is initialized. decreases the depositsOf `payer` by `feeAmount`
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
-        if(initiator != payer){
-            require(allowances[payer][initiator] >= feeAmount, "DataLayrPaymentManager.payFee: initiator not allowed to spend payers balance");
-            if(allowances[payer][initiator] != type(uint256).max) {
-                allowances[payer][initiator] -= feeAmount;
-            }
-        }
-        depositsOf[payer] -= feeAmount;
+        PaymentManager.payFee(initiator, payer, feeAmount);
     }
 
     function setPaymentFraudProofCollateral(

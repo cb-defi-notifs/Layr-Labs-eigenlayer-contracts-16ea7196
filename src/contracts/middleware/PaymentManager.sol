@@ -36,8 +36,8 @@ contract PaymentManager is
         // taskNumber until which payment is being claimed (exclusive) 
         uint32 toTaskNumber; 
 
-        // recording when committment for payment made; used for fraud proof period
-        uint32 commitTime; 
+        // recording when the payment will optimistically be confirmed; used for fraud proof period
+        uint32 confirmAt; 
 
         // payment for range [fromTaskNumber, toTaskNumber)
         /// @dev max 1.3e36, keep in mind for token decimals
@@ -74,7 +74,7 @@ contract PaymentManager is
         uint120 amount2;
 
         // used for recording the time when challenge was created
-        uint32 commitTime; // when committed, used for fraud proof period
+        uint32 settleAt; // when committed, used for fraud proof period
 
 
         // indicates the status of the challenge
@@ -94,6 +94,12 @@ contract PaymentManager is
     struct TotalStakes {
         uint256 ethStakeSigned;
         uint256 eigenStakeSigned;
+    }
+
+      enum DissectionType {
+        INVALID,
+        FIRST_HALF,
+        SECOND_HALF
     }
 
     /**
@@ -205,6 +211,11 @@ contract PaymentManager is
         // NOTE: (from JEFFC) this currently *is* a persistant/permanent allowance, as it isn't getting decreased anywhere
         if(initiator != payer){
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
+            //TODO: generic payment manager did not decrease allowances while DLPM did.  
+            // I think it makes sense to do so but need to verify
+            if(allowances[payer][initiator] != type(uint256).max) {
+                allowances[payer][initiator] -= feeAmount;
+            }
         }
 
         depositsOf[payer] -= feeAmount;
@@ -305,7 +316,7 @@ contract PaymentManager is
     function redeemPayment() external {
         require(
             block.timestamp >
-                (operatorToPayment[msg.sender].commitTime +
+                (operatorToPayment[msg.sender].confirmAt +
                     paymentFraudProofInterval) &&
                 operatorToPayment[msg.sender].status == 0,
             "Payment still eligible for fraud proof"
@@ -538,118 +549,7 @@ contract PaymentManager is
             resolve(operator, true);
         }
     }
-// TODO: get this working
-/*
-    //an operator can respond to challenges and breakdown the amount
-    function respondToPaymentChallengeFinal(
-        address operator,
-        uint256 stakeIndex,
-        uint48 nonSignerIndex,
-        bytes32[] memory nonSignerPubkeyHashes,
-        TotalStakes calldata totalStakes,
-        bytes32 challengedHeaderHash,
-        IServiceManager.DataStoreSearchData calldata searchData
-    ) external {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
-        require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
-            "Fraud proof interval has passed"
-        );
-        uint32 challengedTaskNumber = challenge.fromTaskNumber;
-        uint8 status = challenge.status;
-        //check sigs
-        require(
-            serviceManager.getTaskNumberSignatureHash(challengedTaskNumber) ==
-                keccak256(
-                    abi.encodePacked(
-                        challengedTaskNumber,
-                        nonSignerPubkeyHashes,
-                        totalStakes.ethStakeSigned,
-                        totalStakes.eigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
-        );
-
-        IRegistry registry = repository.registry();
-
-        bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
-
-        // //calculate the true amount deserved
-        uint120 trueAmount;
-
-        //2^32 is an impossible index because it is more than the max number of registrants
-        //the challenger marks 2^32 as the index to show that operator has not signed
-        if (nonSignerIndex == 1 << 32) {
-            for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
-                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "Operator was not a signatory");
-
-                unchecked {
-                    ++i;
-                }
-            }
-            //TODO: Change this
-            IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
-
-        // scoped block helps fix stack too deep
-        {
-            (uint32 taskNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (serviceManager.dataLayr()).dataStores(challengedHeaderHash);
-            require(taskNumberFromHeaderHash == challengedTaskNumber, "specified taskNumber does not match provided headerHash");
-            require(
-                operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
-                "Operator stake index is too late"
-            );
-
-            require(
-                operatorStake.nextUpdateBlockNumber == 0 ||
-                    operatorStake.nextUpdateBlockNumber > challengedDumpBlockNumber,
-                "Operator stake index is too early"
-            );
-        }
-            require(serviceManager.getTaskNumbersForDuration(
-                searchData.duration, 
-                searchData.timestamp
-            ) == hashLinkedDataStoreMetadatas(searchData.metadatas), "search.metadatas preimage is incorrect");
-
-            //TODO: Change this
-            IServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
-            require(metadata.globalTaskNumber == challengedTaskNumber, "Loaded TaskNumber does not match challenged");
-
-            //TODO: assumes even eigen eth split
-            trueAmount = uint120(
-                (metadata.fee * operatorStake.ethStake) /
-                    totalStakes.ethStakeSigned /
-                    2 +
-                    (metadata.fee * operatorStake.eigenStake) /
-                    totalStakes.eigenStakeSigned /
-                    2
-            );
-        } else {
-            require(
-                nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash,
-                "Signer index is incorrect"
-            );
-        }
-
-        if (status == 4) {
-            resolve(operator, trueAmount != challenge.amount1);
-        } else if (status == 5) {
-            resolve(operator, trueAmount == challenge.amount1);
-        } else {
-            revert("Not in one step challenge phase");
-        }
-        challenge.status = 1;
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
-    }
-*/
-    /*
-    @notice: resolve payment challenge
-    */
     function resolve(address operator, bool challengeSuccessful) internal {
         if (challengeSuccessful) {
             // operator was correct, allow for another challenge
