@@ -22,33 +22,6 @@ contract DataLayrPaymentManager is
     PaymentManager
     // ,DSTest 
     {
-    using SafeERC20 for IERC20;
-    // DATA STRUCTURES
-     /**
-    @notice used for storing information on the most recent payment made to the DataLayr operator
-    */
-    
-
-
-    enum DissectionType {
-        INVALID,
-        FIRST_HALF,
-        SECOND_HALF
-    }
-
-    /**
-     * @notice challenge window for submitting fraudproof in case of incorrect payment 
-     *         claim by the registered operator 
-     */
-    uint256 public constant paymentFraudProofInterval = 7 days;
-
-    /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         DataLayr nodes.
-     */
-    IERC20 public immutable paymentToken;
-
-
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
     /**
@@ -57,11 +30,7 @@ contract DataLayrPaymentManager is
      *      nodes and so on.
      */
 
-    /**
-     @notice this is the payment that has to be made as a collateral for fraudproof 
-             during payment challenges
-     */
-    uint256 public paymentFraudProofCollateral;
+    
 
 
 
@@ -94,26 +63,6 @@ contract DataLayrPaymentManager is
     }
 
     
-
-    
-
-    function resolveChallenge(address operator) external {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
-        require(
-            block.timestamp > challenge.settleAt,
-            "DataLayrPaymentManager.resolveChallenge: challenge has not yet reached settlement time"
-        );
-        ChallengeStatus status = challenge.status;
-        // if operator did not respond
-        if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
-            _resolve(challenge, challenge.challenger);
-        // if challenger did not respond
-        } else if (status == ChallengeStatus.CHALLENGER_TURN || status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            _resolve(challenge, challenge.operator);
-        }
-    }
 
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
@@ -233,72 +182,4 @@ contract DataLayrPaymentManager is
         operatorToPaymentChallenge[operator] = challenge;
     }
 
-// TODO: verify that the amounts used in this function are appropriate!
-    /* 
-    @notice: resolve payment challenge
-    
-    @param winner is the party who wins the challenge, either the challenger or the operator
-    @param operatorSuccessful is true when the operator wins the challenge agains the challenger
-    */
-    function _resolve(PaymentChallenge memory challenge, address winner) internal {
-        address operator = challenge.operator;
-        address challenger = challenge.challenger;
-        if (winner == operator) {
-            // operator was correct, allow for another challenge
-            operatorToPayment[operator].status = PaymentStatus.COMMITTED;
-            operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
-            /*
-            * Since the operator hasn't been proved right (only challenger has been proved wrong)
-            * transfer them only challengers collateral, not their own collateral (which is still
-            * locked up in this contract)
-             */
-            collateralToken.safeTransfer(
-                operator,
-                operatorToPayment[operator].collateral
-            );
-            emit PaymentChallengeResolution(operator, true);
-        } else {
-            // challeger was correct, reset payment
-            operatorToPayment[operator].status = PaymentStatus.REDEEMED;
-            //give them their collateral and the operator's
-            collateralToken.safeTransfer(
-                challenger,
-                2 * operatorToPayment[operator].collateral
-            );
-            emit PaymentChallengeResolution(operator, false);
-        }
-    }
-
-    function getChallengeStatus(address operator) external view returns(ChallengeStatus) {
-        return operatorToPaymentChallenge[operator].status;
-    }
-
-    function getAmount1(address operator) external view returns (uint120) {
-        return operatorToPaymentChallenge[operator].amount1;
-    }
-
-    function getAmount2(address operator) external view returns (uint120) {
-        return operatorToPaymentChallenge[operator].amount2;
-    }
-
-    function getToDataStoreId(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].toDataStoreId;
-    }
-
-    function getFromDataStoreId(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].fromDataStoreId;
-    }
-
-    function getDiff(address operator) external view returns (uint48) {
-        return operatorToPaymentChallenge[operator].toDataStoreId - operatorToPaymentChallenge[operator].fromDataStoreId;
-    }
-
-    function getPaymentCollateral(address operator) external view returns (uint256)
-    {
-        return operatorToPayment[operator].collateral;
-    }
-
-    function dataStoreId() internal view returns (uint32) {
-        return dataLayrServiceManager.taskNumber();
-    }
 }
