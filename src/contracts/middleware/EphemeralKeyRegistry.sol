@@ -81,7 +81,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
         // check that the preimage matches with the hash
-        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
+        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment");
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
@@ -107,11 +107,17 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         uint256 historyLength = EKHistory[msg.sender].length - 1;
         EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength];
 
-        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
+        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "EphemeralKeyRegistry.updateEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment");
 
         // checking the validity period of the ephemeral key update
-        require(block.timestamp >= existingEKEntry.timestamp + UPDATE_PERIOD, "key update cannot be completed too early");
-        require(block.timestamp <= existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD, "key update cannot be completed as update window has expired");
+        require(
+            block.timestamp >= existingEKEntry.timestamp + UPDATE_PERIOD,
+            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: key update cannot be completed too early"
+        );
+        require(
+            block.timestamp <= existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD,
+            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: key update cannot be completed as update window has expired"
+        );
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
@@ -167,7 +173,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
         if (existingEKEntry.startTaskNumber >= taskNumber) {
-            revert("taskNumber corresponds to latest EK which is still unrevealed");
+            revert("EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: taskNumber corresponds to latest EK which is still unrevealed");
         } else {
             for (; historyLength > 0; --historyLength) {
                 if (
@@ -179,7 +185,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
                 }
             } 
         }
-        revert("did not find EK");
+        revert("EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: did not find EK");
     }   
 
 
@@ -194,7 +200,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         //check if operator is still active in the DLRegistry
-        require(registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE, "operator not active");
+        require(
+            registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE,
+            "EphemeralKeyRegistry.proveStaleEphemeralKey: operator not active"
+        );
 
         if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
             IServiceManager serviceManager = repository.serviceManager();
