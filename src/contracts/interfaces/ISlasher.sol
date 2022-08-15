@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./IServiceFactory.sol";
-import "./IInvestmentStrategy.sol";
-
 interface ISlasher {
     function freezeOperator(
         address toSlash

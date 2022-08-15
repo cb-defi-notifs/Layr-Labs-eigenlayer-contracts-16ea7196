@@ -9,7 +9,6 @@ import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
-import "./DataLayrDisclosureChallenge.sol";
 import "./DataLayrBombVerifier.sol";
 import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
@@ -96,14 +95,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreHashesForDurationAtTimestamp;
     //total number of datastores that have been stored for a certain duration
     mapping(uint8 => uint32) public totalDataStoresForDuration;
-
-    //a deposit root is posted every depositRootInterval dumps
-    uint16 public constant depositRootInterval = 1008; //this is once a week if dumps every 10 mins
-    mapping(uint256 => bytes32) public depositRoots; // blockNumber => depositRoot
  
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
-
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     DataLayrBombVerifier public dataLayrBombVerifier;
 
