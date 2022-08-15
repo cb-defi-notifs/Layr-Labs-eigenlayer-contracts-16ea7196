@@ -150,7 +150,7 @@ contract BLSRegistry is
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants(),
-            active: registrantType,
+            active: IQuorumRegistry.Active.ACTIVE,
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,

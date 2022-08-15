@@ -194,7 +194,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         //check if operator is still active in the DLRegistry
-        require(registry.getOperatorStatus(operator) == 1, "operator not active");
+        require(registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE, "operator not active");
 
         if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
             IServiceManager serviceManager = repository.serviceManager();

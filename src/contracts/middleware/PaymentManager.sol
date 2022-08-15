@@ -227,7 +227,7 @@ contract PaymentManager is
 
         // only registered operators can call
         require(
-            registry.getOperatorType(msg.sender) != 0,
+            registry.getOperatorStatus(msg.sender) != IQuorumRegistry.Active.INACTIVE,
             "Only registered operators can call this function"
         );
 

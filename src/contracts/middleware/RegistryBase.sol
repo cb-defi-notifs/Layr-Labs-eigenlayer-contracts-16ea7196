@@ -181,9 +181,8 @@ abstract contract RegistryBase is
         return registry[operator].id;
     }
 
-
     /// @notice returns the active status for the specified operator
-    function getOperatorType(address operator) external view returns (uint8) {
+    function getOperatorStatus(address operator) external view returns(IQuorumRegistry.Active) {
         return registry[operator].active;
     }
 
@@ -266,10 +265,6 @@ abstract contract RegistryBase is
         return totalStakeHistory[index];
     }
 
-    function getOperatorStatus(address operator) external view returns(uint8) {
-        return registry[operator].active;
-    }
-
     /**
      @notice returns task number from when operator has been registered.
      */
@@ -325,7 +320,7 @@ abstract contract RegistryBase is
         registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
 
         // committing to not signing off on any more data that is being asserted into DataLayr
-        registry[msg.sender].active = 0;
+        registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
 
         registry[msg.sender].deregisterTime = block.timestamp;
 
@@ -417,7 +412,7 @@ abstract contract RegistryBase is
     // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
     function _registrationStakeEvaluation(address operator, uint8 registrantType) internal returns (OperatorStake memory) {
         require(
-            registry[operator].active == 0,
+            registry[operator].active == IQuorumRegistry.Active.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
 
@@ -524,7 +519,7 @@ abstract contract RegistryBase is
     // verify that the `operator` is an active operator and that they've provided the correct `index`
     function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
-            registry[operator].active > 0,
+            registry[operator].active != IQuorumRegistry.Active.INACTIVE,
             "RegistryBase._deregistrationCheck: Operator is already registered"
         );
 
