@@ -43,7 +43,14 @@ contract PaymentManager is
         /// @dev max 1.3e36, keep in mind for token decimals
         uint120 amount; 
 
-        uint8 status; // 0: committed, 1: redeemed
+        /**
+         @notice The possible statuses are:
+                    - 0: REDEEMED,
+                    - 1: COMMITTED,
+                    - 2: CHALLENGED
+         */
+
+        PaymentStatus status;
 
         uint256 collateral; //account for if collateral changed
     }
@@ -76,18 +83,16 @@ contract PaymentManager is
         // used for recording the time when challenge was created
         uint32 settleAt; // when committed, used for fraud proof period
 
-
         // indicates the status of the challenge
         /**
-         @notice The possible status are:
-                    - 0: committed,
-                    - 1: redeemed,
-                    - 2: operator turn (dissection),
-                    - 3: challenger turn (dissection),
-                    - 4: operator turn (one step),
-                    - 5: challenger turn (one step)
+         @notice The possible statuses are:
+                    - 0: RESOLVED,
+                    - 1: operator turn (dissection),
+                    - 2: challenger turn (dissection),
+                    - 3: operator turn (one step),
+                    - 4: challenger turn (one step)
          */
-        uint8 status;   
+        ChallengeStatus status;   
     }
 
 
@@ -101,6 +106,19 @@ contract PaymentManager is
         FIRST_HALF,
         SECOND_HALF
     }
+    enum PaymentStatus{ 
+        REDEEMED,
+        COMMITTED,
+        CHALLENGED
+    }
+    enum ChallengeStatus{ 
+        RESOLVED,
+        OPERATOR_TURN, 
+        CHALLENGER_TURN, 
+        OPERATOR_TURN_ONE_STEP, 
+        CHALLENGER_TURN_ONE_STEP
+    }
+
 
     /**
      * @notice challenge window for submitting fraudproof in case of incorrect payment 
@@ -213,9 +231,9 @@ contract PaymentManager is
             require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
             //TODO: generic payment manager did not decrease allowances while DLPM did.  
             // I think it makes sense to do so but need to verify
-            if(allowances[payer][initiator] != type(uint256).max) {
-                allowances[payer][initiator] -= feeAmount;
-            }
+            // if(allowances[payer][initiator] != type(uint256).max) {
+            //     allowances[payer][initiator] -= feeAmount;
+            // }
         }
 
         depositsOf[payer] -= feeAmount;
@@ -238,11 +256,17 @@ contract PaymentManager is
 
         // only registered operators can call
         require(
-            registry.getOperatorType(msg.sender) != 0,
-            "Only registered operators can call this function"
+            registry.isRegistered(msg.sender),
+            "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
         require(toTaskNumber <= taskNumber(), "Cannot claim future payments");
+
+        // can only claim for a payment after redeeming the last payment
+        require(
+            operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
+            "PaymentManager.commitPayment: Require last payment is redeemed"
+        );
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.transferFrom(
@@ -251,59 +275,42 @@ contract PaymentManager is
             paymentFraudProofCollateral
         );
 
-
-
         /********************
          recording payment claims for the operator
          ********************/
 
         uint32 fromTaskNumber;
 
-        // for the special case of this being the first payment that is being claimed by the operator;
+        // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
+        uint32 confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
+
+
+
+        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
         /**
-         @notice this special case also implies that the operator must be claiming payment from 
+         @notice this special case also implies that the DataLayr operator must be claiming payment from 
                  when the operator registered.   
          */
         if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
-
-            // get the taskNumber when the operator registered
+            // get the dataStoreId when the DataLayr operator registered
             fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
-            require(fromTaskNumber < toTaskNumber, "invalid payment range");
 
-            // record the payment information pertaining to the operator
-            operatorToPayment[msg.sender] = Payment(
-                fromTaskNumber,
-                toTaskNumber,
-                uint32(block.timestamp),
-                amount,
-                // setting to 0 to indicate commitment to payment claim
-                0,
-                paymentFraudProofCollateral
-            );
-
-            emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
-
-            return;
+        } else {
+            // you have to redeem starting from the last time redeemed up to
+            fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
         }
 
-        // can only claim for a payment after redeeming the last payment
-        require(
-            operatorToPayment[msg.sender].status == 1,
-            "Require last payment is redeemed"
-        );
-
-        // you have to redeem starting from the last time redeemed up to
-        fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
         require(fromTaskNumber < toTaskNumber, "invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromTaskNumber,
             toTaskNumber,
-            uint32(block.timestamp),
+            confirmAt,
             amount,
-            // set status as 0: committed
-            0,
+            // set payment status as 1: committed
+            PaymentStatus.COMMITTED,
+            // storing collateral amount deposited
             paymentFraudProofCollateral
         );
 
@@ -314,16 +321,17 @@ contract PaymentManager is
      @notice This function can only be called after the challenge window for the payment claim has completed.
      */
     function redeemPayment() external {
+        require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
+            "DataLayrPaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
+        );
+
         require(
-            block.timestamp >
-                (operatorToPayment[msg.sender].confirmAt +
-                    paymentFraudProofInterval) &&
-                operatorToPayment[msg.sender].status == 0,
-            "Payment still eligible for fraud proof"
+            block.timestamp > operatorToPayment[msg.sender].confirmAt,
+            "DataLayrPaymentManager.redeemPayment: Payment still eligible for fraud proof"
         );
 
         // update the status to show that operator's payment is getting redeemed
-        operatorToPayment[msg.sender].status = 1;
+        operatorToPayment[msg.sender].status = PaymentStatus.REDEEMED;
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
@@ -364,11 +372,10 @@ contract PaymentManager is
     ) external {
         
         require(
-            block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval &&
-                operatorToPayment[operator].status == 0,
-            "Fraud proof interval has passed"
+            block.timestamp < operatorToPayment[operator].confirmAt 
+                &&
+                operatorToPayment[operator].status == PaymentStatus.COMMITTED,
+            "PaymentManager.challengePaymentInit: Fraudproof interval has passed for payment"
         );
 
         // store challenge details
@@ -380,18 +387,18 @@ contract PaymentManager is
                 operatorToPayment[operator].toTaskNumber,
                 amount1,
                 amount2,
-                // recording current timestamp as the commitTime
-                uint32(block.timestamp),
-                // setting operator to respond next
-                uint8(2)
+                // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
+                uint32(block.timestamp + paymentFraudProofInterval),
+                // set the status for the operator to respond next
+                ChallengeStatus.OPERATOR_TURN
         );
 
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
         collateralToken.transferFrom(msg.sender, address(this), collateral);
-        //update payment
-        operatorToPayment[operator].status = 2;
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
+        // update the payment status and reset the fraudproof window for this payment
+        operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
+        operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
     }
 

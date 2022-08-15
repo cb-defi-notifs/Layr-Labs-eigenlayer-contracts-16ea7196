@@ -9,7 +9,6 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
-import "../../permissions/RepositoryAccess.sol";
 import "../../libraries/DataStoreHash.sol";
 import "../../middleware/PaymentManager.sol";
 
@@ -19,7 +18,6 @@ import "ds-test/test.sol";
  @notice This contract is used for doing interactive payment challenge
  */
 contract DataLayrPaymentManager is 
-    RepositoryAccess, 
     IDataLayrPaymentManager,
     PaymentManager
     // ,DSTest 
@@ -101,164 +99,8 @@ contract DataLayrPaymentManager is
         PaymentManager.payFee(initiator, payer, feeAmount);
     }
 
-    function setPaymentFraudProofCollateral(
-        uint256 _paymentFraudProofCollateral
-    ) external onlyRepositoryGovernance {
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
-    }
 
-    /**
-     @notice This is used by a DataLayr operator to make a claim on the @param amount that they deserve 
-             for their service, since their last payment until @param toDataStoreId  
-     **/
-    function commitPayment(uint32 toDataStoreId, uint120 amount) external {
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-        // only registered DataLayr operators can call
-        require(
-            registry.isRegistered(msg.sender),
-            "DataLayrPaymentManager.commitPayment: Only registered operators can call this function"
-        );
-
-        require(toDataStoreId <= dataStoreId(), "DataLayrPaymentManager.commitPayment: Cannot claim future payments");
-
-        // can only claim for a payment after redeeming the last payment
-        require(
-            operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
-            "DataLayrPaymentManager.commitPayment: Require last payment is redeemed"
-        );
-
-        // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.safeTransferFrom(
-            msg.sender,
-            address(this),
-            paymentFraudProofCollateral
-        );
-
-        /**
-         @notice recording payment claims for the DataLayr operator
-         */
-        uint32 fromDataStoreId;
-
-        // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
-        uint32 confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
-
-        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
-        /**
-         @notice this special case also implies that the DataLayr operator must be claiming payment from 
-                 when the operator registered.   
-         */
-        if (operatorToPayment[msg.sender].fromDataStoreId == 0) {
-            // get the dataStoreId when the DataLayr operator registered
-            fromDataStoreId = registry.getFromTaskNumberForOperator(msg.sender);
-        } else {
-            // you have to redeem starting from the last time redeemed up to
-            fromDataStoreId = operatorToPayment[msg.sender].toDataStoreId;
-        }
-
-        require(fromDataStoreId < toDataStoreId, "DataLayrPaymentManager.commitPayment: invalid payment range");
-
-        // update the record for the commitment to payment made by the operator
-        operatorToPayment[msg.sender] = Payment(
-            fromDataStoreId,
-            toDataStoreId,
-            confirmAt,
-            amount,
-            // set payment status as 1: committed
-            PaymentStatus.COMMITTED,
-            // storing collateral amount deposited
-            paymentFraudProofCollateral
-        );
-
-        emit PaymentCommit(msg.sender, fromDataStoreId, toDataStoreId, amount);
-    }
-
-    /**
-     @notice This function can only be called after the challenge window for the payment claim has completed.
-     */
-    function redeemPayment() external {
-        require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
-            "DataLayrPaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
-        );
-
-        require(
-            block.timestamp > operatorToPayment[msg.sender].confirmAt,
-            "DataLayrPaymentManager.redeemPayment: Payment still eligible for fraud proof"
-        );
-
-        // update the status to show that operator's payment is getting redeemed
-        operatorToPayment[msg.sender].status = PaymentStatus.REDEEMED;
-
-        // transfer back the collateral to the operator as there was no successful
-        // challenge to the payment commitment made by the operator.
-        collateralToken.safeTransfer(
-            msg.sender,
-            operatorToPayment[msg.sender].collateral
-        );
-
-        ///look up payment amount and delegation terms address for the msg.sender
-        uint256 amount = operatorToPayment[msg.sender].amount;
-
-
-        IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
-        // transfer the amount due in the payment claim of the operator to its delegation
-        // terms contract, where the delegators can withdraw their rewards.
-        paymentToken.transfer(address(dt), amount);
-
-// TODO: make this a low-level call with gas budget that ignores reverts
-        // inform the DelegationTerms contract of the payment, which will determine
-        // the rewards operator and its delegators are eligible for
-        dt.payForService(paymentToken, amount);
-
-        emit PaymentRedemption(msg.sender, amount);
-    }
-
-    /**
-    @notice This function is called by a fraud prover to challenge a payment,
-            initiating an interactive fraudproof
-     **/
-    /**
-     @param operator is the DataLayr operator against whose payment claim the fraudproof is being made
-     @param amount1 is the reward amount the challenger claims is the correct value earned by the operator for the first half of the dataStore range
-     @param amount2 is the reward amount the challenger claims is the correct value earned by the operator for the second half of the dataStore range
-     **/
-    function challengePaymentInit(
-        address operator,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
-        
-        require(
-            block.timestamp < operatorToPayment[operator].confirmAt 
-                &&
-                operatorToPayment[operator].status == PaymentStatus.COMMITTED,
-            "DataLayrPaymentManager.challengePaymentInit: Fraudproof interval has passed for payment"
-        );
-
-        // store challenge details
-        operatorToPaymentChallenge[operator] = PaymentChallenge(
-                operator,
-                // store `msg.sender` as the challenger
-                msg.sender,
-                address(dataLayrServiceManager),
-                operatorToPayment[operator].fromDataStoreId,
-                operatorToPayment[operator].toDataStoreId,
-                amount1,
-                amount2,
-                // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
-                uint32(block.timestamp + paymentFraudProofInterval),
-                // set the status for the operator to respond next
-                ChallengeStatus.OPERATOR_TURN
-        );
-
-        // transfer challenge collateral from the challenger (`msg.sender`) to this contract
-        uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
-
-        // update the payment status and reset the fraudproof window for this payment
-        operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
-        operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
-        emit PaymentChallengeInit(operator, msg.sender);
-    }
+    
 
     // used for a single bisection step in the interactive fraudproof
     //challenger challenges a particular half of the payment
