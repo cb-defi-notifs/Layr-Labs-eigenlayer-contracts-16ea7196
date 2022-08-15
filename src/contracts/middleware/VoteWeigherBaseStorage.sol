@@ -24,6 +24,8 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess {
 
     // constant used as a divisor in calculating weights
     uint256 internal constant WEIGHTING_DIVISOR = 1e18;
+    // maximum length of dynamic arrays in `strategiesConsideredAndMultipliers` mapping
+    uint8 internal constant MAX_WEIGHING_FUNCTION_LENGTH = 32;
 
     // the address of the Delegation contract for EigenLayr
     IEigenLayrDelegation public immutable delegation;
@@ -35,7 +37,6 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess {
              corresponding weights for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
-
 
     constructor(IRepository _repository, IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager)
         RepositoryAccess(_repository)

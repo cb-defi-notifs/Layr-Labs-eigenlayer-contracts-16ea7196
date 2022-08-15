@@ -130,6 +130,10 @@ contract VoteWeigherBase is
     ) internal {
         uint256 numStratsToAdd = _newStrategiesConsideredAndMultipliers.length;
         uint256 numStratsExisting = strategiesConsideredAndMultipliers[quorumNumber].length;
+        require(
+            numStratsExisting + numStratsToAdd <= MAX_WEIGHING_FUNCTION_LENGTH,
+            "VoteWeigherBase._addStrategiesConsideredAndMultipliers: exceed MAX_WEIGHING_FUNCTION_LENGTH"
+        );
         for (uint256 i = 0; i < numStratsToAdd;) {
             // fairly gas-expensive internal loop to make sure that the *same* strategy cannot be added multiple times
             for (uint256 j = 0; j < (numStratsExisting + i);) {
