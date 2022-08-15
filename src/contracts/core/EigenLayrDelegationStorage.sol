@@ -13,7 +13,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
 
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId, address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
