@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     uint96 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;

@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
-import "../interfaces/IServiceFactory.sol";
 import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {

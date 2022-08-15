@@ -13,7 +13,6 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
-import "../contracts/middleware/ServiceFactory.sol";
 import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
@@ -21,7 +20,6 @@ import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -54,7 +52,6 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
-    ServiceFactory public serviceFactory;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
@@ -66,7 +63,6 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentManager public dataLayrPaymentManager;
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
@@ -199,7 +195,6 @@ contract EigenLayrDeployer is
         // deploy slasher and service factory contracts
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, governor);
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
 
         investmentManager.initialize(
             slasher,
@@ -381,15 +376,8 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
-        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
-            dlsm,
-            dlReg,
-            challengeUtils
-        );
 
         dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
@@ -991,10 +979,6 @@ contract EigenLayrDeployer is
             "investmentManager failed to deploy"
         );
         assertTrue(address(slasher) != address(0), "slasher failed to deploy");
-        assertTrue(
-            address(serviceFactory) != address(0),
-            "serviceFactory failed to deploy"
-        );
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
