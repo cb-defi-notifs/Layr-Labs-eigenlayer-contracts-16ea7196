@@ -319,7 +319,7 @@ abstract contract RegistryBase is
          */
         registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
 
-        // committing to not signing off on any more data that is being asserted into DataLayr
+        // committing to not signing off on any more middleware tasks
         registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
 
         registry[msg.sender].deregisterTime = block.timestamp;
@@ -393,7 +393,7 @@ abstract contract RegistryBase is
         // record the operator being registered
         registrantList.push(operator);
 
-        // record operator's index in list of operators
+        // record `operator`'s index in list of operators
         OperatorIndex memory operatorIndex;
         operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
