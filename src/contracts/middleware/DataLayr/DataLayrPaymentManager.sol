@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../libraries/DataStoreHash.sol";
@@ -18,7 +17,6 @@ import "ds-test/test.sol";
  @notice This contract is used for doing interactive payment challenge
  */
 contract DataLayrPaymentManager is 
-    IDataLayrPaymentManager,
     PaymentManager
     // ,DSTest 
     {
@@ -31,35 +29,13 @@ contract DataLayrPaymentManager is
      */
 
     
-
-
-
-
-    // EVENTS
-    event PaymentCommit(
-        address indexed operator,
-        uint32 fromDataStoreId,
-        uint32 toDataStoreId,
-        uint256 fee
-    );
-    event PaymentRedemption(address indexed operator, uint256 fee);
-    event PaymentBreakdown(address indexed operator, uint32 fromDataStoreId, uint32 toDataStoreId, uint120 amount1, uint120 amount2);
-    event PaymentChallengeInit(address indexed operator, address challenger);
-    event PaymentChallengeResolution(address indexed operator, bool operatorWon);
-
     constructor(
         IERC20 _paymentToken,
-        uint256 _paymentFraudProofCollateral,
+        IRepository _repository,
         IDataLayrServiceManager _dataLayrServiceManager
-    )   
-        // set repository address equal to that of dataLayrServiceManager
-        RepositoryAccess(_dataLayrServiceManager.repository()) 
+    )  PaymentManager(_paymentToken, _repository) 
     {
-        paymentToken = _paymentToken;
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
         dataLayrServiceManager = _dataLayrServiceManager;
-        collateralToken = _dataLayrServiceManager.collateralToken();
-        eigenLayrDelegation = _dataLayrServiceManager.eigenLayrDelegation();
     }
 
     
@@ -134,7 +110,7 @@ contract DataLayrPaymentManager is
                 );
             }
 
-            require(searchData.metadata.globalDataStoreId == challenge.fromDataStoreId, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
+            require(searchData.metadata.globalDataStoreId == challenge.fromTaskNumber, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(

@@ -103,24 +103,6 @@ contract PaymentManager is
         uint256 eigenStakeSigned;
     }
 
-      enum DissectionType {
-        INVALID,
-        FIRST_HALF,
-        SECOND_HALF
-    }
-    enum PaymentStatus{ 
-        REDEEMED,
-        COMMITTED,
-        CHALLENGED
-    }
-    enum ChallengeStatus{ 
-        RESOLVED,
-        OPERATOR_TURN, 
-        CHALLENGER_TURN, 
-        OPERATOR_TURN_ONE_STEP, 
-        CHALLENGER_TURN_ONE_STEP
-    }
-
 
     /**
      * @notice challenge window for submitting fraudproof in case of incorrect payment 
@@ -168,9 +150,6 @@ contract PaymentManager is
 
     // depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
-
-
-
 
     /******** 
      EVENTS

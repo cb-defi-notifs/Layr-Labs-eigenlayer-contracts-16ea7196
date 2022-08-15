@@ -349,7 +349,7 @@ contract EigenLayrDeployer is
         uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
-            paymentFraudProofCollateral,
+            dlRepository,
             dlsm
         );
 

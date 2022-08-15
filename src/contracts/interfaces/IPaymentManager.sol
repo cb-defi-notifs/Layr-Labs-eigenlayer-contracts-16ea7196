@@ -5,7 +5,24 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IRepositoryAccess.sol";
 
 // TODO: provide more functions for this spec
-interface IPaymentManager is IRepositoryAccess {	    
+interface IPaymentManager is IRepositoryAccess {
+    enum DissectionType {
+        INVALID,
+        FIRST_HALF,
+        SECOND_HALF
+    }
+    enum PaymentStatus{ 
+        REDEEMED,
+        COMMITTED,
+        CHALLENGED
+    }
+    enum ChallengeStatus{ 
+        RESOLVED,
+        OPERATOR_TURN, 
+        CHALLENGER_TURN, 
+        OPERATOR_TURN_ONE_STEP, 
+        CHALLENGER_TURN_ONE_STEP
+    }	    
     function paymentFraudProofInterval() external view returns (uint256);
 
     function paymentFraudProofCollateral() external view returns (uint256);

@@ -115,16 +115,14 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
         );
 
         uint256 paymentFraudProofCollateral = 1 wei;
-        dataLayrPaymentManager= new DataLayrPaymentManager(
-            weth,
-            paymentFraudProofCollateral,
-            dlsm
-        );
+        
         // dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge();
 
         DataLayrChallengeUtils disclosureUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
+
+        
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
@@ -133,6 +131,13 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver {
             dlRepository,
             weth,
             feePerBytePerTime
+        );
+
+
+        dataLayrPaymentManager= new DataLayrPaymentManager(
+            weth,
+            dlRepository,
+            dlsm   
         );
 
 
