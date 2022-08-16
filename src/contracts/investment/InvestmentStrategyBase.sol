@@ -9,22 +9,22 @@ contract InvestmentStrategyBase is
     Initializable,
     IInvestmentStrategy
 {
-    address public investmentManager;
+    address public immutable investmentManager;
     IERC20 public underlyingToken;
     uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
-        require(msg.sender == investmentManager, "onlyInvestmentManager");
+        require(msg.sender == address(investmentManager), "InvestmentStrategyBase.onlyInvestmentManager");
         _;
     }
 
-    constructor() {
+    constructor(IInvestmentManager _investmentManager) {
+        investmentManager = _investmentManager;
         // TODO: uncomment for production use!
         //_disableInitializers();
     }
 
-    function initialize(address _investmentManager, IERC20 _underlyingToken) initializer public {
-        investmentManager = _investmentManager;
+    function initialize(IERC20 _underlyingToken) initializer public {
         underlyingToken = _underlyingToken;
     }
 
@@ -33,7 +33,7 @@ contract InvestmentStrategyBase is
         onlyInvestmentManager
         returns (uint256 newShares)
     {
-        require(token == underlyingToken, "Can only deposit underlyingToken");
+        require(token == underlyingToken, "InvestmentStrategyBase.deposit: Can only deposit underlyingToken");
         newShares = amount;
         totalShares += newShares;
         return newShares;
@@ -44,7 +44,7 @@ contract InvestmentStrategyBase is
         IERC20 token,
         uint256 shareAmount
     ) external virtual override onlyInvestmentManager {
-        require(token == underlyingToken, "Can only withdraw the strategy token");
+        require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
         totalShares -= shareAmount;
         underlyingToken.transfer(depositor, shareAmount);
     }
