@@ -66,10 +66,10 @@ contract Delegator is EigenLayrDeployer {
         uint256 ethAmount = 1e18;
         uint256 eigenAmount = 1e18;
         // uint96 registrantEthWeightBefore = uint96(
-        //     dlReg.weightOfOperatorEth(signers[0])
+        //     dlReg.weightOfOperator(signers[0], 0)
         // );
         // uint96 registrantEigenWeightBefore = uint96(
-        //     dlReg.weightOfOperatorEigen(signers[0])
+        //     dlReg.weightOfOperator(signers[0], 1)
         // );
         uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
             signers[0],
