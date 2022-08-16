@@ -285,7 +285,8 @@ contract EigenLayrDeployer is
             dlRepository,
             weth,
             feePerBytePerTime
-        );        
+        );
+
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
