@@ -144,7 +144,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         uint256 historyLength = EKHistory[operator].length - 1;
         return EKHistory[operator][historyLength].keyHash;
     }
-
+// TODO: this will revert poorly if EKHistory[operator].length == 0 -- let's improve it
     /**
      @notice retrieve the operator's current EK hash
      */

@@ -135,8 +135,6 @@ contract InvestmentTests is
     }
 
     function testDepositUnsupportedToken() public {
-        
-
         IERC20 token = new ERC20PresetFixedSupply(
             "badToken",
             "BADTOKEN",
@@ -148,10 +146,12 @@ contract InvestmentTests is
         
         cheats.expectRevert(bytes("Can only deposit underlyingToken"));
         investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
-        
-
     }
 
+    //ensure that investorStrats array updates correctly and only when appropriate
+    function testInvestorStratUpdate() public {
+
+    }
     
 
     // TODO: FIX THIS!
