@@ -3,7 +3,7 @@ name: Enhancement
 about: Used for tracking a specific goal or task, esp. an improvement
 title: 'TASK: Title'
 labels: enhancement
-assignees: ''
+assignees: ChaoticWalrus, gpsanant, Sidu28
 
 ---
 
