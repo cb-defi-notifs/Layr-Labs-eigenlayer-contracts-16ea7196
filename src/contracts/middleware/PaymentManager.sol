@@ -132,20 +132,16 @@ contract PaymentManager is
 
 
     /**
-     @notice Used for deducting the fees from the payer to the 
+     @notice Used for deducting the fees from the payer to the middleware
      */
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
-        //todo: can this be a permanent allowance? decreases an sstore per fee paying.
-        // NOTE: (from JEFFC) this currently *is* a persistant/permanent allowance, as it isn't getting decreased anywhere
-        if(initiator != payer){
-            require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
-            //TODO: generic payment manager did not decrease allowances while DLPM did.  
-            // I think it makes sense to do so but need to verify
-            // if(allowances[payer][initiator] != type(uint256).max) {
-            //     allowances[payer][initiator] -= feeAmount;
-            // }
+        if (initiator != payer){
+            if (allowances[payer][initiator] != type(uint256).max) {
+                allowances[payer][initiator] -= feeAmount;
+            }
         }
 
+        // decrement `payer`'s stored deposits
         depositsOf[payer] -= feeAmount;
     }
 
