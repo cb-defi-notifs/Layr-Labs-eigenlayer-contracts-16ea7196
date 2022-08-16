@@ -227,16 +227,23 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function testInitialize() public {
-            //repository has already been initialized in the Deployer test contract
-            cheats.expectRevert(
-                bytes("Initializable: contract is already initialized")
-            );
-            delegation.initialize(
-                investmentManager,
-                undelegationFraudProofInterval
-            );
+        //repository has already been initialized in the Deployer test contract
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
+        delegation.initialize(
+            investmentManager,
+            undelegationFraudProofInterval
+        );
+    }
+    function testRegisterAsDelegateMultipleTimes() public {
+        address sender = signers[0];
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
+    }
 
-        }
+    
 
 
 
