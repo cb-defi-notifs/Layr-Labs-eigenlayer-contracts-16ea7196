@@ -286,8 +286,6 @@ contract EigenLayrDeployer is
             weth,
             feePerBytePerTime
         );
-
-        uint256 paymentFraudProofCollateral = 1 wei;
         
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);

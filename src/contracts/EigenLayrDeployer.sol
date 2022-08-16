@@ -109,7 +109,6 @@ contract EigenLayrDeployer is ERC165_Universal, ERC1155TokenReceiver, DSTest {
             undelegationFraudProofInterval
         );
 
-        uint256 paymentFraudProofCollateral = 1 wei;
         
         // dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge();
 
