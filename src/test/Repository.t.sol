@@ -10,7 +10,7 @@ import "../test/Deployer.t.sol";
 
 contract RepositoryTests is EigenLayrDeployer{
 
-        function testInitialize() public {
+        function testCannotInitMultipleTimesRepository() public {
             //repository has already been initialized in the Deployer test contract
             cheats.expectRevert(
                 bytes("Initializable: contract is already initialized")
@@ -22,7 +22,7 @@ contract RepositoryTests is EigenLayrDeployer{
                 address(this)
             );
         }
-        function testOwner() public {
+        function testOwnerPermissionsRepository() public {
             address repositoryOwner = Repository(address(dlRepository)).owner();
             cheats.startPrank(repositoryOwner);
             Repository(address(dlRepository)).setRegistry(dlReg);
