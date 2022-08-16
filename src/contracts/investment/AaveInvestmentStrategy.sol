@@ -8,14 +8,13 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
 
-    constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
-    }
+    constructor(IInvestmentManager _investmentManager) 
+        InvestmentStrategyBase(_investmentManager)
+    {}
 
-    function initialize(address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
+    function initialize(IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
     ) initializer public {
-        super.initialize(_investmentManager, _underlyingToken);
+        super.initialize(_underlyingToken);
         lendingPool = _lendingPool;
         aToken = _aToken;
         underlyingToken.approve(address(_lendingPool), type(uint256).max);
@@ -57,7 +56,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
             // this includes interest rates accrued on existing investment
             aTokensBefore = aToken.balanceOf(address(this)) - amount;
         } else {
-            revert("can only deposit underlyingToken or aToken");
+            revert("AaveInvestmentStrategy.deposit: can only deposit underlyingToken or aToken");
         }
         if (totalShares == 0) {
             // no existing investment into this investment strategy

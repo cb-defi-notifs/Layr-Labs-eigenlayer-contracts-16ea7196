@@ -9,7 +9,7 @@ contract InvestmentStrategyBase is
     Initializable,
     IInvestmentStrategy
 {
-    address public immutable investmentManager;
+    IInvestmentManager public immutable investmentManager;
     IERC20 public underlyingToken;
     uint256 public totalShares;
 

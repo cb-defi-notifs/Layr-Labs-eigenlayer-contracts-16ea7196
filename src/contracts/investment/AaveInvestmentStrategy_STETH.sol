@@ -10,9 +10,13 @@ import "./LIDO/IStableSwapStateOracle.sol";
 contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
     IStableSwapStateOracle public stableSwapOracle;
 
-    function initialize (address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
+    constructor(IInvestmentManager _investmentManager) 
+        AaveInvestmentStrategy(_investmentManager)
+    {}
+
+    function initialize (IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
     ) initializer external {
-        super.initialize(_investmentManager, _underlyingToken, _lendingPool, _aToken);
+        super.initialize(_underlyingToken, _lendingPool, _aToken);
         stableSwapOracle = _stableSwapOracle;
     }
 
