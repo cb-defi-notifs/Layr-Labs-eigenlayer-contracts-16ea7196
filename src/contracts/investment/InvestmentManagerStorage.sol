@@ -21,6 +21,9 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // TODO: set this to a proper interval!
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
 
+    // maximum length of dynamic arrays in `investorStrats` mapping
+    uint8 internal constant MAX_INVESTOR_STRATS_LENGTH = 32;
+
     IEigenLayrDelegation public immutable delegation;
     ISlasher public slasher;
 

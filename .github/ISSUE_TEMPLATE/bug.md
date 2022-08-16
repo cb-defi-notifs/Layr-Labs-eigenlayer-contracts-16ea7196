@@ -3,7 +3,7 @@ name: Bug
 about: Used for tracking identified issues that require fixing
 title: 'BUG: Title'
 labels: bug
-assignees: ''
+assignees: ChaoticWalrus, gpsanant, Sidu28
 
 ---
 

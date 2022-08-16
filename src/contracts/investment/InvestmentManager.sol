@@ -424,6 +424,10 @@ contract InvestmentManager is
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
+            require(
+                investorStrats[depositor].length <= MAX_INVESTOR_STRATS_LENGTH,
+                "InvestmentManager._depositIntoStrategy: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"
+            );
             investorStrats[depositor].push(strategy);
         }
         // transfer tokens from the sender to the strategy

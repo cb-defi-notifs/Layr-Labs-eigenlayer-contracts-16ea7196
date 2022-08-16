@@ -103,7 +103,7 @@ contract BLSRegistry is
         if ((registrantType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the
             // minimum requirements on how much ETH it must deposit
-            _operatorStake.ethStake = uint96(weightOfOperatorEth(operator));
+            _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
             require(
                 _operatorStake.ethStake >= nodeEthStake,
                 "Not enough eth value staked"
@@ -114,7 +114,7 @@ contract BLSRegistry is
         if ((registrantType & 2) == 2) {
             // if operator want to be an "Eigen" validator, check that they meet the
             // minimum requirements on how much Eigen it must deposit
-            _operatorStake.eigenStake = uint96(weightOfOperatorEigen(operator));
+            _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
             require(
                 _operatorStake.eigenStake >= nodeEigenStake,
                 "Not enough eigen staked"
@@ -320,7 +320,7 @@ contract BLSRegistry is
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
         // Update registrant list and update index histories
-        address swappedOperator = popRegistrant(pubkeyHash,index);
+        address swappedOperator = _popRegistrant(pubkeyHash,index);
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware
@@ -423,8 +423,8 @@ contract BLSRegistry is
             OperatorStake memory newStakes;
 
             newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = weightOfOperatorEth(operators[i]);
-            newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
+            newStakes.ethStake = weightOfOperator(operators[i], 0);
+            newStakes.eigenStake = weightOfOperator(operators[i], 1);
 
             // check if minimum requirements have been met
             if (newStakes.ethStake < nodeEthStake) {

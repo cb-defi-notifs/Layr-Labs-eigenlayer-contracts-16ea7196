@@ -105,31 +105,7 @@ contract LightweightRegistry is
             abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
         );
 
-        uint256 length = _ethStrategiesConsideredAndMultipliers.length;
-        for (uint256 i = 0; i < length; ++i) {
-            strategiesConsideredAndMultipliers[0].push(_ethStrategiesConsideredAndMultipliers[i]);            
-        }
-    }
-
-    /**
-        @notice returns the total ETH delegated by delegators with this operator.
-                Accounts for both ETH used for staking in settlement layer (via operator)
-                and the ETH-denominated value of the shares in the investment strategies.
-                Note that the middleware can decide for itself how much weight it wants to
-                give to the ETH that is being used for staking in settlement layer.
-     */
-    /**
-     * @dev minimum delegation limit of nodeEthStake has to be satisfied.
-     */
-    function weightOfOperatorEth(address operator)
-        public
-        override
-        returns (uint96)
-    {
-        uint96 amount = super.weightOfOperatorEth(operator);
-
-        // check that minimum delegation limit is satisfied
-        return amount < nodeEthStake ? 0 : amount;
+        _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
     }
 
     /**
@@ -177,7 +153,7 @@ contract LightweightRegistry is
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
             //get current wight and update accordingly
-            uint96 stake = weightOfOperatorEth(operators[i]);
+            uint96 stake = weightOfOperator(operators[i], 0);
 
             // check if minimum requirements have been met
             if (stake < nodeEthStake) {
@@ -239,7 +215,7 @@ contract LightweightRegistry is
             "Operator is already registered"
         );
 
-        uint96 stake = uint96(weightOfOperatorEth(operator));
+        uint96 stake = uint96(weightOfOperator(operator, 0));
         require(
             stake >= nodeEthStake,
             "Not enough eth value staked"
