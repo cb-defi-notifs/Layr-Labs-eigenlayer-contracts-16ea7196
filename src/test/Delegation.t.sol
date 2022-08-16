@@ -184,6 +184,22 @@ contract Delegator is EigenLayrDeployer {
             );
         }
     }
+    function testSlashedOperatorUndelegation() public {
+
+        address slashingContract = getDeployerTestContractAddress();
+
+        address[] memory slashingContracts = new address[](1);
+        slashingContracts[0] = slashingContract;
+
+        cheats.startPrank(slashingContract);
+        slasher.addPermissionedContracts(slashingContracts);
+
+        slasher.freezeOperator(acct_0);
+
+        cheats.stopPrank();
+
+        
+    }
 
     function testRewardPayouts() public {
         //G2 coordinates for aggregate PKs for 15 signers
@@ -236,12 +252,17 @@ contract Delegator is EigenLayrDeployer {
             undelegationFraudProofInterval
         );
     }
+
     function testRegisterAsDelegateMultipleTimes() public {
         address sender = signers[0];
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
     }
+
+
+
+
 
     
 
