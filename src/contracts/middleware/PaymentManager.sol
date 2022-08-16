@@ -263,17 +263,17 @@ contract PaymentManager is
 
 
 
-        // for the special case of this being the first payment that is being claimed by the DataLayr operator;
+        // for the special case of this being the first payment that is being claimed by the operator;
         /**
-         @notice this special case also implies that the DataLayr operator must be claiming payment from 
+         @notice this special case also implies that the operator must be claiming payment from 
                  when the operator registered.   
          */
         if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
-            // get the dataStoreId when the DataLayr operator registered
+            // get the taskNumber when the operator registered
             fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
 
         } else {
-            // you have to redeem starting from the last time redeemed up to
+            // you have to redeem starting from the last task you previously redeemed up to
             fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
         }
 
@@ -299,12 +299,12 @@ contract PaymentManager is
      */
     function redeemPayment() external {
         require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
-            "DataLayrPaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
+            "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
 
         require(
             block.timestamp > operatorToPayment[msg.sender].confirmAt,
-            "DataLayrPaymentManager.redeemPayment: Payment still eligible for fraud proof"
+            "PaymentManager.redeemPayment: Payment still eligible for fraud proof"
         );
 
         // update the status to show that operator's payment is getting redeemed
@@ -427,7 +427,6 @@ contract PaymentManager is
             diff /= 2;
             challenge.toTaskNumber = toTaskNumber - diff;
 
-            //TODO: This saves storage when the next step is final. Why have the second "fromDataStoreLine"?
             _updateStatus(operator, diff);
 
             _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
@@ -459,13 +458,13 @@ contract PaymentManager is
         internal
         returns (bool)
     {
-        // payment challenge for one data dump
+        // payment challenge for one task
         if (diff == 1) {
             //set to one step turn of either challenger or operator
             operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
-        // payment challenge across more than one data dump
+        // payment challenge across more than one task
         } else {
             // set to dissection turn of either challenger or operator
             operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
@@ -487,16 +486,16 @@ contract PaymentManager is
             //if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
-                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
+                "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else if (dissectionType == DissectionType.SECOND_HALF) {
             //if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
-                "DataLayrPaymentManager._updateChallengeAmounts: Invalid amount breakdown"
+                "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("DataLayrPaymentManager._updateChallengeAmounts: invalid DissectionType");
+            revert("PaymentManager._updateChallengeAmounts: invalid DissectionType");
         }
         // update the stored payment halves
         operatorToPaymentChallenge[operator].amount1 = amount1;
@@ -521,7 +520,6 @@ contract PaymentManager is
         }
     }
 
-    // TODO: verify that the amounts used in this function are appropriate!
     /* 
     @notice: resolve payment challenge
     
@@ -593,15 +591,4 @@ contract PaymentManager is
     function taskNumber() internal view returns (uint32) {
         return repository.serviceManager().taskNumber();
     }
-
-// TODO: delete or replace with general solution
-/*
-    function hashLinkedDataStoreMetadatas(IServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
-        bytes32 res = bytes32(0);
-        for(uint i = 0; i < metadatas.length; i++) {
-            res = keccak256(abi.encodePacked(res, metadatas[i].durationTaskNumber, metadatas[i].globalTaskNumber, metadatas[i].fee));
-        }
-        return res;
-    }
-*/
 }
