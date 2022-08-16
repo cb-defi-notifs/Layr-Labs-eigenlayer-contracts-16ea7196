@@ -918,6 +918,10 @@ contract EigenLayrDeployer is
             uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
     }
 
+    function getDeployerTestContractAddress() public returns(address){
+        return address(this);
+    }
+
 
     function testDeploymentSuccessful() public {
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");

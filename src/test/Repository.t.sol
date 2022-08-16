@@ -21,6 +21,13 @@ contract RepositoryTests is EigenLayrDeployer{
                 dlReg,
                 address(this)
             );
-
+        }
+        function testOwner() public {
+            address repositoryOwner = getDeployerTestContractAddress();
+            cheats.startPrank(repositoryOwner);
+            Repository(address(dlRepository)).setRegistry(dlReg);
+            Repository(address(dlRepository)).setServiceManager(dlsm);
+            Repository(address(dlRepository)).setVoteWeigher(dlReg);
+            cheats.stopPrank();
         }
     }
