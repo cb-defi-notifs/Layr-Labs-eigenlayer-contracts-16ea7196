@@ -226,6 +226,28 @@ contract Delegator is EigenLayrDeployer {
         _payRewards(operator);
     }
 
+    function testInitialize() public {
+            //repository has already been initialized in the Deployer test contract
+            cheats.expectRevert(
+                bytes("Initializable: contract is already initialized")
+            );
+            delegation.initialize(
+                investmentManager,
+                undelegationFraudProofInterval
+            );
+
+        }
+
+
+
+
+
+
+
+
+
+    //*******INTERNAL FUNCTIONS*********//
+    
     function _testInitiateDelegation(address operator, uint256 amountToDeposit)
         public
     {
