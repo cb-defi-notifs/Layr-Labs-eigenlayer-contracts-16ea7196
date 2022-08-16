@@ -16,9 +16,8 @@ import "ds-test/test.sol";
 /**
  @notice This contract is used for doing interactive payment challenge.
  */
-
-
-contract PaymentManager is 
+ // contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal` function -- see DataLayrPaymentManager for an example
+abstract contract PaymentManager is 
     RepositoryAccess, 
     IPaymentManager
     // ,DSTest 
@@ -167,7 +166,7 @@ contract PaymentManager is
             "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
-        require(toTaskNumber <= taskNumber(), "Cannot claim future payments");
+        require(toTaskNumber <= taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
 
         // can only claim for a payment after redeeming the last payment
         require(

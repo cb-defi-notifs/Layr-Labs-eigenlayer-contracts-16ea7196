@@ -28,7 +28,6 @@ contract DataLayrPaymentManager is
      *      nodes and so on.
      */
 
-    
     constructor(
         IERC20 _paymentToken,
         uint256 _paymentFraudProofCollateral,
@@ -38,8 +37,6 @@ contract DataLayrPaymentManager is
     {
         dataLayrServiceManager = _dataLayrServiceManager;
     }
-
-    
 
     //an operator can respond to challenges and breakdown the amount
     function respondToPaymentChallengeFinal(
@@ -59,11 +56,14 @@ contract DataLayrPaymentManager is
         );
 
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
-        require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
+        require(
+            dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration, 
                 searchData.timestamp,
                 searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect");
+            ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
+        );
 
         //TODO: ensure that totalStakes and signedTotals from signatureChecker are the same quantity.
         bytes32 providedSigantoryRecordHash = keccak256(
@@ -76,7 +76,10 @@ contract DataLayrPaymentManager is
             )
         );
         //checking that nonSignerPubKeyHashes is correct, now that we know that searchData is valid
-        require(providedSigantoryRecordHash == searchData.metadata.signatoryRecordHash, "provided nonSignerPubKeyHashes or totalStakes is incorrect");
+        require(
+            providedSigantoryRecordHash == searchData.metadata.signatoryRecordHash,
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakes is incorrect"
+        );
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
@@ -89,7 +92,10 @@ contract DataLayrPaymentManager is
         //the challenger marks 2^32 as the index to show that operator has not signed
         if (nonSignerIndex == 1 << 32) {
             for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
-                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator was not a signatory");
+                require(
+                    nonSignerPubkeyHashes[i] != operatorPubkeyHash,
+                    "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator was not a signatory"
+                );
 
                 unchecked {
                     ++i;
@@ -111,7 +117,10 @@ contract DataLayrPaymentManager is
                 );
             }
 
-            require(searchData.metadata.globalDataStoreId == challenge.fromTaskNumber, "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged");
+            require(
+                searchData.metadata.globalDataStoreId == challenge.fromTaskNumber,
+                "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged"
+            );
 
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
