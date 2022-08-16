@@ -52,6 +52,16 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 fee;
     }
 
+    function initDataStore(
+        address feePayer,
+        address confirmer,
+        bytes calldata header,
+        uint8 duration,
+        uint32 totalBytes,
+        uint32 blockNumber
+    ) external payable returns(uint32);
+
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 
