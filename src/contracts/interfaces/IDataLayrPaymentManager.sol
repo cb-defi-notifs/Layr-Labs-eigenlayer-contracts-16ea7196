@@ -2,38 +2,18 @@
 pragma solidity ^0.8.9;
 
 import "./IPaymentManager.sol";
+import "./IDataLayrServiceManager.sol";
 
 interface IDataLayrPaymentManager is IPaymentManager {
-    function challengePaymentHalf(
+
+    function respondToPaymentChallengeFinal(
         address operator,
-        bool half,
-        uint120 amount1,
-        uint120 amount2
+        uint256 stakeIndex,
+        uint48 nonSignerIndex,
+        bytes32[] memory nonSignerPubkeyHashes,
+        TotalStakes calldata totalStakes,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) external;
 
-    enum PaymentStatus{ 
-        REDEEMED,
-        COMMITTED,
-        CHALLENGED
-    }
 
-    enum ChallengeStatus{ 
-        RESOLVED,
-        OPERATOR_TURN, 
-        CHALLENGER_TURN, 
-        OPERATOR_TURN_ONE_STEP, 
-        CHALLENGER_TURN_ONE_STEP
-    }
-
-    function getChallengeStatus(address operator) external view returns(ChallengeStatus);
-        
-    function getAmount1(address operator) external returns (uint120);
-    
-    function getAmount2(address operator) external returns (uint120);
-    
-    function getToDataStoreId(address operator) external returns (uint48);
-    
-    function getFromDataStoreId(address operator) external returns (uint48);
-    
-    function getDiff(address operator) external returns (uint48);
 }
