@@ -31,9 +31,10 @@ contract DataLayrPaymentManager is
     
     constructor(
         IERC20 _paymentToken,
+        uint256 _paymentFraudProofCollateral,
         IRepository _repository,
         IDataLayrServiceManager _dataLayrServiceManager
-    )  PaymentManager(_paymentToken, _repository) 
+    )  PaymentManager(_paymentToken, _paymentFraudProofCollateral, _repository) 
     {
         dataLayrServiceManager = _dataLayrServiceManager;
     }

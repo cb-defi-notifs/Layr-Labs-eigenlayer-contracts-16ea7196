@@ -285,10 +285,7 @@ contract EigenLayrDeployer is
             dlRepository,
             weth,
             feePerBytePerTime
-        );
-
-        uint256 paymentFraudProofCollateral = 1 wei;
-        
+        );        
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
@@ -324,8 +321,10 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
+        uint256 _paymentFraudProofCollateral = 1e16;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
+            _paymentFraudProofCollateral,
             dlRepository,
             dlsm
         );

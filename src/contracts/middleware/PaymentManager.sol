@@ -110,12 +110,11 @@ contract PaymentManager is
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
 
-// TODO: set this value
     /**
      @notice this is the payment that has to be made as a collateral for fraudproof 
              during payment challenges
      */
-    uint256 public paymentFraudProofCollateral = 1 wei;
+    uint256 public paymentFraudProofCollateral;
 
     /**
      * @notice the ERC20 token that will be used by the disperser to pay the service fees to
@@ -172,12 +171,14 @@ contract PaymentManager is
 
     constructor(
         IERC20 _paymentToken,
+        uint256 _paymentFraudProofCollateral,
         IRepository _repository
     )   
         // set repository address equal to that of serviceManager
         RepositoryAccess(_repository) 
     {
         paymentToken = _paymentToken;
+        paymentFraudProofCollateral = _paymentFraudProofCollateral;
         IServiceManager _serviceManager = _repository.serviceManager();
         collateralToken = _serviceManager.collateralToken();
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
