@@ -186,7 +186,7 @@ contract Delegator is EigenLayrDeployer {
     }
     function testSlashedOperatorUndelegation() public {
 
-        address slashingContract = getDeployerTestContractAddress();
+        address slashingContract = slasher.owner();
 
         address[] memory slashingContracts = new address[](1);
         slashingContracts[0] = slashingContract;
@@ -243,7 +243,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function testInitialize() public {
-        //repository has already been initialized in the Deployer test contract
+        //delegation has already been initialized in the Deployer test contract
         cheats.expectRevert(
             bytes("Initializable: contract is already initialized")
         );
