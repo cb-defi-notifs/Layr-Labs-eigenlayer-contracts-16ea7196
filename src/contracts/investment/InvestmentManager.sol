@@ -5,7 +5,7 @@ import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./InvestmentManagerStorage.sol";
-import "../utils/ERC1155TokenReceiver.sol";
+import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
 
 
@@ -24,7 +24,6 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     InvestmentManagerStorage,
-    ERC1155TokenReceiver,
     DSTest
 {
     using SafeERC20 for IERC20;
@@ -425,6 +424,10 @@ contract InvestmentManager is
     ) internal returns (uint256 shares) {
         // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
+            require(
+                investorStrats[depositor].length <= MAX_INVESTOR_STRATS_LENGTH,
+                "InvestmentManager._depositIntoStrategy: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"
+            );
             investorStrats[depositor].push(strategy);
         }
         // transfer tokens from the sender to the strategy
