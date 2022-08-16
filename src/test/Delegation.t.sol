@@ -242,7 +242,7 @@ contract Delegator is EigenLayrDeployer {
         _payRewards(operator);
     }
 
-    function testInitialize() public {
+    function testCannotInitMultipleTimesDelegation() public {
         //delegation has already been initialized in the Deployer test contract
         cheats.expectRevert(
             bytes("Initializable: contract is already initialized")
@@ -259,19 +259,6 @@ contract Delegator is EigenLayrDeployer {
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
     }
-
-
-
-
-
-    
-
-
-
-
-
-
-
 
 
     //*******INTERNAL FUNCTIONS*********//
