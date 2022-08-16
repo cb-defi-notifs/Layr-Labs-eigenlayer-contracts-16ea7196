@@ -184,6 +184,22 @@ contract Delegator is EigenLayrDeployer {
             );
         }
     }
+    function testSlashedOperatorUndelegation(address operator) public {
+
+        address slashingContract = slasher.owner();
+
+        address[] memory slashingContracts = new address[](1);
+        slashingContracts[0] = slashingContract;
+
+        cheats.startPrank(slashingContract);
+        slasher.addPermissionedContracts(slashingContracts);
+
+        slasher.freezeOperator(operator);
+
+        cheats.stopPrank();
+
+        
+    }
 
     function testRewardPayouts() public {
         //G2 coordinates for aggregate PKs for 15 signers
@@ -226,6 +242,27 @@ contract Delegator is EigenLayrDeployer {
         _payRewards(operator);
     }
 
+    function testCannotInitMultipleTimesDelegation() public {
+        //delegation has already been initialized in the Deployer test contract
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
+        delegation.initialize(
+            investmentManager,
+            undelegationFraudProofInterval
+        );
+    }
+
+    function testRegisterAsDelegateMultipleTimes() public {
+        address sender = signers[0];
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
+    }
+
+
+    //*******INTERNAL FUNCTIONS*********//
+    
     function _testInitiateDelegation(address operator, uint256 amountToDeposit)
         public
     {

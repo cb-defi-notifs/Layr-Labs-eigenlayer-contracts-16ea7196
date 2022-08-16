@@ -917,8 +917,6 @@ contract EigenLayrDeployer is
         return
             uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
     }
-
-
     function testDeploymentSuccessful() public {
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(
