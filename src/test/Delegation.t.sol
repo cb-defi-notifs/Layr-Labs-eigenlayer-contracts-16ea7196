@@ -184,7 +184,7 @@ contract Delegator is EigenLayrDeployer {
             );
         }
     }
-    function testSlashedOperatorUndelegation() public {
+    function testSlashedOperatorUndelegation(address operator) public {
 
         address slashingContract = slasher.owner();
 
@@ -194,7 +194,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(slashingContract);
         slasher.addPermissionedContracts(slashingContracts);
 
-        slasher.freezeOperator(acct_0);
+        slasher.freezeOperator(operator);
 
         cheats.stopPrank();
 
