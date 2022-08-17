@@ -78,7 +78,7 @@ contract DataLayrChallengeUtils {
     {
         // return x, y coordinate of overall data poly commitment
         // then return degree of multireveal polynomial
-        uint256[2] memory point = [uint256(0), uint256(0)];
+        uint256[2] memory point ;
         uint48 degree = 0;
         uint32 numSys = 0;
         uint32 numPar = 0;
