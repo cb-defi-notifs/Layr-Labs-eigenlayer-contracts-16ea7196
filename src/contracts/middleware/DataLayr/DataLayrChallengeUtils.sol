@@ -537,10 +537,7 @@ contract DataLayrChallengeUtils {
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool res = openPolynomialAtPoint(c, pi, r, s); 
 
-        if (res){
-            return true;
-        }
-        return false;
+        return res;
 
     }
 
