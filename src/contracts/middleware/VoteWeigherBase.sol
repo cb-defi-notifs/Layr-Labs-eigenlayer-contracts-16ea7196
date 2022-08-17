@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
-// import "ds-test/test.sol";
+ import "ds-test/test.sol";
 
 
 /**
@@ -17,8 +17,8 @@ import "./VoteWeigherBaseStorage.sol";
  */
 contract VoteWeigherBase is 
     IVoteWeigher,
-    VoteWeigherBaseStorage 
-    // , DSTest
+    VoteWeigherBaseStorage, 
+    DSTest
 {
     // number of quorums that are being used by the middleware
     uint8 public override immutable NUMBER_OF_QUORUMS;
@@ -55,10 +55,12 @@ contract VoteWeigherBase is
                     
                 // accessing i^th StrategyAndWeightingMultiplier struct for the quorumNumber
                 strategyAndMultiplier = strategiesConsideredAndMultipliers[quorumNumber][i];
+                
 
                 // shares of the operator in the investment strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
-                
+
+                                
                 // add the weightage from the shares to the total weight
                 if (sharesAmount > 0) {
                     weight += uint96(((strategyAndMultiplier.strategy).sharesToUnderlying(sharesAmount) * strategyAndMultiplier.multiplier) / WEIGHTING_DIVISOR);                    

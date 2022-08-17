@@ -17,8 +17,8 @@ import "ds-test/test.sol";
 
 contract LightweightRegistry is
     IRegistry,
-    VoteWeigherBase,
-    DSTest
+    VoteWeigherBase
+    
 {
     // DATA STRUCTURES 
     /**

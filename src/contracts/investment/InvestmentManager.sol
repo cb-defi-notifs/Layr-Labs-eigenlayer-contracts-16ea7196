@@ -542,7 +542,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint96 queuedWithdrawalNonce
-    ) external view returns (bool) {
+    ) external returns (bool) {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,

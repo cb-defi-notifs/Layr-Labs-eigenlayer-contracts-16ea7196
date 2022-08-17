@@ -805,6 +805,7 @@ contract EigenLayrDeployer is
             uint256[] memory delegateShares
         ) = investmentManager.getDeposits(sender);
 
+
         uint256 numStrats = delegateShares.length;
         assertTrue(
             numStrats > 0,
@@ -910,9 +911,6 @@ contract EigenLayrDeployer is
         delegation.commitUndelegation();
 
 
-        if(delegation.isDelegated(sender)){
-            emit log("staker is still delegated");
-        }
         cheats.stopPrank();
     }
 

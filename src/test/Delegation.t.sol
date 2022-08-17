@@ -63,43 +63,35 @@ contract Delegator is EigenLayrDeployer {
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
     function testDelegation(address operator, address staker) public {
+        emit log_named_uint("registrantEthWeightBefore", 0);
+
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
+
+        
 
         uint256 ethAmount = 1e18;
         uint256 eigenAmount = 1e18;
 
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
-            operator,
-            0
-        );
-        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
-            operator,
-            1
-        );
+        
+
 
         if(!delegation.isDelegate(operator)){
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
-        _testWethDeposit(staker, ethAmount);
-        _testDepositEigen(staker, eigenAmount);
-        emit log("staker is still not delegate");
+        delegation.isDelegate(operator);
+        // _testWethDeposit(staker, ethAmount);
+        // _testDepositEigen(staker, eigenAmount);
+
+
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(operator,0);
+        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(operator,1);
 
         _testDelegateToOperator(staker, operator);
 
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(
-            operator,
-            1
-        );
-        emit log_named_uint(
-            "registrantEthWeightBefore",
-            registrantEthWeightBefore
-        );
-        emit log_named_uint(
-            "registrantEthWeightAfter",
-            registrantEthWeightAfter
-        );
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(operator,1);
+
         assertTrue(
             registrantEthWeightAfter - registrantEthWeightBefore == ethAmount,
             "testDelegation: registrantEthWeight did not increment by the right amount"
@@ -159,27 +151,38 @@ contract Delegator is EigenLayrDeployer {
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
 
+        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
+            operator,
+            0
+        );
+
+        emit log_named_uint("registrantEthWeightBefore", registrantEthWeightBefore);
+       
+
+
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         _testWethDeposit(staker, 1e18);
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
 
+
+        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
+        emit log_named_uint("registrantEthWeightAfter", registrantEthWeightAfter);
+
         //delegator-specific information
         (
             IInvestmentStrategy[] memory delegatorStrategies,
             uint256[] memory delegatorShares
-        ) = investmentManager.getDeposits(msg.sender);
+        ) = investmentManager.getDeposits(staker);
+
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             initialOperatorShares[delegatorStrategies[k]] = delegation
                 .operatorShares(operator, delegatorStrategies[k]);
         }
-        if(delegation.isDelegated(staker)){
-            emit log("staker is delegated");
-        }
+
 
         _testUndelegation(staker);
-
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             uint256 operatorSharesBefore = initialOperatorShares[
@@ -189,10 +192,12 @@ contract Delegator is EigenLayrDeployer {
                 operator,
                 delegatorStrategies[k]
             );
+
             assertTrue(
-                delegatorShares[k] == operatorSharesAfter - operatorSharesBefore
+                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter
             );
         }
+        
     }
     function testSlashedOperatorUndelegation(address operator) public {
 
@@ -203,7 +208,6 @@ contract Delegator is EigenLayrDeployer {
 
         cheats.startPrank(slashingContract);
         slasher.addPermissionedContracts(slashingContracts);
-
         slasher.freezeOperator(operator);
 
         cheats.stopPrank();
@@ -284,6 +288,7 @@ contract Delegator is EigenLayrDeployer {
     function testRedelegateAfterUndelegation()public{
         //this function performs delegation and undelegation
         testUndelegation(signers[0], acct_0);
+        cheats.warp(block.timestamp + 8 days);
         testDelegation(signers[0], acct_0);
     }
 

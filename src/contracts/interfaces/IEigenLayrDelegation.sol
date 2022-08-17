@@ -25,7 +25,6 @@ interface IEigenLayrDelegation {
 
     function isNotDelegated(address staker)
         external
-        view
         returns (bool);
 
     function delegation(address delegator)

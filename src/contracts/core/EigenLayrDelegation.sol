@@ -169,19 +169,18 @@ contract EigenLayrDelegation is
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
-        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval;
+        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval; 
 
-        
-        if(isNotDelegated(msg.sender)){
-            emit log("staker is still delegated as it should be");
-        }
-        emit log("HWAT IS HAPPENING");
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
 
-        if(isNotDelegated(msg.sender)){
-            emit log("staker is NOT delegated as it should be");
-        }
+        address operator = delegation[msg.sender];
+        (
+            IInvestmentStrategy[] memory strategies,
+            uint256[] memory shares
+        ) = investmentManager.getDeposits(msg.sender);
+
+
         
     }
 
@@ -381,8 +380,10 @@ contract EigenLayrDelegation is
 
     /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
     ///         and is not within the challenge period for its last undelegation.
-    function isNotDelegated(address staker) public view returns (bool) {
+    function isNotDelegated(address staker) public returns (bool) {
+
         return
+        
             delegated[staker] == DelegationStatus.UNDELEGATED ||
             (delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED &&
                 block.timestamp > undelegationFinalizedTime[staker]);
@@ -402,7 +403,6 @@ contract EigenLayrDelegation is
         
         returns(bool)
     {
-        emit log_named_address("Delegation terms addres", address(delegationTerms[operator]));
         return(address(delegationTerms[operator]) != address(0));
     }
 }
