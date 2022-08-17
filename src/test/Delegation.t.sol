@@ -62,31 +62,29 @@ contract Delegator is EigenLayrDeployer {
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
-    function testDelegation() public {
+    function testDelegation(address operator, address staker) public {
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+
         uint256 ethAmount = 1e18;
         uint256 eigenAmount = 1e18;
-        // uint96 registrantEthWeightBefore = uint96(
-        //     dlReg.weightOfOperator(signers[0], 0)
-        // );
-        // uint96 registrantEigenWeightBefore = uint96(
-        //     dlReg.weightOfOperator(signers[0], 1)
-        // );
+
         uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
-            signers[0],
+            operator,
             0
         );
         uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
-            signers[0],
+            operator,
             1
         );
-        _testRegisterAsDelegate(signers[0], IDelegationTerms(signers[0]));
-        _testWethDeposit(acct_0, ethAmount);
-        _testDepositEigen(acct_0, eigenAmount);
-        _testDelegateToOperator(acct_0, signers[0]);
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        _testWethDeposit(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+        _testDelegateToOperator(staker, operator);
 
-        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
+        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
         uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(
-            signers[0],
+            operator,
             1
         );
         emit log_named_uint(
@@ -107,7 +105,7 @@ contract Delegator is EigenLayrDeployer {
             "Eigen weights did not increment by the right amount"
         );
         IInvestmentStrategy _strat = investmentManager.investorStrats(
-            acct_0,
+            staker,
             0
         );
         assertTrue(
@@ -115,7 +113,7 @@ contract Delegator is EigenLayrDeployer {
             "investorStrats not updated correctly"
         );
         assertTrue(
-            delegation.operatorShares(signers[0], _strat) > 0,
+            delegation.operatorShares(operator, _strat) > 0,
             "operatorShares not updated correctly"
         );
     }
@@ -152,6 +150,8 @@ contract Delegator is EigenLayrDeployer {
 
     //TODO: add tests for contestDelegationCommit()
     function testUndelegation(address operator) public {
+
+        cheats.assume(operator != address(0));
 
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         _testWethDeposit(acct_0, 1e18);
