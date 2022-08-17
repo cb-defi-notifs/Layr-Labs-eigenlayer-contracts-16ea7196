@@ -58,23 +58,21 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             "Challenge response period has already elapsed"
         );
 
-        (uint256[2] memory c, uint48 degree, uint32 numSys, ) = // uint32 numPar -- commented out return variable
-
-        challengeUtils
+        DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetaData = challengeUtils
             .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                 header
             );
 
-        uint256 r = uint256(keccak256(abi.encodePacked(c, cPower))) % MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(dskzgMetaData.c, cPower))) % MODULUS;
 
         require(
-            challengeUtils.openPolynomialAtPoint(c, pi, r, s),
+            challengeUtils.openPolynomialAtPoint(dskzgMetaData.c, pi, r, s),
             "Incorrect proof against commitment"
         );
 
         // TODO: make sure this is the correct power -- shouldn't it actually be (32 - this number) ? -- @Gautham
-        uint256 power = challengeUtils.nextPowerOf2(numSys) *
-            challengeUtils.nextPowerOf2(degree);
+        uint256 power = challengeUtils.nextPowerOf2(dskzgMetaData.numSys) *
+            challengeUtils.nextPowerOf2(dskzgMetaData.degree);
 
         uint256 rPower;
 

@@ -7,6 +7,20 @@ import "../../libraries/BN254_Constants.sol";
 
 contract DataLayrChallengeUtils {
 
+    struct MultiRevealProof {
+        uint256[4] multireveal;
+        uint256[4] zeroPoly;
+        bytes zeroPolyProof;
+        uint256[4] pi;
+    }
+
+    struct DataStoreKZGMetadata {
+        uint256[2] c;
+        uint48 degree;
+        uint32 numSys;
+        uint32 numPar;
+    }
+
     constructor() {}
 
     // makes sure that operatorPubkeyHash was *excluded* from set of non-signers
@@ -70,15 +84,12 @@ contract DataLayrChallengeUtils {
         public
         pure
         returns (
-            uint256[2] memory,
-            uint48,
-            uint32,
-            uint32
+            DataStoreKZGMetadata memory
         )
     {
         // return x, y coordinate of overall data poly commitment
         // then return degree of multireveal polynomial
-        uint256[2] memory point = [uint256(0), uint256(0)];
+        uint256[2] memory point ;
         uint48 degree = 0;
         uint32 numSys = 0;
         uint32 numPar = 0;
@@ -105,7 +116,7 @@ contract DataLayrChallengeUtils {
             numPar := shr(224, calldataload(add(pointer, 72)))
         }
 
-        return (point, degree, numSys, numPar);
+        return DataStoreKZGMetadata({c: point, degree: degree, numSys: numSys, numPar: numPar});
     }
 
     function getLeadingCosetIndexFromHighestRootOfUnity(
@@ -131,8 +142,6 @@ contract DataLayrChallengeUtils {
         } else {
             revert("Cannot create number of frame higher than possible");
         }
-        revert("Cannot create number of frame higher than possible");
-        return 0;
     }
 
     function reverseBitsLimited(uint32 length, uint32 value)
@@ -383,20 +392,13 @@ contract DataLayrChallengeUtils {
     }
 
     function validateDisclosureResponse(
-        uint256 chunkNumber,
-        bytes calldata header,
+        DataStoreKZGMetadata memory dskzgMetadata,
+        uint32 chunkNumber,
         uint256[4] calldata multireveal,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
-    ) public view returns(uint48) {
-        (
-            uint256[2] memory c,
-            uint48 degree,
-            uint32 numSys,
-            uint32 numPar
-        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                header
-            );
+    ) public view returns(bool) {
+        
 
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
@@ -417,12 +419,12 @@ contract DataLayrChallengeUtils {
                     ),
                     // index in the Merkle tree
                     getLeadingCosetIndexFromHighestRootOfUnity(
-                        uint32(chunkNumber),
-                        numSys,
-                        numPar
+                        chunkNumber,
+                        dskzgMetadata.numSys,
+                        dskzgMetadata.numPar
                     ),
                     // Merkle root hash
-                    getZeroPolyMerkleRoot(degree),
+                    getZeroPolyMerkleRoot(dskzgMetadata.degree),
                     // Merkle proof
                     zeroPolyProof
                 ),
@@ -442,7 +444,7 @@ contract DataLayrChallengeUtils {
         (pairingInput[2], pairingInput[3], pairingInput[4], pairingInput[5])
             = (zeroPoly[1], zeroPoly[0], zeroPoly[3], zeroPoly[2]);
         // extract the polynomial that was committed to by the disperser while initDataStore [C.x, C.y]
-        (pairingInput[6], pairingInput[7]) = (c[0], c[1]);
+        (pairingInput[6], pairingInput[7]) = (dskzgMetadata.c[0], dskzgMetadata.c[1]);
         // extract the commitment to the interpolating polynomial [I_k(s).x, I_k(s).y] and then negate it
         // to get [I_k(s).x, -I_k(s).y]
         pairingInput[8] = multireveal[2];
@@ -493,55 +495,81 @@ contract DataLayrChallengeUtils {
             }
         }
 
-        require(pairingInput[11] == 1, "Pairing unsuccessful");
-        return degree;
+        return pairingInput[11] == 1;
     }
 
     function nonInteractivePolynomialProof(
-        uint256 chunkNumber,
         bytes calldata header,
-        uint256[4] calldata multireveal,
+        uint32 chunkNumber,
         bytes calldata poly,
-        uint256[4] memory zeroPoly,
-        bytes calldata zeroPolyProof,
-        uint256[4] calldata pi
+        MultiRevealProof calldata multiRevealProof
     ) public view returns(bool) {
-
-        (
-            uint256[2] memory c,
-            ,
-            ,
-        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+        DataStoreKZGMetadata memory dskzgMetadata = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                 header
             );
 
         //verify pairing for the commitment to interpolating polynomial
-        uint48 degree = validateDisclosureResponse(
+        require(validateDisclosureResponse(
+            dskzgMetadata,
             chunkNumber, 
-            header, 
-            multireveal,
-            zeroPoly, 
-            zeroPolyProof
-        );
+            multiRevealProof.multireveal,
+            multiRevealProof.zeroPoly, 
+            multiRevealProof.zeroPolyProof
+        ), "Reveal failed due to non 1 pairing");
        
        // TODO: verify that this check is correct!
        // check that degree of polynomial in the header matches the length of the submitted polynomial
        // i.e. make sure submitted polynomial doesn't contain extra points
        require(
-           (degree + 1) * 32 == poly.length,
+           (dskzgMetadata.degree + 1) * 32 == poly.length,
            "Polynomial must have a 256 bit coefficient for each term"
        );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(keccak256(poly)) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
-        bool res = openPolynomialAtPoint(c, pi, r, s); 
+        bool ok = openPolynomialAtPoint(dskzgMetadata.c, multiRevealProof.pi, r, s); 
+        return ok;
+    }
 
-        if (res){
-            return true;
+    function batchNonInteractivePolynomialProofs(
+        bytes calldata header,
+        uint32 firstChunkNumber,
+        bytes[] calldata polys,
+        MultiRevealProof[] calldata multiRevealProofs
+    ) public view returns(bool) {
+        DataStoreKZGMetadata memory dskzgMetadata = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
+        uint256 numProofs = multiRevealProofs.length;
+        for(uint256 i = 0; i < numProofs;) {
+            //verify pairing for the commitment to interpolating polynomial
+            require(validateDisclosureResponse(
+                dskzgMetadata,
+                firstChunkNumber + uint32(i), 
+                multiRevealProofs[i].multireveal,
+                multiRevealProofs[i].zeroPoly, 
+                multiRevealProofs[i].zeroPolyProof
+            ), "Reveal failed due to non 1 pairing");
+        
+            // TODO: verify that this check is correct!
+            // check that degree of polynomial in the header matches the length of the submitted polynomial
+            // i.e. make sure submitted polynomial doesn't contain extra points
+            require(
+                (dskzgMetadata.degree + 1) * 32 == polys[i].length,
+                "Polynomial must have a 256 bit coefficient for each term"
+            );
+
+            //Calculating r, the point at which to evaluate the interpolating polynomial
+            uint256 r = uint256(keccak256(polys[i])) % MODULUS;
+            uint256 s = linearPolynomialEvaluation(polys[i], r);
+            bool ok = openPolynomialAtPoint(dskzgMetadata.c, multiRevealProofs[i].pi, r, s); 
+            if (!ok) return false;
+            unchecked {
+                ++i;
+            }
         }
-        return false;
-
+        return true;
     }
 
     //evaluates the given polynomial "poly" at value "r" and returns the result
