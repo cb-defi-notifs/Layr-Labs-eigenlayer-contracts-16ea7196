@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
@@ -23,6 +24,7 @@ import "forge-std/Test.sol";
 contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
+    ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     DSTest
 {
@@ -105,7 +107,12 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
-    ) external onlyNotFrozen(msg.sender) returns (uint256 shares) {
+    )
+        external 
+        onlyNotFrozen(msg.sender)
+        nonReentrant
+        returns (uint256 shares) 
+    {
         shares = _depositIntoStrategy(depositor, strategy, token, amount);
     }
 
@@ -126,7 +133,12 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external onlyNotFrozen(msg.sender) onlyNotDelegated(msg.sender) {
+    ) 
+        external
+        onlyNotFrozen(msg.sender)
+        onlyNotDelegated(msg.sender)
+        nonReentrant
+    {
         _withdrawFromStrategy(
             msg.sender,
             strategyIndex,
@@ -156,7 +168,11 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce memory withdrawerAndNonce
-    ) external onlyNotFrozen(msg.sender) {
+    )
+        external
+        onlyNotFrozen(msg.sender)
+        nonReentrant
+    {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "provided nonce incorrect"
@@ -229,7 +245,11 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         uint96 queuedWithdrawalNonce
-    ) external onlyNotFrozen(depositor) {
+    )
+        external
+        onlyNotFrozen(depositor)
+        nonReentrant
+    {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,
