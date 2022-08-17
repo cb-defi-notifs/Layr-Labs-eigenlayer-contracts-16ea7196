@@ -388,7 +388,7 @@ contract DataLayrChallengeUtils {
         uint256[4] calldata multireveal,
         uint256[4] memory zeroPoly,
         bytes calldata zeroPolyProof
-    ) public view returns(uint48) {
+    ) public view returns(uint256[2] memory, uint48) {
         (
             uint256[2] memory c,
             uint48 degree,
@@ -494,7 +494,7 @@ contract DataLayrChallengeUtils {
         }
 
         require(pairingInput[11] == 1, "Pairing unsuccessful");
-        return degree;
+        return (c, degree);
     }
 
     function nonInteractivePolynomialProof(
@@ -506,17 +506,8 @@ contract DataLayrChallengeUtils {
         bytes calldata zeroPolyProof,
         uint256[4] calldata pi
     ) public view returns(bool) {
-
-        (
-            uint256[2] memory c,
-            ,
-            ,
-        ) = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-                header
-            );
-
         //verify pairing for the commitment to interpolating polynomial
-        uint48 degree = validateDisclosureResponse(
+        (uint256[2] memory c,uint48 degree) = validateDisclosureResponse(
             chunkNumber, 
             header, 
             multireveal,
