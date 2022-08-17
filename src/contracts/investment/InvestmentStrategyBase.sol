@@ -40,7 +40,6 @@ contract InvestmentStrategyBase is
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
      *       `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
      * @return newShares is the number of new shares issued at the current exchange ratio.
-     *      For this simple strategy, the exchange ratio is fixed at (1 underlying token) / (1 share).
      */
     function deposit(IERC20 token, uint256 amount)
         external virtual override
@@ -48,7 +47,7 @@ contract InvestmentStrategyBase is
         returns (uint256 newShares)
     {
         require(token == underlyingToken, "InvestmentStrategyBase.deposit: Can only deposit underlyingToken");
-        newShares = amount;
+        newShares = underlyingToShares(amount);
         totalShares += newShares;
         return newShares;
     }
@@ -67,16 +66,19 @@ contract InvestmentStrategyBase is
     ) external virtual override onlyInvestmentManager {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
         totalShares -= shareAmount;
-        underlyingToken.transfer(depositor, shareAmount);
+        underlyingToken.transfer(depositor, sharesToUnderlying(shareAmount));
     }
 
+    /** 
+     * @notice Currently returns a brief string explaining the strategy's goal & purpose, but for more complex
+     *          strategies, may be a link to metadata that explains in more detail.
+     */
     function explanation() external pure virtual override returns (string memory) {
         return "Base InvestmentStrategy implementation to inherit from";
     }
 
     /**
      * @notice Used to convert a number of shares to the equivalent amount of underlying tokens for this strategy.
-     *          For this simple strategy in particular, the exchange rate is fixed at (1 underlying token) / (1 share).
      * @notice In contrast to `sharesToUnderlying`, this function guarantees no state modifications
      * @param amountShares is the amount of shares to calculate its conversion into the underlying token
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
@@ -95,7 +97,6 @@ contract InvestmentStrategyBase is
 
     /**
      * @notice Used to convert a number of shares to the equivalent amount of underlying tokens for this strategy.
-     *          For this simple strategy in particular, the exchange rate is fixed at (1 underlying token) / (1 share).
      * @notice In contrast to `sharesToUnderlyingView`, this function **may** make state modifications
      * @param amountShares is the amount of shares to calculate its conversion into the underlying token
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
@@ -110,7 +111,6 @@ contract InvestmentStrategyBase is
 
     /**
      * @notice Used to convert an amount of underlying tokens to the equivalent amount of shares in this strategy.
-     *          For this simple strategy in particular, the exchange rate is fixed at (1 underlying token) / (1 share).
      * @notice In contrast to `underlyingToShares`, this function guarantees no state modifications
      * @param amountUnderlying is the amount of `underlyingToken` to calculate its conversion into strategy shares
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
@@ -130,7 +130,6 @@ contract InvestmentStrategyBase is
 
     /**
      * @notice Used to convert an amount of underlying tokens to the equivalent amount of shares in this strategy.
-     *          For this simple strategy in particular, the exchange rate is fixed at (1 underlying token) / (1 share).
      * @notice In contrast to `underlyingToSharesView`, this function **may** make state modifications
      * @param amountUnderlying is the amount of `underlyingToken` to calculate its conversion into strategy shares
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
@@ -155,7 +154,7 @@ contract InvestmentStrategyBase is
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
      *         this strategy. In contrast to `userUnderlyingView`, this function **may** make state modifications
      */
-    function userUnderlying(address user) public view virtual returns (uint256) {
+    function userUnderlying(address user) public virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
     }
 
