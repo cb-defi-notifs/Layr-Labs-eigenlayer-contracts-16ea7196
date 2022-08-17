@@ -332,7 +332,7 @@ contract EigenLayrDelegation is
             "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
         );
         if(isNotDelegated(staker)){
-            emit log_named_address("STAKssER", staker);
+            emit log_named_address("STAKER", staker);
         }
         require(
             isNotDelegated(staker),

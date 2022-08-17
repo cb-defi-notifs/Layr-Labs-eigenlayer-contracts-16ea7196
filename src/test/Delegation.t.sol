@@ -77,9 +77,13 @@ contract Delegator is EigenLayrDeployer {
             operator,
             1
         );
+
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
+         if(delegation.isNotDelegated(staker)){
+            emit log("staker is still not delegate");
+        }
         _testDelegateToOperator(staker, operator);
 
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
@@ -149,14 +153,15 @@ contract Delegator is EigenLayrDeployer {
     }
 
     //TODO: add tests for contestDelegationCommit()
-    function testUndelegation(address operator) public {
+    function testUndelegation(address operator, address staker) public {
 
         cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
 
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
-        _testWethDeposit(acct_0, 1e18);
-        _testDepositEigen(acct_0, 1e18);
-        _testDelegateToOperator(acct_0, operator);
+        _testWethDeposit(staker, 1e18);
+        _testDepositEigen(staker, 1e18);
+        _testDelegateToOperator(staker, operator);
 
         //delegator-specific information
         (
@@ -166,17 +171,17 @@ contract Delegator is EigenLayrDeployer {
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             initialOperatorShares[delegatorStrategies[k]] = delegation
-                .operatorShares(registrant, delegatorStrategies[k]);
+                .operatorShares(operator, delegatorStrategies[k]);
         }
 
-        _testUndelegation(acct_0);
+        _testUndelegation(staker);
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             uint256 operatorSharesBefore = initialOperatorShares[
                 delegatorStrategies[k]
             ];
             uint256 operatorSharesAfter = delegation.operatorShares(
-                registrant,
+                operator,
                 delegatorStrategies[k]
             );
             assertTrue(
