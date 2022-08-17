@@ -5,6 +5,11 @@ import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
+/**
+ * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals
+ * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inerhited by
+ * more complex investment strategies, which can then override its functions as necessary.
+*/
 contract InvestmentStrategyBase is
     Initializable,
     IInvestmentStrategy

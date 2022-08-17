@@ -4,7 +4,11 @@ pragma solidity ^0.8.9;
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-// TODO: should this function have any special initialization, or is it good enough to just inherit that of InvestmentStrategyBase?
+/**
+ * This contract may be used in a case where the underlying asset is actually non-transferrable/immaterial.
+*/
+
+// TODO: should this contract have any special initialization, or is it good enough to just inherit that of InvestmentStrategyBase?
 contract HollowInvestmentStrategy is
     InvestmentStrategyBase
 {

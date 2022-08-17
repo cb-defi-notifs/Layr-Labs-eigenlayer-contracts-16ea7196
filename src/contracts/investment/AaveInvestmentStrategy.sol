@@ -22,11 +22,14 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
 
 
     /**
-     * @notice Used for depositing assets into Aave
-     */
-    /**
-     * @return newShares is the number of shares issued at the current price for each share
-     *         in terms of aToken. 
+     * @notice Used to deposit tokens into this InvestmentStrategy
+     * @param token is the ERC20 token being deposited
+     * @param amount is the amount of token being deposited
+     * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
+     *       `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
+     * @return newShares is the number of new shares issued at the current exchange ratio.
+     *      For this strategy, the exchange ratio is fixed at (1 underlying token) / (1 share) due to the nature of AAVE's ATokens.
+     * @notice This strategy accepts deposits either in the form of `underlyingToken` OR `aToken`
      */
     function deposit(
         IERC20 token,
@@ -76,13 +79,12 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
 
 
     /**
-     * @notice Used for withdrawing assets from Aave in the specified token
-     */
-    /**
-     * @param depositor is the withdrawer's address
-     * @param token is the token in which deposter intends to get back its assets
-     * @param shareAmount is the amount of share that the depositor wants to exchange for 
-     *        withdrawing its assets
+     * @notice Used to withdraw tokens from this InvestmentStrategy, to the `depositor`'s address
+     * @param token is the ERC20 token being transferred out
+     * @param shareAmount is the amount of shares being withdrawn
+     * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
+     *      other functions, and individual share balances are recorded in the investmentManager as well
+     * @notice This strategy distributes withdrawals either in the form of `underlyingToken` OR `aToken`
      */
     function withdraw(
         address depositor,
@@ -105,7 +107,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         } else if (token == aToken) {
             aToken.transfer(depositor, toWithdraw);
         } else {
-            revert("can only withdraw as underlyingToken or aToken");
+            revert("AaveInvestmentStrategy.withdraw: can only withdraw as underlyingToken or aToken");
         }
 
         // update the total shares for this investment strategy
@@ -117,6 +119,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
+    // internal function used to fetch this contract's current balance of `aToken`
     function _tokenBalance() internal view override returns(uint256) {
         return aToken.balanceOf(address(this));
     }
