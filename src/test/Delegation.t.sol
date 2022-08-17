@@ -78,12 +78,13 @@ contract Delegator is EigenLayrDeployer {
             1
         );
 
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        if(!delegation.isDelegate(operator)){
+            _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        }
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
-         if(delegation.isNotDelegated(staker)){
-            emit log("staker is still not delegate");
-        }
+        emit log("staker is still not delegate");
+
         _testDelegateToOperator(staker, operator);
 
         uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
@@ -173,8 +174,12 @@ contract Delegator is EigenLayrDeployer {
             initialOperatorShares[delegatorStrategies[k]] = delegation
                 .operatorShares(operator, delegatorStrategies[k]);
         }
+        if(delegation.isDelegated(staker)){
+            emit log("staker is delegated");
+        }
 
         _testUndelegation(staker);
+
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             uint256 operatorSharesBefore = initialOperatorShares[
@@ -278,8 +283,8 @@ contract Delegator is EigenLayrDeployer {
 
     function testRedelegateAfterUndelegation()public{
         //this function performs delegation and undelegation
-        //testUndelegation();
-        //testDelegation();
+        testUndelegation(signers[0], acct_0);
+        testDelegation(signers[0], acct_0);
     }
 
 

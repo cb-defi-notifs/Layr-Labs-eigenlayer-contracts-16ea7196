@@ -172,8 +172,17 @@ contract EigenLayrDelegation is
         undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval;
 
         
+        if(isNotDelegated(msg.sender)){
+            emit log("staker is still delegated as it should be");
+        }
+        emit log("HWAT IS HAPPENING");
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
+
+        if(isNotDelegated(msg.sender)){
+            emit log("staker is NOT delegated as it should be");
+        }
+        
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
@@ -331,9 +340,7 @@ contract EigenLayrDelegation is
             address(dt) != address(0),
             "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
         );
-        if(isNotDelegated(staker)){
-            emit log_named_address("STAKER", staker);
-        }
+
         require(
             isNotDelegated(staker),
             "EigenLayrDelegation._delegate: staker has existing delegation"
@@ -387,5 +394,15 @@ contract EigenLayrDelegation is
         returns (bool)
     {
         return (delegated[staker] == DelegationStatus.DELEGATED);
+    }
+
+    //returns if an operator can be delegated to, i.e. it has a delegation terms
+    function isDelegate(address operator)
+        public
+        
+        returns(bool)
+    {
+        emit log_named_address("Delegation terms addres", address(delegationTerms[operator]));
+        return(address(delegationTerms[operator]) != address(0));
     }
 }

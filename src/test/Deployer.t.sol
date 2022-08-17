@@ -579,6 +579,8 @@ contract EigenLayrDeployer is
         eigenToken.transfer(sender, toDeposit);
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);
+
+        uint256 eigenBalanceBefore = investmentManager.investorStratShares(sender, eigenStrat);
         investmentManager.depositIntoStrategy(
             sender,
             eigenStrat,
@@ -587,7 +589,7 @@ contract EigenLayrDeployer is
         );
         assertEq(
             investmentManager.investorStratShares(sender, eigenStrat),
-            toDeposit,
+            toDeposit + eigenBalanceBefore,
             "_testDepositEigen: deposit not properly credited"
         );
         cheats.stopPrank();
@@ -781,13 +783,16 @@ contract EigenLayrDeployer is
     function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
         internal
     {
+        
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
+
         assertTrue(
             delegation.delegationTerms(sender) == dt,
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
         );
         cheats.stopPrank();
+
     }
     
     // tries to delegate from 'sender' to 'operator'
@@ -907,6 +912,11 @@ contract EigenLayrDeployer is
 
         delegation.initUndelegation();
         delegation.commitUndelegation();
+
+
+        if(delegation.isDelegated(sender)){
+            emit log("staker is still delegated");
+        }
         cheats.stopPrank();
     }
 
