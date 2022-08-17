@@ -52,11 +52,11 @@ contract InvestmentStrategyBase is
          * @notice calculation of newShares *mirrors* `underlyingToShares(amount)`, but is different since the balance of `underlyingToken`
          *          has already been increased due to the `investmentManager transferring tokens to this strategy prior to calling this function
         */
-        uint256 tokenBalance = _tokenBalance() - amount;
-        if (tokenBalance == 0 || totalShares == 0) {
+        uint256 priorTokenBalance = _tokenBalance() - amount;
+        if (priorTokenBalance == 0 || totalShares == 0) {
             newShares = amount;
         } else {
-            newShares = (amount * totalShares) / tokenBalance;            
+            newShares = (amount * totalShares) / priorTokenBalance;            
         }
         totalShares += newShares;
         return newShares;
@@ -76,7 +76,7 @@ contract InvestmentStrategyBase is
     ) external virtual override onlyInvestmentManager {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
         // copy `totalShares` value prior to decrease
-        uint256 _totalShares = totalShares;
+        uint256 priorTotalShares = totalShares;
         // decrease `totalShares` to reflect withdrawal
         totalShares -= shareAmount;
         /**
@@ -84,12 +84,12 @@ contract InvestmentStrategyBase is
          *          been decremented
         */
         uint256 amountToSend;
-        if (_totalShares == 0) {
-            amountToSend = shareAmount;
+        if (priorTotalShares == shareAmount) {
+            amountToSend = _tokenBalance();
         } else {
-            amountToSend = (_tokenBalance() * shareAmount) / _totalShares;            
+            amountToSend = (_tokenBalance() * shareAmount) / priorTotalShares;            
         }
-        underlyingToken.transfer(depositor, sharesToUnderlying(shareAmount));
+        underlyingToken.transfer(depositor, amountToSend);
     }
 
     /** 
