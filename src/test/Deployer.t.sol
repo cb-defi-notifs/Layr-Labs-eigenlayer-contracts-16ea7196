@@ -904,6 +904,7 @@ contract EigenLayrDeployer is
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
         cheats.warp(block.timestamp + 365 days);
+        emit log_named_address("sender", sender);
         delegation.initUndelegation();
         delegation.commitUndelegation();
         cheats.stopPrank();

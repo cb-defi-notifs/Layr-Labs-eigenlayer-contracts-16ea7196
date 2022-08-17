@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
 
+import "forge-std/Test.sol";
+
 // TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
@@ -23,7 +25,8 @@ import "../investment/Slasher.sol";
 contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
-    EigenLayrDelegationStorage
+    EigenLayrDelegationStorage,
+    DSTest
 {
     modifier onlyInvestmentManager() {
         require(
@@ -168,6 +171,7 @@ contract EigenLayrDelegation is
         // set time of undelegation finalization which is the end of the corresponding challenge period
         undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval;
 
+        
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
     }
@@ -325,8 +329,11 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
         );
+        if(isNotDelegated(staker)){
+            emit log_named_address("STAKssER", staker);
+        }
         require(
             isNotDelegated(staker),
             "EigenLayrDelegation._delegate: staker has existing delegation"

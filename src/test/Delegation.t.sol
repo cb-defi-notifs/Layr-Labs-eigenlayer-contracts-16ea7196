@@ -151,12 +151,12 @@ contract Delegator is EigenLayrDeployer {
     }
 
     //TODO: add tests for contestDelegationCommit()
-    function testUndelegation() public {
-        //delegate
-        _testRegisterAsDelegate(registrant, IDelegationTerms(registrant));
+    function testUndelegation(address operator) public {
+
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         _testWethDeposit(acct_0, 1e18);
         _testDepositEigen(acct_0, 1e18);
-        _testDelegateToOperator(acct_0, registrant);
+        _testDelegateToOperator(acct_0, operator);
 
         //delegator-specific information
         (
@@ -236,7 +236,6 @@ contract Delegator is EigenLayrDeployer {
             )
         );
 
-
         address operator = signers[0];
         _testInitiateDelegation(operator, 1e18);
         _payRewards(operator);
@@ -259,6 +258,28 @@ contract Delegator is EigenLayrDeployer {
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
     }
+
+    //@TODO: Fix this test. for some reason, the expectRevert is failing despite the revert message being correct.
+    function testDelegationToUnregisteredDelegate(address delegate) public{
+
+        //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
+        _testDepositStrategies(signers[1], 1e18, 1);
+        _testDepositEigen(signers[1], 1e18);
+
+        cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
+        _testDelegateToOperator(signers[1], delegate);
+    }
+
+
+    function testRedelegateAfterUndelegation()public{
+        //this function performs delegation and undelegation
+        //testUndelegation();
+        //testDelegation();
+    }
+
+
+
+
 
 
     //*******INTERNAL FUNCTIONS*********//
