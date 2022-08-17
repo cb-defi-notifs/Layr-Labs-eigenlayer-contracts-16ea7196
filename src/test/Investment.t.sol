@@ -144,7 +144,7 @@ contract InvestmentTests is
         
         token.approve(address(investmentManager), type(uint256).max);
         
-        cheats.expectRevert(bytes("Can only deposit underlyingToken"));
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
         investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
     }
 
