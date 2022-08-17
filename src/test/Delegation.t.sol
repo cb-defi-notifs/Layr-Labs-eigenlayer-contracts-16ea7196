@@ -128,25 +128,31 @@ contract Delegator is EigenLayrDeployer {
     }
 
     // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
-    function testDelegationMultipleStrategies(uint16 numStratsToAdd) public {
+    function testDelegationMultipleStrategies(
+            uint16 numStratsToAdd, 
+            address operator,
+            address staker
+     ) public {
+
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+        cheats.assume(staker != operator);
+
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
-            signers[0],
+            operator,
             0
         );
         uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
-            signers[0],
+            operator,
             1
         );
-        _testRegisterAsDelegate(signers[0], IDelegationTerms(signers[0]));
-        _testDepositStrategies(signers[1], 1e18, numStratsToAdd);
-        _testDepositEigen(signers[1], 1e18);
-        _testDelegateToOperator(signers[1], signers[0]);
-        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(signers[0], 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(
-            signers[0],
-            1
-        );
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        _testDepositStrategies(staker, 1e18, numStratsToAdd);
+        _testDepositEigen(staker, 1e18);
+        _testDelegateToOperator(staker, operator);
+        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
+        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(operator,1);
         assertTrue(
             registrantEthWeightAfter > registrantEthWeightBefore,
             "testDelegation: registrantEthWeight did not increase!"
