@@ -62,8 +62,8 @@ library BN254 {
 
     // solium-disable-next-line security/no-inline-assembly
     assembly {
-      success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)
-    // Use "invalid" to make gas estimation work
+      success := staticcall(sub(gas(), 2000), 6, input, 0x80, r, 0x40)
+      // Use "invalid" to make gas estimation work
       switch success case 0 { invalid() }
     }
 
@@ -83,7 +83,7 @@ library BN254 {
     bool success;
     // solium-disable-next-line security/no-inline-assembly
     assembly {
-      success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)
+      success := staticcall(sub(gas(), 2000), 7, input, 0x60, r, 0x40)
     // Use "invalid" to make gas estimation work
       switch success case 0 { invalid() }
     }
