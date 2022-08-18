@@ -14,7 +14,7 @@ contract InvestmentStrategyBase is
     uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
-        require(msg.sender == investmentManager, "only the InvestmentManager can call this function");
+        require(msg.sender == address(investmentManager), "InvestmentStrategyBase.onlyInvestmentManager");
         _;
     }
 

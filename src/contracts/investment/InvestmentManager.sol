@@ -491,7 +491,7 @@ contract InvestmentManager is
         // if no existing shares, remove is from this investors strats
 
 
-        if (investorStratShares[depositor][strategy] == 0) {
+        if (userShares == 0) {
             // if the strategy matches with the strategy index provided
             if (investorStrats[depositor][strategyIndex] == strategy) {
 
