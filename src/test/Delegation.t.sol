@@ -48,15 +48,20 @@ contract Delegator is EigenLayrDeployer {
         delegates = [acct_0, acct_1];
     }
 
+
+    /// @notice testing if an operator can register to themselves.
+    function testSelfOperatorRegister() public {
+        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
+    }
+
+    /// @notice testing if an operator can delegate to themselves.
+    /// @param sender is the address of the operator.
     function testSelfOperatorDelegate(address sender) public {
         cheats.assume(sender != address(0));
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
-    function testSelfOperatorRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
-    }
-
+    
     function testTwoSelfOperatorsRegister() public {
         _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
         _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
