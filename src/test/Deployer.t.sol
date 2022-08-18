@@ -144,7 +144,7 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        strat = new InvestmentStrategyBase();
+        strat = new InvestmentStrategyBase(investmentManager);
         strat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
@@ -155,7 +155,7 @@ contract EigenLayrDeployer is
             )
         );
         // initialize InvestmentStrategyBase proxy
-        strat.initialize(address(investmentManager), weth);
+        strat.initialize(weth);
 
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
@@ -164,7 +164,7 @@ contract EigenLayrDeployer is
             address(this)
         );
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        eigenStrat = new InvestmentStrategyBase();
+        eigenStrat = new InvestmentStrategyBase(investmentManager);
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
@@ -176,16 +176,14 @@ contract EigenLayrDeployer is
         );
        
         // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(address(investmentManager), eigenToken);
+        eigenStrat.initialize(eigenToken);
 
         // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
-        HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
+        HollowInvestmentStrategy temp = new HollowInvestmentStrategy(investmentManager);
         strats[0] = temp;
         strategies[0] = temp;
-        temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
+        temp = new HollowInvestmentStrategy(investmentManager);
         strats[1] = temp;
         strategies[1] = temp;
         // add WETH strategy to mapping
@@ -213,9 +211,8 @@ contract EigenLayrDeployer is
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new InvestmentStrategyBase();
+        liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
         liquidStakingMockStrat.initialize(
-            address(investmentManager),
             IERC20(address(liquidStakingMockToken))
         );
 
@@ -829,10 +826,10 @@ contract EigenLayrDeployer is
 
     // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token
     function _testAddStrategy() internal returns (IInvestmentStrategy) {
-        InvestmentStrategyBase strategy = new InvestmentStrategyBase();
+        InvestmentStrategyBase strategy = new InvestmentStrategyBase(investmentManager);
         // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
         // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strategy.initialize(address(investmentManager), weth);
+        strategy.initialize(weth);
         return strategy;
     }
 
