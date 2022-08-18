@@ -8,9 +8,6 @@ import "../contracts/investment/InvestmentManagerStorage.sol";
 contract InvestmentStrategyTests is
     EigenLayrDeployer 
 {
-
-
-
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public {
@@ -19,7 +16,6 @@ contract InvestmentStrategyTests is
             bytes("Initializable: contract is already initialized")
         );
         strat.initialize(
-            address(investmentManager), 
             weth
         );
     }
@@ -61,7 +57,7 @@ contract InvestmentStrategyTests is
         cheats.assume(depositor != address(0));
         cheats.startPrank(address(investmentManager));
 
-        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: withdrawal amount must be greater than total shares"));
+        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares"));
         strat.withdraw(depositor, underlyingToken, 1e18);
 
         cheats.stopPrank();

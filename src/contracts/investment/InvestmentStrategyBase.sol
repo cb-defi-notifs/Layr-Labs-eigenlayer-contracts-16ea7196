@@ -76,6 +76,7 @@ contract InvestmentStrategyBase is
         uint256 shareAmount
     ) external virtual override onlyInvestmentManager {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
+        require(shareAmount <= totalShares, "InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares");
         // copy `totalShares` value prior to decrease
         uint256 priorTotalShares = totalShares;
         // decrease `totalShares` to reflect withdrawal
