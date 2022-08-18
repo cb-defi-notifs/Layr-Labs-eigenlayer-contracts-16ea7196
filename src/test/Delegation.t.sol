@@ -308,9 +308,13 @@ contract Delegator is EigenLayrDeployer {
     function testRedelegateAfterUndelegation()public{
         //this function performs delegation and undelegation
         testUndelegation(signers[0], acct_0);
-        cheats.warp(block.timestamp + 8 days);
+
+        //warps past 
+        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
         testDelegation(signers[0], acct_0);
     }
+
+
 
 
 
