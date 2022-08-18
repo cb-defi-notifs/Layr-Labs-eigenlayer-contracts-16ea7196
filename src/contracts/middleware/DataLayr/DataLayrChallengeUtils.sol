@@ -346,7 +346,8 @@ contract DataLayrChallengeUtils {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), multiRevealProof.interpolationPoly.X, multiRevealProof.interpolationPoly.Y))) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
-        return openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s); 
+        bool ok = openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s); 
+        return ok;
     }
 
     //this function allows senders to reveal many chunks starting from `firstChunkNumber` in series on the polynomial
@@ -360,7 +361,7 @@ contract DataLayrChallengeUtils {
         BN254.G2Point calldata polyEquivalenceProof
     ) public view returns(bool) {
         //randomness from each polynomial
-        uint256[] memory rs = new uint256[](polys.length);
+        bytes32[] memory rs = new bytes32[](polys.length);
         DataStoreKZGMetadata memory dskzgMetadata = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                 header
             );
@@ -385,15 +386,7 @@ contract DataLayrChallengeUtils {
             );
 
             //Calculating r, the point at which to evaluate the interpolating polynomial
-            rs[i] = uint256(
-                        keccak256(
-                            abi.encodePacked(
-                                keccak256(polys[i]), 
-                                multiRevealProofs[i].interpolationPoly.X, 
-                                multiRevealProofs[i].interpolationPoly.Y
-                            )
-                        )
-                    ) % MODULUS;
+            rs[i] = keccak256(abi.encodePacked(keccak256(polys[i]), multiRevealProofs[i].interpolationPoly.X, multiRevealProofs[i].interpolationPoly.Y));
             unchecked {
                 ++i;
             }
