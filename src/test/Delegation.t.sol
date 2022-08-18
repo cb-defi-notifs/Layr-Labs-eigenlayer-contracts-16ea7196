@@ -288,16 +288,18 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
     }
 
-    //@TODO: Fix this test. for some reason, the expectRevert is failing despite the revert message being correct.
-    // function testDelegationToUnregisteredDelegate(address delegate) public{
+    function testDelegationToUnregisteredDelegate(address delegate) public{
 
-    //     //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
-    //     _testDepositStrategies(signers[1], 1e18, 1);
-    //     _testDepositEigen(signers[1], 1e18);
+        //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
+        _testDepositStrategies(signers[1], 1e18, 1);
+        _testDepositEigen(signers[1], 1e18);
 
-    //     cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
-    //     _testDelegateToOperator(signers[1], delegate);
-    // }
+        cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
+
+        cheats.startPrank(signers[1]);
+        delegation.delegateTo(delegate);
+        cheats.stopPrank();
+    }
 
 
     /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
