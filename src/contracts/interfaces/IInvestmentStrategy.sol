@@ -19,6 +19,7 @@ interface IInvestmentStrategy {
 
     function sharesToUnderlying(uint256 numShares) external returns(uint256);
     function sharesToUnderlyingView(uint256 numShares) external view returns(uint256);
+    function underlyingToken() external view returns(IERC20);
 
     event Deposit(address indexed from);
     event Withdraw(address indexed to);

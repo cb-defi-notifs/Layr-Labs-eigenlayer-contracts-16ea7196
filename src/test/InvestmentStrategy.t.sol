@@ -28,11 +28,12 @@ contract InvestmentStrategyTests is
     ///         can deposit into a strategy
     ///@param invalidDepositor is the non-registered depositor
     function testInvalidCalltoDeposit(address invalidDepositor) public {
+        IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidDepositor != address(0));
         cheats.startPrank(invalidDepositor);
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
-        strat.deposit(weth, 1e18);
+        strat.deposit(underlyingToken, 1e18);
 
         cheats.stopPrank();
     }
@@ -42,11 +43,12 @@ contract InvestmentStrategyTests is
     ///@param invalidWithdrawer is the non-registered withdrawer
     ///@param depositor is the depositor for which the shares are being withdrawn
     function testInvalidCalltoWithdraw(address depositor, address invalidWithdrawer) public {
+        IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidWithdrawer != address(0));
         cheats.startPrank(invalidWithdrawer);
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
-        strat.withdraw(depositor, weth, 1e18);
+        strat.withdraw(depositor, underlyingToken, 1e18);
 
         cheats.stopPrank();
     }
@@ -55,13 +57,25 @@ contract InvestmentStrategyTests is
     ///         actually deposited fails.
     ///@param depositor is the depositor for which the shares are being withdrawn
     function testInvalidWithdrawal(address depositor) public {
+        IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(depositor != address(0));
         cheats.startPrank(address(investmentManager));
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: withdrawal amount must be greater than total shares"));
-        strat.withdraw(depositor, weth, 1e18);
+        strat.withdraw(depositor, underlyingToken, 1e18);
 
         cheats.stopPrank();
+    }
+
+    ///@notice This function verifies that the sharesToUnderlying functions 
+    ///        adjust their output correctly when additional tokens are sent to 
+    ///        the strategy.
+
+    function testSharesToUnderlying(uint256 amountToDeposit) public{
+        IERC20 underlyingToken = strat.underlyingToken();
+
+        strat.deposit(underlyingToken, amountToDeposit);
+
     }
 
 
