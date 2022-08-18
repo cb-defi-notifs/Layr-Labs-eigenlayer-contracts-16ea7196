@@ -61,7 +61,10 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
     }
 
-    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    /// @notice registers a fixed address as a delegate, delegates to it from a second address, 
+    ///         and checks that the delegate's voteWeights increase properly
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
     function testDelegation(address operator, address staker) public {
 
         cheats.assume(operator != address(0));
@@ -127,7 +130,11 @@ contract Delegator is EigenLayrDeployer {
         );
     }
 
-    // registers a fixed address as a delegate, delegates to it from a second address, and checks that the delegate's voteWeights increase properly
+    
+    /// @notice registers a fixed address as a delegate, delegates to it from a second address, 
+    ///         and checks that the delegate's voteWeights increase properly
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
     function testDelegationMultipleStrategies(
             uint16 numStratsToAdd, 
             address operator,
@@ -163,7 +170,9 @@ contract Delegator is EigenLayrDeployer {
         );
     }
 
-    //TODO: add tests for contestDelegationCommit()
+    /// @notice test staker's ability ot undelegate from an operator.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
     function testUndelegation(address operator, address staker) public {
 
         cheats.assume(operator != address(0));
@@ -219,7 +228,13 @@ contract Delegator is EigenLayrDeployer {
         }
         
     }
-    function testSlashedOperatorUndelegation(address operator) public {
+    /// @notice test 
+    /// @param operator is the operator being delegated to.
+    function testSlashedOperatorUndelegation(address operator, address staker) public {
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+        cheats.assume(staker != operator);
+        testDelegation(operator, staker);
 
         address slashingContract = slasher.owner();
 
@@ -233,6 +248,54 @@ contract Delegator is EigenLayrDeployer {
         cheats.stopPrank();
 
         
+    }
+
+    function testCannotInitMultipleTimesDelegation() public {
+        //delegation has already been initialized in the Deployer test contract
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
+        delegation.initialize(
+            investmentManager,
+            undelegationFraudProofInterval
+        );
+    }
+
+
+    /// @notice This function tests to ensure that a delegator can't register multiple (2) times
+    function testRegisterAsDelegateMultipleTimes(address s) public {
+        address sender = signers[0];
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
+    }
+
+    //@TODO: Fix this test. for some reason, the expectRevert is failing despite the revert message being correct.
+    // function testDelegationToUnregisteredDelegate(address delegate) public{
+
+    //     //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
+    //     _testDepositStrategies(signers[1], 1e18, 1);
+    //     _testDepositEigen(signers[1], 1e18);
+
+    //     cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
+    //     _testDelegateToOperator(signers[1], delegate);
+    // }
+
+
+    /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
+    function testRedelegateAfterUndelegation(address operator, address staker)public{
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+        cheats.assume(staker != operator);
+
+        //this function performs delegation and undelegation
+        testUndelegation(operator, staker);
+
+        //warps past fraudproof time interval
+        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
+        testDelegation(operator, staker);
     }
 
     function testRewardPayouts() public {
@@ -275,55 +338,7 @@ contract Delegator is EigenLayrDeployer {
         _payRewards(operator);
     }
 
-    function testCannotInitMultipleTimesDelegation() public {
-        //delegation has already been initialized in the Deployer test contract
-        cheats.expectRevert(
-            bytes("Initializable: contract is already initialized")
-        );
-        delegation.initialize(
-            investmentManager,
-            undelegationFraudProofInterval
-        );
-    }
-
-
-    /// @notice This function tests to ensure that a delegator can't register multiple (2) times
-    function testRegisterAsDelegateMultipleTimes(address s) public {
-        address sender = signers[0];
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
-        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
-    }
-
-    //@TODO: Fix this test. for some reason, the expectRevert is failing despite the revert message being correct.
-    // function testDelegationToUnregisteredDelegate(address delegate) public{
-
-    //     //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
-    //     _testDepositStrategies(signers[1], 1e18, 1);
-    //     _testDepositEigen(signers[1], 1e18);
-
-    //     cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
-    //     _testDelegateToOperator(signers[1], delegate);
-    // }
-
-    /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
-    /// @param operator is the operator being delegated to.
-    /// @param staker is the staker delegating stake to the operator.
-    function testRedelegateAfterUndelegation(address operator, address staker)public{
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(staker != operator);
-
-        //this function performs delegation and undelegation
-        testUndelegation(operator, staker);
-
-        //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
-        testDelegation(operator, staker);
-    }
-
-
-
+    
 
 
     //*******INTERNAL FUNCTIONS*********//
