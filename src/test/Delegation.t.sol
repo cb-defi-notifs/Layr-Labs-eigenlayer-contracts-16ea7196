@@ -478,6 +478,8 @@ contract Delegator is EigenLayrDeployer {
         }
         cheats.stopPrank();
 
+        uint8 duration = 2;
+
         // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
         // _testInitDataStore();
         bytes memory header = hex"0102030405060708091011121314151617181921";
@@ -490,8 +492,7 @@ contract Delegator is EigenLayrDeployer {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
-        //todo: duration
-        dlsm.initDataStore(storer, address(this), header, 2, totalBytes, blockNumber);
+        dlsm.initDataStore(storer, address(this), header, duration, totalBytes, blockNumber);
         cheats.stopPrank();
 
         cheats.startPrank(operator);
