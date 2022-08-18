@@ -258,7 +258,9 @@ contract Delegator is EigenLayrDeployer {
     }
 
     
-
+    /// @notice This function tests to ensure that a delegation contract
+    ///         cannot be intitialized multiple times
+    /// @param operator is the operator being delegated to.
     function testCannotInitMultipleTimesDelegation() public {
         //delegation has already been initialized in the Deployer test contract
         cheats.expectRevert(
