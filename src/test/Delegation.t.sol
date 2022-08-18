@@ -18,7 +18,6 @@ import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     using Math for uint;
-    uint shares;
     address[2] public delegates;
     uint256[] apks;
     uint256[] sigmas;
