@@ -129,8 +129,9 @@ contract Delegator is EigenLayrDeployer {
             address(_strat) != address(0),
             "investorStrats not updated correctly"
         );
+
         assertTrue(
-            delegation.operatorShares(operator, _strat) > 0,
+            delegation.operatorShares(operator, _strat) - ethAmount == 0,
             "operatorShares not updated correctly"
         );
     }
