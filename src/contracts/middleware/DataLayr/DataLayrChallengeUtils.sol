@@ -350,6 +350,9 @@ contract DataLayrChallengeUtils {
         return ok;
     }
 
+    //this function allows senders to reveal many chunks starting from `firstChunkNumber` in series on the polynomial
+    //the main benefit of using this function versus repeatedly calling nonInteractivePolynomialProof is there
+    //is an ecMul per poly and 1 pairing TOTAL as opposed to 1 pairing per poly. described in section 3.1 of https://eprint.iacr.org/2019/953.pdf
     function batchNonInteractivePolynomialProofs(
         bytes calldata header,
         uint32 firstChunkNumber,
