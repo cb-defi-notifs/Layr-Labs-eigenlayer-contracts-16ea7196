@@ -526,7 +526,7 @@ contract DataLayrChallengeUtils {
        );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint256(keccak256(poly)) % MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), dskzgMetadata.c))) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool ok = openPolynomialAtPoint(dskzgMetadata.c, multiRevealProof.pi, r, s); 
         return ok;
@@ -561,7 +561,7 @@ contract DataLayrChallengeUtils {
             );
 
             //Calculating r, the point at which to evaluate the interpolating polynomial
-            uint256 r = uint256(keccak256(polys[i])) % MODULUS;
+            uint256 r = uint256(keccak256(abi.encodePacked(keccak256(polys[i]), dskzgMetadata.c))) % MODULUS;
             uint256 s = linearPolynomialEvaluation(polys[i], r);
             bool ok = openPolynomialAtPoint(dskzgMetadata.c, multiRevealProofs[i].pi, r, s); 
             if (!ok) return false;
