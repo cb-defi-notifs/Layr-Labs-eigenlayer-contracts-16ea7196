@@ -48,8 +48,9 @@ contract Delegator is EigenLayrDeployer {
         delegates = [acct_0, acct_1];
     }
 
-    function testSelfOperatorDelegate() public {
-        _testSelfOperatorDelegate(signers[0]);
+    function testSelfOperatorDelegate(address sender) public {
+        cheats.assume(sender != address(0));
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
     function testSelfOperatorRegister() public {
@@ -260,7 +261,6 @@ contract Delegator is EigenLayrDeployer {
     
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
-    /// @param operator is the operator being delegated to.
     function testCannotInitMultipleTimesDelegation() public {
         //delegation has already been initialized in the Deployer test contract
         cheats.expectRevert(
@@ -422,28 +422,6 @@ contract Delegator is EigenLayrDeployer {
         //initiate challenge
         _testInitPaymentChallenge(operator, 5, 3);
 
-    }
-
-    // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
-    function challengerDisputesOperator(
-        address challenger,
-        address operator,
-        bool half,
-        uint120 amount1,
-        uint120 amount2
-    ) public {
-        cheats.startPrank(challenger);
-        if (dataLayrPaymentManager.getDiff(operator) == 1) {
-            cheats.stopPrank();
-            return;
-        }
-        dataLayrPaymentManager.challengePaymentHalf(
-            operator,
-            half,
-            amount1,
-            amount2
-        );
-        cheats.stopPrank();
     }
 
     //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
