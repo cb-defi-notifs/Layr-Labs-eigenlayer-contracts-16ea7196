@@ -8,6 +8,7 @@ import "../../libraries/BN254_Constants.sol";
 import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
+import "../../libraries/BN254.sol";
 
 contract DataLayrBombVerifier {
     struct DataStoresForDuration {
@@ -33,6 +34,7 @@ contract DataLayrBombVerifier {
         bytes header;
         bytes poly;
         DataLayrChallengeUtils.MultiRevealProof multiRevealProof;
+        BN254.G2Point polyEquivalenceProof;
     }
 
     // bomb will trigger every once every ~2^(256-249) = 2^7 = 128 chances
@@ -642,7 +644,6 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-
     ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(
             operator,
@@ -656,7 +657,8 @@ contract DataLayrBombVerifier {
             disclosureProof.header,
             chunkNumber,
             disclosureProof.poly,
-            disclosureProof.multiRevealProof
+            disclosureProof.multiRevealProof,
+            disclosureProof.polyEquivalenceProof
         );
 
         return res;
