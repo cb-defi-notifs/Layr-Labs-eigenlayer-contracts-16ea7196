@@ -346,8 +346,7 @@ contract DataLayrChallengeUtils {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), multiRevealProof.interpolationPoly.X, multiRevealProof.interpolationPoly.Y))) % MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
-        bool ok = openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s); 
-        return ok;
+        return openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s); 
     }
 
     //this function allows senders to reveal many chunks starting from `firstChunkNumber` in series on the polynomial
