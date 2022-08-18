@@ -362,7 +362,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external onlyOwner onlyFrozen(slashedAddress) {
+    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -402,7 +402,7 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         uint96 queuedWithdrawalNonce
-    ) external onlyOwner onlyFrozen(slashedAddress) {
+    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         bytes32 withdrawalRoot = keccak256(
             abi.encode(
                 strategies,
