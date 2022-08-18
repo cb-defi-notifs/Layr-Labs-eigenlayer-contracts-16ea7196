@@ -244,8 +244,13 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(slashingContract);
         slasher.addPermissionedContracts(slashingContracts);
         slasher.freezeOperator(operator);
-
         cheats.stopPrank();
+
+        //initiating undelegation
+        cheats.startPrank(staker);
+        cheats.warp(block.timestamp + 365 days);
+        cheats.expectRevert(bytes("EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"));
+        delegation.initUndelegation();
 
         
     }
