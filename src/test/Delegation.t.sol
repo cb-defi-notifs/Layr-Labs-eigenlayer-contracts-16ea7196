@@ -257,6 +257,8 @@ contract Delegator is EigenLayrDeployer {
         
     }
 
+    
+
     function testCannotInitMultipleTimesDelegation() public {
         //delegation has already been initialized in the Deployer test contract
         cheats.expectRevert(
@@ -270,11 +272,14 @@ contract Delegator is EigenLayrDeployer {
 
 
     /// @notice This function tests to ensure that a delegator can't register multiple (2) times
-    function testRegisterAsDelegateMultipleTimes(address s) public {
-        address sender = signers[0];
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+    ///         cannot be undelegated from by their stakers.
+    /// @param operator is the operator being delegated to.
+    function testRegisterAsDelegateMultipleTimes(address operator) public {
+        cheats.assume(operator != address(0));
+
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));  
+        _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
     }
 
     //@TODO: Fix this test. for some reason, the expectRevert is failing despite the revert message being correct.
