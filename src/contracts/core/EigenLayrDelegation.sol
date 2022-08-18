@@ -173,14 +173,6 @@ contract EigenLayrDelegation is
 
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
-
-        address operator = delegation[msg.sender];
-        (
-            IInvestmentStrategy[] memory strategies,
-            uint256[] memory shares
-        ) = investmentManager.getDeposits(msg.sender);
-
-
         
     }
 

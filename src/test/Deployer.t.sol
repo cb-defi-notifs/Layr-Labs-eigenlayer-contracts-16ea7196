@@ -567,7 +567,7 @@ contract EigenLayrDeployer is
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);
 
-        uint256 eigenBalanceBefore = investmentManager.investorStratShares(sender, eigenStrat);
+        uint256 eigenSharesBefore = investmentManager.investorStratShares(sender, eigenStrat);
         investmentManager.depositIntoStrategy(
             sender,
             eigenStrat,
@@ -576,7 +576,7 @@ contract EigenLayrDeployer is
         );
         assertEq(
             investmentManager.investorStratShares(sender, eigenStrat),
-            toDeposit + eigenBalanceBefore,
+            toDeposit + eigenSharesBefore,
             "_testDepositEigen: deposit not properly credited"
         );
         cheats.stopPrank();
