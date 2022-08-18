@@ -427,9 +427,19 @@ contract EigenLayrDeployer is
                 amountToDeposit
             );
             amountDeposited = amountToDeposit;
-            // check that strategy is appropriately added to dynamic array of all of sender's strategies
-            
+
+            //check if depositor has never used this strat, that it is added correctly to investorStrats array.
+            if(operatorSharesBefore == 0){
+                // check that strategy is appropriately added to dynamic array of all of sender's strategies
+                assertTrue(
+                    investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
+                        stratToDepositTo,
+                    "investorStrats array updated incorrectly"
+                );
+            }
         }
+
+        
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
             investmentManager.investorStratShares(sender, stratToDepositTo) - operatorSharesBefore,
