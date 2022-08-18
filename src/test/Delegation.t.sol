@@ -286,7 +286,9 @@ contract Delegator is EigenLayrDeployer {
         );
     }
 
-    function testRegisterAsDelegateMultipleTimes() public {
+
+    /// @notice This function tests to ensure that a delegator can't register multiple (2) times
+    function testRegisterAsDelegateMultipleTimes(address s) public {
         address sender = signers[0];
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
@@ -304,14 +306,20 @@ contract Delegator is EigenLayrDeployer {
     //     _testDelegateToOperator(signers[1], delegate);
     // }
 
+    /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
+    function testRedelegateAfterUndelegation(address operator, address staker)public{
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+        cheats.assume(staker != operator);
 
-    function testRedelegateAfterUndelegation()public{
         //this function performs delegation and undelegation
-        testUndelegation(signers[0], acct_0);
+        testUndelegation(operator, staker);
 
-        //warps past 
+        //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
-        testDelegation(signers[0], acct_0);
+        testDelegation(operator, staker);
     }
 
 
