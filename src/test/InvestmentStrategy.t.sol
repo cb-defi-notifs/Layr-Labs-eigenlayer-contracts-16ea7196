@@ -67,16 +67,7 @@ contract InvestmentStrategyTests is
         cheats.stopPrank();
     }
 
-    ///@notice This function verifies that the sharesToUnderlying functions 
-    ///        adjust their output correctly when additional tokens are sent to 
-    ///        the strategy.
 
-    function testSharesToUnderlying(uint256 amountToDeposit) public{
-        IERC20 underlyingToken = strat.underlyingToken();
-
-        strat.deposit(underlyingToken, amountToDeposit);
-
-    }
 
 
 
