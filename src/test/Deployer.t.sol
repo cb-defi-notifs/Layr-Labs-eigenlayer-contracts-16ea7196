@@ -392,12 +392,6 @@ contract EigenLayrDeployer is
     //     emit log_named_uint("10 addition more", gas11 - gas21);
     // }
 
-    // TODO: @Gautham fix this to work again?
-    // function testBLS_Basic() public {
-    //     BLS.verifyBLSSigOfPubKeyHash(
-    //         registrationData[0]
-    //     );
-    // }
 
     //deposits 'amountToDeposit' of WETH from address 'sender' into 'strat'
     function _testWethDeposit(address sender, uint256 amountToDeposit)
