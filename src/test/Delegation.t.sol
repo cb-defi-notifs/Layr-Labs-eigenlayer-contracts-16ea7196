@@ -354,7 +354,6 @@ contract Delegator is EigenLayrDeployer {
 
     
 
-
     //*******INTERNAL FUNCTIONS*********//
     
     function _testInitiateDelegation(address operator, uint256 amountToDeposit)
@@ -423,35 +422,6 @@ contract Delegator is EigenLayrDeployer {
         //initiate challenge
         _testInitPaymentChallenge(operator, 5, 3);
 
-        bool half = true;
-
-        //Challenge payment test
-        operatorDisputesChallenger(operator, half, 2, 3);
-        // challengerDisputesOperator(operator, half, 1, 1);
-        // operatorDisputesChallenger(operator, half, 1, 1);
-    }
-
-    function operatorDisputesChallenger(
-        address operator,
-        bool half,
-        uint120 amount1,
-        uint120 amount2
-    ) public {
-        cheats.startPrank(operator);
-        if (dataLayrPaymentManager.getDiff(operator) == 1) {
-            cheats.stopPrank();
-            return;
-        }
-
-        dataLayrPaymentManager.challengePaymentHalf(
-            operator,
-            half,
-            amount1,
-            amount2
-        );
-        cheats.stopPrank();
-
-        //Now we calculate the challenger's response amounts
     }
 
     // function _challengerDisputesOperator(address operator, bool half, uint120 amount1, uint120 amount2) internal{
