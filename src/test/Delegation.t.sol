@@ -228,8 +228,10 @@ contract Delegator is EigenLayrDeployer {
         }
         
     }
-    /// @notice test 
+    /// @notice test to see if an operator who is slashed/frozen 
+    ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
     function testSlashedOperatorUndelegation(address operator, address staker) public {
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
