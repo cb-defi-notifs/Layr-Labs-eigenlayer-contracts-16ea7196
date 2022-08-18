@@ -33,7 +33,7 @@ contract InvestmentStrategyBase is
         onlyInvestmentManager
         returns (uint256 newShares)
     {
-        require(token == underlyingToken, "Can only deposit underlyingToken");
+        require(token == underlyingToken, "InvestmentStrategyBase.deposit: Can only deposit underlyingToken");
         newShares = amount;
         totalShares += newShares;
         return newShares;
@@ -44,7 +44,8 @@ contract InvestmentStrategyBase is
         IERC20 token,
         uint256 shareAmount
     ) external virtual override onlyInvestmentManager {
-        require(token == underlyingToken, "Can only withdraw the strategy token");
+        require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
+        require(shareAmount <= totalShares, "InvestmentStrategyBase.withdraw: withdrawal amount must be greater than total shares");
         totalShares -= shareAmount;
         underlyingToken.transfer(depositor, shareAmount);
     }

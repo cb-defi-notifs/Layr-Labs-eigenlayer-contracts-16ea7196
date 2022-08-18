@@ -51,6 +51,19 @@ contract InvestmentStrategyTests is
         cheats.stopPrank();
     }
 
+    ///@notice This function tests ensures that withdrawing for a depositor that never
+    ///         actually deposited fails.
+    ///@param depositor is the depositor for which the shares are being withdrawn
+    function testInvalidWithdrawal(address depositor) public {
+        cheats.assume(depositor != address(0));
+        cheats.startPrank(address(investmentManager));
+
+        cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: withdrawal amount must be greater than total shares"));
+        strat.withdraw(depositor, weth, 1e18);
+
+        cheats.stopPrank();
+    }
+
 
 
 
