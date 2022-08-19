@@ -57,6 +57,7 @@ contract Delegator is EigenLayrDeployer {
     /// @param sender is the address of the operator.
     function testSelfOperatorDelegate(address sender) public {
         cheats.assume(sender != address(0));
+        cheats.assume(sender != address(eigenLayrProxyAdmin));
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
     }
 
@@ -74,7 +75,9 @@ contract Delegator is EigenLayrDeployer {
 
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
-        cheats.assume(staker != operator);   
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != operator);
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
 
@@ -146,6 +149,8 @@ contract Delegator is EigenLayrDeployer {
 
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
@@ -197,6 +202,8 @@ contract Delegator is EigenLayrDeployer {
 
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
@@ -231,6 +238,8 @@ contract Delegator is EigenLayrDeployer {
     function testSlashedOperatorUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public {
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
         testDelegation(operator, staker, ethAmount, eigenAmount);
 

@@ -26,6 +26,7 @@ contract InvestmentStrategyTests is
     function testInvalidCalltoDeposit(address invalidDepositor) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidDepositor != address(0));
+        cheats.assume(invalidDepositor != address(eigenLayrProxyAdmin));
         cheats.assume(invalidDepositor != address(investmentManager));
         cheats.startPrank(invalidDepositor);
 
@@ -42,6 +43,7 @@ contract InvestmentStrategyTests is
     function testInvalidCalltoWithdraw(address depositor, address invalidWithdrawer) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidWithdrawer != address(0));
+        cheats.assume(invalidWithdrawer != address(eigenLayrProxyAdmin));
         cheats.assume(invalidWithdrawer != address(investmentManager));
         cheats.startPrank(invalidWithdrawer);
 
@@ -57,6 +59,7 @@ contract InvestmentStrategyTests is
     function testWithdrawalExceedsTotalShares(address depositor) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(depositor != address(0));
+        cheats.assume(depositor != address(eigenLayrProxyAdmin));
         cheats.startPrank(address(investmentManager));
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares"));
