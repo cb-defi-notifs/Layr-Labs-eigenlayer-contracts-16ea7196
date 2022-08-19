@@ -83,17 +83,17 @@ contract Delegator is EigenLayrDeployer {
         }
 
         (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
-        uint256 registrantEthWeightBefore;
-        uint256 registrantEigenWeightBefore;
+        uint256 operatorEthWeightBefore;
+        uint256 operatorEigenWeightBefore;
 
         //if strategies haven't been added yet
 
         if (strategies.length == 0){
-            registrantEthWeightBefore = 0;
-            registrantEigenWeightBefore = 0;
+            operatorEthWeightBefore = 0;
+            operatorEigenWeightBefore = 0;
         } else {
-            registrantEthWeightBefore = investmentManager.investorStratShares(staker, strategies[0]);
-            registrantEigenWeightBefore = investmentManager.investorStratShares(staker, strategies[1]);
+            operatorEthWeightBefore = delegation.operatorShares(operator, strategies[0]);
+            operatorEigenWeightBefore = delegation.operatorShares(operator, strategies[1]);
         }
 
 
@@ -106,19 +106,25 @@ contract Delegator is EigenLayrDeployer {
             IInvestmentStrategy[] memory updatedStrategies,
             uint256[] memory updatedShares
         ) = investmentManager.getDeposits(staker);
-        uint256 registrantEthWeightAfter = investmentManager.investorStratShares(staker, updatedStrategies[0]);
-        uint256 registrantEigenWeightAfter = investmentManager.investorStratShares(staker, updatedStrategies[1]);
-    
+        uint256 stakerEthWeight = investmentManager.investorStratShares(staker, updatedStrategies[0]);
+        uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
 
-        assertTrue(
-            registrantEthWeightAfter - registrantEthWeightBefore == ethAmount,
-            "testDelegation: registrantEthWeight did not increment by the right amount"
-        );
-        assertTrue(
-            registrantEigenWeightAfter - registrantEigenWeightBefore ==
-                eigenAmount,
-            "Eigen weights did not increment by the right amount"
-        );
+        {
+            uint256 operatorEthWeightAfter = delegation.operatorShares(operator, updatedStrategies[0]);
+            uint256 operatorEigenWeightAfter = delegation.operatorShares(operator, updatedStrategies[1]);
+        
+
+            assertTrue(
+                operatorEthWeightAfter - operatorEthWeightBefore == stakerEthWeight,
+                "testDelegation: registrantEthWeight did not increment by the right amount"
+            );
+            assertTrue(
+                operatorEigenWeightAfter - operatorEigenWeightBefore ==
+                    stakerEigenWeight,
+                "Eigen weights did not increment by the right amount"
+            );
+
+        }
         {
             IInvestmentStrategy _strat = investmentManager.investorStrats(
                 staker,
@@ -162,7 +168,6 @@ contract Delegator is EigenLayrDeployer {
             initialOperatorShares[delegatorStrategies[k]] = delegation
                 .operatorShares(operator, delegatorStrategies[k]);
         }
-
 
         _testUndelegation(staker);
 
