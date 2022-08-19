@@ -332,25 +332,23 @@ abstract contract RegistryBase is
 
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLengthMinusOne];
-
-        /**
-         @notice recording the information pertaining to change in stake for this operator in the history
-         */
-        // determine new stakes
-        OperatorStake memory newStakes;
-        // recording the current task number where the operator stake got updated 
-        newStakes.updateBlockNumber = uint32(block.number);
-
-        // setting total staked ETH for the operator to 0
-        newStakes.ethStake = uint96(0);
-        // setting total staked Eigen for the operator to 0
-        newStakes.eigenStake = uint96(0);
-
-        //set nextUpdateBlockNumber in prev stakes, i.e. last extant entry in `pubkeyHashToStakeHistory[pubkeyHash]`
+        //set nextUpdateBlockNumber in current stakes
         pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLengthMinusOne].nextUpdateBlockNumber = uint32(block.number);
 
-        // push new stake to storage
-        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
+        /**
+         @notice recording the information pertaining to change in stake for this operator in the history. operator stakes are set to 0 here.
+         */
+        pubkeyHashToStakeHistory[pubkeyHash].push(
+            OperatorStake({
+                // recording the current block number where the operator stake got updated 
+                updateBlockNumber: uint32(block.number),
+                // mark as 0 since the next update has not yet occurred
+                nextUpdateBlockNumber: 0,
+                // setting the operator's stakes to 0
+                ethStake: 0,
+                eigenStake: 0
+            })
+        );
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware
