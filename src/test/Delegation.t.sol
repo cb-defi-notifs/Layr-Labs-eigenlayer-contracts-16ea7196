@@ -88,12 +88,9 @@ contract Delegator is EigenLayrDeployer {
 
         //if strategies haven't been added yet
 
-        if (strategies.length == 0){
-            operatorEthWeightBefore = 0;
-            operatorEigenWeightBefore = 0;
-        } else {
-            operatorEthWeightBefore = delegation.operatorShares(operator, strategies[0]);
-            operatorEigenWeightBefore = delegation.operatorShares(operator, strategies[1]);
+        if (strategies.length != 0){
+            operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
+            operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
         }
 
 
@@ -110,8 +107,8 @@ contract Delegator is EigenLayrDeployer {
         uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
 
         {
-            uint256 operatorEthWeightAfter = delegation.operatorShares(operator, updatedStrategies[0]);
-            uint256 operatorEigenWeightAfter = delegation.operatorShares(operator, updatedStrategies[1]);
+            uint256 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);
+            uint256 operatorEigenWeightAfter = dlReg.weightOfOperator(operator, 1);
         
 
             assertTrue(

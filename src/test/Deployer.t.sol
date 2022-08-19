@@ -106,6 +106,10 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
+        
+
+        
+
         //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
         // (this is why this contract inherits from 'ERC1155TokenReceiver')
         // eigen = new Eigen(address(this));
