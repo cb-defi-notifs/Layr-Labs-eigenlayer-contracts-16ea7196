@@ -10,14 +10,41 @@ import "./LIDO/IStableSwapStateOracle.sol";
 contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
     IStableSwapStateOracle public stableSwapOracle;
 
-    function initialize (address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
+    constructor(IInvestmentManager _investmentManager) 
+        AaveInvestmentStrategy(_investmentManager)
+    {}
+
+    function initialize (IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
     ) initializer external {
-        super.initialize(_investmentManager, _underlyingToken, _lendingPool, _aToken);
+        super.initialize(_underlyingToken, _lendingPool, _aToken);
         stableSwapOracle = _stableSwapOracle;
     }
 
-    function sharesToUnderlyingView(uint256 numShares) public view override returns(uint256) {
+    /**
+     * @notice Used to convert a number of shares to the equivalent amount of underlying tokens for this strategy.
+     *          This strategy uses LIDO's `stableSwapOracle` to estimate the conversion from stETH to ETH.
+     * @notice In contrast to `sharesToUnderlying`, this function guarantees no state modifications
+     * @param amountShares is the amount of shares to calculate its conversion into the underlying token
+     * @dev Implementation for these functions in particular may vary signifcantly for different strategies
+     */
+    function sharesToUnderlyingView(uint256 amountShares) public view override returns(uint256) {
         (, , , uint256 exchangeRate) = stableSwapOracle.getState();
-        return (sharesToUnderlyingView(numShares) * exchangeRate) / 1e18;
+        return (super.sharesToUnderlyingView(amountShares) * exchangeRate) / 1e18;
+    }
+
+    /**
+     * @notice Used to convert an amount of underlying tokens to the equivalent amount of shares in this strategy.
+     *          This strategy uses LIDO's `stableSwapOracle` to estimate the conversion from ETH to stETH.
+     * @notice In contrast to `underlyingToShares`, this function guarantees no state modifications
+     * @param amountUnderlying is the amount of `underlyingToken` to calculate its conversion into strategy shares
+     * @dev Implementation for these functions in particular may vary signifcantly for different strategies
+     */
+    function underlyingToSharesView(uint256 amountUnderlying)
+        public
+        view override
+        returns (uint256)
+    {
+        (, , , uint256 exchangeRate) = stableSwapOracle.getState();
+        return (super.underlyingToSharesView(amountUnderlying) * 1e18) / exchangeRate;
     }
 }

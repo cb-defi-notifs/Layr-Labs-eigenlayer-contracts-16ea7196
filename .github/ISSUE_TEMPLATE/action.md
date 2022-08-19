@@ -1,15 +1,14 @@
 ---
-name: BUG
-about: Something appears to be wrong, or you believe their is a design oversight
-title: 'BUG: Title'
-labels: bug
+name: Action
+about: Thing to add, general task to get done
+title: 'ACTION: Title'
+labels: action
 assignees: ChaoticWalrus, gpsanant, Sidu28
 
 ---
 
-## Summary / Description
-What is wrong? What would the correct behavior look like?
-Provide details and be as precise as possible -- expected behavior vs. observed behavior, potential attack vectors, thoughts on root cause, etc.
+## Summary & Motivation
+Please add a summary here. Be concise and as precise as reasonably possible. Provide some motivation/explanation.
 
 ### Action Items
 - [ ] An action item list describing the work to be done

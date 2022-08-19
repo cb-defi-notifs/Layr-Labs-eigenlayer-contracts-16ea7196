@@ -8,6 +8,7 @@ import "../../libraries/BN254_Constants.sol";
 import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
+import "../../libraries/BN254.sol";
 
 contract DataLayrBombVerifier {
     struct DataStoresForDuration {
@@ -31,11 +32,9 @@ contract DataLayrBombVerifier {
 
     struct DisclosureProof {
         bytes header;
-        uint256[4] multireveal;
         bytes poly;
-        uint256[4] zeroPoly;
-        bytes zeroPolyProof;
-        uint256[4] pi;
+        DataLayrChallengeUtils.MultiRevealProof multiRevealProof;
+        BN254.G2Point polyEquivalenceProof;
     }
 
     // bomb will trigger every once every ~2^(256-249) = 2^7 = 128 chances
@@ -645,7 +644,6 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-
     ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(
             operator,
@@ -656,13 +654,11 @@ contract DataLayrBombVerifier {
         require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
         require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
         bool res = challengeUtils.nonInteractivePolynomialProof(
-            chunkNumber,
             disclosureProof.header,
-            disclosureProof.multireveal,
+            chunkNumber,
             disclosureProof.poly,
-            disclosureProof.zeroPoly,
-            disclosureProof.zeroPolyProof,
-            disclosureProof.pi
+            disclosureProof.multiRevealProof,
+            disclosureProof.polyEquivalenceProof
         );
 
         return res;

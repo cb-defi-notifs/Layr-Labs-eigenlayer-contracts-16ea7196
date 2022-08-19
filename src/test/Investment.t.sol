@@ -19,10 +19,14 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
+    function testWethDepositWithEmit() public {
+        emit log_named_uint("testWethDeposit(1e7)",testWethDeposit(1e7));
+    }
+
     //checks that it is possible to withdraw WETH
     function testWethWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
+        uint96 amountToDeposit,
+        uint96 amountToWithdraw
     ) public {
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
@@ -144,7 +148,7 @@ contract InvestmentTests is
         
         token.approve(address(investmentManager), type(uint256).max);
         
-        cheats.expectRevert(bytes("Can only deposit underlyingToken"));
+        cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
         investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
     }
 

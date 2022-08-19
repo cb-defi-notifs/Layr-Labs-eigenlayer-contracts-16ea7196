@@ -4,29 +4,25 @@ pragma solidity ^0.8.9;
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
+/**
+ * This contract may be used in a case where the underlying asset is actually non-transferrable/immaterial.
+*/
+
+// TODO: should this contract have any special initialization, or is it good enough to just inherit that of InvestmentStrategyBase?
 contract HollowInvestmentStrategy is
-    Initializable,
     InvestmentStrategyBase
 {
 
-    constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
-    }
-    
-    function initialize(address _investmentManager)
-        public
-        initializer
-    {
-        investmentManager = _investmentManager;
-    }
+    constructor(IInvestmentManager _investmentManager) 
+        InvestmentStrategyBase(_investmentManager)
+    {}
 
     function deposit(IERC20 token, uint256 amount)
         external override
         onlyInvestmentManager
         returns (uint256 newShares)
     {
-        require(token == IERC20(address(0)), "Must pass in 0 token to make sure not actually sending tokens");
+        require(token == IERC20(address(0)), "HollowInvestmentStrategy.deposit: Must pass in 0 token to make sure not actually sending tokens");
         totalShares += amount;
         return amount;
     }
