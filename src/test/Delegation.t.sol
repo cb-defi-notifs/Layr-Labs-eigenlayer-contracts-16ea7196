@@ -116,7 +116,7 @@ contract Delegator is EigenLayrDeployer {
 
             assertTrue(
                 operatorEthWeightAfter - operatorEthWeightBefore == stakerEthWeight,
-                "testDelegation: registrantEthWeight did not increment by the right amount"
+                "testDelegation: operatorEthWeight did not increment by the right amount"
             );
             assertTrue(
                 operatorEigenWeightAfter - operatorEigenWeightBefore ==
@@ -219,11 +219,11 @@ contract Delegator is EigenLayrDeployer {
         uint96 operatorEigenWeightAfter = dlReg.weightOfOperator(operator,1);
         assertTrue(
             operatorEthWeightAfter > operatorEthWeightBefore,
-            "testDelegation: registrantEthWeight did not increase!"
+            "testDelegation: operatorEthWeight did not increase!"
         );
         assertTrue(
             operatorEigenWeightAfter > operatorEigenWeightBefore,
-            "testDelegation: registrantEigenWeight did not increase!"
+            "testDelegation: operatorEthWeight did not increase!"
         );
     }
 
