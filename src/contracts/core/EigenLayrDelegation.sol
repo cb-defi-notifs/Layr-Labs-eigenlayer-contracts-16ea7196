@@ -139,6 +139,8 @@ contract EigenLayrDelegation is
             IInvestmentStrategy[] memory strategies,
             uint256[] memory shares
         ) = investmentManager.getDeposits(msg.sender);
+
+        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
         // remove strategy shares from delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
@@ -149,9 +151,14 @@ contract EigenLayrDelegation is
             }
         }
 
+        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
+
+
         // call into hook in delegationTerms contract
         IDelegationTerms dt = delegationTerms[operator];
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
+
+        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
 
         // store the time at which the staker began undelegation
         undelegationInitTime[msg.sender] = block.timestamp;

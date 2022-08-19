@@ -70,46 +70,45 @@ contract Delegator is EigenLayrDeployer {
     ///         and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegation(address operator, address staker) public {
+    function testDelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public { 
 
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
-        cheats.assume(staker != operator);
+        cheats.assume(staker != operator);   
+        cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
+        cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
 
-        
-
-        uint256 ethAmount = 1e18;
-        uint256 eigenAmount = 1e18;
-
-        
-        
-        string memory res;
         if(!delegation.isDelegate(operator)){
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
 
+        (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
+        uint256 registrantEthWeightBefore;
+        uint256 registrantEigenWeightBefore;
 
-        //@TODO: this is pretty inflexible but I guess it works for the time being, assuming we only have two fixes strats
-        (
-            IInvestmentStrategy[] memory strategies,
-            uint256[] memory shares
-        ) = investmentManager.getDeposits(staker);
+        //if strategies haven't been added yet
 
-        if (shares.length == 0){
-                _testWethDeposit(staker, ethAmount);
-                _testDepositEigen(staker, eigenAmount);
+        if (strategies.length == 0){
+            registrantEthWeightBefore = 0;
+            registrantEigenWeightBefore = 0;
+        } else {
+            registrantEthWeightBefore = investmentManager.investorStratShares(staker, strategies[0]);
+            registrantEigenWeightBefore = investmentManager.investorStratShares(staker, strategies[1]);
         }
 
 
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(operator,0);
-        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(operator,1);
-
-         
-
+        //making additional deposits to the investment strategies
+        _testWethDeposit(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
         _testDelegateToOperator(staker, operator);
 
-        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(operator,1);
+        (
+            IInvestmentStrategy[] memory updatedStrategies,
+            uint256[] memory updatedShares
+        ) = investmentManager.getDeposits(staker);
+        uint256 registrantEthWeightAfter = investmentManager.investorStratShares(staker, updatedStrategies[0]);
+        uint256 registrantEigenWeightAfter = investmentManager.investorStratShares(staker, updatedStrategies[1]);
+    
 
         assertTrue(
             registrantEthWeightAfter - registrantEthWeightBefore == ethAmount,
@@ -120,19 +119,21 @@ contract Delegator is EigenLayrDeployer {
                 eigenAmount,
             "Eigen weights did not increment by the right amount"
         );
-        IInvestmentStrategy _strat = investmentManager.investorStrats(
-            staker,
-            0
-        );
-        assertTrue(
-            address(_strat) != address(0),
-            "investorStrats not updated correctly"
-        );
+        {
+            IInvestmentStrategy _strat = investmentManager.investorStrats(
+                staker,
+                0
+            );
+            assertTrue(
+                address(_strat) != address(0),
+                "investorStrats not updated correctly"
+            );
 
-        assertTrue(
-            delegation.operatorShares(operator, _strat) - ethAmount == 0,
-            "operatorShares not updated correctly"
-        );
+            assertTrue(
+                delegation.operatorShares(operator, _strat) - updatedShares[0] == 0,
+                "ETH operatorShares not updated correctly"
+            );
+        }
     }
 
     
@@ -237,11 +238,11 @@ contract Delegator is EigenLayrDeployer {
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testSlashedOperatorUndelegation(address operator, address staker) public {
+    function testSlashedOperatorUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public {
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
         cheats.assume(staker != operator);
-        testDelegation(operator, staker);
+        testDelegation(operator, staker, ethAmount, eigenAmount);
 
         address slashingContract = slasher.owner();
 
@@ -303,7 +304,7 @@ contract Delegator is EigenLayrDeployer {
     /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testRedelegateAfterUndelegation(address operator, address staker)public{
+    function testRedelegateAfterUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)public{
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
         cheats.assume(staker != operator);
@@ -311,9 +312,15 @@ contract Delegator is EigenLayrDeployer {
         //this function performs delegation and undelegation
         testUndelegation(operator, staker);
 
+        (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
+
+
+        emit log_named_uint("testRedelgateAfterUndelegation ETH wegith",investmentManager.investorStratShares(staker, strategies[0]));
+
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
-        testDelegation(operator, staker);
+        emit log_named_uint("testRedelgateAfterUndelegation ETH wegith",investmentManager.investorStratShares(staker, strategies[0]));
+        testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 
     function testRewardPayouts() public {
