@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
 
+// import "forge-std/Test.sol";
+
 // TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
@@ -24,6 +26,7 @@ contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
     EigenLayrDelegationStorage
+    // ,DSTest
 {
     modifier onlyInvestmentManager() {
         require(
@@ -136,6 +139,7 @@ contract EigenLayrDelegation is
             IInvestmentStrategy[] memory strategies,
             uint256[] memory shares
         ) = investmentManager.getDeposits(msg.sender);
+
         // remove strategy shares from delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
@@ -166,10 +170,11 @@ contract EigenLayrDelegation is
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
-        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval;
+        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval; 
 
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
+        
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
@@ -325,8 +330,9 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first."
+            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
         );
+
         require(
             isNotDelegated(staker),
             "EigenLayrDelegation._delegate: staker has existing delegation"
@@ -380,5 +386,14 @@ contract EigenLayrDelegation is
         returns (bool)
     {
         return (delegated[staker] == DelegationStatus.DELEGATED);
+    }
+
+    //returns if an operator can be delegated to, i.e. it has a delegation terms
+    function isDelegate(address operator)
+        public
+        view
+        returns(bool)
+    {
+        return(address(delegationTerms[operator]) != address(0));
     }
 }

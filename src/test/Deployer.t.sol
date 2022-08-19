@@ -106,11 +106,6 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
-        // (this is why this contract inherits from 'ERC1155TokenReceiver')
-        // eigen = new Eigen(address(this));
-
-
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
@@ -389,12 +384,6 @@ contract EigenLayrDeployer is
     //     emit log_named_uint("10 addition more", gas11 - gas21);
     // }
 
-    // TODO: @Gautham fix this to work again?
-    // function testBLS_Basic() public {
-    //     BLS.verifyBLSSigOfPubKeyHash(
-    //         registrationData[0]
-    //     );
-    // }
 
     //deposits 'amountToDeposit' of WETH from address 'sender' into 'strat'
     function _testWethDeposit(address sender, uint256 amountToDeposit)
@@ -433,13 +422,19 @@ contract EigenLayrDeployer is
                 amountToDeposit
             );
             amountDeposited = amountToDeposit;
-            // check that strategy is appropriately added to dynamic array of all of sender's strategies
-            assertTrue(
-                investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
-                    stratToDepositTo,
-                "investorStrats array updated incorrectly"
-            );
+
+            //check if depositor has never used this strat, that it is added correctly to investorStrats array.
+            if(operatorSharesBefore == 0){
+                // check that strategy is appropriately added to dynamic array of all of sender's strategies
+                assertTrue(
+                    investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
+                        stratToDepositTo,
+                    "investorStrats array updated incorrectly"
+                );
+            }
         }
+
+        
         //in this case, since shares never grow, the shares should just match the deposited amount
         assertEq(
             investmentManager.investorStratShares(sender, stratToDepositTo) - operatorSharesBefore,
@@ -576,6 +571,8 @@ contract EigenLayrDeployer is
         eigenToken.transfer(sender, toDeposit);
         cheats.startPrank(sender);
         eigenToken.approve(address(investmentManager), type(uint256).max);
+
+        uint256 eigenSharesBefore = investmentManager.investorStratShares(sender, eigenStrat);
         investmentManager.depositIntoStrategy(
             sender,
             eigenStrat,
@@ -584,26 +581,12 @@ contract EigenLayrDeployer is
         );
         assertEq(
             investmentManager.investorStratShares(sender, eigenStrat),
-            toDeposit,
+            toDeposit + eigenSharesBefore,
             "_testDepositEigen: deposit not properly credited"
         );
         cheats.stopPrank();
     }
 
-    function _testSelfOperatorDelegate(address sender) internal {
-        // cheats.prank(sender);
-        // delegation.delegateToSelf();
-        // assertTrue(
-        //     delegation.isSelfOperator(sender),
-        //     "_testSelfOperatorDelegate: self delegation not properly recorded"
-        // );
-        // assertTrue(
-        //     //TODO: write this properly to use the enum type defined in delegation
-        //     uint8(delegation.delegated(sender)) == 1,
-        //     "_testSelfOperatorDelegate: delegation not credited?"
-        // );
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
-    }
 
     function _testRegisterAdditionalSelfOperator(
         address sender,
@@ -615,7 +598,7 @@ contract EigenLayrDeployer is
         uint256 eigenToDeposit = 1e16;
         _testWethDeposit(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
-        _testSelfOperatorDelegate(sender);
+        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
@@ -778,13 +761,16 @@ contract EigenLayrDeployer is
     function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
         internal
     {
+        
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
+
         assertTrue(
             delegation.delegationTerms(sender) == dt,
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
         );
         cheats.stopPrank();
+
     }
     
     // tries to delegate from 'sender' to 'operator'
@@ -800,6 +786,7 @@ contract EigenLayrDeployer is
             IInvestmentStrategy[] memory delegateStrategies,
             uint256[] memory delegateShares
         ) = investmentManager.getDeposits(sender);
+
 
         uint256 numStrats = delegateShares.length;
         assertTrue(
@@ -901,8 +888,11 @@ contract EigenLayrDeployer is
     function _testUndelegation(address sender) internal {
         cheats.startPrank(sender);
         cheats.warp(block.timestamp + 365 days);
+
         delegation.initUndelegation();
         delegation.commitUndelegation();
+
+
         cheats.stopPrank();
     }
 
