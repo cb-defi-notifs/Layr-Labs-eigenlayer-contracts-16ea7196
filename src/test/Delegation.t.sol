@@ -43,6 +43,12 @@ contract Delegator is EigenLayrDeployer {
         uint256 sigma1;
     }
 
+    modifier fuzzedAddress(address fuzzedAddress){
+        cheats.assume(fuzzedAddress != address(0));
+        cheats.assume(fuzzedAddress != address(eigenLayrProxyAdmin));
+        _;
+    }
+
     constructor() {
         delegates = [acct_0, acct_1];
     }
@@ -71,12 +77,13 @@ contract Delegator is EigenLayrDeployer {
     ///         and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testDelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public { 
+    function testDelegation(
+        address operator, 
+        address staker, 
+        uint256 ethAmount, 
+        uint256 eigenAmount
+        ) public fuzzedAddress(operator) fuzzedAddress(staker) { 
 
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
@@ -97,10 +104,12 @@ contract Delegator is EigenLayrDeployer {
             IInvestmentStrategy[] memory updatedStrategies,
             uint256[] memory updatedShares
         ) = investmentManager.getDeposits(staker);
-        uint256 stakerEthWeight = investmentManager.investorStratShares(staker, updatedStrategies[0]);
-        uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
 
         {
+            uint256 stakerEthWeight = investmentManager.investorStratShares(staker, updatedStrategies[0]);
+            uint256 stakerEigenWeight = investmentManager.investorStratShares(staker, updatedStrategies[1]);
+
+        
             uint256 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);
             uint256 operatorEigenWeightAfter = dlReg.weightOfOperator(operator, 1);
         
@@ -136,12 +145,13 @@ contract Delegator is EigenLayrDeployer {
     /// @notice test staker's ability ot undelegate from an operator.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public {
+    function testUndelegation(
+            address operator, 
+            address staker, 
+            uint256 ethAmount,
+            uint256 eigenAmount
+        ) public fuzzedAddress(operator) fuzzedAddress(staker) {
 
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
@@ -189,12 +199,8 @@ contract Delegator is EigenLayrDeployer {
             uint16 numStratsToAdd, 
             address operator,
             address staker
-     ) public {
+     ) public fuzzedAddress(operator) fuzzedAddress(staker) {
 
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
@@ -226,11 +232,12 @@ contract Delegator is EigenLayrDeployer {
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testSlashedOperatorUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(staker != address(eigenLayrProxyAdmin));
+    function testSlashedOperatorUndelegation(
+            address operator, 
+            address staker, 
+            uint256 ethAmount, 
+            uint256 eigenAmount
+         ) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(staker != operator);
         testDelegation(operator, staker, ethAmount, eigenAmount);
 
@@ -269,18 +276,17 @@ contract Delegator is EigenLayrDeployer {
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times
     /// @param operator is the operator being delegated to.
-    function testRegisterAsDelegateMultipleTimes(address operator) public {
-        cheats.assume(operator != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-
+    function testRegisterAsDelegateMultipleTimes(
+            address operator
+        ) public fuzzedAddress(operator){
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
     }
 
-    function testDelegationToUnregisteredDelegate(address delegate) public{
-        cheats.assume(delegate != address(0));
-        cheats.assume(delegate != address(eigenLayrProxyAdmin));
+    function testDelegationToUnregisteredDelegate(
+        address delegate
+        ) public fuzzedAddress(delegate){
 
         //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
         _testDepositStrategies(signers[1], 1e18, 1);
@@ -297,11 +303,12 @@ contract Delegator is EigenLayrDeployer {
     /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testRedelegateAfterUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)public{
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(operator != address(eigenLayrProxyAdmin));
-        cheats.assume(staker != address(eigenLayrProxyAdmin));
+    function testRedelegateAfterUndelegation(
+            address operator, 
+            address staker, 
+            uint256 ethAmount, 
+            uint256 eigenAmount
+        ) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(staker != operator);
 
         //this function performs delegation and undelegation
