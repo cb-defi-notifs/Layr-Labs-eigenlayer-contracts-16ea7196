@@ -223,12 +223,26 @@ contract BLSRegistry is
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
+        // placeholders reused inside of loop
+        OperatorStake memory currentStakes;
+        bytes32 pubkeyHash;
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+            // get operator's pubkeyHash
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.ethStake -= currentStakes.ethStake;
+            _totalStake.eigenStake -= currentStakes.eigenStake;
 
             // update the stake for the i-th operator
-            (_totalStake, ) = _updateOperatorStake(operators[i], _totalStake);
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+            // increase _totalStake by operator's updated stakes
+            _totalStake.ethStake += currentStakes.ethStake;
+            _totalStake.eigenStake += currentStakes.eigenStake;
 
             unchecked {
                 ++i;

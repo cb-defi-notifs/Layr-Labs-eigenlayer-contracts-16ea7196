@@ -251,8 +251,9 @@ contract ECDSARegistry is
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
         // placeholders to be reused inside loop
-        OperatorStake memory newStakes;
+        OperatorStake memory currentStakes;
         uint256 start;
+        bytes32 pubkeyHash;
         // storage caching to save gas (less SLOADs)
         uint256 stakesLength = stakes.length;
 
@@ -260,6 +261,13 @@ contract ECDSARegistry is
 
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+            // get operator's pubkeyHash
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.ethStake -= currentStakes.ethStake;
+            _totalStake.eigenStake -= currentStakes.eigenStake;
 
             // placing the pointer at the starting byte of the tuple 
             /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
@@ -278,14 +286,18 @@ contract ECDSARegistry is
             }
 
             // update the stake for the i-th operator
-            (_totalStake, newStakes)  = _updateOperatorStake(operators[i], _totalStake);
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+            // increase _totalStake by operator's updated stakes
+            _totalStake.ethStake += currentStakes.ethStake;
+            _totalStake.eigenStake += currentStakes.eigenStake;
 
             // find new stakes object, replacing deposit of the operator with updated deposit
             updatedStakesArray = updatedStakesArray
             // slice until just after the address bytes of the operator
             .slice(0, start + 20)
             // concatenate the updated ETH and EIGEN deposits
-            .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake))
+            .concat(abi.encodePacked(currentStakes.ethStake, currentStakes.eigenStake))
             // concatenate the bytes pertaining to the tuples from rest of the operators 
             // except the last 24 bytes that comprises of total ETH deposits
             .concat(stakes.slice(start + 44, stakesLength - 24));

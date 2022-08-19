@@ -462,45 +462,34 @@ abstract contract RegistryBase is
         return _operatorStake;
     }
 
-    // Finds the updated stake for `operator`, stores it and records the update. Calculates the change to `_totalStake`, but **DOES NOT UPDATE THE `totalStake` STORAGE SLOT**
-    function _updateOperatorStake(address operator, OperatorStake memory _totalStake) internal returns (OperatorStake memory, OperatorStake memory newStakes) {            
-        // get operator's pubkeyHash
-        bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        // gas saving by caching length here
-        uint256 pubkeyHashToStakeHistoryLength = pubkeyHashToStakeHistory[pubkeyHash].length;
-        // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength];
-
+    // Finds the updated stake for `operator`, stores it and records the update. **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere
+    function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake) internal returns (OperatorStake memory updatedOperatorStake) {            
         // determine new stakes
-        newStakes.updateBlockNumber = uint32(block.number);
-        newStakes.ethStake = weightOfOperator(operator, 0);
-        newStakes.eigenStake = weightOfOperator(operator, 1);
+        updatedOperatorStake.updateBlockNumber = uint32(block.number);
+        updatedOperatorStake.ethStake = weightOfOperator(operator, 0);
+        updatedOperatorStake.eigenStake = weightOfOperator(operator, 1);
 
         // check if minimum requirements have been met
-        if (newStakes.ethStake < nodeEthStake) {
-            newStakes.ethStake = uint96(0);
+        if (updatedOperatorStake.ethStake < nodeEthStake) {
+            updatedOperatorStake.ethStake = uint96(0);
         }
-        if (newStakes.eigenStake < nodeEigenStake) {
-            newStakes.eigenStake = uint96(0);
+        if (updatedOperatorStake.eigenStake < nodeEigenStake) {
+            updatedOperatorStake.eigenStake = uint96(0);
         }
         //set nextUpdateBlockNumber in prev stakes
-        pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength].nextUpdateBlockNumber = uint32(block.number);
+        pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].nextUpdateBlockNumber = uint32(block.number);
         // push new stake to storage
-        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-        // calculate the change to _totalStake
-        _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-        _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+        pubkeyHashToStakeHistory[pubkeyHash].push(updatedOperatorStake);
 
         emit StakeUpdate(
             operator,
-            newStakes.ethStake,
-            newStakes.eigenStake,
+            updatedOperatorStake.ethStake,
+            updatedOperatorStake.eigenStake,
             uint32(block.number),
-            currentStakes.updateBlockNumber
+            currentOperatorStake.updateBlockNumber
         );
 
-        return (_totalStake, newStakes);
+        return (updatedOperatorStake);
     }
 
     // records that the `totalStake` is now equal to the input param @_totalStake
