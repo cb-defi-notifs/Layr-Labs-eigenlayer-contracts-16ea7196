@@ -32,7 +32,12 @@ interface IEigenLayrDelegation {
         view
         returns (address);
 
-    function isDelegated(address operator)
+    function isDelegated(address staker)
+        external
+        view
+        returns (bool);
+
+    function isDelegate(address operator)
         external
         view
         returns (bool);

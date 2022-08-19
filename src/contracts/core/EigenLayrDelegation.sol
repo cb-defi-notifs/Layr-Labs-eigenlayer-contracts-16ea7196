@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 // TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
@@ -25,8 +25,8 @@ import "forge-std/Test.sol";
 contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
-    EigenLayrDelegationStorage,
-    DSTest
+    EigenLayrDelegationStorage
+    // ,DSTest
 {
     modifier onlyInvestmentManager() {
         require(
@@ -140,7 +140,6 @@ contract EigenLayrDelegation is
             uint256[] memory shares
         ) = investmentManager.getDeposits(msg.sender);
 
-        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
         // remove strategy shares from delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
@@ -151,14 +150,9 @@ contract EigenLayrDelegation is
             }
         }
 
-        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
-
-
         // call into hook in delegationTerms contract
         IDelegationTerms dt = delegationTerms[operator];
         _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
-
-        emit log_named_uint("initUndelegation ETH wegith",investmentManager.investorStratShares(msg.sender, strategies[0]));
 
         // store the time at which the staker began undelegation
         undelegationInitTime[msg.sender] = block.timestamp;
@@ -380,9 +374,7 @@ contract EigenLayrDelegation is
     /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
     ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
-
         return
-        
             delegated[staker] == DelegationStatus.UNDELEGATED ||
             (delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED &&
                 block.timestamp > undelegationFinalizedTime[staker]);
