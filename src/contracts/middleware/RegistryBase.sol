@@ -325,11 +325,11 @@ abstract contract RegistryBase is
         registry[msg.sender].deregisterTime = block.timestamp;
 
         // gas saving by caching lengths here
-        uint256 pubkeyHashToStakeHistoryLength = pubkeyHashToStakeHistory[pubkeyHash].length;
+        uint256 pubkeyHashToStakeHistoryLengthMinusOne = pubkeyHashToStakeHistory[pubkeyHash].length - 1;
         uint256 registrantListLengthMinusOne = registrantList.length - 1;
 
         // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength - 1];
+        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLengthMinusOne];
 
         /**
          @notice recording the information pertaining to change in stake for this operator in the history
@@ -344,8 +344,8 @@ abstract contract RegistryBase is
         // setting total staked Eigen for the operator to 0
         newStakes.eigenStake = uint96(0);
 
-        //set next task number in prev stakes -- we use `pubkeyHashToStakeHistoryLength` here since we've pushed a new entry, so this is now the last index
-        pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLength].nextUpdateBlockNumber = uint32(block.number);
+        //set nextUpdateBlockNumber in prev stakes, i.e. last extant entry in `pubkeyHashToStakeHistory[pubkeyHash]`
+        pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLengthMinusOne].nextUpdateBlockNumber = uint32(block.number);
 
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
