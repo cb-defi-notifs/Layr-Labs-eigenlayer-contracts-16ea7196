@@ -133,7 +133,7 @@ contract BLSRegistry is
          @notice some book-keeping for aggregated pubkey
          */
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
@@ -196,8 +196,8 @@ contract BLSRegistry is
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(pubkeyHash == pubkeyHashFromInput, "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash");
 
-        // Update registrant list and index histories
-        _popRegistrant(pubkeyHash, index);
+        // Perform necessary updates for removing operator, including updating registrant list and index histories
+        _removeOperator(pubkeyHash, index);
 
         /**
          @notice update the aggregated public key of all registered operators and record

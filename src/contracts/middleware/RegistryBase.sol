@@ -311,22 +311,24 @@ abstract contract RegistryBase is
             totalOperatorsHistory.push(_totalOperators);
     }
 
-    // Removes the registrant with the given pubkeyHash from the index in registrantList
-    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+    /**
+     * Remove the operator from active status. Removes the registrant with the given `pubkeyHash` from the `index` in `registrantList`,
+     * updates registrantList and index histories, and performs other necessary updates for removing operator
+     */
+    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
         // must continue to serve until the latest time at which an active task expires
         /**
          @notice this info is used in challenges
          */
-        registry[msg.sender].serveUntil = (repository.serviceManager()).latestTime();
+        registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
 
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
 
         registry[msg.sender].deregisterTime = block.timestamp;
 
-        // gas saving by caching lengths here
+        // gas saving by caching length here
         uint256 pubkeyHashToStakeHistoryLengthMinusOne = pubkeyHashToStakeHistory[pubkeyHash].length - 1;
-        uint256 registrantListLengthMinusOne = registrantList.length - 1;
 
         // determine current stakes
         OperatorStake memory currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistoryLengthMinusOne];
@@ -365,7 +367,16 @@ abstract contract RegistryBase is
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
 
-        address swappedOperator;
+        address swappedOperator = _popRegistrant(pubkeyHash, index);
+
+        // Emit `Deregistration` event
+        emit Deregistration(msg.sender, swappedOperator);
+    }
+
+    // Removes the registrant with the given `pubkeyHash` from the `index` in `registrantList`
+    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address swappedOperator) {
+        // gas saving by caching length here
+        uint256 registrantListLengthMinusOne = registrantList.length - 1;
         // Update index info for operator at end of list, if they are not the same as the removed operator
         if (index < registrantListLengthMinusOne){
             // get existing operator at end of list, and retrieve their pubkeyHash
@@ -389,8 +400,7 @@ abstract contract RegistryBase is
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
 
-        // Emit `Deregistration` event
-        emit Deregistration(msg.sender, swappedOperator);
+        return swappedOperator;
     }
 
     // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`

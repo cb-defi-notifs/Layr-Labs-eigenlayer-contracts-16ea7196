@@ -99,7 +99,7 @@ contract ECDSARegistry is
         );
 
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         /**
          @notice some book-keeping for recording info pertaining to the operator
@@ -170,8 +170,8 @@ contract ECDSARegistry is
             "ECDSARegistry._deregisterOperator: Supplied stakes are incorrect"
         );
 
-        // Update registrant list and index histories
-        _popRegistrant(registry[msg.sender].pubkeyHash, index);
+        // Perform necessary updates for removing operator, including updating registrant list and index histories
+        _removeOperator(registry[msg.sender].pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
