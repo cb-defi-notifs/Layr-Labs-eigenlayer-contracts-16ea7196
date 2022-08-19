@@ -80,7 +80,7 @@ contract InvestmentStrategyBase is
         // copy `totalShares` value prior to decrease
         uint256 priorTotalShares = totalShares;
         // decrease `totalShares` to reflect withdrawal
-        totalShares -= shareAmount;
+        unchecked{totalShares -= shareAmount;}
         /**
          * @notice calculation of amountToSend *mirrors* `sharesToUnderlying(shareAmount)`, but is different since the `totalShares` has already
          *          been decremented
