@@ -26,6 +26,7 @@ contract InvestmentStrategyTests is
     function testInvalidCalltoDeposit(address invalidDepositor) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidDepositor != address(0));
+        cheats.assume(invalidDepositor != address(investmentManager));
         cheats.startPrank(invalidDepositor);
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
@@ -41,6 +42,7 @@ contract InvestmentStrategyTests is
     function testInvalidCalltoWithdraw(address depositor, address invalidWithdrawer) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(invalidWithdrawer != address(0));
+        cheats.assume(invalidWithdrawer != address(investmentManager));
         cheats.startPrank(invalidWithdrawer);
 
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
@@ -52,7 +54,7 @@ contract InvestmentStrategyTests is
     ///@notice This function tests ensures that withdrawing for a depositor that never
     ///         actually deposited fails.
     ///@param depositor is the depositor for which the shares are being withdrawn
-    function testInvalidWithdrawal(address depositor) public {
+    function testWithdrawalExceedsTotalShares(address depositor) public {
         IERC20 underlyingToken = strat.underlyingToken();
         cheats.assume(depositor != address(0));
         cheats.startPrank(address(investmentManager));
