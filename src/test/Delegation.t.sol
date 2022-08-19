@@ -255,7 +255,6 @@ contract Delegator is EigenLayrDeployer {
 
         //initiating undelegation
         cheats.startPrank(staker);
-        cheats.warp(block.timestamp + 365 days);
         cheats.expectRevert(bytes("EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"));
         delegation.initUndelegation();
 
