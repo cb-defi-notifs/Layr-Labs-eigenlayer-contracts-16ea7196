@@ -85,17 +85,8 @@ contract Delegator is EigenLayrDeployer {
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
 
-        (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
-        uint256 operatorEthWeightBefore;
-        uint256 operatorEigenWeightBefore;
-
-        //if strategies haven't been added yet
-
-        if (strategies.length != 0){
-            operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
-            operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
-        }
-
+        uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
+        uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
 
         //making additional deposits to the investment strategies
         _testWethDeposit(staker, ethAmount);
@@ -280,6 +271,7 @@ contract Delegator is EigenLayrDeployer {
     /// @param operator is the operator being delegated to.
     function testRegisterAsDelegateMultipleTimes(address operator) public {
         cheats.assume(operator != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
 
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
@@ -287,6 +279,8 @@ contract Delegator is EigenLayrDeployer {
     }
 
     function testDelegationToUnregisteredDelegate(address delegate) public{
+        cheats.assume(delegate != address(0));
+        cheats.assume(delegate != address(eigenLayrProxyAdmin));
 
         //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
         _testDepositStrategies(signers[1], 1e18, 1);
@@ -306,6 +300,8 @@ contract Delegator is EigenLayrDeployer {
     function testRedelegateAfterUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)public{
         cheats.assume(operator != address(0));
         cheats.assume(staker != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(staker != address(eigenLayrProxyAdmin));
         cheats.assume(staker != operator);
 
         //this function performs delegation and undelegation
