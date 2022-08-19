@@ -228,7 +228,7 @@ contract Delegator is EigenLayrDeployer {
             );
 
             assertTrue(
-                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter
+                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter, "testUndelegation: delegator shares not deducted correctly"
             );
         }
         
