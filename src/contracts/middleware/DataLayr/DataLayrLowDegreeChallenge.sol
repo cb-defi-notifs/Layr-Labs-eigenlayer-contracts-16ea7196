@@ -2,12 +2,19 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
-import "../../libraries/BN254_Constants.sol";
+
 import "../Repository.sol";
+
 import "./DataLayrChallengeUtils.sol";
 import "./DataLayrChallengeBase.sol";
+
+import "../../libraries/BN254_Constants.sol";
+import "../../libraries/Merkle.sol";
+
+
 
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     struct LowDegreeChallenge {
@@ -45,17 +52,27 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
 
+    /// @notice This function tests whether a polynomial's degree is not greater than a provided degree
+    /// @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
+    /// @param SRSElement is the G2 point of the SRS element we are computing the pairing for (x^{n-m})
+    /// @param SRSIndex is the index of the merkle tree containing the @param SRSElement
+    /// @param proofInG1 is the provided G1 point is the product of the SRSElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+
+    //TODO: we need to hardcode a merkle root hash in storage
     function lowDegreenessCheck(
         bytes calldata header,
-        bytes32 SRSLeafHash
+        BN254.G2Point memory SRSElement,
+        uint256 SRSIndex,
+        bytes memory SRSMerkleProof,
+        BN254.G1Point memory proofInG1
     ) external {
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
+        bytes32 hashOfSRSElement = keccak256(abi.encodePacked(SRSElement.X, SRSElement.Y));
+        require(Merkle.checkMembership(hashOfSRSElement, SRSIndex, SRSMerkleRootHash, SRSMerkleProof), "Merkle proof was not validated");
 
-
-
-
-        
+        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
+        require(BN254.pairing(dskzgMetadata.c, SRSElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
     }
 
 
