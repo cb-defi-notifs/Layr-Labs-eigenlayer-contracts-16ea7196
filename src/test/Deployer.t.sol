@@ -659,7 +659,7 @@ contract EigenLayrDeployer is
 
         //register all the operators
         for (uint256 i = 0; i < numberOfSigners; ++i) {
-            // emit log_named_uint("i", i);
+
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
@@ -740,7 +740,6 @@ contract EigenLayrDeployer is
      */
         
 
-        // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
             keccak256(
                 abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)

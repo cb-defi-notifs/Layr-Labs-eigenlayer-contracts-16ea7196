@@ -308,12 +308,8 @@ contract Delegator is EigenLayrDeployer {
 
         (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
 
-
-        emit log_named_uint("testRedelgateAfterUndelegation ETH wegith",investmentManager.investorStratShares(staker, strategies[0]));
-
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
-        emit log_named_uint("testRedelgateAfterUndelegation ETH wegith",investmentManager.investorStratShares(staker, strategies[0]));
         testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 
@@ -463,7 +459,6 @@ contract Delegator is EigenLayrDeployer {
 
             blockNumber = uint32(block.number);
             uint32 dataStoreId = dlsm.taskNumber() - 1;
-            // emit log_named_bytes("fff", abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
             _testCommitDataStore(
                 keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
                 numberOfNonSigners,
@@ -568,7 +563,6 @@ contract Delegator is EigenLayrDeployer {
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            // emit log_named_uint("i", i);
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
