@@ -379,7 +379,7 @@ contract EigenLayrDelegation is
 
     /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
     ///         and is not within the challenge period for its last undelegation.
-    function isNotDelegated(address staker) public returns (bool) {
+    function isNotDelegated(address staker) public view returns (bool) {
 
         return
         
