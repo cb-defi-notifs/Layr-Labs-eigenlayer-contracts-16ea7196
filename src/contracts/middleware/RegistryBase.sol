@@ -381,19 +381,22 @@ abstract contract RegistryBase is
     }
 
     // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`
-    function _pushRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake) internal {
-        // record the operator being registered
+    function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake) internal {
+        // record the operator being registered and update the counter for registrant ID
         registrantList.push(operator);
+        unchecked {
+            ++nextRegistrantId;
+        }
+
+        // add the `updateBlockNumber` info
+        _operatorStake.updateBlockNumber = uint32(block.number);
+        // push the new stake for the operator to storage
+        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
 
         // record `operator`'s index in list of operators
         OperatorIndex memory operatorIndex;
         operatorIndex.index = uint32(registrantList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
 
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];

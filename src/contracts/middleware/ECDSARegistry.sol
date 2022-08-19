@@ -101,21 +101,16 @@ contract ECDSARegistry is
         // get current task number from ServiceManager
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
-        /**
-         @notice some book-keeping for recording info pertaining to the operator
-         */
-        // record the new stake for the operator in the storage
-        _operatorStake.updateBlockNumber = uint32(block.number);
+        // convert signingAddress to bytes32
         bytes32 pubkeyHash = bytes32(uint256(uint160(signingAddress)));
-        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
-
-        // store the registrant's info
+        
+        // store the registrant's info in mapping
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants(),
             active: IQuorumRegistry.Active.ACTIVE,
-            fromTaskNumber: currentTaskNumber,
+            fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
             // extract the socket address
@@ -124,7 +119,7 @@ contract ECDSARegistry is
         });
 
         // add the operator to the list of registrants and do accounting
-        _pushRegistrant(operator, pubkeyHash, _operatorStake);
+        _addRegistrant(operator, pubkeyHash, _operatorStake);
         
         {
             // store the updated meta-data in the mapping with the key being the current dump number

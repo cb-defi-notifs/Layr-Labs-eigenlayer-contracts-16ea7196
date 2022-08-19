@@ -110,7 +110,6 @@ contract BLSRegistry is
         uint256[4] memory pk;
 
         {
-
             // verify sig of public key and get pubkeyHash back, slice out compressed apk
             (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, operator, 164); 
             //verifyBLS(data, msg.sender, 164);
@@ -125,33 +124,19 @@ contract BLSRegistry is
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
         
-        // addition doesn't work in this case 
-        // our addition algorithm doesn't work
+        // our addition algorithm doesn't work in this case
         require(pubkeyHash != apkHashes[apkHashes.length - 1], "BLSRegistry._registerOperator: Apk and pubkey cannot be the same");
-        
-        /**
-         @notice some book-keeping for aggregated pubkey
-         */
-        // get current task number from ServiceManager
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
-
-        /**
-         @notice some book-keeping for recording info pertaining to the operator
-         */
-        // record the new stake for the operator in the storage
-        _operatorStake.updateBlockNumber = uint32(block.number);
-        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
-        // store the registrant's info in relation
+        // store the registrant's info in mapping
         registry[operator] = Registrant({
             pubkeyHash: pubkeyHash,
             id: nextRegistrantId,
             index: numRegistrants(),
             active: IQuorumRegistry.Active.ACTIVE,
-            fromTaskNumber: currentTaskNumber,
+            fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
             // extract the socket address
@@ -160,7 +145,7 @@ contract BLSRegistry is
         });
 
         // add the operator to the list of registrants and do accounting
-        _pushRegistrant(operator, pubkeyHash, _operatorStake);
+        _addRegistrant(operator, pubkeyHash, _operatorStake);
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }
