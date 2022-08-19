@@ -136,6 +136,52 @@ contract Delegator is EigenLayrDeployer {
         }
     }
 
+    /// @notice test staker's ability ot undelegate from an operator.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
+    function testUndelegation(address operator, address staker, uint256 ethAmount, uint256 eigenAmount) public {
+
+        cheats.assume(operator != address(0));
+        cheats.assume(staker != address(0));
+        cheats.assume(staker != operator);
+        cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
+        cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
+
+
+        testDelegation(operator, staker, ethAmount, eigenAmount);
+
+
+        //delegator-specific information
+        (
+            IInvestmentStrategy[] memory delegatorStrategies,
+            uint256[] memory delegatorShares
+        ) = investmentManager.getDeposits(staker);
+
+
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            initialOperatorShares[delegatorStrategies[k]] = delegation
+                .operatorShares(operator, delegatorStrategies[k]);
+        }
+
+
+        _testUndelegation(staker);
+
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            uint256 operatorSharesBefore = initialOperatorShares[
+                delegatorStrategies[k]
+            ];
+            uint256 operatorSharesAfter = delegation.operatorShares(
+                operator,
+                delegatorStrategies[k]
+            );
+
+            assertTrue(
+                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter, "testUndelegation: delegator shares not deducted correctly"
+            );
+        }
+        
+    }
+
     
     /// @notice registers a fixed address as a delegate, delegates to it from a second address, 
     ///         and checks that the delegate's voteWeights increase properly
@@ -176,64 +222,6 @@ contract Delegator is EigenLayrDeployer {
         );
     }
 
-    /// @notice test staker's ability ot undelegate from an operator.
-    /// @param operator is the operator being delegated to.
-    /// @param staker is the staker delegating stake to the operator.
-    function testUndelegation(address operator, address staker) public {
-
-        cheats.assume(operator != address(0));
-        cheats.assume(staker != address(0));
-        cheats.assume(staker != operator);
-
-
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
-            operator,
-            0
-        );
-
-        emit log_named_uint("registrantEthWeightBefore", registrantEthWeightBefore);
-       
-
-
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
-        _testWethDeposit(staker, 1e18);
-        _testDepositEigen(staker, 1e18);
-        _testDelegateToOperator(staker, operator);
-
-
-        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-        emit log_named_uint("registrantEthWeightAfter", registrantEthWeightAfter);
-
-        //delegator-specific information
-        (
-            IInvestmentStrategy[] memory delegatorStrategies,
-            uint256[] memory delegatorShares
-        ) = investmentManager.getDeposits(staker);
-
-
-        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
-            initialOperatorShares[delegatorStrategies[k]] = delegation
-                .operatorShares(operator, delegatorStrategies[k]);
-        }
-
-
-        _testUndelegation(staker);
-
-        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
-            uint256 operatorSharesBefore = initialOperatorShares[
-                delegatorStrategies[k]
-            ];
-            uint256 operatorSharesAfter = delegation.operatorShares(
-                operator,
-                delegatorStrategies[k]
-            );
-
-            assertTrue(
-                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter, "testUndelegation: delegator shares not deducted correctly"
-            );
-        }
-        
-    }
     /// @notice test to see if an operator who is slashed/frozen 
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
@@ -310,7 +298,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.assume(staker != operator);
 
         //this function performs delegation and undelegation
-        testUndelegation(operator, staker);
+        testUndelegation(operator, staker, ethAmount, eigenAmount);
 
         (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
 
