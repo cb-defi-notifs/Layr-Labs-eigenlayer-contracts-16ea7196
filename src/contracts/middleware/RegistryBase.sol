@@ -24,19 +24,6 @@ abstract contract RegistryBase is
 {
     using BytesLib for bytes;
 
-    // CONSTANTS
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
-
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant REGISTRATION_TYPEHASH =
-        keccak256(
-            "Registration(address operator,address registrationContract,uint256 expiry)"
-        );
-
-    /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     uint128 public nodeEthStake = 1 wei;
     uint128 public nodeEigenStake = 1 wei;
     
@@ -99,16 +86,11 @@ abstract contract RegistryBase is
             _NUMBER_OF_QUORUMS
         )
     {
-        //apk_0 = g2Gen
-        // initialize the DOMAIN_SEPARATOR for signatures
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
-        );
-        // push an empty OperatorStake struct to the total stake history
+        // push an empty OperatorStake struct to the total stake history to record starting with zero stake
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
 
-        // push an empty OperatorIndex struct to the total operators history
+        // push an empty OperatorIndex struct to the total operators history to record starting with zero operators
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
 
