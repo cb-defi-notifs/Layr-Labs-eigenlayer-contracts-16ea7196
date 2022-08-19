@@ -203,11 +203,11 @@ contract Delegator is EigenLayrDeployer {
         cheats.assume(staker != operator);
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        uint96 registrantEthWeightBefore = dlReg.weightOfOperator(
+        uint96 operatorEthWeightBefore = dlReg.weightOfOperator(
             operator,
             0
         );
-        uint96 registrantEigenWeightBefore = dlReg.weightOfOperator(
+        uint96 operatorEigenWeightBefore = dlReg.weightOfOperator(
             operator,
             1
         );
@@ -215,14 +215,14 @@ contract Delegator is EigenLayrDeployer {
         _testDepositStrategies(staker, 1e18, numStratsToAdd);
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
-        uint96 registrantEthWeightAfter = dlReg.weightOfOperator(operator, 0);
-        uint96 registrantEigenWeightAfter = dlReg.weightOfOperator(operator,1);
+        uint96 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);
+        uint96 operatorEigenWeightAfter = dlReg.weightOfOperator(operator,1);
         assertTrue(
-            registrantEthWeightAfter > registrantEthWeightBefore,
+            operatorEthWeightAfter > operatorEthWeightBefore,
             "testDelegation: registrantEthWeight did not increase!"
         );
         assertTrue(
-            registrantEigenWeightAfter > registrantEigenWeightBefore,
+            operatorEigenWeightAfter > operatorEigenWeightBefore,
             "testDelegation: registrantEigenWeight did not increase!"
         );
     }
