@@ -25,6 +25,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
+
+     bytes32 SRSMerkleRootHash;
+
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
         address challenger
@@ -40,6 +43,22 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
+
+
+    function lowDegreenessCheck(
+        bytes calldata header,
+        bytes32 SRSLeafHash
+    ) external {
+        DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+
+
+
+
+
+        
+    }
+
+
 
     function respondToLowDegreeChallenge(
         bytes calldata header,
