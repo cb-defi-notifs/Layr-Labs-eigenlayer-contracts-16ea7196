@@ -276,8 +276,7 @@ contract Delegator is EigenLayrDeployer {
     }
 
 
-    /// @notice This function tests to ensure that a delegator can't register multiple (2) times
-    ///         cannot be undelegated from by their stakers.
+    /// @notice This function tests to ensure that a you can't register as a delegate multiple times
     /// @param operator is the operator being delegated to.
     function testRegisterAsDelegateMultipleTimes(address operator) public {
         cheats.assume(operator != address(0));
