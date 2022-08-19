@@ -350,9 +350,6 @@ abstract contract RegistryBase is
             })
         );
 
-        /**
-         @notice  update info on ETH and Eigen staked with the middleware
-         */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
@@ -361,18 +358,18 @@ abstract contract RegistryBase is
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
 
-        // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
 
-        address swappedOperator = _popRegistrant(pubkeyHash, index);
+        // remove the operator at `index` from the `registrantList`
+        address swappedOperator = _popRegistrant(index);
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
     }
 
-    // Removes the registrant with the given `pubkeyHash` from the `index` in `registrantList`
-    function _popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns (address swappedOperator) {
+    // Removes the registrant at the given `index` from the `registrantList`
+    function _popRegistrant(uint32 index) internal returns (address swappedOperator) {
         // gas saving by caching length here
         uint256 registrantListLengthMinusOne = registrantList.length - 1;
         // Update index info for operator at end of list, if they are not the same as the removed operator
@@ -380,7 +377,7 @@ abstract contract RegistryBase is
             // get existing operator at end of list, and retrieve their pubkeyHash
             swappedOperator = registrantList[registrantListLengthMinusOne];
             Registrant memory registrant = registry[swappedOperator];
-            pubkeyHash = registrant.pubkeyHash;
+            bytes32 pubkeyHash = registrant.pubkeyHash;
 
             // store blockNumber at which operator index changed
             // same operation as above except pubkeyHash is now different (since different registrant)
