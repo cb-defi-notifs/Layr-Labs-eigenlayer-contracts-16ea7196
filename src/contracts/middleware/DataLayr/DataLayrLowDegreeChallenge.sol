@@ -65,7 +65,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 SRSIndex,
         bytes memory SRSMerkleProof,
         BN254.G1Point memory proofInG1
-    ) external {
+    ) external view {
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
         bytes32 hashOfSRSElement = keccak256(abi.encodePacked(SRSElement.X, SRSElement.Y));
