@@ -19,16 +19,15 @@ contract InvestmentStrategyTests is
     ///@notice This function tests to ensure that only the investmentManager
     ///         can deposit into a strategy
     ///@param invalidDepositor is the non-registered depositor
-    function testInvalidCalltoDeposit(address invalidDepositor) public {
-        IERC20 underlyingToken = strat.underlyingToken();
-        cheats.assume(invalidDepositor != address(0));
-        cheats.assume(invalidDepositor != address(eigenLayrProxyAdmin));
-        cheats.assume(invalidDepositor != address(investmentManager));
-        cheats.startPrank(invalidDepositor);
+    function testInvalidCalltoDeposit(
+        address invalidDepositor
+     ) fuzzedAddress(invalidDepositor) public {
 
+        IERC20 underlyingToken = strat.underlyingToken();
+
+        cheats.startPrank(invalidDepositor);
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
         strat.deposit(underlyingToken, 1e18);
-
         cheats.stopPrank();
     }
 
@@ -36,28 +35,28 @@ contract InvestmentStrategyTests is
     ///         can deposit into a strategy
     ///@param invalidWithdrawer is the non-registered withdrawer
     ///@param depositor is the depositor for which the shares are being withdrawn
-    function testInvalidCalltoWithdraw(address depositor, address invalidWithdrawer) public {
-        IERC20 underlyingToken = strat.underlyingToken();
-        cheats.assume(invalidWithdrawer != address(0));
-        cheats.assume(invalidWithdrawer != address(eigenLayrProxyAdmin));
-        cheats.assume(invalidWithdrawer != address(investmentManager));
-        cheats.startPrank(invalidWithdrawer);
+    function testInvalidCalltoWithdraw(
+        address depositor, 
+        address invalidWithdrawer
+    ) public fuzzedAddress(invalidWithdrawer) {
 
+        IERC20 underlyingToken = strat.underlyingToken();
+
+        cheats.startPrank(invalidWithdrawer);
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
         strat.withdraw(depositor, underlyingToken, 1e18);
-
         cheats.stopPrank();
     }
 
     ///@notice This function tests ensures that withdrawing for a depositor that never
     ///         actually deposited fails.
     ///@param depositor is the depositor for which the shares are being withdrawn
-    function testWithdrawalExceedsTotalShares(address depositor) public {
+    function testWithdrawalExceedsTotalShares(
+        address depositor
+     ) public fuzzedAddress(depositor) {
         IERC20 underlyingToken = strat.underlyingToken();
-        cheats.assume(depositor != address(0));
-        cheats.assume(depositor != address(eigenLayrProxyAdmin));
+        
         cheats.startPrank(address(investmentManager));
-
         cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares"));
         strat.withdraw(depositor, underlyingToken, 1e18);
 

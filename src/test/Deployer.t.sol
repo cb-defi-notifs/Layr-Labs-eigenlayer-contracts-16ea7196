@@ -108,6 +108,13 @@ contract EigenLayrDeployer is
         _;
     }
 
+    modifier fuzzedAddress(address fuzzedAddress){
+        cheats.assume(fuzzedAddress != address(0));
+        cheats.assume(fuzzedAddress != address(eigenLayrProxyAdmin));
+        cheats.assume(fuzzedAddress != address(investmentManager));
+        _;
+    }
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts

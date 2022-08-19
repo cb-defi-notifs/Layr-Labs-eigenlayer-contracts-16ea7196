@@ -43,11 +43,6 @@ contract Delegator is EigenLayrDeployer {
         uint256 sigma1;
     }
 
-    modifier fuzzedAddress(address fuzzedAddress){
-        cheats.assume(fuzzedAddress != address(0));
-        cheats.assume(fuzzedAddress != address(eigenLayrProxyAdmin));
-        _;
-    }
 
     constructor() {
         delegates = [acct_0, acct_1];
