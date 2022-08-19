@@ -129,23 +129,9 @@ contract BLSRegistry is
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
-        
-        // store the registrant's info in mapping
-        registry[operator] = Registrant({
-            pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
-            active: IQuorumRegistry.Active.ACTIVE,
-            fromTaskNumber: repository.serviceManager().taskNumber(),
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            // extract the socket address
-            socket: socket,
-            deregisterTime: 0
-        });
 
         // add the operator to the list of registrants and do accounting
-        _addRegistrant(operator, pubkeyHash, _operatorStake);
+        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }
@@ -182,7 +168,7 @@ contract BLSRegistry is
         require(pubkeyHash == pubkeyHashFromInput, "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash");
 
         // Perform necessary updates for removing operator, including updating registrant list and index histories
-        _removeOperator(pubkeyHash, index);
+        _removeRegistrant(pubkeyHash, index);
 
         /**
          @notice update the aggregated public key of all registered operators and record

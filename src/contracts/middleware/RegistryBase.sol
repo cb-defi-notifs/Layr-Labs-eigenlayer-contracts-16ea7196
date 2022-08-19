@@ -297,16 +297,11 @@ abstract contract RegistryBase is
      * Remove the operator from active status. Removes the registrant with the given `pubkeyHash` from the `index` in `registrantList`,
      * updates registrantList and index histories, and performs other necessary updates for removing operator
      */
-    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
-        // must continue to serve until the latest time at which an active task expires
-        /**
-         @notice this info is used in challenges
-         */
+    function _removeRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+        // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
-
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
-
         registry[msg.sender].deregisterTime = block.timestamp;
 
         // gas saving by caching length here
@@ -381,7 +376,21 @@ abstract contract RegistryBase is
     }
 
     // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`
-    function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake) internal {
+    function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake, string calldata socket) internal {
+        // store the registrant's info in mapping
+        registry[operator] = Registrant({
+            pubkeyHash: pubkeyHash,
+            id: nextRegistrantId,
+            index: numRegistrants(),
+            active: IQuorumRegistry.Active.ACTIVE,
+            fromTaskNumber: repository.serviceManager().taskNumber(),
+            fromBlockNumber: uint32(block.number),
+            serveUntil: 0,
+            // extract the socket address
+            socket: socket,
+            deregisterTime: 0
+        });
+
         // record the operator being registered and update the counter for registrant ID
         registrantList.push(operator);
         unchecked {

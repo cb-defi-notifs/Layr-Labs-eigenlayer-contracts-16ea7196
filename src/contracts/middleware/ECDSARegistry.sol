@@ -103,23 +103,9 @@ contract ECDSARegistry is
 
         // convert signingAddress to bytes32
         bytes32 pubkeyHash = bytes32(uint256(uint160(signingAddress)));
-        
-        // store the registrant's info in mapping
-        registry[operator] = Registrant({
-            pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
-            active: IQuorumRegistry.Active.ACTIVE,
-            fromTaskNumber: repository.serviceManager().taskNumber(),
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            // extract the socket address
-            socket: socket,
-            deregisterTime: 0
-        });
 
         // add the operator to the list of registrants and do accounting
-        _addRegistrant(operator, pubkeyHash, _operatorStake);
+        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
         
         {
             // store the updated meta-data in the mapping with the key being the current dump number
@@ -166,7 +152,7 @@ contract ECDSARegistry is
         );
 
         // Perform necessary updates for removing operator, including updating registrant list and index histories
-        _removeOperator(registry[msg.sender].pubkeyHash, index);
+        _removeRegistrant(registry[msg.sender].pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
         /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
