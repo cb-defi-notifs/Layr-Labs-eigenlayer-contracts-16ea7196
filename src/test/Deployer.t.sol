@@ -101,6 +101,13 @@ contract EigenLayrDeployer is
 
     uint8 durationToInit = 2;
 
+    modifier cannotReinit(){
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
+        _;
+    }
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts

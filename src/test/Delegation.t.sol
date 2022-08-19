@@ -262,11 +262,8 @@ contract Delegator is EigenLayrDeployer {
     
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
-    function testCannotInitMultipleTimesDelegation() public {
+    function testCannotInitMultipleTimesDelegation() cannotReinit public {
         //delegation has already been initialized in the Deployer test contract
-        cheats.expectRevert(
-            bytes("Initializable: contract is already initialized")
-        );
         delegation.initialize(
             investmentManager,
             undelegationFraudProofInterval

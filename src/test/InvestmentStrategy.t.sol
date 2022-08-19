@@ -10,11 +10,7 @@ contract InvestmentStrategyTests is
 {
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
-    function testCannotInitMultipleTimesDelegation() public {
-        //delegation has already been initialized in the Deployer test contract
-        cheats.expectRevert(
-            bytes("Initializable: contract is already initialized")
-        );
+    function testCannotInitMultipleTimesDelegation() cannotReinit public {
         strat.initialize(
             weth
         );
