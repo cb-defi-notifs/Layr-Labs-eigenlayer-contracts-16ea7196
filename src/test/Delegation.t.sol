@@ -87,7 +87,6 @@ contract Delegator is EigenLayrDeployer {
         if(!delegation.isDelegate(operator)){
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
-        delegation.isDelegate(operator);
 
 
         //@TODO: this is pretty inflexible but I guess it works for the time being, assuming we only have two fixes strats
