@@ -354,7 +354,12 @@ abstract contract RegistryBase is
          @notice  update info on ETH and Eigen staked with the middleware
          */
         // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        _subtractFromTotalStake(currentStakes);
+        // copy latest totalStakes to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake -= currentStakes.ethStake;
+        _totalStake.eigenStake -= currentStakes.eigenStake;
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
 
         // Update index info for old operator
         // store blockNumber at which operator index changed (stopped being applicable)
@@ -403,7 +408,12 @@ abstract contract RegistryBase is
             ++nextRegistrantId;
         }
 
-        _addToTotalStake(_operatorStake);
+        // copy latest totalStakes to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        _totalStake.ethStake += _operatorStake.ethStake;
+        _totalStake.eigenStake += _operatorStake.eigenStake;
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
 
         // Update totalOperatorsHistory array
         _updateTotalOperatorsHistory();
@@ -442,30 +452,6 @@ abstract contract RegistryBase is
         );
 
         return _operatorStake;
-    }
-
-    // update total Eigen and ETH that are being employed by the middleware for securing tasks
-    function _addToTotalStake(OperatorStake memory _operatorStake) internal {
-        // copy latest totalStakes to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake += _operatorStake.ethStake;
-        _totalStake.eigenStake += _operatorStake.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        // linking with the most recent stake record in the past
-        // update storage of total stake
-        _recordTotalStakeUpdate(_totalStake);
-    }
-
-    // update total Eigen and ETH that are being employed by the middleware for securing tasks
-    function _subtractFromTotalStake(OperatorStake memory _operatorStake) internal {
-        // copy latest totalStakes to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake -= _operatorStake.ethStake;
-        _totalStake.eigenStake -= _operatorStake.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        // linking with the most recent stake record in the past
-        // update storage of total stake
-        _recordTotalStakeUpdate(_totalStake);
     }
 
     // Finds the updated stake for `operator`, stores it and records the update. Calculates the change to `_totalStake`, but **DOES NOT UPDATE THE `totalStake` STORAGE SLOT**
