@@ -33,7 +33,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
 
-     bytes32 SRSMerkleRootHash;
+     bytes32 powersOfTauMerkleRoot;
 
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
@@ -69,7 +69,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
         bytes32 hashOfSRSElement = keccak256(abi.encodePacked(SRSElement.X, SRSElement.Y));
-        require(Merkle.checkMembership(hashOfSRSElement, SRSIndex, SRSMerkleRootHash, SRSMerkleProof), "Merkle proof was not validated");
+        require(Merkle.checkMembership(hashOfSRSElement, SRSIndex, powersOfTauMerkleRoot, SRSMerkleProof), "Merkle proof was not validated");
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
         require(BN254.pairing(dskzgMetadata.c, SRSElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
