@@ -35,6 +35,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
      bytes32 powersOfTauMerkleRoot;
 
+     uint256 MAX_SRS_DEGREE;
+
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
         address challenger
@@ -54,25 +56,25 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     /// @notice This function tests whether a polynomial's degree is not greater than a provided degree
     /// @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
-    /// @param SRSElement is the G2 point of the SRS element we are computing the pairing for (x^{n-m})
-    /// @param SRSIndex is the index of the merkle tree containing the @param SRSElement
+    /// @param potElement is the G2 point of the SRS element we are computing the pairing for (x^{n-m})
     /// @param proofInG1 is the provided G1 point is the product of the SRSElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
 
     //TODO: we need to hardcode a merkle root hash in storage
-    function lowDegreenessCheck(
+    function lowDegreenessProof(
         bytes calldata header,
-        BN254.G2Point memory SRSElement,
-        uint256 SRSIndex,
+        BN254.G2Point memory potElement,
         bytes memory SRSMerkleProof,
         BN254.G1Point memory proofInG1
     ) external view {
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
-        bytes32 hashOfSRSElement = keccak256(abi.encodePacked(SRSElement.X, SRSElement.Y));
-        require(Merkle.checkMembership(hashOfSRSElement, SRSIndex, powersOfTauMerkleRoot, SRSMerkleProof), "Merkle proof was not validated");
+        //the index of the merkle tree containing the potElement
+        uint256 potIndex = MAX_SRS_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
+        bytes32 hashOfSRSElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
+        require(Merkle.checkMembership(hashOfSRSElement, potIndex, powersOfTauMerkleRoot, SRSMerkleProof), "Merkle proof was not validated");
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
-        require(BN254.pairing(dskzgMetadata.c, SRSElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
+        require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
     }
 
 
