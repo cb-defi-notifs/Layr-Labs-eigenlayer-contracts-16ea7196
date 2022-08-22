@@ -350,6 +350,22 @@ contract Delegator is EigenLayrDeployer {
         _payRewards(operator);
     }
 
+    /// @notice testing permissions setInvestmentManager and 
+    ///         setUndelegationFraudProofInterval functions.
+
+    function testOwnableFunctions(address badGuy, uint256 altFraudProofInterval) fuzzedAddress(badGuy) public {
+        cheats.startPrank(badGuy);
+        EigenLayrDelegation altDelegation = new EigenLayrDelegation();
+        IInvestmentManager altInvestmentManager = new InvestmentManager(altDelegation);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        delegation.setInvestmentManager(altInvestmentManager);
+        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
+        delegation.setUndelegationFraudProofInterval(altFraudProofInterval);
+        cheats.stopPrank();
+
+
+    }
+
     
 
     //*******INTERNAL FUNCTIONS*********//

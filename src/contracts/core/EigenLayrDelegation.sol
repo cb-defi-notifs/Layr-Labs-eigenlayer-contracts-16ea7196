@@ -8,8 +8,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
-
-// import "forge-std/Test.sol";
+ import "forge-std/Test.sol";
 
 // TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
@@ -26,7 +25,7 @@ contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
     EigenLayrDelegationStorage
-    // ,DSTest
+ ,DSTest
 {
     modifier onlyInvestmentManager() {
         require(
@@ -62,6 +61,8 @@ contract EigenLayrDelegation is
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
         _transferOwnership(msg.sender);
+        emit log_named_address("owner", owner());
+
     }
 
     // EXTERNAL FUNCTIONS
