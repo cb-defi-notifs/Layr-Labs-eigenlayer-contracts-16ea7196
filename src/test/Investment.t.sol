@@ -141,7 +141,6 @@ contract InvestmentTests is
 
         investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, sender, withdrawerAndNonce, data, dlsm);
 
-
         cheats.stopPrank();
 
         
@@ -178,30 +177,6 @@ contract InvestmentTests is
     function testInvestorStratUpdate() public {
 
     }
-    
-
-    // TODO: FIX THIS!
-    /*
-    //verifies that it is possible to deposit eigen and then withdraw it
-    function testDepositAndWithdrawEigen(uint80 eigenToDeposit, uint256 amountToWithdraw) public {
-        // sanity check for inputs; keeps fuzzed tests from failing
-        cheats.assume(eigenToDeposit < eigenTotalSupply / 2);
-        cheats.assume(amountToWithdraw <= eigenToDeposit);
-        _testDepositEigen(signers[0], eigenToDeposit);
-        uint256 eigenBeforeWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
-
-        cheats.startPrank(signers[0]);
-        investmentManager.withdrawEigen(amountToWithdraw);
-        cheats.stopPrank();
-
-        uint256 eigenAfterWithdrawal = eigen.balanceOf(signers[0], eigenTokenId);
-        assertEq(eigenAfterWithdrawal - eigenBeforeWithdrawal, amountToWithdraw, "incorrect eigen sent on withdrawal");
-    }
-    */
-
-    // Coverage for EigenLayrDeposit contract //
-    // TODOs:
-    // testDepositPOSProof
 
     function testSlashing(uint256 amountToDeposit) public{
 
