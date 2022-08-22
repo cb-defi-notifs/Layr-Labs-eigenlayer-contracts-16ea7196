@@ -13,7 +13,7 @@ contract InvestmentTests is
 
     /**
      * @notice Verifies that it is possible to deposit WETH
-     * 
+     * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
     function testWethDeposit(uint256 amountToDeposit)
         public
@@ -22,12 +22,8 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
-    function testWethDepositWithEmit() public {
-        emit log_named_uint("testWethDeposit(1e7)",testWethDeposit(1e7));
-    }
-
     /**
-     * @notice Verifies that it is possible to withdraw WETH
+     * @notice Verifies that it is possible to withdraw WETH after depositing it
      * 
      */
     function testWethWithdrawal(
@@ -71,16 +67,19 @@ contract InvestmentTests is
         address[2] memory  accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
         uint256 amountToDeposit = 10e7;
+        uint256 amountToWithdraw = 10e7;
+        strategy_arr.push(strat);
+        tokens.push(weth);
+
+        // we do this here to ensure that `acct_1` is delegated
+        _testRegisterAsDelegate(acct_1, IDelegationTerms(acct_1));
 
         //make deposits in WETH strategy
         for (uint i=0; i<accounts.length; i++){
-            cheats.deal(accounts[i], amountToDeposit);
-            depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
-
+            // uint256 amountDeposited = _testWethDeposit(accounts[i], amountToDeposit);
+            _testWethDeposit(accounts[i], amountToDeposit);
+            depositAmounts[i] = amountToWithdraw;
         }
-        strategy_arr.push(strat);
-        tokens.push(weth);
-        
         //queue the withdrawal
         for (uint i=0; i<accounts.length; i++){ 
             cheats.startPrank(accounts[i]);
@@ -91,10 +90,21 @@ contract InvestmentTests is
             uint256[] memory strategyIndexes = new uint256[](1);
             strategyIndexes[0] = 0;
 
-            InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
-            investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-            investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], nonce.nonce);
-            investmentManager.completeQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], nonce.nonce);
+            InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
+            investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, withdrawerAndNonce);
+            if (delegation.isDelegated(accounts[i])) {
+                assertTrue(
+                    !investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce),
+                    "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+                );
+                cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
+            } else {
+                assertTrue(
+                    investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce),
+                    "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+                );
+            }
+            investmentManager.completeQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce);
             cheats.stopPrank();
         }
     }
@@ -104,18 +114,18 @@ contract InvestmentTests is
         uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
+        // hardcoded inputs
+        address sender = acct_0;
+        uint256 amountToWithdraw = 1;
+
         strategy_arr.push(strat);
         tokens.push(weth);
 
         uint256[] memory shareAmounts = new uint256[](1);
-        cheats.deal(acct_0, amountToDeposit);
+        shareAmounts[0] = amountToWithdraw;
+        cheats.deal(sender, amountToDeposit);
 
-
-        _testWethDeposit(acct_0, amountToDeposit);
-
-
-        
-
+        _testWethDeposit(sender, amountToDeposit);
 
         uint256[] memory strategyIndexes = new uint256[](1);
         strategyIndexes[0] = 0;
@@ -124,14 +134,12 @@ contract InvestmentTests is
         bytes memory data = _testConfirmDataStoreSelfOperators(15);
         
         //queue the withdrawal        
-        cheats.startPrank(acct_0);
+        cheats.startPrank(sender);
 
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(sender, 0);
+        investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, withdrawerAndNonce);
 
-
-        InvestmentManagerStorage.WithdrawerAndNonce memory nonce = InvestmentManagerStorage.WithdrawerAndNonce(acct_0, 0);
-        investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
-
-        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, acct_0, nonce.nonce, data, dlsm);
+        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, sender, withdrawerAndNonce, data, dlsm);
 
 
         cheats.stopPrank();

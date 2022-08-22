@@ -339,6 +339,7 @@ contract EigenLayrDeployer is
         returns (uint256 amountDeposited)
     {
         cheats.assume(amountToDeposit <= wethInitialSupply);
+        // transfer WETH to `sender` and have them deposit it into `strat`
         amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, strat);
     }
 
@@ -399,7 +400,7 @@ contract EigenLayrDeployer is
         }
         cheats.stopPrank();
     }
-    
+
     //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
@@ -732,6 +733,11 @@ contract EigenLayrDeployer is
         assertTrue(
             delegation.delegationTerms(sender) == dt,
             "_testRegisterAsDelegate: delegationTerms not set appropriately"
+        );
+
+        assertTrue(
+            delegation.isDelegated(sender),
+            "_testRegisterAsDelegate: sender not marked as actively delegated"
         );
         cheats.stopPrank();
 
