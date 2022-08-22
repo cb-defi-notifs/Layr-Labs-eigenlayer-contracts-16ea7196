@@ -903,7 +903,7 @@ contract EigenLayrDeployer is
         cheats.startPrank(sender);
         delegation.initUndelegation();
         delegation.commitUndelegation();
-        cheats.warp(block.timestamp + 365 days);
+        cheats.warp(block.timestamp + 10 days);
         delegation.finalizeUndelegation();
         cheats.stopPrank();
         assertTrue(delegation.isNotDelegated(sender)==true, "testDelegation: staker is not undelegated");
