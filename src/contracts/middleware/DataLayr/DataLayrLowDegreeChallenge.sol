@@ -63,7 +63,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     function lowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
-        bytes memory SRSMerkleProof,
+        bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1
     ) external view {
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
@@ -71,7 +71,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         //the index of the merkle tree containing the potElement
         uint256 potIndex = MAX_SRS_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         bytes32 hashOfSRSElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
-        require(Merkle.checkMembership(hashOfSRSElement, potIndex, powersOfTauMerkleRoot, SRSMerkleProof), "Merkle proof was not validated");
+        require(Merkle.checkMembership(hashOfSRSElement, potIndex, powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
         require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
