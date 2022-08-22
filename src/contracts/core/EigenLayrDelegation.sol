@@ -166,7 +166,7 @@ contract EigenLayrDelegation is
     function commitUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_INITIALIZED,
-            "EigenLayrDelegation.finalizeUndelegation: Staker is not in the post commit phase"
+            "EigenLayrDelegation.commitUndelegation: Staker is not in commit phase"
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
@@ -175,6 +175,22 @@ contract EigenLayrDelegation is
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
         
+    }
+
+
+    function finalizeUndelegation() external {
+        require(
+            delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
+            "EigenLayrDelegation.finalizeUndelegation: Staker is not commited to undelegation"
+        );
+
+        require(
+            block.timestamp > undelegationFinalizedTime[msg.sender],
+            "EigenLayrDelegation.finalizeUndelegation: fraudproof period has not passed"
+        );
+
+         // set that the staker has undelegated
+        delegated[msg.sender] = DelegationStatus.UNDELEGATED;
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
@@ -375,9 +391,7 @@ contract EigenLayrDelegation is
     ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
         return
-            delegated[staker] == DelegationStatus.UNDELEGATED ||
-            (delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED &&
-                block.timestamp > undelegationFinalizedTime[staker]);
+            delegated[staker] == DelegationStatus.UNDELEGATED;
     }
 
     function isDelegated(address staker)

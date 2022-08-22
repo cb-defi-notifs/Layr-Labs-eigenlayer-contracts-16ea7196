@@ -91,9 +91,11 @@ contract Delegator is EigenLayrDeployer {
         uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
 
         //making additional deposits to the investment strategies
+        assertTrue(delegation.isNotDelegated(staker)==true, "testDelegation: staker is not delegate");
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
         _testDelegateToOperator(staker, operator);
+        assertTrue(delegation.isDelegated(staker)==true, "testDelegation: staker is not delegate");
 
         (
             IInvestmentStrategy[] memory updatedStrategies,
@@ -250,11 +252,8 @@ contract Delegator is EigenLayrDeployer {
         cheats.startPrank(staker);
         cheats.expectRevert(bytes("EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"));
         delegation.initUndelegation();
-
-        
     }
 
-    
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() cannotReinit public {
@@ -279,13 +278,11 @@ contract Delegator is EigenLayrDeployer {
     function testDelegationToUnregisteredDelegate(
         address delegate
         ) public fuzzedAddress(delegate){
-
         //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
         _testDepositStrategies(signers[1], 1e18, 1);
         _testDepositEigen(signers[1], 1e18);
 
         cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
-
         cheats.startPrank(signers[1]);
         delegation.delegateTo(delegate);
         cheats.stopPrank();
@@ -364,6 +361,7 @@ contract Delegator is EigenLayrDeployer {
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        
 
         for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator

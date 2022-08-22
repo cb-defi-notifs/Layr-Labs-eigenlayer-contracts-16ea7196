@@ -108,10 +108,10 @@ contract EigenLayrDeployer is
         _;
     }
 
-    modifier fuzzedAddress(address fuzzedAddress){
-        cheats.assume(fuzzedAddress != address(0));
-        cheats.assume(fuzzedAddress != address(eigenLayrProxyAdmin));
-        cheats.assume(fuzzedAddress != address(investmentManager));
+    modifier fuzzedAddress(address addr){
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
         _;
     }
 
@@ -777,6 +777,7 @@ contract EigenLayrDeployer is
         
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
+        assertTrue(delegation.isDelegate(sender), "testRegisterAsDelegate: sender is not a delegate");
 
         assertTrue(
             delegation.delegationTerms(sender) == dt,
@@ -904,9 +905,8 @@ contract EigenLayrDeployer is
 
         delegation.initUndelegation();
         delegation.commitUndelegation();
-
-
         cheats.stopPrank();
+        assertTrue(delegation.isNotDelegated(sender)==false, "testDelegation: staker is not delegate");
     }
 
     function calculateFee(
