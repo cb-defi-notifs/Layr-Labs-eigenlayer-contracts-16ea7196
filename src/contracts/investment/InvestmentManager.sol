@@ -505,24 +505,20 @@ contract InvestmentManager is
             userShares = userShares - shareAmount;
         }
 
-        
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
-
 
         if (userShares == 0) {
             // if the strategy matches with the strategy index provided
             if (investorStrats[depositor][strategyIndex] == strategy) {
 
-                
                 // replace the strategy with the last strategy in the list
                 investorStrats[depositor][strategyIndex] = investorStrats[
                     depositor
                 ][investorStrats[depositor].length - 1];
                 
             } else {
-
 
                 //loop through all of the strategies, find the right one, then replace
                 uint256 stratsLength = investorStrats[depositor].length;

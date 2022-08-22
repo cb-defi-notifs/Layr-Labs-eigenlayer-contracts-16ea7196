@@ -11,7 +11,10 @@ contract InvestmentTests is
     IInvestmentStrategy[] strategy_arr;
     IERC20[] tokens;
 
-    //verifies that depositing WETH works
+    /**
+     * @notice Verifies that it is possible to deposit WETH
+     * 
+     */
     function testWethDeposit(uint256 amountToDeposit)
         public
         returns (uint256 amountDeposited)
@@ -23,26 +26,36 @@ contract InvestmentTests is
         emit log_named_uint("testWethDeposit(1e7)",testWethDeposit(1e7));
     }
 
-    //checks that it is possible to withdraw WETH
+    /**
+     * @notice Verifies that it is possible to withdraw WETH
+     * 
+     */
     function testWethWithdrawal(
         uint96 amountToDeposit,
         uint96 amountToWithdraw
     ) public {
+        cheats.assume(amountToDeposit > 0);
+        cheats.assume(amountToWithdraw > 0);
         _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
     }
 
     // verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
-
         cheats.assume(amountToDeposit > 0);
 
+        // hard-coded inputs
+        IInvestmentStrategy _strat = strat;
+        IERC20 underlyingToken = weth;
         address sender = signers[0];
-        // deposit and then immediately withdraw the full amount
-        uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
+
+        _testDepositToStrategy(sender, amountToDeposit, underlyingToken, _strat);
         uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(sender);
-        _testWethWithdrawal(sender, amountToDeposit, amountToDeposit + amountDeposited);
+        uint256 investorSharesBefore = investmentManager.investorStratShares(sender, _strat);
+        _testWithdrawFromStrategy(sender, 0, investorSharesBefore, underlyingToken, _strat);
+        uint256 investorSharesAfter = investmentManager.investorStratShares(sender, _strat);
         uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(sender);
-        require(investorStratsLengthBefore - investorStratsLengthAfter == 1, "strategy not removed from dynamic array when it should be");
+        assertEq(investorSharesAfter, 0, "testRemovalOfStrategyOnWithdrawal: did not remove all shares!");
+        assertEq(investorStratsLengthBefore - investorStratsLengthAfter, 1, "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be");
     }
 
 
