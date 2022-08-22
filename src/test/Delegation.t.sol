@@ -169,6 +169,7 @@ contract Delegator is EigenLayrDeployer {
                 .operatorShares(operator, delegatorStrategies[k]);
         }
 
+        emit log("HEYEYEHJ");
         _testUndelegation(staker);
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
