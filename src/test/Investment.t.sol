@@ -36,7 +36,10 @@ contract InvestmentTests is
     ) public {
         cheats.assume(amountToDeposit > 0);
         cheats.assume(amountToWithdraw > 0);
-        _testWethWithdrawal(signers[0], amountToDeposit, amountToWithdraw);
+        address sender = signers[0];
+        _testDepositToStrategy(sender, amountToDeposit, weth, strat);
+        uint256 strategyIndex = 0;
+        _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, strat);
     }
 
     // verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
@@ -61,15 +64,13 @@ contract InvestmentTests is
 
     //testing queued withdrawals in the investment manager
     function testQueuedWithdrawal(
-        uint256 amountToDeposit
+        // uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
-        //initiate deposits
+        // harcoded inputs
         address[2] memory  accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
-
-
-        amountToDeposit = 10e7;
+        uint256 amountToDeposit = 10e7;
 
         //make deposits in WETH strategy
         for (uint i=0; i<accounts.length; i++){

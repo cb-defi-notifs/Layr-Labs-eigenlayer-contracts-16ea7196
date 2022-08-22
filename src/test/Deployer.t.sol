@@ -329,28 +329,26 @@ contract EigenLayrDeployer is
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
-    //deposits 'amountToDeposit' of WETH from address 'sender' into 'strat'
+    /**
+     * @notice Deposits `amountToDeposit` of WETH from address `sender` into `strat`.
+     * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
+     * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
+     */
     function _testWethDeposit(address sender, uint256 amountToDeposit)
         internal
         returns (uint256 amountDeposited)
     {
-        amountDeposited = _testWethDepositStrat(sender, amountToDeposit, strat);
+        cheats.assume(amountToDeposit <= wethInitialSupply);
+        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, strat);
     }
 
     /**
-     * @notice Deposits `amountToDeposit` of WETH from address `sender` into the supplied `stratToDepositTo`.
-     *          *if*  `sender` has zero shares prior to deposit, *then* checks that `stratToDepositTo` is correctly added to their `investorStrats` array
+     * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
+     *          *If*  `sender` has zero shares prior to deposit, *then* checks that `stratToDepositTo` is correctly added to their `investorStrats` array.
+     *          
      * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
      * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
      */
-    function _testWethDepositStrat(
-        address sender,
-        uint256 amountToDeposit,
-        IInvestmentStrategy stratToDepositTo
-    ) internal returns (uint256 amountDeposited) {
-        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, stratToDepositTo);
-    }
-
     function _testDepositToStrategy(
         address sender,
         uint256 amountToDeposit,
@@ -363,15 +361,12 @@ contract EigenLayrDeployer is
         uint256 operatorSharesBefore = investmentManager.investorStratShares(sender, stratToDepositTo);
         // assumes this contract already has the underlying token!
         uint256 contractBalance = underlyingToken.balanceOf(address(this));
+        // logging and error for misusing this function (see assumption above)
         if (amountToDeposit > contractBalance) {
             emit log("amountToDeposit > contractBalance");
             emit log_named_uint("amountToDeposit is", amountToDeposit);
             emit log_named_uint("while contractBalance is", contractBalance);
-            cheats.expectRevert(
-                bytes("ERC20: transfer amount exceeds balance")
-            );
-            underlyingToken.transfer(sender, amountToDeposit);
-            amountDeposited = 0;      
+            revert("_testDepositToStrategy failure");
         } else {
             underlyingToken.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
@@ -404,19 +399,8 @@ contract EigenLayrDeployer is
         }
         cheats.stopPrank();
     }
-
-    //checks that it is possible to withdraw WETH
-    function _testWethWithdrawal(
-        address sender,
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
-    ) internal {
-        _testDepositToStrategy(sender, amountToDeposit, weth, strat);
-        uint256 strategyIndex = 0;
-        _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, strat);
-    }
-
-    //checks that it is possible to withdraw WETH
+    
+    //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
         uint256 strategyIndex,
@@ -831,9 +815,10 @@ contract EigenLayrDeployer is
             );
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             stratsToDepositTo[i] = _testAddStrategy();
-            _testWethDepositStrat(
+            _testDepositToStrategy(
                 sender,
                 amountToDeposit,
+                weth,
                 InvestmentStrategyBase(address(stratsToDepositTo[i]))
             );
         }
