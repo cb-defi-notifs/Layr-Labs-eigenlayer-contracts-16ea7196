@@ -134,25 +134,174 @@ contract InvestmentTests is
             assertTrue(amountDeposited != 0, "testFraudproofQueuedWithdrawal: amountDeposited == 0");
         }
 
-        //init and commit DataStore
-        bytes memory data = _testConfirmDataStoreSelfOperators(15);
+        // copied input from `_testConfirmDataStoreSelfOperators` -- test fails unless I do this
+        uint256 initTime = 1000000001;
+        cheats.warp(initTime);
+
+        //queue the withdrawal    
+        cheats.startPrank(sender);
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(sender, 0);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        cheats.stopPrank();
+
+        // retrieve information about the queued withdrawal
+        // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        // (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
+
+
+
+
+
+
+
+        IDataLayrServiceManager.DataStoreSearchData memory searchData;
+// BEGIN COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
+{
+        uint32 numberOfSigners = uint32(15);
+
+        //register all the operators
+        for (uint256 i = 0; i < numberOfSigners; ++i) {
+            // emit log_named_uint("i", i);
+            _testRegisterAdditionalSelfOperator(
+                signers[i],
+                registrationData[i]
+            );
+        }
+
+        searchData = _testInitDataStore(initTime, address(this));
+
+        uint32 numberOfNonSigners = 0;
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
+
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
         
-        // give the dlsm global slashing permission
+        /** 
+     @param data This calldata is of the format:
+            <
+             bytes32 msgHash,
+             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+             uint32 blockNumber
+             uint32 dataStoreId
+             uint32 numberOfNonSigners,
+             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
+             uint32 apkIndex,
+             uint256[4] apk,
+             uint256[2] sigma
+            >
+     */
+        bytes memory data = abi.encodePacked(
+            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            searchData.metadata.blockNumber,
+            searchData.metadata.globalDataStoreId,
+            numberOfNonSigners,
+            // no pubkeys here since zero nonSigners for now
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            apk_0,
+            apk_1,
+            apk_2,
+            apk_3,
+            sigma_0,
+            sigma_1
+        );
+        
+        dlsm.confirmDataStore(data, searchData);
+        cheats.stopPrank();
+// END COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
+}
+
+
+    // //Relevant metadata for a given datastore
+    // struct DataStoreMetadata {
+    //     bytes32 headerHash;
+    //     uint32 durationDataStoreId;
+    //     uint32 globalDataStoreId;
+    //     uint32 blockNumber;
+    //     uint96 fee;
+    //     address confirmer;
+    //     bytes32 signatoryRecordHash;
+    // }
+
+    // //Stores the data required to index a given datastore's metadata
+    // struct DataStoreSearchData {
+    //     uint8 duration;
+    //     uint256 timestamp;
+    //     uint32 index;
+    //     DataStoreMetadata metadata;
+    // }
+
+// TODO: NOTE THE DIFFERENCE IN VARIABLE ORDERING HERE, as opposed to `computeDataStoreHash`!!
+        // broken into multiple steps to solve 'stack too deep'
+        bytes memory calldataForStakeWithdrawalVerification = abi.encodePacked(
+            searchData.metadata.headerHash,
+            searchData.metadata.globalDataStoreId,
+            searchData.metadata.durationDataStoreId,
+            searchData.metadata.blockNumber,
+            searchData.metadata.confirmer,
+            searchData.metadata.fee,
+            searchData.metadata.signatoryRecordHash
+        );
+        calldataForStakeWithdrawalVerification = abi.encodePacked(
+            calldataForStakeWithdrawalVerification,
+            searchData.duration,
+            searchData.timestamp,
+            searchData.index
+        );
+    // function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external view {
+    //     bytes32 headerHash;
+    //     uint32 globalDataStoreId; 
+    //     uint32 durationDataStoreId;
+    //     uint32 blockNumber; 
+    //     address confirmer;
+    //     uint96 fee;
+    //     bytes32 signatoryRecordHash;
+
+    //     uint8 duration; 
+    //     uint256 initTime; 
+    //     uint32 index;
+
+    //     uint256 pointer = 132;
+        
+    //     assembly {
+    //         headerHash := calldataload(pointer)
+    //         globalDataStoreId := shr(224, calldataload(add(pointer, 32)))
+    //         durationDataStoreId := shr(224, calldataload(add(pointer, 36)))
+    //         blockNumber := shr(224, calldataload(add(pointer, 40)))
+    //         confirmer := shr(96, calldataload(add(pointer, 44)))
+    //         fee := shr(160, calldataload(add(pointer, 64)))
+    //         signatoryRecordHash:= calldataload(add(pointer, 76))
+
+    //         duration := shr(248, calldataload(add(pointer, 108)))
+    //         initTime := calldataload(add(pointer, 109))
+    //         index := shr(224, calldataload(add(pointer, 141)))
+    //     }
+
+    //     bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
+    //     require(
+    //         dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+
+    //     //now we check if the dataStore is still active at the time
+    //     //TODO: check if the duration is in days or seconds
+    //     require(
+    //         initTimestamp > initTime
+    //              &&
+    //             unlockTime <
+    //             initTime + duration*86400,
+    //         "task does not meet requirements"
+    //     );
+
+    // }
+
+
+
+
+
         cheats.startPrank(slasher.owner());
         address[] memory contractsToGiveSlashingPermission = new address[](1);
         contractsToGiveSlashingPermission[0] = address(dlsm);
         slasher.addPermissionedContracts(contractsToGiveSlashingPermission);
         cheats.stopPrank();
 
-        //queue the withdrawal        
-        cheats.startPrank(sender);
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(sender, 0);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-        bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-        (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
-        emit log_named_uint("initTimestamp", initTimestamp);
-        emit log_named_uint("latestFraudproofTimestamp", latestFraudproofTimestamp);
-        emit log_named_address("withdrawer", withdrawer);
         // fraudproof the queued withdrawal
 
         // function fraudproofQueuedWithdrawal(
@@ -165,8 +314,7 @@ contract InvestmentTests is
         //     IServiceManager slashingContract
         // ) external {
         emit log("test is failing with next call");
-        investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, sender, withdrawerAndNonce, data, dlsm);
-        cheats.stopPrank();        
+        investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, sender, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
     
     // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'

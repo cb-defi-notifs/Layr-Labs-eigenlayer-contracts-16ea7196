@@ -620,13 +620,10 @@ contract EigenLayrDeployer is
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
-
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
 
-
         (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
-        
         
         /** 
      @param data This calldata is of the format:
@@ -657,7 +654,6 @@ contract EigenLayrDeployer is
             sigma_0,
             sigma_1
         );
-
         
         dlsm.confirmDataStore(data, searchData);
         cheats.stopPrank();
