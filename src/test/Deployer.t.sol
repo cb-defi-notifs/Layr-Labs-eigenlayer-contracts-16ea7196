@@ -519,12 +519,12 @@ contract EigenLayrDeployer is
             );
         }
         
-        searchData = IDataLayrServiceManager.DataStoreSearchData(
-                durationToInit,
-                timestamp,
-                index,
-                metadata
-            );
+        searchData = IDataLayrServiceManager.DataStoreSearchData({
+                metadata: metadata,
+                duration: durationToInit,
+                timestamp: timestamp,
+                index: index
+            });
         return searchData;
     }
 
