@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../contracts/libraries/DataStoreHash.sol";
+import "../contracts/libraries/DataStoreUtils.sol";
 
 import "forge-std/Test.sol";
 
-contract DataStoreHashWrapper {
+contract DataStoreUtilsWrapper {
     function computeDataStoreHashExternal(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     ) 
         internal pure returns (bytes32)
     {
-        return DataStoreHash.computeDataStoreHash(metadata);
+        return DataStoreUtils.computeDataStoreHash(metadata);
     }
 
     function computeDataStoreHashFromArgsExternal(
@@ -24,7 +24,7 @@ contract DataStoreHashWrapper {
         bytes32 signatoryRecordHash
     ) external pure returns (bytes32) {
         return (
-            DataStoreHash.computeDataStoreHashFromArgs(
+            DataStoreUtils.computeDataStoreHashFromArgs(
                 headerHash,
                 durationDataStoreId,
                 globalDataStoreId,
@@ -41,7 +41,7 @@ contract DataStoreHashWrapper {
     )
         external pure returns (bytes memory)
     {
-        return DataStoreHash.packDataStoreMetadata(metadata);
+        return DataStoreUtils.packDataStoreMetadata(metadata);
     }
 
     function unpackDataStoreMetadataExternal(
@@ -49,16 +49,16 @@ contract DataStoreHashWrapper {
     )
         external pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadata)
     {
-        return DataStoreHash.unpackDataStoreMetadata(packedMetadata);
+        return DataStoreUtils.unpackDataStoreMetadata(packedMetadata);
     }
 }
 
-contract DataStoreHashTests is DSTest {
-    DataStoreHashWrapper public dataStoreHashWrapper;
+contract DataStoreUtilsTests is DSTest {
+    DataStoreUtilsWrapper public dataStoreUtilsWrapper;
 
     function setUp() public {
         // deploy library wrapper contract so that we can call the library's functions that take inputs with 'calldata' location specified
-        dataStoreHashWrapper = new DataStoreHashWrapper();
+        dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
     }
 
     function testPackUnpackDataStoreMetadata(
@@ -84,9 +84,9 @@ contract DataStoreHashTests is DSTest {
                 signatoryRecordHash
         );
         // pack the struct
-        bytes memory packedMetadata = dataStoreHashWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
+        bytes memory packedMetadata = dataStoreUtilsWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
         // unpack the struct
-        IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct = dataStoreHashWrapper.unpackDataStoreMetadataExternal(packedMetadata);
+        IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct = dataStoreUtilsWrapper.unpackDataStoreMetadataExternal(packedMetadata);
         // check the struct entries
         assertEq(
             headerHash, unpackedStruct.headerHash,

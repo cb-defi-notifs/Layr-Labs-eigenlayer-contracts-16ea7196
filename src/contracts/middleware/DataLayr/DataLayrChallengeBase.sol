@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 
 abstract contract DataLayrChallengeBase {
 
@@ -81,7 +81,7 @@ abstract contract DataLayrChallengeBase {
                     searchData.duration,
                     searchData.timestamp,
                     searchData.index
-                ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
+                ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
                 "search.metadataclear preimage is incorrect"
             );
 
@@ -156,7 +156,7 @@ abstract contract DataLayrChallengeBase {
                 searchData.duration,
                 searchData.timestamp,
                 searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
+            ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
             "search.metadata preimage is incorrect"
         );
 

@@ -28,7 +28,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/DataStoreHash.sol";
+import "../contracts/libraries/DataStoreUtils.sol";
 
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
@@ -509,7 +509,7 @@ contract EigenLayrDeployer is
             );
 
         {
-            bytes32 dataStoreHash = DataStoreHash.computeDataStoreHash(metadata);
+            bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
 
             //check if computed hash matches stored hash in DLSM
             assertTrue(

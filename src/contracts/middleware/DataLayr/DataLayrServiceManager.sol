@@ -12,7 +12,7 @@ import "../BLSSignatureChecker.sol";
 
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
@@ -212,7 +212,7 @@ contract DataLayrServiceManager is
             //iterate the index throughout the loop
             for (; index < NUM_DS_PER_BLOCK_PER_DURATION; index++){
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] == 0){
-                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] = DataStoreHash.computeDataStoreHash(metadata);
+                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] = DataStoreUtils.computeDataStoreHash(metadata);
                     // recording the empty slot
                     break;   
                 }       
@@ -316,7 +316,7 @@ contract DataLayrServiceManager is
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
+        bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
 
         require(    
@@ -327,7 +327,7 @@ contract DataLayrServiceManager is
         searchData.metadata.signatoryRecordHash = signatoryRecordHash;
 
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
-        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
+        bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
 
         //storing new hash
@@ -484,7 +484,7 @@ contract DataLayrServiceManager is
             index := shr(224, calldataload(add(pointer, 141)))
         }
 
-        bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
+        bytes32 dsHash = DataStoreUtils.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
         require(
             dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 

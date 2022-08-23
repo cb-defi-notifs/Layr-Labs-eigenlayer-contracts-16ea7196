@@ -5,9 +5,9 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
 import "../../libraries/BN254_Constants.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 import "./DataLayrChallengeUtils.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 import "../../libraries/BN254.sol";
 
 contract DataLayrBombVerifier {
@@ -543,7 +543,7 @@ contract DataLayrBombVerifier {
                     duration,
                     sandwich[0].timestamp,
                     sandwich[0].index
-                ) == DataStoreHash.computeDataStoreHash(sandwich[0].metadata),
+                ) == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
         }
@@ -558,7 +558,7 @@ contract DataLayrBombVerifier {
                     duration,
                     sandwich[1].timestamp,
                     sandwich[1].index
-                ) == DataStoreHash.computeDataStoreHash(sandwich[1].metadata),
+                ) == DataStoreUtils.computeDataStoreHash(sandwich[1].metadata),
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
             
@@ -618,7 +618,7 @@ contract DataLayrBombVerifier {
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
-                                                ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "search.metadataclear preimage is incorrect");
+                                                ) == DataStoreUtils.computeDataStoreHash(searchData.metadata), "search.metadataclear preimage is incorrect");
 
         // check that disperser had acquire quorum for this dataStore
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
@@ -672,7 +672,7 @@ contract DataLayrBombVerifier {
                 searchData.duration,
                 searchData.timestamp,
                 searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata);
+            ) == DataStoreUtils.computeDataStoreHash(searchData.metadata);
     }
 
     function max(uint256 x, uint256 y) internal pure returns (uint256) {

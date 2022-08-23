@@ -276,7 +276,7 @@ contract InvestmentTests is
     //         index := shr(224, calldataload(add(pointer, 141)))
     //     }
 
-    //     bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
+    //     bytes32 dsHash = DataStoreUtils.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
     //     require(
     //         dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
 

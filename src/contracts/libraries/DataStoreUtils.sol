@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IDataLayrServiceManager.sol";
 
-library DataStoreHash {
+library DataStoreUtils {
     function computeDataStoreHash(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     ) 
