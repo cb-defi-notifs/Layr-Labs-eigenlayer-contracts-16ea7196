@@ -169,7 +169,12 @@ contract Delegator is EigenLayrDeployer {
                 .operatorShares(operator, delegatorStrategies[k]);
         }
 
-        _testUndelegation(staker);
+        _testCommitUndelegation(staker);
+        cheats.warp(block.timestamp + delegation.undelegationFraudProofInterval()+1);
+
+        _testFinalizeUndelegation(staker);
+
+        
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             uint256 operatorSharesBefore = initialOperatorShares[
@@ -505,6 +510,10 @@ contract Delegator is EigenLayrDeployer {
             );
 
             cheats.stopPrank();
+
+            uint256 operatorEigenSharesBefore = delegation.operatorShares(operator, eigenStrat);
+            uint256 operatorWETHSharesBefore = delegation.operatorShares(operator, wethStrat);
+
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
@@ -566,11 +575,6 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterSigners(numberOfSigners, false);
 
         uint32 blockNumber;
-
-        
-
-        
-
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
@@ -693,6 +697,21 @@ contract Delegator is EigenLayrDeployer {
                 registrationData[i]
             );
         }
+    }
+
+    function _testCommitUndelegation(address sender) internal {
+        cheats.startPrank(sender);
+        delegation.initUndelegation();
+        delegation.commitUndelegation();
+        assertTrue(delegation.undelegationFinalizedTime(sender)==block.timestamp + undelegationFraudProofInterval, "_testCommitUndelegation: undelegation time not set correctly");
+        cheats.stopPrank();
+    }
+
+    function _testFinalizeUndelegation(address sender) internal {
+        cheats.startPrank(sender);
+        delegation.finalizeUndelegation();
+        cheats.stopPrank();
+        assertTrue(delegation.isNotDelegated(sender)==true, "testDelegation: staker is not undelegated");
     }
 
     //Internal function for assembling calldata - prevents stack too deep errors

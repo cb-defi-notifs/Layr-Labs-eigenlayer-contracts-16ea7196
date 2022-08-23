@@ -903,16 +903,6 @@ contract EigenLayrDeployer is
         }
     }
 
-    function _testUndelegation(address sender) internal {
-        cheats.startPrank(sender);
-        delegation.initUndelegation();
-        delegation.commitUndelegation();
-        cheats.warp(block.timestamp + 10 days);
-        delegation.finalizeUndelegation();
-        cheats.stopPrank();
-        assertTrue(delegation.isNotDelegated(sender)==true, "testDelegation: staker is not undelegated");
-    }
-
     function calculateFee(
         uint32 totalBytes,
         uint256 feePerBytePerTime,
