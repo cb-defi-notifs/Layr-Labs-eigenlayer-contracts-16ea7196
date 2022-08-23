@@ -530,7 +530,6 @@ contract Delegator is EigenLayrDeployer {
 
         //Operator submits claim to rewards
 
-        emit log("1");
         _testCommitPayment(operator, amountRewards);
 
 
@@ -562,9 +561,6 @@ contract Delegator is EigenLayrDeployer {
         internal
     {
         uint32 numberOfSigners = 15;
-
-        emit log("2");
-
         _testRegisterSigners(numberOfSigners, false);
 
         uint32 blockNumber;
@@ -685,7 +681,6 @@ contract Delegator is EigenLayrDeployer {
             start = 0;
         }
         
-        emit log("3");
 
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
@@ -696,10 +691,6 @@ contract Delegator is EigenLayrDeployer {
                 registrationData[i]
             );
         }
-
-        emit log("3");
-
-         
     }
 
     //Internal function for assembling calldata - prevents stack too deep errors

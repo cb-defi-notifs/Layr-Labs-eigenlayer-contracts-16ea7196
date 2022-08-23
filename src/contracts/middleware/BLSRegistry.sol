@@ -97,7 +97,6 @@ contract BLSRegistry is
             "Operator is already registered"
         );
 
-        emit log("4");
         OperatorStake memory _operatorStake;
         
 
@@ -238,9 +237,7 @@ contract BLSRegistry is
             _totalStake.eigenStake += _operatorStake.eigenStake;
 
 
-            _totalStake.updateBlockNumber = uint32(block.number);
-            emit log("5");
-            
+            _totalStake.updateBlockNumber = uint32(block.number);            
             // linking with the most recent stake recordd in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
             totalStakeHistory.push(_totalStake);
