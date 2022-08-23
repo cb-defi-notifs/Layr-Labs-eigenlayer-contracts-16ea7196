@@ -184,7 +184,7 @@ contract InvestmentManager is
         
         uint256 strategyIndexIndex;
 
-        bytes32 withdrawalRoot = _calculateWithdrawalRoot(strategies, tokens, shareAmounts, msg.sender, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, msg.sender, withdrawerAndNonce);
         
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shareAmounts);
@@ -243,7 +243,7 @@ contract InvestmentManager is
         onlyNotFrozen(depositor)
         nonReentrant
     {
-        bytes32 withdrawalRoot = _calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
             depositor
         ][withdrawalRoot];
@@ -301,7 +301,7 @@ contract InvestmentManager is
         bytes calldata data,
         IServiceManager slashingContract
     ) external {
-        bytes32 withdrawalRoot = _calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
         
@@ -381,7 +381,7 @@ contract InvestmentManager is
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
     ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
-        bytes32 withdrawalRoot = _calculateWithdrawalRoot(strategies, tokens, shareAmounts, slashedAddress, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, slashedAddress, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[slashedAddress][withdrawalRoot];
         require(
             withdrawalStorage.initTimestamp > 0,
@@ -518,28 +518,6 @@ contract InvestmentManager is
         return false;
     }
 
-    function _calculateWithdrawalRoot(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        internal pure returns (bytes32)
-    {
-        return (
-            keccak256(
-                abi.encode(
-                    strategies,
-                    tokens,
-                    shareAmounts,
-                    depositor,
-                    withdrawerAndNonce
-                )
-            )
-        );
-    }
-
     // VIEW FUNCTIONS
 
     /**
@@ -552,7 +530,7 @@ contract InvestmentManager is
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce
     ) external returns (bool) {
-        bytes32 withdrawalRoot = _calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, depositor, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
             depositor
         ][withdrawalRoot];
@@ -603,4 +581,27 @@ contract InvestmentManager is
     {
         return investorStrats[investor].length;
     }
+
+    function calculateWithdrawalRoot(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor,
+        WithdrawerAndNonce calldata withdrawerAndNonce
+    )
+        public pure returns (bytes32)
+    {
+        return (
+            keccak256(
+                abi.encode(
+                    strategies,
+                    tokens,
+                    shareAmounts,
+                    depositor,
+                    withdrawerAndNonce
+                )
+            )
+        );
+    }
+
 }
