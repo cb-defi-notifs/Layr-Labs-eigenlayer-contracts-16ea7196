@@ -26,14 +26,14 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "forge-std/Test.sol";
-
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreHash.sol";
 
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
+
+import "forge-std/Test.sol";
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
