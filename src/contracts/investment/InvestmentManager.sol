@@ -244,9 +244,7 @@ contract InvestmentManager is
         nonReentrant
     {
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
 
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
@@ -303,14 +301,11 @@ contract InvestmentManager is
     ) external {
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 initTimestamp = withdrawalStorage.initTimestamp;
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
-        
-        /// CRITIC --- can it be replaced with  withdrawalStorage.initTimestamp? more gas optimized
-        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
 
         require(initTimestamp > 0, "withdrawal does not exist");
         require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
-
 
         address operator = delegation.delegation(depositor);
 
@@ -329,8 +324,7 @@ contract InvestmentManager is
         }
         
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
-        queuedWithdrawals[depositor][withdrawalRoot]
-            .latestFraudproofTimestamp = uint32(block.timestamp);
+        queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
     }
 
     function slashShares(
@@ -531,9 +525,7 @@ contract InvestmentManager is
         WithdrawerAndNonce calldata withdrawerAndNonce
     ) external returns (bool) {
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
         require(
