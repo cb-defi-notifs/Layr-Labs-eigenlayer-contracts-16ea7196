@@ -275,6 +275,8 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
     }
 
+    /// @notice This function tests to ensure tyou cannot delegate to an unregistered operator
+    /// @param delegate is the unregistered delegate
     function testDelegationToUnregisteredDelegate(
         address delegate
         ) public fuzzedAddress(delegate){
