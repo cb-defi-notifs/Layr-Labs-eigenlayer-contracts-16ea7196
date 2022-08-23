@@ -61,7 +61,6 @@ contract EigenLayrDelegation is
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
         _transferOwnership(msg.sender);
-        emit log_named_address("owner", owner());
 
     }
 
@@ -239,15 +238,21 @@ contract EigenLayrDelegation is
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator
         if(isDelegated(staker)) {
+            
             address operator = delegation[staker];
+            
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
+
+            
 
             //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
+
+            
 
             // call into hook in delegationTerms contract
             IDelegationTerms dt = delegationTerms[operator];

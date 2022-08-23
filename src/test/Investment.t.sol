@@ -64,7 +64,7 @@ contract InvestmentTests is
             depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
 
         }
-        strategy_arr.push(strat);
+        strategy_arr.push(wethStrat);
         tokens.push(weth);
         
         //queue the withdrawal
@@ -90,7 +90,7 @@ contract InvestmentTests is
         uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
-        strategy_arr.push(strat);
+        strategy_arr.push(wethStrat);
         tokens.push(weth);
 
         uint256[] memory shareAmounts = new uint256[](1);
@@ -149,7 +149,7 @@ contract InvestmentTests is
         token.approve(address(investmentManager), type(uint256).max);
         
         cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
-        investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
+        investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
     }
 
     //ensure that investorStrats array updates correctly and only when appropriate
@@ -202,7 +202,7 @@ contract InvestmentTests is
             _testDelegateToOperator(accounts[i], registrant);
 
         }
-        strategy_arr.push(strat);
+        strategy_arr.push(wethStrat);
         tokens.push(weth);
 
         uint256[] memory shareAmounts = new uint256[](1);

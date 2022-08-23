@@ -57,7 +57,7 @@ contract EigenLayrDeployer is
     DataLayrLowDegreeChallenge public dlldc;
 
     IERC20 public weth;
-    InvestmentStrategyBase public strat;
+    InvestmentStrategyBase public wethStrat;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
@@ -153,18 +153,18 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        strat = new InvestmentStrategyBase(investmentManager);
-        strat = InvestmentStrategyBase(
+        wethStrat = new InvestmentStrategyBase(investmentManager);
+        wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(strat),
+                    address(wethStrat),
                     address(eigenLayrProxyAdmin),
                     ""
                 )
             )
         );
         // initialize InvestmentStrategyBase proxy
-        strat.initialize(weth);
+        wethStrat.initialize(weth);
 
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
@@ -196,7 +196,7 @@ contract EigenLayrDeployer is
         strats[1] = temp;
         strategies[1] = temp;
         // add WETH strategy to mapping
-        strategies[2] = IInvestmentStrategy(address(strat));
+        strategies[2] = IInvestmentStrategy(address(wethStrat));
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
@@ -406,7 +406,7 @@ contract EigenLayrDeployer is
     {
         // deposits will revert when amountToDeposit is 0
         cheats.assume(amountToDeposit > 0);
-        amountDeposited = _testWethDepositStrat(sender, amountToDeposit, strat);
+        amountDeposited = _testWethDepositStrat(sender, amountToDeposit, wethStrat);
     }
 
     //deposits 'amountToDeposit' of WETH from address 'sender' into the supplied 'stratToDepositTo'
@@ -466,7 +466,7 @@ contract EigenLayrDeployer is
     ) internal {
         uint256 wethBalanceBefore = weth.balanceOf(sender);
         _testWethDeposit(sender, amountToDeposit);
-        uint256 amountDeposited = investmentManager.investorStratShares(sender, strat);
+        uint256 amountDeposited = investmentManager.investorStratShares(sender, wethStrat);
         cheats.prank(sender);
 
         //if amountDeposited is 0, then trying to withdraw will revert. expect a revert and *short-circuit* if it happens
@@ -480,7 +480,7 @@ contract EigenLayrDeployer is
             cheats.expectRevert(bytes("shareAmount too high"));
             investmentManager.withdrawFromStrategy(
                 0,
-                strat,
+                wethStrat,
                 weth,
                 amountToWithdraw
             );
@@ -488,7 +488,7 @@ contract EigenLayrDeployer is
         } else {
             investmentManager.withdrawFromStrategy(
                 0,
-                strat,
+                wethStrat,
                 weth,
                 amountToWithdraw
             );
@@ -609,13 +609,14 @@ contract EigenLayrDeployer is
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
         uint256 wethToDeposit = 1e18;
-        uint256 eigenToDeposit = 1e16;
+        uint256 eigenToDeposit = 1e10;
         _testWethDeposit(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
+        
         
         dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
 
@@ -795,6 +796,7 @@ contract EigenLayrDeployer is
     function _testDelegateToOperator(address sender, address operator)
         internal
     {
+        
         //delegator-specific information
         (
             IInvestmentStrategy[] memory delegateStrategies,
@@ -819,6 +821,7 @@ contract EigenLayrDeployer is
         delegation.delegateTo(operator);
         cheats.stopPrank();
 
+
         assertTrue(
             delegation.delegation(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
@@ -841,6 +844,7 @@ contract EigenLayrDeployer is
                 "_testDelegateToOperator: delegatedShares not increased correctly"
             );
         }
+
     }
 
     // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token

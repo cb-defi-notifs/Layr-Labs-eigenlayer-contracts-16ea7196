@@ -11,7 +11,7 @@ contract InvestmentStrategyTests is
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() cannotReinit public {
-        strat.initialize(
+        wethStrat.initialize(
             weth
         );
     }
@@ -23,11 +23,11 @@ contract InvestmentStrategyTests is
         address invalidDepositor
      ) fuzzedAddress(invalidDepositor) public {
 
-        IERC20 underlyingToken = strat.underlyingToken();
+        IERC20 underlyingToken = wethStrat.underlyingToken();
 
         cheats.startPrank(invalidDepositor);
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
-        strat.deposit(underlyingToken, 1e18);
+        wethStrat.deposit(underlyingToken, 1e18);
         cheats.stopPrank();
     }
 
@@ -40,11 +40,11 @@ contract InvestmentStrategyTests is
         address invalidWithdrawer
     ) public fuzzedAddress(invalidWithdrawer) {
 
-        IERC20 underlyingToken = strat.underlyingToken();
+        IERC20 underlyingToken = wethStrat.underlyingToken();
 
         cheats.startPrank(invalidWithdrawer);
         cheats.expectRevert(bytes("InvestmentStrategyBase.onlyInvestmentManager"));
-        strat.withdraw(depositor, underlyingToken, 1e18);
+        wethStrat.withdraw(depositor, underlyingToken, 1e18);
         cheats.stopPrank();
     }
 
@@ -54,11 +54,11 @@ contract InvestmentStrategyTests is
     function testWithdrawalExceedsTotalShares(
         address depositor
      ) public fuzzedAddress(depositor) {
-        IERC20 underlyingToken = strat.underlyingToken();
+        IERC20 underlyingToken = wethStrat.underlyingToken();
         
         cheats.startPrank(address(investmentManager));
         cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares"));
-        strat.withdraw(depositor, underlyingToken, 1e18);
+        wethStrat.withdraw(depositor, underlyingToken, 1e18);
 
         cheats.stopPrank();
     }

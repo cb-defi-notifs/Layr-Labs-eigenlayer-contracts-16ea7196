@@ -22,8 +22,8 @@ contract Delegator is EigenLayrDeployer {
     uint256[] apks;
     uint256[] sigmas;
 
-    uint256 amountEigenToDeposit = 1e17;
-    uint256 amountEthToDeposit = 2e19;
+    //uint256 amountEigenToDeposit = 1e17;
+    //uint256 amountEthToDeposit = 2e19;
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
@@ -310,7 +310,12 @@ contract Delegator is EigenLayrDeployer {
         testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 
-    function testRewardPayouts() public {
+    function testRewardPayouts(
+            uint256 ethAmount, 
+            uint256 eigenAmount
+        ) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         //G2 coordinates for aggregate PKs for 15 signers
         apks.push(
             uint256(
@@ -346,8 +351,95 @@ contract Delegator is EigenLayrDeployer {
         );
 
         address operator = signers[0];
-        _testInitiateDelegation(operator, 1e18);
+        _testInitiateDelegation(operator, eigenAmount, ethAmount);
         _payRewards(operator);
+        
+    }
+
+    //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
+    function testForNonSigners(
+        uint256 ethAmount, 
+        uint256 eigenAmount
+    ) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
+        
+        address operator = signers[0];
+        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        nonSignerInfo memory nonsigner;
+        signerInfo memory signer;
+
+        nonsigner.xA0 = (
+            uint256(
+                10245738255635135293623161230197183222740738674756428343303263476182774511624
+            )
+        );
+        nonsigner.xA1 = (
+            uint256(
+                10281853605827367652226404263211738087634374304916354347419537904612128636245
+            )
+        );
+        nonsigner.yA0 = (
+            uint256(
+                3091447672609454381783218377241231503703729871039021245809464784750860882084
+            )
+        );
+        nonsigner.yA1 = (
+            uint256(
+                18210007982945446441276599406248966847525243540006051743069767984995839204266
+            )
+        );
+
+        signer.apk0 = uint256(
+            20820493588973199354272631301248587752629863429201347184003644368113679196121
+        );
+        signer.apk1 = uint256(
+            18507428821816114421698399069438744284866101909563082454551586195885282320634
+        );
+        signer.apk2 = uint256(
+            1263326262781780932600377484793962587101562728383804037421955407439695092960
+        );
+        signer.apk3 = uint256(
+            3512517006108887301063578607317108977425754510174956792003926207778790018672
+        );
+        signer.sigma0 = uint256(
+            7232102842299801988888616268506476902050501317623869691846247376690344395462
+        );
+        signer.sigma1 = uint256(
+            14957250584972173579780704932503635695261143933757715744951524340217507753217
+        );
+
+        uint32 numberOfSigners = 15;
+        _testRegisterSigners(numberOfSigners, false);
+
+        
+
+        // scoped block helps fix 'stack too deep' errors
+        {
+            uint256 initTime = 1000000001;
+            IDataLayrServiceManager.DataStoreSearchData
+                memory searchData = _testInitDataStore(initTime, address(this));
+            uint32 numberOfNonSigners = 1;
+            uint32 dataStoreId = dlsm.taskNumber() - 1;
+
+            bytes memory data = _getCallData(
+                keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
+                numberOfNonSigners,
+                signer,
+                nonsigner,
+                searchData.metadata.blockNumber,
+                dataStoreId
+            );
+
+            uint gasbefore = gasleft();
+
+            dlsm.confirmDataStore(data, searchData);
+
+            emit log_named_uint("gas cost", gasbefore - gasleft());
+
+            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
+            // assertTrue(sighash != bytes32(0), "Data store not committed");
+        }
     }
 
     /// @notice testing permissions setInvestmentManager and 
@@ -370,20 +462,19 @@ contract Delegator is EigenLayrDeployer {
 
     //*******INTERNAL FUNCTIONS*********//
     
-    function _testInitiateDelegation(address operator, uint256 amountToDeposit)
+    function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));
-        
 
         for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
             // eigen.safeTransferFrom(address(this), delegates[i], 0, amountEigenToDeposit, "0x");
             eigenToken.transfer(delegates[i], amountEigenToDeposit);
-            weth.transfer(delegates[i], amountToDeposit);
+            weth.transfer(delegates[i], amountEthToDeposit);
             cheats.deal(delegates[i], amountEthToDeposit);
 
             cheats.startPrank(delegates[i]);
@@ -392,6 +483,7 @@ contract Delegator is EigenLayrDeployer {
             // eigen.setApprovalForAll(address(investmentManager), true);
             // investmentManager.depositEigen(amountEigenToDeposit);
             eigenToken.approve(address(investmentManager), type(uint256).max);
+
             investmentManager.depositIntoStrategy(
                 delegates[i],
                 eigenStrat,
@@ -399,19 +491,24 @@ contract Delegator is EigenLayrDeployer {
                 amountEigenToDeposit
             );
 
+            //assertTrue(delegation.operatorShares(operator, eigenStrat));
+
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
             investmentManager.depositIntoStrategy(
                 delegates[i],
-                strat,
+                wethStrat,
                 weth,
-                amountToDeposit
+                amountEthToDeposit
             );
 
             cheats.stopPrank();
-
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
+            //testing to see if increaseOperatorShares worked
+            assertTrue(delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit);
+            assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
+
         }
 
         cheats.startPrank(operator);
@@ -432,7 +529,12 @@ contract Delegator is EigenLayrDeployer {
         uint120 amountRewards = 10;
 
         //Operator submits claim to rewards
+
+        emit log("1");
         _testCommitPayment(operator, amountRewards);
+
+
+        
 
         //initiate challenge
         _testInitPaymentChallenge(operator, 5, 3);
@@ -460,9 +562,16 @@ contract Delegator is EigenLayrDeployer {
         internal
     {
         uint32 numberOfSigners = 15;
+
+        emit log("2");
+
         _testRegisterSigners(numberOfSigners, false);
 
         uint32 blockNumber;
+
+        
+
+        
 
         // scoped block helps fix 'stack too deep' errors
         {
@@ -488,6 +597,8 @@ contract Delegator is EigenLayrDeployer {
         cheats.stopPrank();
 
         uint8 duration = 2;
+
+        emit log("HEHE");
 
         // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
         // _testInitDataStore();
@@ -573,94 +684,22 @@ contract Delegator is EigenLayrDeployer {
         if (includeOperator) {
             start = 0;
         }
+        
+        emit log("3");
 
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
+            
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
             );
         }
-    }
 
-    //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
-    function testForNonSigners() public {
-        address operator = signers[0];
-        _testInitiateDelegation(operator, 1e18);
+        emit log("3");
 
-        nonSignerInfo memory nonsigner;
-        signerInfo memory signer;
-
-        nonsigner.xA0 = (
-            uint256(
-                10245738255635135293623161230197183222740738674756428343303263476182774511624
-            )
-        );
-        nonsigner.xA1 = (
-            uint256(
-                10281853605827367652226404263211738087634374304916354347419537904612128636245
-            )
-        );
-        nonsigner.yA0 = (
-            uint256(
-                3091447672609454381783218377241231503703729871039021245809464784750860882084
-            )
-        );
-        nonsigner.yA1 = (
-            uint256(
-                18210007982945446441276599406248966847525243540006051743069767984995839204266
-            )
-        );
-
-        signer.apk0 = uint256(
-            20820493588973199354272631301248587752629863429201347184003644368113679196121
-        );
-        signer.apk1 = uint256(
-            18507428821816114421698399069438744284866101909563082454551586195885282320634
-        );
-        signer.apk2 = uint256(
-            1263326262781780932600377484793962587101562728383804037421955407439695092960
-        );
-        signer.apk3 = uint256(
-            3512517006108887301063578607317108977425754510174956792003926207778790018672
-        );
-        signer.sigma0 = uint256(
-            7232102842299801988888616268506476902050501317623869691846247376690344395462
-        );
-        signer.sigma1 = uint256(
-            14957250584972173579780704932503635695261143933757715744951524340217507753217
-        );
-
-        uint32 numberOfSigners = 15;
-        _testRegisterSigners(numberOfSigners, false);
-
-        // scoped block helps fix 'stack too deep' errors
-        {
-            uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData
-                memory searchData = _testInitDataStore(initTime, address(this));
-            uint32 numberOfNonSigners = 1;
-            uint32 dataStoreId = dlsm.taskNumber() - 1;
-
-            bytes memory data = _getCallData(
-                keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
-                numberOfNonSigners,
-                signer,
-                nonsigner,
-                searchData.metadata.blockNumber,
-                dataStoreId
-            );
-
-            uint gasbefore = gasleft();
-
-            dlsm.confirmDataStore(data, searchData);
-
-            emit log_named_uint("gas cost", gasbefore - gasleft());
-
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
-            // assertTrue(sighash != bytes32(0), "Data store not committed");
-        }
+         
     }
 
     //Internal function for assembling calldata - prevents stack too deep errors

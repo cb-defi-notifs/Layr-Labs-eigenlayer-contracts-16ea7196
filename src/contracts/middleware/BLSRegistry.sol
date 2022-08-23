@@ -97,7 +97,10 @@ contract BLSRegistry is
             "Operator is already registered"
         );
 
+        emit log("4");
         OperatorStake memory _operatorStake;
+        
+
 
         // if first bit of registrantType is '1', then operator wants to be an ETH validator
         if ((registrantType & 1) == 1) {
@@ -168,7 +171,7 @@ contract BLSRegistry is
         // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
 
 
-
+        
         
         /**
          @notice some book-keeping for aggregated pubkey
@@ -230,13 +233,20 @@ contract BLSRegistry is
             * update total Eigen and ETH that are being employed by the operator for securing
             * the queries from middleware via EigenLayr
             */
+
             _totalStake.ethStake += _operatorStake.ethStake;
             _totalStake.eigenStake += _operatorStake.eigenStake;
+
+
             _totalStake.updateBlockNumber = uint32(block.number);
+            emit log("5");
+            
             // linking with the most recent stake recordd in the past
             totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
             totalStakeHistory.push(_totalStake);
+            
         }
+        
             
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
     }
