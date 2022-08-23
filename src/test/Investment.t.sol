@@ -8,9 +8,6 @@ import "../contracts/investment/InvestmentManagerStorage.sol";
 contract InvestmentTests is
     EigenLayrDeployer
 {
-    IInvestmentStrategy[] strategy_arr;
-    IERC20[] tokens;
-
     /**
      * @notice Verifies that it is possible to deposit WETH
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
@@ -68,8 +65,10 @@ contract InvestmentTests is
         uint256[2] memory depositAmounts;
         uint256 amountToDeposit = 10e7;
         uint256 amountToWithdraw = 10e7;
-        strategy_arr.push(strat);
-        tokens.push(weth);
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        strategyArray[0] = strat;
+        tokensArray[0] = weth;
 
         // we do this here to ensure that `acct_1` is delegated
         _testRegisterAsDelegate(acct_1, IDelegationTerms(acct_1));
@@ -91,60 +90,83 @@ contract InvestmentTests is
             strategyIndexes[0] = 0;
 
             InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
-            investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, withdrawerAndNonce);
+            investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
             if (delegation.isDelegated(accounts[i])) {
                 assertTrue(
-                    !investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce),
+                    !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce),
                     "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
                 );
                 cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
             } else {
                 assertTrue(
-                    investmentManager.canCompleteQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce),
+                    investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce),
                     "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
                 );
             }
-            investmentManager.completeQueuedWithdrawal(strategy_arr, tokens, shareAmounts, accounts[i], withdrawerAndNonce);
+            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce);
             cheats.stopPrank();
         }
     }
 
     //testing queued withdrawals in the investment manager
-    function _testFraudProofQueuedWithdrawal(
-        uint256 amountToDeposit
+    function testFraudproofQueuedWithdrawal(
+        // uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
     ) public {
-        // hardcoded inputs
-        address sender = acct_0;
-        uint256 amountToWithdraw = 1;
-
-        strategy_arr.push(strat);
-        tokens.push(weth);
-
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
-        shareAmounts[0] = amountToWithdraw;
-        cheats.deal(sender, amountToDeposit);
-
-        _testWethDeposit(sender, amountToDeposit);
-
         uint256[] memory strategyIndexes = new uint256[](1);
-        strategyIndexes[0] = 0;
+
+        // hardcoded input
+        address sender = acct_0;
+        {
+            // hardcoded inputs
+            uint256 amountToDeposit = 10e7;
+            uint256 amountToWithdraw = 1e6;
+            strategyArray[0] = strat;
+            tokensArray[0] = weth;
+            shareAmounts[0] = amountToWithdraw;
+            strategyIndexes[0] = 0;
+
+            // have `sender` deposit `amountToDeposit` of WETH
+            uint256 amountDeposited = _testWethDeposit(sender, amountToDeposit);
+            assertTrue(amountDeposited != 0, "testFraudproofQueuedWithdrawal: amountDeposited == 0");
+        }
 
         //init and commit DataStore
         bytes memory data = _testConfirmDataStoreSelfOperators(15);
         
-        //queue the withdrawal        
-        cheats.startPrank(sender);
-
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(sender, 0);
-        investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, withdrawerAndNonce);
-
-        investmentManager.fraudproofQueuedWithdrawal(strategy_arr, tokens, shareAmounts, sender, withdrawerAndNonce, data, dlsm);
-
+        // give the dlsm global slashing permission
+        cheats.startPrank(slasher.owner());
+        address[] memory contractsToGiveSlashingPermission = new address[](1);
+        contractsToGiveSlashingPermission[0] = address(dlsm);
+        slasher.addPermissionedContracts(contractsToGiveSlashingPermission);
         cheats.stopPrank();
 
-        
-        
+        //queue the withdrawal        
+        cheats.startPrank(sender);
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(sender, 0);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, sender, withdrawerAndNonce);
+        (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
+        emit log_named_uint("initTimestamp", initTimestamp);
+        emit log_named_uint("latestFraudproofTimestamp", latestFraudproofTimestamp);
+        emit log_named_address("withdrawer", withdrawer);
+        // fraudproof the queued withdrawal
+
+        // function fraudproofQueuedWithdrawal(
+        //     IInvestmentStrategy[] calldata strategies,
+        //     IERC20[] calldata tokens,
+        //     uint256[] calldata shareAmounts,
+        //     address depositor,
+        //     WithdrawerAndNonce calldata withdrawerAndNonce,
+        //     bytes calldata data,
+        //     IServiceManager slashingContract
+        // ) external {
+        emit log("test is failing with next call");
+        investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, sender, withdrawerAndNonce, data, dlsm);
+        cheats.stopPrank();        
     }
     
     // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
@@ -166,9 +188,7 @@ contract InvestmentTests is
             100,
             address(this)
         );
-        
         token.approve(address(investmentManager), type(uint256).max);
-        
         cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
         investmentManager.depositIntoStrategy(msg.sender, strat, token, 10);
     }
@@ -178,29 +198,27 @@ contract InvestmentTests is
 
     }
 
-    function testSlashing(uint256 amountToDeposit) public{
-
+    function testSlashing() public {
+        // hardcoded inputs
         address[2] memory accounts = [acct_0, acct_1];
         uint256[2] memory depositAmounts;
+        uint256 amountToDeposit = 1e7;
+        address _registrant = registrant;
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        strategyArray[0] = strat;
+        tokensArray[0] = weth;
 
-
-        amountToDeposit = 1e7;
-
-        //register registrant as an operator
-        cheats.deal(registrant, amountToDeposit);
-        _testWethDeposit(registrant, amountToDeposit);
-        _testRegisterAsDelegate(registrant, IDelegationTerms(registrant));
+        //register _registrant as an operator
+        _testWethDeposit(_registrant, amountToDeposit);
+        _testRegisterAsDelegate(_registrant, IDelegationTerms(_registrant));
 
         //make deposits in WETH strategy
-        for (uint i=0; i<accounts.length; i++){
-            
-            cheats.deal(accounts[i], amountToDeposit);
+        for (uint i=0; i<accounts.length; i++){            
             depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
-            _testDelegateToOperator(accounts[i], registrant);
+            _testDelegateToOperator(accounts[i], _registrant);
 
         }
-        strategy_arr.push(strat);
-        tokens.push(weth);
 
         uint256[] memory shareAmounts = new uint256[](1);
         shareAmounts[0] = depositAmounts[0];
@@ -208,24 +226,24 @@ contract InvestmentTests is
         uint256[] memory strategyIndexes = new uint256[](1);
         strategyIndexes[0] = 0;
 
-        //investmentManager.queueWithdrawal(strategyIndexes, strategy_arr, tokens, shareAmounts, nonce);
+        //investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, nonce);
         cheats.startPrank(address(slasher.delegation()));
-        slasher.freezeOperator(registrant);
+        slasher.freezeOperator(_registrant);
         cheats.stopPrank();
 
 
-        uint prev_shares = delegation.operatorShares(registrant, strategy_arr[0]);
+        uint prev_shares = delegation.operatorShares(_registrant, strategyArray[0]);
 
         investmentManager.slashShares(
-            registrant, 
+            _registrant, 
             acct_0, 
-            strategy_arr, 
-            tokens, 
+            strategyArray, 
+            tokensArray, 
             strategyIndexes, 
             shareAmounts
         );
 
-        require(delegation.operatorShares(registrant, strategy_arr[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
+        require(delegation.operatorShares(_registrant, strategyArray[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
         
         //initiate withdrawal
 
