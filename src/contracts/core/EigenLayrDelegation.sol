@@ -8,7 +8,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
- import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 // TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
@@ -25,7 +25,7 @@ contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
     EigenLayrDelegationStorage
- ,DSTest
+    // ,DSTest
 {
     modifier onlyInvestmentManager() {
         require(
@@ -61,7 +61,6 @@ contract EigenLayrDelegation is
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
         _transferOwnership(msg.sender);
-
     }
 
     // EXTERNAL FUNCTIONS
@@ -177,7 +176,6 @@ contract EigenLayrDelegation is
         
     }
 
-
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
@@ -244,15 +242,11 @@ contract EigenLayrDelegation is
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
 
-            
-
             //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
             uint[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
-
-            
 
             // call into hook in delegationTerms contract
             IDelegationTerms dt = delegationTerms[operator];

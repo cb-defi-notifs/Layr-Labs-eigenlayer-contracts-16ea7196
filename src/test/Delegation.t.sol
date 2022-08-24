@@ -280,8 +280,8 @@ contract Delegator is EigenLayrDeployer {
         _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
     }
 
-    /// @notice This function tests to ensure tyou cannot delegate to an unregistered operator
-    /// @param delegate is the unregistered delegate
+    /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator
+    /// @param delegate is the unregistered operator
     function testDelegationToUnregisteredDelegate(
         address delegate
         ) public fuzzedAddress(delegate){
@@ -309,8 +309,6 @@ contract Delegator is EigenLayrDeployer {
 
         //this function performs delegation and undelegation
         testUndelegation(operator, staker, ethAmount, eigenAmount);
-
-        (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
 
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
@@ -413,7 +411,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         delegation.setInvestmentManager(altInvestmentManager);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        delegation.setUndelegationFraudProofInterval(paymentFraudProofInterval);
+        delegation.setUndelegationFraudProofInterval(100);
         cheats.stopPrank();
     }
 
@@ -431,7 +429,6 @@ contract Delegator is EigenLayrDeployer {
 
         for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
-            // eigen.safeTransferFrom(address(this), delegates[i], 0, amountEigenToDeposit, "0x");
             eigenToken.transfer(delegates[i], amountEigenToDeposit);
             weth.transfer(delegates[i], amountEthToDeposit);
             cheats.deal(delegates[i], amountEthToDeposit);
@@ -439,8 +436,6 @@ contract Delegator is EigenLayrDeployer {
             cheats.startPrank(delegates[i]);
 
             //deposit delegator's eigen into investment manager
-            // eigen.setApprovalForAll(address(investmentManager), true);
-            // investmentManager.depositEigen(amountEigenToDeposit);
             eigenToken.approve(address(investmentManager), type(uint256).max);
 
             investmentManager.depositIntoStrategy(
@@ -449,8 +444,6 @@ contract Delegator is EigenLayrDeployer {
                 eigenToken,
                 amountEigenToDeposit
             );
-
-            //assertTrue(delegation.operatorShares(operator, eigenStrat));
 
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
@@ -478,7 +471,12 @@ contract Delegator is EigenLayrDeployer {
         //register operator with vote weigher so they can get payment
         uint8 registrantType = 3;
         string memory socket = "255.255.255.255";
-        // function registerOperator(uint8 registrantType, bytes calldata data, string calldata socket)
+        // function registerOperator(
+        //     uint8 registrantType,
+        //     bytes32 ephemeralKeyHash,
+        //     bytes calldata data,
+        //     string calldata socket
+        // )
         dlReg.registerOperator(
             registrantType,
             ephemeralKey,

@@ -426,7 +426,6 @@ contract InvestmentManager is
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
 
-
         // if applicable, increase delegated shares accordingly
         delegation.increaseDelegatedShares(depositor, strategy, shares);
 
