@@ -19,10 +19,12 @@ contract Payments is Delegator {
 
 
     ///@notice this function tests depositing fees on behalf of a rollupContract to an operator
+    ///@param user is the user of the middleware who is paying fees to the operator 
+    ///            (a rollup contract in the case of DL, for example)
     function testDepositFutureFees(
-            address rollupContract,
+            address user,
             uint256 amountToDeposit
-        ) fuzzedAddress(rollupContract) public {
+        ) fuzzedAddress(user) public {
         paymentToken = dataLayrPaymentManager.paymentToken();
         
         cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
@@ -46,7 +48,7 @@ contract Payments is Delegator {
 
     }
 
-
+    
     function testRewardPayouts(
             uint256 ethAmount, 
             uint256 eigenAmount
