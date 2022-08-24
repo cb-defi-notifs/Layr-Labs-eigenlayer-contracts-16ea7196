@@ -128,7 +128,7 @@ abstract contract PaymentManager is
 
 
     function setAllowance(address allowed, uint256 amount) public {
-        require(depositsOf[msg.sender] > 0, "PaymentManager.setAllowance: cannot set allowance for users with no deposits")
+        require(depositsOf[msg.sender] > 0, "PaymentManager.setAllowance: cannot set allowance for users with no deposits");
         allowances[msg.sender][allowed] = amount;
     }
 

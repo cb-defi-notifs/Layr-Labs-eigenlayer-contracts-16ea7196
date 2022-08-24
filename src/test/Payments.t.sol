@@ -21,6 +21,7 @@ contract Payments is Delegator {
     ///@notice this function tests depositing fees on behalf of a rollupContract to an operator
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
+    ///@param amountToDeposit is the amount of future fees deposited by the @param user
     function testDepositFutureFees(
             address user,
             uint256 amountToDeposit
@@ -30,25 +31,44 @@ contract Payments is Delegator {
         cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
         cheats.assume(amountToDeposit >0);
 
-        paymentToken.transfer(rollupContract, amountToDeposit);
+        paymentToken.transfer(user, amountToDeposit);
         
         uint256 paymentManagerTokenBalanceBefore = paymentToken.balanceOf(address(dataLayrPaymentManager));
-        uint256 operatorFeeBalanceBefore = dataLayrPaymentManager.depositsOf(rollupContract);
+        uint256 operatorFeeBalanceBefore = dataLayrPaymentManager.depositsOf(user);
 
-        cheats.startPrank(rollupContract);
+        cheats.startPrank(user);
         paymentToken.approve(address(dataLayrPaymentManager), type(uint256).max);
-        dataLayrPaymentManager.depositFutureFees(rollupContract, amountToDeposit);
+        dataLayrPaymentManager.depositFutureFees(user, amountToDeposit);
         cheats.stopPrank();
 
         uint256 paymentManagerTokenBalanceAfter = paymentToken.balanceOf(address(dataLayrPaymentManager));
-        uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(rollupContract);
+        uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(user);
 
         assertTrue(paymentManagerTokenBalanceAfter - paymentManagerTokenBalanceBefore == amountToDeposit, "testDepositFutureFees: deposit not reflected in paymentManager contract balance");
         assertTrue(operatorFeeBalanceAfter - operatorFeeBalanceBefore == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
 
     }
 
-    
+    ///@notice this function tests paying fees without delegation of payment rights to a third party
+    ///@param user is the user of the middleware who is paying fees to the operator 
+    ///            (a rollup contract in the case of DL, for example)
+    ///@param amountToDeposit is the amount of future fees deposited by the @param user
+    function testPayFee(
+        address user,
+        uint256 amountToDeposit
+        ) fuzzedAddress(user) public {
+        
+        testDepositFutureFees(user, amountToDeposit);
+        uint256 operatorFeeBalanceBefore = dataLayrPaymentManager.depositsOf(user);
+        
+        cheats.startPrank(address(dlsm));
+        dataLayrPaymentManager.payFee(user, user, amountToDeposit);
+        cheats.stopPrank();
+
+        uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(user);
+        assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
+    }
+
     function testRewardPayouts(
             uint256 ethAmount, 
             uint256 eigenAmount
