@@ -16,8 +16,6 @@ contract Payments is Delegator {
 
     IERC20 paymentToken;
 
-
-
     ///@notice this function tests depositing fees on behalf of a rollupContract to an operator
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
@@ -29,7 +27,8 @@ contract Payments is Delegator {
         paymentToken = dataLayrPaymentManager.paymentToken();
         
         cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
-        cheats.assume(amountToDeposit >0);
+        
+        cheats.assume(amountToDeposit > 0 );
 
         paymentToken.transfer(user, amountToDeposit);
         
