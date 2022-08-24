@@ -415,8 +415,6 @@ contract Delegator is EigenLayrDeployer {
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         delegation.setUndelegationFraudProofInterval(paymentFraudProofInterval);
         cheats.stopPrank();
-
-
     }
 
     
