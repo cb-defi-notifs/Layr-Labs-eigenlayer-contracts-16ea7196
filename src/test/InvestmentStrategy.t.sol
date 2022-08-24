@@ -52,13 +52,16 @@ contract InvestmentStrategyTests is
     ///         actually deposited fails.
     ///@param depositor is the depositor for which the shares are being withdrawn
     function testWithdrawalExceedsTotalShares(
-        address depositor
+        address depositor, 
+        uint256 shares
      ) public fuzzedAddress(depositor) {
+        cheats.assume(shares >  investmentManager.investorStratShares(depositor, wethStrat));
         IERC20 underlyingToken = wethStrat.underlyingToken();
         
         cheats.startPrank(address(investmentManager));
+        
         cheats.expectRevert(bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares"));
-        wethStrat.withdraw(depositor, underlyingToken, 1e18);
+        wethStrat.withdraw(depositor, underlyingToken, shares);
 
         cheats.stopPrank();
     }
