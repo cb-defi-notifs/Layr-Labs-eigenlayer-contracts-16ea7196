@@ -57,7 +57,7 @@ contract EigenLayrDeployer is
     DataLayrLowDegreeChallenge public dlldc;
 
     IERC20 public weth;
-    InvestmentStrategyBase public strat;
+    InvestmentStrategyBase public wethStrat;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
@@ -101,6 +101,20 @@ contract EigenLayrDeployer is
 
     uint8 durationToInit = 2;
 
+    modifier cannotReinit(){
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
+        _;
+    }
+
+    modifier fuzzedAddress(address addr){
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        _;
+    }
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -139,18 +153,18 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        strat = new InvestmentStrategyBase(investmentManager);
-        strat = InvestmentStrategyBase(
+        wethStrat = new InvestmentStrategyBase(investmentManager);
+        wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(strat),
+                    address(wethStrat),
                     address(eigenLayrProxyAdmin),
                     ""
                 )
             )
         );
         // initialize InvestmentStrategyBase proxy
-        strat.initialize(weth);
+        wethStrat.initialize(weth);
 
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
@@ -182,7 +196,7 @@ contract EigenLayrDeployer is
         strats[1] = temp;
         strategies[1] = temp;
         // add WETH strategy to mapping
-        strategies[2] = IInvestmentStrategy(address(strat));
+        strategies[2] = IInvestmentStrategy(address(wethStrat));
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
@@ -340,7 +354,8 @@ contract EigenLayrDeployer is
     {
         cheats.assume(amountToDeposit <= wethInitialSupply);
         // transfer WETH to `sender` and have them deposit it into `strat`
-        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, strat);
+        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
+
     }
 
     /**
@@ -428,6 +443,7 @@ contract EigenLayrDeployer is
         if (amountSharesToWithdraw > existingShares) {
             cheats.expectRevert(bytes("shareAmount too high"));
             investmentManager.withdrawFromStrategy(
+
                 strategyIndex,
                 stratToWithdrawFrom,
                 underlyingToken,
@@ -557,13 +573,14 @@ contract EigenLayrDeployer is
         //register as both ETH and EIGEN operator
         uint8 registrantType = 3;
         uint256 wethToDeposit = 1e18;
-        uint256 eigenToDeposit = 1e16;
+        uint256 eigenToDeposit = 1e10;
         _testWethDeposit(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
         _testRegisterAsDelegate(sender, IDelegationTerms(sender));
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
+        
         
         dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
 
@@ -607,7 +624,7 @@ contract EigenLayrDeployer is
 
         //register all the operators
         for (uint256 i = 0; i < numberOfSigners; ++i) {
-            // emit log_named_uint("i", i);
+
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
@@ -684,7 +701,6 @@ contract EigenLayrDeployer is
      */
         
 
-        // emit log_named_bytes("TO SIGN", abi.encodePacked(dlsm.dataStoreId()-1, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0)));
         bytes memory data = abi.encodePacked(
             keccak256(
                 abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
@@ -722,6 +738,7 @@ contract EigenLayrDeployer is
         
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
+        assertTrue(delegation.isDelegate(sender), "testRegisterAsDelegate: sender is not a delegate");
 
         assertTrue(
             delegation.delegationTerms(sender) == dt,
@@ -744,6 +761,7 @@ contract EigenLayrDeployer is
     function _testDelegateToOperator(address sender, address operator)
         internal
     {
+        
         //delegator-specific information
         (
             IInvestmentStrategy[] memory delegateStrategies,
@@ -768,6 +786,7 @@ contract EigenLayrDeployer is
         delegation.delegateTo(operator);
         cheats.stopPrank();
 
+
         assertTrue(
             delegation.delegation(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
@@ -790,6 +809,7 @@ contract EigenLayrDeployer is
                 "_testDelegateToOperator: delegatedShares not increased correctly"
             );
         }
+
     }
 
     // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token
@@ -847,17 +867,6 @@ contract EigenLayrDeployer is
                 ethStratsAndMultipliers
             );
         }
-    }
-
-    function _testUndelegation(address sender) internal {
-        cheats.startPrank(sender);
-        cheats.warp(block.timestamp + 365 days);
-
-        delegation.initUndelegation();
-        delegation.commitUndelegation();
-
-
-        cheats.stopPrank();
     }
 
     function calculateFee(
