@@ -118,7 +118,8 @@ abstract contract PaymentManager is
      */
     /**
      @param onBehalfOf could be the msg.sender or someone lese who is depositing 
-     this future fees           
+     this future fees      
+     @param amount is amount of futures fees being deposited     
      */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.transferFrom(msg.sender, address(this), amount);
@@ -127,6 +128,7 @@ abstract contract PaymentManager is
 
 
     function setAllowance(address allowed, uint256 amount) public {
+        require(depositsOf[msg.sender] > 0, "PaymentManager.setAllowance: cannot set allowance for users with no deposits")
         allowances[msg.sender][allowed] = amount;
     }
 
