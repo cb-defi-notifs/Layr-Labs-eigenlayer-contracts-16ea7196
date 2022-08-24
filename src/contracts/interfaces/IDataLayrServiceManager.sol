@@ -21,10 +21,10 @@ interface IDataLayrServiceManager is IServiceManager {
 
     //Stores the data required to index a given datastore's metadata
     struct DataStoreSearchData {
+        DataStoreMetadata metadata;
         uint8 duration;
         uint256 timestamp;
         uint32 index;
-        DataStoreMetadata metadata;
     }
 
     struct SignatoryRecordMinusDataStoreId {

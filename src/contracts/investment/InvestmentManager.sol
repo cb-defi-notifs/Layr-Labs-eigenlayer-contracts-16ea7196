@@ -167,7 +167,7 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        WithdrawerAndNonce memory withdrawerAndNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
         onlyNotFrozen(msg.sender)
@@ -184,14 +184,7 @@ contract InvestmentManager is
         
         uint256 strategyIndexIndex;
 
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                withdrawerAndNonce.nonce
-            )
-        );
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
         
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shareAmounts);
@@ -244,23 +237,14 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        uint96 queuedWithdrawalNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
         onlyNotFrozen(depositor)
         nonReentrant
     {
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
 
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
@@ -311,27 +295,17 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        uint256 queuedWithdrawalNonce,
+        WithdrawerAndNonce calldata withdrawerAndNonce,
         bytes calldata data,
         IServiceManager slashingContract
     ) external {
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        uint32 initTimestamp = withdrawalStorage.initTimestamp;
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
-        
-        /// CRITIC --- can it be replaced with  withdrawalStorage.initTimestamp? more gas optimized
-        uint32 initTimestamp = queuedWithdrawals[depositor][withdrawalRoot].initTimestamp;
 
         require(initTimestamp > 0, "withdrawal does not exist");
         require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
-
 
         address operator = delegation.delegation(depositor);
 
@@ -343,7 +317,6 @@ contract InvestmentManager is
             "Contract does not have rights to slash operator"
         );
 
-
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
@@ -351,8 +324,7 @@ contract InvestmentManager is
         }
         
         //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
-        queuedWithdrawals[depositor][withdrawalRoot]
-            .latestFraudproofTimestamp = uint32(block.timestamp);
+        queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
     }
 
     function slashShares(
@@ -401,16 +373,9 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address slashedAddress,
         address recipient,
-        uint96 queuedWithdrawalNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce
     ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
         WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[slashedAddress][withdrawalRoot];
         require(
             withdrawalStorage.initTimestamp > 0,
@@ -506,24 +471,20 @@ contract InvestmentManager is
             userShares = userShares - shareAmount;
         }
 
-        
         // subtract the shares from the depositor's existing shares for this strategy
         investorStratShares[depositor][strategy] = userShares;
         // if no existing shares, remove is from this investors strats
-
 
         if (userShares == 0) {
             // if the strategy matches with the strategy index provided
             if (investorStrats[depositor][strategyIndex] == strategy) {
 
-                
                 // replace the strategy with the last strategy in the list
                 investorStrats[depositor][strategyIndex] = investorStrats[
                     depositor
                 ][investorStrats[depositor].length - 1];
                 
             } else {
-
 
                 //loop through all of the strategies, find the right one, then replace
                 uint256 stratsLength = investorStrats[depositor].length;
@@ -562,19 +523,10 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        uint96 queuedWithdrawalNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce
     ) external returns (bool) {
-        bytes32 withdrawalRoot = keccak256(
-            abi.encode(
-                strategies,
-                tokens,
-                shareAmounts,
-                queuedWithdrawalNonce
-            )
-        );
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[
-            depositor
-        ][withdrawalRoot];
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
         uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
             WITHDRAWAL_WAITING_PERIOD;
         require(
@@ -622,4 +574,25 @@ contract InvestmentManager is
     {
         return investorStrats[investor].length;
     }
+
+    function calculateWithdrawalRoot(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        WithdrawerAndNonce calldata withdrawerAndNonce
+    )
+        public pure returns (bytes32)
+    {
+        return (
+            keccak256(
+                abi.encode(
+                    strategies,
+                    tokens,
+                    shareAmounts,
+                    withdrawerAndNonce
+                )
+            )
+        );
+    }
+
 }

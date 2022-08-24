@@ -12,7 +12,7 @@ import "../BLSSignatureChecker.sol";
 
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
@@ -212,7 +212,7 @@ contract DataLayrServiceManager is
             //iterate the index throughout the loop
             for (; index < NUM_DS_PER_BLOCK_PER_DURATION; index++){
                 if(dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] == 0){
-                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] = DataStoreHash.computeDataStoreHash(metadata);
+                    dataStoreHashesForDurationAtTimestamp[duration][block.timestamp][index] = DataStoreUtils.computeDataStoreHash(metadata);
                     // recording the empty slot
                     break;   
                 }       
@@ -227,12 +227,12 @@ contract DataLayrServiceManager is
         { 
             require(
                 blockNumber <= block.number,
-                "specified blockNumber is in future"
+                "DataLayrServiceManager.initDataStore: specified blockNumber is in future"
             );
 
             require(
                 blockNumber >= (block.number - BLOCK_STALE_MEASURE),
-                "specified blockNumber is too far in past"
+                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
             );    
         }
 
@@ -316,7 +316,7 @@ contract DataLayrServiceManager is
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
-        bytes32 dsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
+        bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
 
         require(    
@@ -327,7 +327,7 @@ contract DataLayrServiceManager is
         searchData.metadata.signatoryRecordHash = signatoryRecordHash;
 
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
-        bytes32 newDsHash = DataStoreHash.computeDataStoreHash(searchData.metadata);
+        bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
 
         //storing new hash
@@ -433,69 +433,33 @@ contract DataLayrServiceManager is
         }
         return 0;
     }
-
-
+    
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 
-    //TODO: CORRECT CALLDATALOAD SLOTS
-
     /** 
-     @dev This calldata is of the format:
-            <
-             bytes32 headerHash,
-             uint32 signatoryRecordHash
-             uint32 blockNumber
-             uint32 taskNumber
-             uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >
+     * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
-    function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external view {
-        bytes32 headerHash;
-        uint32 globalDataStoreId; 
-        uint32 durationDataStoreId;
-        uint32 blockNumber; 
-        address confirmer;
-        uint96 fee;
-        bytes32 signatoryRecordHash;
-
-        uint8 duration; 
-        uint256 initTime; 
-        uint32 index;
-
-        uint256 pointer = 132;
-        
-        assembly {
-            headerHash := calldataload(pointer)
-            globalDataStoreId := shr(224, calldataload(add(pointer, 32)))
-            durationDataStoreId := shr(224, calldataload(add(pointer, 36)))
-            blockNumber := shr(224, calldataload(add(pointer, 40)))
-            confirmer := shr(96, calldataload(add(pointer, 44)))
-            fee := shr(160, calldataload(add(pointer, 64)))
-            signatoryRecordHash:= calldataload(add(pointer, 76))
-
-            duration := shr(248, calldataload(add(pointer, 108)))
-            initTime := calldataload(add(pointer, 109))
-            index := shr(224, calldataload(add(pointer, 141)))
-        }
-
-        bytes32 dsHash = DataStoreHash.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
+    function stakeWithdrawalVerification(bytes calldata packedDataStoreSearchData, uint256 initTimestamp, uint256 unlockTime) external view {
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
+        bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
         require(
-            dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
+            dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
+            "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)"
+        );
 
-        //now we check if the dataStore is still active at the time
-        //TODO: check if the duration is in days or seconds
+        /**
+         *  Now we check that the specified DataStore was created *at or before*  the `initTimestamp`, i.e. when the user undelegated, deregistered, etc. *AND*
+         *  that the user's funds are set to unlock *prior* to the expiration of the DataStore.
+         *  In other words, we are checking that a user was active when the specified DataStore was created, and is trying to unstake/undelegate/etc. funds prior
+         *  to them fully serving out their commitment to storing their share of the data.
+         */
         require(
-            initTimestamp > initTime
-                 &&
-                unlockTime <
-                initTime + duration*86400,
-            "task does not meet requirements"
+            (initTimestamp >= searchData.timestamp)
+                &&
+            (unlockTime < searchData.timestamp + (searchData.duration * DURATION_SCALE)),
+            "DataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
         );
 
     }
