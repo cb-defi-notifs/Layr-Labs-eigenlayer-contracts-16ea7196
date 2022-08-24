@@ -70,7 +70,7 @@ contract Payments is Delegator {
 
     function testRewardPayouts(
             uint256 ethAmount, 
-            uint256 eigenAmount
+            uint256 eigenAmount,
         ) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
@@ -110,8 +110,7 @@ contract Payments is Delegator {
 
         address operator = signers[0];
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
-        _payRewards(operator);
-        
+        _testCommitPayment(operator, 10);        
     }
 
 
@@ -121,18 +120,7 @@ contract Payments is Delegator {
     // Internal functions
     //
     //*******************************
-    
-    function _payRewards(address operator) internal {
-        uint120 amountRewards = 10;
 
-        //Operator submits claim to rewards
-
-        _testCommitPayment(operator, amountRewards);
-
-        //initiate challenge
-        _testInitPaymentChallenge(operator, 5, 3);
-
-    }
 
 
     //Operator submits claim or commit for a payment amount
