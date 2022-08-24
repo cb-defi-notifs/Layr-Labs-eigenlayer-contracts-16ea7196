@@ -441,23 +441,24 @@ contract DataLayrServiceManager is
     /** 
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
-    function stakeWithdrawalVerification(bytes calldata packedDataStoreSearchData, uint256 initTimestamp, uint256 unlockTime) external {
+    function stakeWithdrawalVerification(bytes calldata packedDataStoreSearchData, uint256 initTimestamp, uint256 unlockTime) external view {
         IDataLayrServiceManager.DataStoreSearchData memory searchData = DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
-        emit log_named_bytes("stakeWithdrawalVerification: abi.encode(searchData)", abi.encode(searchData));        
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
-        emit log_named_bytes32("dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index]", dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index]);
-        emit log_named_bytes32("dsHash", dsHash);
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)"
         );
 
-        //now we check if the dataStore is still active at the time
+        /**
+         *  Now we check that the specified DataStore was created *at or before*  the `initTimestamp`, i.e. when the user undelegated, deregistered, etc. *AND*
+         *  that the user's funds are set to unlock *prior* to the expiration of the DataStore.
+         *  In other words, we are checking that a user was active when the specified DataStore was created, and is trying to unstake/undelegate/etc. funds prior
+         *  to them fully serving out their commitment to storing their share of the data.
+         */
         require(
-            initTimestamp > searchData.timestamp
-                 &&
-                unlockTime <
-                searchData.timestamp + (searchData.duration * DURATION_SCALE),
+            (initTimestamp >= searchData.timestamp)
+                &&
+            (unlockTime < searchData.timestamp + (searchData.duration * DURATION_SCALE)),
             "DataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
         );
 

@@ -229,7 +229,6 @@ contract InvestmentTests is
         // deploy library-wrapper contract and use it to pack the searchData
         DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
         bytes memory calldataForStakeWithdrawalVerification = dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
-        emit log_named_bytes("testFraudproofQueuedWithdrawal: abi.encode(searchData)", abi.encode(searchData));
 
         cheats.startPrank(slasher.owner());
         address[] memory contractsToGiveSlashingPermission = new address[](1);
@@ -248,7 +247,6 @@ contract InvestmentTests is
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        emit log("test is failing with next call");
         investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, sender, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
     
