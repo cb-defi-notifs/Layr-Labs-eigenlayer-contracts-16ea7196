@@ -16,7 +16,7 @@ import "../../libraries/DataStoreUtils.sol";
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
-import "ds-test/test.sol";
+
 
 /**
  * @notice This contract is used for:
@@ -27,7 +27,6 @@ import "ds-test/test.sol";
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
     BLSSignatureChecker
-    // ,DSTest
 {
     using BytesLib for bytes;
 

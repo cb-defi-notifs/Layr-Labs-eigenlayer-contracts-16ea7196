@@ -14,10 +14,36 @@ contract Payments is Delegator {
     using BytesLib for bytes;
     using Math for uint;
 
+    IERC20 paymentToken;
 
 
 
-    constructor() {
+    ///@notice this function tests depositing fees on behalf of a rollupContract to an operator
+    function testDepositFutureFees(
+            address rollupContract,
+            uint256 amountToDeposit
+        ) fuzzedAddress(rollupContract) public {
+        paymentToken = dataLayrPaymentManager.paymentToken();
+        
+        cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
+        cheats.assume(amountToDeposit >0);
+
+        paymentToken.transfer(rollupContract, amountToDeposit);
+        
+        uint256 paymentManagerTokenBalanceBefore = paymentToken.balanceOf(address(dataLayrPaymentManager));
+        uint256 operatorFeeBalanceBefore = dataLayrPaymentManager.depositsOf(rollupContract);
+
+        cheats.startPrank(rollupContract);
+        paymentToken.approve(address(dataLayrPaymentManager), type(uint256).max);
+        dataLayrPaymentManager.depositFutureFees(rollupContract, amountToDeposit);
+        cheats.stopPrank();
+
+        uint256 paymentManagerTokenBalanceAfter = paymentToken.balanceOf(address(dataLayrPaymentManager));
+        uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(rollupContract);
+
+        assertTrue(paymentManagerTokenBalanceAfter - paymentManagerTokenBalanceBefore == amountToDeposit, "testDepositFutureFees: deposit not reflected in paymentManager contract balance");
+        assertTrue(operatorFeeBalanceAfter - operatorFeeBalanceBefore == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
+
     }
 
 
@@ -69,16 +95,18 @@ contract Payments is Delegator {
 
 
 
-    //internal helpers
+    //*******************************
+    //
+    // Internal functions
+    //
+    //*******************************
+    
     function _payRewards(address operator) internal {
         uint120 amountRewards = 10;
 
         //Operator submits claim to rewards
 
         _testCommitPayment(operator, amountRewards);
-
-
-        
 
         //initiate challenge
         _testInitPaymentChallenge(operator, 5, 3);
@@ -146,6 +174,8 @@ contract Payments is Delegator {
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
+
+
 
         //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
     function _testInitPaymentChallenge(
