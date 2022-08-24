@@ -354,7 +354,7 @@ contract EigenLayrDeployer is
     {
         cheats.assume(amountToDeposit <= wethInitialSupply);
         // transfer WETH to `sender` and have them deposit it into `strat`
-        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, strat);
+        amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
     }
 

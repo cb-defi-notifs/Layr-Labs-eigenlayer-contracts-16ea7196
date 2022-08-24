@@ -30,9 +30,9 @@ contract InvestmentTests is
         cheats.assume(amountToDeposit > 0);
         cheats.assume(amountToWithdraw > 0);
         address sender = signers[0];
-        _testDepositToStrategy(sender, amountToDeposit, weth, strat);
+        _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
         uint256 strategyIndex = 0;
-        _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, strat);
+        _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, wethStrat);
     }
 
     // verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
@@ -40,7 +40,7 @@ contract InvestmentTests is
         cheats.assume(amountToDeposit > 0);
 
         // hard-coded inputs
-        IInvestmentStrategy _strat = strat;
+        IInvestmentStrategy _strat = wethStrat;
         IERC20 underlyingToken = weth;
         address sender = signers[0];
 
@@ -67,7 +67,7 @@ contract InvestmentTests is
         uint256 amountToWithdraw = 10e7;
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
-        strategyArray[0] = strat;
+        strategyArray[0] = wethStrat;
         tokensArray[0] = weth;
 
         // we do this here to ensure that `acct_1` is delegated
@@ -126,7 +126,7 @@ contract InvestmentTests is
             // hardcoded inputs
             uint256 amountToDeposit = 10e7;
             uint256 amountToWithdraw = 1e6;
-            strategyArray[0] = strat;
+            strategyArray[0] = wethStrat;
             tokensArray[0] = weth;
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
@@ -289,7 +289,7 @@ contract InvestmentTests is
         address _registrant = registrant;
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
-        strategyArray[0] = strat;
+        strategyArray[0] = wethStrat;
         tokensArray[0] = weth;
 
         //register _registrant as an operator
