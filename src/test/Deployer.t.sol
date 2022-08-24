@@ -490,23 +490,20 @@ contract EigenLayrDeployer is
 
         bytes32 headerHash = keccak256(header);
 
-
         cheats.stopPrank();
-
 
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
-
         IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata(
-                headerHash,
-                dlsm.getNumDataStoresForDuration(durationToInit)-1,
-                dlsm.taskNumber() - 1,
-                blockNumber,
-                uint96(fee),
-                confirmer,
-                bytes32(0)
-            );
+            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
+                headerHash: headerHash,
+                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                globalDataStoreId: dlsm.taskNumber() - 1,
+                blockNumber: blockNumber,
+                fee: uint96(fee),
+                confirmer: confirmer,
+                signatoryRecordHash: bytes32(0)
+            });
 
         {
             bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);

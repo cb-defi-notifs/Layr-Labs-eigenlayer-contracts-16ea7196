@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./Deployer.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
-
+import "./utils/DataStoreUtilsWrapper.sol";
 
 contract InvestmentTests is
     EigenLayrDeployer
@@ -151,10 +151,8 @@ contract InvestmentTests is
 
 
 
-
-
-
         IDataLayrServiceManager.DataStoreSearchData memory searchData;
+        bytes32 signatoryRecordHash;
 // BEGIN COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
 {
         uint32 numberOfSigners = uint32(15);
@@ -204,97 +202,34 @@ contract InvestmentTests is
             sigma_0,
             sigma_1
         );
-        
+
+        // ADDED CODE: fetch the signatoryRecordHash
+        (
+            // uint32 dataStoreIdToConfirm,
+            // uint32 blockNumberFromTaskHash,
+            // bytes32 msgHash,
+            // SignatoryTotals memory signedTotals,
+            // bytes32 signatoryRecordHash
+            ,
+            ,
+            ,
+            ,
+            signatoryRecordHash
+        ) = dlsm.checkSignatures(data);
+        // END ADDED CODE
+
         dlsm.confirmDataStore(data, searchData);
         cheats.stopPrank();
-// END COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
 }
+// END COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
 
+        // copy the signatoryRecordHash to the struct
+        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
 
-    // //Relevant metadata for a given datastore
-    // struct DataStoreMetadata {
-    //     bytes32 headerHash;
-    //     uint32 durationDataStoreId;
-    //     uint32 globalDataStoreId;
-    //     uint32 blockNumber;
-    //     uint96 fee;
-    //     address confirmer;
-    //     bytes32 signatoryRecordHash;
-    // }
-
-    // //Stores the data required to index a given datastore's metadata
-    // struct DataStoreSearchData {
-    //     uint8 duration;
-    //     uint256 timestamp;
-    //     uint32 index;
-    //     DataStoreMetadata metadata;
-    // }
-
-// TODO: NOTE THE DIFFERENCE IN VARIABLE ORDERING HERE, as opposed to `computeDataStoreHash`!!
-        // broken into multiple steps to solve 'stack too deep'
-        bytes memory calldataForStakeWithdrawalVerification = abi.encodePacked(
-            searchData.metadata.headerHash,
-            searchData.metadata.globalDataStoreId,
-            searchData.metadata.durationDataStoreId,
-            searchData.metadata.blockNumber,
-            searchData.metadata.confirmer,
-            searchData.metadata.fee,
-            searchData.metadata.signatoryRecordHash
-        );
-        calldataForStakeWithdrawalVerification = abi.encodePacked(
-            calldataForStakeWithdrawalVerification,
-            searchData.duration,
-            searchData.timestamp,
-            searchData.index
-        );
-    // function stakeWithdrawalVerification(bytes calldata, uint256 initTimestamp, uint256 unlockTime) external view {
-    //     bytes32 headerHash;
-    //     uint32 globalDataStoreId; 
-    //     uint32 durationDataStoreId;
-    //     uint32 blockNumber; 
-    //     address confirmer;
-    //     uint96 fee;
-    //     bytes32 signatoryRecordHash;
-
-    //     uint8 duration; 
-    //     uint256 initTime; 
-    //     uint32 index;
-
-    //     uint256 pointer = 132;
-        
-    //     assembly {
-    //         headerHash := calldataload(pointer)
-    //         globalDataStoreId := shr(224, calldataload(add(pointer, 32)))
-    //         durationDataStoreId := shr(224, calldataload(add(pointer, 36)))
-    //         blockNumber := shr(224, calldataload(add(pointer, 40)))
-    //         confirmer := shr(96, calldataload(add(pointer, 44)))
-    //         fee := shr(160, calldataload(add(pointer, 64)))
-    //         signatoryRecordHash:= calldataload(add(pointer, 76))
-
-    //         duration := shr(248, calldataload(add(pointer, 108)))
-    //         initTime := calldataload(add(pointer, 109))
-    //         index := shr(224, calldataload(add(pointer, 141)))
-    //     }
-
-    //     bytes32 dsHash = DataStoreUtils.computeDataStoreHashFromArgs(headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash);
-    //     require(
-    //         dataStoreHashesForDurationAtTimestamp[duration][initTime][index] == dsHash, "provided calldata does not match corresponding stored hash from (initDataStore)");
-
-    //     //now we check if the dataStore is still active at the time
-    //     //TODO: check if the duration is in days or seconds
-    //     require(
-    //         initTimestamp > initTime
-    //              &&
-    //             unlockTime <
-    //             initTime + duration*86400,
-    //         "task does not meet requirements"
-    //     );
-
-    // }
-
-
-
-
+        // deploy library-wrapper contract and use it to pack the searchData
+        DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
+        bytes memory calldataForStakeWithdrawalVerification = dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
+        emit log_named_bytes("testFraudproofQueuedWithdrawal: abi.encode(searchData)", abi.encode(searchData));
 
         cheats.startPrank(slasher.owner());
         address[] memory contractsToGiveSlashingPermission = new address[](1);

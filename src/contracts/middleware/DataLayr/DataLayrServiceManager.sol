@@ -433,34 +433,31 @@ contract DataLayrServiceManager is
         }
         return 0;
     }
-
-
+    
     function taskNumber() public view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 
-    //TODO: CORRECT CALLDATALOAD SLOTS
-
     /** 
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
-    function stakeWithdrawalVerification(bytes calldata packedDataStoreSearchData, uint256 initTimestamp, uint256 unlockTime) external view {
+    function stakeWithdrawalVerification(bytes calldata packedDataStoreSearchData, uint256 initTimestamp, uint256 unlockTime) external {
         IDataLayrServiceManager.DataStoreSearchData memory searchData = DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
-
+        emit log_named_bytes("stakeWithdrawalVerification: abi.encode(searchData)", abi.encode(searchData));        
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
+        emit log_named_bytes32("dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index]", dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index]);
+        emit log_named_bytes32("dsHash", dsHash);
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)"
         );
 
         //now we check if the dataStore is still active at the time
-        //TODO: check if the duration is in days or seconds
         require(
             initTimestamp > searchData.timestamp
                  &&
                 unlockTime <
-                // TODO: FIX HARD-CODED VALUE OF 86400 !
-                searchData.timestamp + (searchData.duration * 86400),
+                searchData.timestamp + (searchData.duration * DURATION_SCALE),
             "DataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
         );
 

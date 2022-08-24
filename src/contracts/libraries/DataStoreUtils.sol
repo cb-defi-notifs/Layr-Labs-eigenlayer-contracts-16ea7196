@@ -150,17 +150,17 @@ library DataStoreUtils {
     uint256 internal constant MEMORY_OFFSET_index = 96;
 
     // pointer to start of single 'bytes calldata' input -- accounts for function signture, length and offset encoding
-    uint256 internal constant pointer = 68;
+    // uint256 internal constant pointer = 68;
 
     function unpackDataStoreMetadata(
-        bytes calldata //packedMetadata
+        bytes calldata packedMetadata
     )
         internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadata)
     {
-        // uint256 pointer;
+        uint256 pointer;
         assembly {
             // fetch offset of `packedMetadata` input in calldata
-            // pointer := packedMetadata.offset
+            pointer := packedMetadata.offset
             mstore(
                 // store in the headerHash memory location in `metadata`
                 metadata,
@@ -223,10 +223,10 @@ library DataStoreUtils {
         internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
         searchData.metadata = (unpackDataStoreMetadata(packedSearchData));
-        // uint256 pointer;
+        uint256 pointer;
         assembly {
             // fetch offset of `packedSearchData` input in calldata
-            // pointer := packedSearchData.offset
+            pointer := packedSearchData.offset
             mstore(
                 // store in the duration memory location of `searchData`
                 add(searchData, MEMORY_OFFSET_duration),
