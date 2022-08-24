@@ -22,13 +22,13 @@ contract Payments is Delegator {
     ///@param amountToDeposit is the amount of future fees deposited by the @param user
     function testDepositFutureFees(
             address user,
-            uint256 amountToDeposit
+            uint96 amountToDeposit
         ) fuzzedAddress(user) public {
         paymentToken = dataLayrPaymentManager.paymentToken();
         
         cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
-        
         cheats.assume(amountToDeposit > 0 );
+        require(paymentToken.balanceOf(address(this)) != 0, "testDepositFutureFees: we aren't testing anything if this is failing");
 
         paymentToken.transfer(user, amountToDeposit);
         
@@ -54,7 +54,7 @@ contract Payments is Delegator {
     ///@param amountToDeposit is the amount of future fees deposited by the @param user
     function testPayFee(
         address user,
-        uint256 amountToDeposit
+        uint96 amountToDeposit
         ) fuzzedAddress(user) public {
         
         testDepositFutureFees(user, amountToDeposit);

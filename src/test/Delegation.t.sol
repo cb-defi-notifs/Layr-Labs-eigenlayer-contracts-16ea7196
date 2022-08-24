@@ -310,8 +310,6 @@ contract Delegator is EigenLayrDeployer {
         //this function performs delegation and undelegation
         testUndelegation(operator, staker, ethAmount, eigenAmount);
 
-        (IInvestmentStrategy[] memory strategies,) = investmentManager.getDeposits(staker);
-
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
         testDelegation(operator, staker, ethAmount, eigenAmount);
@@ -413,7 +411,7 @@ contract Delegator is EigenLayrDeployer {
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         delegation.setInvestmentManager(altInvestmentManager);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        delegation.setUndelegationFraudProofInterval(paymentFraudProofInterval);
+        delegation.setUndelegationFraudProofInterval(100);
         cheats.stopPrank();
     }
 
