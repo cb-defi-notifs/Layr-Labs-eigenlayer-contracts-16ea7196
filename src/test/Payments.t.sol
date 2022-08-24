@@ -70,7 +70,7 @@ contract Payments is Delegator {
 
     function testRewardPayouts(
             uint256 ethAmount, 
-            uint256 eigenAmount,
+            uint256 eigenAmount
         ) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
