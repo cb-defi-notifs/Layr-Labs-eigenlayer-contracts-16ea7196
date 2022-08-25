@@ -441,7 +441,7 @@ contract EigenLayrDeployer is
         cheats.prank(sender);
         //trying to withdraw more than the amountDeposited will fail, so we expect a revert and *short-circuit* if it happens
         if (amountSharesToWithdraw > existingShares) {
-            cheats.expectRevert(bytes("shareAmount too high"));
+            cheats.expectRevert(bytes("InvestmentManager._removeShares: shareAmount too high"));
             investmentManager.withdrawFromStrategy(
 
                 strategyIndex,

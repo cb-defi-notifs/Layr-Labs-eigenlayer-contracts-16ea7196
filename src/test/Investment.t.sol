@@ -54,8 +54,14 @@ contract InvestmentTests is
         assertEq(investorStratsLengthBefore - investorStratsLengthAfter, 1, "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be");
     }
 
-
-    //testing queued withdrawals in the investment manager
+    /**
+     * Testing queued withdrawals in the investment manager
+     * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
+     *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     *          response depending on whether `staker` is delegated or not. It then tries to call `completeQueuedWithdrawal` and verifies that it correctly
+     *          (passes) reverts in the event that the `staker` is (not) delegated.
+     */
     function testQueuedWithdrawal(
         address staker,
         bool registerAsDelegate,
@@ -64,7 +70,6 @@ contract InvestmentTests is
     )
         public fuzzedAddress(staker)
     {
-        // can't withdraw more than we deposit
         cheats.assume(amountToDeposit > amountToWithdraw);
 
         // harcoded inputs
@@ -83,27 +88,56 @@ contract InvestmentTests is
             assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
         }
 
-        //make deposit in WETH strategy
-        _testWethDeposit(staker, amountToDeposit);
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (amountToWithdraw > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
 
         //queue the withdrawal
         cheats.startPrank(staker);
-
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(staker, 0);
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = 
+            InvestmentManagerStorage.WithdrawerAndNonce({
+                withdrawer: staker,
+                nonce: 0
+            }
+        );
         investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        /**
+         *  if `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+         *  verify that `completeQueuedWithdrawal` reverts appropriately
+         */
         if (delegation.isDelegated(staker)) {
             assertTrue(
                 !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
                 "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
             cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
-        } else {
+        }
+        /**
+         *  if `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
+         *  verify that `completeQueuedWithdrawal` completes appropriately
+         */
+        else if (delegation.isNotDelegated(staker)) {
             assertTrue(
                 investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
                 "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
+        } else {
+            revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
         }
         investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+
+        if (delegation.isDelegated(staker)) {
+            // retrieve information about the queued withdrawal
+            bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+            (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);
+            // warp to unlock time
+            // cheats.warp()
+        }
         cheats.stopPrank();
     }
 
