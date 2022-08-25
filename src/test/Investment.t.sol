@@ -133,10 +133,16 @@ contract InvestmentTests is
 
         if (delegation.isDelegated(staker)) {
             // retrieve information about the queued withdrawal
-            bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-            (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);
-            // warp to unlock time
-            // cheats.warp()
+            // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+            // (uint32 initTimestamp, uint32 unlockTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);
+            uint32 unlockTimestamp;
+            {
+                bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+                (, unlockTimestamp, ) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);                
+            }
+            // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
+            cheats.warp(unlockTimestamp);
+            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
         }
         cheats.stopPrank();
     }
