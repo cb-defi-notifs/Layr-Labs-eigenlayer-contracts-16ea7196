@@ -57,56 +57,54 @@ contract InvestmentTests is
 
     //testing queued withdrawals in the investment manager
     function testQueuedWithdrawal(
-        // uint256 amountToDeposit
-        // ,uint256 amountToWithdraw 
-    ) public {
+        address staker,
+        bool registerAsDelegate,
+        uint96 amountToDeposit,
+        uint96 amountToWithdraw
+    )
+        public fuzzedAddress(staker)
+    {
+        // can't withdraw more than we deposit
+        cheats.assume(amountToDeposit > amountToWithdraw);
+
         // harcoded inputs
-        address[2] memory  accounts = [acct_0, acct_1];
-        uint256[2] memory depositAmounts;
-        uint256 amountToDeposit = 10e7;
-        uint256 amountToWithdraw = 10e7;
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-        IERC20[] memory tokensArray = new IERC20[](1);
         strategyArray[0] = wethStrat;
+        IERC20[] memory tokensArray = new IERC20[](1);
         tokensArray[0] = weth;
+        uint256[] memory shareAmounts = new uint256[](1);
+        shareAmounts[0] = amountToWithdraw;
+        uint256[] memory strategyIndexes = new uint256[](1);
+        strategyIndexes[0] = 0;
 
-        // we do this here to ensure that `acct_1` is delegated
-        _testRegisterAsDelegate(acct_1, IDelegationTerms(acct_1));
-
-        //make deposits in WETH strategy
-        for (uint i=0; i<accounts.length; i++){
-            // uint256 amountDeposited = _testWethDeposit(accounts[i], amountToDeposit);
-            _testWethDeposit(accounts[i], amountToDeposit);
-            depositAmounts[i] = amountToWithdraw;
+        // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
+        if (registerAsDelegate) {
+            _testRegisterAsDelegate(staker, IDelegationTerms(staker));
+            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
         }
+
+        //make deposit in WETH strategy
+        _testWethDeposit(staker, amountToDeposit);
 
         //queue the withdrawal
-        for (uint i=0; i<accounts.length; i++){ 
-            cheats.startPrank(accounts[i]);
+        cheats.startPrank(staker);
 
-            uint256[] memory shareAmounts = new uint256[](1);
-            shareAmounts[0] = depositAmounts[i];
-
-            uint256[] memory strategyIndexes = new uint256[](1);
-            strategyIndexes[0] = 0;
-
-            InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[i], 0);
-            investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-            if (delegation.isDelegated(accounts[i])) {
-                assertTrue(
-                    !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce),
-                    "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
-                );
-                cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
-            } else {
-                assertTrue(
-                    investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce),
-                    "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
-                );
-            }
-            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, accounts[i], withdrawerAndNonce);
-            cheats.stopPrank();
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(staker, 0);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        if (delegation.isDelegated(staker)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+            cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
+        } else {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
         }
+        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+        cheats.stopPrank();
     }
 
     //testing queued withdrawals in the investment manager
