@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IRepositoryAccess.sol";
 
-// TODO: provide more functions for this spec
 interface IPaymentManager is IRepositoryAccess {
     enum DissectionType {
         INVALID,
@@ -99,6 +98,18 @@ interface IPaymentManager is IRepositoryAccess {
         uint256 eigenStakeSigned;
     }
 
+    function depositFutureFees(address onBehalfOf, uint256 amount) external;
+
+    function setAllowance(address allowed, uint256 amount) external;
+
+    function payFee(address initiator, address payer, uint256 feeAmount) external;
+
+    function setPaymentFraudProofCollateral(uint256 _paymentFraudProofCollateral) external;
+
+    function commitPayment(uint32 toTaskNumber, uint120 amount) external;
+
+    function redeemPayment() external;
+
     function paymentFraudProofInterval() external view returns (uint256);
 
     function paymentFraudProofCollateral() external view returns (uint256);
@@ -109,6 +120,30 @@ interface IPaymentManager is IRepositoryAccess {
 
     function collateralToken() external view returns(IERC20);
     
-    function depositFutureFees(address onBehalfOf, uint256 amount) external;
+    function getChallengeStatus(address operator) external view returns(ChallengeStatus);
 
+    function challengePaymentInit(
+        address operator,
+        uint120 amount1,
+        uint120 amount2
+    ) external;
+
+    function challengePaymentHalf(
+        address operator,
+        bool secondHalf,
+        uint120 amount1,
+        uint120 amount2
+    ) external;
+
+    function resolveChallenge(address operator) external;
+
+    function getAmount1(address operator) external view returns (uint120);
+
+    function getAmount2(address operator) external view returns (uint120);
+
+    function getToTaskNumber(address operator) external view returns (uint48);
+
+    function getFromTaskNumber(address operator) external view returns (uint48);
+
+    function getDiff(address operator) external view returns (uint48);
 }

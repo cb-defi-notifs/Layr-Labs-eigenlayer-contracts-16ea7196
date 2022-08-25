@@ -106,7 +106,7 @@ abstract contract PaymentManager is
         RepositoryAccess(_repository) 
     {
         paymentToken = _paymentToken;
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
+        setPaymentFraudProofCollateral(_paymentFraudProofCollateral);
         IServiceManager _serviceManager = _repository.serviceManager();
         collateralToken = _serviceManager.collateralToken();
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
@@ -122,7 +122,7 @@ abstract contract PaymentManager is
         depositsOf[onBehalfOf] += amount;
     }
 
-    function setAllowance(address allowed, uint256 amount) public {
+    function setAllowance(address allowed, uint256 amount) external {
         allowances[msg.sender][allowed] = amount;
     }
 
