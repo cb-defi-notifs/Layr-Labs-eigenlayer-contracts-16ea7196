@@ -115,7 +115,7 @@ contract InvestmentTests is
                 !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
                 "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
-            cheats.expectRevert("withdrawal waiting period has not yet passed and depositor is still delegated");
+            cheats.expectRevert("InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated");
         }
         /**
          *  if `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and

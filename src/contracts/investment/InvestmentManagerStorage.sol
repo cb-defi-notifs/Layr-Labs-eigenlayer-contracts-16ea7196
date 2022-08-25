@@ -9,7 +9,7 @@ import "../interfaces/ISlasher.sol";
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     struct WithdrawalStorage {
         uint32 initTimestamp;
-        uint32 latestFraudproofTimestamp;
+        uint32 unlockTimestamp;
         address withdrawer;
     }
     struct WithdrawerAndNonce {
