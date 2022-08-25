@@ -6,11 +6,6 @@ import "../test/Deployer.t.sol";
 
 contract TestHelper is EigenLayrDeployer {
 
-    constructor() {
-        delegates = [acct_0, acct_1];
-    }
-
-
 
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public

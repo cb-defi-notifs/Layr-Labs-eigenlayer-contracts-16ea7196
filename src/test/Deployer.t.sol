@@ -226,6 +226,8 @@ contract EigenLayrDeployer is
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, governor);
 
+        delegates = [acct_0, acct_1];
+        
         investmentManager.initialize(
             slasher,
             governor
