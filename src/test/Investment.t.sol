@@ -246,9 +246,9 @@ contract InvestmentTests is
     }
 
     //verifies that it is possible to deposit eigen
-    function testDepositEigen(uint80 eigenToDeposit) public {
+    function testDepositEigen(uint96 eigenToDeposit) public {
         // sanity check for inputs; keeps fuzzed tests from failing
-        cheats.assume(eigenToDeposit < eigenTotalSupply / 2);
+        cheats.assume(eigenToDeposit < eigenTotalSupply);
         _testDepositEigen(signers[0], eigenToDeposit);
     }
 

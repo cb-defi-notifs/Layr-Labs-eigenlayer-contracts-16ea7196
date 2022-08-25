@@ -344,7 +344,7 @@ contract EigenLayrDeployer is
     }
 
     /**
-     * @notice Deposits `amountToDeposit` of WETH from address `sender` into `strat`.
+     * @notice Deposits `amountToDeposit` of WETH from address `sender` into `wethStrat`.
      * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
      * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
      */
@@ -357,6 +357,16 @@ contract EigenLayrDeployer is
         amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
     }
+
+    /**
+     * @notice Deposits `amountToDeposit` of EIGEN from address `sender` into `eigenStrat`.
+     * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
+     * @param amountToDeposit Amount of EIGEN that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
+     */
+    function _testDepositEigen(address sender, uint256 amountToDeposit) public {
+        _testDepositToStrategy(sender, amountToDeposit, eigenToken, eigenStrat);
+    }
+
 
     /**
      * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
@@ -540,31 +550,6 @@ contract EigenLayrDeployer is
             });
         return searchData;
     }
-
-    // deposits a fixed amount of eigen from address 'sender'
-    // checks that the deposit is credited correctly
-    function _testDepositEigen(address sender, uint256 toDeposit) public {
-        // deposits will revert when amountToDeposit is 0
-        cheats.assume(toDeposit > 0);
-        eigenToken.transfer(sender, toDeposit);
-        cheats.startPrank(sender);
-        eigenToken.approve(address(investmentManager), type(uint256).max);
-
-        uint256 eigenSharesBefore = investmentManager.investorStratShares(sender, eigenStrat);
-        investmentManager.depositIntoStrategy(
-            sender,
-            eigenStrat,
-            eigenToken,
-            toDeposit
-        );
-        assertEq(
-            investmentManager.investorStratShares(sender, eigenStrat),
-            toDeposit + eigenSharesBefore,
-            "_testDepositEigen: deposit not properly credited"
-        );
-        cheats.stopPrank();
-    }
-
 
     function _testRegisterAdditionalSelfOperator(
         address sender,
