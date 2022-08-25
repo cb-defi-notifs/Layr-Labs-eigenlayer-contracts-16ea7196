@@ -6,11 +6,10 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
 
-import "../test/Delegation.t.sol";
+import "../test/TestHelper.t.sol";
 
 
-
-contract Payments is Delegator {
+contract Payments is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
@@ -109,6 +108,7 @@ contract Payments is Delegator {
         );
 
         address operator = signers[0];
+        emit log("hehe");
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
         _testCommitPayment(operator, 10);        
     }
