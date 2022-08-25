@@ -20,8 +20,6 @@ contract Delegator is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
-    
-
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
