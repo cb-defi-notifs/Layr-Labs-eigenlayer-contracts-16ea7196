@@ -224,7 +224,7 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         );
     }
 
-    function freezeOperator(address operator) external {
+    function freezeOperator(address) external pure {
         revert("function unfinished in this contract -- no permissions applied");
     }
 
