@@ -47,6 +47,7 @@ contract Payments is TestHelper {
 
     }
 
+
     ///@notice this function tests paying fees without delegation of payment rights to a third party
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
@@ -65,6 +66,27 @@ contract Payments is TestHelper {
 
         uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(user);
         assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
+    }
+
+    //tests setting payment collateral from the valid address and an invalid address
+    function testSetPaymentCollateral(
+        uint256 fraudProofCollateral,
+        address unauthorizedRepositorOwner
+    ) fuzzedAddress(unauthorizedRepositorOwner) public {
+        address repositoryOwner = dlRepository.owner();
+        cheats.startPrank(repositoryOwner);
+        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral);
+        cheats.stopPrank();
+
+
+
+        cheats.startPrank(unauthorizedRepositorOwner);
+        cheats.expectRevert(bytes("onlyRepositoryGovernance"));
+        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        cheats.stopPrank();
+
+
     }
 
     function testRewardPayouts(
