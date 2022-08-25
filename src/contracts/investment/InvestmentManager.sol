@@ -43,18 +43,18 @@ contract InvestmentManager is
     modifier onlyNotDelegated(address user) {
         require(
             delegation.isNotDelegated(user),
-            "InvestmentManager: onlyNotDelegated"
+            "InvestmentManager.onlyNotDelegated: user is actively delegated"
         );
         _;
     }
 
     modifier onlyNotFrozen(address staker) {
-        require(!slasher.isFrozen(staker), "staker has been frozen and may be subject to slashing");
+        require(!slasher.isFrozen(staker), "InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing");
         _;
     }
 
     modifier onlyFrozen(address staker) {
-        require(slasher.isFrozen(staker), "staker has not been frozen");
+        require(slasher.isFrozen(staker), "InvestmentManager.onlyFrozen: staker has not been frozen");
         _;
     }
 
@@ -175,7 +175,7 @@ contract InvestmentManager is
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
-            "provided nonce incorrect"
+            "InvestmentManager.queueWithdrawal: provided nonce incorrect"
         );
         // increment the numWithdrawalsQueued of the sender
         unchecked {
