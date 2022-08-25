@@ -259,6 +259,12 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
         );
 
+        // TODO: add testing coverage for this
+        require(
+            msg.sender == withdrawerAndNonce.withdrawer,
+            "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
+        );
+
         //reset the storage slot in mapping of queued withdrawals
         delete queuedWithdrawals[depositor][withdrawalRoot];
 
