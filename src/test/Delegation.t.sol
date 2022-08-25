@@ -18,31 +18,6 @@ import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 contract Delegator is EigenLayrDeployer {
     using BytesLib for bytes;
     using Math for uint;
-    address[2] public delegates;
-    uint256[] apks;
-    uint256[] sigmas;
-
-    //uint256 amountEigenToDeposit = 1e17;
-    //uint256 amountEthToDeposit = 2e19;
-    address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
-
-    struct nonSignerInfo {
-        uint256 xA0;
-        uint256 xA1;
-        uint256 yA0;
-        uint256 yA1;
-    }
-
-    struct signerInfo {
-        uint256 apk0;
-        uint256 apk1;
-        uint256 apk2;
-        uint256 apk3;
-        uint256 sigma0;
-        uint256 sigma1;
-    }
-
 
     constructor() {
         delegates = [acct_0, acct_1];
