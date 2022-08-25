@@ -9,8 +9,6 @@ remappings = ['ds-test/=lib/ds-test/src/',
 gas_reports = ["*"]
 
 # A list of ignored solc error codes
-#TODO: remove ignoring error for unreachable code. this was bugging out.
-ignored_error_codes = [5740]
 
 # Enables or disables the optimizer
 optimizer = true
