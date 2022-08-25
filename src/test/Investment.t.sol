@@ -21,7 +21,8 @@ contract InvestmentTests is
 
     /**
      * @notice Verifies that it is possible to withdraw WETH after depositing it
-     * 
+     * @param amountToDeposit The amount of WETH to try depositing
+     * @param amountToWithdraw The amount of shares to try withdrawing
      */
     function testWethWithdrawal(
         uint96 amountToDeposit,
@@ -29,9 +30,10 @@ contract InvestmentTests is
     ) public {
         cheats.assume(amountToDeposit > 0);
         cheats.assume(amountToWithdraw > 0);
+        // hard-coded inputs
         address sender = signers[0];
-        _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
         uint256 strategyIndex = 0;
+        _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
         _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, wethStrat);
     }
 
@@ -54,11 +56,20 @@ contract InvestmentTests is
         assertEq(investorStratsLengthBefore - investorStratsLengthAfter, 1, "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be");
     }
 
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     *          into the WETH strategy, and then queues a withdrawal using
+     *          `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     *          response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsDelegate If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
     function _createQueuedWithdrawal(
         address staker,
         bool registerAsDelegate,
         uint256 amountToDeposit,
-        uint256 amountToWithdraw,
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
@@ -67,10 +78,11 @@ contract InvestmentTests is
     )
         internal
     {
-        require(amountToDeposit > amountToWithdraw, "_createQueuedWithdrawal: sanity check failed");
+        require(amountToDeposit > shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
         // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
         if (registerAsDelegate) {
+            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
             _testRegisterAsDelegate(staker, IDelegationTerms(staker));
             assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
         }
@@ -79,7 +91,7 @@ contract InvestmentTests is
             //make deposit in WETH strategy
             uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
             // We can't withdraw more than we deposit
-            if (amountToWithdraw > amountDeposited) {
+            if (shareAmounts[0] > amountDeposited) {
                 cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
             }
         }
@@ -109,10 +121,10 @@ contract InvestmentTests is
     /**
      * Testing queued withdrawals in the investment manager
      * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
-     *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy
-     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
-     *          response depending on whether `staker` is delegated or not. It then tries to call `completeQueuedWithdrawal` and verifies that it correctly
-     *          (passes) reverts in the event that the `staker` is (not) delegated.
+     *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy. It then tries to call `completeQueuedWithdrawal`
+     *          and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
+     * @notice In the event that the call to `completeQueuedWithdrawal` correctly reverted above, this function then fast-forwards to just past the `unlockTime`
+     *          for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
      */
     function testQueuedWithdrawal(
         address staker,
@@ -143,7 +155,7 @@ contract InvestmentTests is
         );
 
         // create the queued withdrawal
-        _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, amountToWithdraw, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+        _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
 
         // If `staker` is actively delegated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
         if (delegation.isDelegated(staker)) {
@@ -201,7 +213,7 @@ contract InvestmentTests is
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, amountToWithdraw, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
         }
 
         // retrieve information about the queued withdrawal
@@ -268,60 +280,4 @@ contract InvestmentTests is
     function testInvestorStratUpdate() public {
 
     }
-
-    function testSlashing() public {
-        // hardcoded inputs
-        address[2] memory accounts = [acct_0, acct_1];
-        uint256[2] memory depositAmounts;
-        uint256 amountToDeposit = 1e7;
-        address _registrant = registrant;
-        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-        IERC20[] memory tokensArray = new IERC20[](1);
-        strategyArray[0] = wethStrat;
-        tokensArray[0] = weth;
-
-        //register _registrant as an operator
-        _testWethDeposit(_registrant, amountToDeposit);
-        _testRegisterAsDelegate(_registrant, IDelegationTerms(_registrant));
-
-        //make deposits in WETH strategy
-        for (uint i=0; i<accounts.length; i++){            
-            depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
-            _testDelegateToOperator(accounts[i], _registrant);
-
-        }
-
-        uint256[] memory shareAmounts = new uint256[](1);
-        shareAmounts[0] = depositAmounts[0];
-
-        uint256[] memory strategyIndexes = new uint256[](1);
-        strategyIndexes[0] = 0;
-
-        //investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, nonce);
-        cheats.startPrank(address(slasher.delegation()));
-        slasher.freezeOperator(_registrant);
-        cheats.stopPrank();
-
-
-        uint prev_shares = delegation.operatorShares(_registrant, strategyArray[0]);
-
-        investmentManager.slashShares(
-            _registrant, 
-            acct_0, 
-            strategyArray, 
-            tokensArray, 
-            strategyIndexes, 
-            shareAmounts
-        );
-
-        require(delegation.operatorShares(_registrant, strategyArray[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
-        
-        //initiate withdrawal
-
-        // InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = InvestmentManagerStorage.WithdrawerAndNonce(accounts[0], 0);
-        // uint96 queuedWithdrawalNonce = nonce.nonce;
-
-        
-    }
-    
 }
