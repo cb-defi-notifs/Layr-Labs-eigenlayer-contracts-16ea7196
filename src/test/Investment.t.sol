@@ -208,79 +208,10 @@ contract InvestmentTests is
         // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
         // (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
 
+        // confirm a data store and get the `searchData` for "finding" it
+        uint8 numberOfSigners = uint8(15);
         IDataLayrServiceManager.DataStoreSearchData memory searchData;
-        bytes32 signatoryRecordHash;
-// BEGIN COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
-{
-        uint32 numberOfSigners = uint32(15);
-
-        //register all the operators
-        for (uint256 i = 0; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(
-                signers[i],
-                registrationData[i]
-            );
-        }
-
-        searchData = _testInitDataStore(initTime, address(this));
-
-        uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
-
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
-        
-        /** 
-     @param data This calldata is of the format:
-            <
-             bytes32 msgHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-             uint32 blockNumber
-             uint32 dataStoreId
-             uint32 numberOfNonSigners,
-             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >
-     */
-        bytes memory data = abi.encodePacked(
-            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.blockNumber,
-            searchData.metadata.globalDataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apk_0,
-            apk_1,
-            apk_2,
-            apk_3,
-            sigma_0,
-            sigma_1
-        );
-
-        // ADDED CODE: fetch the signatoryRecordHash
-        (
-            // uint32 dataStoreIdToConfirm,
-            // uint32 blockNumberFromTaskHash,
-            // bytes32 msgHash,
-            // SignatoryTotals memory signedTotals,
-            // bytes32 signatoryRecordHash
-            ,
-            ,
-            ,
-            ,
-            signatoryRecordHash
-        ) = dlsm.checkSignatures(data);
-        // END ADDED CODE
-
-        dlsm.confirmDataStore(data, searchData);
-        cheats.stopPrank();
-}
-// END COPY PASTED CODE-BLOCK FROM `_testConfirmDataStoreSelfOperators`
-
-        // copy the signatoryRecordHash to the struct
-        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
+        (, searchData) = _testConfirmDataStoreSelfOperators(numberOfSigners);
 
         // deploy library-wrapper contract and use it to pack the searchData
         DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();

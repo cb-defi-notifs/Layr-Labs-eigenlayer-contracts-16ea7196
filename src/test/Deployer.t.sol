@@ -613,10 +613,10 @@ contract EigenLayrDeployer is
         }
     }
 
-    
+    // second return value is the complete `searchData` that can serve as an input to `stakeWithdrawalVerification`
     function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
         internal 
-        returns (bytes memory)
+        returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
         {
         cheats.assume(signersInput > 0 && signersInput <= 15);
 
@@ -624,7 +624,6 @@ contract EigenLayrDeployer is
 
         //register all the operators
         for (uint256 i = 0; i < numberOfSigners; ++i) {
-
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
@@ -653,6 +652,7 @@ contract EigenLayrDeployer is
              uint256[2] sigma
             >
      */
+        // 
         bytes memory data = abi.encodePacked(
             keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -669,9 +669,27 @@ contract EigenLayrDeployer is
             sigma_1
         );
         
+        bytes32 signatoryRecordHash;
+        (
+            // uint32 dataStoreIdToConfirm,
+            // uint32 blockNumberFromTaskHash,
+            // bytes32 msgHash,
+            // SignatoryTotals memory signedTotals,
+            // bytes32 signatoryRecordHash
+            ,
+            ,
+            ,
+            ,
+            signatoryRecordHash
+        ) = dlsm.checkSignatures(data);
+
         dlsm.confirmDataStore(data, searchData);
         cheats.stopPrank();
-        return data;
+
+        // copy the signatoryRecordHash to the `searchData` struct, so the `searchData` can now be used in `stakeWithdrawalVerification` calls appropriately
+        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
+
+        return (data, searchData);
     }
 
 
