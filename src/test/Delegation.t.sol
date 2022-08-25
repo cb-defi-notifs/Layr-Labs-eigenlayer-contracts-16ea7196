@@ -405,6 +405,7 @@ contract Delegator is EigenLayrDeployer {
     ///         setUndelegationFraudProofInterval functions.
 
     function testOwnableFunctions(address badGuy) fuzzedAddress(badGuy) public {
+        cheats.assume(badGuy != delegation.owner());
         cheats.startPrank(badGuy);
         EigenLayrDelegation altDelegation = new EigenLayrDelegation();
         IInvestmentManager altInvestmentManager = new InvestmentManager(altDelegation);
