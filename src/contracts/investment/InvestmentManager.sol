@@ -9,8 +9,6 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
 
-
-// TODO: withdrawals of consensus layer ETH?
 /**
  * @notice This contract is for managing investments in different strategies. The main
  *         functionalities are:
@@ -150,7 +148,6 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
     }
 
-   // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
     /**
      * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
      */
@@ -227,7 +224,6 @@ contract InvestmentManager is
         );
     }
 
-    //TODO: add something related to slashing for queued withdrawals
     /**
      * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
      *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.

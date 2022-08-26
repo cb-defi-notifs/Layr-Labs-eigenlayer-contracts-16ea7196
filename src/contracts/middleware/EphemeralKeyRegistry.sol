@@ -54,15 +54,16 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      @param operator for signing on bomb-based queries.
      */ 
     function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
-
-        EKEntry memory newEKEntry;
-        newEKEntry.keyHash = EKHash;
-        newEKEntry.timestamp = uint192(block.timestamp);
-        newEKEntry.startTaskNumber = currentTaskNumber;
-
         // record the new EK entry 
-        EKHistory[operator].push(newEKEntry);
+        EKHistory[operator].push(
+            EKEntry({
+                keyHash: EKHash,
+                ephemeralKey: bytes32(0),
+                timestamp: uint192(block.timestamp),
+                startTaskNumber: repository.serviceManager().taskNumber(),
+                endTaskNumber: 0
+            })
+        );
     }
 
     /**
@@ -75,10 +76,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      @param prevEK is the preimage. 
      */ 
     function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external onlyRegistry {
-        uint256 historyLength = EKHistory[operator].length - 1;
-
         // retrieve the most recent EK entry for the operator
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
+        uint256 historyLength = _getEKHistoryLength(operator);
+        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
         // check that the preimage matches with the hash
         require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
@@ -104,8 +104,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      @param newEKHash is the hash of the new ephemeral key.
      */ 
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 newEKHash) external {
-        uint256 historyLength = EKHistory[msg.sender].length - 1;
-        EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength];
+        // retrieve the most recent EK entry for the operator
+        uint256 historyLength = _getEKHistoryLength(msg.sender);
+        EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength - 1];
 
         require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
 
@@ -118,7 +119,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         // updating the previous EK entry
         existingEKEntry.ephemeralKey = prevEK;
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
-        EKHistory[msg.sender][historyLength] = existingEKEntry;        
+        EKHistory[msg.sender][historyLength - 1] = existingEKEntry;        
 
         // new EK entry
         EKEntry memory newEKEntry;
@@ -133,25 +134,28 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     /**
      @notice retrieve the operator's current EK hash
      */
-    // CRITIC ---  getLatestEphemeralKey seems to be superior than getCurrEphemeralKeyHash
     function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
-        uint256 historyLength = EKHistory[operator].length - 1;
+        uint256 historyLength = _getEKHistoryLength(operator);
         return EKHistory[operator][historyLength].keyHash;
     }
-// TODO: this will revert poorly if EKHistory[operator].length == 0 -- let's improve it
+
     /**
-     @notice retrieve the operator's current EK hash
+     @notice retrieve the operator's current EK itself
      */
     function getLatestEphemeralKey(address operator)
         external view
         returns (bytes32)
     {
-        uint256 historyLength = EKHistory[operator].length - 1;
-        if (EKHistory[operator][historyLength].ephemeralKey != bytes32(0)) {
-            return EKHistory[operator][historyLength].ephemeralKey;
-        } else {
-            // recent EKEntry is still within UPDATE_PERIOD
+        uint256 historyLength = _getEKHistoryLength(operator);
+        if (EKHistory[operator][historyLength - 1].ephemeralKey != bytes32(0)) {
             return EKHistory[operator][historyLength - 1].ephemeralKey;
+        // recent EKEntry is still within UPDATE_PERIOD
+        } else {
+            if (historyLength == 1) {
+                revert("EphemeralKeyRegistry.getLatestEphemeralKey: no ephemeralKey posted yet");
+            } else {
+                return EKHistory[operator][historyLength - 2].ephemeralKey;                
+            }
         }
     }
 
@@ -163,11 +167,14 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         external view
         returns (bytes32)
     {
-        uint256 historyLength = EKHistory[operator].length - 1;
+        uint256 historyLength = _getEKHistoryLength(operator);
+        unchecked{
+            historyLength -= 1;
+        }
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
 
         if (existingEKEntry.startTaskNumber >= taskNumber) {
-            revert("taskNumber corresponds to latest EK which is still unrevealed");
+            revert("EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: taskNumber corresponds to latest EK which is still unrevealed");
         } else {
             for (; historyLength > 0; --historyLength) {
                 if (
@@ -179,7 +186,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
                 }
             } 
         }
-        revert("did not find EK");
+        revert("getEphemeralKeyForTaskNumber.getEphemeralKeyForTaskNumber: did not find EK");
     }   
 
 
@@ -188,8 +195,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     */
     function proveStaleEphemeralKey(address operator) external {
         // get the info on latest EK 
-        uint256 historyLength = EKHistory[operator].length - 1;
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
+        uint256 historyLength = _getEKHistoryLength(operator);
+        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
@@ -210,8 +217,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
              that was supposed to be not revealed   
     */
     function verifyEphemeralKeyIntegrity(address operator, bytes32 leakedEphemeralKey) external {
-        uint256 historyLength = EKHistory[operator].length - 1;
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
+        uint256 historyLength = _getEKHistoryLength(operator);
+        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
         if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD){
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
@@ -223,9 +230,16 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     function getLastEKPostTimestamp(address operator) external view returns (uint192) {
-        uint256 historyLength = EKHistory[operator].length - 1;
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
+        uint256 historyLength = _getEKHistoryLength(operator);
+        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
         return existingEKEntry.timestamp;
     }
 
+    function _getEKHistoryLength(address operator) internal view returns (uint256) {
+        uint256 historyLength = EKHistory[operator].length;
+        if (historyLength == 0) {
+            revert("EphemeralKeyRegistry._getEKHistoryLength: historyLength == 0");
+        }
+        return historyLength;
+    }
 }
