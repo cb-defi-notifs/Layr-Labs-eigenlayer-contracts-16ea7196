@@ -122,10 +122,6 @@ contract InvestmentManager is
      *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
      *      call this function.
      */
-    // CRITIC:     a staker can get its asset back before finalizeUndelegation. Therefore,
-    //             what is the incentive for calling finalizeUndelegation and starting off
-    //             the challenge period when the staker can get its asset back before
-    //             fulfilling its obligations. More details in slack.
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
