@@ -214,6 +214,19 @@ contract InvestmentTests is
         investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
     }
 
+    function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
+        IERC20 token = new ERC20PresetFixedSupply(
+            "badToken",
+            "BADTOKEN",
+            100,
+            address(this)
+        );
+        token.approve(address(investmentManager), type(uint256).max);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, 10);
+    }
+
+
     /**
      * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
      *          into the WETH strategy, and then queues a withdrawal using
