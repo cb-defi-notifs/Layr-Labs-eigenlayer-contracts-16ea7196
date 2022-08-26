@@ -136,7 +136,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      */
     function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
         uint256 historyLength = _getEKHistoryLength(operator);
-        return EKHistory[operator][historyLength].keyHash;
+        return EKHistory[operator][historyLength - 1].keyHash;
     }
 
     /**
@@ -168,7 +168,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         returns (bytes32)
     {
         uint256 historyLength = _getEKHistoryLength(operator);
-        unchecked{
+        unchecked {
             historyLength -= 1;
         }
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
