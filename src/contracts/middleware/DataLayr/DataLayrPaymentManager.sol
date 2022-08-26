@@ -8,7 +8,7 @@ import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
-import "../../libraries/DataStoreHash.sol";
+import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
 
 import "ds-test/test.sol";
@@ -61,7 +61,7 @@ contract DataLayrPaymentManager is
                 searchData.duration, 
                 searchData.timestamp,
                 searchData.index
-            ) == DataStoreHash.computeDataStoreHash(searchData.metadata),
+            ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
         );
 

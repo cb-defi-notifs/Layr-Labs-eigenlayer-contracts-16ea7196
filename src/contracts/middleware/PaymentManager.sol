@@ -20,7 +20,7 @@ import "ds-test/test.sol";
 abstract contract PaymentManager is 
     RepositoryAccess, 
     IPaymentManager
-    // ,DSTest 
+    //,DSTest 
     {
     using SafeERC20 for IERC20;
     /**********************
@@ -112,24 +112,19 @@ abstract contract PaymentManager is
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
     }
 
-
     /**
-     @notice deposit one-time fees by the middleware with this contract for set number of tasks 
-     */
-    /**
-     @param onBehalfOf could be the msg.sender or someone lese who is depositing 
-     this future fees           
+     @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware 
+     @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees      
+     @param amount is amount of futures fees being deposited     
      */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.transferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
-
     function setAllowance(address allowed, uint256 amount) public {
         allowances[msg.sender][allowed] = amount;
     }
-
 
     /**
      @notice Used for deducting the fees from the payer to the middleware
@@ -144,8 +139,6 @@ abstract contract PaymentManager is
         // decrement `payer`'s stored deposits
         depositsOf[payer] -= feeAmount;
     }
-
-
 
     function setPaymentFraudProofCollateral(
         uint256 _paymentFraudProofCollateral
@@ -189,8 +182,6 @@ abstract contract PaymentManager is
 
         // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
         uint32 confirmAt = uint32(block.timestamp + paymentFraudProofInterval);
-
-
 
         // for the special case of this being the first payment that is being claimed by the operator;
         /**
@@ -308,7 +299,6 @@ abstract contract PaymentManager is
         emit PaymentChallengeInit(operator, msg.sender);
     }
 
-
     //challenger challenges a particular half of the payment
     function challengePaymentHalf(
         address operator,
@@ -331,7 +321,6 @@ abstract contract PaymentManager is
             block.timestamp < challenge.settleAt,
             "PaymentManager.challengePaymentHalf: Challenge has already settled"
         );
-
 
         uint32 fromTaskNumber = challenge.fromTaskNumber;
         uint32 toTaskNumber = challenge.toTaskNumber;
