@@ -159,7 +159,7 @@ abstract contract PaymentManager is
             "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
-        require(toTaskNumber <= _taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
+        require(toTaskNumber <= taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
 
         // can only claim for a payment after redeeming the last payment
         require(
@@ -506,7 +506,7 @@ abstract contract PaymentManager is
         return operatorToPayment[operator].collateral;
     }
 
-    function _taskNumber() internal view returns (uint32) {
+    function taskNumber() internal view returns (uint32) {
         return repository.serviceManager().taskNumber();
     }
 }
