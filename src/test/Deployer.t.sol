@@ -280,6 +280,9 @@ contract EigenLayrDeployer is
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
+        // hard-coded input
+        uint96 multiplier = 1e18;
+
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
@@ -302,15 +305,14 @@ contract EigenLayrDeployer is
             );
         for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
             ethStratsAndMultipliers[i].strategy = strategies[i];
-            // TODO: change this if needed
-            ethStratsAndMultipliers[i].multiplier = 1e18;
+            ethStratsAndMultipliers[i].multiplier = multiplier;
         }
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
             memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
                 1
             );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
-        eigenStratsAndMultipliers[0].multiplier = 1e18;
+        eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
@@ -791,9 +793,8 @@ contract EigenLayrDeployer is
             delegation.delegation(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
-        //TODO: write this properly to use the enum type defined in delegation
         assertTrue(
-            uint8(delegation.delegated(sender)) == 1,
+            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -827,6 +828,9 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         uint16 numStratsToAdd
     ) internal {
+        // hard-coded input
+        uint96 multiplier = 1e18;
+
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         IInvestmentStrategy[]
             memory stratsToDepositTo = new IInvestmentStrategy[](
@@ -860,8 +864,7 @@ contract EigenLayrDeployer is
                     1
                 );
             ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
-            // TODO: change this if needed
-            ethStratsAndMultipliers[0].multiplier = 1e18;
+            ethStratsAndMultipliers[0].multiplier = multiplier;
             dlReg.addStrategiesConsideredAndMultipliers(
                 0,
                 ethStratsAndMultipliers

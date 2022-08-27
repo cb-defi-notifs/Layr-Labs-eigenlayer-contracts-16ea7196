@@ -63,8 +63,6 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
 
-    function dataStoreIdToFee(uint32) external view returns (uint96);
-
     function numPowersOfTau() external view returns(uint48);
 
     function log2NumPowersOfTau() external view returns(uint48);

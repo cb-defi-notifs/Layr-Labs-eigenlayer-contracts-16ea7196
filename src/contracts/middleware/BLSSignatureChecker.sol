@@ -74,7 +74,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              bytes32 msgHash,
              uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
              uint32 blockNumber
-             uint32 dataStoreId
+             uint32 taskNumberToConfirm
              uint32 numberOfNonSigners,
              uint256[numberOfNonSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
@@ -82,7 +82,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint256[2] sigma
             >
      */
-    //  CRITIC --- seems like instead of dataStoreId, we have taskNumberToConfirm
     // NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
         public
@@ -103,7 +102,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             pointer := data.offset
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the msgHash for which disperser is calling checkSignatures
-            // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument.
             msgHash := calldataload(pointer)
 
             // get the 6 bytes immediately after the above, which represent the

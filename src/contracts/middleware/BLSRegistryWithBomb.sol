@@ -85,6 +85,5 @@ contract BLSRegistryWithBomb is
 
     function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
         revert("must deregister with ephemeral key");
-        return false;
     }
 }

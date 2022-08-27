@@ -13,8 +13,6 @@ interface IServiceManager is IRepositoryAccess {
 
     // function taskMetadata() external view returns (ITaskMetadata);
 
-    function taskNumberToFee(uint32) external view returns (uint256);
-
     function freezeOperator(address operator) external;
 
     // function paymentFraudProofInterval() external view returns (uint256);
