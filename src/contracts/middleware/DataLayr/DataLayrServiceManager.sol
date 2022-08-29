@@ -81,15 +81,8 @@ contract DataLayrServiceManager is
         EVENTS
      *************/
     event InitDataStore(
-        uint32 dataStoreId,
-        uint32 durationDataStoreId,
-        uint32 index,
-        bytes32 indexed headerHash,
-        bytes header,
-        uint32 totalBytes,
-        uint32 storePeriodLength,
-        uint32 blockNumber,
-        uint256 fee
+        IDataLayrServiceManager.DataStoreSearchData searchData,
+        bytes header
     );
 
     event ConfirmDataStore(
@@ -243,8 +236,15 @@ contract DataLayrServiceManager is
             );    
         }
 
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = IDataLayrServiceManager.DataStoreSearchData({
+            duration: duration,
+            timestamp: block.timestamp,
+            index: index,
+            metadata: metadata
+        });
+
         // emit event to represent initialization of data store
-        emit InitDataStore(dataStoresForDuration.dataStoreId, getNumDataStoresForDuration(duration), index, headerHash, header, totalBytes, storePeriodLength, blockNumber, fee);
+        emit InitDataStore(searchData, header);
 
         /******************************
           Updating dataStoresForDuration 
