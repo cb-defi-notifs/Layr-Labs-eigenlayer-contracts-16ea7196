@@ -18,7 +18,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     }
 
     // fixed waiting period for withdrawals
-    // TODO: set this to a proper interval!
+    // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
 
     // maximum length of dynamic arrays in `investorStrats` mapping

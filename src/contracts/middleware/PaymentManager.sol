@@ -106,7 +106,7 @@ abstract contract PaymentManager is
         RepositoryAccess(_repository) 
     {
         paymentToken = _paymentToken;
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
+        setPaymentFraudProofCollateral(_paymentFraudProofCollateral);
         IServiceManager _serviceManager = _repository.serviceManager();
         collateralToken = _serviceManager.collateralToken();
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
@@ -122,7 +122,7 @@ abstract contract PaymentManager is
         depositsOf[onBehalfOf] += amount;
     }
 
-    function setAllowance(address allowed, uint256 amount) public {
+    function setAllowance(address allowed, uint256 amount) external {
         allowances[msg.sender][allowed] = amount;
     }
 
@@ -159,7 +159,7 @@ abstract contract PaymentManager is
             "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
-        require(toTaskNumber <= taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
+        require(toTaskNumber <= _taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
 
         // can only claim for a payment after redeeming the last payment
         require(
@@ -506,7 +506,7 @@ abstract contract PaymentManager is
         return operatorToPayment[operator].collateral;
     }
 
-    function taskNumber() internal view returns (uint32) {
+    function _taskNumber() internal view returns (uint32) {
         return repository.serviceManager().taskNumber();
     }
 }
