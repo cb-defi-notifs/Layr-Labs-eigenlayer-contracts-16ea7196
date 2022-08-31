@@ -215,6 +215,13 @@ contract InvestmentTests is
     }
 
     function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
+        // assume that the fuzzed address is not already a contract!
+        uint256 size;
+        assembly {
+            size := extcodesize(nonexistentStrategy)
+        }
+        cheats.assume(size == 0);
+        
         IERC20 token = new ERC20PresetFixedSupply(
             "badToken",
             "BADTOKEN",
