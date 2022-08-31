@@ -57,68 +57,6 @@ contract InvestmentTests is
     }
 
     /**
-     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
-     *          into the WETH strategy, and then queues a withdrawal using
-     *          `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
-     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
-     *          response depending on whether `staker` is delegated or not.
-     * @param staker The address to initiate the queued withdrawal
-     * @param registerAsDelegate If true, `staker` will also register as a delegate in the course of this function
-     * @param amountToDeposit The amount of WETH to deposit
-     */
-    function _createQueuedWithdrawal(
-        address staker,
-        bool registerAsDelegate,
-        uint256 amountToDeposit,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        uint256[] memory strategyIndexes,
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce
-    )
-        internal
-    {
-        require(amountToDeposit > shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
-
-        // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
-        if (registerAsDelegate) {
-            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
-            _testRegisterAsDelegate(staker, IDelegationTerms(staker));
-            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
-        }
-
-        {
-            //make deposit in WETH strategy
-            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
-            // We can't withdraw more than we deposit
-            if (shareAmounts[0] > amountDeposited) {
-                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
-            }
-        }
-
-        //queue the withdrawal
-        cheats.startPrank(staker);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-        // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
-        if (delegation.isDelegated(staker)) {
-            assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
-                "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
-            );
-        }
-        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and         
-        else if (delegation.isNotDelegated(staker)) {
-            assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
-                "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
-            );
-        } else {
-            revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
-        }
-        cheats.stopPrank();
-    }
-
-    /**
      * Testing queued withdrawals in the investment manager
      * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
      *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy. It then tries to call `completeQueuedWithdrawal`
@@ -276,8 +214,78 @@ contract InvestmentTests is
         investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
     }
 
-    //ensure that investorStrats array updates correctly and only when appropriate
-    function testInvestorStratUpdate() public {
+    function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
+        IERC20 token = new ERC20PresetFixedSupply(
+            "badToken",
+            "BADTOKEN",
+            100,
+            address(this)
+        );
+        token.approve(address(investmentManager), type(uint256).max);
+        cheats.expectRevert();
+        investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, 10);
+    }
 
+
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     *          into the WETH strategy, and then queues a withdrawal using
+     *          `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     *          response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsDelegate If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
+    function _createQueuedWithdrawal(
+        address staker,
+        bool registerAsDelegate,
+        uint256 amountToDeposit,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal
+    {
+        require(amountToDeposit > shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+
+        // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
+        if (registerAsDelegate) {
+            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
+            _testRegisterAsDelegate(staker, IDelegationTerms(staker));
+            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
+        }
+
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (shareAmounts[0] > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
+
+        //queue the withdrawal
+        cheats.startPrank(staker);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (delegation.isDelegated(staker)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+        }
+        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and         
+        else if (delegation.isNotDelegated(staker)) {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
+        } else {
+            revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
+        }
+        cheats.stopPrank();
     }
 }
