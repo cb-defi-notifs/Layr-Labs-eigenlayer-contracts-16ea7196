@@ -100,12 +100,13 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         assembly {
             pointer := data.offset
-            // get the 32 bytes immediately after the function signature and length + position encoding of bytes
-            // calldata type, which represents the msgHash for which disperser is calling checkSignatures
+            /**
+             * Get the 32 bytes immediately after the function signature and length + offset encoding of 'bytes
+             * calldata' input type, which represents the msgHash for which disperser is calling checkSignatures
+             */
             msgHash := calldataload(pointer)
 
-            // get the 6 bytes immediately after the above, which represent the
-            // index of the totalStake in the 'totalStakeHistory' array
+            // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
             placeholder := shr(208, calldataload(add(pointer, 32)))
         }
 
