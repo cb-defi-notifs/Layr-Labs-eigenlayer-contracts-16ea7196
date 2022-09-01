@@ -79,15 +79,13 @@ contract Payments is TestHelper {
         assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral);
         cheats.stopPrank();
 
-
-
         cheats.startPrank(unauthorizedRepositorOwner);
         cheats.expectRevert(bytes("onlyRepositoryGovernance"));
         dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
         cheats.stopPrank();
-
-
     }
+
+
 
     function testRewardPayouts(
             uint256 ethAmount, 
@@ -129,10 +127,15 @@ contract Payments is TestHelper {
             )
         );
 
+        //hardcoding values
         address operator = signers[0];
-        emit log("hehe");
+        uint32 numberOfSigners = 15;
+        uint32 amountRewards = 10;
+
+
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
-        _testCommitPayment(operator, 10);        
+        _testRegisterSigners(numberOfSigners, false);
+        _testCommitPayment(operator, amountRewards);        
     }
 
 
@@ -146,11 +149,11 @@ contract Payments is TestHelper {
 
 
     //Operator submits claim or commit for a payment amount
-    function _testCommitPayment(address operator, uint120 _amountRewards)
+    function _testCommitPayment(address operator, uint32 _amountRewards)
         internal
     {
         uint32 numberOfSigners = 15;
-        _testRegisterSigners(numberOfSigners, false);
+        //_testRegisterSigners(numberOfSigners, false);
 
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
@@ -204,6 +207,10 @@ contract Payments is TestHelper {
         );
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
+    }
+
+    function _redeemPayment() public {
+
     }
 
 
