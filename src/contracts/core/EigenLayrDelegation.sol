@@ -357,7 +357,7 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet"
+            "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
         );
 
         require(
