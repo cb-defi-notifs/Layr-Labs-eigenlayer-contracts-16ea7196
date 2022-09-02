@@ -8,7 +8,6 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * This contract may be used in a case where the underlying asset is actually non-transferrable/immaterial.
 */
 
-// TODO: should this contract have any special initialization, or is it good enough to just inherit that of InvestmentStrategyBase?
 contract HollowInvestmentStrategy is
     InvestmentStrategyBase
 {
