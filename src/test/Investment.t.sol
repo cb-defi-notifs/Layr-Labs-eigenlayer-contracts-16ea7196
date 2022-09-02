@@ -85,8 +85,8 @@ contract InvestmentTests is
             tokensArray[0] = weth;
             strategyIndexes[0] = 0;
         }
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = 
-            InvestmentManagerStorage.WithdrawerAndNonce({
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
                 withdrawer: staker,
                 nonce: 0
             }
@@ -134,8 +134,8 @@ contract InvestmentTests is
         // harcoded inputs
         address staker = acct_0;
         bool registerAsDelegate = true;
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = 
-            InvestmentManagerStorage.WithdrawerAndNonce({
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
                 withdrawer: staker,
                 nonce: 0
             }
@@ -252,7 +252,7 @@ contract InvestmentTests is
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
         internal
     {
