@@ -130,7 +130,7 @@ contract Payments is TestHelper {
         //hardcoding values
         address operator = signers[0];
         uint32 numberOfSigners = 15;
-        uint32 amountRewards = 10;
+        uint120 amountRewards = 10;
 
 
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
@@ -149,7 +149,7 @@ contract Payments is TestHelper {
 
 
     //Operator submits claim or commit for a payment amount
-    function _testCommitPayment(address operator, uint32 _amountRewards)
+    function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
         uint32 numberOfSigners = 15;
