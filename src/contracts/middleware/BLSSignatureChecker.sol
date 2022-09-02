@@ -54,6 +54,19 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
+    uint256 internal constant BYTE_LENGTH_totalStakeIndex = 6;
+    uint256 internal constant BYTE_LENGTH_stakesBlockNumber = 4;
+    uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
+    uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
+
+    uint256 internal constant CALLDATA_OFFSET_totalStakeIndex = 32;
+    // uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
+    uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = 38;
+    // uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = CALLDATA_OFFSET_stakesBlockNumber + BYTE_LENGTH_stakesBlockNumber;
+    uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = 42;
+    // uint256 internal constant CALLDATA_OFFSET_numberNonSigners = CALLDATA_OFFSET_taskNumberToConfirm + BYTE_LENGTH_taskNumberToConfirm;
+    uint256 internal constant CALLDATA_OFFSET_numberNonSigners = 46;
+
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
              that are part of the quorum for a particular taskNumber and is asserting them into on-chain. The function 
@@ -107,12 +120,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             msgHash := calldataload(pointer)
 
             // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(add(pointer, 32)))
+            placeholder := shr(208, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
         }
 
         // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber := shr(224, calldataload(add(pointer, 38)))
+            stakesBlockNumber := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
         }
 
         // obtain registry contract for querying information on stake later
@@ -138,11 +151,11 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
-            //fetch tha task number to avoid replay signing on same taskhash for different datastore
-            taskNumberToConfirm := shr(224, calldataload(add(pointer, 42)))
+            //fetch the task number to avoid replay signing on same taskhash for different datastore
+            taskNumberToConfirm := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm)))
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(add(pointer, 46)))
+            placeholder := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners)))
         }
 
         // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
