@@ -33,7 +33,10 @@ contract InvestmentStrategyWrapper is
      *       `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
-    function deposit(IERC20 token, uint256 amount)
+    function deposit(
+        IERC20 token,
+        uint256 amount
+    )
         external virtual override
         onlyInvestmentManager
         returns (uint256)
@@ -54,7 +57,10 @@ contract InvestmentStrategyWrapper is
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external virtual override onlyInvestmentManager {
+    )
+        external virtual override
+        onlyInvestmentManager
+    {
         require(token == underlyingToken, "InvestmentStrategyWrapper.withdraw: Can only withdraw the strategy token");
         require(shareAmount <= totalShares, "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares");
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.

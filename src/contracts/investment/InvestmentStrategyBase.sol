@@ -41,7 +41,10 @@ contract InvestmentStrategyBase is
      *       `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
-    function deposit(IERC20 token, uint256 amount)
+    function deposit(
+        IERC20 token,
+        uint256 amount
+    )
         external virtual override
         onlyInvestmentManager
         returns (uint256 newShares)
@@ -50,7 +53,7 @@ contract InvestmentStrategyBase is
 
         /**
          * @notice calculation of newShares *mirrors* `underlyingToShares(amount)`, but is different since the balance of `underlyingToken`
-         *          has already been increased due to the `investmentManager transferring tokens to this strategy prior to calling this function
+         *          has already been increased due to the `investmentManager` transferring tokens to this strategy prior to calling this function
         */
         uint256 priorTokenBalance = _tokenBalance() - amount;
         if (priorTokenBalance == 0 || totalShares == 0) {
@@ -74,7 +77,10 @@ contract InvestmentStrategyBase is
         address depositor,
         IERC20 token,
         uint256 shareAmount
-    ) external virtual override onlyInvestmentManager {
+    )
+        external virtual override 
+        onlyInvestmentManager
+    {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
         require(shareAmount <= totalShares, "InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares");
         // copy `totalShares` value prior to decrease
