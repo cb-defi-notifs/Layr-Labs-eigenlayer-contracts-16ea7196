@@ -1,6 +1,8 @@
 {
-  "extends": "solhint:default",
+  "extends": "solhint:recommended",
   "rules": {
-    "max-line-length": ["warn",200]
+    "max-line-length": ["warn",200],
+    "no-inline-assembly": "off",
+    "reason-string": ["warn",{"maxLength":96}]
   }
 }
