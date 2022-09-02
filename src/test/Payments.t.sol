@@ -69,17 +69,24 @@ contract Payments is TestHelper {
         assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
     }
 
-    //tests setting payment collateral from the valid address and an invalid address
+    //tests setting payment collateral from the valid address
     function testSetPaymentCollateral(
-        uint256 fraudProofCollateral,
-        address unauthorizedRepositorOwner
-    ) fuzzedAddress(unauthorizedRepositorOwner) public {
+        uint256 fraudProofCollateral
+    ) public {
         address repositoryOwner = dlRepository.owner();
         cheats.startPrank(repositoryOwner);
         dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
-        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral, 
+                    "testSetPaymentCollateral: paymentFraudProofCollateral");
         cheats.stopPrank();
+    }
 
+
+    // tests setting payment collateral from an invalid address
+    function testUnauthorizedSetPaymentCollateral(
+        uint256 fraudProofCollateral,
+        address unauthorizedRepositorOwner
+    ) fuzzedAddress(unauthorizedRepositorOwner) public {
         cheats.startPrank(unauthorizedRepositorOwner);
         cheats.expectRevert(bytes("onlyRepositoryGovernance"));
         dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
