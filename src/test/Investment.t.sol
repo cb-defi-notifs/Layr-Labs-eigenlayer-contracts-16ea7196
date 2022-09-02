@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./Deployer.t.sol";
+import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
 
 contract InvestmentTests is
-    EigenLayrDeployer
+    TestHelper
 {
     /**
      * @notice Verifies that it is possible to deposit WETH

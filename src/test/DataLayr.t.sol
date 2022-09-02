@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./Deployer.t.sol";
+import "./TestHelper.t.sol";
 import "forge-std/Test.sol";
 
 
 contract DataLayrTests is
     DSTest,
-    EigenLayrDeployer
+    TestHelper
 {
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
