@@ -60,8 +60,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
     // specifying a G2 public key requires 4 32-byte slots worth of data
-    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 132;
+    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 128;
     uint256 internal constant BYTE_LENGTH_stakeIndex = 4;
+    // uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = BYTE_LENGTH_PUBLIC_KEY + BYTE_LENGTH_stakeIndex;
+    uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = 132;
     uint256 internal constant BYTE_LENGTH_apkIndex = 4;
 
     // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
@@ -236,7 +238,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
-                pointer += BYTE_LENGTH_PUBLIC_KEY;
+                pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -291,7 +293,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
-                pointer += BYTE_LENGTH_PUBLIC_KEY;
+                pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -338,26 +340,28 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             assembly {
                 //get next 32 bits which would be the apkIndex of apkUpdates in Registry.sol
                 apkIndex := shr(BIT_SHIFT_apkIndex, calldataload(pointer))
+        
+                // Update pointer to account for the 4 bytes specifying the apkIndex
+                pointer := add(pointer, BYTE_LENGTH_apkIndex)
 
                 // get the aggregated publickey at the moment when pre-commit happened
                 /**
                  @dev aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher is 
                       in order to avoid SLOADs  
                  */
-                mstore(pk, calldataload(add(pointer, 4)))
-                mstore(add(pk, 0x20), calldataload(add(pointer, 36)))
-                mstore(add(pk, 0x40), calldataload(add(pointer, 68)))
-                mstore(add(pk, 0x60), calldataload(add(pointer, 100)))
+                mstore(pk, calldataload(pointer))
+                mstore(add(pk, 0x20), calldataload(add(pointer, 32)))
+                mstore(add(pk, 0x40), calldataload(add(pointer, 64)))
+                mstore(add(pk, 0x60), calldataload(add(pointer, 96)))
             }
 
-            // We have read (4 + 32 + 32 + 32 + 32) = 132 additional bytes of calldata in the above assembly block
+            // We have read (32 + 32 + 32 + 32) = 128 additional bytes of calldata in the above assembly block
             // Update pointer.
             unchecked {
                 pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
 
-            // make sure they have provided the correct aggPubKey
-            
+            // make sure the caller has provided the correct aggPubKey
             require(
                 registry.getCorrectApkHash(apkIndex, stakesBlockNumber) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
@@ -413,7 +417,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
          */
 
         // compute the point in G1
-        //@OFFCHAIN change dlns to sign msgHash defined in DLSM
+        //@OFFCHAIN change dlns to sign msgHash defined in DLSM -- TODO @gautham is this note still relevant?
         (input[0], input[1]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
