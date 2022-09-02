@@ -32,8 +32,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
-    // TODO: set this?
-    uint256 internal constant MAX_POT_DEGREE;
+    // TODO: set this correctly!
+    uint256 internal constant MAX_POT_DEGREE = 0;
 
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
