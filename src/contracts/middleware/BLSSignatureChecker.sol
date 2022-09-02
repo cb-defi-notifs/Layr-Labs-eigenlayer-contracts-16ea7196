@@ -54,10 +54,20 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
+    // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
     uint256 internal constant BYTE_LENGTH_totalStakeIndex = 6;
     uint256 internal constant BYTE_LENGTH_stakesBlockNumber = 4;
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
+
+    // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
+    uint256 internal constant BIT_SHIFT_totalStakeIndex = 208;
+    // uint256 internal constant BIT_SHIFT_stakesBlockNumber = 256 - (BYTE_LENGTH_stakesBlockNumber * 8);
+    uint256 internal constant BIT_SHIFT_stakesBlockNumber = 224;
+    // uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 256 - (BYTE_LENGTH_taskNumberToConfirm * 8);
+    uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 224;
+    // uint256 internal constant BIT_SHIFT_numberNonSigners = 256 - (BYTE_LENGTH_numberNonSigners * 8);
+    uint256 internal constant BIT_SHIFT_numberNonSigners = 224;
 
     uint256 internal constant CALLDATA_OFFSET_totalStakeIndex = 32;
     // uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
@@ -66,6 +76,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = 42;
     // uint256 internal constant CALLDATA_OFFSET_numberNonSigners = CALLDATA_OFFSET_taskNumberToConfirm + BYTE_LENGTH_taskNumberToConfirm;
     uint256 internal constant CALLDATA_OFFSET_numberNonSigners = 46;
+    // uint256 internal constant CALLDATA_OFFSET_NonsignerPubkeys = CALLDATA_OFFSET_numberNonSigners + BYTE_LENGTH_numberNonSigners;
+    uint256 internal constant CALLDATA_OFFSET_NonsignerPubkeys = 50;
 
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
@@ -120,12 +132,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             msgHash := calldataload(pointer)
 
             // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
+            placeholder := shr(BIT_SHIFT_totalStakeIndex, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
         }
 
         // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
+            stakesBlockNumber := shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
         }
 
         // obtain registry contract for querying information on stake later
@@ -152,14 +164,14 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
-            taskNumberToConfirm := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm)))
+            taskNumberToConfirm := shr(BIT_SHIFT_taskNumberToConfirm, calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm)))
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners)))
+            placeholder := shr(BIT_SHIFT_numberNonSigners, calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners)))
         }
 
         // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
-        pointer += 50;
+        pointer += CALLDATA_OFFSET_NonsignerPubkeys;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
