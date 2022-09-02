@@ -10,7 +10,6 @@ import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
 // import "forge-std/Test.sol";
 
-// TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
@@ -161,7 +160,7 @@ contract EigenLayrDelegation is
     }
 
     /// @notice This function must be called by a staker to notify that its stake is
-    ///         no longer active on any queries, which in turn launches the challenge period.
+    ///         no longer active on any tasks, which in turn launches the challenge period.
     function commitUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_INITIALIZED,
@@ -176,6 +175,12 @@ contract EigenLayrDelegation is
         
     }
 
+    /**
+     * @notice This function is called by a staker to complete the three-step undelegation process.
+     *          Prior to calling `finalizeUndelegation`, a staker is expected to call `commitUndelegation` and
+     *          wait until all existing obligations have been served, before calling `commitUndelegation` and
+     *          waiting through the `undelegationFraudProofInterval`.
+     */
     function finalizeUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
@@ -210,7 +215,7 @@ contract EigenLayrDelegation is
         );
 
         ISlasher slasher = investmentManager.slasher();
-        // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
+        // verify that the `slashingContract` does really have permission to slash the `staker`
         require(
             slasher.canSlash(
                 delegation[staker],
@@ -390,8 +395,7 @@ contract EigenLayrDelegation is
     /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
     ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
-        return
-            delegated[staker] == DelegationStatus.UNDELEGATED;
+        return (delegated[staker] == DelegationStatus.UNDELEGATED);
     }
 
     function isDelegated(address staker)
