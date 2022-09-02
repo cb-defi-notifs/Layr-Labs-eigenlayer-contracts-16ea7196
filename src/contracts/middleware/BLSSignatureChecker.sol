@@ -59,6 +59,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     uint256 internal constant BYTE_LENGTH_stakesBlockNumber = 4;
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
+    // specifying a G2 public key requires 4 32-byte slots worth of data
+    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 132;
+    uint256 internal constant BYTE_LENGTH_stakeIndex = 4;
+    uint256 internal constant BYTE_LENGTH_apkIndex = 4;
 
     // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
     uint256 internal constant BIT_SHIFT_totalStakeIndex = 208;
@@ -68,6 +72,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
     uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 224;
     // uint256 internal constant BIT_SHIFT_numberNonSigners = 256 - (BYTE_LENGTH_numberNonSigners * 8);
     uint256 internal constant BIT_SHIFT_numberNonSigners = 224;
+    // uint256 internal constant BIT_SHIFT_stakeIndex = 256 - (BYTE_LENGTH_stakeIndex * 8);
+    uint256 internal constant BIT_SHIFT_stakeIndex = 224;
+    // uint256 internal constant BIT_SHIFT_apkIndex = 256 - (BYTE_LENGTH_apkIndex * 8);
+    uint256 internal constant BIT_SHIFT_apkIndex = 224;
 
     uint256 internal constant CALLDATA_OFFSET_totalStakeIndex = 32;
     // uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
@@ -101,13 +109,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint32 blockNumber
              uint32 taskNumberToConfirm
              uint32 numberOfNonSigners,
-             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
+             {uint256[4], apkIndex}[numberOfNonSigners] public keys of nonsigners and the indices to query of `pubkeyHashToStakeHistory`
              uint32 apkIndex,
-             uint256[4] apk,
+             uint256[4] apk (aggregate public key),
              uint256[2] sigma
             >
      */
-    // NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
         public
         returns (
@@ -127,7 +134,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             pointer := data.offset
             /**
              * Get the 32 bytes immediately after the function signature and length + offset encoding of 'bytes
-             * calldata' input type, which represents the msgHash for which disperser is calling checkSignatures
+             * calldata' input type, which represents the msgHash for which the disperser is calling `checkSignatures`
              */
             msgHash := calldataload(pointer)
 
@@ -143,16 +150,14 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // obtain registry contract for querying information on stake later
         IBLSRegistry registry = IBLSRegistry(address(_registry()));
 
-        // to be used for holding the aggregated pub key of all operators
-        // that aren't part of the quorum
         /**
-         @dev we would be storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
+         * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.
+         * @dev Note that we are storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
          */
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject = registry
-            .getTotalStakeFromIndex(placeholder);
+        IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
 
         // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
         _validateOperatorStake(localStakeObject, stakesBlockNumber);
@@ -181,11 +186,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
          that are not part of the quorum for this specific taskNumber. 
          ****************************/
         /**
-         @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata; 
-              Note that this need not be a special case and *could* be subsumed in the for loop below.
-              However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
+         * @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata; 
+         *      Note that this need not be a special case and *could* be subsumed in the for loop below.
+         *      However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
+         * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
          */
-        if (placeholder > 0) {
+        if (placeholder != 0) {
             uint32 stakeIndex;
 
             assembly {
@@ -225,12 +231,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                  @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in 
                          Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(224, calldataload(add(pointer, 128)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -279,13 +285,13 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                  @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in 
                          Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(224, calldataload(add(pointer, 128)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
 
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
             // Update pointer accordingly.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -331,7 +337,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             uint32 apkIndex;
             assembly {
                 //get next 32 bits which would be the apkIndex of apkUpdates in Registry.sol
-                apkIndex := shr(224, calldataload(pointer))
+                apkIndex := shr(BIT_SHIFT_apkIndex, calldataload(pointer))
 
                 // get the aggregated publickey at the moment when pre-commit happened
                 /**
@@ -347,7 +353,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             // We have read (4 + 32 + 32 + 32 + 32) = 132 additional bytes of calldata in the above assembly block
             // Update pointer.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
 
             // make sure they have provided the correct aggPubKey
