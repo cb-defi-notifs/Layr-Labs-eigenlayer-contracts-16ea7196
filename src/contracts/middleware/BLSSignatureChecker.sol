@@ -8,16 +8,17 @@ import "../libraries/BytesLib.sol";
 import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+// import "ds-test/test.sol";
 
 /**
  @notice This is the contract for checking that the aggregated signatures of all operators which is being 
          asserted by the disperser is valid.
  */
-abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
+abstract contract BLSSignatureChecker is 
+    RepositoryAccess
+    // ,DSTest 
+{
     using BytesLib for bytes;
-    ITaskMetadata public taskMetadata;
-
     /***************** 
      DATA STRUCTURES
      *****************/
@@ -320,6 +321,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 pubkeyHash,
                 stakeIndex
             );
+            
             // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
