@@ -23,7 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistry.sol";
