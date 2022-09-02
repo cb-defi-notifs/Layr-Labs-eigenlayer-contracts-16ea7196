@@ -9,8 +9,6 @@ import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
 
-
-// TODO: withdrawals of consensus layer ETH?
 /**
  * @notice This contract is for managing investments in different strategies. The main
  *         functionalities are:
@@ -43,18 +41,18 @@ contract InvestmentManager is
     modifier onlyNotDelegated(address user) {
         require(
             delegation.isNotDelegated(user),
-            "InvestmentManager: onlyNotDelegated"
+            "InvestmentManager.onlyNotDelegated: user is actively delegated"
         );
         _;
     }
 
     modifier onlyNotFrozen(address staker) {
-        require(!slasher.isFrozen(staker), "staker has been frozen and may be subject to slashing");
+        require(!slasher.isFrozen(staker), "InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing");
         _;
     }
 
     modifier onlyFrozen(address staker) {
-        require(slasher.isFrozen(staker), "staker has not been frozen");
+        require(slasher.isFrozen(staker), "InvestmentManager.onlyFrozen: staker has not been frozen");
         _;
     }
 
@@ -124,10 +122,6 @@ contract InvestmentManager is
      *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
      *      call this function.
      */
-    // CRITIC:     a staker can get its asset back before finalizeUndelegation. Therefore,
-    //             what is the incentive for calling finalizeUndelegation and starting off
-    //             the challenge period when the staker can get its asset back before
-    //             fulfilling its obligations. More details in slack.
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
@@ -150,7 +144,6 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
     }
 
-   // TODO: decide if we should force an update to the depositor's delegationTerms contract, if they are actively delegated.
     /**
      * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
      */
@@ -175,7 +168,7 @@ contract InvestmentManager is
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
-            "provided nonce incorrect"
+            "InvestmentManager.queueWithdrawal: provided nonce incorrect"
         );
         // increment the numWithdrawalsQueued of the sender
         unchecked {
@@ -216,8 +209,8 @@ contract InvestmentManager is
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
-            latestFraudproofTimestamp: uint32(block.timestamp),
-            withdrawer: withdrawerAndNonce.withdrawer
+            withdrawer: withdrawerAndNonce.withdrawer,
+            unlockTimestamp: (uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD)
         });
 
         emit WithdrawalQueued(
@@ -227,7 +220,6 @@ contract InvestmentManager is
         );
     }
 
-    //TODO: add something related to slashing for queued withdrawals
     /**
      * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
      *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
@@ -243,42 +235,43 @@ contract InvestmentManager is
         onlyNotFrozen(depositor)
         nonReentrant
     {
+        // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
+        // copy storage to memory
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
-        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
-            WITHDRAWAL_WAITING_PERIOD;
-        address withdrawer = withdrawalStorage.withdrawer;
-
-        // to ensure there can't be multiple withdrawals for the same withdrawal request
+        // verify that the queued withdrawal actually exists
         require(
-            withdrawalStorage.initTimestamp > 0,
-            "withdrawal does not exist"
+            withdrawalStorageCopy.initTimestamp > 0,
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal does not exist"
         );
 
         require(
-            uint32(block.timestamp) >= unlockTime ||
+            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp ||
                 delegation.isNotDelegated(depositor),
-            "withdrawal waiting period has not yet passed and depositor is still delegated"
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
+        );
+
+        // TODO: add testing coverage for this
+        require(
+            msg.sender == withdrawerAndNonce.withdrawer,
+            "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
 
         //reset the storage slot in mapping of queued withdrawals
-        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: uint32(0),
-            latestFraudproofTimestamp: uint32(0),
-            withdrawer: address(0)
-        });
+        delete queuedWithdrawals[depositor][withdrawalRoot];
 
+        // actually withdraw the funds
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
             // tell the strategy to send the appropriate amount of funds to the depositor
-            strategies[i].withdraw(withdrawer, tokens[i], shareAmounts[i]);
+            strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shareAmounts[i]);
             unchecked {
                 ++i;
             }
         }
 
-        emit WithdrawalCompleted(depositor, withdrawer, withdrawalRoot);
+        emit WithdrawalCompleted(depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
     }
 
     /**
@@ -287,7 +280,7 @@ contract InvestmentManager is
      * @dev The fraudproof requires providing a repository contract and queryHash, corresponding to a query that was
      *      created at or before the time when the queued withdrawal was initiated, and expires prior to the time at
      *      which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
-     *      'latestFraudproofTimestamp' to the current UTC time, pushing back the unlock time for the funds to be withdrawn.
+     *      'unlockTimestamp' to the current UTC time plus the WITHDRAWAL_WAITING_PERIOD, pushing back the unlock time for the funds to be withdrawn.
      */
     // TODO: de-duplicate this code and the code in EigenLayrDelegation's 'contestUndelegationCommit' function, if at all possible
     function fraudproofQueuedWithdrawal(
@@ -299,13 +292,22 @@ contract InvestmentManager is
         bytes calldata data,
         IServiceManager slashingContract
     ) external {
+        // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
-        uint32 initTimestamp = withdrawalStorage.initTimestamp;
-        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp + WITHDRAWAL_WAITING_PERIOD;
+        // copy storage to memory
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
-        require(initTimestamp > 0, "withdrawal does not exist");
-        require(uint32(block.timestamp) < unlockTime, "withdrawal waiting period has already passed");
+        // verify that the queued withdrawal actually exists
+        require(
+            withdrawalStorageCopy.initTimestamp > 0,
+            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal does not exist"
+        );
+
+        // check that it is not too late to provide a fraudproof
+        require(
+            uint32(block.timestamp) < withdrawalStorageCopy.unlockTimestamp,
+            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
+        );
 
         address operator = delegation.delegation(depositor);
 
@@ -314,17 +316,17 @@ contract InvestmentManager is
                 operator,
                 address(slashingContract)
             ),
-            "Contract does not have rights to slash operator"
+            "InvestmentManager.fraudproofQueuedWithdrawal: Contract does not have rights to slash operator"
         );
 
         {
             // ongoing task is still active at time when staker was finalizing undelegation
             // and, therefore, hasn't served its obligation.
-            slashingContract.stakeWithdrawalVerification(data, initTimestamp, unlockTime);
+            slashingContract.stakeWithdrawalVerification(data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp);
         }
         
-        //update latestFraudproofTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
-        queuedWithdrawals[depositor][withdrawalRoot].latestFraudproofTimestamp = uint32(block.timestamp);
+        // update unlockTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
+        queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp = uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD;
     }
 
     function slashShares(
@@ -352,7 +354,6 @@ contract InvestmentManager is
                     ++strategyIndexIndex;
                 }
             }
-            
 
             // withdraw the shares and send funds to the recipient
             strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
@@ -375,19 +376,17 @@ contract InvestmentManager is
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
     ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+        // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[slashedAddress][withdrawalRoot];
+
+        // verify that the queued withdrawal actually exists
         require(
-            withdrawalStorage.initTimestamp > 0,
-            "withdrawal does not exist"
+            queuedWithdrawals[slashedAddress][withdrawalRoot].initTimestamp > 0,
+            "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
-        //reset the storage slot in mapping of queued withdrawals
-        queuedWithdrawals[slashedAddress][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: uint32(0),
-            latestFraudproofTimestamp: uint32(0),
-            withdrawer: address(0)
-        });
+        // reset the storage slot in mapping of queued withdrawals
+        delete queuedWithdrawals[slashedAddress][withdrawalRoot];
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -464,7 +463,7 @@ contract InvestmentManager is
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
-        require(shareAmount <= userShares, "shareAmount too high");
+        require(shareAmount <= userShares, "InvestmentManager._removeShares: shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {
             userShares = userShares - shareAmount;
@@ -524,16 +523,19 @@ contract InvestmentManager is
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce
     ) external returns (bool) {
+        // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-        WithdrawalStorage memory withdrawalStorage = queuedWithdrawals[depositor][withdrawalRoot];
-        uint32 unlockTime = withdrawalStorage.latestFraudproofTimestamp +
-            WITHDRAWAL_WAITING_PERIOD;
+
+        // verify that the queued withdrawal actually exists
         require(
-            withdrawalStorage.initTimestamp > 0,
-            "withdrawal does not exist"
+            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
         );
-        return (uint32(block.timestamp) >= unlockTime ||
-            delegation.isNotDelegated(depositor));
+
+        return(
+            uint32(block.timestamp) >= queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp ||
+                delegation.isNotDelegated(depositor)
+        );
     }
     
     /**

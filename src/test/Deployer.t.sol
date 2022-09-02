@@ -280,6 +280,9 @@ contract EigenLayrDeployer is
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
+        // hard-coded input
+        uint96 multiplier = 1e18;
+
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
@@ -302,15 +305,14 @@ contract EigenLayrDeployer is
             );
         for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
             ethStratsAndMultipliers[i].strategy = strategies[i];
-            // TODO: change this if needed
-            ethStratsAndMultipliers[i].multiplier = 1e18;
+            ethStratsAndMultipliers[i].multiplier = multiplier;
         }
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
             memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
                 1
             );
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
-        eigenStratsAndMultipliers[0].multiplier = 1e18;
+        eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
@@ -344,7 +346,7 @@ contract EigenLayrDeployer is
     }
 
     /**
-     * @notice Deposits `amountToDeposit` of WETH from address `sender` into `strat`.
+     * @notice Deposits `amountToDeposit` of WETH from address `sender` into `wethStrat`.
      * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
      * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
      */
@@ -357,6 +359,16 @@ contract EigenLayrDeployer is
         amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
     }
+
+    /**
+     * @notice Deposits `amountToDeposit` of EIGEN from address `sender` into `eigenStrat`.
+     * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
+     * @param amountToDeposit Amount of EIGEN that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
+     */
+    function _testDepositEigen(address sender, uint256 amountToDeposit) public {
+        _testDepositToStrategy(sender, amountToDeposit, eigenToken, eigenStrat);
+    }
+
 
     /**
      * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
@@ -441,7 +453,7 @@ contract EigenLayrDeployer is
         cheats.prank(sender);
         //trying to withdraw more than the amountDeposited will fail, so we expect a revert and *short-circuit* if it happens
         if (amountSharesToWithdraw > existingShares) {
-            cheats.expectRevert(bytes("shareAmount too high"));
+            cheats.expectRevert(bytes("InvestmentManager._removeShares: shareAmount too high"));
             investmentManager.withdrawFromStrategy(
 
                 strategyIndex,
@@ -541,31 +553,6 @@ contract EigenLayrDeployer is
         return searchData;
     }
 
-    // deposits a fixed amount of eigen from address 'sender'
-    // checks that the deposit is credited correctly
-    function _testDepositEigen(address sender, uint256 toDeposit) public {
-        // deposits will revert when amountToDeposit is 0
-        cheats.assume(toDeposit > 0);
-        eigenToken.transfer(sender, toDeposit);
-        cheats.startPrank(sender);
-        eigenToken.approve(address(investmentManager), type(uint256).max);
-
-        uint256 eigenSharesBefore = investmentManager.investorStratShares(sender, eigenStrat);
-        investmentManager.depositIntoStrategy(
-            sender,
-            eigenStrat,
-            eigenToken,
-            toDeposit
-        );
-        assertEq(
-            investmentManager.investorStratShares(sender, eigenStrat),
-            toDeposit + eigenSharesBefore,
-            "_testDepositEigen: deposit not properly credited"
-        );
-        cheats.stopPrank();
-    }
-
-
     function _testRegisterAdditionalSelfOperator(
         address sender,
         bytes memory data
@@ -613,32 +600,39 @@ contract EigenLayrDeployer is
         }
     }
 
-    
-    function _testConfirmDataStoreSelfOperators(uint8 signersInput) 
+    // second return value is the complete `searchData` that can serve as an input to `stakeWithdrawalVerification`
+    function _testConfirmDataStoreSelfOperators(uint8 numSigners) 
         internal 
-        returns (bytes memory)
+        returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
         {
-        cheats.assume(signersInput > 0 && signersInput <= 15);
-
-        uint32 numberOfSigners = uint32(signersInput);
+        cheats.assume(numSigners > 0 && numSigners <= 15);
 
         //register all the operators
-        for (uint256 i = 0; i < numberOfSigners; ++i) {
-
+        for (uint256 i = 0; i < numSigners; ++i) {
             _testRegisterAdditionalSelfOperator(
                 signers[i],
                 registrationData[i]
             );
         }
 
+        // hard-coded value
+        uint256 index = 0;
+
+        return _testConfirmDataStoreWithoutRegister(index, numSigners);
+    }
+
+    function _testConfirmDataStoreWithoutRegister(uint256 index, uint8 numSigners) 
+        internal 
+        returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
+    {
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numberOfSigners));
+        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numSigners));
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index);//(signatureData[index*2], signatureData[2*index + 1]);
 
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numberOfSigners), 0);//(signatureData[0], signatureData[1]);
-        
+
         /** 
      @param data This calldata is of the format:
             <
@@ -648,52 +642,6 @@ contract EigenLayrDeployer is
              uint32 dataStoreId
              uint32 numberOfNonSigners,
              uint256[numberOfNonSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >
-     */
-        bytes memory data = abi.encodePacked(
-            keccak256(abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, uint32(0))),
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.blockNumber,
-            searchData.metadata.globalDataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apk_0,
-            apk_1,
-            apk_2,
-            apk_3,
-            sigma_0,
-            sigma_1
-        );
-        
-        dlsm.confirmDataStore(data, searchData);
-        cheats.stopPrank();
-        return data;
-    }
-
-
-    function _testConfirmDataStoreWithoutRegister(uint index, uint256 numSigners) internal {
-        uint256 initTime = 1000000001;
-        IDataLayrServiceManager.DataStoreSearchData
-            memory searchData = _testInitDataStore(initTime, address(this));
-
-        uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(numSigners);
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(numSigners, index);//(signatureData[index*2], signatureData[2*index + 1]);
-
-
-        /** 
-     @param data This calldata is of the format:
-            <
-             bytes32 msgHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-             uint32 blockNumber
-             uint32 dataStoreId
-             uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
              uint32 apkIndex,
              uint256[4] apk,
              uint256[2] sigma
@@ -719,15 +667,37 @@ contract EigenLayrDeployer is
             sigma_1
         );
 
+        // get the signatoryRecordHash that will result from the `confirmDataStore` call (this is used in modifying the dataStoreHash post-confirmation)
+        bytes32 signatoryRecordHash;
+        (
+            // uint32 dataStoreIdToConfirm,
+            // uint32 blockNumberFromTaskHash,
+            // bytes32 msgHash,
+            // SignatoryTotals memory signedTotals,
+            // bytes32 signatoryRecordHash
+            ,
+            ,
+            ,
+            ,
+            signatoryRecordHash
+        ) = dlsm.checkSignatures(data);
+
         uint256 gasbefore = gasleft();
         dlsm.confirmDataStore(data, searchData);
         emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-
+        cheats.stopPrank();
         // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
         //     dlsm.dataStoreId() - 1
         // );
         // assertTrue(sighash != bytes32(0), "Data store not committed");
-        cheats.stopPrank();
+
+        /**
+         * Copy the signatoryRecordHash to the `searchData` struct, so the `searchData` can now be used in `stakeWithdrawalVerification` calls appropriately
+         * This must be done *after* the call to `dlsm.confirmDataStore`, since the appropriate `searchData` changes as a result of this call
+         */
+        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
+
+        return (data, searchData);
     }
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
@@ -791,9 +761,8 @@ contract EigenLayrDeployer is
             delegation.delegation(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
-        //TODO: write this properly to use the enum type defined in delegation
         assertTrue(
-            uint8(delegation.delegated(sender)) == 1,
+            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -827,6 +796,9 @@ contract EigenLayrDeployer is
         uint256 amountToDeposit,
         uint16 numStratsToAdd
     ) internal {
+        // hard-coded input
+        uint96 multiplier = 1e18;
+
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         IInvestmentStrategy[]
             memory stratsToDepositTo = new IInvestmentStrategy[](
@@ -860,8 +832,7 @@ contract EigenLayrDeployer is
                     1
                 );
             ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
-            // TODO: change this if needed
-            ethStratsAndMultipliers[0].multiplier = 1e18;
+            ethStratsAndMultipliers[0].multiplier = multiplier;
             dlReg.addStrategiesConsideredAndMultipliers(
                 0,
                 ethStratsAndMultipliers
@@ -877,6 +848,7 @@ contract EigenLayrDeployer is
         return
             uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
     }
+
     function testDeploymentSuccessful() public {
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
         assertTrue(
@@ -909,6 +881,4 @@ contract EigenLayrDeployer is
         );
 
     }
-
-
 }

@@ -11,7 +11,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../permissions/RepositoryAccess.sol";
 
-contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
+abstract contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
     /**
      * @notice This struct is used for containing the details of a task that is created 
      *         by the middleware for validation in EigenLayr.
@@ -224,9 +224,8 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         );
     }
 
-    function freezeOperator(address operator) external {
-        revert("function unfinished in this contract -- no permissions");
-        ISlasher(investmentManager.slasher()).freezeOperator(operator);
+    function freezeOperator(address) external pure {
+        revert("function unfinished in this contract -- no permissions applied");
     }
 
     /// @notice returns the outcome of the task associated with the taskHash
@@ -290,14 +289,8 @@ contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryA
         return operatorToPayment[operator].collateral;
     }
 
-// TODO: implement function if possible
     // function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external {
-    function stakeWithdrawalVerification(bytes calldata, uint256, uint256) external {
-       
-    }
+    function stakeWithdrawalVerification(bytes calldata, uint256, uint256) external virtual;
 
-// TODO: implement function if possible
-    function latestTime() external view returns(uint32) {
-
-    }
+    function latestTime() external view virtual returns(uint32);
 }
