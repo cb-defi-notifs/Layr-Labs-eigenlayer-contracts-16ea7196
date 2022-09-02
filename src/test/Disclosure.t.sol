@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./mocks/DisclosureChallenge.sol";
 
-import "forge-std/Test.sol";
+import "forge-std/test.sol";
 import "./mocks/Multiplication.sol";
 
 contract DisclosureDeployer is DSTest {

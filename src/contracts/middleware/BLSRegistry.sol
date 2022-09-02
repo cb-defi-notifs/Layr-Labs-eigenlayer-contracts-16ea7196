@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
 
-import "ds-test/test.sol";
+import "forge-std/test.sol";
 
 /**
  * @notice This contract is used for 

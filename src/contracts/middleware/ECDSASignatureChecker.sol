@@ -7,11 +7,11 @@ import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+import "forge-std/test.sol";
 
 abstract contract ECDSASignatureChecker is
-    RepositoryAccess,
-    DSTest
+    RepositoryAccess
+    // ,DSTest
 {
     using BytesLib for bytes;
     struct SignatoryTotals {

@@ -7,7 +7,7 @@ import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
-import "forge-std/Test.sol";
+import "forge-std/test.sol";
 
 /**
  * @notice This contract is for managing investments in different strategies. The main
@@ -23,8 +23,8 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage,
-    DSTest
+    InvestmentManagerStorage
+    // ,DSTest
 {
     using SafeERC20 for IERC20;
     event WithdrawalQueued(

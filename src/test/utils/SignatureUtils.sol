@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
-import "ds-test/test.sol";
+import "forge-std/test.sol";
 
-contract SignatureUtils is DSTest{
+contract SignatureUtils is DSTest {
 
     //numSigners => array of signatures for 5 datastores
     mapping(uint256=> uint256[]) signatures;
 
-
-    
-    
     //returns aggPK.X0, aggPK.X1, aggPK.Y0, aggPK.Y1
     function getAggregatePublicKey(uint256 numSigners) internal pure returns (uint256 aggPKX0, uint256 aggPKX1, uint256 aggPKY0, uint256 aggPKY1){
 
@@ -46,7 +43,6 @@ contract SignatureUtils is DSTest{
         return (signatures[numSigners][2*index], signatures[numSigners][2*index+1]);
 
     }
-
 
     function setSignatures() internal{
 

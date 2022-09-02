@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./utils/DataStoreUtilsWrapper.sol";
 
-import "forge-std/Test.sol";
+import "forge-std/test.sol";
 
 contract DataStoreUtilsTests is DSTest {
     DataStoreUtilsWrapper public dataStoreUtilsWrapper;

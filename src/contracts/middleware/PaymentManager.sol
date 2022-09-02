@@ -11,7 +11,7 @@ import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+import "forge-std/test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge.

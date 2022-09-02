@@ -1,5 +1,5 @@
 {
-    "filter_paths": "(lib|test|SignatureUtils.sol|Deployer.t.sol|Delegation.t.sol)",
+    "filter_paths": "(lib/|test/|SignatureUtils.sol|Deployer.t.sol|Delegation.t.sol|contracts/)",
     "legacy_ast": false,
     "solc_remaps": [
         "ds-test/=lib/ds-test/src/",
