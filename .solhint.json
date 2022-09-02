@@ -3,6 +3,7 @@
   "rules": {
     "max-line-length": ["warn",200],
     "no-inline-assembly": "off",
-    "reason-string": ["warn",{"maxLength":96}]
+    "reason-string": ["warn",{"maxLength":128}],
+    "func-visibility": ["warn",{"ignoreConstructors":true}]
   }
 }
