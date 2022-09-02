@@ -107,7 +107,6 @@ contract DataLayrBombVerifier {
             );
             //deregisterTime is 0 if the operator is still registered and serving
             //otherwise it is the time at will/have stopped serving all of their existing datstores
-            //TODO: Check this definition ^
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
