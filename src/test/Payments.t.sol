@@ -77,7 +77,7 @@ contract Payments is TestHelper {
         cheats.startPrank(repositoryOwner);
         dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
         assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral, 
-                    "testSetPaymentCollateral: paymentFraudProofCollateral");
+                    "testSetPaymentCollateral: paymentFraudProofCollateral is not set correctly");
         cheats.stopPrank();
     }
 
