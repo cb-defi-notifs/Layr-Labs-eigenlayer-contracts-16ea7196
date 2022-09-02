@@ -235,7 +235,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                  */
                 stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_NON_SIGNER_INFO;
@@ -290,7 +290,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_NON_SIGNER_INFO;
@@ -355,8 +355,8 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 mstore(add(pk, 0x60), calldataload(add(pointer, 96)))
             }
 
-            // We have read (32 + 32 + 32 + 32) = 128 additional bytes of calldata in the above assembly block
-            // Update pointer.
+            // We have read (32 + 32 + 32 + 32) = 128 additional bytes of calldata in the above assembly block.
+            // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
@@ -369,7 +369,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
             );
         }
 
-        // input for call to ecPairing precomplied contract
+        // input for call to ecPairing precompile contract
         uint256[12] memory input = [
             uint256(0),
             uint256(0),
@@ -435,13 +435,15 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
 
             // check the pairing; if incorrect, revert
             if iszero(
-                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x160), 0x20)
+                // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
+                // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
+                staticcall(not(0), 0x08, input, 0x180, add(input, 0x160), 0x20)
             ) {
                 revert(0, 0)
             }
         }
 
-        // check that signature is correct
+        // check that the provided signature is correct
         require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
 
         emit SignatoryRecord(
