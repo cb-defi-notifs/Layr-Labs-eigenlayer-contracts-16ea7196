@@ -1,8 +1,7 @@
 {
-    "filter_paths": "(lib/|test/|SignatureUtils.sol|Deployer.t.sol|Delegation.t.sol|contracts/)",
+    "filter_paths": "(lib/|test/)",
     "legacy_ast": false,
     "solc_remaps": [
-        "ds-test/=lib/ds-test/src/",
         "forge-std/=lib/forge-std/src/",
         "@openzeppelin/=lib/openzeppelin-contracts/",
         "@openzeppelin-upgrades/=lib/openzeppelin-contracts-upgradeable/"

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 import "forge-std/Test.sol";
 
-contract SignatureUtils is DSTest {
+contract SignatureUtils {
 
     //numSigners => array of signatures for 5 datastores
     mapping(uint256=> uint256[]) signatures;
