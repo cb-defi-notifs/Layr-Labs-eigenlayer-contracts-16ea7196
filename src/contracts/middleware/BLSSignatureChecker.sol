@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
-import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
@@ -19,8 +18,6 @@ abstract contract BLSSignatureChecker is
     // ,DSTest
 {
     using BytesLib for bytes;
-    ITaskMetadata public taskMetadata;
-
     /***************** 
      DATA STRUCTURES
      *****************/

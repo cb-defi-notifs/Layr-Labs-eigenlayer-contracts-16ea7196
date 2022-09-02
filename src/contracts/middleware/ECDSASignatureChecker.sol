@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IECDSARegistry.sol";
-import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../permissions/RepositoryAccess.sol";
 
