@@ -111,7 +111,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
              uint32 blockNumber
              uint32 taskNumberToConfirm
              uint32 numberOfNonSigners,
-             {uint256[4], apkIndex}[numberOfNonSigners] public keys of nonsigners and the indices to query of `pubkeyHashToStakeHistory`
+             {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner
              uint32 apkIndex,
              uint256[4] apk (aggregate public key),
              uint256[2] sigma
@@ -344,10 +344,9 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
                 // Update pointer to account for the 4 bytes specifying the apkIndex
                 pointer := add(pointer, BYTE_LENGTH_apkIndex)
 
-                // get the aggregated publickey at the moment when pre-commit happened
                 /**
-                 @dev aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher is 
-                      in order to avoid SLOADs  
+                 * @notice Get the aggregated publickey at the moment when pre-commit happened
+                 * @devAaggregated pubkey given as part of calldata instead of being retrieved from voteWeigher reduces number of SLOADs
                  */
                 mstore(pk, calldataload(pointer))
                 mstore(add(pk, 0x20), calldataload(add(pointer, 32)))
