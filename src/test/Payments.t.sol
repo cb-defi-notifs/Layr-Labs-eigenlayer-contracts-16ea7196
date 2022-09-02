@@ -160,9 +160,6 @@ contract Payments is TestHelper {
     function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
-        uint32 numberOfSigners = 15;
-        //_testRegisterSigners(numberOfSigners, false);
-
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
         {
@@ -216,11 +213,6 @@ contract Payments is TestHelper {
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
-
-    function _redeemPayment() public {
-
-    }
-
 
 
         //initiates the payment challenge from the challenger, with split that the challenger thinks is correct

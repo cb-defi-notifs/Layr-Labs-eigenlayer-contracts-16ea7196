@@ -768,9 +768,9 @@ contract EigenLayrDeployer is
             numStrats > 0,
             "_testDelegateToOperator: delegating from address with no investments"
         );
-        uint256[] memory initialOperatorShares = new uint256[](numStrats);
+        uint256[] memory inititalSharesInStrats = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.operatorShares(
+            inititalSharesInStrats[i] = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -791,7 +791,7 @@ contract EigenLayrDeployer is
         );
 
         for (uint256 i = 0; i < numStrats; ++i) {
-            uint256 operatorSharesBefore = initialOperatorShares[i];
+            uint256 operatorSharesBefore = inititalSharesInStrats[i];
             uint256 operatorSharesAfter = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
