@@ -44,7 +44,7 @@ contract DataLayrPaymentManager is
         uint256 stakeIndex,
         uint48 nonSignerIndex,
         bytes32[] memory nonSignerPubkeyHashes,
-        TotalStakes calldata totalStakes,
+        TotalStakes calldata totalStakesSigned,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) external {
         // copy challenge struct to memory
@@ -65,20 +65,20 @@ contract DataLayrPaymentManager is
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
         );
 
-        //TODO: ensure that totalStakes and signedTotals from signatureChecker are the same quantity.
-        bytes32 providedSigantoryRecordHash = keccak256(
+        // recalculate the signatoryRecordHash, to verify integrity of `nonSignerPubkey` and `totalStakesSigned` inputs.
+        bytes32 providedSignatoryRecordHash = keccak256(
             abi.encodePacked(
                 searchData.metadata.headerHash,
                 searchData.metadata.globalDataStoreId,
                 nonSignerPubkeyHashes,
-                totalStakes.ethStakeSigned,
-                totalStakes.eigenStakeSigned
+                totalStakesSigned.ethStakeSigned,
+                totalStakesSigned.eigenStakeSigned
             )
         );
-        //checking that nonSignerPubKeyHashes is correct, now that we know that searchData is valid
+        //checking that `nonSignerPubKeyHashes` and `totalStakesSigned` are correct, now that we know that searchData is valid
         require(
-            providedSigantoryRecordHash == searchData.metadata.signatoryRecordHash,
-            "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakes is incorrect"
+            providedSignatoryRecordHash == searchData.metadata.signatoryRecordHash,
+            "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakesSigned is incorrect"
         );
 
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
@@ -125,10 +125,10 @@ contract DataLayrPaymentManager is
             //TODO: assumes even eigen eth split
             trueAmount = uint120(
                 (searchData.metadata.fee * operatorStake.ethStake) /
-                    totalStakes.ethStakeSigned /
+                    totalStakesSigned.ethStakeSigned /
                     2 +
                     (searchData.metadata.fee * operatorStake.eigenStake) /
-                    totalStakes.eigenStakeSigned /
+                    totalStakesSigned.eigenStakeSigned /
                     2
             );
         } else {

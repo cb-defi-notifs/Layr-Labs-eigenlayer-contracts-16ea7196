@@ -184,7 +184,6 @@ contract DataLayrServiceManager is
         // the DataLayr nodes for their service
         uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
         
-
         // require that disperser has sent enough fees to this contract to pay for this datastore.
         // This will revert if the deposits are not high enough due to undeflow.
         dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
@@ -194,15 +193,16 @@ contract DataLayrServiceManager is
          *************************************************************************/
         //store metadata locally to be stored
         IDataLayrServiceManager.DataStoreMetadata memory metadata = 
-            IDataLayrServiceManager.DataStoreMetadata(
-                headerHash, 
-                getNumDataStoresForDuration(duration),
-                dataStoresForDuration.dataStoreId, 
-                blockNumber, 
-                uint96(fee),
-                confirmer,
-                bytes32(0)
-            );
+            IDataLayrServiceManager.DataStoreMetadata({
+                headerHash: headerHash, 
+                durationDataStoreId: getNumDataStoresForDuration(duration),
+                globalDataStoreId: dataStoresForDuration.dataStoreId, 
+                blockNumber: blockNumber, 
+                fee: uint96(fee),
+                confirmer: confirmer,
+                signatoryRecordHash: bytes32(0)
+            }
+        );
 
         uint32 index;
 
@@ -280,8 +280,6 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    //@TODO: a call to confirmDataStore() should be permissioned to a certain address provided in the initDataStore() of the same datastoreid
-    //this allows storers to do accounting in their own contracts before the logic in this function
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
         /*******************************************************
          verify the disperser's claim on composition of quorum
@@ -365,17 +363,6 @@ contract DataLayrServiceManager is
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32) {
         return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
-
-    // TODO: de-duplicate functions
-    function dataStoreIdToFee(uint32 _dataStoreId) external pure returns (uint96) {
-        return uint96(taskNumberToFee(_dataStoreId));
-    }
-
-    // TODO: actually write this function
-    function taskNumberToFee(uint32) public pure returns(uint256) {
-        return 0;
-    }
-
 
     /**
      @notice increments the number of data stores for the @param duration
