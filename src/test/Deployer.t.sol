@@ -35,7 +35,6 @@ import "./utils/SignatureUtils.sol";
 
 import "forge-std/Test.sol";
 
-//TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     DSTest,
     Signers,
@@ -66,6 +65,7 @@ contract EigenLayrDeployer is
 
     WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
+    InvestmentStrategyBase public baseStrategyImplementation;
 
     uint256 nonce = 69;
 
@@ -152,40 +152,33 @@ contract EigenLayrDeployer is
             address(this)
         );
 
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        wethStrat = new InvestmentStrategyBase(investmentManager);
+        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
+        baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
         wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(wethStrat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth)
                 )
             )
         );
-        // initialize InvestmentStrategyBase proxy
-        wethStrat.initialize(weth);
-
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             address(this)
         );
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        eigenStrat = new InvestmentStrategyBase(investmentManager);
+        // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(eigenStrat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken)
                 )
             )
         );
-       
-        // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(eigenToken);
 
         // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
