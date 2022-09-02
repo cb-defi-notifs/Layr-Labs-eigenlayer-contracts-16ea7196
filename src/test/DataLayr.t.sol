@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./TestHelper.t.sol";
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 
 
 contract DataLayrTests is

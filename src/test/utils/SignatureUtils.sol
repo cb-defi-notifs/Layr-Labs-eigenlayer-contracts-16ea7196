@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 
 contract SignatureUtils is DSTest {
 

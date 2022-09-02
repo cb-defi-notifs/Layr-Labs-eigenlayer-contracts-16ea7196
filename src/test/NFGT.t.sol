@@ -6,7 +6,7 @@ import "../contracts/experimental/NFGT.sol";
 import "../contracts/utils/ERC165_Universal.sol";
 import "../contracts/utils/ERC1155TokenReceiver.sol";
 
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 
 contract NFGT_Tester is DSTest, ERC165_Universal, ERC1155TokenReceiver {
 

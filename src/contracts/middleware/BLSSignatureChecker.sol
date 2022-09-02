@@ -8,7 +8,7 @@ import "../libraries/BytesLib.sol";
 import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 
 /**
  @notice This is the contract for checking that the aggregated signatures of all operators which is being 

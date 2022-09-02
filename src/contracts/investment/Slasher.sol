@@ -8,7 +8,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-import "forge-std/test.sol";
+import "forge-std/Test.sol";
 
 
 /**
