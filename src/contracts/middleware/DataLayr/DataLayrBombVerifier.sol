@@ -650,8 +650,14 @@ contract DataLayrBombVerifier {
             totalOperatorsIndex,
             searchData
         );
-        require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
-        require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
+        require(
+            searchData.metadata.globalDataStoreId == dataStoreId,
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId"
+        );
+        require(
+            searchData.metadata.headerHash == keccak256(disclosureProof.header),
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
+        );
         bool res = challengeUtils.nonInteractivePolynomialProof(
             disclosureProof.header,
             chunkNumber,

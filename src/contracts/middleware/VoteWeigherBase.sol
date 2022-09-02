@@ -107,7 +107,8 @@ contract VoteWeigherBase is
             );
             
             // removing strategies and their associated weight
-            strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
+            strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = 
+                strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
             emit StrategyRemovedFromQuorum(quorumNumber, _strategiesToRemove[i]);
             
