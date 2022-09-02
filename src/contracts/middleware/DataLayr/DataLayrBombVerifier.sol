@@ -115,7 +115,8 @@ contract DataLayrBombVerifier {
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
                         deregisterTime >=
-                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL)),
+                "DataLayrBombVerifier.verifyBomb: invalid operator or time"
             );
         }
 

@@ -8,6 +8,8 @@
     "const-name-snakecase": "off",
     "not-rely-on-time": "off",
     "avoid-low-level-calls": "off",
-    "contract-name-camelcase": "off"
+    "contract-name-camelcase": "off",
+    "func-name-mixedcase": "off",
+    "var-name-mixedcase": "off"
   }
 }
