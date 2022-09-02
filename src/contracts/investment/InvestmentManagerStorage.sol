@@ -9,7 +9,7 @@ import "../interfaces/ISlasher.sol";
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     struct WithdrawalStorage {
         uint32 initTimestamp;
-        uint32 latestFraudproofTimestamp;
+        uint32 unlockTimestamp;
         address withdrawer;
     }
     struct WithdrawerAndNonce {
@@ -18,7 +18,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     }
 
     // fixed waiting period for withdrawals
-    // TODO: set this to a proper interval!
+    // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;
 
     // maximum length of dynamic arrays in `investorStrats` mapping

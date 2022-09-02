@@ -29,7 +29,6 @@ contract DataLayrTests is
         _testConfirmDataStoreSelfOperators(15);
     }
 
-    // @TODO: Add this back and generate correct signatures!
     function testLoopConfirmDataStoreLoop() public{
         _testConfirmDataStoreSelfOperators(15);
         uint g = gasleft();

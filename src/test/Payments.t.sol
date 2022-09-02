@@ -23,6 +23,7 @@ contract Payments is TestHelper {
             address user,
             uint96 amountToDeposit
         ) fuzzedAddress(user) public {
+        cheats.assume(user != address(dataLayrPaymentManager));
         paymentToken = dataLayrPaymentManager.paymentToken();
         
         cheats.assume(amountToDeposit < paymentToken.balanceOf(address(this)));
