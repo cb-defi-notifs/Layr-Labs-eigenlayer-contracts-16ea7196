@@ -6,6 +6,8 @@
     "reason-string": ["warn",{"maxLength":160}],
     "func-visibility": ["warn",{"ignoreConstructors":true}],
     "const-name-snakecase": "off",
-    "not-rely-on-time": "off"
+    "not-rely-on-time": "off",
+    "avoid-low-level-calls": "off",
+    "contract-name-camelcase": "off"
   }
 }

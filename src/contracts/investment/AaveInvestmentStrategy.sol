@@ -13,7 +13,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     {}
 
     function initialize(IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
-    ) initializer public {
+    ) public initializer {
         super.initialize(_underlyingToken);
         lendingPool = _lendingPool;
         aToken = _aToken;

@@ -29,7 +29,7 @@ contract InvestmentStrategyBase is
         //_disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken) initializer public {
+    function initialize(IERC20 _underlyingToken) public initializer {
         underlyingToken = _underlyingToken;
     }
 
