@@ -112,6 +112,7 @@ contract EigenLayrDeployer is
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != dlRepository.owner());
         _;
     }
 
