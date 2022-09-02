@@ -7,16 +7,6 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
-    struct WithdrawalStorage {
-        uint32 initTimestamp;
-        uint32 unlockTimestamp;
-        address withdrawer;
-    }
-    struct WithdrawerAndNonce {
-        address withdrawer;
-        uint96 nonce;
-    }
-
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;

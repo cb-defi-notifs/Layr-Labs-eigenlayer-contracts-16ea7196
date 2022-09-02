@@ -5,6 +5,18 @@ import "./IInvestmentStrategy.sol";
 import "./ISlasher.sol";
 
 interface IInvestmentManager {
+    // used for storing details of queued withdrawals
+    struct WithdrawalStorage {
+        uint32 initTimestamp;
+        uint32 unlockTimestamp;
+        address withdrawer;
+    }
+
+    // packed struct for queued withdrawals
+    struct WithdrawerAndNonce {
+        address withdrawer;
+        uint96 nonce;
+    }
 
     function depositIntoStrategy(
         address depositor,
