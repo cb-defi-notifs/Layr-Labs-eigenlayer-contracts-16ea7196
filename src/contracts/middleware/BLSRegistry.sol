@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "../libraries/BN254_Constants.sol";
 import "./RegistryBase.sol";
 
 import "forge-std/Test.sol";
@@ -33,7 +34,7 @@ contract BLSRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
+    uint256[4] public apk = [BN254_Constants.G2x0, BN254_Constants.G2x1, BN254_Constants.G2y0, BN254_Constants.G2y1];
 
     
     // EVENTS
@@ -375,8 +376,8 @@ contract BLSRegistry is
          @notice subtract pubkeyToRemoveJac from the aggregate pubkey
          */
         // negate pubkeyToRemoveJac  
-        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
-        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
+        pubkeyToRemoveJac[2] = (BN254_Constants.MODULUS - pubkeyToRemoveJac[2]) % BN254_Constants.MODULUS;
+        pubkeyToRemoveJac[3] = (BN254_Constants.MODULUS - pubkeyToRemoveJac[3]) % BN254_Constants.MODULUS;
         // add the negation to existingAggPubkeyJac
         BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
 

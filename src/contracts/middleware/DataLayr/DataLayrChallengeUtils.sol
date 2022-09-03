@@ -241,20 +241,20 @@ contract DataLayrChallengeUtils {
     function openPolynomialAtPoint(BN254.G1Point memory c, BN254.G2Point calldata pi, uint256 r, uint256 s) public view returns(bool) {
         //we use and overwrite z as temporary storage
         //-g1 = (1, -2)
-        BN254.G1Point memory negativeOne = BN254.G1Point({X: 1, Y: MODULUS - 2});
+        BN254.G1Point memory negativeOne = BN254.G1Point({X: 1, Y: BN254_Constants.MODULUS - 2});
         //calculate -g1*r = -[r]_1
         BN254.G1Point memory z = BN254.scalar_mul(negativeOne, r);
 
         //add [x]_1 - [r]_1 = Z and store in first 2 slots of input
         //CRITIC TODO: SWITCH THESE TO [x]_1 of Powers of Tau!
-        BN254.G1Point memory firstPowerOfTau = BN254.G1Point({X: 1, Y: MODULUS - 2});
+        BN254.G1Point memory firstPowerOfTau = BN254.G1Point({X: 1, Y: BN254_Constants.MODULUS - 2});
         z = BN254.plus(firstPowerOfTau, z);
         //calculate -g1*s = -[s]_1
         BN254.G1Point memory negativeS = BN254.scalar_mul(negativeOne, s);
         //calculate C-[s]_1
         BN254.G1Point memory cMinusS = BN254.plus(c, negativeS);
         //-g2
-        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
+        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BN254_Constants.nG2x1, BN254_Constants.nG2x0], Y: [BN254_Constants.nG2y1, BN254_Constants.nG2y0]});
 
         //check e(z, pi)e(C-[s]_1, -g2) = 1
         return BN254.pairing(z, pi, cMinusS, negativeG2);
@@ -308,7 +308,7 @@ contract DataLayrChallengeUtils {
         // calculate [C]_1 - [I]_1
         BN254.G1Point memory cMinusI = BN254.plus(dskzgMetadata.c, BN254.negate(interpolationPoly));
         //-g2
-        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
+        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BN254_Constants.nG2x1, BN254_Constants.nG2x0], Y: [BN254_Constants.nG2y1, BN254_Constants.nG2y0]});
 
         //check e(z, pi)e(C-[s]_1, -g2) = 1
         return BN254.pairing(revealProof, zeroPoly, cMinusI, negativeG2);
@@ -344,7 +344,7 @@ contract DataLayrChallengeUtils {
        );
 
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), multiRevealProof.interpolationPoly.X, multiRevealProof.interpolationPoly.Y))) % MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), multiRevealProof.interpolationPoly.X, multiRevealProof.interpolationPoly.Y))) % BN254_Constants.MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
         bool ok = openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s); 
         return ok;
@@ -392,11 +392,11 @@ contract DataLayrChallengeUtils {
             }
         }
         //this is the point to open each polynomial at
-        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % MODULUS;
+        uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BN254_Constants.MODULUS;
         //this is the offset we add to each polynomial to prevent collision
         //we use array to help with stack
         uint256[2] memory gammaAndGammaPower;
-        gammaAndGammaPower[0] = uint256(keccak256(abi.encodePacked(rs, uint256(0)))) % MODULUS;
+        gammaAndGammaPower[0] = uint256(keccak256(abi.encodePacked(rs, uint256(0)))) % BN254_Constants.MODULUS;
         gammaAndGammaPower[1] = gammaAndGammaPower[0];
         //store I1
         BN254.G1Point memory gammaShiftedCommitmentSum = multiRevealProofs[0].interpolationPoly;
@@ -407,9 +407,9 @@ contract DataLayrChallengeUtils {
             gammaShiftedCommitmentSum = BN254.plus(gammaShiftedCommitmentSum, BN254.scalar_mul(multiRevealProofs[i].interpolationPoly, gammaAndGammaPower[1]));
             //gammaShiftedEvaluationSum += gamma^i * Ii(r)
             uint256 eval = linearPolynomialEvaluation(polys[i], r);
-            gammaShiftedEvaluationSum = (gammaShiftedEvaluationSum + ((gammaAndGammaPower[1]*eval) % MODULUS) % MODULUS);
+            gammaShiftedEvaluationSum = (gammaShiftedEvaluationSum + ((gammaAndGammaPower[1]*eval) % BN254_Constants.MODULUS) % BN254_Constants.MODULUS);
             // gammaPower = gamma^(i+1)
-            gammaAndGammaPower[1] = mulmod(gammaAndGammaPower[0], gammaAndGammaPower[1], MODULUS);
+            gammaAndGammaPower[1] = mulmod(gammaAndGammaPower[0], gammaAndGammaPower[1], BN254_Constants.MODULUS);
         }
 
         return openPolynomialAtPoint(gammaShiftedCommitmentSum, polyEquivalenceProof, r, gammaShiftedEvaluationSum);
@@ -425,8 +425,8 @@ contract DataLayrChallengeUtils {
         uint256 rPower = 1;
         for (uint i = 0; i < length; ) {
             uint256 coefficient = uint256(bytes32(poly[i:i+32]));
-            sum = addmod(sum, mulmod(coefficient, rPower, MODULUS), MODULUS);
-            rPower = mulmod(rPower, r, MODULUS);
+            sum = addmod(sum, mulmod(coefficient, rPower, BN254_Constants.MODULUS), BN254_Constants.MODULUS);
+            rPower = mulmod(rPower, r, BN254_Constants.MODULUS);
             i += 32;
         }   
         return sum; 

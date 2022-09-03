@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+library BN254_Constants {
 // modulus for the underlying field F_q of the elliptic curve
 uint256 constant MODULUS =
     21888242871839275222246405745257275088696311157297823662689037894645226208583;
@@ -33,3 +34,4 @@ uint256 constant G2y0 =
 
 bytes32 constant powersOfTauMerkleRoot =
     0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
+}
