@@ -5,6 +5,9 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IRepository.sol";
+import "../interfaces/IVoteWeigher.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IServiceManager.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
@@ -22,15 +25,15 @@ contract Repository is Ownable, Initializable, IRepository {
     // address of the InvestmentManager contract of EigenLayr
     IInvestmentManager public immutable investmentManager;
     // the VoteWeigher contract for this middleware, which determines quorum weighing functions
-    IVoteWeigher public voteWeigher;
+    address public voteWeigher;
     // the Registry contract for this middleware, where operators register and deregister
-    IRegistry public registry;
+    address public registry;
     // the ServiceManager contract for this middleware, where tasks are created / initiated
-    IServiceManager public serviceManager;
+    address public serviceManager;
 
-    event VoteWeigherSet(IVoteWeigher indexed previousAddress, IVoteWeigher indexed newAddress);
-    event ServiceManagerSet(IServiceManager indexed previousAddress, IServiceManager indexed newAddress);
-    event RegistrySet(IRegistry indexed previousAddress, IRegistry indexed newAddress);
+    event VoteWeigherSet(address indexed previousAddress, IVoteWeigher indexed newAddress);
+    event ServiceManagerSet(address indexed previousAddress, IServiceManager indexed newAddress);
+    event RegistrySet(address indexed previousAddress, IRegistry indexed newAddress);
 
     // set the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
     constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
@@ -79,7 +82,7 @@ contract Repository is Ownable, Initializable, IRepository {
             "Repository._setVoteWeigher: zero address bad!"
         );
         emit VoteWeigherSet(voteWeigher, _voteWeigher);
-        voteWeigher = _voteWeigher;
+        voteWeigher = address(_voteWeigher);
     }
 
     function _setServiceManager(IServiceManager _serviceManager) internal {
@@ -88,7 +91,7 @@ contract Repository is Ownable, Initializable, IRepository {
             "Repository._setServiceManager: zero address bad!"
         );
         emit ServiceManagerSet(serviceManager, _serviceManager);
-        serviceManager = _serviceManager;
+        serviceManager = address(_serviceManager);
     }
 
     function _setRegistry(IRegistry _registry) internal {
@@ -97,6 +100,6 @@ contract Repository is Ownable, Initializable, IRepository {
             "Repository._setRegistry: zero address bad!"
         );
         emit RegistrySet(registry, _registry);
-        registry = _registry;
+        registry = address(_registry);
     }
 }

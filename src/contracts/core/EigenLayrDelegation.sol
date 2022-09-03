@@ -8,6 +8,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
+import "../interfaces/IServiceManager.sol";
 // import "forge-std/Test.sol";
 
 // TODO: verify that limitation on undelegating from slashed operators is sufficient

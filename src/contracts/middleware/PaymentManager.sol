@@ -107,7 +107,7 @@ abstract contract PaymentManager is
     {
         paymentToken = _paymentToken;
         setPaymentFraudProofCollateral(_paymentFraudProofCollateral);
-        IServiceManager _serviceManager = _repository.serviceManager();
+        IServiceManager _serviceManager = IServiceManager(_repository.serviceManager());
         collateralToken = _serviceManager.collateralToken();
         eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
     }
@@ -507,6 +507,6 @@ abstract contract PaymentManager is
     }
 
     function _taskNumber() internal view returns (uint32) {
-        return repository.serviceManager().taskNumber();
+        return IServiceManager(repository.serviceManager()).taskNumber();
     }
 }

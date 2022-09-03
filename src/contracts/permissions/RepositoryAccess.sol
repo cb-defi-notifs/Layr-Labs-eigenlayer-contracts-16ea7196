@@ -57,10 +57,10 @@ abstract contract RepositoryAccess is IRepositoryAccess {
         return repository.owner();
     }
 
-    function _serviceManager() internal view returns(IServiceManager) {
+    function _serviceManager() internal view returns(address) {
         return repository.serviceManager();
     }
-    function _registry() internal view returns(IRegistry) {
+    function _registry() internal view returns(address) {
         return repository.registry();
     }
 
