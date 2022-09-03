@@ -1,6 +1,5 @@
 {
     "filter_paths": "(lib/|test/)",
-    "legacy_ast": false,
     "solc_remaps": [
         "forge-std/=lib/forge-std/src/",
         "@openzeppelin/=lib/openzeppelin-contracts/",
