@@ -418,7 +418,6 @@ abstract contract BLSSignatureChecker is
          */
 
         // compute the point in G1
-        //@OFFCHAIN change dlns to sign msgHash defined in DLSM -- TODO @gautham is this note still relevant?
         (input[0], input[1]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
