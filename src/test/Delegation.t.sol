@@ -55,7 +55,7 @@ contract Delegator is TestHelper {
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
 
-        if(!delegation.isDelegate(operator)){
+        if(!delegation.isOperator(operator)){
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
 
@@ -387,8 +387,4 @@ contract Delegator is TestHelper {
         delegation.setUndelegationFraudProofInterval(100);
         cheats.stopPrank();
     }
-
-    
-
-    //*******INTERNAL FUNCTIONS*********//
 }
