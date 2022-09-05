@@ -20,6 +20,7 @@ import "ds-test/test.sol";
 abstract contract PaymentManager is 
     RepositoryAccess,
     IPaymentManager
+    ,DSTest
     {
     using SafeERC20 for IERC20;
     /**********************
@@ -237,11 +238,13 @@ abstract contract PaymentManager is
             operatorToPayment[msg.sender].collateral
         );
 
+        
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+        
         // transfer the amount due in the payment claim of the operator to its delegation
         // terms contract, where the delegators can withdraw their rewards.
         paymentToken.transfer(address(dt), amount);
@@ -250,7 +253,6 @@ abstract contract PaymentManager is
         // inform the DelegationTerms contract of the payment, which will determine
         // the rewards operator and its delegators are eligible for
         dt.payForService(paymentToken, amount);
-
         emit PaymentRedemption(msg.sender, amount);
     }
 

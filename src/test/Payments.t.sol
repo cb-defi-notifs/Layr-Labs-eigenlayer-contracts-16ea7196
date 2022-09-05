@@ -146,10 +146,6 @@ contract Payments is TestHelper {
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
         _testCommitPayment(operator, amountRewards);    
-        cheats.warp(block.timestamp + 8 days);
-        emit log_uint(weth.balanceOf(operator));
-        _testRedeemPayment(operator);
-            
     }
 
 
