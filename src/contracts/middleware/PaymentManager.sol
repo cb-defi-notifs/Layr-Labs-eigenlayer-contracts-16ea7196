@@ -18,9 +18,8 @@ import "ds-test/test.sol";
  */
  // contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal` function -- see DataLayrPaymentManager for an example
 abstract contract PaymentManager is 
-    RepositoryAccess, 
+    RepositoryAccess,
     IPaymentManager
-    //,DSTest 
     {
     using SafeERC20 for IERC20;
     /**********************
@@ -232,10 +231,12 @@ abstract contract PaymentManager is
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
+
         collateralToken.transfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
+
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
