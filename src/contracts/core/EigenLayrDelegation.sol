@@ -408,7 +408,7 @@ contract EigenLayrDelegation is
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
     function isOperator(address operator)
-        public
+        external
         view
         returns(bool)
     {

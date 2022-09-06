@@ -494,7 +494,7 @@ abstract contract PaymentManager is
     }
 
     function getPaymentCollateral(address operator)
-        public
+        external
         view
         returns (uint256)
     {

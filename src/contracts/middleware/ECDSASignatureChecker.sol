@@ -52,7 +52,7 @@ abstract contract ECDSASignatureChecker is
      */
     //NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
-        public
+        external
         returns (
             uint32 taskNumberToConfirm,
             bytes32 taskHash,

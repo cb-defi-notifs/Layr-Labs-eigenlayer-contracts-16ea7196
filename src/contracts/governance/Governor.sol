@@ -201,7 +201,7 @@ contract Governor_Experimental is RepositoryAccess {
         string[] memory signatures,
         bytes[] memory calldatas,
         string memory description
-    ) public returns (uint256) {
+    ) external returns (uint256) {
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
             msg.sender
         );
@@ -283,7 +283,7 @@ contract Governor_Experimental is RepositoryAccess {
         return newProposal.id;
     }
 
-    function queue(uint256 proposalId) public {
+    function queue(uint256 proposalId) external {
         require(
             state(proposalId) == ProposalState.Succeeded,
             "RepositoryGovernance::queue: proposal can only be queued if it is succeeded"
@@ -338,7 +338,7 @@ contract Governor_Experimental is RepositoryAccess {
         emit ProposalExecuted(proposalId);
     }
 
-    function cancel(uint256 proposalId) public {
+    function cancel(uint256 proposalId) external {
         ProposalState stateOfProposal = state(proposalId);
         require(
             stateOfProposal != ProposalState.Executed,
@@ -377,7 +377,7 @@ contract Governor_Experimental is RepositoryAccess {
     }
 
     function getActions(uint256 proposalId)
-        public
+        external
         view
         returns (
             address[] memory targets,
@@ -391,7 +391,7 @@ contract Governor_Experimental is RepositoryAccess {
     }
 
     function getReceipt(uint256 proposalId, address voter)
-        public
+        external
         view
         returns (Receipt memory)
     {
@@ -438,7 +438,7 @@ contract Governor_Experimental is RepositoryAccess {
         }
     }
 
-    function castVote(uint256 proposalId, bool support) public {
+    function castVote(uint256 proposalId, bool support) external {
         return _castVote(msg.sender, proposalId, support);
     }
 
@@ -448,7 +448,7 @@ contract Governor_Experimental is RepositoryAccess {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) external {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
         );
