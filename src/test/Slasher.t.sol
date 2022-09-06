@@ -2,9 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "./Deployer.t.sol";
+import "./TestHelper.t.sol";
 
 contract SlasherTests is
-    EigenLayrDeployer
+    TestHelper
 {
     function testSlashing() public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);

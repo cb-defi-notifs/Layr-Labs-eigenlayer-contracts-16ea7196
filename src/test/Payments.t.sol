@@ -19,6 +19,7 @@ contract PaymentsTests is TestHelper {
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
     ///@param amountToDeposit is the amount of future fees deposited by the @param user
+
     function testDepositFutureFees(
             address user,
             uint96 amountToDeposit
@@ -143,7 +144,9 @@ contract PaymentsTests is TestHelper {
 
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
         _testRegisterSigners(numberOfSigners, false);
-        _testCommitPayment(operator, amountRewards);        
+        _testInitandCommitDataStore();
+        _incrementDataStoreID();
+        _testCommitPayment(operator, amountRewards);    
     }
 
 
@@ -160,6 +163,30 @@ contract PaymentsTests is TestHelper {
     function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
+        cheats.startPrank(operator);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
+        // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
+        uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
+        dataLayrPaymentManager.commitPayment(
+            newCurrentDataStoreId,
+            _amountRewards
+        );
+        
+        cheats.stopPrank();
+        //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
+
+
+    }
+
+    function _testRedeemPayment(address operator) internal {
+        cheats.startPrank(operator);
+        dataLayrPaymentManager.redeemPayment();
+        cheats.stopPrank();
+    }
+
+    
+    function  _testInitandCommitDataStore() internal {
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
         {
@@ -198,20 +225,7 @@ contract PaymentsTests is TestHelper {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
-        dlsm.initDataStore(storer, address(this), header, duration, totalBytes, blockNumber);
         cheats.stopPrank();
-
-        cheats.startPrank(operator);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
-        uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
-        dataLayrPaymentManager.commitPayment(
-            newCurrentDataStoreId,
-            _amountRewards
-        );
-        cheats.stopPrank();
-        //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
 
 
@@ -229,6 +243,20 @@ contract PaymentsTests is TestHelper {
 
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
+    }
+
+
+    function _incrementDataStoreID() internal {
+
+        bytes memory header = hex"0102030405060708091011121314151617181921";
+        uint32 blockNumber = uint32(block.number);
+        uint8 duration = 2;
+
+        cheats.startPrank(storer);
+        //increments fromDataStoreID so that you can commit a payment
+        dlsm.initDataStore(storer, address(this), header, duration, 1e6, blockNumber);
+        cheats.stopPrank();
+
     }
 
 }

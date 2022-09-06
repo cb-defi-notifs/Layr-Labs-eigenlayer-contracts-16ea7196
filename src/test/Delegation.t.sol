@@ -387,8 +387,4 @@ contract DelegationTests is TestHelper {
         delegation.setUndelegationFraudProofInterval(100);
         cheats.stopPrank();
     }
-
-    
-
-    //*******INTERNAL FUNCTIONS*********//
 }

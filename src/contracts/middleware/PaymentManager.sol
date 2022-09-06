@@ -18,9 +18,9 @@ import "forge-std/Test.sol";
  */
  // contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal` function -- see DataLayrPaymentManager for an example
 abstract contract PaymentManager is 
-    RepositoryAccess, 
+    RepositoryAccess,
     IPaymentManager
-    //,DSTest 
+    ,DSTest
     {
     using SafeERC20 for IERC20;
     /**********************
@@ -232,15 +232,19 @@ abstract contract PaymentManager is
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
+
         collateralToken.safeTransfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
 
+        
+
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+        
         // transfer the amount due in the payment claim of the operator to its delegation
         // terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);
@@ -249,7 +253,6 @@ abstract contract PaymentManager is
         // inform the DelegationTerms contract of the payment, which will determine
         // the rewards operator and its delegators are eligible for
         dt.payForService(paymentToken, amount);
-
         emit PaymentRedemption(msg.sender, amount);
     }
 
