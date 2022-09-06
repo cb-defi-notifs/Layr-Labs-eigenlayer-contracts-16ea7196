@@ -37,10 +37,9 @@ contract InvestmentTests is
     }
 
     /**
-    * @notice This test verifies that a strategy gets removed from the dynamic array 
-    *          'investorStrats' when the user no longer has any shares in the strategy
-    * @param amountToDeposit The amount of WETH to try depositing
-    */
+     * @notice Verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
+     * @param amountToDeposit Fuzzed input for the amount deposited into the strategy, prior to withdrawing all shares
+     */
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
         cheats.assume(amountToDeposit > 0);
 
@@ -66,10 +65,10 @@ contract InvestmentTests is
      *          and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
      * @notice In the event that the call to `completeQueuedWithdrawal` correctly reverted above, this function then fast-forwards to just past the `unlockTime`
      *          for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
-     * @param staker is the address of the staker
-     * @param registerAsDelegate indicates wheter or not staker registers as a delegate themselves
-     * @param amountToDeposit is the amount to deposit, before we can withdraw
-     * @param amountToWithdraw is the amount to be withdrawn
+     * @param staker The caller who will create the queued withdrawal.
+     * @param registerAsDelegate When true, `staker` will register as a delegate inside of the call to `_createQueuedWithdrawal`. Otherwise they will not.
+     * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
+     * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
     function testQueuedWithdrawal(
         address staker,
@@ -128,21 +127,24 @@ contract InvestmentTests is
         cheats.stopPrank();
     }
 
-    //testing queued withdrawals in the investment manager
-
     /**
-     * Testing queued withdrawals in the investment manager
-     * @notice This test mimics the testQueuedWithdrawal test above in additon to
-     *         slashing and fraudproof mechanisms.
+     * @notice This test checks that fraudproofing queued withdrawals through the InvestmentManager is possible.
+     * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
+     * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
     function testFraudproofQueuedWithdrawal(
-        // uint256 amountToDeposit
-        // ,uint256 amountToWithdraw 
+        uint256 amountToDeposit,
+        uint256 amountToWithdraw 
     ) public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
         uint256[] memory strategyIndexes = new uint256[](1);
+
+        // want to deposit at least 1 wei
+        cheats.assume(amountToDeposit > 0);
+        // cannot withdraw more than we deposit
+        cheats.assume(amountToWithdraw <= amountToDeposit);
 
         // harcoded inputs
         address staker = acct_0;
@@ -157,8 +159,7 @@ contract InvestmentTests is
         uint256 initTime = 1000000001;
         cheats.warp(initTime);
         {
-            uint256 amountToDeposit = 10e7;
-            uint256 amountToWithdraw = 1;
+            // harcoded inputs, also somewhat shared with `_createQueuedWithdrawal`
             strategyArray[0] = wethStrat;
             tokensArray[0] = weth;
             shareAmounts[0] = amountToWithdraw;
@@ -203,18 +204,22 @@ contract InvestmentTests is
         investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
     
-    // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
+    // @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
     function testDepositStrategies(uint16 numStratsToAdd) public {
         _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
     }
 
-    //verifies that it is possible to deposit eigen
+    // @notice Verifies that it is possible to deposit eigen.
     function testDepositEigen(uint96 eigenToDeposit) public {
         // sanity check for inputs; keeps fuzzed tests from failing
         cheats.assume(eigenToDeposit < eigenTotalSupply);
         _testDepositEigen(signers[0], eigenToDeposit);
     }
 
+    /**
+     *  @notice Tries to deposit an unsupported token into an `InvestmentStrategyBase` contract by calling `investmentManager.depositIntoStrategy`.
+     *          Verifies that reversion occurs correctly.
+     */
     function testDepositUnsupportedToken() public {
         IERC20 token = new ERC20PresetFixedSupply(
             "badToken",
@@ -269,7 +274,7 @@ contract InvestmentTests is
     )
         internal
     {
-        require(amountToDeposit > shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
         // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
         if (registerAsDelegate) {

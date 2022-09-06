@@ -387,4 +387,65 @@ contract EigenLayrDeployer is
         );
 
     }
+
+    function testSig() public {
+        uint256[12] memory input;
+        //1d9b51a4ffb5b3f402748854ea5bbb8025324782062324e99bedcdc2cec4102f
+        //000000000004
+        //00000918
+        //00000007
+        //00000000
+        //00000003
+        //0d8c5e0a5954cbbc30123d0990c7643b1e8b43278457d3a89de59cfc620ac48a
+        //068a2ec2615a4064fd820f759d6030475fed69925655aae8a463e72b53f697e9
+        //014d5b9af4f3e72635652fe695fdb3c46ee3e5142820b228bf9564fdef30bd92
+        //0238c50db7b36820321b2e25700486c18e5750dea646d266870ec1be812456fa
+        //1e041e0df4821a4b7668999e4381cca9c015916f033512ca0829179c639f285c
+        //1a2ebe9095bed1d16f938c00d283c3a08462c7dc168a590ffa8ce192e05996ab
+
+        (input[0], input[1]) = BLS.hashToG1(0x1d9b51a4ffb5b3f402748854ea5bbb8025324782062324e99bedcdc2cec4102f);
+        input[3] = uint256(0x0d8c5e0a5954cbbc30123d0990c7643b1e8b43278457d3a89de59cfc620ac48a);
+        input[2] = uint256(0x068a2ec2615a4064fd820f759d6030475fed69925655aae8a463e72b53f697e9);
+        input[5] = uint256(0x014d5b9af4f3e72635652fe695fdb3c46ee3e5142820b228bf9564fdef30bd92);
+        input[4] = uint256(0x0238c50db7b36820321b2e25700486c18e5750dea646d266870ec1be812456fa);
+        input[6] = uint256(0x1e041e0df4821a4b7668999e4381cca9c015916f033512ca0829179c639f285c);
+        input[7] = uint256(0x1a2ebe9095bed1d16f938c00d283c3a08462c7dc168a590ffa8ce192e05996ab);
+        // insert negated coordinates of the generator for G2
+        input[8] = BLS.nG2x1;
+        input[9] = BLS.nG2x0;
+        input[10] = BLS.nG2y1;
+        input[11] = BLS.nG2y0;
+
+        assembly {
+            // check the pairing; if incorrect, revert
+            if iszero(
+                // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
+                // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
+                staticcall(not(0), 0x08, input, 0x180, add(input, 0x160), 0x20)
+            ) {
+                revert(0, 0)
+            }
+        }
+
+        // check that the provided signature is correct
+        require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
+
+        // abi.encodePacked(
+        //     keccak256(
+        //         abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
+        //     ),
+        //     uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+        //     searchData.metadata.blockNumber,
+        //     searchData.metadata.globalDataStoreId,
+        //     numberOfNonSigners,
+        //     // no pubkeys here since zero nonSigners for now
+        //     uint32(dlReg.getApkUpdatesLength() - 1),
+        //     apk_0,
+        //     apk_1,
+        //     apk_2,
+        //     apk_3,
+        //     sigma_0,
+        //     sigma_1
+        // );
+    }
 }
