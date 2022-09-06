@@ -70,7 +70,10 @@ contract PaymentsTests is TestHelper {
         assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
     }
 
-    //tests setting payment collateral from the valid address
+    
+
+    ///@notice tests setting payment collateral from the valid address
+    ///@param fraudProofCollateral is the amount of payment fraudproof collateral being put up byt the repository owner
     function testSetPaymentCollateral(
         uint256 fraudProofCollateral
     ) public {
@@ -82,8 +85,9 @@ contract PaymentsTests is TestHelper {
         cheats.stopPrank();
     }
 
-
-    // tests setting payment collateral from an invalid address
+    ///@notice tests setting payment collateral from an unauthorized address
+    ///@param fraudProofCollateral is the amount of payment fraudproof collateral being put up byt the repository owner
+    ///@param unauthorizedRepositorOwner is the unauthorized address
     function testUnauthorizedSetPaymentCollateral(
         uint256 fraudProofCollateral,
         address unauthorizedRepositorOwner
@@ -95,7 +99,9 @@ contract PaymentsTests is TestHelper {
     }
 
 
-
+    ///@notice tests commiting to reward payouts
+    ///@param ethAmount is the amount of delegated eth
+    ///@param eigenAmount is the amount of eigen
     function testRewardPayouts(
             uint256 ethAmount, 
             uint256 eigenAmount
@@ -159,14 +165,15 @@ contract PaymentsTests is TestHelper {
 
 
 
-    //Operator submits claim or commit for a payment amount
+    ///@notice Operator submits claim or commit for a payment amount
+    ///@param operator is the operator address
+    ///@param _amountRewards is the amount of rewards to be paid out
     function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
         cheats.startPrank(operator);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
-        // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
         uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
         dataLayrPaymentManager.commitPayment(
             newCurrentDataStoreId,
@@ -174,9 +181,6 @@ contract PaymentsTests is TestHelper {
         );
         
         cheats.stopPrank();
-        //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
-
-
     }
 
     function _testRedeemPayment(address operator) internal {
