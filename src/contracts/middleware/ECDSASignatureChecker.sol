@@ -3,15 +3,14 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IECDSARegistry.sol";
-import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 abstract contract ECDSASignatureChecker is
-    RepositoryAccess,
-    DSTest
+    RepositoryAccess
+    // ,DSTest
 {
     using BytesLib for bytes;
     struct SignatoryTotals {

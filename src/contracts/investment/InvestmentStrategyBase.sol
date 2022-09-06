@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 /**
@@ -14,6 +15,8 @@ contract InvestmentStrategyBase is
     Initializable,
     IInvestmentStrategy
 {
+    using SafeERC20 for IERC20;
+
     IInvestmentManager public immutable investmentManager;
     IERC20 public underlyingToken;
     uint256 public totalShares;
@@ -97,7 +100,7 @@ contract InvestmentStrategyBase is
         } else {
             amountToSend = (_tokenBalance() * shareAmount) / priorTotalShares;            
         }
-        underlyingToken.transfer(depositor, amountToSend);
+        underlyingToken.safeTransfer(depositor, amountToSend);
     }
 
     /** 

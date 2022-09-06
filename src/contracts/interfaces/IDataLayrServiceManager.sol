@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IDataLayr.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 

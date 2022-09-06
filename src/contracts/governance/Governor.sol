@@ -32,7 +32,7 @@ import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract Governor is RepositoryAccess {
+contract Governor_Experimental is RepositoryAccess {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;

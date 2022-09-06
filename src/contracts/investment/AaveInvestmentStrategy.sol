@@ -4,9 +4,11 @@ pragma solidity ^0.8.9;
 import "./aave/ILendingPool.sol";
 import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
+    using SafeERC20 for IERC20;
 
     constructor(IInvestmentManager _investmentManager) 
         InvestmentStrategyBase(_investmentManager)
@@ -102,10 +104,10 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
             );
 
             // transfer the underlyingToken to the depositor
-            underlyingToken.transfer(depositor, amountWithdrawn);
+            underlyingToken.safeTransfer(depositor, amountWithdrawn);
 
         } else if (token == aToken) {
-            aToken.transfer(depositor, toWithdraw);
+            aToken.safeTransfer(depositor, toWithdraw);
         } else {
             revert("AaveInvestmentStrategy.withdraw: can only withdraw as underlyingToken or aToken");
         }
