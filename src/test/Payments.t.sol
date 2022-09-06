@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../test/TestHelper.t.sol";
 
 
-contract Payments is TestHelper {
+contract PaymentsTests is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 

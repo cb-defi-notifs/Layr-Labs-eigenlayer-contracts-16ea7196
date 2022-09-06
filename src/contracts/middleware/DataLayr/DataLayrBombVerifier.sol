@@ -4,7 +4,6 @@ pragma solidity ^0.8.9.0;
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../libraries/BN254_Constants.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreUtils.sol";

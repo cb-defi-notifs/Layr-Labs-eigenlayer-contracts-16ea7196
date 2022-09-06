@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "./ServiceManagerStorage.sol";
 import "../interfaces/IVoteWeigher.sol";
-import "../interfaces/ITaskMetadata.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -39,7 +38,6 @@ abstract contract ServiceManagerBase is ServiceManagerStorage, Initializable, Re
 
 
     IVoteWeigher public voteWeigher;
-    ITaskMetadata public taskMetadata;
     IInvestmentManager public immutable investmentManager;
     IEigenLayrDelegation public immutable eigenLayrDelegation;
     
@@ -98,11 +96,9 @@ abstract contract ServiceManagerBase is ServiceManagerStorage, Initializable, Re
     }
 
     function initialize(
-        IVoteWeigher _voteWeigher,
-        ITaskMetadata _taskMetadata
+        IVoteWeigher _voteWeigher
     )  external initializer {
         voteWeigher = _voteWeigher;
-        taskMetadata = _taskMetadata;
     }
 
     /**

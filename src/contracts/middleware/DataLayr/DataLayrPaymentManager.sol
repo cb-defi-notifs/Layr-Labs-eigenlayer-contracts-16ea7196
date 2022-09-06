@@ -11,14 +11,14 @@ import "../Repository.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge
  */
 contract DataLayrPaymentManager is 
     PaymentManager
-     ,DSTest 
+    // ,DSTest 
     {
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;

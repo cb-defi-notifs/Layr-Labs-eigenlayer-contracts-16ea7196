@@ -23,8 +23,8 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage,
-    DSTest
+    InvestmentManagerStorage
+    // ,DSTest
 {
     using SafeERC20 for IERC20;
     event WithdrawalQueued(

@@ -16,7 +16,7 @@ import "../contracts/middleware/ServiceManagerBase.sol";
 
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 
-contract Delegator is TestHelper {
+contract DelegationTests is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
@@ -55,7 +55,7 @@ contract Delegator is TestHelper {
         cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
 
-        if(!delegation.isDelegate(operator)){
+        if(!delegation.isOperator(operator)){
             _testRegisterAsDelegate(operator, IDelegationTerms(operator));
         }
 

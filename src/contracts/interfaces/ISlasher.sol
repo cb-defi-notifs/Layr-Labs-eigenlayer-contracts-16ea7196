@@ -10,7 +10,7 @@ interface ISlasher {
         address staker
     ) external view returns(bool);
 
-    function revokeSlashingAbility(address operator) external view returns (bool);
+    function revokeSlashingAbility(address operator) external;
 
     function frozenStatus(address operator) external view returns (bool);
 

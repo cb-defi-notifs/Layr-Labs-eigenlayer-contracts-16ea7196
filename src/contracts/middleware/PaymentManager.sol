@@ -11,7 +11,7 @@ import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  @notice This contract is used for doing interactive payment challenge.
@@ -168,7 +168,7 @@ abstract contract PaymentManager is
         );
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.transferFrom(
+        collateralToken.safeTransferFrom(
             msg.sender,
             address(this),
             paymentFraudProofCollateral
@@ -232,7 +232,7 @@ abstract contract PaymentManager is
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
-        collateralToken.transfer(
+        collateralToken.safeTransfer(
             msg.sender,
             operatorToPayment[msg.sender].collateral
         );
@@ -243,7 +243,7 @@ abstract contract PaymentManager is
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
         // transfer the amount due in the payment claim of the operator to its delegation
         // terms contract, where the delegators can withdraw their rewards.
-        paymentToken.transfer(address(dt), amount);
+        paymentToken.safeTransfer(address(dt), amount);
 
 // TODO: make this a low-level call with gas budget that ignores reverts
         // inform the DelegationTerms contract of the payment, which will determine
@@ -292,7 +292,7 @@ abstract contract PaymentManager is
 
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.transferFrom(msg.sender, address(this), collateral);
+        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
         // update the payment status and reset the fraudproof window for this payment
         operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
         operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudProofInterval);

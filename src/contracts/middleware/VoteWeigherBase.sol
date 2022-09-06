@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
- import "ds-test/test.sol";
+ import "forge-std/Test.sol";
 
 
 /**
@@ -17,8 +17,8 @@ import "./VoteWeigherBaseStorage.sol";
  */
 contract VoteWeigherBase is 
     IVoteWeigher,
-    VoteWeigherBaseStorage, 
-    DSTest
+    VoteWeigherBaseStorage
+    // ,DSTest
 {
     // number of quorums that are being used by the middleware
     uint8 public override immutable NUMBER_OF_QUORUMS;

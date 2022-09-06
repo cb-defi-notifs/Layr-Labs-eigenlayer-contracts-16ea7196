@@ -3,7 +3,7 @@ pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 
@@ -33,7 +33,7 @@ contract BLSRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
+    uint256[4] public apk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
 
     
     // EVENTS
@@ -375,8 +375,8 @@ contract BLSRegistry is
          @notice subtract pubkeyToRemoveJac from the aggregate pubkey
          */
         // negate pubkeyToRemoveJac  
-        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
-        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
+        pubkeyToRemoveJac[2] = (BLS.MODULUS - pubkeyToRemoveJac[2]) % BLS.MODULUS;
+        pubkeyToRemoveJac[3] = (BLS.MODULUS - pubkeyToRemoveJac[3]) % BLS.MODULUS;
         // add the negation to existingAggPubkeyJac
         BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
 

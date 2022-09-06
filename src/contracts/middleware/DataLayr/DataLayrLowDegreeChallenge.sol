@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -11,12 +12,12 @@ import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 import "./DataLayrChallengeBase.sol";
 
-import "../../libraries/BN254_Constants.sol";
 import "../../libraries/Merkle.sol";
-
-
+import "../../libraries/BLS.sol";
 
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
+    using SafeERC20 for IERC20;
+    
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
         uint256 commitTime;
@@ -73,9 +74,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
-        require(Merkle.checkMembership(hashOfPOTElement, potIndex, powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
+        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
 
-        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [nG2x1, nG2x0], Y: [nG2y1, nG2y0]});
+        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
         require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
     }
 
@@ -164,7 +165,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         // // send challenger collateral to msg.sender
         // IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        // collateralToken.transfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
+        // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
     }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
@@ -206,6 +207,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     function _returnChallengerCollateral(bytes32 headerHash) internal override {
         IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        collateralToken.transfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
+        collateralToken.safeTransfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
     }
 }
