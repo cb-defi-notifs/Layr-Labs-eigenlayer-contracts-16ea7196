@@ -478,7 +478,7 @@ contract Governor_Experimental is RepositoryAccess {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(
-            receipt.hasVoted == false,
+            !receipt.hasVoted,
             "RepositoryGovernance::_castVote: voter already voted"
         );
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
