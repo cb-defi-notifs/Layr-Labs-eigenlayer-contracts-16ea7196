@@ -11,10 +11,8 @@ import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 import "./DataLayrChallengeBase.sol";
 
-import "../../libraries/BN254_Constants.sol";
 import "../../libraries/Merkle.sol";
-
-
+import "../../libraries/BLS.sol";
 
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     struct LowDegreeChallenge {
@@ -73,9 +71,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
-        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BN254_Constants.powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
+        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
 
-        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BN254_Constants.nG2x1, BN254_Constants.nG2x0], Y: [BN254_Constants.nG2y1, BN254_Constants.nG2y0]});
+        BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
         require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
     }
 

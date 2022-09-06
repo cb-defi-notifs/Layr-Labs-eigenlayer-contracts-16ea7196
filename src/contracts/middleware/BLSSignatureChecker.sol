@@ -392,8 +392,8 @@ abstract contract BLSSignatureChecker is
                      operators that are part of the quorum   
              */
             // negate aggNonSignerPubkey
-            aggNonSignerPubkey[2] = (BN254_Constants.MODULUS - aggNonSignerPubkey[2]) % BN254_Constants.MODULUS;
-            aggNonSignerPubkey[3] = (BN254_Constants.MODULUS - aggNonSignerPubkey[3]) % BN254_Constants.MODULUS;
+            aggNonSignerPubkey[2] = (BLS.MODULUS - aggNonSignerPubkey[2]) % BLS.MODULUS;
+            aggNonSignerPubkey[3] = (BLS.MODULUS - aggNonSignerPubkey[3]) % BLS.MODULUS;
 
             // do the addition in Jacobian coordinates
             BLS.addJac(pk, aggNonSignerPubkey);
@@ -420,10 +420,10 @@ abstract contract BLSSignatureChecker is
         (input[0], input[1]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
-        input[8] = BN254_Constants.nG2x1;
-        input[9] = BN254_Constants.nG2x0;
-        input[10] = BN254_Constants.nG2y1;
-        input[11] = BN254_Constants.nG2y0;
+        input[8] = BLS.nG2x1;
+        input[9] = BLS.nG2x0;
+        input[10] = BLS.nG2y1;
+        input[11] = BLS.nG2y0;
 
         assembly {
             // next in calldata are the signatures
