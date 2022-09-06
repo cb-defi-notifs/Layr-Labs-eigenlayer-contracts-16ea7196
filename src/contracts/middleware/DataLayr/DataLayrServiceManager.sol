@@ -32,18 +32,6 @@ contract DataLayrServiceManager is
 
 
     /**********************
-        CONSTANTS
-     **********************/
-    //TODO: mechanism to change any of these values?
-    uint32 internal constant MIN_STORE_SIZE = 32;
-    uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint32 internal constant MIN_STORE_LENGTH = 60;
-    uint32 internal constant MAX_STORE_LENGTH = 604800;
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
-
-
-    /**********************
         ERROR MESSAGES
      **********************/
     // only repositoryGovernance can call this, but 'sender' called instead
