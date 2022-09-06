@@ -30,6 +30,7 @@ abstract contract ECDSASignatureChecker is
     }
 
     uint256 internal constant START_OF_STAKES_BYTE_LOCATION = 438;
+    uint256 internal constant TWENTY_BYTE_MASK = 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     /** 
      @dev This calldata is of the format:
@@ -208,7 +209,7 @@ abstract contract ECDSASignatureChecker is
                             //signatory location in sigWInfo
                             mload(add(sigWInfo, 64)),
                             //20 byte mask
-                            0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            TWENTY_BYTE_MASK
                         ),
                         //pulls address from stakes object
                         shr(
