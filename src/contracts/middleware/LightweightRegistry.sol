@@ -255,7 +255,7 @@ contract LightweightRegistry is
      @notice returns task number from when operator has been registered.
      */
     function getFromBlockNumberForOperator(address operator)
-        public
+        external
         view
         returns (uint32)
     {

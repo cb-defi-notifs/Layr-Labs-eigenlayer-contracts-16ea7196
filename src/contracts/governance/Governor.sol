@@ -319,7 +319,7 @@ contract Governor_Experimental is RepositoryAccess {
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
-    function execute(uint256 proposalId) public payable {
+    function execute(uint256 proposalId) external payable {
         require(
             state(proposalId) == ProposalState.Queued,
             "RepositoryGovernance::execute: proposal can only be executed if it is queued"

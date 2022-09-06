@@ -340,7 +340,7 @@ contract DataLayrServiceManager is
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
-        public
+        external
         onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;

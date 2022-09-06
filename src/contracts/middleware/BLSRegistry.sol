@@ -79,7 +79,7 @@ contract BLSRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket
-    ) public virtual {        
+    ) external virtual {        
         _registerOperator(msg.sender, registrantType, data, socket);
     }
     

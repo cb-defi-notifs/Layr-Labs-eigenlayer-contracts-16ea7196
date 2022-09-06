@@ -79,7 +79,7 @@ contract BLSRegistryWithBomb is
         uint8,
         bytes calldata,
         string calldata
-    ) public override pure {        
+    ) external override pure {        
         revert("must register with ephemeral key");
     }
 

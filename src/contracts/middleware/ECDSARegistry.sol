@@ -73,7 +73,7 @@ contract ECDSARegistry is
         address signingAddress,
         bytes calldata stakes,
         string calldata socket
-    ) public virtual {        
+    ) external virtual {        
         _registerOperator(msg.sender, signingAddress, registrantType, stakes, socket);
     }
     
