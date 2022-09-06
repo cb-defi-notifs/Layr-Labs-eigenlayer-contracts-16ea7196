@@ -238,7 +238,7 @@ contract ECDSARegistry is
             "Supplied stakes are incorrect"
         );
 
-        IServiceManager serviceManager = IServiceManager(repository.serviceManager());
+        IServiceManager serviceManager = repository.serviceManager();
 
         // must store till the latest time a dump expires
         /**

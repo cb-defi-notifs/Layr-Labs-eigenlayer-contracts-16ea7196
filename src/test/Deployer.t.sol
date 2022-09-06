@@ -895,7 +895,7 @@ contract EigenLayrDeployer is
             "dlRepository failed to deploy"
         );
         assertTrue(
-            IServiceManager(dlRepository.serviceManager()) == dlsm,
+            dlRepository.serviceManager() == dlsm,
             "ServiceManager set incorrectly"
         );
         assertTrue(

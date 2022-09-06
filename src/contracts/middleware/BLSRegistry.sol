@@ -251,7 +251,7 @@ contract BLSRegistry is
             "Incorrect index supplied"
         );
 
-        IServiceManager serviceManager = IServiceManager(repository.serviceManager());
+        IServiceManager serviceManager = repository.serviceManager();
 
         // must store till the latest time a dump expires
         /**

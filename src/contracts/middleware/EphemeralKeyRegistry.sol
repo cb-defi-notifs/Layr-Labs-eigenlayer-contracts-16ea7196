@@ -3,7 +3,6 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../interfaces/IServiceManager.sol";
 import "../permissions/RepositoryAccess.sol";
 
 /**
@@ -61,7 +60,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
                 keyHash: EKHash,
                 ephemeralKey: bytes32(0),
                 timestamp: uint192(block.timestamp),
-                startTaskNumber: IServiceManager(repository.serviceManager()).taskNumber(),
+                startTaskNumber: repository.serviceManager().taskNumber(),
                 endTaskNumber: 0
             })
         );
@@ -84,7 +83,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         // check that the preimage matches with the hash
         require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "Ephemeral key does not match previous ephemeral key commitment");
 
-        uint32 currentTaskNumber = IServiceManager(repository.serviceManager()).taskNumber();
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         // update the EK entry
         existingEKEntry.ephemeralKey = prevEK;
@@ -115,7 +114,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         require(block.timestamp >= existingEKEntry.timestamp + UPDATE_PERIOD, "key update cannot be completed too early");
         require(block.timestamp <= existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD, "key update cannot be completed as update window has expired");
 
-        uint32 currentTaskNumber = IServiceManager(repository.serviceManager()).taskNumber();
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
         // updating the previous EK entry
         existingEKEntry.ephemeralKey = prevEK;
@@ -205,7 +204,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         require(registry.getOperatorStatus(operator) == 1, "operator not active");
 
         if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
-            IServiceManager serviceManager = IServiceManager(repository.serviceManager());
+            IServiceManager serviceManager = repository.serviceManager();
             //trigger slashing for operator who hasn't updated their EK
             serviceManager.freezeOperator(operator);
         }
@@ -223,7 +222,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
         if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD){
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
-                IServiceManager serviceManager = IServiceManager(repository.serviceManager());
+                IServiceManager serviceManager = repository.serviceManager();
                 //trigger slashing function for that datalayr node address
                 serviceManager.freezeOperator(operator);
             }

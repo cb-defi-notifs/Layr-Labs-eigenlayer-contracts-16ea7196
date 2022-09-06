@@ -1,5 +1,5 @@
 {
-    "filter_paths": "(lib/|test/|mocks/|middleware/|interfaces/|experimental/|core/|governance/|investment/permissions/|utils/libraries/)",
+    "filter_paths": "(lib/|test/|mocks/)",
     "solc_remaps": [
         "forge-std/=lib/forge-std/src/",
         "@openzeppelin/=lib/openzeppelin-contracts/",
