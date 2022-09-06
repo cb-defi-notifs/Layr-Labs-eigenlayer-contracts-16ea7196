@@ -183,6 +183,8 @@ contract PaymentsTests is TestHelper {
         cheats.stopPrank();
     }
 
+    ///@notice Operator submits claim or commit for a payment amount
+    ///@param operator is the operator address
     function _testRedeemPayment(address operator) internal {
         cheats.startPrank(operator);
         dataLayrPaymentManager.redeemPayment();
@@ -190,6 +192,7 @@ contract PaymentsTests is TestHelper {
     }
 
     
+    ///@notice simulating init and commit for a datastore
     function  _testInitandCommitDataStore() internal {
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
@@ -233,7 +236,10 @@ contract PaymentsTests is TestHelper {
     }
 
 
-        //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
+    ///@notice initiates the payment challenge from the challenger, with split that the challenger thinks is correct
+    ///@param operator is the operator address
+    ///@param amount1 is the first half of the amount split
+    ///@param amount2 is the second half of the amount split
     function _testInitPaymentChallenge(
         address operator,
         uint120 amount1,
@@ -249,7 +255,7 @@ contract PaymentsTests is TestHelper {
         cheats.stopPrank();
     }
 
-
+    ///@notice increment the datastoreID by init-ing another datastore
     function _incrementDataStoreID() internal {
 
         bytes memory header = hex"0102030405060708091011121314151617181921";
