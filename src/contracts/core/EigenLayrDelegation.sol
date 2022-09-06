@@ -182,6 +182,10 @@ contract EigenLayrDelegation is
      *          waiting through the `undelegationFraudProofInterval`.
      */
     function finalizeUndelegation() external {
+        _finalizeUndelegation();
+    }
+
+    function _finalizeUndelegation() internal {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
             "EigenLayrDelegation.finalizeUndelegation: Staker is not commited to undelegation"
@@ -194,6 +198,11 @@ contract EigenLayrDelegation is
 
          // set that the staker has undelegated
         delegated[msg.sender] = DelegationStatus.UNDELEGATED;
+    }
+
+    function finalizeUndelegationAndDelegateTo(address operator) external {
+        _finalizeUndelegation();
+        _delegate(msg.sender, operator);
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
