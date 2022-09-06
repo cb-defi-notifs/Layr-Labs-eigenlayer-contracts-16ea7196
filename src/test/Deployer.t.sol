@@ -26,6 +26,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../contracts/libraries/BLS.sol";
+import "../contracts/libraries/BN254_Constants.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
@@ -352,7 +353,6 @@ contract EigenLayrDeployer is
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
-
     
 
     function calculateFee(
