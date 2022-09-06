@@ -26,6 +26,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../contracts/libraries/BLS.sol";
+import "../contracts/libraries/BN254_Constants.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
@@ -654,7 +655,6 @@ contract EigenLayrDeployer is
             >
      */
         
-
         bytes memory data = abi.encodePacked(
             keccak256(
                 abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
@@ -714,7 +714,7 @@ contract EigenLayrDeployer is
         
         cheats.startPrank(sender);
         delegation.registerAsDelegate(dt);
-        assertTrue(delegation.isDelegate(sender), "testRegisterAsDelegate: sender is not a delegate");
+        assertTrue(delegation.isOperator(sender), "testRegisterAsDelegate: sender is not a delegate");
 
         assertTrue(
             delegation.delegationTerms(sender) == dt,

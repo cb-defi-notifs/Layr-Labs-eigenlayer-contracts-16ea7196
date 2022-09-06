@@ -284,7 +284,7 @@ contract DataLayrServiceManager is
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
-
+        
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
         (
@@ -295,10 +295,8 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-
         //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
         //this keeps bomb and storage conditions stagnant
-
         require(msgHash == keccak256(abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index)), 
                 "DataLayrServiceManager.confirmDataStore: msgHash is not consistent with search data");
 

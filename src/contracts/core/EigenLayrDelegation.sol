@@ -224,11 +224,11 @@ contract EigenLayrDelegation is
             "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
-    // scoped block to help solve stack too deep
-    {
-        // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
-        slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
-    }
+        // scoped block to help solve stack too deep
+        {
+            // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
+            slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
+        }
 
         // perform the slashing itself
         slasher.freezeOperator(staker); 
@@ -407,7 +407,7 @@ contract EigenLayrDelegation is
     }
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
-    function isDelegate(address operator)
+    function isOperator(address operator)
         public
         view
         returns(bool)
