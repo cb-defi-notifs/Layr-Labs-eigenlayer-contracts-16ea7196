@@ -19,11 +19,10 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
-    /**
-     * @notice Verifies that it is possible to withdraw WETH after depositing it
-     * @param amountToDeposit The amount of WETH to try depositing
-     * @param amountToWithdraw The amount of shares to try withdrawing
-     */
+    
+    ///@notice This test verifies that it is possible to withdraw WETH after depositing it
+    ///@param amountToDeposit The amount of WETH to try depositing
+    ///@param amountToWithdraw The amount of shares to try withdrawing
     function testWethWithdrawal(
         uint96 amountToDeposit,
         uint96 amountToWithdraw
@@ -37,7 +36,11 @@ contract InvestmentTests is
         _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, wethStrat);
     }
 
-    // verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
+    /**
+    * @notice This test verifies that a strategy gets removed from the dynamic array 
+    *          'investorStrats' when the user no longer has any shares in the strategy
+    * @param amountToDeposit The amount of WETH to try depositing
+    */
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
         cheats.assume(amountToDeposit > 0);
 
@@ -63,6 +66,10 @@ contract InvestmentTests is
      *          and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
      * @notice In the event that the call to `completeQueuedWithdrawal` correctly reverted above, this function then fast-forwards to just past the `unlockTime`
      *          for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
+     * @param staker is the address of the staker
+     * @param registerAsDelegate indicates wheter or not staker registers as a delegate themselves
+     * @param amountToDeposit is the amount to deposit, before we can withdraw
+     * @param amountToWithdraw is the amount to be withdrawn
      */
     function testQueuedWithdrawal(
         address staker,
@@ -122,6 +129,12 @@ contract InvestmentTests is
     }
 
     //testing queued withdrawals in the investment manager
+
+    /**
+     * Testing queued withdrawals in the investment manager
+     * @notice This test mimics the testQueuedWithdrawal test above in additon to
+     *         slashing and fraudproof mechanisms.
+     */
     function testFraudproofQueuedWithdrawal(
         // uint256 amountToDeposit
         // ,uint256 amountToWithdraw 
