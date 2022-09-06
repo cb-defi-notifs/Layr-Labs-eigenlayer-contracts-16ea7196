@@ -7,7 +7,7 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./BLSRegistry.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 

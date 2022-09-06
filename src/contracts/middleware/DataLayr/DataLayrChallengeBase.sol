@@ -3,10 +3,12 @@ pragma solidity ^0.8.9;
 
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreUtils.sol";
 
 abstract contract DataLayrChallengeBase {
+    using SafeERC20 for IERC20;
 
     // commitTime is marked as equal to 'CHALLENGE_UNSUCCESSFUL' in the event that a challenge provably fails
     uint256 public constant CHALLENGE_UNSUCCESSFUL = 1;
@@ -107,15 +109,7 @@ abstract contract DataLayrChallengeBase {
         _recordChallengeDetails(header, headerHash);
 
         // transfer 'COLLATERAL_AMOUNT' of IERC20 'collateralToken' to this contract from msg.sender, as collateral for the challenger
-        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        require(
-            collateralToken.transferFrom(
-                msg.sender,
-                address(this),
-                COLLATERAL_AMOUNT
-            ),
-            "collateral must be transferred when initiating challenge"
-        );
+        dataLayrServiceManager.collateralToken().safeTransferFrom(msg.sender, address(this), COLLATERAL_AMOUNT);
 
         _challengeCreationEvent(headerHash);
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 contract DataLayrDisclosureChallenge is DSTest {
     DisclosureChallenge public challenge;

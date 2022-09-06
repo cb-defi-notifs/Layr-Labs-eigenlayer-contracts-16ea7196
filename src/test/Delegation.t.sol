@@ -16,7 +16,7 @@ import "../contracts/middleware/ServiceManagerBase.sol";
 
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 
-contract Delegator is TestHelper {
+contract DelegationTests is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
