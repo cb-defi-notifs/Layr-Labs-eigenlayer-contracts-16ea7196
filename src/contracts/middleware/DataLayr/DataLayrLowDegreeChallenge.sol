@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -15,6 +16,7 @@ import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
 
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
+    using SafeERC20 for IERC20;
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
         uint256 commitTime;
@@ -162,7 +164,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         // // send challenger collateral to msg.sender
         // IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        // collateralToken.transfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
+        // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
     }
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
@@ -204,6 +206,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     function _returnChallengerCollateral(bytes32 headerHash) internal override {
         IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        collateralToken.transfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
+        collateralToken.safeTransfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
     }
 }
