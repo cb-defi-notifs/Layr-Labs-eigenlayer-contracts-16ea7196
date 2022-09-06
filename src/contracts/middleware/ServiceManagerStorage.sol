@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "../interfaces/IRepository.sol";
-// import "../interfaces/IServiceManager.sol";
-// import "../interfaces/IRegistry.sol";
-// import "../interfaces/IEigenLayrDelegation.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/IRepository.sol";
+import "../interfaces/IServiceManager.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
 
-// abstract contract ServiceManagerStorage is IServiceManager {
+abstract contract ServiceManagerStorage is IServiceManager {
     
 //     // DATA STRUCTURE
 
@@ -89,4 +89,4 @@ pragma solidity ^0.8.9;
 //         paymentToken = _paymentToken;
 //         collateralToken = _collateralToken;
 //     }
-// }
+}

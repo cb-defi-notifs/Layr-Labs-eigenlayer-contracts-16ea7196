@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-// import "./ServiceManagerStorage.sol";
-// import "../interfaces/IVoteWeigher.sol";
-// import "../interfaces/ISlasher.sol";
-// import "../interfaces/IInvestmentManager.sol";
-// import "../interfaces/IEigenLayrDelegation.sol";
-// import "../permissions/RepositoryAccess.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "./ServiceManagerStorage.sol";
+import "../interfaces/IVoteWeigher.sol";
+import "../interfaces/ISlasher.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../permissions/RepositoryAccess.sol";
 
-// abstract contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
+abstract contract ServiceManagerBase is ServiceManagerStorage, Initializable, RepositoryAccess {
 //     /**
 //      * @notice This struct is used for containing the details of a task that is created 
 //      *         by the middleware for validation in EigenLayr.
@@ -289,4 +289,4 @@ pragma solidity ^0.8.9;
 //     function stakeWithdrawalVerification(bytes calldata, uint256, uint256) external virtual;
 
 //     function latestTime() external view virtual returns(uint32);
-// }
+}
