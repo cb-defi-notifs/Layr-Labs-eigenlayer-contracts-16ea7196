@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
-import "./Deployer.t.sol";
+import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
 
 contract InvestmentTests is
-    EigenLayrDeployer
+    TestHelper
 {
     /**
      * @notice Verifies that it is possible to deposit WETH
@@ -85,8 +85,8 @@ contract InvestmentTests is
             tokensArray[0] = weth;
             strategyIndexes[0] = 0;
         }
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = 
-            InvestmentManagerStorage.WithdrawerAndNonce({
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
                 withdrawer: staker,
                 nonce: 0
             }
@@ -134,8 +134,8 @@ contract InvestmentTests is
         // harcoded inputs
         address staker = acct_0;
         bool registerAsDelegate = true;
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce = 
-            InvestmentManagerStorage.WithdrawerAndNonce({
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
                 withdrawer: staker,
                 nonce: 0
             }
@@ -252,7 +252,7 @@ contract InvestmentTests is
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
-        InvestmentManagerStorage.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
         internal
     {

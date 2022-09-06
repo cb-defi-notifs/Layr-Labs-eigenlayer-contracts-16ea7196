@@ -56,6 +56,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     /// @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
     /// @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
     /// @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+    /// We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
 
     //TODO: we need to hardcode a merkle root hash in storage
     function lowDegreenessProof(
@@ -64,10 +65,13 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1
     ) external view {
+
+        //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
         //the index of the merkle tree containing the potElement
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
+        //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
         require(Merkle.checkMembership(hashOfPOTElement, potIndex, powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
 

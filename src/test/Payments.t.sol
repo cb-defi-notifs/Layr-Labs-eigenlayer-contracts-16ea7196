@@ -6,11 +6,10 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
 
-import "../test/Delegation.t.sol";
+import "../test/TestHelper.t.sol";
 
 
-
-contract Payments is Delegator {
+contract Payments is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
@@ -49,6 +48,7 @@ contract Payments is Delegator {
 
     }
 
+
     ///@notice this function tests paying fees without delegation of payment rights to a third party
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
@@ -68,6 +68,32 @@ contract Payments is Delegator {
         uint256 operatorFeeBalanceAfter = dataLayrPaymentManager.depositsOf(user);
         assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
     }
+
+    //tests setting payment collateral from the valid address
+    function testSetPaymentCollateral(
+        uint256 fraudProofCollateral
+    ) public {
+        address repositoryOwner = dlRepository.owner();
+        cheats.startPrank(repositoryOwner);
+        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral, 
+                    "testSetPaymentCollateral: paymentFraudProofCollateral is not set correctly");
+        cheats.stopPrank();
+    }
+
+
+    // tests setting payment collateral from an invalid address
+    function testUnauthorizedSetPaymentCollateral(
+        uint256 fraudProofCollateral,
+        address unauthorizedRepositorOwner
+    ) fuzzedAddress(unauthorizedRepositorOwner) public {
+        cheats.startPrank(unauthorizedRepositorOwner);
+        cheats.expectRevert(bytes("onlyRepositoryGovernance"));
+        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        cheats.stopPrank();
+    }
+
+
 
     function testRewardPayouts(
             uint256 ethAmount, 
@@ -109,9 +135,15 @@ contract Payments is Delegator {
             )
         );
 
+        //hardcoding values
         address operator = signers[0];
+        uint32 numberOfSigners = 15;
+        uint120 amountRewards = 10;
+
+
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
-        _testCommitPayment(operator, 10);        
+        _testRegisterSigners(numberOfSigners, false);
+        _testCommitPayment(operator, amountRewards);        
     }
 
 
@@ -128,9 +160,6 @@ contract Payments is Delegator {
     function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
-        uint32 numberOfSigners = 15;
-        _testRegisterSigners(numberOfSigners, false);
-
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
         {
@@ -184,7 +213,6 @@ contract Payments is Delegator {
         cheats.stopPrank();
         //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
-
 
 
         //initiates the payment challenge from the challenger, with split that the challenger thinks is correct

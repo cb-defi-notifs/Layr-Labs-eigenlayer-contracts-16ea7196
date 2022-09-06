@@ -1,35 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 /**
  * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
- * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
- * more complex investment strategies, which can then override its functions as necessary.
+ * Assumes shares are always 1-to-1 with the underlyingToken.
 */
-contract InvestmentStrategyBase is
-    Initializable,
+contract InvestmentStrategyWrapper is
     IInvestmentStrategy
 {
     IInvestmentManager public immutable investmentManager;
-    IERC20 public underlyingToken;
+    IERC20 public immutable underlyingToken;
     uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
-        require(msg.sender == address(investmentManager), "InvestmentStrategyBase.onlyInvestmentManager");
+        require(msg.sender == address(investmentManager), "InvestmentStrategyWrapper.onlyInvestmentManager");
         _;
     }
 
-    constructor(IInvestmentManager _investmentManager) {
+    constructor(IInvestmentManager _investmentManager, IERC20 _underlyingToken) {
         investmentManager = _investmentManager;
-        // TODO: uncomment for production use!
-        //_disableInitializers();
-    }
-
-    function initialize(IERC20 _underlyingToken) public initializer {
         underlyingToken = _underlyingToken;
     }
 
@@ -47,23 +39,11 @@ contract InvestmentStrategyBase is
     )
         external virtual override
         onlyInvestmentManager
-        returns (uint256 newShares)
+        returns (uint256)
     {
-        require(token == underlyingToken, "InvestmentStrategyBase.deposit: Can only deposit underlyingToken");
-
-        /**
-         * @notice calculation of newShares *mirrors* `underlyingToShares(amount)`, but is different since the balance of `underlyingToken`
-         *          has already been increased due to the `investmentManager` transferring tokens to this strategy prior to calling this function
-        */
-        uint256 priorTokenBalance = _tokenBalance() - amount;
-        if (priorTokenBalance == 0 || totalShares == 0) {
-            newShares = amount;
-        } else {
-            newShares = (amount * totalShares) / priorTokenBalance;            
-        }
-
-        totalShares += newShares;
-        return newShares;
+        require(token == underlyingToken, "InvestmentStrategyWrapper.deposit: Can only deposit underlyingToken");
+        totalShares += amount;
+        return amount;
     }
 
     /**
@@ -78,26 +58,14 @@ contract InvestmentStrategyBase is
         IERC20 token,
         uint256 shareAmount
     )
-        external virtual override 
+        external virtual override
         onlyInvestmentManager
     {
-        require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
-        require(shareAmount <= totalShares, "InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares");
-        // copy `totalShares` value prior to decrease
-        uint256 priorTotalShares = totalShares;
+        require(token == underlyingToken, "InvestmentStrategyWrapper.withdraw: Can only withdraw the strategy token");
+        require(shareAmount <= totalShares, "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares");
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
         unchecked{totalShares -= shareAmount;}
-        /**
-         * @notice calculation of amountToSend *mirrors* `sharesToUnderlying(shareAmount)`, but is different since the `totalShares` has already
-         *          been decremented
-        */
-        uint256 amountToSend;
-        if (priorTotalShares == shareAmount) {
-            amountToSend = _tokenBalance();
-        } else {
-            amountToSend = (_tokenBalance() * shareAmount) / priorTotalShares;            
-        }
-        underlyingToken.transfer(depositor, amountToSend);
+        underlyingToken.transfer(depositor, shareAmount);
     }
 
     /** 
@@ -105,7 +73,7 @@ contract InvestmentStrategyBase is
      *          strategies, may be a link to metadata that explains in more detail.
      */
     function explanation() external pure virtual override returns (string memory) {
-        return "Base InvestmentStrategy implementation to inherit from for more complex implementations";
+        return "Wrapper InvestmentStrategy to simply store tokens. Assumes fixed 1-to-1 share-underlying exchange.";
     }
 
     /**
@@ -119,11 +87,7 @@ contract InvestmentStrategyBase is
         view virtual override
         returns (uint256)
     {
-        if (totalShares == 0) {
-            return amountShares;
-        } else {
-            return (_tokenBalance() * amountShares) / totalShares;            
-        }
+        return amountShares;
     }
 
     /**
@@ -137,7 +101,7 @@ contract InvestmentStrategyBase is
         view virtual override
         returns (uint256)
     {
-        return sharesToUnderlyingView(amountShares);
+        return amountShares;
     }
 
     /**
@@ -151,12 +115,7 @@ contract InvestmentStrategyBase is
         view virtual
         returns (uint256)
     {
-        uint256 tokenBalance = _tokenBalance();
-        if (tokenBalance == 0 || totalShares == 0) {
-            return amountUnderlying;
-        } else {
-            return (amountUnderlying * totalShares) / tokenBalance;            
-        }
+        return amountUnderlying;        
     }
 
     /**
@@ -170,7 +129,7 @@ contract InvestmentStrategyBase is
         view virtual
         returns (uint256)
     {
-        return underlyingToSharesView(amountUnderlying);
+        return amountUnderlying;        
     }
 
     /**
@@ -199,10 +158,5 @@ contract InvestmentStrategyBase is
                 user,
                 IInvestmentStrategy(address(this))
             );
-    }
-
-    // internal function used to fetch this contract's current balance of `underlyingToken`
-    function _tokenBalance() internal view virtual returns(uint256) {
-        return underlyingToken.balanceOf(address(this));
     }
 }

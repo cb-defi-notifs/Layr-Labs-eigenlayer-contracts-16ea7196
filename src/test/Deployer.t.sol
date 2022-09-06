@@ -10,7 +10,6 @@ import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
-import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
@@ -29,6 +28,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
+
 
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
@@ -54,52 +54,73 @@ contract EigenLayrDeployer is
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
-
     IERC20 public weth;
+    WETH public liquidStakingMockToken;
+
+
     InvestmentStrategyBase public wethStrat;
     IRepository public dlRepository;
-
     ProxyAdmin public eigenLayrProxyAdmin;
-
     DataLayrPaymentManager public dataLayrPaymentManager;
-
-    WETH public liquidStakingMockToken;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
 
-    uint256 nonce = 69;
-
-    bytes[] registrationData;
-
+   
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
-    // number of strategies deployed
-    uint256 public numberOfStrats;
-
-    //strategy indexes for undelegation (see commitUndelegation function)
-    uint256[] public strategyIndexes;
-
-    uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudProofInterval = 7 days;
-    address storer = address(420);
-    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
+    mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     //from testing seed phrase
     bytes32 priv_key_0 =
         0x1234567812345678123456781234567812345678123456781234567812345678;
-    address acct_0 = cheats.addr(uint256(priv_key_0));
-
     bytes32 priv_key_1 =
         0x1234567812345678123456781234567812345698123456781234567812348976;
-    address acct_1 = cheats.addr(uint256(priv_key_1));
-
     bytes32 public ephemeralKey =
         0x3290567812345678123456781234577812345698123456781234567812344389;
+    
+    // number of strategies deployed
+    uint256 public numberOfStrats;
+    //strategy indexes for undelegation (see commitUndelegation function)
+    uint256[] public strategyIndexes;
+    bytes[] registrationData;
+    address[2] public delegates;
+    uint256[] apks;
+    uint256[] sigmas;
 
+    uint256 wethInitialSupply = 10e50;
+    uint256 undelegationFraudProofInterval = 7 days;
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
-
+    uint256 nonce = 69;
     uint8 durationToInit = 2;
+    
+    address storer = address(420);
+    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
+    address acct_0 = cheats.addr(uint256(priv_key_0));
+    address acct_1 = cheats.addr(uint256(priv_key_1));
+    address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
+    
+
+    
+    
+    
+
+    struct nonSignerInfo {
+        uint256 xA0;
+        uint256 xA1;
+        uint256 yA0;
+        uint256 yA1;
+    }
+
+    struct signerInfo {
+        uint256 apk0;
+        uint256 apk1;
+        uint256 apk2;
+        uint256 apk3;
+        uint256 sigma0;
+        uint256 sigma1;
+    }
+
 
     modifier cannotReinit(){
         cheats.expectRevert(
@@ -112,6 +133,7 @@ contract EigenLayrDeployer is
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != dlRepository.owner());
         _;
     }
 
@@ -180,23 +202,14 @@ contract EigenLayrDeployer is
             )
         );
 
-        // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
-        HollowInvestmentStrategy temp = new HollowInvestmentStrategy(investmentManager);
-        strats[0] = temp;
-        strategies[0] = temp;
-        temp = new HollowInvestmentStrategy(investmentManager);
-        strats[1] = temp;
-        strategies[1] = temp;
-        // add WETH strategy to mapping
-        strategies[2] = IInvestmentStrategy(address(wethStrat));
-
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, governor);
 
+        delegates = [acct_0, acct_1];
+        
         investmentManager.initialize(
             slasher,
             governor
@@ -293,17 +306,11 @@ contract EigenLayrDeployer is
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                3
-            );
-        for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
-            ethStratsAndMultipliers[i].strategy = strategies[i];
-            ethStratsAndMultipliers[i].multiplier = multiplier;
-        }
+            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        ethStratsAndMultipliers[0].strategy = wethStrat;
+        ethStratsAndMultipliers[0].multiplier = multiplier;
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                1
-            );
+            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
@@ -737,9 +744,9 @@ contract EigenLayrDeployer is
             numStrats > 0,
             "_testDelegateToOperator: delegating from address with no investments"
         );
-        uint256[] memory initialOperatorShares = new uint256[](numStrats);
+        uint256[] memory inititalSharesInStrats = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            initialOperatorShares[i] = delegation.operatorShares(
+            inititalSharesInStrats[i] = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]
             );
@@ -760,7 +767,7 @@ contract EigenLayrDeployer is
         );
 
         for (uint256 i = 0; i < numStrats; ++i) {
-            uint256 operatorSharesBefore = initialOperatorShares[i];
+            uint256 operatorSharesBefore = inititalSharesInStrats[i];
             uint256 operatorSharesAfter = delegation.operatorShares(
                 operator,
                 delegateStrategies[i]

@@ -3,12 +3,12 @@ pragma solidity ^0.8.9.0;
 
 
 import "forge-std/Test.sol";
-import "../test/Deployer.t.sol";
+import "../test/TestHelper.t.sol";
 
 
 
 
-contract RepositoryTests is EigenLayrDeployer{
+contract RepositoryTests is TestHelper{
 
         function testCannotInitMultipleTimesRepository() public {
             //repository has already been initialized in the Deployer test contract
