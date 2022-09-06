@@ -107,9 +107,9 @@ abstract contract PaymentManager is
     {
         paymentToken = _paymentToken;
         setPaymentFraudProofCollateral(_paymentFraudProofCollateral);
-        IServiceManager _serviceManager = _repository.serviceManager();
-        collateralToken = _serviceManager.collateralToken();
-        eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
+        IServiceManager serviceManager_ = _repository.serviceManager();
+        collateralToken = serviceManager_.collateralToken();
+        eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
     }
 
     /**

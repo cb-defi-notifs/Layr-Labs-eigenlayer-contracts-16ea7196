@@ -193,9 +193,9 @@ abstract contract BLSSignatureChecker is
          *      However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
          * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
          */
+        uint32 stakeIndex;
         if (placeholder != 0) {
-            uint32 stakeIndex;
-
+            //load compressed pubkey and the index in the stakes array into memory
             assembly {
                 /** 
                  @notice retrieving the pubkey of the node in Jacobian coordinates
@@ -274,8 +274,6 @@ abstract contract BLSSignatureChecker is
 
         for (uint256 i = 1; i < placeholder; ) {
             //load compressed pubkey and the index in the stakes array into memory
-            uint32 stakeIndex;
-
             assembly {
                 /// @notice retrieving the pubkey of the operator that is not part of the quorum
                 mstore(pk, calldataload(pointer))
