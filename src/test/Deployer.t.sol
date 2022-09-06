@@ -10,7 +10,6 @@ import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
-import "../contracts/investment/HollowInvestmentStrategy.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
@@ -133,6 +132,7 @@ contract EigenLayrDeployer is
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != dlRepository.owner());
         _;
     }
 
@@ -207,17 +207,6 @@ contract EigenLayrDeployer is
        
         // initialize InvestmentStrategyBase proxy
         eigenStrat.initialize(eigenToken);
-
-        // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
-        HollowInvestmentStrategy temp = new HollowInvestmentStrategy(investmentManager);
-        strats[0] = temp;
-        strategies[0] = temp;
-        temp = new HollowInvestmentStrategy(investmentManager);
-        strats[1] = temp;
-        strategies[1] = temp;
-        // add WETH strategy to mapping
-        strategies[2] = IInvestmentStrategy(address(wethStrat));
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
@@ -323,17 +312,11 @@ contract EigenLayrDeployer is
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                3
-            );
-        for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
-            ethStratsAndMultipliers[i].strategy = strategies[i];
-            ethStratsAndMultipliers[i].multiplier = multiplier;
-        }
+            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        ethStratsAndMultipliers[0].strategy = wethStrat;
+        ethStratsAndMultipliers[0].multiplier = multiplier;
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                1
-            );
+            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;

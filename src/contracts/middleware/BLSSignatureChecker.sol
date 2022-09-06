@@ -54,6 +54,41 @@ abstract contract BLSSignatureChecker is
 
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
+    // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
+    uint256 internal constant BYTE_LENGTH_totalStakeIndex = 6;
+    uint256 internal constant BYTE_LENGTH_stakesBlockNumber = 4;
+    uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
+    uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
+    // specifying a G2 public key requires 4 32-byte slots worth of data
+    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 128;
+    uint256 internal constant BYTE_LENGTH_stakeIndex = 4;
+    // uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = BYTE_LENGTH_PUBLIC_KEY + BYTE_LENGTH_stakeIndex;
+    uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = 132;
+    uint256 internal constant BYTE_LENGTH_apkIndex = 4;
+
+    // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
+    uint256 internal constant BIT_SHIFT_totalStakeIndex = 208;
+    // uint256 internal constant BIT_SHIFT_stakesBlockNumber = 256 - (BYTE_LENGTH_stakesBlockNumber * 8);
+    uint256 internal constant BIT_SHIFT_stakesBlockNumber = 224;
+    // uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 256 - (BYTE_LENGTH_taskNumberToConfirm * 8);
+    uint256 internal constant BIT_SHIFT_taskNumberToConfirm = 224;
+    // uint256 internal constant BIT_SHIFT_numberNonSigners = 256 - (BYTE_LENGTH_numberNonSigners * 8);
+    uint256 internal constant BIT_SHIFT_numberNonSigners = 224;
+    // uint256 internal constant BIT_SHIFT_stakeIndex = 256 - (BYTE_LENGTH_stakeIndex * 8);
+    uint256 internal constant BIT_SHIFT_stakeIndex = 224;
+    // uint256 internal constant BIT_SHIFT_apkIndex = 256 - (BYTE_LENGTH_apkIndex * 8);
+    uint256 internal constant BIT_SHIFT_apkIndex = 224;
+
+    uint256 internal constant CALLDATA_OFFSET_totalStakeIndex = 32;
+    // uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = CALLDATA_OFFSET_totalStakeIndex + BYTE_LENGTH_totalStakeIndex;
+    uint256 internal constant CALLDATA_OFFSET_stakesBlockNumber = 38;
+    // uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = CALLDATA_OFFSET_stakesBlockNumber + BYTE_LENGTH_stakesBlockNumber;
+    uint256 internal constant CALLDATA_OFFSET_taskNumberToConfirm = 42;
+    // uint256 internal constant CALLDATA_OFFSET_numberNonSigners = CALLDATA_OFFSET_taskNumberToConfirm + BYTE_LENGTH_taskNumberToConfirm;
+    uint256 internal constant CALLDATA_OFFSET_numberNonSigners = 46;
+    // uint256 internal constant CALLDATA_OFFSET_NonsignerPubkeys = CALLDATA_OFFSET_numberNonSigners + BYTE_LENGTH_numberNonSigners;
+    uint256 internal constant CALLDATA_OFFSET_NonsignerPubkeys = 50;
+
     /**
      @notice This function is called by disperser when it has aggregated all the signatures of the operators
              that are part of the quorum for a particular taskNumber and is asserting them into on-chain. The function 
@@ -76,13 +111,12 @@ abstract contract BLSSignatureChecker is
              uint32 blockNumber
              uint32 taskNumberToConfirm
              uint32 numberOfNonSigners,
-             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
+             {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner
              uint32 apkIndex,
-             uint256[4] apk,
+             uint256[4] apk (aggregate public key),
              uint256[2] sigma
             >
      */
-    // NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
         public
         returns (
@@ -102,32 +136,30 @@ abstract contract BLSSignatureChecker is
             pointer := data.offset
             /**
              * Get the 32 bytes immediately after the function signature and length + offset encoding of 'bytes
-             * calldata' input type, which represents the msgHash for which disperser is calling checkSignatures
+             * calldata' input type, which represents the msgHash for which the disperser is calling `checkSignatures`
              */
             msgHash := calldataload(pointer)
 
             // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(208, calldataload(add(pointer, 32)))
+            placeholder := shr(BIT_SHIFT_totalStakeIndex, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
         }
 
         // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber := shr(224, calldataload(add(pointer, 38)))
+            stakesBlockNumber := shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
         }
 
         // obtain registry contract for querying information on stake later
         IBLSRegistry registry = IBLSRegistry(address(_registry()));
 
-        // to be used for holding the aggregated pub key of all operators
-        // that aren't part of the quorum
         /**
-         @dev we would be storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
+         * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.
+         * @dev Note that we are storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
          */
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject = registry
-            .getTotalStakeFromIndex(placeholder);
+        IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
 
         // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
         _validateOperatorStake(localStakeObject, stakesBlockNumber);
@@ -138,15 +170,15 @@ abstract contract BLSSignatureChecker is
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
 
         assembly {
-            //fetch tha task number to avoid replay signing on same taskhash for different datastore
-            taskNumberToConfirm := shr(224, calldataload(add(pointer, 42)))
+            //fetch the task number to avoid replay signing on same taskhash for different datastore
+            taskNumberToConfirm := shr(BIT_SHIFT_taskNumberToConfirm, calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm)))
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(224, calldataload(add(pointer, 46)))
+            placeholder := shr(BIT_SHIFT_numberNonSigners, calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners)))
         }
 
         // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
-        pointer += 50;
+        pointer += CALLDATA_OFFSET_NonsignerPubkeys;
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
@@ -156,11 +188,12 @@ abstract contract BLSSignatureChecker is
          that are not part of the quorum for this specific taskNumber. 
          ****************************/
         /**
-         @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata; 
-              Note that this need not be a special case and *could* be subsumed in the for loop below.
-              However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
+         * @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata; 
+         *      Note that this need not be a special case and *could* be subsumed in the for loop below.
+         *      However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise. 
+         * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
          */
-        if (placeholder > 0) {
+        if (placeholder != 0) {
             uint32 stakeIndex;
 
             assembly {
@@ -200,12 +233,12 @@ abstract contract BLSSignatureChecker is
                  @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in 
                          Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(224, calldataload(add(pointer, 128)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -254,13 +287,13 @@ abstract contract BLSSignatureChecker is
                  @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in 
                          Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(224, calldataload(add(pointer, 128)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block
+            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
@@ -287,6 +320,7 @@ abstract contract BLSSignatureChecker is
                 pubkeyHash,
                 stakeIndex
             );
+            
             // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
@@ -306,27 +340,28 @@ abstract contract BLSSignatureChecker is
             uint32 apkIndex;
             assembly {
                 //get next 32 bits which would be the apkIndex of apkUpdates in Registry.sol
-                apkIndex := shr(224, calldataload(pointer))
+                apkIndex := shr(BIT_SHIFT_apkIndex, calldataload(pointer))
+        
+                // Update pointer to account for the 4 bytes specifying the apkIndex
+                pointer := add(pointer, BYTE_LENGTH_apkIndex)
 
-                // get the aggregated publickey at the moment when pre-commit happened
                 /**
-                 @dev aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher is 
-                      in order to avoid SLOADs  
+                 * @notice Get the aggregated publickey at the moment when pre-commit happened
+                 * @devAaggregated pubkey given as part of calldata instead of being retrieved from voteWeigher reduces number of SLOADs
                  */
-                mstore(pk, calldataload(add(pointer, 4)))
-                mstore(add(pk, 0x20), calldataload(add(pointer, 36)))
-                mstore(add(pk, 0x40), calldataload(add(pointer, 68)))
-                mstore(add(pk, 0x60), calldataload(add(pointer, 100)))
+                mstore(pk, calldataload(pointer))
+                mstore(add(pk, 0x20), calldataload(add(pointer, 32)))
+                mstore(add(pk, 0x40), calldataload(add(pointer, 64)))
+                mstore(add(pk, 0x60), calldataload(add(pointer, 96)))
             }
 
-            // We have read (4 + 32 + 32 + 32 + 32) = 132 additional bytes of calldata in the above assembly block
-            // Update pointer.
+            // We have read (32 + 32 + 32 + 32) = 128 additional bytes of calldata in the above assembly block.
+            // Update pointer accordingly.
             unchecked {
-                pointer += 132;
+                pointer += BYTE_LENGTH_PUBLIC_KEY;
             }
 
-            // make sure they have provided the correct aggPubKey
-            
+            // make sure the caller has provided the correct aggPubKey
             require(
                 registry.getCorrectApkHash(apkIndex, stakesBlockNumber) ==
                     keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
@@ -334,7 +369,7 @@ abstract contract BLSSignatureChecker is
             );
         }
 
-        // input for call to ecPairing precomplied contract
+        // input for call to ecPairing precompile contract
         uint256[12] memory input = [
             uint256(0),
             uint256(0),
@@ -382,7 +417,6 @@ abstract contract BLSSignatureChecker is
          */
 
         // compute the point in G1
-        //@OFFCHAIN change dlns to sign msgHash defined in DLSM
         (input[0], input[1]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
@@ -400,13 +434,15 @@ abstract contract BLSSignatureChecker is
 
             // check the pairing; if incorrect, revert
             if iszero(
-                call(not(0), 0x08, 0, input, 0x0180, add(input, 0x160), 0x20)
+                // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
+                // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
+                staticcall(not(0), 0x08, input, 0x180, add(input, 0x160), 0x20)
             ) {
                 revert(0, 0)
             }
         }
 
-        // check that signature is correct
+        // check that the provided signature is correct
         require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
 
         emit SignatoryRecord(
