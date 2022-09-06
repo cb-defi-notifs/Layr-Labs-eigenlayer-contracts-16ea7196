@@ -1,5 +1,5 @@
 {
-    "detectors_to_exclude": "assembly,solc-version,naming-convention,incorrect-equality",
+    "detectors_to_exclude": "assembly,solc-version,naming-convention,incorrect-equality,uninitialized-local",
     "filter_paths": "lib/|test/|mocks/|BytesLib",
     "solc_remaps": [
         "forge-std/=lib/forge-std/src/",
