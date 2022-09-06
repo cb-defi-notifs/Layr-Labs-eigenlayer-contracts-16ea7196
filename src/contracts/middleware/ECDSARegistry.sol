@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
+import "../interfaces/IECDSARegistry.sol";
 
 // import "forge-std/Test.sol";
 
@@ -13,7 +14,8 @@ import "./RegistryBase.sol";
  */
 
 contract ECDSARegistry is
-    RegistryBase
+    RegistryBase,
+    IECDSARegistry
     // ,DSTest
 {
     using BytesLib for bytes;
