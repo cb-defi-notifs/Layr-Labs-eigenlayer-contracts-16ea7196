@@ -1,6 +1,6 @@
 {
     "detectors_to_exclude": "assembly,solc-version,naming-convention",
-    "filter_paths": "lib/|test/|mocks/",
+    "filter_paths": "lib/|test/|mocks/|BytesLib",
     "solc_remaps": [
         "forge-std/=lib/forge-std/src/",
         "@openzeppelin/=lib/openzeppelin-contracts/",

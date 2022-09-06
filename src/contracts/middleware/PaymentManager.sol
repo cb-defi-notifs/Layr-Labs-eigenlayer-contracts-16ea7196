@@ -118,7 +118,7 @@ abstract contract PaymentManager is
      @param amount is amount of futures fees being deposited     
      */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.transferFrom(msg.sender, address(this), amount);
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
