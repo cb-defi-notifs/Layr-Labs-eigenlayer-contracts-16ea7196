@@ -195,7 +195,7 @@ contract DataLayrChallengeUtils {
     // w^(512*l) = 1
     // (s^l - 1), (s^l - w^l), (s^l - w^2l), (s^l - w^3l), (s^l - w^4l), ...
     // we have precomputed these values and return them directly because it's cheap. currently we
-    // tolerate up to degree 2^11, which means up to (31 bytes/point)(1024 points/dln)(512 dln) = 16 MB in a datastore
+    // tolerate up to degree 2^11, which means up to (31 bytes/point)(1024 points/dln)(256 dln) = 8 MB in a datastore
     function getZeroPolyMerkleRoot(uint256 degree)
         public
         pure
@@ -260,7 +260,7 @@ contract DataLayrChallengeUtils {
         //we use and overwrite z as temporary storage
         //g1 = (1, 2)
         BN254.G1Point memory g1Gen = BN254.G1Point({X: 1, Y: 2});
-        //calculate g1*-r = -[r]_1
+        //calculate -g1*r = -[r]_1
         BN254.G1Point memory z = BN254.scalar_mul(BN254.negate(g1Gen), r);
 
         //add [x]_1 - [r]_1 = Z and store in first 2 slots of input
@@ -270,7 +270,7 @@ contract DataLayrChallengeUtils {
             Y: 4051901473739185471504766068400292374549287637553596337727654132125147894034
         });
         z = BN254.plus(firstPowerOfTau, z);
-        //calculate g1*-s = -[s]_1
+        //calculate -g1*s = -[s]_1
         BN254.G1Point memory negativeS = BN254.scalar_mul(
             BN254.negate(g1Gen),
             s
