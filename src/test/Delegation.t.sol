@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -261,7 +261,7 @@ contract DelegationTests is TestHelper {
         _testDepositStrategies(signers[1], 1e18, 1);
         _testDepositEigen(signers[1], 1e18);
 
-        cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"));
+        cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not yet registered as a delegate"));
         cheats.startPrank(signers[1]);
         delegation.delegateTo(delegate);
         cheats.stopPrank();

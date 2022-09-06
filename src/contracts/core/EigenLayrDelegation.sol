@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -56,7 +56,10 @@ contract EigenLayrDelegation is
         IInvestmentManager _investmentManager,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
-        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
+        require(
+            _undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.initialize: _undelegationFraudProofInterval too large"
+        );
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
         _transferOwnership(msg.sender);
@@ -308,7 +311,10 @@ contract EigenLayrDelegation is
     }
 
     function setUndelegationFraudProofInterval(uint256 _undelegationFraudProofInterval) external onlyOwner {
-        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
+        require(
+            _undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.setUndelegationFraudProofInterval: _undelegationFraudProofInterval too large"
+        );
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
     }
 
@@ -351,7 +357,7 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
+            "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
         );
 
         require(

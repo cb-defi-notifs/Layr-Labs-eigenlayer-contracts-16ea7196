@@ -23,7 +23,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistry.sol";
@@ -112,7 +112,7 @@ contract Governor_Experimental is RepositoryAccess {
     uint16 public quorumEigenPercentage;
 
     /// @notice The percentage of eth required in order for a voter to become a proposer
-    uint16 proposalThresholdEthPercentage;
+    uint16 public proposalThresholdEthPercentage;
 
     /// @notice The percentage of eigen required in order for a voter to become a proposer
     uint16 public proposalThresholdEigenPercentage;
@@ -127,7 +127,7 @@ contract Governor_Experimental is RepositoryAccess {
     address public multisig;
 
     /// @notice Receipts of ballots for the entire set of voters
-    mapping(uint256 => mapping(address => Receipt)) receipts;
+    mapping(uint256 => mapping(address => Receipt)) public receipts;
 
     /// @notice The official record of all proposals ever proposed
     mapping(uint256 => Proposal) public proposals;

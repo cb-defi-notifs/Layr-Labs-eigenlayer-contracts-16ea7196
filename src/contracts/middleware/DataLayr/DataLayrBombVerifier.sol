@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -114,7 +114,8 @@ contract DataLayrBombVerifier {
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
                         deregisterTime >=
-                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL)),
+                "DataLayrBombVerifier.verifyBomb: invalid operator or time"
             );
         }
 
@@ -649,8 +650,14 @@ contract DataLayrBombVerifier {
             totalOperatorsIndex,
             searchData
         );
-        require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
-        require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
+        require(
+            searchData.metadata.globalDataStoreId == dataStoreId,
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId"
+        );
+        require(
+            searchData.metadata.headerHash == keccak256(disclosureProof.header),
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
+        );
         bool res = challengeUtils.nonInteractivePolynomialProof(
             disclosureProof.header,
             chunkNumber,

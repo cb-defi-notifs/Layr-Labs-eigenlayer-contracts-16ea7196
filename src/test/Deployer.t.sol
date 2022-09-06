@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./mocks/LiquidStakingToken.sol";
 
@@ -35,7 +35,6 @@ import "./utils/SignatureUtils.sol";
 
 import "forge-std/Test.sol";
 
-//TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     Signers,
     SignatureUtils,
@@ -64,6 +63,7 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
+    InvestmentStrategyBase public baseStrategyImplementation;
 
    
     // strategy index => IInvestmentStrategy
@@ -174,40 +174,33 @@ contract EigenLayrDeployer is
             address(this)
         );
 
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        wethStrat = new InvestmentStrategyBase(investmentManager);
+        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
+        baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
         wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(wethStrat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth)
                 )
             )
         );
-        // initialize InvestmentStrategyBase proxy
-        wethStrat.initialize(weth);
-
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             address(this)
         );
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        eigenStrat = new InvestmentStrategyBase(investmentManager);
+        // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(eigenStrat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken)
                 )
             )
         );
-       
-        // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(eigenToken);
 
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);

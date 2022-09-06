@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/Merkle.sol";
