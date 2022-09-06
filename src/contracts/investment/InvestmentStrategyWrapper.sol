@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
@@ -11,6 +12,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract InvestmentStrategyWrapper is
     IInvestmentStrategy
 {
+    using SafeERC20 for IERC20;
+
     IInvestmentManager public immutable investmentManager;
     IERC20 public immutable underlyingToken;
     uint256 public totalShares;
@@ -65,7 +68,7 @@ contract InvestmentStrategyWrapper is
         require(shareAmount <= totalShares, "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares");
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
         unchecked{totalShares -= shareAmount;}
-        underlyingToken.transfer(depositor, shareAmount);
+        underlyingToken.safeTransfer(depositor, shareAmount);
     }
 
     /** 
