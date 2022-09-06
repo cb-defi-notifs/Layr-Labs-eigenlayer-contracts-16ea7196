@@ -145,6 +145,7 @@ contract Payments is TestHelper {
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
+        _incrementDataStoreID();
         _testCommitPayment(operator, amountRewards);    
     }
 
@@ -224,7 +225,6 @@ contract Payments is TestHelper {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
-        dlsm.initDataStore(storer, address(this), header, duration, totalBytes, blockNumber);
         cheats.stopPrank();
     }
 
@@ -243,6 +243,20 @@ contract Payments is TestHelper {
 
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
+    }
+
+
+    function _incrementDataStoreID() internal {
+
+        bytes memory header = hex"0102030405060708091011121314151617181921";
+        uint32 blockNumber = uint32(block.number);
+        uint8 duration = 2;
+
+        cheats.startPrank(storer);
+        //increments fromDataStoreID so that you can commit a payment
+        dlsm.initDataStore(storer, address(this), header, duration, 1e6, blockNumber);
+        cheats.stopPrank();
+
     }
 
 }
