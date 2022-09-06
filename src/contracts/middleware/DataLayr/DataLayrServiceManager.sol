@@ -158,7 +158,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32){
+    ) external returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -280,7 +280,7 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/

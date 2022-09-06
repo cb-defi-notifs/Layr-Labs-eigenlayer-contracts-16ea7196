@@ -58,9 +58,9 @@ interface IDataLayrServiceManager is IServiceManager {
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32);
+    ) external returns(uint32);
 
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external;
 
     function numPowersOfTau() external view returns(uint48);
 
