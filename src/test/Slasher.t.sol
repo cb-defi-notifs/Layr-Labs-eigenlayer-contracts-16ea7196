@@ -61,6 +61,11 @@ contract SlasherTests is
         require(delegation.operatorShares(_operator, strategyArray[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
     }
 
+    /**
+    * @notice testing ownable permissions for slashing functions 
+    *         addPermissionedContracts(), removePermissionedContracts()
+    *         and resetFrozenStatus().
+    */
     function testOnlyOwnerFunctions(address incorrectCaller, address inputAddr)
         public fuzzedAddress(incorrectCaller) fuzzedAddress(inputAddr)
     {
