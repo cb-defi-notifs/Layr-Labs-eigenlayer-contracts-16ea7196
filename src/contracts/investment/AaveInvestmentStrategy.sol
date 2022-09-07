@@ -19,7 +19,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         super.initialize(_underlyingToken);
         lendingPool = _lendingPool;
         aToken = _aToken;
-        underlyingToken.approve(address(_lendingPool), type(uint256).max);
+        underlyingToken.safeApprove(address(_lendingPool), type(uint256).max);
     }
 
 
