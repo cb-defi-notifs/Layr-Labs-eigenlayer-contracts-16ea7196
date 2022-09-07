@@ -126,8 +126,6 @@ contract LightweightRegistry is
 
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of nodes.
-     */
-    /**
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
@@ -155,17 +153,6 @@ contract LightweightRegistry is
         }
     }
 
-    /**
-     @notice returns task number from when operator has been registered.
-     */
-    function getOperatorFromBlockNumber(address operator)
-        external
-        view
-        returns (uint32)
-    {
-        return registry[operator].fromBlockNumber;
-    }
-
     function setNodeEthStake(uint128 _nodeEthStake)
         external
         onlyRepositoryGovernance
@@ -178,16 +165,12 @@ contract LightweightRegistry is
         return registry[operator].active;
     }
 
-    /**
-     @notice called for registering as a operator
-     */
+    /// @notice called for registering as a operator
     function registerOperator() external virtual {        
         _registerOperator(msg.sender);
     }
 
-    /**
-     @param operator is the node who is registering to be a operator
-     */
+    /// @param operator is the node who is registering to be a operator     
     function _registerOperator(
         address operator
     ) internal virtual {
@@ -231,8 +214,9 @@ contract LightweightRegistry is
     }
 
     /**
-     @notice returns task number from when operator has been registered.
-     */
+     * @notice returns the block number from which the operator has been registered.
+     * @param operator The operator of interest
+     */ 
     function getFromBlockNumberForOperator(address operator)
         external
         view
