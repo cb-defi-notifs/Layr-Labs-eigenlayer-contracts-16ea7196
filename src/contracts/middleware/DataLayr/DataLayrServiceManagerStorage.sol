@@ -114,7 +114,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     /**
      * @notice contract used for handling payment challenges
      */
-    DataLayrPaymentManager public dataLayrPaymentManager;
+    IDataLayrPaymentManager public dataLayrPaymentManager;
 
     constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken) 
     {

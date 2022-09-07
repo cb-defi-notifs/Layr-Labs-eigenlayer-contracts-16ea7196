@@ -37,6 +37,12 @@ import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreHash.sol";
 
+// # To load the variables in the .env file
+// source .env
+
+// # To deploy and verify our contract
+// forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
+
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
 contract EigenLayrDeployer is
     Script,

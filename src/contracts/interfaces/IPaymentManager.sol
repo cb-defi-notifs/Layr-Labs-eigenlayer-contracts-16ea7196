@@ -18,4 +18,5 @@ interface IPaymentManager is IRepositoryAccess {
     
     function depositFutureFees(address onBehalfOf, uint256 amount) external;
 
+    function payFee(address initiator, address payer, uint256 feeAmount) external;
 }

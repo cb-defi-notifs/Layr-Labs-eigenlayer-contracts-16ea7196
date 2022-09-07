@@ -90,9 +90,6 @@ contract DataLayrServiceManager is
         bytes32 headerHash
     );
 
-    event fff();
-
-
     constructor(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -121,7 +118,7 @@ contract DataLayrServiceManager is
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
-    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+    function setPaymentManager(IDataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
