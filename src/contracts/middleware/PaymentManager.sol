@@ -306,7 +306,14 @@ abstract contract PaymentManager is
         emit PaymentChallengeInit(operator, msg.sender);
     }
 
-    //challenger challenges a particular half of the payment
+    /**
+     * @notice Perform a single bisection step in an existing interactive payment challenge.
+     * @param operator The middleware operator who was challenged (used to look up challenge details)
+     * @param secondHalf If true, then the caller wishes to challenge the amount claimed as payment in the *second half* of the
+     *        previous bisection step. If false then the *first half* is indicated instead.
+     * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
+     * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
+     */ 
     function challengePaymentHalf(
         address operator,
         bool secondHalf,
@@ -357,11 +364,9 @@ abstract contract PaymentManager is
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
         
-        // TODO: should this event reflect anything about whose turn is next (challenger vs. operator?)
         emit PaymentBreakdown(operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
     }
 
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     /**
      * @notice This function is used for updating the status of the challenge in terms of who
      *        has to respond to the interactive challenge mechanism next -  is it going to be
@@ -387,8 +392,7 @@ abstract contract PaymentManager is
         }
    }
 
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
-    //an operator can respond to challenges and breakdown the amount
+    // an operator can respond to challenges and breakdown the amount
     // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
     function _updateChallengeAmounts(
         address operator, 
@@ -397,13 +401,13 @@ abstract contract PaymentManager is
         uint120 amount2
     ) internal {
         if (dissectionType == DissectionType.FIRST_HALF) {
-            //if first half is challenged, break the first half of the payment into two halves
+            // if first half is challenged, break the first half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
                 "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else if (dissectionType == DissectionType.SECOND_HALF) {
-            //if second half is challenged, break the second half of the payment into two halves
+            // if second half is challenged, break the second half of the payment into two halves
             require(
                 amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
                 "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
