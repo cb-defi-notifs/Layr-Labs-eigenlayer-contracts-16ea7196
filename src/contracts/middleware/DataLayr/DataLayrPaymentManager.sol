@@ -123,14 +123,17 @@ contract DataLayrPaymentManager is
             //TODO: this assumes a *fixed* eigen eth split.
             trueAmount = uint120(
                 (
-                    (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.ethStake)) /
-                    totalStakesSigned.ethStakeSigned
+                    (
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.ethStake)) /
+                        totalStakesSigned.ethStakeSigned
+                    )
+                    +
+                    (
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.eigenStake)) /
+                        totalStakesSigned.eigenStakeSigned
+                    )
                 )
-                +
-                (
-                    (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.eigenStake)) /
-                    totalStakesSigned.eigenStakeSigned
-                )
+                / MAX_BIPS
             );
         } else {
             //either the operator must have been a non signer or the task was based off of stakes before the operator registered
