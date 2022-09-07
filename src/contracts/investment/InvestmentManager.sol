@@ -93,11 +93,11 @@ contract InvestmentManager is
 
 
 
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() public onlyRole(PAUSER) {
         _pause();
     }
 
-    function unpause() public onlyRole(UNPAUSER_ROLE) {
+    function unpause() public onlyRole(UNPAUSER) {
         _unpause();
     }
 
