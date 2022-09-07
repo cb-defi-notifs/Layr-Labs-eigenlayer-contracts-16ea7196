@@ -37,6 +37,8 @@ abstract contract PaymentManager is
      *         claim by the registered operator 
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
+    /// @notice Constant used as a divisor in dealing with BIPS amounts
+    uint256 internal constant MAX_BIPS = 10000;
 
     /**
      @notice this is the payment that has to be made as a collateral for fraudproof 

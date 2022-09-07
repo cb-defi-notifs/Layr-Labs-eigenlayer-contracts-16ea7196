@@ -22,7 +22,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
     uint256 internal constant WEIGHTING_DIVISOR = 1e18;
     // maximum length of dynamic arrays in `strategiesConsideredAndMultipliers` mapping
     uint8 internal constant MAX_WEIGHING_FUNCTION_LENGTH = 32;
-    // constant used as a divisor in dealing with BIPS amounts
+    /// @notice Constant used as a divisor in dealing with BIPS amounts
     uint256 internal constant MAX_BIPS = 10000;
 
     // the address of the Delegation contract for EigenLayr
