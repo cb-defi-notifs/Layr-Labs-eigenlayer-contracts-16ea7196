@@ -227,7 +227,7 @@ abstract contract PaymentManager is
 
         require(
             block.timestamp > operatorToPayment[msg.sender].confirmAt,
-            "PaymentManager.redeemPayment: Payment still eligible for fraud proof"
+            "PaymentManager.redeemPayment: Payment still eligible for fraudproof"
         );
 
         // update the status to show that operator's payment is getting redeemed
@@ -277,7 +277,7 @@ abstract contract PaymentManager is
 
     /**
      * @notice This function is called by a fraud prover to challenge a payment, initiating an interactive-type fraudproof.
-     * @param operator is the operator against whose payment claim the fraud proof is being made
+     * @param operator is the operator against whose payment claim the fraudproof is being made
      * @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
      * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
      **/

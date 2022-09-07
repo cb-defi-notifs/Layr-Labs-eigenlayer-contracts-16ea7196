@@ -33,7 +33,7 @@ interface IPaymentManager is IRepositoryAccess {
         // taskNumber until which payment is being claimed (exclusive) 
         uint32 toTaskNumber; 
 
-        // recording when the payment will optimistically be confirmed; used for fraud proof period
+        // recording when the payment will optimistically be confirmed; used for fraudproof period
         uint32 confirmAt; 
 
         // payment for range [fromTaskNumber, toTaskNumber)
@@ -78,7 +78,7 @@ interface IPaymentManager is IRepositoryAccess {
         uint120 amount2;
 
         // used for recording the time when challenge was created
-        uint32 settleAt; // when committed, used for fraud proof period
+        uint32 settleAt; // when committed, used for fraudproof period
 
         // indicates the status of the challenge
         /**

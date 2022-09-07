@@ -10,7 +10,7 @@ contract DataLayrDisclosureChallenge is DSTest {
     struct DisclosureChallenge {
         address operator;
         address challenger;
-        uint32 commitTime; // when committed, used for fraud proof period
+        uint32 commitTime; // when committed, used for fraudproof period
         bool turn; // false: operator's turn, true: challengers turn
         uint256 x_low; // claimed x and y coordinate of the commitment to the lower half degrees of the polynomial
         uint256 y_low; // interpolating the data the operator receives
@@ -57,7 +57,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(
             block.timestamp <
                 challenge.commitTime + disclosureFraudproofInterval,
-            "Fraud proof interval has passed"
+            "Fraudproof interval has passed"
         );
         uint256 x_contest;
         uint256 y_contest;
@@ -100,7 +100,7 @@ contract DataLayrDisclosureChallenge is DSTest {
                 challenge.commitTime + disclosureFraudproofInterval &&
                 block.timestamp <
                 challenge.commitTime + (2 * disclosureFraudproofInterval),
-            "Fraud proof interval has passed"
+            "Fraudproof interval has passed"
         );
         if (challenge.turn) {
             // challenger did not respond
@@ -131,7 +131,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(
             block.timestamp <
                 challenge.commitTime + disclosureFraudproofInterval,
-            "Fraud proof interval has passed"
+            "Fraudproof interval has passed"
         );
         //degree of proved leaf
         uint48 degree = proveDegreeLeaf(

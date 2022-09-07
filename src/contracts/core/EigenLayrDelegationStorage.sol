@@ -24,7 +24,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // the InvestmentManager contract for EigenLayr
     IInvestmentManager public investmentManager;
 
-    // fraud proof interval for undelegation
+    // fraudproof interval for undelegation
     uint256 public undelegationFraudproofInterval;
 
     // operator => investment strategy => num shares delegated
