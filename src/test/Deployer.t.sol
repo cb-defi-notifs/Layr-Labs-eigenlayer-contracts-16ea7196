@@ -305,6 +305,7 @@ contract EigenLayrDeployer is
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
+        // hard-coded inputs
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
             memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         ethStratsAndMultipliers[0].strategy = wethStrat;
@@ -314,12 +315,18 @@ contract EigenLayrDeployer is
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
+        uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+        // split 60% ETH quorum, 40% EIGEN quorum
+        _quorumBips[0] = 6000;
+        _quorumBips[1] = 4000;
+
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );

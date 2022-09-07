@@ -18,7 +18,6 @@ import "forge-std/Test.sol";
 contract LightweightRegistry is
     IRegistry,
     VoteWeigherBase
-    
 {
     // DATA STRUCTURES 
     /**
@@ -60,7 +59,8 @@ contract LightweightRegistry is
     /// @notice used for storing Registrant info on each operator while registration
     mapping(address => Registrant) public registry;
 
-
+    // this appears to be necessary to have in storage, in order to have 'VoteWeigherBase' constructor work correctly
+    uint256[] internal _quorumBips = [MAX_BIPS];
 
     // EVENTS
     event StakeAdded(
@@ -95,7 +95,10 @@ contract LightweightRegistry is
             _repository,
             _delegation,
             _investmentManager,
-            1
+            // hardcode number of quorums to '1'
+            1,
+            // hardcode to pay all payment to operators in the single quorum
+            _quorumBips
         )
     {
         //apk_0 = g2Gen

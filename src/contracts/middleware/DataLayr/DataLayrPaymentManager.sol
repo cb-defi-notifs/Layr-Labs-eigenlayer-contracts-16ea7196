@@ -13,9 +13,8 @@ import "../../middleware/PaymentManager.sol";
 
 import "forge-std/Test.sol";
 
-/**
- @notice This contract is used for doing interactive payment challenge
- */
+
+/// @notice This contract is used for doing interactive payment challenges on DataLayr
 contract DataLayrPaymentManager is
     PaymentManager,
     IDataLayrPaymentManager
@@ -23,11 +22,6 @@ contract DataLayrPaymentManager is
     {
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
-    /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on.
-     */
 
     constructor(
         IERC20 _paymentToken,

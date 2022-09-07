@@ -16,13 +16,9 @@ import "./VoteWeigherBaseStorage.sol";
               by the middleware for each of the quorum(s)
  */
 contract VoteWeigherBase is 
-    IVoteWeigher,
     VoteWeigherBaseStorage
     // ,DSTest
 {
-    // number of quorums that are being used by the middleware
-    uint8 public override immutable NUMBER_OF_QUORUMS;
-
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
@@ -30,9 +26,9 @@ contract VoteWeigherBase is
         IRepository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        uint8 _NUMBER_OF_QUORUMS
-    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager) {
-        NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
+        uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips
+    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) {
     }
 
     /**
