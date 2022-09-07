@@ -85,7 +85,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     
     uint256 constant public DURATION_SCALE = 1 hours;
-    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 5;
+    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 10;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 constant public MIN_DATASTORE_DURATION = 1;
     uint8 constant public MAX_DATASTORE_DURATION = 14;
