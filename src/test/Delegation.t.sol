@@ -343,8 +343,7 @@ contract DelegationTests is TestHelper {
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
 
-        
-
+    
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
@@ -367,9 +366,6 @@ contract DelegationTests is TestHelper {
             dlsm.confirmDataStore(data, searchData);
 
             emit log_named_uint("gas cost", gasbefore - gasleft());
-
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
-            // assertTrue(sighash != bytes32(0), "Data store not committed");
         }
     }
 

@@ -5,6 +5,8 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin-upgrades/contracts/security/PausableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/access/AccessControlUpgradeable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
@@ -23,7 +25,9 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage
+    InvestmentManagerStorage,
+    PausableUpgradeable,
+    AccessControlUpgradeable
     // ,DSTest
 {
     using SafeERC20 for IERC20;
@@ -78,8 +82,23 @@ contract InvestmentManager is
         ISlasher _slasher,
         address _governor
     ) external initializer {
+        __Pausable_init();
+        __AccessControl_init();
         _transferOwnership(_governor);
         slasher = _slasher;
+
+        _grantRole(PAUSER, pauser_multisig);
+        _grantRole(UNPAUSER, unpauser_multisig);
+    }
+
+
+
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    function unpause() public onlyRole(UNPAUSER_ROLE) {
+        _unpause();
     }
 
 
@@ -132,6 +151,7 @@ contract InvestmentManager is
         onlyNotFrozen(msg.sender)
         onlyNotDelegated(msg.sender)
         nonReentrant
+        whenNotPaused
     {
         _withdrawFromStrategy(
             msg.sender,
@@ -165,6 +185,7 @@ contract InvestmentManager is
         external
         onlyNotFrozen(msg.sender)
         nonReentrant
+        whenNotPaused
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
@@ -594,5 +615,4 @@ contract InvestmentManager is
             )
         );
     }
-
 }
