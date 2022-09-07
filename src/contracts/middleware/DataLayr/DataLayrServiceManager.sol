@@ -90,6 +90,7 @@ contract DataLayrServiceManager is
         bytes32 headerHash
     );
 
+    event fff();
 
 
     constructor(
@@ -304,7 +305,6 @@ contract DataLayrServiceManager is
             SignatoryTotals memory signedTotals,
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
-
 
         //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
         //this keeps bomb and storage conditions stagnant

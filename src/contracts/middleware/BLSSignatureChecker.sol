@@ -84,7 +84,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
      */
     //  CRITIC --- seems like instead of dataStoreId, we have taskNumberToConfirm
     // NOTE: this assumes length 64 signatures
-    function checkSignatures(bytes calldata)
+    function checkSignatures(bytes calldata data)
         public
         returns (
             uint32 taskNumberToConfirm,
@@ -97,9 +97,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         // temporary variable used to hold various numbers
         uint256 placeholder;
 
-        uint256 pointer = 388;
+        uint256 pointer;
 
         assembly {
+            pointer := data.offset
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the msgHash for which disperser is calling checkSignatures
             // CRITIC --- probably shouldn't hard-code this (that is 356). Pass some OFFSET in argument.
@@ -136,6 +137,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess, DSTest {
         signedTotals.totalEthStake = signedTotals.ethStakeSigned;
         signedTotals.eigenStakeSigned = localStakeObject.eigenStake;
         signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
+
 
         assembly {
             //fetch tha task number to avoid replay signing on same taskhash for different datastore
