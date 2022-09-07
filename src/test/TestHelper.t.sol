@@ -58,16 +58,16 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.startPrank(operator);
         //register operator with vote weigher so they can get payment
-        uint8 registrantType = 3;
+        uint8 operatorType = 3;
         string memory socket = "255.255.255.255";
         // function registerOperator(
-        //     uint8 registrantType,
+        //     uint8 operatorType,
         //     bytes32 ephemeralKeyHash,
         //     bytes calldata data,
         //     string calldata socket
         // )
         dlReg.registerOperator(
-            registrantType,
+            operatorType,
             ephemeralKey,
             registrationData[0],
             socket
@@ -422,7 +422,7 @@ contract TestHelper is EigenLayrDeployer {
         bytes memory data
     ) internal {
         //register as both ETH and EIGEN operator
-        uint8 registrantType = 3;
+        uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;
         _testWethDeposit(sender, wethToDeposit);
@@ -433,12 +433,12 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(sender);
         
         
-        dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
+        dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
 
         cheats.stopPrank();
 
         // verify that registration was stored correctly
-        if ((registrantType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
+        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
             assertTrue(
                 dlReg.ethStakedByOperator(sender) == wethToDeposit,
                 "ethStaked not increased!"
@@ -450,7 +450,7 @@ contract TestHelper is EigenLayrDeployer {
             );
         }
         if (
-            (registrantType & 2) == 2 && eigenToDeposit > dlReg.nodeEigenStake()
+            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeEigenStake()
         ) {
             assertTrue(
                 dlReg.eigenStakedByOperator(sender) == eigenToDeposit,
