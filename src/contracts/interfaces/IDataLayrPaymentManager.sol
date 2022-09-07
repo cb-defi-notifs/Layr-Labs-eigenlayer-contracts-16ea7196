@@ -36,4 +36,6 @@ interface IDataLayrPaymentManager is IPaymentManager {
     function getFromDataStoreId(address operator) external returns (uint48);
     
     function getDiff(address operator) external returns (uint48);
+
+    function setAllowance(address allowed, uint256 amount) external;
 }

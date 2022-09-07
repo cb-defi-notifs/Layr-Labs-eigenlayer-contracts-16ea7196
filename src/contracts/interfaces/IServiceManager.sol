@@ -7,7 +7,7 @@ import "./IRepositoryAccess.sol";
 import "./IEigenLayrDelegation.sol";
 
 // TODO: provide more functions for this spec
-interface IServiceManager is IRepositoryAccess {
+interface IServiceManager  {
 
     function taskNumber() external view returns (uint32);
 

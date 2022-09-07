@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IDataLayr.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
+import "./IDataLayrPaymentManager.sol";
+
 
 interface IDataLayrServiceManager is IServiceManager {
 
@@ -52,6 +54,16 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 fee;
     }
 
+    function initDataStore(
+        address feePayer,
+        address confirmer,
+        bytes calldata header,
+        uint8 duration,
+        uint32 totalBytes,
+        uint32 blockNumber
+    ) external payable returns(uint32);
+
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
 
     function dataStoreIdToFee(uint32) external view returns (uint96);
 
@@ -68,4 +80,6 @@ interface IDataLayrServiceManager is IServiceManager {
     function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
 
     function collateralToken() external view returns(IERC20);
+
+    function dataLayrPaymentManager() external view returns(IDataLayrPaymentManager);
 }
