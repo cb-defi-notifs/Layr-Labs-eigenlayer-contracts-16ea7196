@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./aave/ILendingPool.sol";
 import "./AaveInvestmentStrategyStorage.sol";
@@ -15,7 +15,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     {}
 
     function initialize(IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
-    ) initializer public {
+    ) public initializer {
         super.initialize(_underlyingToken);
         lendingPool = _lendingPool;
         aToken = _aToken;

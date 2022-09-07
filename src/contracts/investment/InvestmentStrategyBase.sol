@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -32,7 +32,7 @@ contract InvestmentStrategyBase is
         //_disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken) initializer public {
+    function initialize(IERC20 _underlyingToken) public initializer {
         underlyingToken = _underlyingToken;
     }
 
