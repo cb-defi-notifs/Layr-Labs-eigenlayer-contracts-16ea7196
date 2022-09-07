@@ -122,13 +122,13 @@ interface IPaymentManager is IRepositoryAccess {
     
     function getChallengeStatus(address operator) external view returns(ChallengeStatus);
 
-    function challengePaymentInit(
+    function initPaymentChallenge(
         address operator,
         uint120 amount1,
         uint120 amount2
     ) external;
 
-    function challengePaymentHalf(
+    function performChallengeBisectionStep(
         address operator,
         bool secondHalf,
         uint120 amount1,

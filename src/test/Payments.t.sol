@@ -239,7 +239,7 @@ contract PaymentsTests is TestHelper {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         //challenger initiates challenge
-        dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
+        dataLayrPaymentManager.initPaymentChallenge(operator, amount1, amount2);
 
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();

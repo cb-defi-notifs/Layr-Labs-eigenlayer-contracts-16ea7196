@@ -84,13 +84,13 @@ abstract contract PaymentManager is
         uint256 fee
     );
 
-    /// @notice Emitted when a new challenge is created through a call to the `challengePaymentInit` function
+    /// @notice Emitted when a new challenge is created through a call to the `initPaymentChallenge` function
     event PaymentChallengeInit(address indexed operator, address challenger);
 
     /// @notice Emitted when an operator redeems a payment by calling the `redeemPayment` function
     event PaymentRedemption(address indexed operator, uint256 fee);
 
-    /// @notice Emitted when a bisection step is performed in a challenge, through a call to the `challengePaymentHalf` function
+    /// @notice Emitted when a bisection step is performed in a challenge, through a call to the `performChallengeBisectionStep` function
     event PaymentBreakdown(address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
 
     /// @notice Emitted upon successful resolution of a payment challenge, within a call to `resolveChallenge`
@@ -281,7 +281,7 @@ abstract contract PaymentManager is
      * @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
      * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
      **/
-    function challengePaymentInit(
+    function initPaymentChallenge(
         address operator,
         uint120 amount1,
         uint120 amount2
@@ -291,7 +291,7 @@ abstract contract PaymentManager is
             block.timestamp < operatorToPayment[operator].confirmAt 
                 &&
                 operatorToPayment[operator].status == PaymentStatus.COMMITTED,
-            "PaymentManager.challengePaymentInit: Fraudproof interval has passed for payment"
+            "PaymentManager.initPaymentChallenge: Fraudproof interval has passed for payment"
         );
 
         // store challenge details
@@ -326,7 +326,7 @@ abstract contract PaymentManager is
      * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
      * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
      */ 
-    function challengePaymentHalf(
+    function performChallengeBisectionStep(
         address operator,
         bool secondHalf,
         uint120 amount1,
@@ -340,12 +340,12 @@ abstract contract PaymentManager is
         require(
             (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender) ||
                 (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
-            "PaymentManager.challengePaymentHalf: Must be challenger and their turn or operator and their turn"
+            "PaymentManager.performChallengeBisectionStep: Must be challenger and their turn or operator and their turn"
         );
 
         require(
             block.timestamp < challenge.settleAt,
-            "PaymentManager.challengePaymentHalf: Challenge has already settled"
+            "PaymentManager.performChallengeBisectionStep: Challenge has already settled"
         );
 
         uint32 fromTaskNumber = challenge.fromTaskNumber;
@@ -432,6 +432,7 @@ abstract contract PaymentManager is
         operatorToPaymentChallenge[operator].amount2 = amount2;
     }
 
+    /// @notice resolve an existing PaymentChallenge for an operator
     function resolveChallenge(address operator) external {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
