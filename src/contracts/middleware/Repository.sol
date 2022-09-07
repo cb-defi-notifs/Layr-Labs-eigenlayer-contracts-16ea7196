@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -43,9 +43,7 @@ contract Repository is Ownable, Initializable, IRepository {
         return Ownable.owner();
     }
 
-    /**
-     @notice initializer (callable only once). Used for setting the associated contracts for the middleware and owner of this contract.
-     */
+    // @notice initializer (callable only once). Used for setting the associated contracts for the middleware and owner of this contract.
     function initialize(
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,

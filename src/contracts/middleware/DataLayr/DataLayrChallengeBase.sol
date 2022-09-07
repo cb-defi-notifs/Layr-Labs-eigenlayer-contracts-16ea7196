@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
@@ -115,7 +115,7 @@ abstract contract DataLayrChallengeBase {
     }
 
     // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
-    function resolveChallenge(bytes32 headerHash) public {
+    function resolveChallenge(bytes32 headerHash) external {
         require(challengeExists(headerHash), "Challenge does not exist");
         require(!challengeUnsuccessful(headerHash), "Challenge failed");
         // check that the challenge window is no longer open

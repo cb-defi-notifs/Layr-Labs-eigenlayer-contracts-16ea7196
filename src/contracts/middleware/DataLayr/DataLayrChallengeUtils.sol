@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/Merkle.sol";
@@ -30,7 +30,7 @@ contract DataLayrChallengeUtils {
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    ) public pure {
+    ) external pure {
         if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
             require(
@@ -71,7 +71,7 @@ contract DataLayrChallengeUtils {
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    ) public pure {
+    ) external pure {
         require(
             operatorPubkeyHash == signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex],
             "operator not included in non-signer set"
@@ -113,7 +113,7 @@ contract DataLayrChallengeUtils {
     function getNumSysFromHeader(
         // bytes calldata header
         bytes calldata header
-    ) public pure returns (uint32) {
+    ) external pure returns (uint32) {
         uint32 numSys = 0;
         
         assembly {
@@ -353,7 +353,7 @@ contract DataLayrChallengeUtils {
         bytes calldata poly,
         MultiRevealProof calldata multiRevealProof,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         DataStoreKZGMetadata
             memory dskzgMetadata = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
                 header
@@ -404,7 +404,7 @@ contract DataLayrChallengeUtils {
         bytes calldata poly,
         BN254.G1Point calldata interpolationPoly,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(
             keccak256(
@@ -429,7 +429,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         BN254.G1Point[] calldata interpolationPolys,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         bytes32[] memory rs = new bytes32[](polys.length);
         //Calculating r, the point at which to evaluate the interpolating polynomial
         for (uint i = 0; i < polys.length; i++) {
@@ -493,7 +493,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         MultiRevealProof[] calldata multiRevealProofs,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //randomness from each polynomial
         bytes32[] memory rs = new bytes32[](polys.length);
         DataStoreKZGMetadata

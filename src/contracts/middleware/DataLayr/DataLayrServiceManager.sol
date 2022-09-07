@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -29,18 +29,6 @@ contract DataLayrServiceManager is
     BLSSignatureChecker
 {
     using BytesLib for bytes;
-
-
-    /**********************
-        CONSTANTS
-     **********************/
-    //TODO: mechanism to change any of these values?
-    uint32 internal constant MIN_STORE_SIZE = 32;
-    uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint32 internal constant MIN_STORE_LENGTH = 60;
-    uint32 internal constant MAX_STORE_LENGTH = 604800;
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
 
 
     /**********************
@@ -111,19 +99,19 @@ contract DataLayrServiceManager is
         
     }
 
-    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public onlyRepositoryGovernance {
+    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) external onlyRepositoryGovernance {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
     }
 
-    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
+    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) external onlyRepositoryGovernance {
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
-    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) external onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
-    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) public onlyRepositoryGovernance {
+    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
@@ -352,7 +340,7 @@ contract DataLayrServiceManager is
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
-        public
+        external
         onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
@@ -418,7 +406,7 @@ contract DataLayrServiceManager is
         return 0;
     }
     
-    function taskNumber() public view returns (uint32){
+    function taskNumber() external view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 

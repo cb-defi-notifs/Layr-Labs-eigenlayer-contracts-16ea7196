@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
@@ -107,7 +107,8 @@ contract VoteWeigherBase is
             );
             
             // removing strategies and their associated weight
-            strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
+            strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = 
+                strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber].length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
             emit StrategyRemovedFromQuorum(quorumNumber, _strategiesToRemove[i]);
             

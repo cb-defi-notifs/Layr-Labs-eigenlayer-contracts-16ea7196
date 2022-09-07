@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IRepositoryAccess.sol";
@@ -24,7 +24,7 @@ interface IServiceManager is IRepositoryAccess {
 
     function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
 
-    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external;
+    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external view;
 
     function latestTime() external view returns(uint32);
 }

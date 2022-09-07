@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IECDSARegistry.sol";
@@ -52,7 +52,7 @@ abstract contract ECDSASignatureChecker is
      */
     //NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
-        public
+        external
         returns (
             uint32 taskNumberToConfirm,
             bytes32 taskHash,

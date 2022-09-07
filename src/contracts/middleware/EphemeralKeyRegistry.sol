@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
@@ -47,11 +47,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     /**
-     @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)
-     */
-    /** 
-     @param EKHash is the hash of the Ephemeral key that is being currently used by the 
-     @param operator for signing on bomb-based queries.
+     * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)
+     * @param EKHash is the hash of the Ephemeral key that is being currently used by the 
+     * @param operator for signing on bomb-based queries.
      */ 
     function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
         // record the new EK entry 
@@ -67,14 +65,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     /**
-     @notice Used by the operator to post their ephemeral key preimage via BLSRegistry 
-             (on degregistration) after the expiry of its usage. This function is called only
-             when operator is going to de-register from the middleware.  Check its usage in 
-             deregisterOperator  in BLSRegistryWithBomb.sol
+     * @notice Used by the operator to post their ephemeral key preimage via BLSRegistry 
+     *        (on degregistration) after the expiry of its usage. This function is called only
+     *        when operator is going to de-register from the middleware.  Check its usage in 
+     *        deregisterOperator  in BLSRegistryWithBomb.sol
+     * @param prevEK is the preimage. 
      */
-    /**
-     @param prevEK is the preimage. 
-     */ 
     function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external onlyRegistry {
         // retrieve the most recent EK entry for the operator
         uint256 historyLength = _getEKHistoryLength(operator);
@@ -94,15 +90,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
 
     /**
-     @notice Used by the operator to update their ephemeral key hash and post their 
-             previous ephemeral key (on degregistration) after the expiry of its usage.  
-             Revealing of current ephemeral key and describing the hash of the new ephemeral
-             key done together.
+     * @notice Used by the operator to update their ephemeral key hash and post their 
+     *        previous ephemeral key (on degregistration) after the expiry of its usage.  
+     *        Revealing of current ephemeral key and describing the hash of the new ephemeral
+     *        key done together.
+     * @param prevEK is the previous ephemeral key.
+     * @param newEKHash is the hash of the new ephemeral key.
      */
-    /**
-     @param prevEK is the previous ephemeral key,
-     @param newEKHash is the hash of the new ephemeral key.
-     */ 
     function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 newEKHash) external {
         // retrieve the most recent EK entry for the operator
         uint256 historyLength = _getEKHistoryLength(msg.sender);
@@ -129,19 +123,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         EKHistory[msg.sender].push(newEKEntry);
     }
 
-
-
-    /**
-     @notice retrieve the operator's current EK hash
-     */
+    // @notice retrieve the operator's current ephemeral key hash
     function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
         uint256 historyLength = _getEKHistoryLength(operator);
         return EKHistory[operator][historyLength - 1].keyHash;
     }
 
-    /**
-     @notice retrieve the operator's current EK itself
-     */
+    // @notice retrieve the operator's current ephemeral key itself
     function getLatestEphemeralKey(address operator)
         external view
         returns (bytes32)
@@ -159,9 +147,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         }
     }
 
-
     /**
-     @notice This function is used for getting the ephemeral key pertaining to a particular taskNumber
+     * @notice This function is used for getting the ephemeral key pertaining to a particular taskNumber, for an operator
+     * @param operator The operator whose ephemeral key we are interested in.
+     * @param taskNumber The taskNumber for which we want to retrieve the operator's ephemeral key
      */
     function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber)
         external view
@@ -191,7 +180,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
 
     /** 
-     @notice proof for operator that hasn't updated their ephemeral key within the update window.  
+     * @notice Used for proving that an operator hasn't updated their ephemeral key within the update window.
+     * @param operator The operator with a stale ephemeral key
     */
     function proveStaleEphemeralKey(address operator) external {
         // get the info on latest EK 
@@ -213,8 +203,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
 
     /**
-     @notice Used for proving that leaked key is actually the ephemeral key 
-             that was supposed to be not revealed   
+     * @notice Used for proving that an operator leaked an ephemeral key that was not supposed to be revealed.
+     * @param operator The operator who leaked their ephemeral key.
+     * @param leakedEphemeralKey The ephemeral key for the operator, which they were not supposed to reveal.
     */
     function verifyEphemeralKeyIntegrity(address operator, bytes32 leakedEphemeralKey) external {
         uint256 historyLength = _getEKHistoryLength(operator);
@@ -229,6 +220,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         }
     }
 
+    // @notice Returns the UTC timestamp at which the operator last renewed their ephemeral key
     function getLastEKPostTimestamp(address operator) external view returns (uint192) {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];

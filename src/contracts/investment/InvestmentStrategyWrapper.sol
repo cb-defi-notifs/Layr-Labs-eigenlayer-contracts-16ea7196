@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -114,7 +114,7 @@ contract InvestmentStrategyWrapper is
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
     function underlyingToSharesView(uint256 amountUnderlying)
-        public
+        external
         view virtual
         returns (uint256)
     {
@@ -128,7 +128,7 @@ contract InvestmentStrategyWrapper is
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
     function underlyingToShares(uint256 amountUnderlying)
-        public
+        external
         view virtual
         returns (uint256)
     {
@@ -139,7 +139,7 @@ contract InvestmentStrategyWrapper is
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
      *         this strategy. In contrast to `userUnderlying`, this function guarantees no state modifications
      */
-    function userUnderlyingView(address user) public view virtual returns (uint256) {
+    function userUnderlyingView(address user) external view virtual returns (uint256) {
         return sharesToUnderlyingView(shares(user));
     }
 
@@ -147,7 +147,7 @@ contract InvestmentStrategyWrapper is
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
      *         this strategy. In contrast to `userUnderlyingView`, this function **may** make state modifications
      */
-    function userUnderlying(address user) public virtual returns (uint256) {
+    function userUnderlying(address user) external virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
     }
 

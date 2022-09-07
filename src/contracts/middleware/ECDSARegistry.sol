@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
 import "../interfaces/IECDSARegistry.sol";
@@ -73,7 +73,7 @@ contract ECDSARegistry is
         address signingAddress,
         bytes calldata stakes,
         string calldata socket
-    ) public virtual {        
+    ) external virtual {        
         _registerOperator(msg.sender, signingAddress, registrantType, stakes, socket);
     }
     
@@ -358,7 +358,7 @@ contract ECDSARegistry is
         bytes calldata stakes,
         address[] memory operators,
         uint32[] memory indexes
-    ) public {
+    ) external {
         //provided 'stakes' must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -474,7 +474,7 @@ contract ECDSARegistry is
              called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectStakeHash(uint256 index, uint32 blockNumber)
-        public
+        external
         view
         returns (bytes32)
     {
@@ -494,7 +494,7 @@ contract ECDSARegistry is
         return stakeHashes[index];
     }
 
-    function getStakeHashUpdatesLength() public view returns (uint256) {
+    function getStakeHashUpdatesLength() external view returns (uint256) {
         return stakeHashUpdates.length;
     }
 

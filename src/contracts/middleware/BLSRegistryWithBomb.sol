@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
@@ -79,7 +79,7 @@ contract BLSRegistryWithBomb is
         uint8,
         bytes calldata,
         string calldata
-    ) public override pure {        
+    ) external override pure {        
         revert("must register with ephemeral key");
     }
 
