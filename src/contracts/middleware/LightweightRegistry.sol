@@ -155,7 +155,6 @@ contract LightweightRegistry is
         }
     }
 
-
     /**
      @notice returns task number from when operator has been registered.
      */
@@ -186,7 +185,6 @@ contract LightweightRegistry is
         _registerOperator(msg.sender);
     }
 
-
     /**
      @param operator is the node who is registering to be a operator
      */
@@ -204,7 +202,6 @@ contract LightweightRegistry is
             "Not enough eth value staked"
         );
         
-        
         // store the registrant's info in relation
         registry[operator] = Registrant({
             active: 1,
@@ -220,7 +217,6 @@ contract LightweightRegistry is
             
         emit Registration(operator);
     }
-
 
     function ethStakedByOperator(address operator) external view returns (uint96) {
         return registry[operator].stake;
