@@ -49,6 +49,8 @@ contract EigenLayrDeployer is
 {
     using BytesLib for bytes;
 
+    Vm cheats = Vm(HEVM_ADDRESS);
+
     uint256 public constant DURATION_SCALE = 1 hours;
     // Eigen public eigen;
     IERC20 public eigenToken;
@@ -106,10 +108,24 @@ contract EigenLayrDeployer is
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
+    uint256 privKey = vm.envUint("PRIVATE_KEY_UINT");
+
+    address mainHoncho = cheats.addr(privKey);
+
+    //     0x1234567812345678123456781234567812345698123456781234567812348976;
+    // address acct_1 = cheats.addr(uint256(priv_key_1));
+
+    // address mainHoncho = address(0x22718436a53D0Fb585A5AE52FcDd0Bc03416b0ff);
+
     uint8 durationToInit = 2;
 
     //performs basic deployment before each test
     function run() external {
+
+        vm.startBroadcast();
+
+
+        emit log_address(mainHoncho);
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
@@ -226,6 +242,7 @@ contract EigenLayrDeployer is
         //     IERC20(address(liquidStakingMockToken))
         // );
 
+        vm.stopBroadcast();
 
     }
 
@@ -283,15 +300,15 @@ contract EigenLayrDeployer is
             dlReg,
             dlsm,
             dlReg,
-            address(this)
+            mainHoncho
         );
+        emit log_address(dlRepository.owner());
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
         dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
             dlsm,
             dlReg,
             challengeUtils
         );
-
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);

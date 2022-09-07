@@ -18,6 +18,8 @@ abstract contract RepositoryAccess is IRepositoryAccess {
         repository = _repository;
     }
 
+    event fff(address x, address y);
+
 
     // MODIFIERS -- access controls based on stored addresses
     modifier onlyRepository() {
@@ -29,6 +31,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
     }
 
     modifier onlyRepositoryGovernance() {
+        emit fff(msg.sender, address(_repositoryGovernance()));
         require(
             msg.sender == address(_repositoryGovernance()),
             "onlyRepositoryGovernance"
