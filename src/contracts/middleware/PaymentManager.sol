@@ -14,9 +14,11 @@ import "../permissions/RepositoryAccess.sol";
 import "forge-std/Test.sol";
 
 /**
- @notice This contract is used for doing interactive payment challenge.
+ * @notice This contract is used for doing interactive payment challenges.
+ * @notice The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
+ *        function -- see DataLayrPaymentManager for an example
  */
- // contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal` function -- see DataLayrPaymentManager for an example
+ // 
 abstract contract PaymentManager is 
     RepositoryAccess,
     IPaymentManager
@@ -28,56 +30,42 @@ abstract contract PaymentManager is
      **********************/
 
     /**
-      @notice used for storing information on the most recent payment made to the operator
-     */
-
-
-    /**
-     * @notice challenge window for submitting fraudproof in case of incorrect payment 
-     *         claim by the registered operator 
+     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment 
+     *         claim by a registered operator.
      */
     uint256 public constant paymentFraudProofInterval = 7 days;
     /// @notice Constant used as a divisor in dealing with BIPS amounts
     uint256 internal constant MAX_BIPS = 10000;
 
+    /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
+    IERC20 public immutable paymentToken;
+
+    /// @notice Collateral token used for placing collateral on challenges & payment commits
+    IERC20 public immutable collateralToken;
+
     /**
-     @notice this is the payment that has to be made as a collateral for fraudproof 
+     @notice Specifies the payment that has to be made as a collateral for fraudproof 
              during payment challenges
      */
     uint256 public paymentFraudProofCollateral;
 
     /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         middleware nodes.
-     */
-    IERC20 public immutable paymentToken;
-
-    // collateral token used for placing collateral on challenges & payment commits
-    IERC20 public immutable collateralToken;
-
-    /**
-     * @notice The EigenLayr delegation contract for this middleware which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as middleware
-     *      nodes and so on.
-     */
-    /**
-      @dev For more details, see EigenLayrDelegation.sol. 
+     * @notice The global EigenLayr Delegation contract, which is primarily used by
+     *      stakers to delegate their stake to operators who serve as middleware nodes.
+     * @dev For more details, see EigenLayrDelegation.sol. 
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
-    /**
-        @notice mapping between the operator and its current committed payment
-        or last redeemed payment 
-    */
+    /// @notice mapping between the operator and its current committed payment or last redeemed payment 
     mapping(address => Payment) public operatorToPayment;
 
-    // operator => PaymentChallenge
+    /// @notice mapping from operator => PaymentChallenge
     mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
 
-    // deposits of future fees to be drawn against when paying for taking service for the task
+    /// @notice Deposits of future fees to be drawn against when paying for service from the middleware
     mapping(address => uint256) public depositsOf;
 
-    // depositors => addresses approved to spend deposits => allowance
+    /// @notice depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
 
     /******** 
@@ -89,6 +77,7 @@ abstract contract PaymentManager is
         uint32 toTaskNumber,
         uint256 fee
     );
+
     event PaymentRedemption(address indexed operator, uint256 fee);
 
     event PaymentBreakdown(address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
@@ -96,8 +85,6 @@ abstract contract PaymentManager is
     event PaymentChallengeInit(address indexed operator, address challenger);
 
     event PaymentChallengeResolution(address indexed operator, bool operatorWon);
-
-
 
     constructor(
         IERC20 _paymentToken,
@@ -115,9 +102,9 @@ abstract contract PaymentManager is
     }
 
     /**
-     @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware 
-     @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees      
-     @param amount is amount of futures fees being deposited     
+     * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware 
+     * @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees      
+     * @param amount is amount of futures fees being deposited     
      */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
@@ -128,9 +115,7 @@ abstract contract PaymentManager is
         allowances[msg.sender][allowed] = amount;
     }
 
-    /**
-     @notice Used for deducting the fees from the payer to the middleware
-     */
+    /// @notice Used for deducting the fees from the payer to the middleware
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
         if (initiator != payer){
             if (allowances[payer][initiator] != type(uint256).max) {
@@ -216,9 +201,8 @@ abstract contract PaymentManager is
         emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
     }
 
-    /**
-     @notice This function can only be called after the challenge window for the payment claim has completed.
-     */
+    
+    /// @notice This function can only be called after the challenge window for the payment claim has completed.
     function redeemPayment() external {
         require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
@@ -259,13 +243,10 @@ abstract contract PaymentManager is
     }
 
     /**
-    @notice This function would be called by a fraud prover to challenge a payment 
-             by initiating an interactive type proof
-     **/
-    /**
-     @param operator is the operator against whose payment claim the fraud proof is being made
-     @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
-     @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
+     * @notice This function is called by a fraud prover to challenge a payment, initiating an interactive-type fraudproof.
+     * @param operator is the operator against whose payment claim the fraud proof is being made
+     * @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
+     * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
      **/
     function challengePaymentInit(
         address operator,
@@ -359,8 +340,6 @@ abstract contract PaymentManager is
         emit PaymentBreakdown(operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
     }
 
-
-
 // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     /**
      * @notice This function is used for updating the status of the challenge in terms of who
@@ -386,7 +365,6 @@ abstract contract PaymentManager is
             return true;
         }
    }
-
 
 // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     //an operator can respond to challenges and breakdown the amount
@@ -435,11 +413,9 @@ abstract contract PaymentManager is
         }
     }
 
-    /* 
-    @notice: resolve payment challenge
-    
-    @param winner is the party who wins the challenge, either the challenger or the operator
-    @param operatorSuccessful is true when the operator wins the challenge agains the challenger
+    /**
+     * @param challenge The challenge that is being resolved
+     * @param winner Address of the winner of the challenge.
     */
     function _resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
