@@ -151,15 +151,15 @@ contract EigenLayrDelegation is
             }
         }
 
-        // call into hook in delegationTerms contract
-        IDelegationTerms dt = delegationTerms[operator];
-        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
-
         // store the time at which the staker began undelegation
         undelegationInitTime[msg.sender] = block.timestamp;
 
         // set that the staker has begun the undelegation process, i.e. "initialized" it
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
+
+        // call into hook in delegationTerms contract
+        IDelegationTerms dt = delegationTerms[operator];
+        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
     }
 
     /// @notice This function must be called by a staker to notify that its stake is
@@ -423,7 +423,7 @@ contract EigenLayrDelegation is
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
     function isOperator(address operator)
-        public
+        external
         view
         returns(bool)
     {

@@ -148,7 +148,7 @@ contract LightweightRegistry is
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
-    function updateStakes(address[] calldata operators) public {
+    function updateStakes(address[] calldata operators) external {
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
@@ -177,7 +177,7 @@ contract LightweightRegistry is
      @notice returns task number from when operator has been registered.
      */
     function getOperatorFromBlockNumber(address operator)
-        public
+        external
         view
         returns (uint32)
     {
@@ -192,14 +192,14 @@ contract LightweightRegistry is
     }
 
     /// @notice returns the active status for the specified operator
-    function getOperatorType(address operator) public view returns (uint8) {
+    function getOperatorType(address operator) external view returns (uint8) {
         return registry[operator].active;
     }
 
     /**
      @notice called for registering as a operator
      */
-    function registerOperator() public virtual {        
+    function registerOperator() external virtual {        
         _registerOperator(msg.sender);
     }
 
@@ -255,7 +255,7 @@ contract LightweightRegistry is
      @notice returns task number from when operator has been registered.
      */
     function getFromBlockNumberForOperator(address operator)
-        public
+        external
         view
         returns (uint32)
     {

@@ -16,8 +16,9 @@ import "forge-std/Test.sol";
 /**
  @notice This contract is used for doing interactive payment challenge
  */
-contract DataLayrPaymentManager is 
-    PaymentManager
+contract DataLayrPaymentManager is
+    PaymentManager,
+    IDataLayrPaymentManager
     // ,DSTest 
     {
 

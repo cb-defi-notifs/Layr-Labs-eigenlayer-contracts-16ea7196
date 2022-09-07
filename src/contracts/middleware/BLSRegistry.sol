@@ -79,7 +79,7 @@ contract BLSRegistry is
         uint8 registrantType,
         bytes calldata data,
         string calldata socket
-    ) public virtual {        
+    ) external virtual {        
         _registerOperator(msg.sender, registrantType, data, socket);
     }
     
@@ -391,7 +391,7 @@ contract BLSRegistry is
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
-    function updateStakes(address[] calldata operators) public {
+    function updateStakes(address[] calldata operators) external {
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
@@ -458,7 +458,7 @@ contract BLSRegistry is
              called by checkSignatures in SignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
-        public
+        external
         view
         returns (bytes32)
     {
@@ -478,7 +478,7 @@ contract BLSRegistry is
         return apkHashes[index];
     }
 
-    function getApkUpdatesLength() public view returns (uint256) {
+    function getApkUpdatesLength() external view returns (uint256) {
         return apkUpdates.length;
     }
 

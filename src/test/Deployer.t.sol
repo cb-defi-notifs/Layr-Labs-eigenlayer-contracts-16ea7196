@@ -411,10 +411,10 @@ contract EigenLayrDeployer is
         input[6] = uint256(0x1e041e0df4821a4b7668999e4381cca9c015916f033512ca0829179c639f285c);
         input[7] = uint256(0x1a2ebe9095bed1d16f938c00d283c3a08462c7dc168a590ffa8ce192e05996ab);
         // insert negated coordinates of the generator for G2
-        input[8] = nG2x1;
-        input[9] = nG2x0;
-        input[10] = nG2y1;
-        input[11] = nG2y0;
+        input[8] = BLS.nG2x1;
+        input[9] = BLS.nG2x0;
+        input[10] = BLS.nG2y1;
+        input[11] = BLS.nG2y0;
 
         assembly {
             // check the pairing; if incorrect, revert

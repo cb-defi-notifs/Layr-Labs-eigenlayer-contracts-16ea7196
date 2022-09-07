@@ -1,20 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../contracts/interfaces/IDataLayrPaymentManager.sol";
-import "../contracts/interfaces/ISlasher.sol";
 import "../test/TestHelper.t.sol";
 
-
 import "../contracts/libraries/BytesLib.sol";
-
-import "../contracts/middleware/ServiceManagerBase.sol";
-
-import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 
 contract DelegationTests is TestHelper {
     using BytesLib for bytes;

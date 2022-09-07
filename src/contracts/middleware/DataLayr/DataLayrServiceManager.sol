@@ -32,18 +32,6 @@ contract DataLayrServiceManager is
 
 
     /**********************
-        CONSTANTS
-     **********************/
-    //TODO: mechanism to change any of these values?
-    uint32 internal constant MIN_STORE_SIZE = 32;
-    uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint32 internal constant MIN_STORE_LENGTH = 60;
-    uint32 internal constant MAX_STORE_LENGTH = 604800;
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
-
-
-    /**********************
         ERROR MESSAGES
      **********************/
     // only repositoryGovernance can call this, but 'sender' called instead
@@ -111,19 +99,19 @@ contract DataLayrServiceManager is
         
     }
 
-    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public onlyRepositoryGovernance {
+    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) external onlyRepositoryGovernance {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
     }
 
-    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
+    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) external onlyRepositoryGovernance {
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
-    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) external onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
-    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) public onlyRepositoryGovernance {
+    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
@@ -158,7 +146,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32){
+    ) external returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -280,7 +268,7 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
@@ -352,7 +340,7 @@ contract DataLayrServiceManager is
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
-        public
+        external
         onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
@@ -418,7 +406,7 @@ contract DataLayrServiceManager is
         return 0;
     }
     
-    function taskNumber() public view returns (uint32){
+    function taskNumber() external view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 

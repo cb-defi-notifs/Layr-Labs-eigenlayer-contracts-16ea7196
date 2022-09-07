@@ -107,9 +107,9 @@ abstract contract PaymentManager is
     {
         paymentToken = _paymentToken;
         setPaymentFraudProofCollateral(_paymentFraudProofCollateral);
-        IServiceManager _serviceManager = _repository.serviceManager();
-        collateralToken = _serviceManager.collateralToken();
-        eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
+        IServiceManager serviceManager_ = _repository.serviceManager();
+        collateralToken = serviceManager_.collateralToken();
+        eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
     }
 
     /**
@@ -118,7 +118,7 @@ abstract contract PaymentManager is
      @param amount is amount of futures fees being deposited     
      */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.transferFrom(msg.sender, address(this), amount);
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
@@ -327,31 +327,25 @@ abstract contract PaymentManager is
 
         uint32 fromTaskNumber = challenge.fromTaskNumber;
         uint32 toTaskNumber = challenge.toTaskNumber;
-        uint32 diff;
+        uint32 diff = (toTaskNumber - fromTaskNumber) / 2;
 
-        //change interval to the one challenger cares about
-        // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
-        // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+        /**
+         * @notice Change the challenged interval to the one the challenger cares about.
+         *          If the difference between the current start and end is even, then the new interval has an endpoint halfway in-between
+         *          If the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
+         *          or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+         *          In other words, it's simple when the difference is even, and when the difference is odd, we just always make the first half the smaller one.
+         */
         if (secondHalf) {
-            diff = (toTaskNumber - fromTaskNumber) / 2;
             challenge.fromTaskNumber = fromTaskNumber + diff;
-            //if next step is not final
-            _updateStatus(operator, diff);
-
             _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
         } else {
-            diff = (toTaskNumber - fromTaskNumber);
-            if (diff % 2 == 1) {
-                diff += 1;
-            }
-            diff /= 2;
-            challenge.toTaskNumber = toTaskNumber - diff;
-
-            _updateStatus(operator, diff);
-
+            challenge.toTaskNumber = fromTaskNumber + diff;
             _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
         }
+
+        // update who must respond next to the challenge
+        _updateStatus(operator, diff);
 
         // extend the settlement time for the challenge, giving the next participant in the interactive fraudproof `paymentFraudProofInterval` to respond
         challenge.settleAt = uint32(block.timestamp + paymentFraudProofInterval);
@@ -367,13 +361,11 @@ abstract contract PaymentManager is
 
 // TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     /**
-     @notice This function is used for updating the status of the challenge in terms of who
-             has to respond to the interactive challenge mechanism next -  is it going to be
-             challenger or the operator.   
-     */
-    /**
-     @param operator is the operator whose payment claim is being challenged
-     @param diff is the number of tasks across which payment is being challenged in this iteration
+     * @notice This function is used for updating the status of the challenge in terms of who
+     *        has to respond to the interactive challenge mechanism next -  is it going to be
+     *        challenger or the operator.   
+     * @param operator is the operator whose payment claim is being challenged
+     * @param diff is the number of tasks across which payment is being challenged in this iteration
      */ 
     function _updateStatus(address operator, uint32 diff)
         internal
@@ -502,7 +494,7 @@ abstract contract PaymentManager is
     }
 
     function getPaymentCollateral(address operator)
-        public
+        external
         view
         returns (uint256)
     {
