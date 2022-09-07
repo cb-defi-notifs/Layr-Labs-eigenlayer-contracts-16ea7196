@@ -88,7 +88,7 @@ contract EigenLayrDeployer is
     uint256[] sigmas;
 
     uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudProofInterval = 7 days;
+    uint256 undelegationFraudproofInterval = 7 days;
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
@@ -218,7 +218,7 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
-            undelegationFraudProofInterval
+            undelegationFraudproofInterval
         );
 
         // deploy all the DataLayr contracts
@@ -337,10 +337,10 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
-        uint256 _paymentFraudProofCollateral = 1e16;
+        uint256 _paymentFraudproofCollateral = 1e16;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
-            _paymentFraudProofCollateral,
+            _paymentFraudproofCollateral,
             dlRepository,
             dlsm
         );

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 contract DataLayrDisclosureChallenge is DSTest {
     DisclosureChallenge public challenge;
-    uint256 disclosureFraudProofInterval = 1 days;
+    uint256 disclosureFraudproofInterval = 1 days;
     event Resolved(bool challengeSuccessful);
     struct DisclosureChallenge {
         address operator;
@@ -56,7 +56,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(challenge.increment != 1, "Time to do one step proof");
         require(
             block.timestamp <
-                challenge.commitTime + disclosureFraudProofInterval,
+                challenge.commitTime + disclosureFraudproofInterval,
             "Fraud proof interval has passed"
         );
         uint256 x_contest;
@@ -97,9 +97,9 @@ contract DataLayrDisclosureChallenge is DSTest {
     function resolveTimeout(bytes32 headerHash) public {
         require(
             block.timestamp >
-                challenge.commitTime + disclosureFraudProofInterval &&
+                challenge.commitTime + disclosureFraudproofInterval &&
                 block.timestamp <
-                challenge.commitTime + (2 * disclosureFraudProofInterval),
+                challenge.commitTime + (2 * disclosureFraudproofInterval),
             "Fraud proof interval has passed"
         );
         if (challenge.turn) {
@@ -130,7 +130,7 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(challenge.increment == 1, "Time to do dissection proof");
         require(
             block.timestamp <
-                challenge.commitTime + disclosureFraudProofInterval,
+                challenge.commitTime + disclosureFraudproofInterval,
             "Fraud proof interval has passed"
         );
         //degree of proved leaf

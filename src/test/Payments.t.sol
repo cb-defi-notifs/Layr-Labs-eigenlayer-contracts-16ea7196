@@ -76,9 +76,9 @@ contract PaymentsTests is TestHelper {
     ) public {
         address repositoryOwner = dlRepository.owner();
         cheats.startPrank(repositoryOwner);
-        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
-        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral, 
-                    "testSetPaymentCollateral: paymentFraudProofCollateral is not set correctly");
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudproofCollateral() == fraudProofCollateral, 
+                    "testSetPaymentCollateral: paymentFraudproofCollateral is not set correctly");
         cheats.stopPrank();
     }
 
@@ -90,7 +90,7 @@ contract PaymentsTests is TestHelper {
     ) fuzzedAddress(unauthorizedRepositorOwner) public {
         cheats.startPrank(unauthorizedRepositorOwner);
         cheats.expectRevert(bytes("onlyRepositoryGovernance"));
-        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
         cheats.stopPrank();
     }
 

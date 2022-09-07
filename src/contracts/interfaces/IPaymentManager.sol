@@ -104,15 +104,15 @@ interface IPaymentManager is IRepositoryAccess {
 
     function payFee(address initiator, address payer, uint256 feeAmount) external;
 
-    function setPaymentFraudProofCollateral(uint256 _paymentFraudProofCollateral) external;
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external;
 
     function commitPayment(uint32 toTaskNumber, uint120 amount) external;
 
     function redeemPayment() external;
 
-    function paymentFraudProofInterval() external view returns (uint256);
+    function paymentFraudproofInterval() external view returns (uint256);
 
-    function paymentFraudProofCollateral() external view returns (uint256);
+    function paymentFraudproofCollateral() external view returns (uint256);
 
     function getPaymentCollateral(address) external view returns (uint256);
 
