@@ -5,8 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin-upgrades/contracts/security/PausableUpgradeable.sol";
-import "@openzeppelin-upgrades/contracts/access/AccessControlUpgradeable.sol";
+import "../utils/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
@@ -26,8 +25,7 @@ contract InvestmentManager is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
-    PausableUpgradeable,
-    AccessControlUpgradeable
+    Pausable
     // ,DSTest
 {
     using SafeERC20 for IERC20;
@@ -80,29 +78,15 @@ contract InvestmentManager is
      */
     function initialize(
         ISlasher _slasher,
-        address _governor
+        address _governor,
+        address _pauser,
+        address _unpauser
     ) external initializer {
-        __Pausable_init();
-        __AccessControl_init();
         _transferOwnership(_governor);
         slasher = _slasher;
 
-        _grantRole(PAUSER, pauser_multisig);
-        _grantRole(UNPAUSER, unpauser_multisig);
+        
     }
-
-
-
-    function pause() public onlyRole(PAUSER) {
-        _pause();
-    }
-
-    function unpause() public onlyRole(UNPAUSER) {
-        _unpause();
-    }
-
-
-
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
      *         behalf of the depositor

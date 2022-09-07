@@ -7,11 +7,7 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
-    bytes32 public constant PAUSER = keccak256("PAUSER");
-    bytes32 public constant UNPAUSER = keccak256("UNPAUSER");
 
-    address pauser_multisig;
-    address unpauser_multisig;
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;

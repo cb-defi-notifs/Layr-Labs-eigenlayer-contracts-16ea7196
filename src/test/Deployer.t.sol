@@ -95,6 +95,8 @@ contract EigenLayrDeployer is
     uint8 durationToInit = 2;
     
     address storer = address(420);
+    address pauser = address(69);
+    address unpauser = address(489);
     address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
@@ -212,7 +214,9 @@ contract EigenLayrDeployer is
         
         investmentManager.initialize(
             slasher,
-            governor
+            governor,
+            pauser,
+            unpauser
         );
 
         // initialize the delegation (proxy) contract
