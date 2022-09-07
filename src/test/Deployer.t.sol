@@ -388,7 +388,7 @@ contract EigenLayrDeployer is
 
     }
 
-    function testSig() public {
+    function testSig() public view {
         uint256[12] memory input;
         //1d9b51a4ffb5b3f402748854ea5bbb8025324782062324e99bedcdc2cec4102f
         //000000000004

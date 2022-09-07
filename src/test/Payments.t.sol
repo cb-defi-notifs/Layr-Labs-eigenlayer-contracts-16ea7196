@@ -218,14 +218,6 @@ contract PaymentsTests is TestHelper {
         }
         cheats.stopPrank();
 
-        uint8 duration = 2;
-
-        // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
-        // _testInitDataStore();
-        bytes memory header = hex"0102030405060708091011121314151617181921";
-        uint32 totalBytes = 1e6;
-        // uint32 storePeriodLength = 600;
-
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
