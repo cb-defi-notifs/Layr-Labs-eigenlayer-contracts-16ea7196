@@ -36,6 +36,8 @@ abstract contract PaymentManager is
     uint256 public constant paymentFraudProofInterval = 7 days;
     /// @notice Constant used as a divisor in dealing with BIPS amounts
     uint256 internal constant MAX_BIPS = 10000;
+    /// @notice Gas budget provided in calls to DelegationTerms contracts
+    uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
@@ -85,6 +87,9 @@ abstract contract PaymentManager is
     event PaymentChallengeInit(address indexed operator, address challenger);
 
     event PaymentChallengeResolution(address indexed operator, bool operatorWon);
+
+    /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
+    event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     constructor(
         IERC20 _paymentToken,
@@ -235,11 +240,27 @@ abstract contract PaymentManager is
         // terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);
 
-// TODO: make this a low-level call with gas budget that ignores reverts
-        // inform the DelegationTerms contract of the payment, which will determine
-        // the rewards operator and its delegators are eligible for
-        dt.payForService(paymentToken, amount);
+        // emit event
         emit PaymentRedemption(msg.sender, amount);
+
+        // inform the DelegationTerms contract of the payment, which will determine the rewards the operator and its delegators are eligible for
+        _payForServiceHook(dt, amount);
+    }
+
+    // inform the DelegationTerms contract of the payment, which will determine the rewards the operator and its delegators are eligible for
+    function _payForServiceHook(IDelegationTerms dt, uint256 amount) internal {
+        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
+            abi.encodeWithSelector(
+                IDelegationTerms.payForService.selector,
+                paymentToken,
+                amount
+            )
+        );
+        // if the internal call fails, we emit a special event rather than reverting
+        if (!success) {
+            emit OnPayForServiceCallFailure(dt, returnData);
+        }
     }
 
     /**

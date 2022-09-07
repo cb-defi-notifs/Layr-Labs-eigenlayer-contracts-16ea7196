@@ -6,7 +6,8 @@ import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
-    uint96 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
+    /// @notice Gas budget provided in calls to DelegationTerms contracts
+    uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
     // maximum value that 'undelegationFraudProofInterval' may take
     uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
