@@ -133,10 +133,10 @@ contract InvestmentManager is
         uint256 shareAmount
     ) 
         external
+        whenNotPaused
         onlyNotFrozen(msg.sender)
         onlyNotDelegated(msg.sender)
         nonReentrant
-        whenNotPaused
     {
         _withdrawFromStrategy(
             msg.sender,
@@ -168,9 +168,10 @@ contract InvestmentManager is
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
+        whenNotPaused
         onlyNotFrozen(msg.sender)
         nonReentrant
-        whenNotPaused
+        
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
@@ -238,6 +239,7 @@ contract InvestmentManager is
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
+        whenNotPaused
         onlyNotFrozen(depositor)
         nonReentrant
     {
@@ -341,7 +343,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+    ) external whenNotPaused onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -380,7 +382,7 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+    ) external whenNotPaused onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
 
