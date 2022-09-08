@@ -5,7 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../utils/PauseRegistry.sol";
+import "../utils/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
@@ -78,13 +78,12 @@ contract InvestmentManager is
      */
     function initialize(
         ISlasher _slasher,
-        address pauser,
-        address unpauser,
+        IPauserRegistry _pauserRegistry,
         address _governor
     ) external initializer {
         _transferOwnership(_governor);
         slasher = _slasher;
-        _initializePauser(pauser, unpauser);
+        _initializePauser(_pauserRegistry);
     }
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
