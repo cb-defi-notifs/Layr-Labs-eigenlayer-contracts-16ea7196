@@ -120,7 +120,13 @@ contract DataLayrPaymentManager is
             // look up the voteWeigher address
             IVoteWeigher voteWeigher = repository.voteWeigher();
 
-            //TODO: this assumes a *fixed* eigen eth split.
+            /*
+             *  searchData.metadata.fee is the total fee for a datastore
+             *  This needs to be split up among operators, so we multiply 
+             *  the fee by operatorStake/totalStakesSigned to get the operator's
+             *  share of the stake.  Then we multiply by quorumBips/MAX_BIPS to get
+             *  the percentage of the operator's fee for that quorum
+            */
             trueAmount = uint120(
                 (
                     (
