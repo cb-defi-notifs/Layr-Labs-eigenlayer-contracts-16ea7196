@@ -63,12 +63,12 @@ contract BLSRegistryWithBomb is
              registerOperator in BLSRegistry.sol.
      */
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         bytes32 ephemeralKeyHash,
         bytes calldata data,
         string calldata socket
     ) external {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, operatorType, data, socket);
 
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);

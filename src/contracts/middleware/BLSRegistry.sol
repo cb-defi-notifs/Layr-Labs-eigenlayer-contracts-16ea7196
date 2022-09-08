@@ -41,7 +41,7 @@ contract BLSRegistry is
      * @notice
      */
     event Registration(
-        address indexed registrant,
+        address indexed operator,
         bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
@@ -70,17 +70,17 @@ contract BLSRegistry is
      @notice called for registering as a operator
      */
     /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
+     @param operatorType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the operator
      
      */ 
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata data,
         string calldata socket
     ) public virtual {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, operatorType, data, socket);
     }
     
     /**
@@ -88,7 +88,7 @@ contract BLSRegistry is
      */
     function _registerOperator(
         address operator,
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata data,
         string calldata socket
     ) internal {
@@ -99,8 +99,8 @@ contract BLSRegistry is
 
         OperatorStake memory _operatorStake;
 
-        // if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 1) == 1) {
+        // if first bit of operatorType is '1', then operator wants to be an ETH validator
+        if ((operatorType & 1) == 1) {
             // if operator want to be an "ETH" validator, check that they meet the
             // minimum requirements on how much ETH it must deposit
             _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
@@ -110,8 +110,8 @@ contract BLSRegistry is
             );
         }
 
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 2) == 2) {
+        //if second bit of operatorType is '1', then operator wants to be an EIGEN validator
+        if ((operatorType & 2) == 2) {
             // if operator want to be an "Eigen" validator, check that they meet the
             // minimum requirements on how much Eigen it must deposit
             _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
@@ -176,12 +176,12 @@ contract BLSRegistry is
         _operatorStake.updateBlockNumber = uint32(block.number);
         pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
         
-        // store the registrant's info in relation
-        registry[operator] = Registrant({
+        // store the operator's info in relation
+        registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
-            active: registrantType,
+            id: nextOperatorId,
+            index: numOperators(),
+            active: operatorType,
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
@@ -191,19 +191,19 @@ contract BLSRegistry is
         });
 
         // record the operator being registered
-        registrantList.push(operator);
+        operatorList.push(operator);
 
         // record operator's index in list of operators
         OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
+        operatorIndex.index = uint32(operatorList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
         
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
 
-        // update the counter for registrant ID
+        // update the counter for operator ID
         unchecked {
-            ++nextRegistrantId;
+            ++nextOperatorId;
         }
         
         
@@ -246,7 +246,7 @@ contract BLSRegistry is
         );
 
         require(
-            msg.sender == registrantList[index],
+            msg.sender == operatorList[index],
             "Incorrect index supplied"
         );
 
@@ -306,8 +306,8 @@ contract BLSRegistry is
         // push new stake to storage
         pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
-        // Update registrant list and update index histories
-        address swappedOperator = _popRegistrant(pubkeyHash,index);
+        // Update operator list and update index histories
+        address swappedOperator = _popOperator(pubkeyHash,index);
 
         /**
          @notice  update info on ETH and Eigen staked with the middleware

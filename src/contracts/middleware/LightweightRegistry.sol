@@ -26,7 +26,7 @@ contract LightweightRegistry is
      *           - sending data by the sequencer
      *           - payment and associated challenges
      */
-    struct Registrant {
+    struct Operator {
         // start block from which the  operator has been registered
         uint32 fromBlockNumber;
 
@@ -50,7 +50,7 @@ contract LightweightRegistry is
         );
 
     // number of registrants of this service
-    uint64 public numRegistrants;  
+    uint64 public numOperators;  
 
     uint128 public nodeEthStake = 1 wei;
     
@@ -58,7 +58,7 @@ contract LightweightRegistry is
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     /// @notice used for storing Registrant info on each operator while registration
-    mapping(address => Registrant) public registry;
+    mapping(address => Operator) public registry;
 
 
 
@@ -135,7 +135,7 @@ contract LightweightRegistry is
 
         //decrement number of registrants
         unchecked {
-            --numRegistrants;
+            --numOperators;
         }
 
         emit Deregistration(msg.sender);
@@ -223,7 +223,7 @@ contract LightweightRegistry is
         
         
         // store the registrant's info in relation
-        registry[operator] = Registrant({
+        registry[operator] = Operator({
             active: 1,
             fromBlockNumber: uint32(block.number),
             slashableUntil: 0,
@@ -232,7 +232,7 @@ contract LightweightRegistry is
 
         // increment number of registrants
         unchecked {
-            ++numRegistrants;
+            ++numOperators;
         }
             
         emit Registration(operator);
