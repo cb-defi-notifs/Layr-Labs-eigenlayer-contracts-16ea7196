@@ -19,7 +19,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
     
     struct LowDegreeChallenge {
-        // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
+        // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
         uint256 commitTime;
         // challenger's address
         address challenger;
@@ -33,8 +33,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
-    // TODO: set this correctly!
-    uint256 internal constant MAX_POT_DEGREE = 0;
+    uint256 internal constant MAX_POT_DEGREE = (2**28);
 
     event LowDegreeChallengeInit(
         bytes32 indexed headerHash,
@@ -79,8 +78,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
         require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
     }
-
-
 
     function respondToLowDegreeChallenge(
         bytes calldata header,

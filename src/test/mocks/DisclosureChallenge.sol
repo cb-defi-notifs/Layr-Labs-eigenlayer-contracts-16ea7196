@@ -5,12 +5,12 @@ import "forge-std/Test.sol";
 
 contract DataLayrDisclosureChallenge is DSTest {
     DisclosureChallenge public challenge;
-    uint256 disclosureFraudProofInterval = 1 days;
+    uint256 disclosureFraudproofInterval = 1 days;
     event Resolved(bool challengeSuccessful);
     struct DisclosureChallenge {
         address operator;
         address challenger;
-        uint32 commitTime; // when committed, used for fraud proof period
+        uint32 commitTime; // when committed, used for fraudproof period
         bool turn; // false: operator's turn, true: challengers turn
         uint256 x_low; // claimed x and y coordinate of the commitment to the lower half degrees of the polynomial
         uint256 y_low; // interpolating the data the operator receives
@@ -56,8 +56,8 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(challenge.increment != 1, "Time to do one step proof");
         require(
             block.timestamp <
-                challenge.commitTime + disclosureFraudProofInterval,
-            "Fraud proof interval has passed"
+                challenge.commitTime + disclosureFraudproofInterval,
+            "Fraudproof interval has passed"
         );
         uint256 x_contest;
         uint256 y_contest;
@@ -97,10 +97,10 @@ contract DataLayrDisclosureChallenge is DSTest {
     function resolveTimeout(bytes32 headerHash) public {
         require(
             block.timestamp >
-                challenge.commitTime + disclosureFraudProofInterval &&
+                challenge.commitTime + disclosureFraudproofInterval &&
                 block.timestamp <
-                challenge.commitTime + (2 * disclosureFraudProofInterval),
-            "Fraud proof interval has passed"
+                challenge.commitTime + (2 * disclosureFraudproofInterval),
+            "Fraudproof interval has passed"
         );
         if (challenge.turn) {
             // challenger did not respond
@@ -130,8 +130,8 @@ contract DataLayrDisclosureChallenge is DSTest {
         require(challenge.increment == 1, "Time to do dissection proof");
         require(
             block.timestamp <
-                challenge.commitTime + disclosureFraudProofInterval,
-            "Fraud proof interval has passed"
+                challenge.commitTime + disclosureFraudproofInterval,
+            "Fraudproof interval has passed"
         );
         //degree of proved leaf
         uint48 degree = proveDegreeLeaf(

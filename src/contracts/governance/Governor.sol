@@ -201,7 +201,7 @@ contract Governor_Experimental is RepositoryAccess {
         string[] memory signatures,
         bytes[] memory calldatas,
         string memory description
-    ) public returns (uint256) {
+    ) external returns (uint256) {
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
             msg.sender
         );
@@ -283,7 +283,7 @@ contract Governor_Experimental is RepositoryAccess {
         return newProposal.id;
     }
 
-    function queue(uint256 proposalId) public {
+    function queue(uint256 proposalId) external {
         require(
             state(proposalId) == ProposalState.Succeeded,
             "RepositoryGovernance::queue: proposal can only be queued if it is succeeded"
@@ -319,7 +319,7 @@ contract Governor_Experimental is RepositoryAccess {
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
-    function execute(uint256 proposalId) public payable {
+    function execute(uint256 proposalId) external payable {
         require(
             state(proposalId) == ProposalState.Queued,
             "RepositoryGovernance::execute: proposal can only be executed if it is queued"
@@ -338,7 +338,7 @@ contract Governor_Experimental is RepositoryAccess {
         emit ProposalExecuted(proposalId);
     }
 
-    function cancel(uint256 proposalId) public {
+    function cancel(uint256 proposalId) external {
         ProposalState stateOfProposal = state(proposalId);
         require(
             stateOfProposal != ProposalState.Executed,
@@ -377,7 +377,7 @@ contract Governor_Experimental is RepositoryAccess {
     }
 
     function getActions(uint256 proposalId)
-        public
+        external
         view
         returns (
             address[] memory targets,
@@ -391,7 +391,7 @@ contract Governor_Experimental is RepositoryAccess {
     }
 
     function getReceipt(uint256 proposalId, address voter)
-        public
+        external
         view
         returns (Receipt memory)
     {
@@ -438,7 +438,7 @@ contract Governor_Experimental is RepositoryAccess {
         }
     }
 
-    function castVote(uint256 proposalId, bool support) public {
+    function castVote(uint256 proposalId, bool support) external {
         return _castVote(msg.sender, proposalId, support);
     }
 
@@ -448,7 +448,7 @@ contract Governor_Experimental is RepositoryAccess {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) external {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
         );
@@ -478,7 +478,7 @@ contract Governor_Experimental is RepositoryAccess {
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
         require(
-            receipt.hasVoted == false,
+            !receipt.hasVoted,
             "RepositoryGovernance::_castVote: voter already voted"
         );
         (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(

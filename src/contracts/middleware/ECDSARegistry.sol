@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
+import "../interfaces/IECDSARegistry.sol";
 
 // import "forge-std/Test.sol";
 
@@ -13,7 +14,8 @@ import "./RegistryBase.sol";
  */
 
 contract ECDSARegistry is
-    RegistryBase
+    RegistryBase,
+    IECDSARegistry
     // ,DSTest
 {
     using BytesLib for bytes;
@@ -41,6 +43,7 @@ contract ECDSARegistry is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -49,6 +52,7 @@ contract ECDSARegistry is
             _delegation,
             _investmentManager,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
@@ -71,8 +75,9 @@ contract ECDSARegistry is
         address signingAddress,
         bytes calldata stakes,
         string calldata socket
-    ) public virtual {        
+    ) external virtual {        
         _registerOperator(msg.sender, signingAddress, operatorType, stakes, socket);
+
     }
     
     /**
@@ -356,7 +361,7 @@ contract ECDSARegistry is
         bytes calldata stakes,
         address[] memory operators,
         uint32[] memory indexes
-    ) public {
+    ) external {
         //provided 'stakes' must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -472,7 +477,7 @@ contract ECDSARegistry is
              called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectStakeHash(uint256 index, uint32 blockNumber)
-        public
+        external
         view
         returns (bytes32)
     {
@@ -492,7 +497,7 @@ contract ECDSARegistry is
         return stakeHashes[index];
     }
 
-    function getStakeHashUpdatesLength() public view returns (uint256) {
+    function getStakeHashUpdatesLength() external view returns (uint256) {
         return stakeHashUpdates.length;
     }
 
