@@ -454,7 +454,7 @@ abstract contract BLSSignatureChecker is
             pubkeyHashes
         );
 
-        // set compressedSignatoryRecord variable used for payment fraud proofs
+        // set compressedSignatoryRecord variable used for payment fraudproofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
                 // taskHash,

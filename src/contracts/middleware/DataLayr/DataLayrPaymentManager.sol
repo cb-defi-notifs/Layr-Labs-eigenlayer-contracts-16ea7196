@@ -13,9 +13,8 @@ import "../../middleware/PaymentManager.sol";
 
 import "forge-std/Test.sol";
 
-/**
- @notice This contract is used for doing interactive payment challenge
- */
+
+/// @notice This contract is used for doing interactive payment challenges on DataLayr
 contract DataLayrPaymentManager is
     PaymentManager,
     IDataLayrPaymentManager
@@ -23,18 +22,13 @@ contract DataLayrPaymentManager is
     {
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
-    /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as DataLayr
-     *      nodes and so on.
-     */
 
     constructor(
         IERC20 _paymentToken,
-        uint256 _paymentFraudProofCollateral,
+        uint256 _paymentFraudproofCollateral,
         IRepository _repository,
         IDataLayrServiceManager _dataLayrServiceManager
-    )  PaymentManager(_paymentToken, _paymentFraudProofCollateral, _repository) 
+    )  PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository) 
     {
         dataLayrServiceManager = _dataLayrServiceManager;
     }
@@ -123,14 +117,23 @@ contract DataLayrPaymentManager is
                 "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged"
             );
 
-            //TODO: assumes even eigen eth split
+            // look up the voteWeigher address
+            IVoteWeigher voteWeigher = repository.voteWeigher();
+
+            //TODO: this assumes a *fixed* eigen eth split.
             trueAmount = uint120(
-                (searchData.metadata.fee * operatorStake.ethStake) /
-                    totalStakesSigned.ethStakeSigned /
-                    2 +
-                    (searchData.metadata.fee * operatorStake.eigenStake) /
-                    totalStakesSigned.eigenStakeSigned /
-                    2
+                (
+                    (
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.ethStake)) /
+                        totalStakesSigned.ethStakeSigned
+                    )
+                    +
+                    (
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.eigenStake)) /
+                        totalStakesSigned.eigenStakeSigned
+                    )
+                )
+                / MAX_BIPS
             );
         } else {
             //either the operator must have been a non signer or the task was based off of stakes before the operator registered

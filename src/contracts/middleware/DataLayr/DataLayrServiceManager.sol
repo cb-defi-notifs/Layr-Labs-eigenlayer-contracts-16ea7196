@@ -52,14 +52,10 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-
-
     uint128 public eigenSignedThresholdPercentage = 90;
     uint128 public ethSignedThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
-
-
 
     /*************
         EVENTS
@@ -80,8 +76,6 @@ contract DataLayrServiceManager is
         uint32 dataStoreId,
         bytes32 headerHash
     );
-
-
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -294,9 +288,6 @@ contract DataLayrServiceManager is
         require(searchData.metadata.globalDataStoreId == dataStoreIdToConfirm, "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data");
         require(searchData.metadata.blockNumber == blockNumberFromTaskHash, "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data");
 
-
-
-
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
@@ -312,16 +303,17 @@ contract DataLayrServiceManager is
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
-
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
         // check that signatories own at least a threshold percentage of eth 
         // and eigen, thus, implying quorum has been acheieved
-        require(signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
-                && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
-                "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen");
-
+        require(
+            signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
+            &&
+            signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
+            "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen"
+        );
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
 

@@ -19,7 +19,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
     
     struct LowDegreeChallenge {
-        // UTC timestamp (in seconds) at which the challenge was created, used for fraud proof period
+        // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
         uint256 commitTime;
         // challenger's address
         address challenger;

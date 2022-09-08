@@ -76,9 +76,9 @@ contract PaymentsTests is TestHelper {
     ) public {
         address repositoryOwner = dlRepository.owner();
         cheats.startPrank(repositoryOwner);
-        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
-        assertTrue(dataLayrPaymentManager.paymentFraudProofCollateral() == fraudProofCollateral, 
-                    "testSetPaymentCollateral: paymentFraudProofCollateral is not set correctly");
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudproofCollateral() == fraudProofCollateral, 
+                    "testSetPaymentCollateral: paymentFraudproofCollateral is not set correctly");
         cheats.stopPrank();
     }
 
@@ -90,7 +90,7 @@ contract PaymentsTests is TestHelper {
     ) fuzzedAddress(unauthorizedRepositorOwner) public {
         cheats.startPrank(unauthorizedRepositorOwner);
         cheats.expectRevert(bytes("onlyRepositoryGovernance"));
-        dataLayrPaymentManager.setPaymentFraudProofCollateral(fraudProofCollateral);
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
         cheats.stopPrank();
     }
 
@@ -239,7 +239,7 @@ contract PaymentsTests is TestHelper {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         //challenger initiates challenge
-        dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
+        dataLayrPaymentManager.initPaymentChallenge(operator, amount1, amount2);
 
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();

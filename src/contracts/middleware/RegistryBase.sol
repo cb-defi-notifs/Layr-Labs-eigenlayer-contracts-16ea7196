@@ -89,6 +89,7 @@ abstract contract RegistryBase is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -96,7 +97,8 @@ abstract contract RegistryBase is
             _repository,
             _delegation,
             _investmentManager,
-            _NUMBER_OF_QUORUMS
+            _NUMBER_OF_QUORUMS,
+            _quorumBips
         )
     {
         //apk_0 = g2Gen

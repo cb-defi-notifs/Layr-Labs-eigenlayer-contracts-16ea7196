@@ -133,7 +133,7 @@ contract DelegationTests is TestHelper {
         }
 
         _testCommitUndelegation(staker);
-        cheats.warp(block.timestamp + delegation.undelegationFraudProofInterval()+1);
+        cheats.warp(block.timestamp + delegation.undelegationFraudproofInterval()+1);
 
         _testFinalizeUndelegation(staker);
 
@@ -228,7 +228,7 @@ contract DelegationTests is TestHelper {
         //delegation has already been initialized in the Deployer test contract
         delegation.initialize(
             investmentManager,
-            undelegationFraudProofInterval
+            undelegationFraudproofInterval
         );
     }
 
@@ -274,7 +274,7 @@ contract DelegationTests is TestHelper {
         testUndelegation(operator, staker, ethAmount, eigenAmount);
 
         //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
+        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
         testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 
@@ -365,7 +365,7 @@ contract DelegationTests is TestHelper {
     }
 
     /// @notice testing permissions setInvestmentManager and 
-    ///         setUndelegationFraudProofInterval functions.
+    ///         setUndelegationFraudproofInterval functions.
 
     function testOwnableFunctions(address badGuy) fuzzedAddress(badGuy) public {
         cheats.assume(badGuy != delegation.owner());
@@ -375,7 +375,7 @@ contract DelegationTests is TestHelper {
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         delegation.setInvestmentManager(altInvestmentManager);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        delegation.setUndelegationFraudProofInterval(100);
+        delegation.setUndelegationFraudproofInterval(100);
         cheats.stopPrank();
     }
 }

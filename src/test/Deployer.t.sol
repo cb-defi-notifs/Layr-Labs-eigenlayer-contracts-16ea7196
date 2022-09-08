@@ -88,7 +88,7 @@ contract EigenLayrDeployer is
     uint256[] sigmas;
 
     uint256 wethInitialSupply = 10e50;
-    uint256 undelegationFraudProofInterval = 7 days;
+    uint256 undelegationFraudproofInterval = 7 days;
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
@@ -218,7 +218,7 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
-            undelegationFraudProofInterval
+            undelegationFraudproofInterval
         );
 
         // deploy all the DataLayr contracts
@@ -305,6 +305,7 @@ contract EigenLayrDeployer is
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
+        // hard-coded inputs
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
             memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         ethStratsAndMultipliers[0].strategy = wethStrat;
@@ -314,12 +315,18 @@ contract EigenLayrDeployer is
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
+        uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+        // split 60% ETH quorum, 40% EIGEN quorum
+        _quorumBips[0] = 6000;
+        _quorumBips[1] = 4000;
+
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
@@ -330,10 +337,10 @@ contract EigenLayrDeployer is
             dlReg,
             address(this)
         );
-        uint256 _paymentFraudProofCollateral = 1e16;
+        uint256 _paymentFraudproofCollateral = 1e16;
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
-            _paymentFraudProofCollateral,
+            _paymentFraudproofCollateral,
             dlRepository,
             dlsm
         );

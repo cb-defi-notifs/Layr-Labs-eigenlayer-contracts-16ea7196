@@ -148,7 +148,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(sender);
         delegation.initUndelegation();
         delegation.commitUndelegation();
-        assertTrue(delegation.undelegationFinalizedTime(sender)==block.timestamp + undelegationFraudProofInterval, "_testCommitUndelegation: undelegation time not set correctly");
+        assertTrue(delegation.undelegationFinalizedTime(sender)==block.timestamp + undelegationFraudproofInterval, "_testCommitUndelegation: undelegation time not set correctly");
         cheats.stopPrank();
     }
 
