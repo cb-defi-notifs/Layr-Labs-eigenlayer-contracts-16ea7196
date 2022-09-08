@@ -33,7 +33,7 @@ interface IPaymentManager is IRepositoryAccess {
         // taskNumber until which payment is being claimed (exclusive) 
         uint32 toTaskNumber; 
 
-        // recording when the payment will optimistically be confirmed; used for fraud proof period
+        // recording when the payment will optimistically be confirmed; used for fraudproof period
         uint32 confirmAt; 
 
         // payment for range [fromTaskNumber, toTaskNumber)
@@ -78,7 +78,7 @@ interface IPaymentManager is IRepositoryAccess {
         uint120 amount2;
 
         // used for recording the time when challenge was created
-        uint32 settleAt; // when committed, used for fraud proof period
+        uint32 settleAt; // when committed, used for fraudproof period
 
         // indicates the status of the challenge
         /**
@@ -104,15 +104,15 @@ interface IPaymentManager is IRepositoryAccess {
 
     function payFee(address initiator, address payer, uint256 feeAmount) external;
 
-    function setPaymentFraudProofCollateral(uint256 _paymentFraudProofCollateral) external;
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external;
 
     function commitPayment(uint32 toTaskNumber, uint120 amount) external;
 
     function redeemPayment() external;
 
-    function paymentFraudProofInterval() external view returns (uint256);
+    function paymentFraudproofInterval() external view returns (uint256);
 
-    function paymentFraudProofCollateral() external view returns (uint256);
+    function paymentFraudproofCollateral() external view returns (uint256);
 
     function getPaymentCollateral(address) external view returns (uint256);
 
@@ -122,13 +122,13 @@ interface IPaymentManager is IRepositoryAccess {
     
     function getChallengeStatus(address operator) external view returns(ChallengeStatus);
 
-    function challengePaymentInit(
+    function initPaymentChallenge(
         address operator,
         uint120 amount1,
         uint120 amount2
     ) external;
 
-    function challengePaymentHalf(
+    function performChallengeBisectionStep(
         address operator,
         bool secondHalf,
         uint120 amount1,

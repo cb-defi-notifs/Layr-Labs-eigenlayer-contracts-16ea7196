@@ -12,9 +12,9 @@ interface IServiceManager is IRepositoryAccess {
 
     function freezeOperator(address operator) external;
 
-    // function paymentFraudProofInterval() external view returns (uint256);
+    // function paymentFraudproofInterval() external view returns (uint256);
 
-    // function paymentFraudProofCollateral() external view returns (uint256);
+    // function paymentFraudproofCollateral() external view returns (uint256);
 
     // function getPaymentCollateral(address) external view returns (uint256);
 
@@ -24,7 +24,7 @@ interface IServiceManager is IRepositoryAccess {
 
     function eigenLayrDelegation() external view returns(IEigenLayrDelegation);
 
-    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external;
+    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime) external view;
 
     function latestTime() external view returns(uint32);
 }

@@ -81,7 +81,7 @@ contract DisclosureDeployer is DSTest {
         coors[
             3
         ] = 2840856310821858817649113726190482393961047895798363457470935309452021117098;
-        cheats.expectRevert("Fraud proof interval has passed");
+        cheats.expectRevert("Fraudproof interval has passed");
         dc.challengeCommitmentHalf(true, coors);
     }
 

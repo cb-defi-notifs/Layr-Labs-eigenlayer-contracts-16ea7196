@@ -30,6 +30,7 @@ contract BLSRegistryWithBomb is
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -38,6 +39,7 @@ contract BLSRegistryWithBomb is
             _delegation,
             _investmentManager,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
@@ -63,12 +65,12 @@ contract BLSRegistryWithBomb is
              registerOperator in BLSRegistry.sol.
      */
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         bytes32 ephemeralKeyHash,
         bytes calldata data,
         string calldata socket
     ) external {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, operatorType, data, socket);
 
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
@@ -79,7 +81,7 @@ contract BLSRegistryWithBomb is
         uint8,
         bytes calldata,
         string calldata
-    ) public override pure {        
+    ) external override pure {        
         revert("must register with ephemeral key");
     }
 
