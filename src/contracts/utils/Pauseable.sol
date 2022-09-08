@@ -28,13 +28,10 @@ contract Pausable is PausableUpgradeable{
     }
 
     function _initializePauser(
-        address pauser, 
-        address unpauser,
         IPauserRegistry _pauserRegistry
     ) internal onlyInitializing {
         __Pausable_init();
         pauserRegistry = _pauserRegistry;
-
     }
 
     /**

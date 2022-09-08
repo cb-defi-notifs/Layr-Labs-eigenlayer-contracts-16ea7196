@@ -19,7 +19,6 @@ contract PauserRegistry is IPauserRegistry {
         _;
     }
 
-
     constructor(
         address _pauser,
         address _unpauser
@@ -28,7 +27,6 @@ contract PauserRegistry is IPauserRegistry {
         unpauser = _unpauser;
     }
 
-
     function setPauser(address newPauser) external onlyPauser {
         pauser = newPauser;
     }
@@ -36,7 +34,4 @@ contract PauserRegistry is IPauserRegistry {
     function setUnpauser(address newUnpauser) external onlyUnpauser {
         unpauser = newUnpauser;
     }
-
-
-
 }

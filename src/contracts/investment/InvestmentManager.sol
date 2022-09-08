@@ -78,13 +78,13 @@ contract InvestmentManager is
      */
     function initialize(
         ISlasher _slasher,
-        address pauser,
-        address unpauser,
+        IPauserRegistry pauserRegistry,
         address _governor
     ) external initializer {
         _transferOwnership(_governor);
         slasher = _slasher;
-        _initializePauser(pauser, unpauser);
+        
+        _initializePauser(pauserRegistry);
     }
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the

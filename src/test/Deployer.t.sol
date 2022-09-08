@@ -13,6 +13,7 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
+import "../contracts/middleware/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
@@ -51,6 +52,7 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
+    PauserRegistry public pauserReg;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
@@ -210,10 +212,13 @@ contract EigenLayrDeployer is
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, governor);
 
+        pauserReg = new PauserRegistry(pauser, unpauser);
+
         delegates = [acct_0, acct_1];
         
         investmentManager.initialize(
             slasher,
+            pauserReg,
             governor
         );
 
