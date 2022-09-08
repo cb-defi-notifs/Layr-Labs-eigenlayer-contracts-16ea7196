@@ -10,14 +10,18 @@ contract Pausable is PausableUpgradeable, AccessControlUpgradeable{
     bytes32 public constant PAUSER = keccak256("PAUSER");
     bytes32 public constant UNPAUSER = keccak256("UNPAUSER");
 
+    // modifier onlyPauser {
+    //     require(msg.sender == IPauserRegistry(address(dlsm)).pauser());
+    // }
 
-    function _initializePause(
+    //every contract has its own pausing functionality, ie, its own pause() and unpause() functiun
+    // those functions are permissioned as "onlyPauser"  which refers to a Pauser Registry
+
+    function _initializePauser(
         address pauser, 
         address unpauser
     ) internal onlyInitializing {
-        
         __Pausable_init();
-        __AccessControl_init();
         _grantRole(PAUSER, pauser);
         _grantRole(UNPAUSER, unpauser);
     }
