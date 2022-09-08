@@ -7,6 +7,7 @@ import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
+import "../utils/Pauseable.sol";
 import "../investment/Slasher.sol";
 // import "forge-std/Test.sol";
 
@@ -23,7 +24,8 @@ import "../investment/Slasher.sol";
 contract EigenLayrDelegation is
     Initializable,
     OwnableUpgradeable,
-    EigenLayrDelegationStorage
+    EigenLayrDelegationStorage,
+    Pausable
     // ,DSTest
 {
     modifier onlyInvestmentManager() {
@@ -54,19 +56,20 @@ contract EigenLayrDelegation is
     // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
+        IPauserRegistry pauserRegistry,
         uint256 _undelegationFraudProofInterval
     ) external initializer {
         require(
             _undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
             "EigenLayrDelegation.initialize: _undelegationFraudProofInterval too large"
         );
+        _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
         undelegationFraudProofInterval = _undelegationFraudProofInterval;
         _transferOwnership(msg.sender);
     }
 
     // EXTERNAL FUNCTIONS
-
     /// @notice This will be called by an operator to register itself as a delegate that stakers
     ///         can choose to delegate to.
     /// @param dt is the delegation terms contract that operator has for those who delegate to them.
@@ -82,7 +85,7 @@ contract EigenLayrDelegation is
 
     /// @notice This will be called by a staker to delegate its assets to some operator
     /// @param operator is the operator to whom staker (msg.sender) is delegating its assets
-    function delegateTo(address operator) external {
+    function delegateTo(address operator) external whenNotPaused {
         _delegate(msg.sender, operator);
     }
 
@@ -94,7 +97,7 @@ contract EigenLayrDelegation is
         uint256 expiry,
         bytes32 r,
         bytes32 vs
-    ) external {
+    ) external whenNotPaused {
         require(
             expiry == 0 || expiry >= block.timestamp,
             "delegation signature expired"
@@ -121,7 +124,7 @@ contract EigenLayrDelegation is
 
     /// @notice This function is used to notify the system that a staker wants to stop
     ///         participating in the functioning of EigenLayr.
-    function initUndelegation() external {
+    function initUndelegation() external whenNotPaused {
         require(
             isDelegated(msg.sender),
             "EigenLayrDelegation.initUndelegation: Staker does not have existing delegation"

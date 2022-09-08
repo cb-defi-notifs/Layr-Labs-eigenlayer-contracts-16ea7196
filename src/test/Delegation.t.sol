@@ -237,6 +237,7 @@ contract DelegationTests is TestHelper {
         //delegation has already been initialized in the Deployer test contract
         delegation.initialize(
             investmentManager,
+            pauserReg,
             undelegationFraudProofInterval
         );
     }

@@ -225,6 +225,7 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
+            pauserReg,
             undelegationFraudProofInterval
         );
 
