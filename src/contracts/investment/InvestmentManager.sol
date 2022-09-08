@@ -84,8 +84,9 @@ contract InvestmentManager is
     ) external initializer {
         _transferOwnership(_governor);
         slasher = _slasher;
-
         
+        //initializing the Pausable contract with pauser and unpauser addresses
+        _initializePause(_pauser, _unpauser);
     }
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
