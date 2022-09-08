@@ -5,7 +5,7 @@ import subprocess
 template = """forge create --rpc-url {socket_val} --private-key {private_key_val} {src_val}"""
 template_args = """forge create --rpc-url {socket_val} --constructor-args {args_val} --private-key {private_key_val} {src_val}"""
 
-socket = "http://0.0.0.0:8545"
+socket = "http://0.0.0.0:8546"
 private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 def deploy_contract(contract, args):
@@ -15,6 +15,7 @@ def deploy_contract(contract, args):
             private_key_val=private_key,
             src_val=contract,
         )
+        print(deploy_cmd)
         result = subprocess.run(deploy_cmd.split(' '), stdout=subprocess.PIPE)
         # print(result.stdout)
         return parse_output(str(result.stdout))

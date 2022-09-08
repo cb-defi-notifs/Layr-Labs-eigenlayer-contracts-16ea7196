@@ -117,6 +117,7 @@ contract EigenLayrDeployer is
     uint256 privKey = vm.envUint("PRIVATE_KEY_UINT");
 
     address mainHoncho = cheats.addr(privKey);
+    
 
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
     // address acct_1 = cheats.addr(uint256(priv_key_1));
@@ -163,6 +164,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
+        vm.writeLine("deployedAddresses/investmentManager", vm.toString(address(investmentManager)));
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -171,6 +173,7 @@ contract EigenLayrDeployer is
             wethInitialSupply,
             address(this)
         );
+        vm.writeLine("deployedAddresses/weth", vm.toString(address(weth)));
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
         strat = new InvestmentStrategyBase();
@@ -185,6 +188,7 @@ contract EigenLayrDeployer is
         );
         // initialize InvestmentStrategyBase proxy
         strat.initialize(address(investmentManager), weth);
+        vm.writeLine("deployedAddresses/wethStrat", vm.toString(address(strat)));
 
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
@@ -192,6 +196,7 @@ contract EigenLayrDeployer is
             wethInitialSupply,
             address(this)
         );
+        vm.writeLine("deployedAddresses/eigen", vm.toString(address(eigenToken)));
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
         eigenStrat = new InvestmentStrategyBase();
         eigenStrat = InvestmentStrategyBase(
@@ -203,6 +208,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
+        vm.writeLine("deployedAddresses/eigenStrat", vm.toString(address(eigenStrat)));
         // initialize InvestmentStrategyBase proxy
         eigenStrat.initialize(address(investmentManager), eigenToken);
 
@@ -237,6 +243,8 @@ contract EigenLayrDeployer is
             undelegationFraudProofInterval
         );
 
+        vm.writeLine("deployedAddresses/delegation", vm.toString(address(delegation)));
+
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
 
@@ -257,6 +265,7 @@ contract EigenLayrDeployer is
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
+        vm.writeLine("deployedAddresses/dlRepository", vm.toString(address(dlRepository)));
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
@@ -266,6 +275,7 @@ contract EigenLayrDeployer is
             weth,
             feePerBytePerTime
         );
+        vm.writeLine("deployedAddresses/dlsm", vm.toString(address(dlsm)));
 
         uint256 paymentFraudProofCollateral = 1 wei;
         dataLayrPaymentManager = new DataLayrPaymentManager(
@@ -301,6 +311,7 @@ contract EigenLayrDeployer is
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
+        vm.writeLine("deployedAddresses/dlReg", vm.toString(address(dlReg)));
 
         Repository(address(dlRepository)).initialize(
             dlReg,
