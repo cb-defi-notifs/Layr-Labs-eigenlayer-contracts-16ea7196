@@ -214,9 +214,7 @@ contract EigenLayrDeployer is
         
         investmentManager.initialize(
             slasher,
-            governor,
-            pauser,
-            unpauser
+            governor
         );
 
         // initialize the delegation (proxy) contract
