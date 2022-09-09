@@ -28,7 +28,6 @@ contract TestHelper is EigenLayrDeployer {
             eigenToken.approve(address(investmentManager), type(uint256).max);
 
             investmentManager.depositIntoStrategy(
-                delegates[i],
                 eigenStrat,
                 eigenToken,
                 amountEigenToDeposit
@@ -37,7 +36,6 @@ contract TestHelper is EigenLayrDeployer {
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
             investmentManager.depositIntoStrategy(
-                delegates[i],
                 wethStrat,
                 weth,
                 amountEthToDeposit
@@ -317,6 +315,8 @@ contract TestHelper is EigenLayrDeployer {
             emit log_named_uint("while contractBalance is", contractBalance);
             revert("_testDepositToStrategy failure");
         } else {
+
+            
             underlyingToken.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
             underlyingToken.approve(address(investmentManager), type(uint256).max);
@@ -330,6 +330,7 @@ contract TestHelper is EigenLayrDeployer {
 
             //check if depositor has never used this strat, that it is added correctly to investorStrats array.
             if(operatorSharesBefore == 0){
+                
                 // check that strategy is appropriately added to dynamic array of all of sender's strategies
                 assertTrue(
                     investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
@@ -337,6 +338,10 @@ contract TestHelper is EigenLayrDeployer {
                     "_depositToStrategy: investorStrats array updated incorrectly"
                 );
             }
+
+            
+            
+
 
             //in this case, since shares never grow, the shares should just match the deposited amount
             assertEq(
@@ -424,16 +429,18 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.stopPrank();
 
+
+
         // verify that registration was stored correctly
         if ((registrantType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
             assertTrue(
                 dlReg.ethStakedByOperator(sender) == wethToDeposit,
-                "ethStaked not increased!"
+                "_testRegisterAdditionalSelfOperator: ethStaked not increased!"
             );
         } else {
             assertTrue(
                 dlReg.ethStakedByOperator(sender) == 0,
-                "ethStaked incorrectly > 0"
+                "_testRegisterAdditionalSelfOperator: ethStaked incorrectly > 0"
             );
         }
         if (
@@ -441,12 +448,12 @@ contract TestHelper is EigenLayrDeployer {
         ) {
             assertTrue(
                 dlReg.eigenStakedByOperator(sender) == eigenToDeposit,
-                "eigenStaked not increased!"
+                "_testRegisterAdditionalSelfOperator: eigenStaked not increased!"
             );
         } else {
             assertTrue(
                 dlReg.eigenStakedByOperator(sender) == 0,
-                "eigenStaked incorrectly > 0"
+                "_testRegisterAdditionalSelfOperator: eigenStaked incorrectly > 0"
             );
         }
     }

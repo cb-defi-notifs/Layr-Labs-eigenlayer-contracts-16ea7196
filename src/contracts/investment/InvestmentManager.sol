@@ -24,7 +24,7 @@ contract InvestmentManager is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage
-    // ,DSTest
+    ,DSTest
 {
     using SafeERC20 for IERC20;
     event WithdrawalQueued(
@@ -164,6 +164,7 @@ contract InvestmentManager is
         external
         onlyNotFrozen(msg.sender)
         nonReentrant
+        returns(bytes32)
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
@@ -503,14 +504,6 @@ contract InvestmentManager is
         IERC20 token,
         uint256 amount
     ) internal returns (uint256 shares) {
-        // if they dont have existing shares of this strategy, add it to their strats
-        if (investorStratShares[depositor][strategy] == 0) {
-            require(
-                investorStrats[depositor].length <= MAX_INVESTOR_STRATS_LENGTH,
-                "InvestmentManager._depositIntoStrategy: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"
-            );
-            investorStrats[depositor].push(strategy);
-        }
         // transfer tokens from the sender to the strategy
         token.safeTransferFrom(msg.sender, address(strategy), amount);
 
@@ -520,10 +513,11 @@ contract InvestmentManager is
         require(shares != 0, "InvestmentManager._depositIntoStrategy: shares should not be zero!");
 
         // add the returned shares to their existing shares for this strategy
-        investorStratShares[depositor][strategy] += shares;
+        //investorStratShares[depositor][strategy] += shares;
 
         //add the new shares to the depositor
         _addShares(depositor, strategy, shares);
+
         
 
         return shares;
