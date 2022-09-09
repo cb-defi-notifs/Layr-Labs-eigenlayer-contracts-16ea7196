@@ -226,8 +226,8 @@ contract InvestmentManager is
         return withdrawalRoot;
     }
 
-    //this function initiates the claim on the specified withdrawal,
-    //that the depositor's stake is only active (can be slashed) until stakeInactiveAfter
+    //this function allows a staker to queue their withdrawal by setting a cool down period during which
+    // their stake is still slashable (i.e. there is a task still active for that stake). 
     function startQueuedWithdrawalWaitingPeriod(
         address depositor,
         bytes32 withdrawalRoot,
@@ -257,36 +257,6 @@ contract InvestmentManager is
     function max(uint32 x, uint32 y) internal pure returns (uint32) {
         return x > y ? x : y;
     }
-
-    /**
-     * @notice Used to check if a queued withdrawal can be completed
-     */
-    function canCompleteQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external returns (bool) {
-        // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(
-            strategies,
-            tokens,
-            shareAmounts,
-            withdrawerAndNonce
-        );
-
-        // verify that the queued withdrawal actually exists
-        require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
-            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
-        );
-
-        return (uint32(block.timestamp) >=
-            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp ||
-            delegation.isNotDelegated(depositor));
-    }
-
 
 
     /**
@@ -640,6 +610,35 @@ contract InvestmentManager is
     }
 
     // VIEW FUNCTIONS
+
+    /**
+     * @notice Used to check if a queued withdrawal can be completed
+     */
+    function canCompleteQueuedWithdrawal(
+        IInvestmentStrategy[] calldata strategies,
+        IERC20[] calldata tokens,
+        uint256[] calldata shareAmounts,
+        address depositor,
+        WithdrawerAndNonce calldata withdrawerAndNonce
+    ) external returns (bool) {
+        // find the withdrawalRoot
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+            strategies,
+            tokens,
+            shareAmounts,
+            withdrawerAndNonce
+        );
+
+        // verify that the queued withdrawal actually exists
+        require(
+            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
+        );
+
+        return (uint32(block.timestamp) >=
+            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp ||
+            delegation.isNotDelegated(depositor));
+    }
     
     /**
      * @notice get all details on the depositor's investments and shares
