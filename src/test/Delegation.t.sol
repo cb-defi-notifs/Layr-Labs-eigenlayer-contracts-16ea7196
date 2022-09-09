@@ -187,9 +187,9 @@ contract DelegationTests is TestHelper {
         //initiating queued withdrawal
         bytes32 withdrawalRoot = _testQueueWithdrawal(
                                     staker, 
-                                    updatedStrategies, 
+                                    delegatorStrategies, 
                                     tokensArray, 
-                                    updatedShares, 
+                                    delegatorShares, 
                                     strategyIndexes, 
                                     withdrawerAndNonce
                                 );
@@ -201,9 +201,9 @@ contract DelegationTests is TestHelper {
 
         _testCompleteQueuedWithdrawal(
                         staker, 
-                        updatedStrategies, 
+                        delegatorStrategies, 
                         tokensArray, 
-                        updatedShares, 
+                        delegatorShares, 
                         withdrawerAndNonce);
 
     }
@@ -318,7 +318,7 @@ contract DelegationTests is TestHelper {
 
 
         //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
+        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
         testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 

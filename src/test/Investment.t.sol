@@ -109,7 +109,7 @@ contract InvestmentTests is
 
         cheats.startPrank(staker);
         // try to complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
         // TODO: add checks surrounding successful completion (e.g. funds being correctly transferred)
 
         if (delegation.isDelegated(staker)) {
@@ -123,7 +123,7 @@ contract InvestmentTests is
             }
             // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
             cheats.warp(unlockTimestamp);
-            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
         }
         cheats.stopPrank();
     }
@@ -166,7 +166,13 @@ contract InvestmentTests is
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            bytes32 withdrawalRoot = _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            cheats.prank(staker);
+            investmentManager.startQueuedWithdrawalWaitingPeriod(
+                staker,
+                withdrawalRoot,
+                uint32(block.timestamp)
+            );
         }
 
         // retrieve information about the queued withdrawal
@@ -202,7 +208,7 @@ contract InvestmentTests is
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
+        investmentManager.challengeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
     
     // @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
@@ -230,7 +236,7 @@ contract InvestmentTests is
         );
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
-        investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
+        investmentManager.depositIntoStrategy(wethStrat, token, 10);
     }
 
     function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
@@ -249,7 +255,7 @@ contract InvestmentTests is
         );
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert();
-        investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, 10);
+        investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, 10);
     }
 
 
@@ -273,7 +279,7 @@ contract InvestmentTests is
         uint256[] memory strategyIndexes,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
-        internal
+        internal returns(bytes32)
     {
         require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
@@ -295,7 +301,7 @@ contract InvestmentTests is
 
         //queue the withdrawal
         cheats.startPrank(staker);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
         // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
         if (delegation.isDelegated(staker)) {
             assertTrue(
@@ -313,5 +319,6 @@ contract InvestmentTests is
             revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
         }
         cheats.stopPrank();
+        return withdrawalRoot;
     }
 }

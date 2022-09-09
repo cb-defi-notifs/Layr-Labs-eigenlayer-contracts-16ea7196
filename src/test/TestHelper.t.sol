@@ -75,6 +75,77 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
+    //initiates a data store
+    //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
+   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
+        internal
+        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
+    {
+        bytes memory header = abi.encodePacked(
+            hex"0102030405060708091011121314151617181920"
+        );
+        uint32 totalBytes = 1e6;
+
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
+        cheats.startPrank(storer);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
+
+        uint32 blockNumber = uint32(block.number);
+        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
+        // and 'BLOCK_STALE_MEASURE' is currently 100
+        cheats.roll(block.number + 100);
+        cheats.warp(timeStampForInit);
+        uint256 timestamp = block.timestamp;
+
+        uint32 index = dlsm.initDataStore(
+            storer,
+            confirmer,
+            header,
+            durationToInit,
+            totalBytes,
+            blockNumber
+        );
+
+        bytes32 headerHash = keccak256(header);
+
+        cheats.stopPrank();
+
+        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
+
+        IDataLayrServiceManager.DataStoreMetadata
+            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
+                headerHash: headerHash,
+                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                globalDataStoreId: dlsm.taskNumber() - 1,
+                blockNumber: blockNumber,
+                fee: uint96(fee),
+                confirmer: confirmer,
+                signatoryRecordHash: bytes32(0)
+            });
+
+        {
+            bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
+
+            //check if computed hash matches stored hash in DLSM
+            assertTrue(
+                dataStoreHash ==
+                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
+                "dataStore hashes do not match"
+            );
+        }
+        
+        searchData = IDataLayrServiceManager.DataStoreSearchData({
+                metadata: metadata,
+                duration: durationToInit,
+                timestamp: timestamp,
+                index: index
+            });
+        return searchData;
+    }
+
     //commits data store to data layer
     function _testCommitDataStore(
         bytes32 msgHash,
@@ -144,20 +215,6 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
-    function _testCommitUndelegation(address sender) internal {
-        cheats.startPrank(sender);
-        delegation.initUndelegation();
-        delegation.commitUndelegation();
-        assertTrue(delegation.undelegationFinalizedTime(sender)==block.timestamp + undelegationFraudproofInterval, "_testCommitUndelegation: undelegation time not set correctly");
-        cheats.stopPrank();
-    }
-
-    function _testFinalizeUndelegation(address sender) internal {
-        cheats.startPrank(sender);
-        delegation.finalizeUndelegation();
-        cheats.stopPrank();
-        assertTrue(delegation.isNotDelegated(sender)==true, "testDelegation: staker is not undelegated");
-    }
 
     //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
@@ -265,7 +322,6 @@ contract TestHelper is EigenLayrDeployer {
             underlyingToken.approve(address(investmentManager), type(uint256).max);
 
             investmentManager.depositIntoStrategy(
-                sender,
                 stratToDepositTo,
                 underlyingToken,
                 amountToDeposit
@@ -346,76 +402,7 @@ contract TestHelper is EigenLayrDeployer {
     }
 
 
-    //initiates a data store
-    //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
-        internal
-        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
-    {
-        bytes memory header = abi.encodePacked(
-            hex"0102030405060708091011121314151617181920"
-        );
-        uint32 totalBytes = 1e6;
-
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 1e11);
-        cheats.startPrank(storer);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-
-        uint32 blockNumber = uint32(block.number);
-        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
-        // and 'BLOCK_STALE_MEASURE' is currently 100
-        cheats.roll(block.number + 100);
-        cheats.warp(timeStampForInit);
-        uint256 timestamp = block.timestamp;
-
-        uint32 index = dlsm.initDataStore(
-            storer,
-            confirmer,
-            header,
-            durationToInit,
-            totalBytes,
-            blockNumber
-        );
-
-        bytes32 headerHash = keccak256(header);
-
-        cheats.stopPrank();
-
-        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
-
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
-                headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
-                globalDataStoreId: dlsm.taskNumber() - 1,
-                blockNumber: blockNumber,
-                fee: uint96(fee),
-                confirmer: confirmer,
-                signatoryRecordHash: bytes32(0)
-            });
-
-        {
-            bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
-
-            //check if computed hash matches stored hash in DLSM
-            assertTrue(
-                dataStoreHash ==
-                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
-                "dataStore hashes do not match"
-            );
-        }
-        
-        searchData = IDataLayrServiceManager.DataStoreSearchData({
-                metadata: metadata,
-                duration: durationToInit,
-                timestamp: timestamp,
-                index: index
-            });
-        return searchData;
-    }
+    
 
     function _testRegisterAdditionalSelfOperator(
         address sender,

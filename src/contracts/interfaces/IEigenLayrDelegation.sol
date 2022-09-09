@@ -6,7 +6,7 @@ import "./IDelegationTerms.sol";
 interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
-        DELEGATED,
+        DELEGATED
     }
 
     function registerAsDelegate(IDelegationTerms dt) external;
