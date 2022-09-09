@@ -115,9 +115,9 @@ contract EigenLayrDeployer is
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
-    uint256 privKey = vm.envUint("PRIVATE_KEY_UINT");
+    uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
 
-    address mainHoncho = cheats.addr(privKey);
+    address mainHoncho = cheats.addr(mainHonchoPrivKey);
     
 
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
@@ -132,15 +132,9 @@ contract EigenLayrDeployer is
 
         vm.startBroadcast();
 
-
         emit log_address(mainHoncho);
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
-
-        //deploy eigen. send eigen tokens to an address where they won't trigger failure for 'transfer to non ERC1155Receiver implementer'
-        // (this is why this contract inherits from 'ERC1155TokenReceiver')
-        // eigen = new Eigen(address(this));
-
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -259,7 +253,7 @@ contract EigenLayrDeployer is
 
         vm.stopBroadcast();
 
-        _allocateAsset(dlsm);
+        // _allocateAsset(dlsm);
     }
 
     function _allocateAsset(address dlsm) internal {
@@ -278,12 +272,11 @@ contract EigenLayrDeployer is
 
         emit log("wethAmount");
         emit log_uint(wethAmount);
+        vm.startBroadcast(msg.sender);
         // deployer allocate weth, eigen to staker
         for (uint i = 0; i < numStaker ; ++i) {
             address stakerAddr = stdJson.readAddress(json, string.concat(".staker[", string.concat(vm.toString(i), "].address")));    
-            vm.broadcast(msg.sender);
             weth.transfer(stakerAddr, wethAmount);
-            vm.broadcast(msg.sender);
             eigenToken.transfer(stakerAddr, wethAmount);
             emit log("stakerAddr");
             emit log_address(stakerAddr);
@@ -291,12 +284,12 @@ contract EigenLayrDeployer is
         // deployer allocate weth, eigen to disperser
         for (uint i = 0; i < numDis ; ++i) {
             address disAddr = stdJson.readAddress(json, string.concat(".dis[", string.concat(vm.toString(i), "].address")));    
-            vm.broadcast(msg.sender);
             weth.transfer(disAddr, wethAmount);
             emit log("disAddr");
             emit log_address(disAddr);
         }
 
+        vm.stopBroadcast();
 
         // dln, staker delegations        
         for (uint i = 0; i < numDln ; ++i) {
@@ -314,30 +307,31 @@ contract EigenLayrDeployer is
             emit log_address(stakerAddr);
             emit log_address(dlnAddr);
             emit log_uint(dlnPrivKeyUint);
+            emit log_uint(i);
             
             vm.broadcast(dlnAddr);
 
-            /*
-            delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
+            // /*
+            // delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
 
-            vm.broadcast(stakerPrivKeyUint);
-            eigenToken.approve(address(investmentManager), wethAmount);
+            // vm.broadcast(stakerPrivKeyUint);
+            // eigenToken.approve(address(investmentManager), wethAmount);
             
-            vm.broadcast(stakerPrivKeyUint);
-            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
+            // vm.broadcast(stakerPrivKeyUint);
+            // investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
 
-            vm.broadcast(stakerPrivKeyUint);
-            weth.approve(address(investmentManager), wethAmount);
+            // vm.broadcast(stakerPrivKeyUint);
+            // weth.approve(address(investmentManager), wethAmount);
 
-            vm.broadcast(stakerPrivKeyUint);
-            investmentManager.depositIntoStrategy(stakerAddr, strat, weth, wethAmount);
+            // vm.broadcast(stakerPrivKeyUint);
+            // investmentManager.depositIntoStrategy(stakerAddr, strat, weth, wethAmount);
 
-            vm.broadcast(stakerPrivKeyUint);
-            investmentManager.investorStratShares(stakerAddr, strat);
+            // vm.broadcast(stakerPrivKeyUint);
+            // investmentManager.investorStratShares(stakerAddr, strat);
 
-            vm.broadcast(stakerPrivKeyUint);
-            delegation.delegateTo(dlnAddr);
-            */
+            // vm.broadcast(stakerPrivKeyUint);
+            // delegation.delegateTo(dlnAddr);
+            // */
         }
         emit log("aaaa");
         
