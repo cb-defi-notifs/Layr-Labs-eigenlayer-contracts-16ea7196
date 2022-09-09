@@ -19,14 +19,8 @@ interface IInvestmentManager {
         address withdrawer;
         uint96 nonce;
     }
-    function startQueuedWithdrawalWaitingPeriod(
-        address depositor,
-        bytes32 withdrawalRoot,
-        uint32 stakeInactiveAfter
-    ) external;
 
     function depositIntoStrategy(
-        address depositor,
         IInvestmentStrategy strategies,
         IERC20 token,
         uint256 amount
@@ -64,18 +58,25 @@ interface IInvestmentManager {
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
-        external;
+        external returns(bytes32);
+
+    function startQueuedWithdrawalWaitingPeriod(
+        address depositor,
+        bytes32 withdrawalRoot,
+        uint32 stakeInactiveAfter
+    ) external;
 
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce,
+        bool receiveAsTokens
     )
         external;
 
-    function fraudproofQueuedWithdrawal(
+    function challengeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
