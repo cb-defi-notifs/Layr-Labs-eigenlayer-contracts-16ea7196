@@ -99,7 +99,7 @@ contract EigenLayrDeployer is
     address storer = address(420);
     address pauser = address(69);
     address unpauser = address(489);
-    address registrant = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
+    address operator = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
@@ -170,6 +170,7 @@ contract EigenLayrDeployer is
             )
         );
 
+
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -189,12 +190,14 @@ contract EigenLayrDeployer is
                 )
             )
         );
+
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             address(this)
         );
+
         // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
@@ -206,6 +209,7 @@ contract EigenLayrDeployer is
             )
         );
 
+
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         // deploy slasher and service factory contracts
@@ -215,6 +219,8 @@ contract EigenLayrDeployer is
         pauserReg = new PauserRegistry(pauser, unpauser);
 
         delegates = [acct_0, acct_1];
+
+
         
         investmentManager.initialize(
             slasher,
@@ -226,11 +232,14 @@ contract EigenLayrDeployer is
         delegation.initialize(
             investmentManager,
             pauserReg,
-            undelegationFraudProofInterval
+            undelegationFraudproofInterval
         );
+
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
+
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
@@ -307,6 +316,7 @@ contract EigenLayrDeployer is
             delegation,
             dlRepository,
             weth,
+            pauserReg,
             feePerBytePerTime
         );
 

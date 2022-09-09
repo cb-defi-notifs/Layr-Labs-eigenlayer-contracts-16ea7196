@@ -57,7 +57,7 @@ contract EigenLayrDelegation is
     function initialize(
         IInvestmentManager _investmentManager,
         IPauserRegistry pauserRegistry,
-        uint256 _undelegationFraudProofInterval
+        uint256 _undelegationFraudproofInterval
     ) external initializer {
         require(
             _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,

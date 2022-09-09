@@ -229,7 +229,7 @@ contract DelegationTests is TestHelper {
         delegation.initialize(
             investmentManager,
             pauserReg,
-            undelegationFraudProofInterval
+            undelegationFraudproofInterval
         );
     }
 

@@ -10,6 +10,8 @@ import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
 import "../BLSSignatureChecker.sol";
 
+
+
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
@@ -29,7 +31,8 @@ import "./DataLayrChallengeUtils.sol";
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
     BLSSignatureChecker,
-    Pausable
+    Pausable,
+    DSTest
 {
     using BytesLib for bytes;
 
@@ -90,10 +93,13 @@ contract DataLayrServiceManager is
     ) 
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
+        initializer
     {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
+
+        emit log("hehe");
         _initializePauser(pauserRegistry);
         
     }
@@ -145,7 +151,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable whenNotPaused returns(uint32){
+    ) external whenNotPaused returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -270,7 +276,7 @@ contract DataLayrServiceManager is
     function confirmDataStore(
         bytes calldata data, 
         DataStoreSearchData memory searchData
-        )external payable whenNotPaused {
+        )external whenNotPaused {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
