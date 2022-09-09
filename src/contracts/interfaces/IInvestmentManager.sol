@@ -19,6 +19,11 @@ interface IInvestmentManager {
         address withdrawer;
         uint96 nonce;
     }
+    function startQueuedWithdrawalWaitingPeriod(
+        address depositor,
+        bytes32 withdrawalRoot,
+        uint32 stakeInactiveAfter
+    ) external;
 
     function depositIntoStrategy(
         address depositor,

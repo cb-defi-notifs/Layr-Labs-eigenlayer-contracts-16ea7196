@@ -119,6 +119,10 @@ contract EigenLayrDelegation is
         _delegate(staker, operator);
     }
 
+    function undelegate(address staker) external onlyInvestmentManager {
+        delegated[staker] = DelegationStatus.UNDELEGATED;
+    }
+
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
         //if the staker is delegated to an operator

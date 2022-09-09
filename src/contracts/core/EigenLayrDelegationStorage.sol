@@ -36,12 +36,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     // staker => operator
     mapping(address => address) public delegation;
 
-    // staker => UTC time at which undelegation is finalized
-    mapping(address => uint256) public undelegationFinalizedTime;
-
-    // staker => UTC time at which undelegation was initialized
-    mapping(address => uint256) public undelegationInitTime;
-
     // staker => whether they are delegated or not
     mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
 

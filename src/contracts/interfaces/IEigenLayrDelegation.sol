@@ -7,8 +7,6 @@ interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
         DELEGATED,
-        UNDELEGATION_INITIALIZED,
-        UNDELEGATION_COMMITTED
     }
 
     function registerAsDelegate(IDelegationTerms dt) external;
@@ -31,6 +29,8 @@ interface IEigenLayrDelegation {
         external
         view
         returns (address);
+
+    function undelegate(address staker) external;
 
     function isDelegated(address staker)
         external

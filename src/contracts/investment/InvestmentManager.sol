@@ -101,7 +101,6 @@ contract InvestmentManager is
      *      see EigenLayrDeposit.sol.
      */
     function depositIntoStrategy(
-        address depositor,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 amount
@@ -111,7 +110,7 @@ contract InvestmentManager is
         nonReentrant
         returns (uint256 shares) 
     {
-        shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        shares = _depositIntoStrategy(msg.sender, strategy, token, amount);
     }
 
     /**
