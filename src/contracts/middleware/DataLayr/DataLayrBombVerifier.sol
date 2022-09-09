@@ -109,7 +109,7 @@ contract DataLayrBombVerifier {
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
-            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraud proof interval has passed
+            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraudproof interval has passed
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||

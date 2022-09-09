@@ -169,7 +169,7 @@ contract InvestmentStrategyBase is
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
     function underlyingToShares(uint256 amountUnderlying)
-        public
+        external
         view virtual
         returns (uint256)
     {
@@ -180,7 +180,7 @@ contract InvestmentStrategyBase is
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
      *         this strategy. In contrast to `userUnderlying`, this function guarantees no state modifications
      */
-    function userUnderlyingView(address user) public view virtual returns (uint256) {
+    function userUnderlyingView(address user) external view virtual returns (uint256) {
         return sharesToUnderlyingView(shares(user));
     }
 
@@ -188,7 +188,7 @@ contract InvestmentStrategyBase is
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
      *         this strategy. In contrast to `userUnderlyingView`, this function **may** make state modifications
      */
-    function userUnderlying(address user) public virtual returns (uint256) {
+    function userUnderlying(address user) external virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
     }
 

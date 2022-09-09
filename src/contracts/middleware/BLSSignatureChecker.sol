@@ -194,8 +194,8 @@ abstract contract BLSSignatureChecker is
          * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
          */
         if (placeholder != 0) {
+            //load compressed pubkey and the index in the stakes array into memory
             uint32 stakeIndex;
-
             assembly {
                 /** 
                  @notice retrieving the pubkey of the node in Jacobian coordinates
@@ -275,7 +275,6 @@ abstract contract BLSSignatureChecker is
         for (uint256 i = 1; i < placeholder; ) {
             //load compressed pubkey and the index in the stakes array into memory
             uint32 stakeIndex;
-
             assembly {
                 /// @notice retrieving the pubkey of the operator that is not part of the quorum
                 mstore(pk, calldataload(pointer))
@@ -455,7 +454,7 @@ abstract contract BLSSignatureChecker is
             pubkeyHashes
         );
 
-        // set compressedSignatoryRecord variable used for payment fraud proofs
+        // set compressedSignatoryRecord variable used for payment fraudproofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
                 // taskHash,

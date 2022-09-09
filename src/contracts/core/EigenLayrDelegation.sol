@@ -52,7 +52,7 @@ contract EigenLayrDelegation is
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
-    // sets the `undelegationFraudProofInterval` value (**currently modifiable by contract owner -- see below**)
+    // sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**)
     // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
@@ -60,12 +60,12 @@ contract EigenLayrDelegation is
         uint256 _undelegationFraudProofInterval
     ) external initializer {
         require(
-            _undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
-            "EigenLayrDelegation.initialize: _undelegationFraudProofInterval too large"
+            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.initialize: _undelegationFraudproofInterval too large"
         );
         _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
-        undelegationFraudProofInterval = _undelegationFraudProofInterval;
+        undelegationFraudproofInterval = _undelegationFraudproofInterval;
         _transferOwnership(msg.sender);
     }
 
@@ -154,15 +154,15 @@ contract EigenLayrDelegation is
             }
         }
 
-        // call into hook in delegationTerms contract
-        IDelegationTerms dt = delegationTerms[operator];
-        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
-
         // store the time at which the staker began undelegation
         undelegationInitTime[msg.sender] = block.timestamp;
 
         // set that the staker has begun the undelegation process, i.e. "initialized" it
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
+
+        // call into hook in delegationTerms contract
+        IDelegationTerms dt = delegationTerms[operator];
+        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
     }
 
     /// @notice This function must be called by a staker to notify that its stake is
@@ -174,7 +174,7 @@ contract EigenLayrDelegation is
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
-        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval; 
+        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudproofInterval; 
 
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
@@ -185,9 +185,13 @@ contract EigenLayrDelegation is
      * @notice This function is called by a staker to complete the three-step undelegation process.
      *          Prior to calling `finalizeUndelegation`, a staker is expected to call `commitUndelegation` and
      *          wait until all existing obligations have been served, before calling `commitUndelegation` and
-     *          waiting through the `undelegationFraudProofInterval`.
+     *          waiting through the `undelegationFraudproofInterval`.
      */
     function finalizeUndelegation() external {
+        _finalizeUndelegation();
+    }
+
+    function _finalizeUndelegation() internal {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
             "EigenLayrDelegation.finalizeUndelegation: Staker is not commited to undelegation"
@@ -200,6 +204,11 @@ contract EigenLayrDelegation is
 
          // set that the staker has undelegated
         delegated[msg.sender] = DelegationStatus.UNDELEGATED;
+    }
+
+    function finalizeUndelegationAndDelegateTo(address operator) external {
+        _finalizeUndelegation();
+        _delegate(msg.sender, operator);
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
@@ -313,12 +322,12 @@ contract EigenLayrDelegation is
         investmentManager = _investmentManager;
     }
 
-    function setUndelegationFraudProofInterval(uint256 _undelegationFraudProofInterval) external onlyOwner {
+    function setUndelegationFraudproofInterval(uint256 _undelegationFraudproofInterval) external onlyOwner {
         require(
-            _undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
-            "EigenLayrDelegation.setUndelegationFraudProofInterval: _undelegationFraudProofInterval too large"
+            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.setUndelegationFraudproofInterval: _undelegationFraudproofInterval too large"
         );
-        undelegationFraudProofInterval = _undelegationFraudProofInterval;
+        undelegationFraudproofInterval = _undelegationFraudproofInterval;
     }
 
     // INTERNAL FUNCTIONS
@@ -417,7 +426,7 @@ contract EigenLayrDelegation is
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
     function isOperator(address operator)
-        public
+        external
         view
         returns(bool)
     {

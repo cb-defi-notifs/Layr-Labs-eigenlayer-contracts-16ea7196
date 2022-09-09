@@ -30,6 +30,7 @@ abstract contract ECDSASignatureChecker is
     }
 
     uint256 internal constant START_OF_STAKES_BYTE_LOCATION = 438;
+    uint256 internal constant TWENTY_BYTE_MASK = 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     /** 
      @dev This calldata is of the format:
@@ -51,7 +52,7 @@ abstract contract ECDSASignatureChecker is
      */
     //NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
-        public
+        external
         returns (
             uint32 taskNumberToConfirm,
             bytes32 taskHash,
@@ -208,7 +209,7 @@ abstract contract ECDSASignatureChecker is
                             //signatory location in sigWInfo
                             mload(add(sigWInfo, 64)),
                             //20 byte mask
-                            0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            TWENTY_BYTE_MASK
                         ),
                         //pulls address from stakes object
                         shr(
@@ -264,7 +265,7 @@ abstract contract ECDSASignatureChecker is
         }
 
 
-        // set compressedSignatoryRecord variable used for payment fraud proofs
+        // set compressedSignatoryRecord variable used for payment fraudproofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
                 // taskHash,
