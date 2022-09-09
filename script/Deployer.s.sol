@@ -239,6 +239,7 @@ contract EigenLayrDeployer is
         );
 
         vm.writeFile("deployedAddresses/delegation", vm.toString(address(delegation)));
+        vm.stopBroadcast();
 
         // deploy all the DataLayr contracts
         address dlsm = _deployDataLayrContracts();
@@ -250,10 +251,7 @@ contract EigenLayrDeployer is
         //     address(investmentManager),
         //     IERC20(address(liquidStakingMockToken))
         // );
-
-        vm.stopBroadcast();
-
-        // _allocateAsset(dlsm);
+        _allocateAsset(dlsm);
     }
 
     function _allocateAsset(address dlsm) internal {
@@ -309,29 +307,17 @@ contract EigenLayrDeployer is
             emit log_uint(dlnPrivKeyUint);
             emit log_uint(i);
             
-            vm.broadcast(dlnAddr);
+            vm.broadcast(dlnPrivKeyUint);
+            delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
 
-            // /*
-            // delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
-
-            // vm.broadcast(stakerPrivKeyUint);
-            // eigenToken.approve(address(investmentManager), wethAmount);
-            
-            // vm.broadcast(stakerPrivKeyUint);
-            // investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
-
-            // vm.broadcast(stakerPrivKeyUint);
-            // weth.approve(address(investmentManager), wethAmount);
-
-            // vm.broadcast(stakerPrivKeyUint);
-            // investmentManager.depositIntoStrategy(stakerAddr, strat, weth, wethAmount);
-
-            // vm.broadcast(stakerPrivKeyUint);
-            // investmentManager.investorStratShares(stakerAddr, strat);
-
-            // vm.broadcast(stakerPrivKeyUint);
-            // delegation.delegateTo(dlnAddr);
-            // */
+            vm.startBroadcast(stakerPrivKeyUint);
+            eigenToken.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
+            weth.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, strat, weth, wethAmount);
+            investmentManager.investorStratShares(stakerAddr, strat);
+            delegation.delegateTo(dlnAddr);
+            vm.stopBroadcast();
         }
         emit log("aaaa");
         
@@ -342,13 +328,13 @@ contract EigenLayrDeployer is
             vm.broadcast(disPrivKeyUint);
             weth.approve(dlsm, wethAmount);
         }
-        
     }
 
 
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal returns (address dlsmAddress) {
+        vm.startBroadcast(mainHonchoPrivKey);
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
@@ -419,6 +405,7 @@ contract EigenLayrDeployer is
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
 
         dlsmAddress = address(dlsm);
+        vm.stopBroadcast();
     }
 
 
