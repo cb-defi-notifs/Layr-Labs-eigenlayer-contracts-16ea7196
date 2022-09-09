@@ -101,60 +101,6 @@ contract DelegationTests is TestHelper {
             );
         }
     }
-
-    /// @notice test staker's ability ot undelegate from an operator.
-    /// @param operator is the operator being delegated to.
-    /// @param staker is the staker delegating stake to the operator.
-    function testUndelegation(
-            address operator, 
-            address staker, 
-            uint256 ethAmount,
-            uint256 eigenAmount
-        ) public fuzzedAddress(operator) fuzzedAddress(staker) {
-
-        cheats.assume(staker != operator);
-        cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
-        cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
-
-
-        testDelegation(operator, staker, ethAmount, eigenAmount);
-
-
-        //delegator-specific information
-        (
-            IInvestmentStrategy[] memory delegatorStrategies,
-            uint256[] memory delegatorShares
-        ) = investmentManager.getDeposits(staker);
-
-
-        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
-            initialOperatorShares[delegatorStrategies[k]] = delegation
-                .operatorShares(operator, delegatorStrategies[k]);
-        }
-
-        _testCommitUndelegation(staker);
-        cheats.warp(block.timestamp + delegation.undelegationFraudproofInterval()+1);
-
-        _testFinalizeUndelegation(staker);
-
-        
-
-        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
-            uint256 operatorSharesBefore = initialOperatorShares[
-                delegatorStrategies[k]
-            ];
-            uint256 operatorSharesAfter = delegation.operatorShares(
-                operator,
-                delegatorStrategies[k]
-            );
-
-            assertTrue(
-                delegatorShares[k] == operatorSharesBefore - operatorSharesAfter, "testUndelegation: delegator shares not deducted correctly"
-            );
-        }
-        
-    }
-
     
     /// @notice registers a fixed address as a delegate, delegates to it from a second address, 
     ///         and checks that the delegate's voteWeights increase properly
@@ -193,11 +139,80 @@ contract DelegationTests is TestHelper {
         );
     }
 
+    /// @notice test staker's ability to undelegate/withdraw from an operator.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
+    function testWithdrawal(
+            address operator, 
+            address staker, 
+            uint256 ethAmount,
+            uint256 eigenAmount
+        ) public fuzzedAddress(operator) fuzzedAddress(staker) {
+
+        cheats.assume(staker != operator);
+        cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
+        cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
+
+
+        testDelegation(operator, staker, ethAmount, eigenAmount);
+
+
+        //delegator-specific information
+        (
+            IInvestmentStrategy[] memory delegatorStrategies,
+            uint256[] memory delegatorShares
+        ) = investmentManager.getDeposits(staker);
+
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
+                withdrawer: staker,
+                nonce: 0
+            }
+        );
+
+
+        for (uint256 k = 0; k < delegatorStrategies.length; k++) {
+            initialOperatorShares[delegatorStrategies[k]] = delegation
+                .operatorShares(operator, delegatorStrategies[k]);
+        }
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        strategyIndexes[0] = 0;
+        strategyIndexes[1] = 0;
+
+        IERC20[] memory tokensArray = new IERC20[](2);
+        tokensArray[0] = weth;
+        tokensArray[1] = eigenToken;
+
+        //initiating queued withdrawal
+        bytes32 withdrawalRoot = _testQueueWithdrawal(
+                                    staker, 
+                                    updatedStrategies, 
+                                    tokensArray, 
+                                    updatedShares, 
+                                    strategyIndexes, 
+                                    withdrawerAndNonce
+                                );
+
+
+        _testStartQueuedWithdrawalWaitingPeriod(staker, withdrawalRoot, 1 days);
+
+        cheats.warp(2 days);
+
+        _testCompleteQueuedWithdrawal(
+                        staker, 
+                        updatedStrategies, 
+                        tokensArray, 
+                        updatedShares, 
+                        withdrawerAndNonce);
+
+    }
+
     /// @notice test to see if an operator who is slashed/frozen 
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testSlashedOperatorUndelegation(
+    function testSlashedOperatorWithdrawal(
             address operator, 
             address staker, 
             uint256 ethAmount, 
@@ -216,10 +231,37 @@ contract DelegationTests is TestHelper {
         slasher.freezeOperator(operator);
         cheats.stopPrank();
 
-        //initiating undelegation
-        cheats.startPrank(staker);
-        cheats.expectRevert(bytes("EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"));
-        delegation.initUndelegation();
+        (
+            IInvestmentStrategy[] memory updatedStrategies,
+            uint256[] memory updatedShares
+        ) = investmentManager.getDeposits(staker);
+
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+            IInvestmentManager.WithdrawerAndNonce({
+                withdrawer: staker,
+                nonce: 0
+            }
+        );
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        strategyIndexes[0] = 0;
+        strategyIndexes[1] = 1;
+
+        IERC20[] memory tokensArray = new IERC20[](2);
+        tokensArray[0] = weth;
+        tokensArray[0] = eigenToken;
+
+        //initiating queued withdrawal
+        cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
+        _testQueueWithdrawal(
+                        staker, 
+                        updatedStrategies, 
+                        tokensArray, 
+                        updatedShares, 
+                        strategyIndexes, 
+                        withdrawerAndNonce);  
+
+        
     }
 
     /// @notice This function tests to ensure that a delegation contract
@@ -259,22 +301,24 @@ contract DelegationTests is TestHelper {
     }
 
 
-    /// @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
-    /// @param operator is the operator being delegated to.
-    /// @param staker is the staker delegating stake to the operator.
-    function testRedelegateAfterUndelegation(
+    // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
+    // @param operator is the operator being delegated to.
+    // @param staker is the staker delegating stake to the operator.
+
+    //TODO: Reimplement this with new undelegation system
+    function testRedelegateAfterWithdrawal(
             address operator, 
             address staker, 
             uint256 ethAmount, 
             uint256 eigenAmount
         ) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(staker != operator);
+        //this function performs delegation and subsequent withdrawal
+        testWithdrawal(operator, staker, ethAmount, eigenAmount);
 
-        //this function performs delegation and undelegation
-        testUndelegation(operator, staker, ethAmount, eigenAmount);
 
         //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
+        cheats.warp(block.timestamp + undelegationFraudProofInterval + 1);
         testDelegation(operator, staker, ethAmount, eigenAmount);
     }
 
@@ -378,4 +422,61 @@ contract DelegationTests is TestHelper {
         delegation.setUndelegationFraudproofInterval(100);
         cheats.stopPrank();
     }
+
+
+    //*******INTERNAL FUNCTIONS*********//
+    function _testQueueWithdrawal(
+        address staker,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    ) internal returns(bytes32){
+        cheats.startPrank(staker);
+
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+                                                        strategyIndexes, 
+                                                        strategyArray, 
+                                                        tokensArray, 
+                                                        shareAmounts, 
+                                                        withdrawerAndNonce);
+        cheats.stopPrank();
+        return withdrawalRoot;
+    }
+
+    function _testCompleteQueuedWithdrawal(
+        address staker,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    ) internal {
+        cheats.startPrank(staker);
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(
+                                    strategyArray, 
+                                    tokensArray,
+                                    shareAmounts, 
+                                    staker, 
+                                    withdrawerAndNonce, 
+                                    true
+                                );                                    
+        cheats.stopPrank();
+    }
+
+    function _testStartQueuedWithdrawalWaitingPeriod(
+        address depositor,
+        bytes32 withdrawalRoot,
+        uint32 stakeInactiveAfter
+    ) internal {
+        cheats.startPrank(depositor);
+        investmentManager.startQueuedWithdrawalWaitingPeriod(
+                                        depositor, 
+                                        withdrawalRoot, 
+                                        stakeInactiveAfter
+                                    );
+        cheats.stopPrank();
+    }
+
 }

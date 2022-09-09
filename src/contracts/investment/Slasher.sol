@@ -53,6 +53,7 @@ contract Slasher is
         address _eigenLayrGovernance
     ) external initializer {
         investmentManager = _investmentManager;
+        _addGloballyPermissionedContract(address(investmentManager));
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
         // add EigenLayrDelegation to list of permissioned contracts
