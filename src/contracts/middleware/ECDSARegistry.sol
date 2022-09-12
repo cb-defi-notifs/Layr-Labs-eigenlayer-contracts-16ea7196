@@ -92,7 +92,7 @@ contract ECDSARegistry is
         string calldata socket
     ) internal {
 
-        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, registrantType);
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         //bytes to add to the existing stakes object
         bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethStake, _operatorStake.eigenStake);

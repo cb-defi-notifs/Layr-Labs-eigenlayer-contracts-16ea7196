@@ -296,7 +296,7 @@ abstract contract RegistryBase is
     }
 
     /**
-     * Remove the operator from active status. Removes the registrant with the given `pubkeyHash` from the `index` in `operatorList`,
+     * Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
     function _removeRegistrant(bytes32 pubkeyHash, uint32 index) internal {
@@ -355,7 +355,7 @@ abstract contract RegistryBase is
         if (index < operatorListLengthMinusOne){
             // get existing operator at end of list, and retrieve their pubkeyHash
             swappedOperator = operatorList[operatorListLengthMinusOne];
-            Registrant memory registrant = registry[swappedOperator];
+            Operator memory registrant = registry[swappedOperator];
             bytes32 pubkeyHash = registrant.pubkeyHash;
             // store blockNumber at which operator index changed
             // same operation as above except pubkeyHash is now different (since different operator)
@@ -376,13 +376,13 @@ abstract contract RegistryBase is
         return swappedOperator;
     }
 
-    // Adds the registrant `operator` with the given `pubkeyHash` to the `operatorList`
+    // Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList`
     function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake, string calldata socket) internal {
-        // store the registrant's info in mapping
-        registry[operator] = Registrant({
+        // store the Operator's info in mapping
+        registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
+            id: nextOperatorId,
+            index: numOperators(),
             active: IQuorumRegistry.Active.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
@@ -392,10 +392,10 @@ abstract contract RegistryBase is
             deregisterTime: 0
         });
 
-        // record the operator being registered and update the counter for registrant ID
+        // record the operator being registered and update the counter for operator ID
         operatorList.push(operator);
         unchecked {
-            ++nextRegistrantId;
+            ++nextOperatorId;
         }
 
         // add the `updateBlockNumber` info
@@ -420,7 +420,7 @@ abstract contract RegistryBase is
     }
 
     // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
-    function _registrationStakeEvaluation(address operator, uint8 registrantType) internal returns (OperatorStake memory) {
+    function _registrationStakeEvaluation(address operator, uint8 operatorType) internal returns (OperatorStake memory) {
         require(
             registry[operator].active == IQuorumRegistry.Active.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
@@ -428,8 +428,8 @@ abstract contract RegistryBase is
 
         OperatorStake memory _operatorStake;
 
-        // if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 1) == 1) {
+        // if first bit of operatorType is '1', then operator wants to be an ETH validator
+        if ((operatorType & 1) == 1) {
             _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
             // check if minimum requirement has been met
             if (_operatorStake.ethStake < nodeEthStake) {
@@ -437,8 +437,8 @@ abstract contract RegistryBase is
             }
         }
 
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 2) == 2) {
+        //if second bit of operatorType is '1', then operator wants to be an EIGEN validator
+        if ((operatorType & 2) == 2) {
             _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
             // check if minimum requirement has been met
             if (_operatorStake.eigenStake < nodeEigenStake) {

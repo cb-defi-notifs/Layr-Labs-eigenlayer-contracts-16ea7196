@@ -33,7 +33,7 @@ contract BLSRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
+    uint256[4] public apk;
     
     // EVENTS
     /**
@@ -70,7 +70,7 @@ contract BLSRegistry is
          @dev Initialized value is the generator of G2 group. It is necessary in order to do 
          addition in Jacobian coordinate system.
          */
-        uint256[4] memory initApk = [G2x0, G2x1, G2y0, G2y1];
+        uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
         // TODO: verify this initialization is correct
         _processApkUpdate(initApk);
     }
@@ -102,7 +102,7 @@ contract BLSRegistry is
         string calldata socket
     ) internal {
 
-        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, registrantType);
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         /**
          @notice evaluate the new aggregated pubkey
@@ -125,7 +125,7 @@ contract BLSRegistry is
         // getting pubkey hash 
         bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
         
-        // our addition algorithm doesn't work in this case
+        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
         require(pubkeyHash != apkHashes[apkHashes.length - 1], "BLSRegistry._registerOperator: Apk and pubkey cannot be the same");
 
         // record the APK update and get the hash of the new APK
