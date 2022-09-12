@@ -62,10 +62,12 @@ contract PausableTests is
 
     function testSetPauserUnauthorized(
         address fakePauser, 
-        address newPauser) 
-        fuzzedAddress(newPauser) 
-        fuzzedAddress(fakePauser)
-    public {
+        address newPauser
+    ) 
+    public
+    fuzzedAddress(newPauser) 
+    fuzzedAddress(fakePauser)
+    {
         cheats.startPrank(fakePauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as unpauser"));
         pauserReg.setPauser(newPauser);
