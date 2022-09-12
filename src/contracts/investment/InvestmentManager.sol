@@ -524,8 +524,6 @@ contract InvestmentManager is
         require(shares != 0, "InvestmentManager._depositIntoStrategy: shares should not be zero!");
 
         // add the returned shares to their existing shares for this strategy
-        //investorStratShares[depositor][strategy] += shares;
-
         //add the new shares to the depositor
         _addShares(depositor, strategy, shares);
 
