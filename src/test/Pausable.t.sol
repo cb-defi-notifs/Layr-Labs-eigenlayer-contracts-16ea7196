@@ -18,12 +18,6 @@ contract PausableTests is
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
 
-
-        emit log_named_uint("amountToDeposit", amountToDeposit);
-        emit log_named_uint("amountToWithdraw", amountToWithdraw);
-
-
-
         cheats.startPrank(pauser);
         investmentManager.pause();
         cheats.stopPrank();
@@ -42,6 +36,15 @@ contract PausableTests is
                 amountToWithdraw
         );
         
+        cheats.stopPrank();
+    }
+
+    function testUnauthorizedPauser(
+        address unauthorizedPauser
+    ) public fuzzedAddress(unauthorizedPauser){
+        cheats.startPrank(unauthorizedPauser);
+        cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
+        investmentManager.pause();
         cheats.stopPrank();
     }
 }
