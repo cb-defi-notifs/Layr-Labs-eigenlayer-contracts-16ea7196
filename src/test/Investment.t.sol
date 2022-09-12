@@ -27,8 +27,7 @@ contract InvestmentTests is
         uint96 amountToDeposit,
         uint96 amountToWithdraw
     ) public {
-        cheats.assume(amountToDeposit > 0);
-        cheats.assume(amountToWithdraw > 0);
+        cheats.assume(amountToWithdraw <= amountToDeposit);
         // hard-coded inputs
         address sender = signers[0];
         uint256 strategyIndex = 0;
@@ -41,7 +40,6 @@ contract InvestmentTests is
      * @param amountToDeposit Fuzzed input for the amount deposited into the strategy, prior to withdrawing all shares
      */
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
-        cheats.assume(amountToDeposit > 0);
 
         // hard-coded inputs
         IInvestmentStrategy _strat = wethStrat;

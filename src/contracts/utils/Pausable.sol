@@ -48,7 +48,7 @@ contract Pausable is DSTest{
     function _initializePauser(
         IPauserRegistry _pauserRegistry
     ) internal {
-                
+
         require(
             address(pauserRegistry) == address(0) && 
             address(_pauserRegistry) != address(0), 
@@ -82,6 +82,8 @@ contract Pausable is DSTest{
 
         emit Unpaused(msg.sender);
     }
+
+    
 
     /**
      * @dev Returns true if the contract is paused, and false otherwise.
