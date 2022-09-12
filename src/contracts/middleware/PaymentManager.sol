@@ -110,7 +110,6 @@ abstract contract PaymentManager is
     )   
         // set repository address equal to that of serviceManager
         RepositoryAccess(_repository) 
-        initializer
     {
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);

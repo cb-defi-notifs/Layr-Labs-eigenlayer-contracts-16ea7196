@@ -31,7 +31,6 @@ contract PauserRegistry is IPauserRegistry {
         address _pauser,
         address _unpauser
     ) {
-        require(pauser == address(0), "pauser already initialized");
         pauser = _pauser;
         unpauser = _unpauser;
 
@@ -43,12 +42,14 @@ contract PauserRegistry is IPauserRegistry {
 
     //sets new pauser - only callable by unpauser, as the unpauser has a higher threshold
     function setPauser(address newPauser) external onlyUnpauser {
+        require(pauser != address(0), "pauser has not been inititalized by registry");
         pauser = newPauser;
 
         emit PauserSet(newPauser);
     }
 
     function setUnpauser(address newUnpauser) external onlyUnpauser {
+        require(unpauser != address(0), "unpauser has not been inititalized by registry");
         unpauser = newUnpauser;
 
         emit UnpauserSet(newUnpauser);

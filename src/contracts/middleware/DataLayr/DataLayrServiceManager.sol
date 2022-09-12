@@ -93,7 +93,6 @@ contract DataLayrServiceManager is
     ) 
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
-        initializer
     {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
