@@ -55,6 +55,7 @@ contract InvestmentStrategyBase is
         uint256 amount
     )
         external virtual override
+        whenNotPaused
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -88,6 +89,7 @@ contract InvestmentStrategyBase is
         uint256 shareAmount
     )
         external virtual override 
+        whenNotPaused
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");
