@@ -438,27 +438,27 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         // verify that registration was stored correctly
-        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
+        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeStakeFirstQuorum()) {
             assertTrue(
-                dlReg.ethStakedByOperator(sender) == wethToDeposit,
+                dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit,
                 "ethStaked not increased!"
             );
         } else {
             assertTrue(
-                dlReg.ethStakedByOperator(sender) == 0,
+                dlReg.firstQuorumStakedByOperator(sender) == 0,
                 "ethStaked incorrectly > 0"
             );
         }
         if (
-            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeEigenStake()
+            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeStakeSecondQuorum()
         ) {
             assertTrue(
-                dlReg.eigenStakedByOperator(sender) == eigenToDeposit,
+                dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit,
                 "eigenStaked not increased!"
             );
         } else {
             assertTrue(
-                dlReg.eigenStakedByOperator(sender) == 0,
+                dlReg.secondQuorumStakedByOperator(sender) == 0,
                 "eigenStaked incorrectly > 0"
             );
         }

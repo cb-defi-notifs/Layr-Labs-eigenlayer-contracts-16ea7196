@@ -66,8 +66,8 @@ contract DataLayrPaymentManager is
                 searchData.metadata.headerHash,
                 searchData.metadata.globalDataStoreId,
                 nonSignerPubkeyHashes,
-                totalStakesSigned.ethStakeSigned,
-                totalStakesSigned.eigenStakeSigned
+                totalStakesSigned.signedStakeFirstQuorum,
+                totalStakesSigned.signedStakeSecondQuorum
             )
         );
         //checking that `nonSignerPubKeyHashes` and `totalStakesSigned` are correct, now that we know that searchData is valid
@@ -130,13 +130,13 @@ contract DataLayrPaymentManager is
             trueAmount = uint120(
                 (
                     (
-                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.ethStake)) /
-                        totalStakesSigned.ethStakeSigned
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.firstQuorumStake)) /
+                        totalStakesSigned.signedStakeFirstQuorum
                     )
                     +
                     (
-                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.eigenStake)) /
-                        totalStakesSigned.eigenStakeSigned
+                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.secondQuorumStake)) /
+                        totalStakesSigned.signedStakeSecondQuorum
                     )
                 )
                 / MAX_BIPS

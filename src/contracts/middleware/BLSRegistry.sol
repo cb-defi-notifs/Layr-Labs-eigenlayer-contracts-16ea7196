@@ -21,23 +21,26 @@ contract BLSRegistry is
     uint32[] public apkUpdates;
 
     /**
-     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
-             this is updated whenever a new operator registers or deregisters
+     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
+     *        this is updated whenever a new operator registers or deregisters
      */
     bytes32[] public apkHashes;
 
     /**
-     @notice used for storing current aggregate public key
-     */
-    /** 
-     @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-     addition in Jacobian coordinate system.
+     * @notice used for storing current aggregate public key
+     * @dev Initialized value is the generator of G2 group. It is necessary in order to do 
+     *      addition in Jacobian coordinate system.
      */
     uint256[4] public apk;
     
     // EVENTS
     /**
-     * @notice
+     * @notice Emitted upon the registration of a new operator for the middleware
+     * @param operator Address of the new operator
+     * @param pkHash The keccak256 hash of the operator's public key
+     * @param pk The operator's public key itself
+     * @param apkHashIndex The index of the latest (i.e. the new) APK update
+     * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
     event Registration(
         address indexed operator,
@@ -53,8 +56,8 @@ contract BLSRegistry is
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         RegistryBase(
             _repository,
@@ -62,27 +65,23 @@ contract BLSRegistry is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
         /** 
-         @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-         addition in Jacobian coordinate system.
+         * @dev Initialized value is the generator of G2 group. It is necessary in order to do 
+         *      addition in Jacobian coordinate system.
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
-        // TODO: verify this initialization is correct
         _processApkUpdate(initApk);
     }
 
     /**
-     @notice called for registering as a operator
-     */
-    /**
-     @param operatorType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @param socket is the socket address of the operator
-     
+     * @notice called for registering as a operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     * @param socket is the socket address of the operator
      */ 
     function registerOperator(
         uint8 operatorType,
@@ -93,7 +92,10 @@ contract BLSRegistry is
     }
     
     /**
-     @param operator is the node who is registering to be a operator
+     * @param operator is the node who is registering to be a operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     * @param socket is the socket address of the operator
      */
     function _registerOperator(
         address operator,
@@ -134,14 +136,13 @@ contract BLSRegistry is
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
             
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
     }
 
     /**
-      @notice Used by an operator to de-register itself from providing service to the middleware.
-     */
-    /** 
-      @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
+     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param index is the sender's location in the dynamic array `operatorList`
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
@@ -153,9 +154,9 @@ contract BLSRegistry is
         _deregistrationCheck(msg.sender, index);
         
         /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
+         * @notice verify that the sender is a operator that is doing deregistration for itself
+         * @dev Fetch operator's stored pubkeyHash
          */
-        // get operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
         bytes32 pubkeyHashFromInput = keccak256(
             abi.encodePacked(
@@ -185,11 +186,8 @@ contract BLSRegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of nodes.
-     */
-    /**
-     * @param operators are the nodes whose information on their ETH and EIGEN deposits
-     *        getting updated
+     * @notice Used for updating information on deposits of nodes.
+     * @param operators are the nodes whose deposit information is getting updated
      */
     function updateStakes(address[] calldata operators) external {
         // copy total stake to memory
@@ -206,15 +204,15 @@ contract BLSRegistry is
             // fetch operator's existing stakes
             currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
             // decrease _totalStake by operator's existing stakes
-            _totalStake.ethStake -= currentStakes.ethStake;
-            _totalStake.eigenStake -= currentStakes.eigenStake;
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
             // update the stake for the i-th operator
             currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
 
             // increase _totalStake by operator's updated stakes
-            _totalStake.ethStake += currentStakes.ethStake;
-            _totalStake.eigenStake += currentStakes.eigenStake;
+            _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
 
             unchecked {
                 ++i;
@@ -225,8 +223,10 @@ contract BLSRegistry is
         _recordTotalStakeUpdate(_totalStake);
     }
 
-    // updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
-    // returns the hash of `newApk
+    /**
+     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
+     * @param newApk The updated APK. This will be the `apk` after this function runs!
+     */
     function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
         // update stored aggregate public key
         apk = newApk;

@@ -26,14 +26,14 @@ abstract contract BLSSignatureChecker is
              operators and those operators who are part of the quorum for a particular taskNumber
      */
     struct SignatoryTotals {
-        // total ETH stake of the operators who are in the quorum
-        uint256 ethStakeSigned;
-        // total Eigen stake of the operators who are in the quorum
-        uint256 eigenStakeSigned;
-        // total ETH staked by all operators (irrespective of whether they are in quorum or not)
-        uint256 totalEthStake;
-        // total Eigen staked by all operators (irrespective of whether they are in quorum or not)
-        uint256 totalEigenStake;
+        // total stake of the operators who are in the first quorum
+        uint256 signedStakeFirstQuorum;
+        // total stake of the operators who are in the second quorum
+        uint256 signedStakeSecondQuorum;
+        // total amount staked by all operators (irrespective of whether they are in the quorum or not)
+        uint256 totalStakeFirstQuorum;
+        // total amount staked by all operators (irrespective of whether they are in the quorum or not)
+        uint256 totalStakeSecondQuorum;
     }
 
     /*********** 
@@ -45,10 +45,10 @@ abstract contract BLSSignatureChecker is
     event SignatoryRecord(
         bytes32 msgHash,
         uint32 taskNumber,
-        uint256 ethStakeSigned,
-        uint256 eigenStakeSigned,
-        // uint256 totalEthStake,
-        // uint256 totalEigenStake,
+        uint256 signedStakeFirstQuorum,
+        uint256 signedStakeSecondQuorum,
+        // uint256 totalStakeFirstQuorum,
+        // uint256 totalStakeSecondQuorum,
         bytes32[] pubkeyHashes
     );
 
@@ -164,10 +164,10 @@ abstract contract BLSSignatureChecker is
         // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
         _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
-        signedTotals.ethStakeSigned = localStakeObject.ethStake;
-        signedTotals.totalEthStake = signedTotals.ethStakeSigned;
-        signedTotals.eigenStakeSigned = localStakeObject.eigenStake;
-        signedTotals.totalEigenStake = signedTotals.eigenStakeSigned;
+        signedTotals.signedStakeFirstQuorum = localStakeObject.firstQuorumStake;
+        signedTotals.totalStakeFirstQuorum = signedTotals.signedStakeFirstQuorum;
+        signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
+        signedTotals.totalStakeSecondQuorum = signedTotals.signedStakeSecondQuorum;
 
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
@@ -264,8 +264,8 @@ abstract contract BLSSignatureChecker is
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
             // subtract operator stakes from totals
-            signedTotals.ethStakeSigned -= localStakeObject.ethStake;
-            signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
+            signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
+            signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
         }
 
         // temporary variable for storing the pubkey of operators in Jacobian coordinates
@@ -324,8 +324,8 @@ abstract contract BLSSignatureChecker is
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
             //subtract validator stakes from totals
-            signedTotals.ethStakeSigned -= localStakeObject.ethStake;
-            signedTotals.eigenStakeSigned -= localStakeObject.eigenStake;
+            signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
+            signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
 
             // add the pubkey of the operator to the aggregate pubkeys in Jacobian coordinate system.
             BLS.addJac(aggNonSignerPubkey, pk);
@@ -447,10 +447,10 @@ abstract contract BLSSignatureChecker is
         emit SignatoryRecord(
             msgHash,
             taskNumberToConfirm,
-            signedTotals.ethStakeSigned,
-            signedTotals.eigenStakeSigned,
-            // signedTotals.totalEthStake,
-            // signedTotals.totalEigenStake,
+            signedTotals.signedStakeFirstQuorum,
+            signedTotals.signedStakeSecondQuorum,
+            // signedTotals.totalStakeFirstQuorum,
+            // signedTotals.totalStakeSecondQuorum,
             pubkeyHashes
         );
 
@@ -460,12 +460,12 @@ abstract contract BLSSignatureChecker is
                 // taskHash,
                 taskNumberToConfirm,
                 pubkeyHashes,
-                signedTotals.ethStakeSigned,
-                signedTotals.eigenStakeSigned
+                signedTotals.signedStakeFirstQuorum,
+                signedTotals.signedStakeSecondQuorum
             )
         );
 
-        // return taskNumber, stakesBlockNumber, msgHash, eth and eigen that signed, and a hash of the signatories
+        // return taskNumber, stakesBlockNumber, msgHash, total stakes that signed, and a hash of the signatories
         return (
             taskNumberToConfirm,
             stakesBlockNumber,

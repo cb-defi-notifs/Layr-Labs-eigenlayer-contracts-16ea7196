@@ -55,8 +55,8 @@ interface IQuorumRegistry is IRegistry {
     struct OperatorStake {
         uint32 updateBlockNumber;
         uint32 nextUpdateBlockNumber;
-        uint96 ethStake;
-        uint96 eigenStake;
+        uint96 firstQuorumStake;
+        uint96 secondQuorumStake;
     }
 
     function getLengthOfTotalStakeHistory() external view returns (uint256);
@@ -85,7 +85,7 @@ interface IQuorumRegistry is IRegistry {
 
     function totalStake() external view returns (uint96, uint96);
 
-    function totalEthStaked() external view returns (uint96);
+    function totalFirstQuorumStake() external view returns (uint96);
 
-    function totalEigenStaked() external view returns (uint96);
+    function totalSecondQuorumStake() external view returns (uint96);
 }

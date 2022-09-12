@@ -24,8 +24,8 @@ abstract contract RegistryBase is
 {
     using BytesLib for bytes;
 
-    uint128 public nodeEthStake = 1 wei;
-    uint128 public nodeEigenStake = 1 wei;
+    uint128 public nodeStakeFirstQuorum = 1 wei;
+    uint128 public nodeStakeSecondQuorum = 1 wei;
     
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextOperatorId;
@@ -51,8 +51,8 @@ abstract contract RegistryBase is
     // EVENTS
     event StakeAdded(
         address operator,
-        uint96 ethStake,
-        uint96 eigenStake,
+        uint96 firstQuorumStake,
+        uint96 secondQuorumStake,
         uint256 updateNumber,
         uint32 updateBlockNumber,
         uint32 prevUpdateBlockNumber
@@ -60,8 +60,8 @@ abstract contract RegistryBase is
 
     event StakeUpdate(
         address operator,
-        uint96 ethStake,
-        uint96 eigenStake,
+        uint96 firstQuorumStake,
+        uint96 secondQuorumStake,
         uint32 updateBlockNumber,
         uint32 prevUpdateBlockNumber
     );
@@ -77,8 +77,8 @@ abstract contract RegistryBase is
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         VoteWeigherBase(
             _repository,
@@ -96,8 +96,8 @@ abstract contract RegistryBase is
         OperatorIndex memory _totalOperators;
         totalOperatorsHistory.push(_totalOperators);
 
-        _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
-        _addStrategiesConsideredAndMultipliers(1, _eigenStrategiesConsideredAndMultipliers);
+        _addStrategiesConsideredAndMultipliers(0, _firstQuorumStrategiesConsideredAndMultipliers);
+        _addStrategiesConsideredAndMultipliers(1, _secondQuorumStrategiesConsideredAndMultipliers);
     }
     
     /*
@@ -146,18 +146,18 @@ abstract contract RegistryBase is
         
     }
 
-    function setNodeEigenStake(uint128 _nodeEigenStake)
+    function setNodeStakeSecondQuorum(uint128 _nodeStakeSecondQuorum)
         external
         onlyRepositoryGovernance
     {
-        nodeEigenStake = _nodeEigenStake;
+        nodeStakeSecondQuorum = _nodeStakeSecondQuorum;
     }
 
-    function setNodeEthStake(uint128 _nodeEthStake)
+    function setNodeStakeFirstQuorum(uint128 _nodeStakeFirstQuorum)
         external
         onlyRepositoryGovernance
     {
-        nodeEthStake = _nodeEthStake;
+        nodeStakeFirstQuorum = _nodeStakeFirstQuorum;
     }
 
     /// @notice returns the unique ID of the specified operator 
@@ -194,39 +194,39 @@ abstract contract RegistryBase is
         }
     }
 
-    function ethStakedByOperator(address operator) external view returns (uint96) {
+    function firstQuorumStakedByOperator(address operator) external view returns (uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
-        return opStake.ethStake;
+        return opStake.firstQuorumStake;
     }
 
-    function eigenStakedByOperator(address operator) external view returns (uint96) {
+    function secondQuorumStakedByOperator(address operator) external view returns (uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
-        return opStake.eigenStake;
+        return opStake.secondQuorumStake;
     }
 
     function operatorStakes(address operator) public view returns (uint96, uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
-        return (opStake.ethStake, opStake.eigenStake);
+        return (opStake.firstQuorumStake, opStake.secondQuorumStake);
     }
 
     function isRegistered(address operator) external view returns (bool) {
-        (uint96 ethStake, uint96 eigenStake) = operatorStakes(operator);
-        return (ethStake > 0 || eigenStake > 0);
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = operatorStakes(operator);
+        return (firstQuorumStake > 0 || secondQuorumStake > 0);
     }
 
-    function totalEthStaked() external view returns (uint96) {
+    function totalFirstQuorumStake() external view returns (uint96) {
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.ethStake;
+        return _totalStake.firstQuorumStake;
     }
 
-    function totalEigenStaked() external view returns (uint96) {
+    function totalSecondQuorumStake() external view returns (uint96) {
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.eigenStake;
+        return _totalStake.secondQuorumStake;
     }
 
     function totalStake() external view returns (uint96, uint96) {
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return (_totalStake.ethStake, _totalStake.eigenStake);
+        return (_totalStake.firstQuorumStake, _totalStake.secondQuorumStake);
     }
 
     function getLengthOfPubkeyHashStakeHistory(bytes32 pubkeyHash) external view returns (uint256) {
@@ -324,16 +324,16 @@ abstract contract RegistryBase is
                 // mark as 0 since the next update has not yet occurred
                 nextUpdateBlockNumber: 0,
                 // setting the operator's stakes to 0
-                ethStake: 0,
-                eigenStake: 0
+                firstQuorumStake: 0,
+                secondQuorumStake: 0
             })
         );
 
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
+        // subtract the amounts staked by the operator that is getting deregistered from the total stake
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake -= currentStakes.ethStake;
-        _totalStake.eigenStake -= currentStakes.eigenStake;
+        _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+        _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
 
@@ -410,8 +410,8 @@ abstract contract RegistryBase is
 
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake += _operatorStake.ethStake;
-        _totalStake.eigenStake += _operatorStake.eigenStake;
+        _totalStake.firstQuorumStake += _operatorStake.firstQuorumStake;
+        _totalStake.secondQuorumStake += _operatorStake.secondQuorumStake;
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
 
@@ -428,26 +428,26 @@ abstract contract RegistryBase is
 
         OperatorStake memory _operatorStake;
 
-        // if first bit of operatorType is '1', then operator wants to be an ETH validator
+        // if first bit of operatorType is '1', then operator wants to be a validator for the first quorum
         if ((operatorType & 1) == 1) {
-            _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
+            _operatorStake.firstQuorumStake = uint96(weightOfOperator(operator, 0));
             // check if minimum requirement has been met
-            if (_operatorStake.ethStake < nodeEthStake) {
-                _operatorStake.ethStake = uint96(0);
+            if (_operatorStake.firstQuorumStake < nodeStakeFirstQuorum) {
+                _operatorStake.firstQuorumStake = uint96(0);
             }
         }
 
-        //if second bit of operatorType is '1', then operator wants to be an EIGEN validator
+        //if second bit of operatorType is '1', then operator wants to be a validator for the second quorum
         if ((operatorType & 2) == 2) {
-            _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
+            _operatorStake.secondQuorumStake = uint96(weightOfOperator(operator, 1));
             // check if minimum requirement has been met
-            if (_operatorStake.eigenStake < nodeEigenStake) {
-                _operatorStake.eigenStake = uint96(0);
+            if (_operatorStake.secondQuorumStake < nodeStakeSecondQuorum) {
+                _operatorStake.secondQuorumStake = uint96(0);
             }
         }
 
         require(
-            _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
+            _operatorStake.firstQuorumStake > 0 || _operatorStake.secondQuorumStake > 0,
             "RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"
         );
 
@@ -458,15 +458,15 @@ abstract contract RegistryBase is
     function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake) internal returns (OperatorStake memory updatedOperatorStake) {            
         // determine new stakes
         updatedOperatorStake.updateBlockNumber = uint32(block.number);
-        updatedOperatorStake.ethStake = weightOfOperator(operator, 0);
-        updatedOperatorStake.eigenStake = weightOfOperator(operator, 1);
+        updatedOperatorStake.firstQuorumStake = weightOfOperator(operator, 0);
+        updatedOperatorStake.secondQuorumStake = weightOfOperator(operator, 1);
 
         // check if minimum requirements have been met
-        if (updatedOperatorStake.ethStake < nodeEthStake) {
-            updatedOperatorStake.ethStake = uint96(0);
+        if (updatedOperatorStake.firstQuorumStake < nodeStakeFirstQuorum) {
+            updatedOperatorStake.firstQuorumStake = uint96(0);
         }
-        if (updatedOperatorStake.eigenStake < nodeEigenStake) {
-            updatedOperatorStake.eigenStake = uint96(0);
+        if (updatedOperatorStake.secondQuorumStake < nodeStakeSecondQuorum) {
+            updatedOperatorStake.secondQuorumStake = uint96(0);
         }
         //set nextUpdateBlockNumber in prev stakes
         pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].nextUpdateBlockNumber = uint32(block.number);
@@ -475,8 +475,8 @@ abstract contract RegistryBase is
 
         emit StakeUpdate(
             operator,
-            updatedOperatorStake.ethStake,
-            updatedOperatorStake.eigenStake,
+            updatedOperatorStake.firstQuorumStake,
+            updatedOperatorStake.secondQuorumStake,
             uint32(block.number),
             currentOperatorStake.updateBlockNumber
         );
