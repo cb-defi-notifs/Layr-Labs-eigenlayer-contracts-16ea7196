@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 
 import "forge-std/Test.sol";
-import "../test/Deployer.t.sol";
+import "../test/TestHelper.t.sol";
 
 
 
 
-contract RepositoryTests is EigenLayrDeployer{
+contract RepositoryTests is TestHelper{
 
+        /**
+        * @notice this function tests inititalizing a repository 
+        *           multiple times and ensuring that it reverts.
+        */
         function testCannotInitMultipleTimesRepository() public {
             //repository has already been initialized in the Deployer test contract
             cheats.expectRevert(
@@ -22,6 +26,11 @@ contract RepositoryTests is EigenLayrDeployer{
                 address(this)
             );
         }
+
+        /**
+        * @notice this function tests ensures that the set owner
+        *         of the repository can set all of its attributes.
+        */
         function testOwnerPermissionsRepository() public {
             address repositoryOwner = Repository(address(dlRepository)).owner();
             cheats.startPrank(repositoryOwner);

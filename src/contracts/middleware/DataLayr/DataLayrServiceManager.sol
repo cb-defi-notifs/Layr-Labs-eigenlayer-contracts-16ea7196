@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -32,18 +32,6 @@ contract DataLayrServiceManager is
 
 
     /**********************
-        CONSTANTS
-     **********************/
-    //TODO: mechanism to change any of these values?
-    uint32 internal constant MIN_STORE_SIZE = 32;
-    uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint32 internal constant MIN_STORE_LENGTH = 60;
-    uint32 internal constant MAX_STORE_LENGTH = 604800;
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
-
-
-    /**********************
         ERROR MESSAGES
      **********************/
     // only repositoryGovernance can call this, but 'sender' called instead
@@ -64,14 +52,10 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-
-
     uint128 public eigenSignedThresholdPercentage = 90;
     uint128 public ethSignedThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
-
-
 
     /*************
         EVENTS
@@ -93,8 +77,6 @@ contract DataLayrServiceManager is
         bytes32 headerHash
     );
 
-
-
     constructor(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -111,19 +93,19 @@ contract DataLayrServiceManager is
         
     }
 
-    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) public onlyRepositoryGovernance {
+    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) external onlyRepositoryGovernance {
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
     }
 
-    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
+    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) external onlyRepositoryGovernance {
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
-    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) public onlyRepositoryGovernance {
+    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) external onlyRepositoryGovernance {
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
-    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) public onlyRepositoryGovernance {
+    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
@@ -158,7 +140,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32){
+    ) external returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -280,11 +262,11 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable {
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
-
+        
         // verify the signatures that disperser is claiming to be of those DataLayr operators 
         // who have agreed to be in the quorum
         (
@@ -295,10 +277,8 @@ contract DataLayrServiceManager is
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-
         //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
         //this keeps bomb and storage conditions stagnant
-
         require(msgHash == keccak256(abi.encodePacked(dataStoreIdToConfirm, searchData.metadata.headerHash, searchData.duration, searchData.timestamp, searchData.index)), 
                 "DataLayrServiceManager.confirmDataStore: msgHash is not consistent with search data");
 
@@ -307,9 +287,6 @@ contract DataLayrServiceManager is
         require(searchData.metadata.signatoryRecordHash == bytes32(0), "DataLayrServiceManager.confirmDataStore: SignatoryRecord must be bytes32(0)");
         require(searchData.metadata.globalDataStoreId == dataStoreIdToConfirm, "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data");
         require(searchData.metadata.blockNumber == blockNumberFromTaskHash, "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data");
-
-
-
 
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
@@ -326,16 +303,17 @@ contract DataLayrServiceManager is
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well 
         bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
-
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
         // check that signatories own at least a threshold percentage of eth 
         // and eigen, thus, implying quorum has been acheieved
-        require(signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
-                && signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
-                "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen");
-
+        require(
+            signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
+            &&
+            signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
+            "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen"
+        );
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
 
@@ -354,7 +332,7 @@ contract DataLayrServiceManager is
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)
-        public
+        external
         onlyRepositoryGovernance
     {
         feePerBytePerTime = _feePerBytePerTime;
@@ -420,7 +398,7 @@ contract DataLayrServiceManager is
         return 0;
     }
     
-    function taskNumber() public view returns (uint32){
+    function taskNumber() external view returns (uint32){
         return dataStoresForDuration.dataStoreId;
     }
 

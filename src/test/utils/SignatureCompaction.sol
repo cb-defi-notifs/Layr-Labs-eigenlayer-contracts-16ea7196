@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 //small library for dealing with efficiently-packed signatures, where parameters v,r,s are packed into vs and r (64 bytes instead of 65)

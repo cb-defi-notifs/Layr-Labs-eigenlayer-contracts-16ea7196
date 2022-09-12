@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayr.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IServiceManager.sol";
 import "../../interfaces/IInvestmentManager.sol";
@@ -14,6 +13,20 @@ import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
+    /**********************
+        CONSTANTS
+     **********************/
+    //TODO: mechanism to change any of these values?
+    uint256 constant public DURATION_SCALE = 1 hours;
+    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 5;
+    // NOTE: these values are measured in *DURATION_SCALE*
+    uint8 constant public MIN_DATASTORE_DURATION = 1;
+    uint8 constant public MAX_DATASTORE_DURATION = 14;
+
+    uint32 internal constant MIN_STORE_SIZE = 32;
+    uint32 internal constant MAX_STORE_SIZE = 4e9;
+    uint256 internal constant BLOCK_STALE_MEASURE = 100;
+
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
@@ -74,21 +87,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      *         nodes who signed up to be the part of the quorum.  
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
-
-    /**     
-      @notice the latest expiry period (in UTC timestamp) out of all the active Data blobs stored in DataLayr;
-              updated at every call to initDataStore in DataLayrServiceManager.sol  
-
-              This would be used for recording the time until which a DataLayr operator is obligated
-              to serve while committing deregistration.
-     */
     
-    uint256 constant public DURATION_SCALE = 1 hours;
-    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 5;
-    // NOTE: these values are measured in *DURATION_SCALE*
-    uint8 constant public MIN_DATASTORE_DURATION = 1;
-    uint8 constant public MAX_DATASTORE_DURATION = 14;
-
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
     //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
     //in that block
@@ -101,8 +100,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     DataLayrBombVerifier public dataLayrBombVerifier;
 
     EphemeralKeyRegistry public ephemeralKeyRegistry;
-
-
 
     /**
      * @notice contract used for handling payment challenges

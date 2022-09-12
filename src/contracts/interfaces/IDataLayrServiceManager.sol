@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IDataLayr.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 
@@ -59,9 +58,9 @@ interface IDataLayrServiceManager is IServiceManager {
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32);
+    ) external returns(uint32);
 
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external;
 
     function numPowersOfTau() external view returns(uint48);
 

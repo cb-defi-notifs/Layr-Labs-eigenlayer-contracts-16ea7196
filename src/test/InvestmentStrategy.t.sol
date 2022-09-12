@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
-import "./Deployer.t.sol";
+import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 
 
 contract InvestmentStrategyTests is
-    EigenLayrDeployer 
+    TestHelper 
 {
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
@@ -65,16 +65,4 @@ contract InvestmentStrategyTests is
 
         cheats.stopPrank();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-    }
+}

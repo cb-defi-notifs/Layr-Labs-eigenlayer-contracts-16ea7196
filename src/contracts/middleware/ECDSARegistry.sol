@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
+import "../interfaces/IECDSARegistry.sol";
 
-// import "ds-test/test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 
@@ -13,7 +14,8 @@ import "./RegistryBase.sol";
  */
 // TODO: this contract has known concurrency issues with multiple updates to the 'stakes' object landing in quick succession -- need to evaluate potential solutions
 contract ECDSARegistry is
-    RegistryBase
+    RegistryBase,
+    IECDSARegistry
     // ,DSTest
 {
     using BytesLib for bytes;
@@ -32,7 +34,7 @@ contract ECDSARegistry is
      * @notice
      */
     event Registration(
-        address indexed registrant,
+        address indexed operator,
         bytes32 pubkeyHash
     );
 
@@ -41,6 +43,7 @@ contract ECDSARegistry is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -49,6 +52,7 @@ contract ECDSARegistry is
             _delegation,
             _investmentManager,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
@@ -62,18 +66,19 @@ contract ECDSARegistry is
      @notice called for registering as a operator
      */
     /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
+     @param operatorType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param stakes is the calldata that contains the preimage of the current stakesHash
      @param socket is the socket address of the operator
      
      */ 
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         address signingAddress,
         bytes calldata stakes,
         string calldata socket
-    ) public virtual {        
-        _registerOperator(msg.sender, signingAddress, registrantType, stakes, socket);
+    ) external virtual {        
+        _registerOperator(msg.sender, signingAddress, operatorType, stakes, socket);
+
     }
     
     /**
@@ -82,7 +87,7 @@ contract ECDSARegistry is
     function _registerOperator(
         address operator,
         address signingAddress,
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata stakes,
         string calldata socket
     ) internal {
@@ -199,10 +204,10 @@ contract ECDSARegistry is
      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
      *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
      *        the form 
-     *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
-     *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
+     *          (dln1's operatorType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
+     *          (dln2's operatorType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
      *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
-     *          where registrantType is a uint8 and all others are a uint96
+     *          where operatorType is a uint8 and all others are a uint96
      * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
@@ -212,7 +217,7 @@ contract ECDSARegistry is
         bytes calldata stakes,
         address[] memory operators,
         uint32[] memory indexes
-    ) public {
+    ) external {
         //provided 'stakes' must be preimage of last update's hash
         require(
             keccak256(stakes) ==
@@ -315,7 +320,7 @@ contract ECDSARegistry is
              called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectStakeHash(uint256 index, uint32 blockNumber)
-        public
+        external
         view
         returns (bytes32)
     {
@@ -335,7 +340,7 @@ contract ECDSARegistry is
         return stakeHashes[index];
     }
 
-    function getStakeHashUpdatesLength() public view returns (uint256) {
+    function getStakeHashUpdatesLength() external view returns (uint256) {
         return stakeHashUpdates.length;
     }
 

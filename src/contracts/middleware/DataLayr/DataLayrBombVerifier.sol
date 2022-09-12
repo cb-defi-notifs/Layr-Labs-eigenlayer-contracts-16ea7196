@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../libraries/BN254_Constants.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreUtils.sol";
@@ -107,16 +106,16 @@ contract DataLayrBombVerifier {
             );
             //deregisterTime is 0 if the operator is still registered and serving
             //otherwise it is the time at will/have stopped serving all of their existing datstores
-            //TODO: Check this definition ^
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
-            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraud proof interval has passed
+            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraudproof interval has passed
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
                         deregisterTime >=
-                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL)),
+                "DataLayrBombVerifier.verifyBomb: invalid operator or time"
             );
         }
 
@@ -651,8 +650,14 @@ contract DataLayrBombVerifier {
             totalOperatorsIndex,
             searchData
         );
-        require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
-        require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
+        require(
+            searchData.metadata.globalDataStoreId == dataStoreId,
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId"
+        );
+        require(
+            searchData.metadata.headerHash == keccak256(disclosureProof.header),
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
+        );
         bool res = challengeUtils.nonInteractivePolynomialProof(
             disclosureProof.header,
             chunkNumber,

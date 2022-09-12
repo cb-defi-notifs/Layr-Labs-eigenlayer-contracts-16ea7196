@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./mocks/DisclosureChallenge.sol";
 
@@ -81,7 +81,7 @@ contract DisclosureDeployer is DSTest {
         coors[
             3
         ] = 2840856310821858817649113726190482393961047895798363457470935309452021117098;
-        cheats.expectRevert("Fraud proof interval has passed");
+        cheats.expectRevert("Fraudproof interval has passed");
         dc.challengeCommitmentHalf(true, coors);
     }
 

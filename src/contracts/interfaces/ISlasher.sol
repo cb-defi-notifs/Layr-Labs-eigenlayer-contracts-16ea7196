@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 interface ISlasher {
     function freezeOperator(
@@ -9,6 +9,8 @@ interface ISlasher {
     function isFrozen(
         address staker
     ) external view returns(bool);
+
+    function revokeSlashingAbility(address operator) external;
 
     function frozenStatus(address operator) external view returns (bool);
 

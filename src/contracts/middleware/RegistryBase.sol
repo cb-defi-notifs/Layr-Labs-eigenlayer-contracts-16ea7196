@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
@@ -8,7 +8,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
-// import "ds-test/test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 
@@ -28,13 +28,13 @@ abstract contract RegistryBase is
     uint128 public nodeEigenStake = 1 wei;
     
     /// @notice a sequential counter that is incremented whenver new operator registers
-    uint32 public nextRegistrantId;
+    uint32 public nextOperatorId;
 
-    /// @notice used for storing Registrant info on each operator while registration
-    mapping(address => Registrant) public registry;
+    /// @notice used for storing Operator info on each operator while registration
+    mapping(address => Operator) public registry;
 
     /// @notice used for storing the list of current and past registered operators 
-    address[] public registrantList;
+    address[] public operatorList;
 
     /// @notice array of the history of the total stakes -- marked as internal since getTotalStakeFromIndex is a getter for this
     OperatorStake[] internal totalStakeHistory;
@@ -67,7 +67,7 @@ abstract contract RegistryBase is
     );
 
     event Deregistration(
-        address registrant,
+        address operator,
         address swapped
     );
 
@@ -76,6 +76,7 @@ abstract contract RegistryBase is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -83,7 +84,8 @@ abstract contract RegistryBase is
             _repository,
             _delegation,
             _investmentManager,
-            _NUMBER_OF_QUORUMS
+            _NUMBER_OF_QUORUMS,
+            _quorumBips
         )
     {
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
@@ -99,7 +101,7 @@ abstract contract RegistryBase is
     }
     
     /*
-     looks up the `operator`'s index in the dynamic array `registrantList` at the specified `blockNumber`.
+     looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
      The `index` input is used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]`
      to read data from, where `pubkeyHash` is looked up from `operator`'s registration info
     */
@@ -277,9 +279,9 @@ abstract contract RegistryBase is
         return registry[operator].deregisterTime;
     }
 
-    // number of registrants of this service
-    function numRegistrants() public view returns (uint64) {
-        return uint64(registrantList.length);
+    // number of operators of this service
+    function numOperators() public view returns(uint64) {
+        return uint64(operatorList.length);
     }
 
     // INTERNAL FUNCTIONS
@@ -289,13 +291,13 @@ abstract contract RegistryBase is
             totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
             // push a new entry to 'totalOperatorsHistory', with 'index' field set equal to the new amount of operators
             OperatorIndex memory _totalOperators;
-            _totalOperators.index = uint32(registrantList.length);
+            _totalOperators.index = uint32(operatorList.length);
             totalOperatorsHistory.push(_totalOperators);
     }
 
     /**
-     * Remove the operator from active status. Removes the registrant with the given `pubkeyHash` from the `index` in `registrantList`,
-     * updates registrantList and index histories, and performs other necessary updates for removing operator
+     * Remove the operator from active status. Removes the registrant with the given `pubkeyHash` from the `index` in `operatorList`,
+     * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
     function _removeRegistrant(bytes32 pubkeyHash, uint32 index) internal {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
@@ -338,44 +340,43 @@ abstract contract RegistryBase is
         // store blockNumber at which operator index changed (stopped being applicable)
         pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
 
-        // remove the operator at `index` from the `registrantList`
+        // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
     }
 
-    // Removes the registrant at the given `index` from the `registrantList`
+    // Removes the registrant at the given `index` from the `operatorList`
     function _popRegistrant(uint32 index) internal returns (address swappedOperator) {
         // gas saving by caching length here
-        uint256 registrantListLengthMinusOne = registrantList.length - 1;
+        uint256 operatorListLengthMinusOne = operatorList.length - 1;
         // Update index info for operator at end of list, if they are not the same as the removed operator
-        if (index < registrantListLengthMinusOne){
+        if (index < operatorListLengthMinusOne){
             // get existing operator at end of list, and retrieve their pubkeyHash
-            swappedOperator = registrantList[registrantListLengthMinusOne];
+            swappedOperator = operatorList[operatorListLengthMinusOne];
             Registrant memory registrant = registry[swappedOperator];
             bytes32 pubkeyHash = registrant.pubkeyHash;
-
             // store blockNumber at which operator index changed
-            // same operation as above except pubkeyHash is now different (since different registrant)
+            // same operation as above except pubkeyHash is now different (since different operator)
             pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber = uint32(block.number);
             // push new 'OperatorIndex' struct to operator's array of historical indices, with 'index' set equal to 'index' input
             OperatorIndex memory operatorIndex;
             operatorIndex.index = index;
             pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
-            // move 'swappedOperator' into 'index' slot in registrantList (swapping them with removed operator)
-            registrantList[index] = swappedOperator;
+            // move 'swappedOperator' into 'index' slot in operatorList (swapping them with removed operator)
+            operatorList[index] = swappedOperator;
         }
 
-        registrantList.pop();
+        operatorList.pop();
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
 
         return swappedOperator;
     }
 
-    // Adds the registrant `operator` with the given `pubkeyHash` to the `registrantList`
+    // Adds the registrant `operator` with the given `pubkeyHash` to the `operatorList`
     function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake, string calldata socket) internal {
         // store the registrant's info in mapping
         registry[operator] = Registrant({
@@ -392,7 +393,7 @@ abstract contract RegistryBase is
         });
 
         // record the operator being registered and update the counter for registrant ID
-        registrantList.push(operator);
+        operatorList.push(operator);
         unchecked {
             ++nextRegistrantId;
         }
@@ -404,7 +405,7 @@ abstract contract RegistryBase is
 
         // record `operator`'s index in list of operators
         OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
+        operatorIndex.index = uint32(operatorList.length - 1);
         pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
 
         // copy latest totalStakes to memory
@@ -498,7 +499,7 @@ abstract contract RegistryBase is
         );
 
         require(
-            operator == registrantList[index],
+            operator == operatorList[index],
             "RegistryBase._deregistrationCheck: Incorrect index supplied"
         );
     }

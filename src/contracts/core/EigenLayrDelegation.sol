@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -10,7 +10,6 @@ import "./EigenLayrDelegationStorage.sol";
 import "../investment/Slasher.sol";
 // import "forge-std/Test.sol";
 
-// TODO: updating of stored addresses by governance?
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
@@ -51,15 +50,18 @@ contract EigenLayrDelegation is
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
-    // sets the `undelegationFraudProofInterval` value (**currently modifiable by contract owner -- see below**)
+    // sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**)
     // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
-        uint256 _undelegationFraudProofInterval
+        uint256 _undelegationFraudproofInterval
     ) external initializer {
-        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
+        require(
+            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.initialize: _undelegationFraudproofInterval too large"
+        );
         investmentManager = _investmentManager;
-        undelegationFraudProofInterval = _undelegationFraudProofInterval;
+        undelegationFraudproofInterval = _undelegationFraudproofInterval;
         _transferOwnership(msg.sender);
     }
 
@@ -149,19 +151,19 @@ contract EigenLayrDelegation is
             }
         }
 
-        // call into hook in delegationTerms contract
-        IDelegationTerms dt = delegationTerms[operator];
-        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
-
         // store the time at which the staker began undelegation
         undelegationInitTime[msg.sender] = block.timestamp;
 
         // set that the staker has begun the undelegation process, i.e. "initialized" it
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
+
+        // call into hook in delegationTerms contract
+        IDelegationTerms dt = delegationTerms[operator];
+        _delegationWithdrawnHook(dt, msg.sender, strategies, shares);
     }
 
     /// @notice This function must be called by a staker to notify that its stake is
-    ///         no longer active on any queries, which in turn launches the challenge period.
+    ///         no longer active on any tasks, which in turn launches the challenge period.
     function commitUndelegation() external {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_INITIALIZED,
@@ -169,14 +171,24 @@ contract EigenLayrDelegation is
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
-        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudProofInterval; 
+        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudproofInterval; 
 
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
         
     }
 
+    /**
+     * @notice This function is called by a staker to complete the three-step undelegation process.
+     *          Prior to calling `finalizeUndelegation`, a staker is expected to call `commitUndelegation` and
+     *          wait until all existing obligations have been served, before calling `commitUndelegation` and
+     *          waiting through the `undelegationFraudproofInterval`.
+     */
     function finalizeUndelegation() external {
+        _finalizeUndelegation();
+    }
+
+    function _finalizeUndelegation() internal {
         require(
             delegated[msg.sender] == DelegationStatus.UNDELEGATION_COMMITTED,
             "EigenLayrDelegation.finalizeUndelegation: Staker is not commited to undelegation"
@@ -189,6 +201,11 @@ contract EigenLayrDelegation is
 
          // set that the staker has undelegated
         delegated[msg.sender] = DelegationStatus.UNDELEGATED;
+    }
+
+    function finalizeUndelegationAndDelegateTo(address operator) external {
+        _finalizeUndelegation();
+        _delegate(msg.sender, operator);
     }
 
     /// @notice This function can be called by anyone to challenge whether a staker has
@@ -210,7 +227,7 @@ contract EigenLayrDelegation is
         );
 
         ISlasher slasher = investmentManager.slasher();
-        // TODO: delete this if the slasher itself checks this?? (see TODO below -- might still have to check other addresses for consistency?)
+        // verify that the `slashingContract` does really have permission to slash the `staker`
         require(
             slasher.canSlash(
                 delegation[staker],
@@ -219,11 +236,11 @@ contract EigenLayrDelegation is
             "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
-    // scoped block to help solve stack too deep
-    {
-        // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
-        slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
-    }
+        // scoped block to help solve stack too deep
+        {
+            // verify that ongoing task is still active and began before staker initiated their undelegation, proving that staker hasn't fully served its obligation yet
+            slashingContract.stakeWithdrawalVerification(data, undelegationInitTime[staker], block.timestamp);
+        }
 
         // perform the slashing itself
         slasher.freezeOperator(staker); 
@@ -302,9 +319,12 @@ contract EigenLayrDelegation is
         investmentManager = _investmentManager;
     }
 
-    function setUndelegationFraudProofInterval(uint256 _undelegationFraudProofInterval) external onlyOwner {
-        require(_undelegationFraudProofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL);
-        undelegationFraudProofInterval = _undelegationFraudProofInterval;
+    function setUndelegationFraudproofInterval(uint256 _undelegationFraudproofInterval) external onlyOwner {
+        require(
+            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
+            "EigenLayrDelegation.setUndelegationFraudproofInterval: _undelegationFraudproofInterval too large"
+        );
+        undelegationFraudproofInterval = _undelegationFraudproofInterval;
     }
 
     // INTERNAL FUNCTIONS
@@ -346,7 +366,7 @@ contract EigenLayrDelegation is
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not registered as a delegate yet. Please call registerAsDelegate(IDelegationTerms dt) first"
+            "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
         );
 
         require(
@@ -390,8 +410,7 @@ contract EigenLayrDelegation is
     /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
     ///         and is not within the challenge period for its last undelegation.
     function isNotDelegated(address staker) public view returns (bool) {
-        return
-            delegated[staker] == DelegationStatus.UNDELEGATED;
+        return (delegated[staker] == DelegationStatus.UNDELEGATED);
     }
 
     function isDelegated(address staker)
@@ -403,8 +422,8 @@ contract EigenLayrDelegation is
     }
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
-    function isDelegate(address operator)
-        public
+    function isOperator(address operator)
+        external
         view
         returns(bool)
     {

@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IECDSARegistry.sol";
-import "../interfaces/ITaskMetadata.sol";
 import "../libraries/BytesLib.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 abstract contract ECDSASignatureChecker is
-    RepositoryAccess,
-    DSTest
+    RepositoryAccess
+    // ,DSTest
 {
     using BytesLib for bytes;
     struct SignatoryTotals {
@@ -31,6 +30,7 @@ abstract contract ECDSASignatureChecker is
     }
 
     uint256 internal constant START_OF_STAKES_BYTE_LOCATION = 438;
+    uint256 internal constant TWENTY_BYTE_MASK = 0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
     /** 
      @dev This calldata is of the format:
@@ -52,7 +52,7 @@ abstract contract ECDSASignatureChecker is
      */
     //NOTE: this assumes length 64 signatures
     function checkSignatures(bytes calldata data)
-        public
+        external
         returns (
             uint32 taskNumberToConfirm,
             bytes32 taskHash,
@@ -211,7 +211,7 @@ abstract contract ECDSASignatureChecker is
                             //signatory location in sigWInfo
                             mload(add(sigWInfo, 64)),
                             //20 byte mask
-                            0x000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                            TWENTY_BYTE_MASK
                         ),
                         //pulls address from stakes object
                         shr(
@@ -267,7 +267,7 @@ abstract contract ECDSASignatureChecker is
         }
 
 
-        // set compressedSignatoryRecord variable used for payment fraud proofs
+        // set compressedSignatoryRecord variable used for payment fraudproofs
         compressedSignatoryRecord = keccak256(
             abi.encodePacked(
                 // taskHash,

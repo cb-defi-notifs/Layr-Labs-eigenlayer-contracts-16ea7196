@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IDataLayrServiceManager.sol";
 
@@ -80,6 +80,7 @@ library DataStoreUtils {
         );
     }
 
+    // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
     // OBJECT BIT LENGTHS
     uint256 internal constant BIT_LENGTH_headerHash = 256;
     uint256 internal constant BIT_LENGTH_durationDataStoreId = 32;

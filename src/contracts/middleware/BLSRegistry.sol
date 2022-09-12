@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 
@@ -33,15 +33,14 @@ contract BLSRegistry is
      @dev Initialized value is the generator of G2 group. It is necessary in order to do 
      addition in Jacobian coordinate system.
      */
-    uint256[4] public apk;
-
+    uint256[4] public apk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
     
     // EVENTS
     /**
      * @notice
      */
     event Registration(
-        address indexed registrant,
+        address indexed operator,
         bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
@@ -53,6 +52,7 @@ contract BLSRegistry is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
+        uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
     )
@@ -61,6 +61,7 @@ contract BLSRegistry is
             _delegation,
             _investmentManager,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             _ethStrategiesConsideredAndMultipliers,
             _eigenStrategiesConsideredAndMultipliers
         )
@@ -78,17 +79,17 @@ contract BLSRegistry is
      @notice called for registering as a operator
      */
     /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
+     @param operatorType specifies whether the operator want to register as ETH staker or Eigen stake or both
      @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      @param socket is the socket address of the operator
      
      */ 
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata data,
         string calldata socket
-    ) public virtual {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+    ) external virtual {        
+        _registerOperator(msg.sender, operatorType, data, socket);
     }
     
     /**
@@ -96,7 +97,7 @@ contract BLSRegistry is
      */
     function _registerOperator(
         address operator,
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata data,
         string calldata socket
     ) internal {
@@ -244,7 +245,7 @@ contract BLSRegistry is
              called by checkSignatures in SignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber)
-        public
+        external
         view
         returns (bytes32)
     {
@@ -264,7 +265,7 @@ contract BLSRegistry is
         return apkHashes[index];
     }
 
-    function getApkUpdatesLength() public view returns (uint256) {
+    function getApkUpdatesLength() external view returns (uint256) {
         return apkUpdates.length;
     }
 

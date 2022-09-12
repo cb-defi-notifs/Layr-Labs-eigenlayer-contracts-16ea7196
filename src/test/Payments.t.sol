@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../contracts/libraries/BytesLib.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 
 
-import "../test/Delegation.t.sol";
+import "../test/TestHelper.t.sol";
 
 
-
-contract Payments is Delegator {
+contract PaymentsTests is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
@@ -20,6 +19,7 @@ contract Payments is Delegator {
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
     ///@param amountToDeposit is the amount of future fees deposited by the @param user
+
     function testDepositFutureFees(
             address user,
             uint96 amountToDeposit
@@ -49,6 +49,7 @@ contract Payments is Delegator {
 
     }
 
+
     ///@notice this function tests paying fees without delegation of payment rights to a third party
     ///@param user is the user of the middleware who is paying fees to the operator 
     ///            (a rollup contract in the case of DL, for example)
@@ -69,6 +70,38 @@ contract Payments is Delegator {
         assertTrue(operatorFeeBalanceBefore - operatorFeeBalanceAfter == amountToDeposit, "testDepositFutureFees: operator deposit balance not updated correctly");
     }
 
+    
+
+    ///@notice tests setting payment collateral from the valid address
+    ///@param fraudProofCollateral is the amount of payment fraudproof collateral being put up byt the repository owner
+    function testSetPaymentCollateral(
+        uint256 fraudProofCollateral
+    ) public {
+        address repositoryOwner = dlRepository.owner();
+        cheats.startPrank(repositoryOwner);
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
+        assertTrue(dataLayrPaymentManager.paymentFraudproofCollateral() == fraudProofCollateral, 
+                    "testSetPaymentCollateral: paymentFraudproofCollateral is not set correctly");
+        cheats.stopPrank();
+    }
+
+    ///@notice tests setting payment collateral from an unauthorized address
+    ///@param fraudProofCollateral is the amount of payment fraudproof collateral being put up byt the repository owner
+    ///@param unauthorizedRepositorOwner is the unauthorized address
+    function testUnauthorizedSetPaymentCollateral(
+        uint256 fraudProofCollateral,
+        address unauthorizedRepositorOwner
+    ) fuzzedAddress(unauthorizedRepositorOwner) public {
+        cheats.startPrank(unauthorizedRepositorOwner);
+        cheats.expectRevert(bytes("onlyRepositoryGovernance"));
+        dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
+        cheats.stopPrank();
+    }
+
+
+    ///@notice tests commiting to reward payouts
+    ///@param ethAmount is the amount of delegated eth
+    ///@param eigenAmount is the amount of eigen
     function testRewardPayouts(
             uint256 ethAmount, 
             uint256 eigenAmount
@@ -109,9 +142,17 @@ contract Payments is Delegator {
             )
         );
 
+        //hardcoding values
         address operator = signers[0];
+        uint32 numberOfSigners = 15;
+        uint120 amountRewards = 10;
+
+
         _testInitiateDelegation(operator, eigenAmount, ethAmount);
-        _testCommitPayment(operator, 10);        
+        _testRegisterSigners(numberOfSigners, false);
+        _testInitandCommitDataStore();
+        _incrementDataStoreID();
+        _testCommitPayment(operator, amountRewards);    
     }
 
 
@@ -124,13 +165,35 @@ contract Payments is Delegator {
 
 
 
-    //Operator submits claim or commit for a payment amount
+    ///@notice Operator submits claim or commit for a payment amount
+    ///@param operator is the operator address
+    ///@param _amountRewards is the amount of rewards to be paid out
     function _testCommitPayment(address operator, uint120 _amountRewards)
         internal
     {
-        uint32 numberOfSigners = 15;
-        _testRegisterSigners(numberOfSigners, false);
+        cheats.startPrank(operator);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
+        uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
+        dataLayrPaymentManager.commitPayment(
+            newCurrentDataStoreId,
+            _amountRewards
+        );
+        
+        cheats.stopPrank();
+    }
+
+    ///@notice Operator submits claim or commit for a payment amount
+    ///@param operator is the operator address
+    function _testRedeemPayment(address operator) internal {
+        cheats.startPrank(operator);
+        dataLayrPaymentManager.redeemPayment();
+        cheats.stopPrank();
+    }
+
+    
+    ///@notice simulating init and commit for a datastore
+    function  _testInitandCommitDataStore() internal {
         uint32 blockNumber;
         // scoped block helps fix 'stack too deep' errors
         {
@@ -155,39 +218,20 @@ contract Payments is Delegator {
         }
         cheats.stopPrank();
 
-        uint8 duration = 2;
-
-        // // try initing another dataStore, so currentDataStoreId > fromDataStoreId
-        // _testInitDataStore();
-        bytes memory header = hex"0102030405060708091011121314151617181921";
-        uint32 totalBytes = 1e6;
-        // uint32 storePeriodLength = 600;
-
         //weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
         blockNumber = 1;
-        dlsm.initDataStore(storer, address(this), header, duration, totalBytes, blockNumber);
         cheats.stopPrank();
-
-        cheats.startPrank(operator);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        // uint256 fromDataStoreId = IQuorumRegistryWithBomb(address(dlsm.repository().voteWeigher())).getFromDataStoreIdForOperator(operator);
-        uint32 newCurrentDataStoreId = dlsm.taskNumber() - 1;
-        dataLayrPaymentManager.commitPayment(
-            newCurrentDataStoreId,
-            _amountRewards
-        );
-        cheats.stopPrank();
-        //assertTrue(weth.balanceOf(address(dt)) == currBalance + amountRewards, "rewards not transferred to delegation terms contract");
     }
 
 
-
-        //initiates the payment challenge from the challenger, with split that the challenger thinks is correct
+    ///@notice initiates the payment challenge from the challenger, with split that the challenger thinks is correct
+    ///@param operator is the operator address
+    ///@param amount1 is the first half of the amount split
+    ///@param amount2 is the second half of the amount split
     function _testInitPaymentChallenge(
         address operator,
         uint120 amount1,
@@ -197,10 +241,24 @@ contract Payments is Delegator {
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
         //challenger initiates challenge
-        dataLayrPaymentManager.challengePaymentInit(operator, amount1, amount2);
+        dataLayrPaymentManager.initPaymentChallenge(operator, amount1, amount2);
 
         // DataLayrPaymentManager.PaymentChallenge memory _paymentChallengeStruct = dataLayrPaymentManager.operatorToPaymentChallenge(operator);
         cheats.stopPrank();
+    }
+
+    ///@notice increment the datastoreID by init-ing another datastore
+    function _incrementDataStoreID() internal {
+
+        bytes memory header = hex"0102030405060708091011121314151617181921";
+        uint32 blockNumber = uint32(block.number);
+        uint8 duration = 2;
+
+        cheats.startPrank(storer);
+        //increments fromDataStoreID so that you can commit a payment
+        dlsm.initDataStore(storer, address(this), header, duration, 1e6, blockNumber);
+        cheats.stopPrank();
+
     }
 
 }

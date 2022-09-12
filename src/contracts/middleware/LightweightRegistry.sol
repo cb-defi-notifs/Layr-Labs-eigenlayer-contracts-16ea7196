@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 
-import "ds-test/test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @notice This contract is used for 
@@ -18,7 +18,6 @@ import "ds-test/test.sol";
 contract LightweightRegistry is
     IRegistry,
     VoteWeigherBase
-    
 {
     // DATA STRUCTURES 
     /**
@@ -26,7 +25,7 @@ contract LightweightRegistry is
      *           - sending data by the sequencer
      *           - payment and associated challenges
      */
-    struct Registrant {
+    struct Operator {
         // start block from which the  operator has been registered
         uint32 fromBlockNumber;
 
@@ -39,28 +38,16 @@ contract LightweightRegistry is
         uint96 stake;
     }
 
-    // CONSTANTS
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
-
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant REGISTRATION_TYPEHASH =
-        keccak256(
-            "Registration(address operator,address registrationContract,uint256 expiry)"
-        );
-
     // number of registrants of this service
-    uint64 public numRegistrants;  
+    uint64 public numOperators;  
 
     uint128 public nodeEthStake = 1 wei;
     
-    /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     /// @notice used for storing Registrant info on each operator while registration
-    mapping(address => Registrant) public registry;
+    mapping(address => Operator) public registry;
 
-
+    // this appears to be necessary to have in storage, in order to have 'VoteWeigherBase' constructor work correctly
+    uint256[] internal _quorumBips = [MAX_BIPS];
 
     // EVENTS
     event StakeAdded(
@@ -95,16 +82,12 @@ contract LightweightRegistry is
             _repository,
             _delegation,
             _investmentManager,
-            1
+            // hardcode number of quorums to '1'
+            1,
+            // hardcode to pay all payment to operators in the single quorum
+            _quorumBips
         )
     {
-        //apk_0 = g2Gen
-        // initialize the DOMAIN_SEPARATOR for signatures
-        // initialize the DOMAIN_SEPARATOR for signatures
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
-        );
-
         _addStrategiesConsideredAndMultipliers(0, _ethStrategiesConsideredAndMultipliers);
     }
 
@@ -135,7 +118,7 @@ contract LightweightRegistry is
 
         //decrement number of registrants
         unchecked {
-            --numRegistrants;
+            --numOperators;
         }
 
         emit Deregistration(msg.sender);
@@ -143,12 +126,10 @@ contract LightweightRegistry is
 
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of nodes.
-     */
-    /**
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
      *        getting updated
      */
-    function updateStakes(address[] calldata operators) public {
+    function updateStakes(address[] calldata operators) external {
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
@@ -172,18 +153,6 @@ contract LightweightRegistry is
         }
     }
 
-
-    /**
-     @notice returns task number from when operator has been registered.
-     */
-    function getOperatorFromBlockNumber(address operator)
-        public
-        view
-        returns (uint32)
-    {
-        return registry[operator].fromBlockNumber;
-    }
-
     function setNodeEthStake(uint128 _nodeEthStake)
         external
         onlyRepositoryGovernance
@@ -192,21 +161,16 @@ contract LightweightRegistry is
     }
 
     /// @notice returns the active status for the specified operator
-    function getOperatorType(address operator) public view returns (uint8) {
+    function getOperatorType(address operator) external view returns (uint8) {
         return registry[operator].active;
     }
 
-    /**
-     @notice called for registering as a operator
-     */
-    function registerOperator() public virtual {        
+    /// @notice called for registering as a operator
+    function registerOperator() external virtual {        
         _registerOperator(msg.sender);
     }
 
-
-    /**
-     @param operator is the node who is registering to be a operator
-     */
+    /// @param operator is the node who is registering to be a operator     
     function _registerOperator(
         address operator
     ) internal virtual {
@@ -221,9 +185,8 @@ contract LightweightRegistry is
             "Not enough eth value staked"
         );
         
-        
         // store the registrant's info in relation
-        registry[operator] = Registrant({
+        registry[operator] = Operator({
             active: 1,
             fromBlockNumber: uint32(block.number),
             slashableUntil: 0,
@@ -232,12 +195,11 @@ contract LightweightRegistry is
 
         // increment number of registrants
         unchecked {
-            ++numRegistrants;
+            ++numOperators;
         }
             
         emit Registration(operator);
     }
-
 
     function ethStakedByOperator(address operator) external view returns (uint96) {
         return registry[operator].stake;
@@ -252,10 +214,11 @@ contract LightweightRegistry is
     }
 
     /**
-     @notice returns task number from when operator has been registered.
-     */
+     * @notice returns the block number from which the operator has been registered.
+     * @param operator The operator of interest
+     */ 
     function getFromBlockNumberForOperator(address operator)
-        public
+        external
         view
         returns (uint32)
     {

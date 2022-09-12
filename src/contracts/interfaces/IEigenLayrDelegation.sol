@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./IDelegationTerms.sol";
 
@@ -37,7 +37,7 @@ interface IEigenLayrDelegation {
         view
         returns (bool);
 
-    function isDelegate(address operator)
+    function isOperator(address operator)
         external
         view
         returns (bool);

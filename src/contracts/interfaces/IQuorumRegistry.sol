@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "./IRegistry.sol";
 
@@ -16,14 +16,14 @@ interface IQuorumRegistry is IRegistry {
      *           - sending data by the sequencer
      *           - payment and associated challenges
      */
-    struct Registrant {
+    struct Operator {
         // hash of pubkey of the operator
         bytes32 pubkeyHash;
 
         // id is always unique
         uint32 id;
 
-        // corresponds to position in registrantList
+        // corresponds to position in operatorList
         uint64 index;
 
         // start block from which the  operator has been registered
