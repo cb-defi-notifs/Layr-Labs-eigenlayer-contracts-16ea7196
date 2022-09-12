@@ -40,7 +40,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     function deposit(
         IERC20 token,
         uint256 amount
-    ) external override onlyInvestmentManager returns (uint256 newShares) {
+    ) external override whenNotPaused onlyInvestmentManager returns (uint256 newShares) {
         uint256 aTokenIncrease;
         uint256 aTokensBefore;
         if (token == underlyingToken) {

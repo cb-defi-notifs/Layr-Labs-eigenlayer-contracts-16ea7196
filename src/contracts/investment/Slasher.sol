@@ -110,7 +110,7 @@ contract Slasher is
         _freezeOperator(toBeFrozen, msg.sender);
     }
 
-    function resetFrozenStatus(address[] calldata frozenAddresses) external whenNotPaused onlyOwner {
+    function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
         for (uint256 i = 0; i < frozenAddresses.length; ) {
             _resetFrozenStatus(frozenAddresses[i]);
             unchecked { ++i; }
