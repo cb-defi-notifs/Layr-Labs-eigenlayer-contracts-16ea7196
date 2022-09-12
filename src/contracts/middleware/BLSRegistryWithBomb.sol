@@ -88,6 +88,5 @@ contract BLSRegistryWithBomb is
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
         revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
-        return false;
     }
 }
