@@ -226,9 +226,16 @@ contract InvestmentManager is
 
         return withdrawalRoot;
     }
-
-    //this function allows a staker to queue their withdrawal by setting a cool down period during which
-    // their stake is still slashable (i.e. there is a task still active for that stake). 
+    /*
+    * 
+    * The withdrawal flow is:
+    * - Depositer starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
+    * - Withdrawer then waits for the queued withdrawal tx to be included in the chain, and then sets the stakeInactiveAfter. This cannot
+    *   be set when starting the queued withdrawal, as it is there may be transactions the increase the tasks upon which the stake is active 
+    *   that get mined before the withdrawal.
+    * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
+    *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
+    */
     function startQueuedWithdrawalWaitingPeriod(
         address depositor,
         bytes32 withdrawalRoot,
