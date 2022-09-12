@@ -304,7 +304,7 @@ abstract contract RegistryBase is
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
-        registry[msg.sender].deregisterTime = block.timestamp;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         // gas saving by caching length here
         uint256 pubkeyHashToStakeHistoryLengthMinusOne = pubkeyHashToStakeHistory[pubkeyHash].length - 1;
