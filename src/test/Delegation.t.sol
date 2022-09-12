@@ -150,8 +150,8 @@ contract DelegationTests is TestHelper {
         ) public fuzzedAddress(operator) fuzzedAddress(staker) {
 
         cheats.assume(staker != operator);
-        cheats.assume(ethAmount >=0 && ethAmount <= 1e18); 
-        cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
+        cheats.assume(ethAmount <= 1e18); 
+        cheats.assume(eigenAmount <= 1e18); 
 
 
         testDelegation(operator, staker, ethAmount, eigenAmount);
