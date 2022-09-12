@@ -43,6 +43,7 @@ contract EigenLayrDeployer is
     using BytesLib for bytes;
 
     uint256 public constant DURATION_SCALE = 1 hours;
+    uint32 public constant MAX_WITHDRAWAL_PERIOD = 7 days;
     Vm cheats = Vm(HEVM_ADDRESS);
     // Eigen public eigen;
     IERC20 public eigenToken;

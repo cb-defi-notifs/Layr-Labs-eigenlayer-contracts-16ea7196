@@ -146,12 +146,14 @@ contract DelegationTests is TestHelper {
             address operator, 
             address staker, 
             uint256 ethAmount,
-            uint256 eigenAmount
+            uint256 eigenAmount,
+            uint32 withdrawalPeriod
         ) public fuzzedAddress(operator) fuzzedAddress(staker) {
 
         cheats.assume(staker != operator);
         cheats.assume(ethAmount <= 1e18); 
         cheats.assume(eigenAmount <= 1e18); 
+        cheats.assume(withdrawalPeriod < 7 days);//type(uint32).max);
 
 
         testDelegation(operator, staker, ethAmount, eigenAmount);
@@ -195,9 +197,11 @@ contract DelegationTests is TestHelper {
                                 );
 
 
-        _testStartQueuedWithdrawalWaitingPeriod(staker, withdrawalRoot, 1 days);
 
-        cheats.warp(2 days);
+        _testStartQueuedWithdrawalWaitingPeriod(staker, withdrawalRoot, withdrawalPeriod);
+
+        cheats.warp(withdrawalPeriod + 1 days);
+
 
         _testCompleteQueuedWithdrawal(
                         staker, 
@@ -310,11 +314,12 @@ contract DelegationTests is TestHelper {
             address operator, 
             address staker, 
             uint256 ethAmount, 
-            uint256 eigenAmount
+            uint256 eigenAmount,
+            uint32 withdrawalPeriod
         ) public fuzzedAddress(operator) fuzzedAddress(staker){
         cheats.assume(staker != operator);
         //this function performs delegation and subsequent withdrawal
-        testWithdrawal(operator, staker, ethAmount, eigenAmount);
+        testWithdrawal(operator, staker, ethAmount, eigenAmount, withdrawalPeriod);
 
 
         //warps past fraudproof time interval
