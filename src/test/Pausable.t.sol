@@ -7,8 +7,6 @@ import "./TestHelper.t.sol";
 contract PausableTests is
     TestHelper
 {
-
-
     ///@dev test that pausing a contract works
     function testPausability(
         uint256 amountToDeposit,
@@ -47,4 +45,31 @@ contract PausableTests is
         investmentManager.pause();
         cheats.stopPrank();
     }
+
+    function testSetPauser(address newPauser) fuzzedAddress(newPauser) public {
+        cheats.startPrank(unpauser);
+        pauserReg.setPauser(newPauser);
+        cheats.stopPrank();
+
+    }
+
+    function testSetUnpauser(address newUnpauser) fuzzedAddress(newUnpauser) public {
+        cheats.startPrank(unpauser);
+        pauserReg.setUnpauser(newUnpauser);
+        cheats.stopPrank();
+
+    }
+
+    function testSetPauserUnauthorized(
+        address fakePauser, 
+        address newPauser) 
+        fuzzedAddress(newPauser) 
+        fuzzedAddress(fakePauser)
+    public {
+        cheats.startPrank(fakePauser);
+        cheats.expectRevert(bytes("msg.sender is not permissioned as unpauser"));
+        pauserReg.setPauser(newPauser);
+        cheats.stopPrank();
+    }
+
 }

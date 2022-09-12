@@ -6,7 +6,7 @@ import "../interfaces/IPauserRegistry.sol";
 
 import "forge-std/Test.sol";
 
-contract Pausable is DSTest{
+contract Pausable {
 
     // modifier onlyPauser {
     //     require(msg.sender == IPauserRegistry(address(dlsm)).pauser());
