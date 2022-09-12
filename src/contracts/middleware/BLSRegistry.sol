@@ -35,7 +35,12 @@ contract BLSRegistry is
     
     // EVENTS
     /**
-     * @notice
+     * @notice Emitted upon the registration of a new operator for the middleware
+     * @param operator Address of the new operator
+     * @param pkHash The keccak256 hash of the operator's public key
+     * @param pk The operator's public key itself
+     * @param apkHashIndex The index of the latest (i.e. the new) APK update
+     * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
     event Registration(
         address indexed operator,
@@ -69,7 +74,6 @@ contract BLSRegistry is
          *      addition in Jacobian coordinate system.
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
-        // TODO: verify this initialization is correct
         _processApkUpdate(initApk);
     }
 
@@ -132,12 +136,13 @@ contract BLSRegistry is
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
             
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
     }
 
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param index is the sender's location in the dynamic array `operatorList`
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
         _deregisterOperator(pubkeyToRemoveAff, index);
