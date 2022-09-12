@@ -29,8 +29,8 @@ contract Slasher is
     IEigenLayrDelegation public delegation;
     // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
-    // user => contract => if that contract can slash the user
-    mapping(address => mapping(address => bool)) public optedIntoSlashing;
+    // user => contract => the time before which the contract is allowed to slash the user
+    mapping(address => mapping(address => uint32)) public bondedUntil;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
     mapping(address => bool) public frozenStatus;
 
@@ -92,8 +92,8 @@ contract Slasher is
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
     // called by a contract to revoke its ability to slash `operator`
-    function revokeSlashingAbility(address operator) external {
-        _revokeSlashingAbility(operator, msg.sender);
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
+        _revokeSlashingAbility(operator, msg.sender, unbondedAfter);
     }
 
     /**
@@ -115,15 +115,17 @@ contract Slasher is
 
     // INTERNAL FUNCTIONS
     function _optIntoSlashing(address operator, address contractAddress) internal {
-        if (!optedIntoSlashing[operator][contractAddress]) {
-            optedIntoSlashing[operator][contractAddress] = true;
+        if (bondedUntil[operator][contractAddress] == 0) {
+            //allow the contract to slash anytime before a time VERY far in the future
+            bondedUntil[operator][contractAddress] = type(uint32).max;
             emit OptedIntoSlashing(operator, contractAddress);        
         }
     }
 
-    function _revokeSlashingAbility(address operator, address contractAddress) internal {
-        if (optedIntoSlashing[operator][contractAddress]) {
-            optedIntoSlashing[operator][contractAddress] = false;
+    function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
+        if (bondedUntil[operator][contractAddress] == type(uint32).max) {
+            //contractAddress can now only slash operator before unbondedAfter
+            bondedUntil[operator][contractAddress] = unbondedAfter;
             emit SlashingAbilityRevoked(operator, contractAddress);        
         }
     }
@@ -171,7 +173,7 @@ contract Slasher is
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
         if (globallyPermissionedContracts[slashingContract]) {
             return true;
-        } else if (optedIntoSlashing[toBeSlashed][slashingContract]) {
+        } else if (block.timestamp < bondedUntil[toBeSlashed][slashingContract]) {
             return true;
         } else {
             return false;
