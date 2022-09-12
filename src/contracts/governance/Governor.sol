@@ -73,8 +73,8 @@ contract Governor_Experimental is RepositoryAccess {
         /// @notice Whether or not the voter supports the proposal
         bool support;
         /// @notice The number of votes the voter had, which were cast
-        uint96 secondQuorumVotes;
         uint96 firstQuorumVotes;
+        uint96 secondQuorumVotes;
     }
 
     /// @notice Possible states that a proposal may be in
@@ -153,8 +153,8 @@ contract Governor_Experimental is RepositoryAccess {
         address voter,
         uint256 proposalId,
         bool support,
-        uint256 secondQuorumVotes,
-        uint256 firstQuorumVotes
+        uint256 firstQuorumVotes,
+        uint256 secondQuorumVotes
     );
 
     /// @notice An event emitted when a proposal has been canceled
@@ -490,16 +490,14 @@ contract Governor_Experimental is RepositoryAccess {
             proposal.forVotesSecondQuorum = proposal.forVotesSecondQuorum + secondQuorumStake;
         } else {
             proposal.againstVotesFirstQuorum = proposal.againstVotesFirstQuorum + firstQuorumStake;
-            proposal.againstVotesSecondQuorum =
-                proposal.againstVotesSecondQuorum +
-                secondQuorumStake;
+            proposal.againstVotesSecondQuorum = proposal.againstVotesSecondQuorum + secondQuorumStake;
         }
         receipt.hasVoted = true;
         receipt.support = support;
-        receipt.secondQuorumVotes = secondQuorumStake;
         receipt.firstQuorumVotes = firstQuorumStake;
+        receipt.secondQuorumVotes = secondQuorumStake;
 
-        emit VoteCast(voter, proposalId, support, secondQuorumStake, firstQuorumStake);
+        emit VoteCast(voter, proposalId, support, firstQuorumStake, secondQuorumStake);
     }
 
     function setQuorumsAndThresholds(
