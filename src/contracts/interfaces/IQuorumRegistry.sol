@@ -5,19 +5,25 @@ import "./IRegistry.sol";
 
 interface IQuorumRegistry is IRegistry {
     // DATA STRUCTURES 
+    enum Active {
+        // default is inactive
+        INACTIVE,
+        ACTIVE
+    }
+
     /**
      * @notice  Data structure for storing info on operators to be used for:
      *           - sending data by the sequencer
      *           - payment and associated challenges
      */
-    struct Registrant {
+    struct Operator {
         // hash of pubkey of the operator
         bytes32 pubkeyHash;
 
         // id is always unique
         uint32 id;
 
-        // corresponds to position in registrantList
+        // corresponds to position in operatorList
         uint64 index;
 
         // start block from which the  operator has been registered
@@ -28,8 +34,8 @@ interface IQuorumRegistry is IRegistry {
         // set only when committing to deregistration
         uint32 serveUntil;
 
-        // indicates whether the operator is actively registered for storing data or not 
-        uint8 active; //bool
+        // indicates whether the operator is actively registered for serving the middleware or not 
+        Active active;
 
         // socket address of the node
         string socket;
@@ -49,8 +55,8 @@ interface IQuorumRegistry is IRegistry {
     struct OperatorStake {
         uint32 updateBlockNumber;
         uint32 nextUpdateBlockNumber;
-        uint96 ethStake;
-        uint96 eigenStake;
+        uint96 firstQuorumStake;
+        uint96 secondQuorumStake;
     }
 
     function getLengthOfTotalStakeHistory() external view returns (uint256);
@@ -61,15 +67,13 @@ interface IQuorumRegistry is IRegistry {
 
     function getOperatorPubkeyHash(address operator) external view returns (bytes32);
 
-    function getOperatorStatus(address operator) external view returns (uint8);
+    function getOperatorStatus(address operator) external view returns (Active);
 
     function getFromTaskNumberForOperator(address operator) external view returns (uint32);
 
     function getFromBlockNumberForOperator(address operator) external view returns (uint32);
 
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index) external view returns (OperatorStake memory);
-
-    function getOperatorType(address operator) external view returns (uint8);
                 
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32);
 
@@ -81,7 +85,7 @@ interface IQuorumRegistry is IRegistry {
 
     function totalStake() external view returns (uint96, uint96);
 
-    function totalEthStaked() external view returns (uint96);
+    function totalFirstQuorumStake() external view returns (uint96);
 
-    function totalEigenStaked() external view returns (uint96);
+    function totalSecondQuorumStake() external view returns (uint96);
 }

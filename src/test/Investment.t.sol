@@ -19,11 +19,10 @@ contract InvestmentTests is
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
-    /**
-     * @notice Verifies that it is possible to withdraw WETH after depositing it
-     * @param amountToDeposit The amount of WETH to try depositing
-     * @param amountToWithdraw The amount of shares to try withdrawing
-     */
+    
+    ///@notice This test verifies that it is possible to withdraw WETH after depositing it
+    ///@param amountToDeposit The amount of WETH to try depositing
+    ///@param amountToWithdraw The amount of shares to try withdrawing
     function testWethWithdrawal(
         uint96 amountToDeposit,
         uint96 amountToWithdraw
@@ -211,12 +210,14 @@ contract InvestmentTests is
         investmentManager.challengeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
     
-    // @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
+    /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
+    /// @param numStratsToAdd is the number of strategies being added and deposited into
     function testDepositStrategies(uint16 numStratsToAdd) public {
         _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
     }
 
-    // @notice Verifies that it is possible to deposit eigen.
+    /// @notice Verifies that it is possible to deposit eigen.
+    /// @param eigenToDeposit is amount of eigen to deposit into the eigen strategy
     function testDepositEigen(uint96 eigenToDeposit) public {
         // sanity check for inputs; keeps fuzzed tests from failing
         cheats.assume(eigenToDeposit < eigenTotalSupply);
@@ -239,6 +240,10 @@ contract InvestmentTests is
         investmentManager.depositIntoStrategy(wethStrat, token, 10);
     }
 
+     /**
+     *  @notice Tries to deposit into an unsupported strategy by calling `investmentManager.depositIntoStrategy`.
+     *          Verifies that reversion occurs correctly.
+     */
     function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
         // assume that the fuzzed address is not already a contract!
         uint256 size;

@@ -56,16 +56,16 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.startPrank(operator);
         //register operator with vote weigher so they can get payment
-        uint8 registrantType = 3;
+        uint8 operatorType = 3;
         string memory socket = "255.255.255.255";
         // function registerOperator(
-        //     uint8 registrantType,
+        //     uint8 operatorType,
         //     bytes32 ephemeralKeyHash,
         //     bytes calldata data,
         //     string calldata socket
         // )
         dlReg.registerOperator(
-            registrantType,
+            operatorType,
             ephemeralKey,
             registrationData[0],
             socket
@@ -414,7 +414,7 @@ contract TestHelper is EigenLayrDeployer {
         bytes memory data
     ) internal {
         //register as both ETH and EIGEN operator
-        uint8 registrantType = 3;
+        uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
         uint256 eigenToDeposit = 1e10;
         _testWethDeposit(sender, wethToDeposit);
@@ -425,35 +425,35 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(sender);
         
         
-        dlReg.registerOperator(registrantType, ephemeralKey, data, socket);
+        dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
 
         cheats.stopPrank();
 
 
 
         // verify that registration was stored correctly
-        if ((registrantType & 1) == 1 && wethToDeposit > dlReg.nodeEthStake()) {
+        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeStakeFirstQuorum()) {
             assertTrue(
-                dlReg.ethStakedByOperator(sender) == wethToDeposit,
-                "_testRegisterAdditionalSelfOperator: ethStaked not increased!"
+                dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit,
+                "ethStaked not increased!"
             );
         } else {
             assertTrue(
-                dlReg.ethStakedByOperator(sender) == 0,
-                "_testRegisterAdditionalSelfOperator: ethStaked incorrectly > 0"
+                dlReg.firstQuorumStakedByOperator(sender) == 0,
+                "ethStaked incorrectly > 0"
             );
         }
         if (
-            (registrantType & 2) == 2 && eigenToDeposit > dlReg.nodeEigenStake()
+            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeStakeSecondQuorum()
         ) {
             assertTrue(
-                dlReg.eigenStakedByOperator(sender) == eigenToDeposit,
-                "_testRegisterAdditionalSelfOperator: eigenStaked not increased!"
+                dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit,
+                "eigenStaked not increased!"
             );
         } else {
             assertTrue(
-                dlReg.eigenStakedByOperator(sender) == 0,
-                "_testRegisterAdditionalSelfOperator: eigenStaked incorrectly > 0"
+                dlReg.secondQuorumStakedByOperator(sender) == 0,
+                "eigenStaked incorrectly > 0"
             );
         }
     }

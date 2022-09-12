@@ -52,8 +52,8 @@ contract DataLayrServiceManager is
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-    uint128 public eigenSignedThresholdPercentage = 90;
-    uint128 public ethSignedThresholdPercentage = 90;
+    uint128 public firstQuorumSignedThresholdPercentage = 90;
+    uint128 public secondQuorumSignedThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -306,13 +306,12 @@ contract DataLayrServiceManager is
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
-        // check that signatories own at least a threshold percentage of eth 
-        // and eigen, thus, implying quorum has been acheieved
+        // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
-            signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
+            (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum >= firstQuorumSignedThresholdPercentage 
             &&
-            signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
-            "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen"
+            (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum >= secondQuorumSignedThresholdPercentage, 
+            "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);

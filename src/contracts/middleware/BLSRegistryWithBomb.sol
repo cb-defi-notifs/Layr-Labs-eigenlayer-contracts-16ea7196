@@ -31,8 +31,8 @@ contract BLSRegistryWithBomb is
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         BLSRegistry(
             _repository,
@@ -40,8 +40,8 @@ contract BLSRegistryWithBomb is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
@@ -65,27 +65,28 @@ contract BLSRegistryWithBomb is
              registerOperator in BLSRegistry.sol.
      */
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         bytes32 ephemeralKeyHash,
         bytes calldata data,
         string calldata socket
     ) external {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+        _registerOperator(msg.sender, operatorType, data, socket);
 
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
     }
 
-    // CRITIC  @ChaoticWalrus, @Sidu28 --- what are following funcs for?
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function registerOperator(
         uint8,
         bytes calldata,
         string calldata
     ) external override pure {        
-        revert("must register with ephemeral key");
+        revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
 
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
-        revert("must deregister with ephemeral key");
+        revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
     }
 }

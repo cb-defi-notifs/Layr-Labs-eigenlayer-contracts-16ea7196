@@ -12,7 +12,7 @@ import "../interfaces/IECDSARegistry.sol";
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
  */
-
+// TODO: this contract has known concurrency issues with multiple updates to the 'stakes' object landing in quick succession -- need to evaluate potential solutions
 contract ECDSARegistry is
     RegistryBase,
     IECDSARegistry
@@ -20,7 +20,7 @@ contract ECDSARegistry is
 {
     using BytesLib for bytes;
 
-    /// @notice the taskNumbers at which the stake object was updated
+    /// @notice the block numbers at which the stake object was updated
     uint32[] public stakeHashUpdates;
 
     /**
@@ -34,7 +34,7 @@ contract ECDSARegistry is
      * @notice
      */
     event Registration(
-        address indexed registrant,
+        address indexed operator,
         bytes32 pubkeyHash
     );
 
@@ -44,8 +44,8 @@ contract ECDSARegistry is
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         RegistryBase(
             _repository,
@@ -53,164 +53,80 @@ contract ECDSARegistry is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
-        // TODO: check this initialization
-        stakeHashUpdates.push(0);
+        // TODO: verify this initialization is correct
+        bytes memory emptyBytes;
+        _processStakeHashUpdate(keccak256(emptyBytes));
     }
 
     /**
-     @notice called for registering as a operator
-     */
-    /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param stakes is the calldata that contains the preimage of the current stakesHash
-     @param socket is the socket address of the operator
-     
+     * @notice called to register as am operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param stakes is the calldata that contains the preimage of the current stakesHash
+     * @param socket is the socket address of the operator
      */ 
     function registerOperator(
-        uint8 registrantType,
+        uint8 operatorType,
         address signingAddress,
         bytes calldata stakes,
         string calldata socket
     ) external virtual {        
-        _registerOperator(msg.sender, signingAddress, registrantType, stakes, socket);
+        _registerOperator(msg.sender, signingAddress, operatorType, stakes, socket);
+
     }
     
-    /**
-     @param operator is the node who is registering to be a operator
-     */
+    /// @param operator is the node who is registering to be a operator
     function _registerOperator(
         address operator,
         address signingAddress,
-        uint8 registrantType,
+        uint8 operatorType,
         bytes calldata stakes,
         string calldata socket
     ) internal {
-        require(
-            registry[operator].active == 0,
-            "Operator is already registered"
-        );
 
-        OperatorStake memory _operatorStake;
-
-        // if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 1) == 1) {
-            // if operator want to be an "ETH" validator, check that they meet the
-            // minimum requirements on how much ETH it must deposit
-            _operatorStake.ethStake = uint96(weightOfOperator(operator, 0));
-            require(
-                _operatorStake.ethStake >= nodeEthStake,
-                "Not enough eth value staked"
-            );
-        }
-
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 2) == 2) {
-            // if operator want to be an "Eigen" validator, check that they meet the
-            // minimum requirements on how much Eigen it must deposit
-            _operatorStake.eigenStake = uint96(weightOfOperator(operator, 1));
-            require(
-                _operatorStake.eigenStake >= nodeEigenStake,
-                "Not enough eigen staked"
-            );
-        }
-
-        require(
-            _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
-            "must register as at least one type of validator"
-        );
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethStake, _operatorStake.eigenStake);
+        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.firstQuorumStake, _operatorStake.secondQuorumStake);
 
         // verify integrity of supplied 'stakes' data
         require(
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
-            "Supplied stakes are incorrect"
+            "ECDSARegistry._registerOperator: Supplied stakes are incorrect"
         );
 
         // get current task number from ServiceManager
-        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
+        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
-        /**
-         @notice some book-keeping for recording info pertaining to the operator
-         */
-        // record the new stake for the operator in the storage
-        _operatorStake.updateBlockNumber = uint32(block.number);
+        // convert signingAddress to bytes32
         bytes32 pubkeyHash = bytes32(uint256(uint160(signingAddress)));
-        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
 
-        // store the registrant's info
-        registry[operator] = Registrant({
-            pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
-            active: registrantType,
-            fromTaskNumber: currentTaskNumber,
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            // extract the socket address
-            socket: socket,
-            deregisterTime: 0
-        });
-
-        // record the operator being registered
-        registrantList.push(operator);
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
-
-        // store the current tasknumber in which the stakeHash is being updated 
-        stakeHashUpdates.push(uint32(block.number));
-
-        // record operator's index in list of operators
-        OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
-        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-
-        // Update totalOperatorsHistory
-        _updateTotalOperatorsHistory();
+        // add the operator to the list of registrants and do accounting
+        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
         
         {
-            /**
-            @notice some book-keeping for recoding updated total stake
-            */
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-            /**
-            * update total Eigen and ETH that are being employed by the operator for securing
-            * the queries from middleware via EigenLayr
-            */
-            _totalStake.ethStake += _operatorStake.ethStake;
-            _totalStake.eigenStake += _operatorStake.eigenStake;
-            _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake recordd in the past
-            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            totalStakeHistory.push(_totalStake);
-
             // store the updated meta-data in the mapping with the key being the current dump number
             /** 
-             * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+             * @dev append the tuple (operator's address, operator's first quorum deposit, second quorum deposit)
              *      at the front of the list of tuples pertaining to existing operators. 
-             *      Also, need to update the total ETH and/or EIGEN deposited by all operators.
+             *      Also, need to update the total stakes deposited by all operators.
              */
-            stakeHashes.push(keccak256(
+            _processStakeHashUpdate(keccak256(
                 abi.encodePacked(
                     stakes.slice(0, stakes.length - 24),
                     // append at the end of list
                     dataToAppend,
-                    // update the total ETH and EIGEN deposited
-                    _totalStake.ethStake,
-                    _totalStake.eigenStake
+                    // update the total stakes deposited
+                    totalStakeHistory[totalStakeHistory.length - 1].firstQuorumStake,
+                    totalStakeHistory[totalStakeHistory.length - 1].secondQuorumStake
                 )
             ));
         }
 
-        emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(operator, _operatorStake.firstQuorumStake, _operatorStake.secondQuorumStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
         emit Registration(operator, pubkeyHash);
     }
 
@@ -226,135 +142,67 @@ contract ECDSARegistry is
     }
 
     function _deregisterOperator(bytes calldata stakes, uint32 index) internal {
-        require(
-            registry[msg.sender].active > 0,
-            "Operator is already registered"
-        );
-
-        require(
-            msg.sender == registrantList[index],
-            "Incorrect index supplied"
-        );
+        // verify that the `msg.sender` is an active operator and that they've provided the correct `index`
+        _deregistrationCheck(msg.sender, index);
 
         // verify integrity of supplied 'stakes' data
         require(
             keccak256(stakes) == stakeHashes[stakeHashUpdates[stakeHashUpdates.length - 1]],
-            "Supplied stakes are incorrect"
+            "ECDSARegistry._deregisterOperator: Supplied stakes are incorrect"
         );
 
-        IServiceManager serviceManager = repository.serviceManager();
-
-        // must store till the latest time a dump expires
-        /**
-         @notice this info is used in forced disclosure
-         */
-        registry[msg.sender].serveUntil = serviceManager.latestTime();
-
-        // committing to not signing off on any more data that is being asserted into DataLayr
-        registry[msg.sender].active = 0;
-
-        registry[msg.sender].deregisterTime = block.timestamp;
-        
-        /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
-         */
-        // get operator's stored pubkeyHash
-        bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
-
-        // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-            pubkeyHash
-        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-
-        {
-            /**
-             @notice recording the information pertaining to change in stake for this operator in the history
-             */
-            // determine new stakes
-            OperatorStake memory newStakes;
-            // recording the current task number where the operator stake got updated 
-            newStakes.updateBlockNumber = uint32(block.number); 
-
-            // setting total staked ETH for the operator to 0
-            newStakes.ethStake = uint96(0);
-            // setting total staked Eigen for the operator to 0
-            newStakes.eigenStake = uint96(0);   
-
-            //set nextUpdateBlockNumber in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number); 
-
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-        }
-
-        // Update registrant list and update index histories
-        address swappedOperator = _popRegistrant(pubkeyHash,index);
-        // event was moved up (from end of function) to solve 'stack too deep' when finding new stakes object
-        emit Deregistration(msg.sender, swappedOperator);
-
-        /**
-         @notice  update info on ETH and Eigen staked with the middleware
-         */
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake -= currentStakes.ethStake;
-        _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
-
-        // update stakeHash
-        stakeHashUpdates.push(uint32(block.number));
+        // Perform necessary updates for removing operator, including updating registrant list and index histories
+        _removeRegistrant(registry[msg.sender].pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
-        /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+        /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its first quorum deposit, 12 bytes for its second quorum deposit
         uint256 start = uint256(index * 44);
-        require(start < stakes.length - 68, "Cannot point to total bytes");
-        require(
-            stakes.toAddress(start) == msg.sender,
-            "index is incorrect"
-        );
+        // storage caching to save gas (less SLOADs)
+        uint256 stakesLength = stakes.length;
+
+        // scoped block helps prevent stack too deep
+        {
+            require(
+                start < stakesLength - 68,
+                "ECDSARegistry._deregisterOperator: Cannot point to total bytes"
+            );
+            require(
+                stakes.toAddress(start) == msg.sender,
+                "ECDSARegistry._deregisterOperator: index is incorrect"
+            );
+        }
 
         // find new stakes object, replacing deposit of the operator with updated deposit
         bytes memory updatedStakesArray = stakes
         // slice until just before the address bytes of the operator
         .slice(0, start)
             // concatenate the bytes pertaining to the tuples from rest of the middleware 
-            // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
-            .concat(stakes.slice(start + 44, stakes.length - 24)
-        );
-// TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-        updatedStakesArray = updatedStakesArray            
+            // operators except the last 24 bytes that comprises of total deposits for both quorums
+            .concat(stakes.slice(start + 44, stakesLength - 24)
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
-                    (_totalStake.ethStake),
-                    (_totalStake.eigenStake)
+                    (totalStakeHistory[totalStakeHistory.length - 1].firstQuorumStake),
+                    (totalStakeHistory[totalStakeHistory.length - 1].secondQuorumStake)
                 )
+            )
         );
 
-        // store hash of 'stakes'
-        stakeHashes.push(keccak256(updatedStakesArray));
+        // store hash of 'stakes' and record that an update has occurred
+        _processStakeHashUpdate(keccak256(updatedStakesArray));
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
-     */
-    /**
+     * @notice Used for updating information on deposits of nodes.
      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
-     *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
+     *        their associated deposits. This param is in abi-encodedPacked form of the list of 
      *        the form 
-     *          (dln1's registrantType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
-     *          (dln2's registrantType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
-     *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
-     *          where registrantType is a uint8 and all others are a uint96
-     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
-     *        getting updated
-     * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
-     *        getting updated  
+     *          (dln1's operatorType, dln1's addr, dln1's first quorum deposit, dln1's second quorum deposit),
+     *          (dln2's operatorType, dln2's addr, dln2's first quorum deposit, dln2's second quorum deposit), ...
+     *          (sum of all nodes' first quorum deposits, sum of all nodes' second quorum deposits)
+     *          where operatorType is a uint8 and all others are a uint96
+     * @param operators are the nodes whose deposit information is getting updated
+     * @param indexes are the tuple positions of the specified `operators`1
      */ 
     function updateStakes(
         bytes calldata stakes,
@@ -367,108 +215,95 @@ contract ECDSARegistry is
                 stakeHashes[
                     stakeHashUpdates[stakeHashUpdates.length - 1]
                 ],
-            "Stakes are incorrect"
+            "ECDSARegistry.updateStakes: Stakes are incorrect"
         );
 
         uint256 operatorsLength = operators.length;
         require(
             indexes.length == operatorsLength,
-            "operator len and index len don't match"
+            "ECDSARegistry.updateStakes: operator len and index len don't match"
         );
 
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
+        // placeholders to be reused inside loop
+        OperatorStake memory currentStakes;
+        uint256 start;
+        bytes32 pubkeyHash;
+        // storage caching to save gas (less SLOADs)
+        uint256 stakesLength = stakes.length;
+
         bytes memory updatedStakesArray = stakes;
 
         // iterating over all the tuples that are to be updated
         for (uint256 i = 0; i < operatorsLength; ) {
+            // get operator's pubkeyHash
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
             // placing the pointer at the starting byte of the tuple 
-            /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
-            uint256 start = uint256(indexes[i] * 44);
+            /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its first quorum deposit, 12 bytes for its second quorum deposit
+            start = uint256(indexes[i] * 44);
 
-            require(start < stakes.length - 68, "Cannot point to total bytes");
-
-            require(
-                stakes.toAddress(start) == operators[i],
-                "index is incorrect"
-            );
-
-            // get operator's pubkeyHash
-            bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
-            // determine current stakes
-            OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-                pubkeyHash
-            ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-
-            // determine new stakes
-            OperatorStake memory newStakes;
-
-            newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = weightOfOperator(operators[i], 0);
-            newStakes.eigenStake = weightOfOperator(operators[i], 1);
-
-            // check if minimum requirements have been met
-            if (newStakes.ethStake < nodeEthStake) {
-                newStakes.ethStake = uint96(0);
+            // scoped block helps prevent stack too deep
+            {
+                require(
+                    start < stakesLength - 68,
+                    "ECDSARegistry.updateStakes: Cannot point to total bytes"
+                );
+                require(
+                    stakes.toAddress(start) == operators[i],
+                    "ECDSARegistry.updateStakes: index is incorrect"
+                );
             }
-            if (newStakes.eigenStake < nodeEigenStake) {
-                newStakes.eigenStake = uint96(0);
-            }
-            //set nextUpdateBlockNumber in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number);
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
 
-            /**
-             * update total Eigen and ETH that are being employed by the operator for securing
-             * the queries from middleware via EigenLayr
-             */
-            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
+            // update the stake for the i-th operator
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+            // increase _totalStake by operator's updated stakes
+            _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
 
             // find new stakes object, replacing deposit of the operator with updated deposit
             updatedStakesArray = updatedStakesArray
             // slice until just after the address bytes of the operator
             .slice(0, start + 20)
-            // concatenate the updated ETH and EIGEN deposits
-            .concat(abi.encodePacked(newStakes.ethStake, newStakes.eigenStake));
-//TODO: updating 'stake' was split into two actions to solve 'stack too deep' error -- but it should be possible to fix this
-            updatedStakesArray = updatedStakesArray
+            // concatenate the updated first quorum and second quorum deposits
+            .concat(abi.encodePacked(currentStakes.firstQuorumStake, currentStakes.secondQuorumStake))
             // concatenate the bytes pertaining to the tuples from rest of the operators 
-            // except the last 24 bytes that comprises of total ETH deposits
-            .concat(stakes.slice(start + 44, stakes.length - 24));
+            // except the last 24 bytes that comprises of total deposits
+            .concat(stakes.slice(start + 44, stakesLength - 24));
 
-            emit StakeUpdate(
-                operators[i],
-                newStakes.ethStake,
-                newStakes.eigenStake,
-                uint32(block.number),
-                currentStakes.updateBlockNumber
-            );
             unchecked {
                 ++i;
             }
         }
 
-        // concatenate the updated deposits in the last 24 bytes,
+        // concatenate the updated total stakes in the last 24 bytes of stakes
         updatedStakesArray = updatedStakesArray
         .concat(
             abi.encodePacked(
-                (_totalStake.ethStake),
-                (_totalStake.eigenStake)
+                (_totalStake.firstQuorumStake),
+                (_totalStake.secondQuorumStake)
             )
         );
 
         // update storage of total stake
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        _recordTotalStakeUpdate(_totalStake);
 
-        stakeHashes.push(keccak256(stakes));
+        // store hash of 'stakes' and record that an update has occurred
+        _processStakeHashUpdate(keccak256(stakes));
+    }
+
+    // updates the stored stakeHash by pushing new entries to the `stakeHashes` and `stakeHashUpdates` arrays
+    function _processStakeHashUpdate(bytes32 newStakeHash) internal {
+        stakeHashes.push(newStakeHash);
+        stakeHashUpdates.push(uint32(block.number));
     }
 
     /**
@@ -482,14 +317,14 @@ contract ECDSARegistry is
     {
         require(
             blockNumber >= stakeHashUpdates[index],
-            "Index too recent"
+            "ECDSARegistry.getCorrectStakeHash: Index too recent"
         );
 
         // if not last update
         if (index != stakeHashUpdates.length - 1) {
             require(
                 blockNumber < stakeHashUpdates[index + 1],
-                "Not latest valid stakeHashUpdate"
+                "ECDSARegistry.getCorrectStakeHash: Not latest valid stakeHashUpdate"
             );
         }
 

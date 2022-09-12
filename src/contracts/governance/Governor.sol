@@ -52,14 +52,14 @@ contract Governor_Experimental is RepositoryAccess {
         uint256 startTime;
         /// @notice The UTC timestamp at which voting ends: votes must be cast prior to this UTC timestamp
         uint256 endTime;
-        /// @notice Current number of eth votes in favor of this proposal
-        uint256 forEthVotes;
-        /// @notice Current number of eth votes in opposition to this proposal
-        uint256 againstEthVotes;
-        /// @notice Current number of eigen votes in favor of this proposal
-        uint256 forEigenVotes;
-        /// @notice Current number of eigen votes in opposition to this proposal
-        uint256 againstEigenVotes;
+        /// @notice Current number of votes from the first quorum in favor of this proposal
+        uint256 forVotesFirstQuorum;
+        /// @notice Current number of votes from the first quorum in opposition to this proposal
+        uint256 againstVotesFirstQuorum;
+        /// @notice Current number of votes from the second quorum in favor of this proposal
+        uint256 forVotesSecondQuorum;
+        /// @notice Current number of votes from the second quorum in opposition to this proposal
+        uint256 againstVotesSecondQuorum;
         /// @notice Flag marking whether the proposal has been canceled
         bool canceled;
         /// @notice Flag marking whether the proposal has been executed
@@ -73,8 +73,8 @@ contract Governor_Experimental is RepositoryAccess {
         /// @notice Whether or not the voter supports the proposal
         bool support;
         /// @notice The number of votes the voter had, which were cast
-        uint96 eigenVotes;
-        uint96 ethVotes;
+        uint96 firstQuorumVotes;
+        uint96 secondQuorumVotes;
     }
 
     /// @notice Possible states that a proposal may be in
@@ -105,17 +105,17 @@ contract Governor_Experimental is RepositoryAccess {
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
     /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
-    uint16 public quorumEthPercentage;
+    uint16 public firstQuorumPercentage;
 
     /// @notice The percentage of eigen needed in support of a proposal required in order for a quorum
     /// to be reached for the eigen and for a vote to succeed, if an eth quorum is also reached
-    uint16 public quorumEigenPercentage;
+    uint16 public secondQuorumPercentage;
 
     /// @notice The percentage of eth required in order for a voter to become a proposer
-    uint16 public proposalThresholdEthPercentage;
+    uint16 public proposalThresholdFirstQuorumPercentage;
 
     /// @notice The percentage of eigen required in order for a voter to become a proposer
-    uint16 public proposalThresholdEigenPercentage;
+    uint16 public proposalThresholdSecondQuorumPercentage;
 
     /// @notice The total number of proposals
     uint256 public proposalCount;
@@ -153,8 +153,8 @@ contract Governor_Experimental is RepositoryAccess {
         address voter,
         uint256 proposalId,
         bool support,
-        uint256 eigenVotes,
-        uint256 ethVotes
+        uint256 firstQuorumVotes,
+        uint256 secondQuorumVotes
     );
 
     /// @notice An event emitted when a proposal has been canceled
@@ -182,16 +182,16 @@ contract Governor_Experimental is RepositoryAccess {
         IVoteWeigher _VOTE_WEIGHTER,
         Timelock _timelock,
         address _multisig,
-        uint16 _quorumEthPercentage,
-        uint16 _quorumEigenPercentage,
-        uint16 _proposalThresholdEthPercentage,
-        uint16 _proposalThresholdEigenPercentage
+        uint16 _firstQuorumPercentage,
+        uint16 _secondQuorumPercentage,
+        uint16 _proposalThresholdFirstQuorumPercentage,
+        uint16 _proposalThresholdSecondQuorumPercentage
     ) RepositoryAccess(_repository)
     {
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
-        _setQuorumsAndThresholds(_quorumEthPercentage, _quorumEigenPercentage, _proposalThresholdEthPercentage, _proposalThresholdEigenPercentage);
+        _setQuorumsAndThresholds(_firstQuorumPercentage, _secondQuorumPercentage, _proposalThresholdFirstQuorumPercentage, _proposalThresholdSecondQuorumPercentage);
 
     }
 
@@ -202,17 +202,17 @@ contract Governor_Experimental is RepositoryAccess {
         bytes[] memory calldatas,
         string memory description
     ) external returns (uint256) {
-        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
             msg.sender
         );
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
             require(
-                (uint256(ethStaked) * 100) / registry.totalEthStaked() >=
-                    proposalThresholdEthPercentage ||
-                    (uint256(eigenStaked) * 100) / registry.totalEigenStaked() >=
-                    proposalThresholdEigenPercentage ||
+                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake() >=
+                    proposalThresholdFirstQuorumPercentage ||
+                    (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake() >=
+                    proposalThresholdSecondQuorumPercentage ||
                     msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
@@ -258,10 +258,10 @@ contract Governor_Experimental is RepositoryAccess {
             calldatas: calldatas,
             startTime: block.timestamp + votingDelay,
             endTime: block.timestamp + votingDelay + votingPeriod,
-            forEthVotes: 0,
-            againstEthVotes: 0,
-            forEigenVotes: 0,
-            againstEigenVotes: 0,
+            forVotesFirstQuorum: 0,
+            againstVotesFirstQuorum: 0,
+            forVotesSecondQuorum: 0,
+            againstVotesSecondQuorum: 0,
             canceled: false,
             executed: false
         });
@@ -347,17 +347,17 @@ contract Governor_Experimental is RepositoryAccess {
 
         Proposal storage proposal = proposals[proposalId];
         require(proposal.proposer != multisig, "multisig does not have to meet threshold requirements");
-        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
             proposal.proposer
         );
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
             require(
-                (uint256(ethStaked) * 100) / registry.totalEthStaked() >=
-                    proposalThresholdEthPercentage ||
-                    (uint256(eigenStaked) * 100) / registry.totalEigenStaked() >=
-                    proposalThresholdEigenPercentage ||
+                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake() >=
+                    proposalThresholdFirstQuorumPercentage ||
+                    (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake() >=
+                    proposalThresholdSecondQuorumPercentage ||
                     msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
@@ -411,17 +411,17 @@ contract Governor_Experimental is RepositoryAccess {
         } else if (block.timestamp <= proposal.endTime) {
             return ProposalState.Active;
         } else if (
-            proposal.forEthVotes <= proposal.againstEthVotes ||
-            proposal.forEigenVotes <= proposal.againstEigenVotes ||
+            proposal.forVotesFirstQuorum <= proposal.againstVotesFirstQuorum ||
+            proposal.forVotesSecondQuorum <= proposal.againstVotesSecondQuorum ||
             (
-                ((proposal.forEthVotes * 100) / IQuorumRegistry(address(_registry())).totalEthStaked() <
-                quorumEthPercentage)
+                ((proposal.forVotesFirstQuorum * 100) / IQuorumRegistry(address(_registry())).totalFirstQuorumStake() <
+                firstQuorumPercentage)
                 &&
                 (proposal.proposer != multisig)
             ) ||
             (
-                ((proposal.forEigenVotes * 100) / IQuorumRegistry(address(_registry())).totalEigenStaked() <
-                quorumEigenPercentage)
+                ((proposal.forVotesSecondQuorum * 100) / IQuorumRegistry(address(_registry())).totalSecondQuorumStake() <
+                secondQuorumPercentage)
                 &&
                 (proposal.proposer != multisig)
             )
@@ -481,51 +481,49 @@ contract Governor_Experimental is RepositoryAccess {
             !receipt.hasVoted,
             "RepositoryGovernance::_castVote: voter already voted"
         );
-        (uint96 ethStaked, uint96 eigenStaked) = _getEthAndEigenStaked(
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
             voter
         );
 
         if (support) {
-            proposal.forEthVotes = proposal.forEthVotes + ethStaked;
-            proposal.forEigenVotes = proposal.forEigenVotes + eigenStaked;
+            proposal.forVotesFirstQuorum = proposal.forVotesFirstQuorum + firstQuorumStake;
+            proposal.forVotesSecondQuorum = proposal.forVotesSecondQuorum + secondQuorumStake;
         } else {
-            proposal.againstEthVotes = proposal.againstEthVotes + ethStaked;
-            proposal.againstEigenVotes =
-                proposal.againstEigenVotes +
-                eigenStaked;
+            proposal.againstVotesFirstQuorum = proposal.againstVotesFirstQuorum + firstQuorumStake;
+            proposal.againstVotesSecondQuorum = proposal.againstVotesSecondQuorum + secondQuorumStake;
         }
         receipt.hasVoted = true;
         receipt.support = support;
-        receipt.eigenVotes = eigenStaked;
-        receipt.ethVotes = ethStaked;
+        receipt.firstQuorumVotes = firstQuorumStake;
+        receipt.secondQuorumVotes = secondQuorumStake;
 
-        emit VoteCast(voter, proposalId, support, eigenStaked, ethStaked);
+        emit VoteCast(voter, proposalId, support, firstQuorumStake, secondQuorumStake);
     }
 
     function setQuorumsAndThresholds(
-        uint16 _quorumEthPercentage,
-        uint16 _quorumEigenPercentage,
-        uint16 _proposalThresholdEthPercentage,
-        uint16 _proposalThresholdEigenPercentage
+        uint16 _firstQuorumPercentage,
+        uint16 _secondQuorumPercentage,
+        uint16 _proposalThresholdFirstQuorumPercentage,
+        uint16 _proposalThresholdSecondQuorumPercentage
     ) external onlyTimelock {
-        _setQuorumsAndThresholds(_quorumEthPercentage, _quorumEigenPercentage, _proposalThresholdEthPercentage, _proposalThresholdEigenPercentage);
+        _setQuorumsAndThresholds(_firstQuorumPercentage, _secondQuorumPercentage, _proposalThresholdFirstQuorumPercentage, _proposalThresholdSecondQuorumPercentage);
     }
 
     function _setQuorumsAndThresholds(
-        uint16 _quorumEthPercentage,
-        uint16 _quorumEigenPercentage,
-        uint16 _proposalThresholdEthPercentage,
-        uint16 _proposalThresholdEigenPercentage
+        uint16 _firstQuorumPercentage,
+        uint16 _secondQuorumPercentage,
+        uint16 _proposalThresholdFirstQuorumPercentage,
+        uint16 _proposalThresholdSecondQuorumPercentage
     ) internal {
-        require(_quorumEthPercentage > 0 && _quorumEthPercentage < 100, "bad _quorumEthPercentage");
-        require(_quorumEigenPercentage > 0 && _quorumEigenPercentage < 100, "bad _quorumEigenPercentage");
-        require(_proposalThresholdEthPercentage > 0 && _proposalThresholdEthPercentage < 100, "bad _proposalThresholdEthPercentage");
-        require(_proposalThresholdEigenPercentage > 0 && _proposalThresholdEigenPercentage < 100, "bad _proposalThresholdEigenPercentage");
+        require(_firstQuorumPercentage > 0 && _firstQuorumPercentage < 100, "bad _firstQuorumPercentage");
+        require(_secondQuorumPercentage > 0 && _secondQuorumPercentage < 100, "bad _secondQuorumPercentage");
+        require(_proposalThresholdFirstQuorumPercentage > 0 && _proposalThresholdFirstQuorumPercentage < 100, "bad _proposalThresholdFirstQuorumPercentage");
+        require(_proposalThresholdSecondQuorumPercentage > 0 && _proposalThresholdSecondQuorumPercentage < 100, "bad _proposalThresholdSecondQuorumPercentage");
 
-        quorumEthPercentage = _quorumEthPercentage;
-        quorumEigenPercentage = _quorumEigenPercentage;
-        proposalThresholdEthPercentage = _proposalThresholdEthPercentage;
-        proposalThresholdEigenPercentage = _proposalThresholdEigenPercentage;
+        firstQuorumPercentage = _firstQuorumPercentage;
+        secondQuorumPercentage = _secondQuorumPercentage;
+        proposalThresholdFirstQuorumPercentage = _proposalThresholdFirstQuorumPercentage;
+        proposalThresholdSecondQuorumPercentage = _proposalThresholdSecondQuorumPercentage;
     }
 
     function setMultisig(address _multisig) external onlyTimelock {
@@ -551,11 +549,11 @@ contract Governor_Experimental is RepositoryAccess {
     }
     
     // TODO: reintroduce a way to update stakes before simply fetching them?
-    function _getEthAndEigenStaked(address user)
+    function _getVoterStakes(address user)
         internal view
         returns (uint96, uint96)
     {
-        (uint96 ethStaked, uint96 eigenStaked) = IQuorumRegistry(address(_registry())).operatorStakes(user);
-        return (ethStaked, eigenStaked);
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = IQuorumRegistry(address(_registry())).operatorStakes(user);
+        return (firstQuorumStake, secondQuorumStake);
     }
 }
