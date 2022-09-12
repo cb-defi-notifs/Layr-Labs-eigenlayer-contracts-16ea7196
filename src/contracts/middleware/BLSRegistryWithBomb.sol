@@ -31,8 +31,8 @@ contract BLSRegistryWithBomb is
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         BLSRegistry(
             _repository,
@@ -40,8 +40,8 @@ contract BLSRegistryWithBomb is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;

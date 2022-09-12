@@ -306,12 +306,11 @@ contract DataLayrServiceManager is
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
-        // check that signatories own at least a threshold percentage of eth 
-        // and eigen, thus, implying quorum has been acheieved
+        // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
-            signedTotals.ethStakeSigned * 100/signedTotals.totalEthStake >= ethSignedThresholdPercentage 
+            (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum >= ethSignedThresholdPercentage 
             &&
-            signedTotals.eigenStakeSigned*100/signedTotals.totalEigenStake >= eigenSignedThresholdPercentage, 
+            (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum >= eigenSignedThresholdPercentage, 
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least a threshold percentage of eth and eigen"
         );
 

@@ -51,8 +51,8 @@ contract BLSRegistry is
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         RegistryBase(
             _repository,
@@ -60,8 +60,8 @@ contract BLSRegistry is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
         /** 
@@ -75,7 +75,7 @@ contract BLSRegistry is
 
     /**
      * @notice called for registering as a operator
-     * @param operatorType specifies whether the operator want to register as ETH staker or Eigen staker or both
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
      * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      * @param socket is the socket address of the operator
      */ 
@@ -89,7 +89,7 @@ contract BLSRegistry is
     
     /**
      * @param operator is the node who is registering to be a operator
-     * @param operatorType specifies whether the operator want to register as ETH staker or Eigen staker or both
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
      * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      * @param socket is the socket address of the operator
      */
@@ -181,9 +181,8 @@ contract BLSRegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of nodes.
-     * @param operators are the nodes whose information on their ETH and EIGEN deposits is
-     *        getting updated
+     * @notice Used for updating information on deposits of nodes.
+     * @param operators are the nodes whose deposit information is getting updated
      */
     function updateStakes(address[] calldata operators) external {
         // copy total stake to memory
@@ -200,15 +199,15 @@ contract BLSRegistry is
             // fetch operator's existing stakes
             currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
             // decrease _totalStake by operator's existing stakes
-            _totalStake.ethStake -= currentStakes.ethStake;
-            _totalStake.eigenStake -= currentStakes.eigenStake;
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
             // update the stake for the i-th operator
             currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
 
             // increase _totalStake by operator's updated stakes
-            _totalStake.ethStake += currentStakes.ethStake;
-            _totalStake.eigenStake += currentStakes.eigenStake;
+            _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
 
             unchecked {
                 ++i;

@@ -44,8 +44,8 @@ contract ECDSARegistry is
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
     )
         RegistryBase(
             _repository,
@@ -53,8 +53,8 @@ contract ECDSARegistry is
             _investmentManager,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
         // TODO: verify this initialization is correct
@@ -63,13 +63,10 @@ contract ECDSARegistry is
     }
 
     /**
-     @notice called for registering as a operator
-     */
-    /**
-     @param operatorType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param stakes is the calldata that contains the preimage of the current stakesHash
-     @param socket is the socket address of the operator
-     
+     * @notice called to register as am operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param stakes is the calldata that contains the preimage of the current stakesHash
+     * @param socket is the socket address of the operator
      */ 
     function registerOperator(
         uint8 operatorType,
@@ -81,9 +78,7 @@ contract ECDSARegistry is
 
     }
     
-    /**
-     @param operator is the node who is registering to be a operator
-     */
+    /// @param operator is the node who is registering to be a operator
     function _registerOperator(
         address operator,
         address signingAddress,
@@ -95,7 +90,7 @@ contract ECDSARegistry is
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         //bytes to add to the existing stakes object
-        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.ethStake, _operatorStake.eigenStake);
+        bytes memory dataToAppend = abi.encodePacked(operator, _operatorStake.firstQuorumStake, _operatorStake.secondQuorumStake);
 
         // verify integrity of supplied 'stakes' data
         require(
@@ -115,23 +110,23 @@ contract ECDSARegistry is
         {
             // store the updated meta-data in the mapping with the key being the current dump number
             /** 
-             * @dev append the tuple (operator's address, operator's ETH deposit in EigenLayr)
+             * @dev append the tuple (operator's address, operator's first quorum deposit, second quorum deposit)
              *      at the front of the list of tuples pertaining to existing operators. 
-             *      Also, need to update the total ETH and/or EIGEN deposited by all operators.
+             *      Also, need to update the total stakes deposited by all operators.
              */
             _processStakeHashUpdate(keccak256(
                 abi.encodePacked(
                     stakes.slice(0, stakes.length - 24),
                     // append at the end of list
                     dataToAppend,
-                    // update the total ETH and EIGEN deposited
-                    totalStakeHistory[totalStakeHistory.length - 1].ethStake,
-                    totalStakeHistory[totalStakeHistory.length - 1].eigenStake
+                    // update the total stakes deposited
+                    totalStakeHistory[totalStakeHistory.length - 1].firstQuorumStake,
+                    totalStakeHistory[totalStakeHistory.length - 1].secondQuorumStake
                 )
             ));
         }
 
-        emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
+        emit StakeAdded(operator, _operatorStake.firstQuorumStake, _operatorStake.secondQuorumStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
         emit Registration(operator, pubkeyHash);
     }
 
@@ -160,7 +155,7 @@ contract ECDSARegistry is
         _removeRegistrant(registry[msg.sender].pubkeyHash, index);
 
         // placing the pointer at the starting byte of the tuple 
-        /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+        /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its first quorum deposit, 12 bytes for its second quorum deposit
         uint256 start = uint256(index * 44);
         // storage caching to save gas (less SLOADs)
         uint256 stakesLength = stakes.length;
@@ -182,13 +177,13 @@ contract ECDSARegistry is
         // slice until just before the address bytes of the operator
         .slice(0, start)
             // concatenate the bytes pertaining to the tuples from rest of the middleware 
-            // operators except the last 24 bytes that comprises of total ETH deposits and EIGEN deposits
+            // operators except the last 24 bytes that comprises of total deposits for both quorums
             .concat(stakes.slice(start + 44, stakesLength - 24)
             // concatenate the updated deposits in the last 24 bytes
             .concat(
                 abi.encodePacked(
-                    (totalStakeHistory[totalStakeHistory.length - 1].ethStake),
-                    (totalStakeHistory[totalStakeHistory.length - 1].eigenStake)
+                    (totalStakeHistory[totalStakeHistory.length - 1].firstQuorumStake),
+                    (totalStakeHistory[totalStakeHistory.length - 1].secondQuorumStake)
                 )
             )
         );
@@ -198,20 +193,16 @@ contract ECDSARegistry is
     }
 
     /**
-     * @notice Used for updating information on ETH and EIGEN deposits of DataLayr nodes. 
-     */
-    /**
+     * @notice Used for updating information on deposits of nodes.
      * @param stakes is the meta-data on the existing DataLayr nodes' addresses and 
-     *        their ETH and EIGEN deposits. This param is in abi-encodedPacked form of the list of 
+     *        their associated deposits. This param is in abi-encodedPacked form of the list of 
      *        the form 
-     *          (dln1's operatorType, dln1's addr, dln1's ETH deposit, dln1's EIGEN deposit),
-     *          (dln2's operatorType, dln2's addr, dln2's ETH deposit, dln2's EIGEN deposit), ...
-     *          (sum of all nodes' ETH deposits, sum of all nodes' EIGEN deposits)
+     *          (dln1's operatorType, dln1's addr, dln1's first quorum deposit, dln1's second quorum deposit),
+     *          (dln2's operatorType, dln2's addr, dln2's first quorum deposit, dln2's second quorum deposit), ...
+     *          (sum of all nodes' first quorum deposits, sum of all nodes' second quorum deposits)
      *          where operatorType is a uint8 and all others are a uint96
-     * @param operators are the DataLayr nodes whose information on their ETH and EIGEN deposits
-     *        getting updated
-     * @param indexes are the tuple positions whose corresponding ETH and EIGEN deposit is 
-     *        getting updated  
+     * @param operators are the nodes whose deposit information is getting updated
+     * @param indexes are the tuple positions of the specified `operators`1
      */ 
     function updateStakes(
         bytes calldata stakes,
@@ -252,11 +243,11 @@ contract ECDSARegistry is
             // fetch operator's existing stakes
             currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
             // decrease _totalStake by operator's existing stakes
-            _totalStake.ethStake -= currentStakes.ethStake;
-            _totalStake.eigenStake -= currentStakes.eigenStake;
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
             // placing the pointer at the starting byte of the tuple 
-            /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its ETH deposit, 12 bytes for its EIGEN deposit
+            /// @dev 44 bytes per operator: 20 bytes for address, 12 bytes for its first quorum deposit, 12 bytes for its second quorum deposit
             start = uint256(indexes[i] * 44);
 
             // scoped block helps prevent stack too deep
@@ -275,17 +266,17 @@ contract ECDSARegistry is
             currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
 
             // increase _totalStake by operator's updated stakes
-            _totalStake.ethStake += currentStakes.ethStake;
-            _totalStake.eigenStake += currentStakes.eigenStake;
+            _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
 
             // find new stakes object, replacing deposit of the operator with updated deposit
             updatedStakesArray = updatedStakesArray
             // slice until just after the address bytes of the operator
             .slice(0, start + 20)
-            // concatenate the updated ETH and EIGEN deposits
-            .concat(abi.encodePacked(currentStakes.ethStake, currentStakes.eigenStake))
+            // concatenate the updated first quorum and second quorum deposits
+            .concat(abi.encodePacked(currentStakes.firstQuorumStake, currentStakes.secondQuorumStake))
             // concatenate the bytes pertaining to the tuples from rest of the operators 
-            // except the last 24 bytes that comprises of total ETH deposits
+            // except the last 24 bytes that comprises of total deposits
             .concat(stakes.slice(start + 44, stakesLength - 24));
 
             unchecked {
@@ -297,8 +288,8 @@ contract ECDSARegistry is
         updatedStakesArray = updatedStakesArray
         .concat(
             abi.encodePacked(
-                (_totalStake.ethStake),
-                (_totalStake.eigenStake)
+                (_totalStake.firstQuorumStake),
+                (_totalStake.secondQuorumStake)
             )
         );
 

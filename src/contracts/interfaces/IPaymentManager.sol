@@ -94,8 +94,8 @@ interface IPaymentManager is IRepositoryAccess {
 
 
     struct TotalStakes {
-        uint256 ethStakeSigned;
-        uint256 eigenStakeSigned;
+        uint256 signedStakeFirstQuorum;
+        uint256 signedStakeSecondQuorum;
     }
 
     function depositFutureFees(address onBehalfOf, uint256 amount) external;
