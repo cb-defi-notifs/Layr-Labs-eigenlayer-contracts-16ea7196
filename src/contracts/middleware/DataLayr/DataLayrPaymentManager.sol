@@ -16,7 +16,8 @@ import "forge-std/Test.sol";
 /// @notice This contract is used for doing interactive payment challenges on DataLayr
 contract DataLayrPaymentManager is
     PaymentManager,
-    IDataLayrPaymentManager
+    IDataLayrPaymentManager,
+    Initializable
     // ,DSTest 
     {
 
@@ -31,7 +32,6 @@ contract DataLayrPaymentManager is
     )  PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg) initializer
     {
         dataLayrServiceManager = _dataLayrServiceManager;
-        _initializePauser(_pauserReg);
     }
 
     //an operator can respond to challenges and breakdown the amount

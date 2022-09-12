@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.9.0;
 
-import "@openzeppelin-upgrades/contracts/security/PausableUpgradeable.sol";
 import "../interfaces/IPauserRegistry.sol";
 
-contract Pausable is PausableUpgradeable{
+import "forge-std/Test.sol";
+
+contract Pausable is DSTest{
 
     // modifier onlyPauser {
     //     require(msg.sender == IPauserRegistry(address(dlsm)).pauser());
@@ -15,6 +16,19 @@ contract Pausable is PausableUpgradeable{
     // those functions are permissioned as "onlyPauser"  which refers to a Pauser Registry
 
     IPauserRegistry public pauserRegistry;
+
+    bool private _paused;
+
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
 
     modifier onlyPauser {
         require(msg.sender == pauserRegistry.pauser(),  "msg.sender is not permissioned as pauser");
@@ -26,12 +40,24 @@ contract Pausable is PausableUpgradeable{
         _;
     }
 
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
     function _initializePauser(
         IPauserRegistry _pauserRegistry
     ) internal {
-        require(address(pauserRegistry) == address(0) && address(_pauserRegistry) != address(0), "Pausable._initializePauser: _initializePauser() can only be called once");
-        __Pausable_init();
+                
+        require(
+            address(pauserRegistry) == address(0) && 
+            address(_pauserRegistry) != address(0), 
+            "Pausable._initializePauser: _initializePauser() can only be called once"
+        );
+
+        _paused = false;
         pauserRegistry = _pauserRegistry;
+        
     }
 
     /**
@@ -40,7 +66,9 @@ contract Pausable is PausableUpgradeable{
      *         address, which is a low threshold multisig.
      */  
     function pause() public onlyPauser {
-        _pause();
+        _paused = true;
+
+        emit Paused(msg.sender);
     }
 
     /**
@@ -50,6 +78,22 @@ contract Pausable is PausableUpgradeable{
      *         multisig.
      */  
     function unpause() public onlyUnpauser {
-        _unpause();
+        _paused = false;
+
+        emit Unpaused(msg.sender);
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
     }
 }

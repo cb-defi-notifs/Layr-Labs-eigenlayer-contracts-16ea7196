@@ -25,7 +25,7 @@ abstract contract PaymentManager is
     RepositoryAccess,
     IPaymentManager,
     Pausable
-    ,DSTest
+    //,DSTest
     {
     using SafeERC20 for IERC20;
     /**********************
@@ -113,11 +113,12 @@ abstract contract PaymentManager is
     {
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+        
         IServiceManager serviceManager_ = _repository.serviceManager();
         collateralToken = serviceManager_.collateralToken();
         eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
-        _initializePauser(_pauserReg);
 
+        _initializePauser(_pauserReg);
     }
 
     /**

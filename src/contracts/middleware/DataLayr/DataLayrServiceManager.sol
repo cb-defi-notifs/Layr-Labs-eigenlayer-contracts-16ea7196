@@ -31,8 +31,8 @@ import "./DataLayrChallengeUtils.sol";
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
     BLSSignatureChecker,
-    Pausable,
-    DSTest
+    Pausable
+    //,DSTest
 {
     using BytesLib for bytes;
 
@@ -99,6 +99,8 @@ contract DataLayrServiceManager is
         dataStoresForDuration.latestTime = 1;
 
         _initializePauser(pauserRegistry);
+
+
         
     }
 

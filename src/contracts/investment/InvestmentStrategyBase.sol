@@ -14,6 +14,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * more complex investment strategies, which can then override its functions as necessary.
 */
 contract InvestmentStrategyBase is
+    Initializable,
     Pausable,
     IInvestmentStrategy
 {

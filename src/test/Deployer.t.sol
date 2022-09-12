@@ -146,6 +146,11 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
+        //deploy pauser registry
+        pauserReg = new PauserRegistry(pauser, unpauser);
+
+
+
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
@@ -158,6 +163,8 @@ contract EigenLayrDeployer is
             )
         );
 
+
+
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
@@ -169,9 +176,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
-
-
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -193,7 +197,6 @@ contract EigenLayrDeployer is
             )
         );
 
-
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
@@ -213,18 +216,13 @@ contract EigenLayrDeployer is
             )
         );
 
-
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
         slasher.initialize(investmentManager, delegation, pauserReg, governor);
 
-        pauserReg = new PauserRegistry(pauser, unpauser);
-
         delegates = [acct_0, acct_1];
-
-
         
         investmentManager.initialize(
             slasher,
@@ -243,6 +241,7 @@ contract EigenLayrDeployer is
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
 
 
 
@@ -318,6 +317,7 @@ contract EigenLayrDeployer is
 
         dlRepository = new Repository(delegation, investmentManager);
 
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             investmentManager,
@@ -327,7 +327,7 @@ contract EigenLayrDeployer is
             pauserReg,
             feePerBytePerTime
         );
-
+        
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
@@ -364,6 +364,8 @@ contract EigenLayrDeployer is
             address(this)
         );
         uint256 _paymentFraudproofCollateral = 1e16;
+
+
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
             _paymentFraudproofCollateral,
@@ -371,6 +373,7 @@ contract EigenLayrDeployer is
             dlsm,
             pauserReg
         );
+
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 
 
