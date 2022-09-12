@@ -150,7 +150,7 @@ contract DataLayrPaymentManager is
         IDataLayrServiceManager _dataLayrServiceManager
     )   
         // set repository address equal to that of dataLayrServiceManager
-        RepositoryAccess(_dataLayrServiceManager.dataLayrPaymentManager().repository()) 
+        RepositoryAccess(IRepositoryAccess(address(_dataLayrServiceManager)).repository()) 
     {
         paymentToken = _paymentToken;
         paymentFraudProofCollateral = _paymentFraudProofCollateral;
