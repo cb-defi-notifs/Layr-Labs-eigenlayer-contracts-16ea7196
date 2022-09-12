@@ -3,7 +3,6 @@
 pragma solidity ^0.8.9.0;
 
 import "@openzeppelin-upgrades/contracts/security/PausableUpgradeable.sol";
-import "@openzeppelin-upgrades/contracts/access/AccessControlUpgradeable.sol";
 import "../interfaces/IPauserRegistry.sol";
 
 contract Pausable is PausableUpgradeable{
@@ -29,7 +28,7 @@ contract Pausable is PausableUpgradeable{
 
     function _initializePauser(
         IPauserRegistry _pauserRegistry
-    ) internal onlyInitializing {
+    ) internal {
         __Pausable_init();
         pauserRegistry = _pauserRegistry;
     }
