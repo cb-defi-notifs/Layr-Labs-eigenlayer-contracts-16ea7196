@@ -63,21 +63,23 @@ abstract contract ECDSASignatureChecker is
         //temporary variable used to hold various numbers
         uint256 placeholder;
 
+        uint256 pointer = 356;
+
         assembly {
             // get the 32 bytes immediately after the function signature and length + position encoding of bytes
             // calldata type, which represents the taskHash for which disperser is calling checkSignatures
-            taskHash := calldataload(356)
+            taskHash := calldataload(pointer)
 
             // get the 6 bytes immediately after the above, which represent the
             // index of the stakeHash in the 'stakeHashes' array
-            placeholder := shr(208, calldataload(388))
+            placeholder := shr(208, calldataload(add(pointer, 32)))
         }
 
 
         // fetch the taskNumber to confirm and block number to use for stakes from the middleware contract
         uint32 blockNumberFromTaskHash;
         assembly {
-            blockNumberFromTaskHash := shr(224,calldataload(394))
+            blockNumberFromTaskHash := shr(224,calldataload(add(pointer, 38)))
         }
 
         // obtain registry contract for fetching the stakeHash
@@ -90,9 +92,9 @@ abstract contract ECDSASignatureChecker is
         assembly {
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that have signed
-            numberOfSigners := shr(224, calldataload(402))
+            numberOfSigners := shr(224, calldataload(add(pointer, 42)))
             // get the next 32 bytes, specifying the length of the stakes object
-            stakesLength := calldataload(406)
+            stakesLength := calldataload(add(pointer, 46))
         }
 
         bytes32 signedHash = ECDSA.toEthSignedMessageHash(taskHash);
@@ -102,12 +104,12 @@ abstract contract ECDSASignatureChecker is
 
         require(
             keccak256(stakes) == stakeHash,
-            "provided stakes are incorrect"
+            "ECDSASignatureChecker.checkSignatures: provided stakes are incorrect"
         );
 
         // we have read (356 + 32 + 6 + 4 + 4 + 4 + 32) = 438 bytes of calldata so far
         // set pointer equal to end of stakes object (*start* of SigWInfos)
-        uint256 pointer = START_OF_STAKES_BYTE_LOCATION;
+        pointer = START_OF_STAKES_BYTE_LOCATION;
 
         assembly {
             //fetch the totalEthStake value and store it in memory
@@ -191,7 +193,7 @@ abstract contract ECDSASignatureChecker is
             // verify monotonic increase of address value
             require(
                 uint160(sigWInfo.signatory) > previousSigner,
-                "bad sig ordering"
+                "ECDSASignatureChecker.checkSignatures: bad sig ordering"
             );
 
             // store signer info in memory variables
