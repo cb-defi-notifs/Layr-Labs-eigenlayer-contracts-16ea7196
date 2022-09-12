@@ -15,7 +15,7 @@ import "../BLSSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
-import "../../utils/Pauseable.sol";
+import "../../utils/Pausable.sol";
 
 
 import "../Repository.sol";

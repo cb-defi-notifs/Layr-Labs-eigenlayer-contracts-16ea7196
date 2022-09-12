@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
-import "../utils/Pauseable.sol";
+import "../utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";

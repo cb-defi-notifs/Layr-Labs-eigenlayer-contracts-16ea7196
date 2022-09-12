@@ -7,7 +7,7 @@ import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
-import "../utils/Pauseable.sol";
+import "../utils/Pausable.sol";
 import "../investment/Slasher.sol";
 // import "forge-std/Test.sol";
 
