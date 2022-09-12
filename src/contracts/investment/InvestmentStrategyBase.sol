@@ -2,9 +2,11 @@
 pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
+import "../utils/Pauseable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+
 
 /**
  * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
@@ -12,7 +14,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * more complex investment strategies, which can then override its functions as necessary.
 */
 contract InvestmentStrategyBase is
-    Initializable,
+    Pausable,
     IInvestmentStrategy
 {
     using SafeERC20 for IERC20;
@@ -32,8 +34,12 @@ contract InvestmentStrategyBase is
         //_disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken) public initializer {
+    function initialize(
+        IERC20 _underlyingToken,
+        IPauserRegistry pauserRegistry
+    ) public initializer {
         underlyingToken = _underlyingToken;
+        _initializePauser(pauserRegistry);
     }
 
     /**

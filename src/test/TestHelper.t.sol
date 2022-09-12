@@ -650,7 +650,7 @@ contract TestHelper is EigenLayrDeployer {
         InvestmentStrategyBase strategy = new InvestmentStrategyBase(investmentManager);
         // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
         // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strategy.initialize(weth);
+        strategy.initialize(weth, pauserReg);
         return strategy;
     }
 

@@ -12,7 +12,8 @@ contract InvestmentStrategyTests is
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() cannotReinit public {
         wethStrat.initialize(
-            weth
+            weth,
+            pauserReg
         );
     }
 

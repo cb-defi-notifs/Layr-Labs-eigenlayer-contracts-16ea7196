@@ -14,9 +14,14 @@ contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
         AaveInvestmentStrategy(_investmentManager)
     {}
 
-    function initialize (IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken, IStableSwapStateOracle _stableSwapOracle
+    function initialize (
+        IERC20 _underlyingToken, 
+        ILendingPool _lendingPool, 
+        IERC20 _aToken, 
+        IStableSwapStateOracle _stableSwapOracle,
+        IPauserRegistry _pauserRegistry
     ) external initializer {
-        super.initialize(_underlyingToken, _lendingPool, _aToken);
+        super.initialize(_underlyingToken, _lendingPool, _aToken, _pauserRegistry);
         stableSwapOracle = _stableSwapOracle;
     }
 

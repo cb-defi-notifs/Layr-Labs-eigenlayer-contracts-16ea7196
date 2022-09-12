@@ -4,6 +4,7 @@ pragma solidity ^0.8.9.0;
 import "./aave/ILendingPool.sol";
 import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
+import "../utils/Pauseable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
@@ -14,9 +15,13 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         InvestmentStrategyBase(_investmentManager)
     {}
 
-    function initialize(IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
+    function initialize(
+        IERC20 _underlyingToken, 
+        ILendingPool _lendingPool, 
+        IERC20 _aToken, 
+        IPauserRegistry _pauserRegistry
     ) public initializer {
-        super.initialize(_underlyingToken);
+        super.initialize(_underlyingToken, _pauserRegistry);
         lendingPool = _lendingPool;
         aToken = _aToken;
         underlyingToken.safeApprove(address(_lendingPool), type(uint256).max);

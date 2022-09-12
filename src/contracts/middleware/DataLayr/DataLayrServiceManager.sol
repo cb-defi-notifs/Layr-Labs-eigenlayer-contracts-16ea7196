@@ -99,7 +99,6 @@ contract DataLayrServiceManager is
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
 
-        emit log("hehe");
         _initializePauser(pauserRegistry);
         
     }

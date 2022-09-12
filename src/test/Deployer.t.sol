@@ -171,6 +171,8 @@ contract EigenLayrDeployer is
         );
 
 
+
+
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -186,10 +188,11 @@ contract EigenLayrDeployer is
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
                 )
             )
         );
+
 
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
@@ -198,13 +201,14 @@ contract EigenLayrDeployer is
             address(this)
         );
 
+
         // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, pauserReg)
                 )
             )
         );
@@ -214,7 +218,7 @@ contract EigenLayrDeployer is
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, governor);
+        slasher.initialize(investmentManager, delegation, pauserReg, governor);
 
         pauserReg = new PauserRegistry(pauser, unpauser);
 
@@ -236,8 +240,10 @@ contract EigenLayrDeployer is
         );
 
 
+
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
 
 
 
@@ -245,8 +251,10 @@ contract EigenLayrDeployer is
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
         liquidStakingMockStrat.initialize(
-            IERC20(address(liquidStakingMockToken))
+            IERC20(address(liquidStakingMockToken)),
+            pauserReg
         );
+
 
         //loads hardcoded signer set
         _setSigners();
