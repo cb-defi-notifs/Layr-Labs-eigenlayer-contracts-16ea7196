@@ -118,14 +118,6 @@ contract EigenLayrDeployer is
     uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
 
     address mainHoncho = cheats.addr(mainHonchoPrivKey);
-    
-
-    //     0x1234567812345678123456781234567812345698123456781234567812348976;
-    // address acct_1 = cheats.addr(uint256(priv_key_1));
-
-    // address mainHoncho = address(0x22718436a53D0Fb585A5AE52FcDd0Bc03416b0ff);
-
-    uint8 durationToInit = 2;
 
     //performs basic deployment before each test
     function run() external {
@@ -133,6 +125,7 @@ contract EigenLayrDeployer is
         vm.startBroadcast();
 
         emit log_address(mainHoncho);
+        emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
@@ -251,7 +244,7 @@ contract EigenLayrDeployer is
         //     address(investmentManager),
         //     IERC20(address(liquidStakingMockToken))
         // );
-        _allocateAsset(dlsm);
+        // _allocateAsset(dlsm);
     }
 
     function _allocateAsset(address dlsm) internal {
@@ -330,11 +323,8 @@ contract EigenLayrDeployer is
         }
     }
 
-
-
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal returns (address dlsmAddress) {
-        vm.startBroadcast(mainHonchoPrivKey);
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
@@ -399,13 +389,14 @@ contract EigenLayrDeployer is
             dlReg,
             challengeUtils
         );
+        vm.startBroadcast(mainHonchoPrivKey);
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
+        vm.stopBroadcast();
 
         dlsmAddress = address(dlsm);
-        vm.stopBroadcast();
     }
 
 
@@ -432,5 +423,140 @@ contract EigenLayrDeployer is
         }
         return number; 
     }
+}
 
+
+contract Allocate is
+    Script,
+    DSTest,
+    ERC165_Universal,
+    ERC1155TokenReceiver
+    //,
+    // Signers,
+    // SignatureUtils
+{
+    using BytesLib for bytes;
+
+    Vm cheats = Vm(HEVM_ADDRESS);
+
+    uint256 public constant eigenTotalSupply = 1000e18;
+    EigenLayrDelegation public delegation;
+    InvestmentManager public investmentManager;
+    IERC20 public weth;
+    InvestmentStrategyBase public wethStrat;
+    IERC20 public eigenToken;
+    InvestmentStrategyBase public eigenStrat;
+    //performs basic deployment before each test
+    function run() external {
+        _allocateAsset();
+    }
+
+    function _allocateAsset() internal {
+        // read meta data from json
+        string memory configJson = vm.readFile("config.json");
+        uint numDis = stdJson.readUint(configJson, ".numDis");
+        uint numDln = stdJson.readUint(configJson, ".numDln");
+        uint numStaker = stdJson.readUint(configJson, ".numStaker");
+        uint numCha = stdJson.readUint(configJson, ".numCha");
+
+        string memory addressJson = vm.readFile("contract.addresses");
+        delegation = EigenLayrDelegation(stdJson.readAddress(addressJson, ".delegation"));
+        investmentManager = InvestmentManager(stdJson.readAddress(addressJson, ".investmentManager"));
+        weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
+        wethStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".wethStrat"));
+        eigenToken = IERC20(stdJson.readAddress(addressJson, ".eigenToken"));
+        eigenStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".eigenStrat"));
+        address dlsm = stdJson.readAddress(addressJson, ".dlsm");
+
+        emit log("numstaker");
+        emit log_uint(numStaker);
+        
+
+        uint256 wethAmount = eigenTotalSupply / (numStaker + numDis + 50); // save 100 portions
+
+        emit log("wethAmount");
+        emit log_uint(wethAmount);
+        vm.startBroadcast(msg.sender);
+        // deployer allocate weth, eigen to staker
+        for (uint i = 0; i < numStaker ; ++i) {
+            address stakerAddr = stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));    
+            weth.transfer(stakerAddr, wethAmount);
+            eigenToken.transfer(stakerAddr, wethAmount);
+            emit log("stakerAddr");
+            emit log_address(stakerAddr);
+        }
+        // deployer allocate weth, eigen to disperser
+        for (uint i = 0; i < numDis ; ++i) {
+            address disAddr = stdJson.readAddress(configJson, string.concat(".dis[", string.concat(vm.toString(i), "].address")));    
+            weth.transfer(disAddr, wethAmount);
+            emit log("disAddr");
+            emit log_address(disAddr);
+        }
+
+        vm.stopBroadcast();
+
+        // dln, staker delegations        
+        for (uint i = 0; i < numDln ; ++i) {
+            uint256 stakerPrivKeyUint = convertString(stdJson.readString(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].private"))));
+            uint256 dlnPrivKeyUint = convertString(stdJson.readString(configJson, string.concat(".dln[", string.concat(vm.toString(i), "].private"))));
+
+            address stakerAddr = stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));  
+            address dlnAddr = stdJson.readAddress(configJson, string.concat(".dln[", string.concat(vm.toString(i), "].address")));
+
+            // not sure it is used ?
+            //vm.broadcast(dlnPrivKeyUint);
+            //ServiceFactory delegationTerm = new ServiceFactory(investmentManager, delegation);
+
+            emit log("stakerAddr");
+            emit log_address(stakerAddr);
+            emit log_address(dlnAddr);
+            emit log_uint(dlnPrivKeyUint);
+            emit log_uint(i);
+            
+            vm.broadcast(dlnPrivKeyUint);
+            delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
+
+            vm.startBroadcast(stakerPrivKeyUint);
+            eigenToken.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
+            weth.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, wethStrat, weth, wethAmount);
+            investmentManager.investorStratShares(stakerAddr, wethStrat);
+            delegation.delegateTo(dlnAddr);
+            vm.stopBroadcast();
+        }
+        emit log("aaaa");
+        
+        for (uint i = 0; i < numDis ; ++i) {
+            uint256 disPrivKeyUint = convertString(stdJson.readString(configJson, string.concat(".dis[", string.concat(vm.toString(i), "].private"))));
+            address disAddr = stdJson.readAddress(configJson, string.concat(".dis[", string.concat(vm.toString(i), "].address")));
+
+            vm.broadcast(disPrivKeyUint);
+            weth.approve(dlsm, wethAmount);
+        }
+    }
+
+     function numberFromAscII(bytes1 b) private pure returns (uint8 res) {
+        if (b>="0" && b<="9") {
+            return uint8(b) - uint8(bytes1("0"));
+        } else if (b>="A" && b<="F") {
+            return 10 + uint8(b) - uint8(bytes1("A"));
+        } else if (b>="a" && b<="f") {
+            return 10 + uint8(b) - uint8(bytes1("a"));
+        }
+        return uint8(b); // or return error ... 
+    }
+
+   
+
+    function convertString(string memory str) public pure returns (uint256 value) {
+        
+        bytes memory b = bytes(str);
+        uint256 number = 0;
+        for(uint i=0;i<b.length;i++){
+            number = number << 4; // or number = number * 16 
+            number |= numberFromAscII(b[i]); // or number += numberFromAscII(b[i]);
+        }
+        return number; 
+    }
 }
