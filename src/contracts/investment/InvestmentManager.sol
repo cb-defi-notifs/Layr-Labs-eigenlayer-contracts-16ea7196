@@ -27,6 +27,10 @@ contract InvestmentManager is
     //,DSTest
 {
     using SafeERC20 for IERC20;
+
+    //value to set initTimestamp and unlockTimestamp to indicate a withdrawal is queued
+    uint32 public constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
+
     event WithdrawalQueued(
         address indexed depositor,
         address indexed withdrawer,
@@ -213,9 +217,9 @@ contract InvestmentManager is
 
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: type(uint32).max,
+            initTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             withdrawer: withdrawerAndNonce.withdrawer,
-            unlockTimestamp: type(uint32).max
+            unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
         });
 
         emit WithdrawalQueued(
