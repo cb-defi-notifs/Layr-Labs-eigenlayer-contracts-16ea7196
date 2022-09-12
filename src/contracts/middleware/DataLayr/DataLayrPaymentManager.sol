@@ -10,7 +10,6 @@ import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
-
 import "forge-std/Test.sol";
 
 
@@ -27,10 +26,12 @@ contract DataLayrPaymentManager is
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
         IRepository _repository,
-        IDataLayrServiceManager _dataLayrServiceManager
-    )  PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository) 
+        IDataLayrServiceManager _dataLayrServiceManager,
+        IPauserRegistry _pauserReg
+    )  PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg) initializer
     {
         dataLayrServiceManager = _dataLayrServiceManager;
+        _initializePauser(_pauserReg);
     }
 
     //an operator can respond to challenges and breakdown the amount

@@ -368,7 +368,8 @@ contract EigenLayrDeployer is
             weth,
             _paymentFraudproofCollateral,
             dlRepository,
-            dlsm
+            dlsm,
+            pauserReg
         );
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 

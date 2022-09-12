@@ -10,6 +10,8 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
+import "../utils/Pauseable.sol";
+
 
 import "forge-std/Test.sol";
 
@@ -21,7 +23,8 @@ import "forge-std/Test.sol";
  // 
 abstract contract PaymentManager is 
     RepositoryAccess,
-    IPaymentManager
+    IPaymentManager,
+    Pausable
     ,DSTest
     {
     using SafeERC20 for IERC20;
@@ -102,16 +105,20 @@ abstract contract PaymentManager is
     constructor(
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
-        IRepository _repository
+        IRepository _repository,
+        IPauserRegistry _pauserReg
     )   
         // set repository address equal to that of serviceManager
         RepositoryAccess(_repository) 
+        initializer
     {
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
         IServiceManager serviceManager_ = _repository.serviceManager();
         collateralToken = serviceManager_.collateralToken();
         eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
+        _initializePauser(_pauserReg);
+
     }
 
     /**
@@ -220,7 +227,7 @@ abstract contract PaymentManager is
 
     
     /// @notice This function can only be called after the challenge window for the payment claim has completed.
-    function redeemPayment() external {
+    function redeemPayment() whenNotPaused external {
         require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
