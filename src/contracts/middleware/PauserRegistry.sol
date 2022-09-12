@@ -9,11 +9,11 @@ contract PauserRegistry is IPauserRegistry {
     address public pauser;
     address public unpauser;
 
-    event PauserSet (
+    event PauserChanged (
         address newPauser
     );
 
-    event UnpauserSet (
+    event UnpauserChanged (
         address newUnpauser
     );
 
@@ -45,13 +45,13 @@ contract PauserRegistry is IPauserRegistry {
         require(pauser != address(0), "pauser has not been inititalized by registry");
         pauser = newPauser;
 
-        emit PauserSet(newPauser);
+        emit PauserChanged(newPauser);
     }
 
     function setUnpauser(address newUnpauser) external onlyUnpauser {
         require(unpauser != address(0), "unpauser has not been inititalized by registry");
         unpauser = newUnpauser;
 
-        emit UnpauserSet(newUnpauser);
+        emit UnpauserChanged(newUnpauser);
     }
 }
