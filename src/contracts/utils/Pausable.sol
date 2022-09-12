@@ -29,6 +29,7 @@ contract Pausable is PausableUpgradeable{
     function _initializePauser(
         IPauserRegistry _pauserRegistry
     ) internal {
+        require(address(pauserRegistry) == address(0) && address(_pauserRegistry) != address(0), "Pausable._initializePauser: _initializePauser() can only be called once");
         __Pausable_init();
         pauserRegistry = _pauserRegistry;
     }
