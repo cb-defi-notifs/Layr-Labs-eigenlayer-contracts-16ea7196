@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
+import "../interfaces/IBLSRegistry.sol";
 
 import "forge-std/Test.sol";
 
@@ -13,7 +14,8 @@ import "forge-std/Test.sol";
  */
 
 contract BLSRegistry is
-    RegistryBase
+    RegistryBase,
+    IBLSRegistry
 {
     using BytesLib for bytes;
 

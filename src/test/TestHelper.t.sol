@@ -6,7 +6,6 @@ import "../test/Deployer.t.sol";
 
 contract TestHelper is EigenLayrDeployer {
 
-
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -132,7 +131,6 @@ contract TestHelper is EigenLayrDeployer {
             start = 0;
         }
         
-
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
@@ -232,7 +230,6 @@ contract TestHelper is EigenLayrDeployer {
     function _testDepositEigen(address sender, uint256 amountToDeposit) public {
         _testDepositToStrategy(sender, amountToDeposit, eigenToken, eigenStrat);
     }
-
 
     /**
      * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
@@ -344,7 +341,6 @@ contract TestHelper is EigenLayrDeployer {
         );
         cheats.stopPrank();
     }
-
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
@@ -512,7 +508,6 @@ contract TestHelper is EigenLayrDeployer {
             >
      */
         
-
         bytes memory data = abi.encodePacked(
             keccak256(
                 abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
@@ -703,6 +698,4 @@ contract TestHelper is EigenLayrDeployer {
             );
         }
     }
-
-
 }
