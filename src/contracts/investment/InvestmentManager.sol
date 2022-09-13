@@ -378,6 +378,11 @@ contract InvestmentManager is
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
+        require(
+            withdrawalStorageCopy.initTimestamp != type(uint32).max,
+            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
+        );
+
         // verify that the queued withdrawal actually exists
         require(
             withdrawalStorageCopy.initTimestamp > 0,
