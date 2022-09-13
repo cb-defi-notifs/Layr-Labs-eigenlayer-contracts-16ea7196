@@ -66,7 +66,7 @@ contract Slasher is
     /**
      * @notice used for giving permission of slashing to contracts. 
      */
-    function addPermissionedContracts(address[] calldata contracts) external onlyOwner {
+    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _addGloballyPermissionedContract(contracts[i]);
             unchecked {
@@ -78,7 +78,7 @@ contract Slasher is
     /**
      * @notice used for revoking permission of slashing from contracts. 
      */
-    function removePermissionedContracts(address[] calldata contracts) external onlyOwner {
+    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _removeGloballyPermissionedContract(contracts[i]);
             unchecked {

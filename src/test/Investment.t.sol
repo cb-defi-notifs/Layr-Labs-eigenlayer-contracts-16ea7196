@@ -184,7 +184,7 @@ contract InvestmentTests is
             cheats.startPrank(slasher.owner());
             address[] memory contractsToGiveSlashingPermission = new address[](1);
             contractsToGiveSlashingPermission[0] = address(dlsm);
-            slasher.addPermissionedContracts(contractsToGiveSlashingPermission);
+            slasher.addGloballyPermissionedContracts(contractsToGiveSlashingPermission);
             cheats.stopPrank();
         }
 

@@ -212,7 +212,7 @@ contract DelegationTests is TestHelper {
         slashingContracts[0] = slashingContract;
 
         cheats.startPrank(slashingContract);
-        slasher.addPermissionedContracts(slashingContracts);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
         slasher.freezeOperator(operator);
         cheats.stopPrank();
 
