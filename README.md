@@ -17,8 +17,13 @@ https://onbjerg.github.io/foundry-book/index.html
 first install surya
 
 then run
+
 `surya inheritance ./src/contracts/**/*.sol | dot -Tpng > InheritanceGraph.png`
+
 and/or
+
 `surya graph ./src/contracts/middleware/*.sol | dot -Tpng > MiddlewareControlFlowGraph.png`
+
 and/or
+
 `surya mdreport surya_report.md ./src/contracts/**/*.sol`
