@@ -21,3 +21,4 @@ then run
 and/or
 `surya graph ./src/contracts/middleware/*.sol | dot -Tpng > MiddlewareControlFlowGraph.png`
 and/or
+`surya mdreport surya_report.md ./src/contracts/**/*.sol`
