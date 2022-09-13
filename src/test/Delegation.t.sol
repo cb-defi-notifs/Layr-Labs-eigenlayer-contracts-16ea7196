@@ -11,6 +11,11 @@ contract DelegationTests is TestHelper {
     using BytesLib for bytes;
     using Math for uint;
 
+    uint256[] sharesBefore;
+    uint256[] balanceBefore;
+    uint256[] priorTotalShares;
+    uint256[] strategyTokenBalance;
+
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
@@ -141,33 +146,40 @@ contract DelegationTests is TestHelper {
 
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
-    /// @param staker is the staker delegating stake to the operator.
+    /// @param depositor is the staker delegating stake to the operator.
     function testWithdrawal(
             address operator, 
-            address staker, 
+            address depositor,
+            address withdrawer, 
             uint256 ethAmount,
             uint256 eigenAmount,
-            uint32 withdrawalPeriod
-        ) public fuzzedAddress(operator) fuzzedAddress(staker) {
+            uint32 withdrawalPeriod,
+            bool withdrawAsTokens
+        ) 
+            public 
+            fuzzedAddress(operator) 
+            fuzzedAddress(depositor) 
+            fuzzedAddress(withdrawer) 
+        {
 
-        cheats.assume(staker != operator);
+        cheats.assume(depositor != operator);
         cheats.assume(ethAmount <= 1e18); 
         cheats.assume(eigenAmount <= 1e18); 
         cheats.assume(withdrawalPeriod < 7 days);//type(uint32).max);
 
 
-        testDelegation(operator, staker, ethAmount, eigenAmount);
+        testDelegation(operator, depositor, ethAmount, eigenAmount);
 
 
         //delegator-specific information
         (
             IInvestmentStrategy[] memory delegatorStrategies,
             uint256[] memory delegatorShares
-        ) = investmentManager.getDeposits(staker);
+        ) = investmentManager.getDeposits(depositor);
 
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
             IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: staker,
+                withdrawer: withdrawer,
                 nonce: 0
             }
         );
@@ -188,7 +200,7 @@ contract DelegationTests is TestHelper {
 
         //initiating queued withdrawal
         bytes32 withdrawalRoot = _testQueueWithdrawal(
-                                    staker, 
+                                    depositor, 
                                     delegatorStrategies, 
                                     tokensArray, 
                                     delegatorShares, 
@@ -198,17 +210,31 @@ contract DelegationTests is TestHelper {
 
 
 
-        _testStartQueuedWithdrawalWaitingPeriod(staker, withdrawalRoot, withdrawalPeriod);
+        _testStartQueuedWithdrawalWaitingPeriod(depositor, withdrawer, withdrawalRoot, withdrawalPeriod);
 
         cheats.warp(withdrawalPeriod + 1 days);
 
+        withdrawAsTokens==true;
 
-        _testCompleteQueuedWithdrawal(
-                        staker, 
-                        delegatorStrategies, 
-                        tokensArray, 
-                        delegatorShares, 
-                        withdrawerAndNonce);
+        if(withdrawAsTokens) {
+            _testCompleteQueuedWithdrawalTokens(
+                            depositor, 
+                            delegatorStrategies, 
+                            tokensArray, 
+                            delegatorShares, 
+                            withdrawerAndNonce
+                            );
+
+        }
+        else{
+            _testCompleteQueuedWithdrawalShares(
+                            depositor, 
+                            delegatorStrategies, 
+                            tokensArray, 
+                            delegatorShares, 
+                            withdrawerAndNonce
+                            );
+        }
 
     }
 
@@ -312,19 +338,25 @@ contract DelegationTests is TestHelper {
     //TODO: Reimplement this with new undelegation system
     function testRedelegateAfterWithdrawal(
             address operator, 
-            address staker, 
+            address depositor, 
+            address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 withdrawalPeriod
-        ) public fuzzedAddress(operator) fuzzedAddress(staker){
-        cheats.assume(staker != operator);
+            uint32 withdrawalPeriod,
+            bool withdrawAsShares
+        ) 
+            public fuzzedAddress(operator) 
+            fuzzedAddress(depositor)
+            fuzzedAddress(withdrawer)
+        {
+        cheats.assume(depositor != operator);
         //this function performs delegation and subsequent withdrawal
-        testWithdrawal(operator, staker, ethAmount, eigenAmount, withdrawalPeriod);
+        testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawalPeriod, withdrawAsShares);
 
 
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
-        testDelegation(operator, staker, ethAmount, eigenAmount);
+        testDelegation(operator, depositor, ethAmount, eigenAmount);
     }
 
     //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
@@ -431,14 +463,14 @@ contract DelegationTests is TestHelper {
 
     //*******INTERNAL FUNCTIONS*********//
     function _testQueueWithdrawal(
-        address staker,
+        address depositor,
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     ) internal returns(bytes32){
-        cheats.startPrank(staker);
+        cheats.startPrank(depositor);
 
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
                                                         strategyIndexes, 
@@ -450,32 +482,90 @@ contract DelegationTests is TestHelper {
         return withdrawalRoot;
     }
 
-    function _testCompleteQueuedWithdrawal(
-        address staker,
+    function _testCompleteQueuedWithdrawalShares(
+        address depositor,
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     ) internal {
-        cheats.startPrank(staker);
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
+
+        for (uint i = 0; i < strategyArray.length; i++) {
+            sharesBefore.push(investmentManager.investorStratShares(
+                                                    withdrawerAndNonce.withdrawer, 
+                                                    strategyArray[i]));
+        }
+
         // complete the queued withdrawal
         investmentManager.completeQueuedWithdrawal(
                                     strategyArray, 
                                     tokensArray,
                                     shareAmounts, 
-                                    staker, 
+                                    depositor, 
                                     withdrawerAndNonce, 
-                                    true
-                                );                                    
+                                    false
+                                );   
+        
+        for (uint i = 0; i < strategyArray.length; i++) {
+                require(investmentManager.investorStratShares(
+                                        withdrawerAndNonce.withdrawer, 
+                                        strategyArray[i]
+                                        ) == sharesBefore[i] + shareAmounts[i], "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented");
+        }                                
         cheats.stopPrank();
     }
 
+    function _testCompleteQueuedWithdrawalTokens(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        ) internal {
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
+        emit log_uint(strategyArray.length);
+
+        for (uint i = 0; i < strategyArray.length; i++) {
+            balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
+            priorTotalShares.push(strategyArray[i].totalShares());
+            strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
+        }
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(
+                                    strategyArray, 
+                                    tokensArray,
+                                    shareAmounts, 
+                                    depositor, 
+                                    withdrawerAndNonce, 
+                                    true
+                                );   
+        
+        for (uint i = 0; i < strategyArray.length; i++) {
+                //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
+                uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i]/priorTotalShares[i];
+
+                emit log_named_uint("strategyTokenBalance", strategyTokenBalance[i]);
+                emit log_named_uint("balanceBefore", balanceBefore[i]);
+                emit log_named_uint("delta",  strategyTokenBalance[i] * shareAmounts[i]/priorTotalShares[i]);
+                emit log_named_uint("final",strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
+
+
+                require(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer) 
+                                            == balanceBefore[i] + tokenBalanceDelta, "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented");
+        }                                
+        cheats.stopPrank();
+    }
+
+
+
     function _testStartQueuedWithdrawalWaitingPeriod(
         address depositor,
+        address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
     ) internal {
-        cheats.startPrank(depositor);
+        cheats.startPrank(withdrawer);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
                                         depositor, 
                                         withdrawalRoot, 

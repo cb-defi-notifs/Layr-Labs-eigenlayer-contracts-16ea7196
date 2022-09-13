@@ -24,7 +24,7 @@ contract InvestmentManager is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage
-    //,DSTest
+    ,DSTest
 {
     using SafeERC20 for IERC20;
 
@@ -324,13 +324,14 @@ contract InvestmentManager is
         if(investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
             delegation.undelegate(depositor);
         }
-
         //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if(receiveAsTokens){
+            
             // actually withdraw the funds
-            uint256 strategiesLength = strategies.length;
-            for (uint256 i = 0; i < strategiesLength; ) {
+            //uint256 strategiesLength = strategies.length;
+            for (uint256 i = 0; i < strategies.length; ) {
                 // tell the strategy to send the appropriate amount of funds to the depositor
+                emit log_named_uint("IM BALALNCE", strategies[i].underlyingToken().balanceOf(address(strategies[i])));
                 strategies[i].withdraw(
                     withdrawalStorageCopy.withdrawer,
                     tokens[i],
