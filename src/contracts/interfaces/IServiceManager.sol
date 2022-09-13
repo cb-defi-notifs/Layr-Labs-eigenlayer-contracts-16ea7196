@@ -12,6 +12,8 @@ interface IServiceManager is IRepositoryAccess {
 
     function freezeOperator(address operator) external;
 
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external;
+
     // function paymentFraudproofInterval() external view returns (uint256);
 
     // function paymentFraudproofCollateral() external view returns (uint256);

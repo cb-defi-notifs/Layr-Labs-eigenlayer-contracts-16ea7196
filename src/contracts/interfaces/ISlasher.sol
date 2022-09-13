@@ -16,5 +16,7 @@ interface ISlasher {
 
     function resetFrozenStatus(address[] calldata frozenAddresses) external;
 
+    function bondedUntil(address operator, address slashingContract) external view returns(uint32);
+
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
 }

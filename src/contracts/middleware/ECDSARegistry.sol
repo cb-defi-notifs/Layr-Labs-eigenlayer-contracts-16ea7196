@@ -3,6 +3,8 @@ pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
 import "../interfaces/IECDSARegistry.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 
 // import "forge-std/Test.sol";
 
@@ -42,6 +44,7 @@ contract ECDSARegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
@@ -51,6 +54,7 @@ contract ECDSARegistry is
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
@@ -190,6 +194,11 @@ contract ECDSARegistry is
 
         // store hash of 'stakes' and record that an update has occurred
         _processStakeHashUpdate(keccak256(updatedStakesArray));
+    }
+
+    //return when the operator is unbonded from the middleware, if they deregister now
+    function unbondedAfter(address operator) public override returns (uint32) {
+        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     /**

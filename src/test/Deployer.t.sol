@@ -302,6 +302,7 @@ contract EigenLayrDeployer is
             feePerBytePerTime
         );
 
+        uint32 unbondingPeriod = uint32(14 days);
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
@@ -325,6 +326,7 @@ contract EigenLayrDeployer is
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
