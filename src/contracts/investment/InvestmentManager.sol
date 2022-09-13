@@ -318,11 +318,11 @@ contract InvestmentManager is
         //reset the storage slot in mapping of queued withdrawals
         delete queuedWithdrawals[depositor][withdrawalRoot];
 
-        //if the withdrawer has no existing shares and they are delegated, undelegate 
+        //if the depositor has no existing shares and they are delegated, undelegate 
         //this allows people a "hard reset" in their relationship with EigenLayer after 
         //withdrawing all of their stake
-        if(investorStrats[msg.sender].length == 0 && delegation.isDelegated(msg.sender)) {
-            delegation.undelegate(msg.sender);
+        if(investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
+            delegation.undelegate(depositor);
         }
 
         //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
@@ -344,7 +344,7 @@ contract InvestmentManager is
             //else increase their shares
             //TODO: @JEFFC please help optimize this call and cleanup delegation checks
             for (uint i = 0; i < strategies.length; i++) {
-                _addShares(depositor, strategies[i], shares[i]);
+                _addShares(msg.sender, strategies[i], shares[i]);
             }
         }
 
