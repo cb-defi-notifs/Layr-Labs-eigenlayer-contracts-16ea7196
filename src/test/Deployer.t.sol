@@ -3,8 +3,6 @@ pragma solidity ^0.8.9.0;
 
 import "./mocks/LiquidStakingToken.sol";
 
-import "../contracts/core/Eigen.sol";
-
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 
