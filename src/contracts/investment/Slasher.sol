@@ -5,6 +5,7 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
+import "../utils/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
@@ -20,7 +21,8 @@ import "forge-std/Test.sol";
 contract Slasher is 
     Initializable,
     OwnableUpgradeable,
-    ISlasher
+    ISlasher,
+    Pausable
     // ,DSTest 
 {
     // the InvestmentManager contract for EigenLayr
@@ -50,8 +52,10 @@ contract Slasher is
     function initialize(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _delegation,
+        IPauserRegistry pauserRegistry,
         address _eigenLayrGovernance
     ) external initializer {
+        _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
@@ -101,7 +105,7 @@ contract Slasher is
      */
     function freezeOperator(
         address toBeFrozen
-    ) external {
+    ) external whenNotPaused {
         require(canSlash(toBeFrozen, msg.sender), "Slasher.freezeOperator: msg.sender does not have permission to slash this operator");
         _freezeOperator(toBeFrozen, msg.sender);
     }

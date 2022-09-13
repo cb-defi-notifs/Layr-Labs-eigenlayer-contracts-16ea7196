@@ -13,6 +13,7 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
+import "../contracts/middleware/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
@@ -51,6 +52,7 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
+    PauserRegistry public pauserReg;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
@@ -95,6 +97,8 @@ contract EigenLayrDeployer is
     uint8 durationToInit = 2;
     
     address storer = address(420);
+    address pauser = address(69);
+    address unpauser = address(489);
     address operator = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
@@ -142,6 +146,11 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
+        //deploy pauser registry
+        pauserReg = new PauserRegistry(pauser, unpauser);
+
+
+
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
@@ -153,6 +162,8 @@ contract EigenLayrDeployer is
                 )
             )
         );
+
+
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
@@ -181,23 +192,26 @@ contract EigenLayrDeployer is
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
                 )
             )
         );
+
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             address(this)
         );
+
+
         // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, pauserReg)
                 )
             )
         );
@@ -206,30 +220,40 @@ contract EigenLayrDeployer is
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, governor);
+        slasher.initialize(investmentManager, delegation, pauserReg, governor);
 
         delegates = [acct_0, acct_1];
         
         investmentManager.initialize(
             slasher,
+            pauserReg,
             governor
         );
 
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
+            pauserReg,
             undelegationFraudproofInterval
         );
 
+
+
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
+
+
+
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
         liquidStakingMockStrat.initialize(
-            IERC20(address(liquidStakingMockToken))
+            IERC20(address(liquidStakingMockToken)),
+            pauserReg
         );
+
 
         //loads hardcoded signer set
         _setSigners();
@@ -293,15 +317,17 @@ contract EigenLayrDeployer is
 
         dlRepository = new Repository(delegation, investmentManager);
 
+
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             investmentManager,
             delegation,
             dlRepository,
             weth,
+            pauserReg,
             feePerBytePerTime
         );
-
+        
 
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
@@ -338,12 +364,16 @@ contract EigenLayrDeployer is
             address(this)
         );
         uint256 _paymentFraudproofCollateral = 1e16;
+
+
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
             _paymentFraudproofCollateral,
             dlRepository,
-            dlsm
+            dlsm,
+            pauserReg
         );
+
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 
 
