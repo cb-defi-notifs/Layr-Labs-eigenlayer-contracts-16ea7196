@@ -378,6 +378,7 @@ contract InvestmentManager is
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
+        //verify the withdrawer has supplied the unbonding time
         require(
             withdrawalStorageCopy.initTimestamp != type(uint32).max,
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
@@ -415,8 +416,8 @@ contract InvestmentManager is
             );
         }
         
-        // update unlockTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
-        queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp = uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD;
+        // set the withdrawer equal to address(0), allowing the slasher custody of the funs
+        queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
     }
 
     function slashShares(
@@ -465,7 +466,7 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+    ) external onlyOwner nonReentrant {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(
             strategies, 
@@ -478,6 +479,12 @@ contract InvestmentManager is
         require(
             queuedWithdrawals[slashedAddress][withdrawalRoot].initTimestamp > 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
+        );
+
+        // verify that the queued withdrawal has been successfully challenged
+        require(
+            queuedWithdrawals[slashedAddress][withdrawalRoot].withdrawer == address(0),
+            "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged"
         );
 
         // reset the storage slot in mapping of queued withdrawals
