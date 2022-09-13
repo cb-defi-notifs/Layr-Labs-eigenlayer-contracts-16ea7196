@@ -338,7 +338,6 @@ contract InvestmentManager is
             //uint256 strategiesLength = strategies.length;
             for (uint256 i = 0; i < strategies.length; ) {
                 // tell the strategy to send the appropriate amount of funds to the depositor
-                emit log_named_uint("IM BALALNCE", strategies[i].underlyingToken().balanceOf(address(strategies[i])));
                 strategies[i].withdraw(
                     withdrawalStorageCopy.withdrawer,
                     tokens[i],
