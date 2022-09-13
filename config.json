@@ -1,8 +1,4 @@
 {
-    "numDis": 1,
-    "numDln": 4,
-    "numStaker": 4,
-    "numCha": 0,
     "dis": [
         {
             "id": 0,
@@ -13,17 +9,17 @@
             "address": "0x9B3C9d02803fc33E6741a13f12da3a1D6c4713C0",
             "timeout": "30000ms",
             "numconn": 120,
-            "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+            "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
             "provider": "ws://0.0.0.0:8546",
             "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
             "retry": 1,
-            "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/dis0",
+            "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/dis0",
             "g1Path": "../storage/kzg/g1.point",
             "g2Path": "../storage/kzg/g2.point",
             "order": 3000,
             "tableDir": "../storage/kzg/SRSTables",
             "chainId": 40525,
-            "dbLoc": "../storage/store/09D-09M-2022Y-15H-00M-44S/0"
+            "dbLoc": "../storage/store/13D-09M-2022Y-20H-38M-36S/0"
         }
     ],
     "dln": [
@@ -33,20 +29,20 @@
             "port": "32002",
             "apiPort": "33002",
             "private": "0985b8e385027822d2e1d7a94ed1a1949d198e187d62e4c3e0bfbc7e6bc9fecb",
-            "private_bls": "8512970692257230513160976223984417928956673232935600885486840167031296453510",
+            "private_bls": "255314934317897770197551822141671474115599151234274600964813692068174107468",
             "address": "0x3e3dc19803B5bB0b9DEfc6150624d3c6a43E17b8",
-            "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+            "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
             "provider": "ws://0.0.0.0:8546",
             "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
             "timeout": "30000ms",
-            "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/dln1",
+            "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/dln1",
             "g1Path": "../storage/kzg/g1.point",
             "g2Path": "../storage/kzg/g2.point",
             "order": 3000,
             "challengeOrder": 3000,
             "tableDir": "../storage/kzg/SRSTables",
             "chainId": 40525,
-            "dbLoc": "../storage/store/09D-09M-2022Y-15H-00M-44S/1"
+            "dbLoc": "../storage/store/13D-09M-2022Y-20H-38M-36S/1"
         },
         {
             "id": 2,
@@ -54,20 +50,20 @@
             "port": "32003",
             "apiPort": "33003",
             "private": "5b2c2c40c30dab73f99a257a630e3075805165984701c93ccd8cc1a0bed41357",
-            "private_bls": "5805505051275154965163950785792834642856338724764676167063517237908294232688",
+            "private_bls": "3388052051182984484967646615948846470139426034280101900450013182433935456174",
             "address": "0x41c8e41184f75d9fedF066a18Bf3B1Ee0f2b52Cd",
-            "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+            "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
             "provider": "ws://0.0.0.0:8546",
             "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
             "timeout": "30000ms",
-            "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/dln2",
+            "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/dln2",
             "g1Path": "../storage/kzg/g1.point",
             "g2Path": "../storage/kzg/g2.point",
             "order": 3000,
             "challengeOrder": 3000,
             "tableDir": "../storage/kzg/SRSTables",
             "chainId": 40525,
-            "dbLoc": "../storage/store/09D-09M-2022Y-15H-00M-44S/2"
+            "dbLoc": "../storage/store/13D-09M-2022Y-20H-38M-36S/2"
         },
         {
             "id": 3,
@@ -75,20 +71,20 @@
             "port": "32004",
             "apiPort": "33004",
             "private": "57307ad3c4103598e12a93b9e09e9655905772664bfddbc611bceb219ae14273",
-            "private_bls": "5711936055930752509973219267734996454905854760058413823674110807124542848987",
+            "private_bls": "3796447417045289695992245333136602522732659471871293591224066369110232309237",
             "address": "0x339bD9107d62664f14622aF9E9BabD96C43601af",
-            "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+            "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
             "provider": "ws://0.0.0.0:8546",
             "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
             "timeout": "30000ms",
-            "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/dln3",
+            "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/dln3",
             "g1Path": "../storage/kzg/g1.point",
             "g2Path": "../storage/kzg/g2.point",
             "order": 3000,
             "challengeOrder": 3000,
             "tableDir": "../storage/kzg/SRSTables",
             "chainId": 40525,
-            "dbLoc": "../storage/store/09D-09M-2022Y-15H-00M-44S/3"
+            "dbLoc": "../storage/store/13D-09M-2022Y-20H-38M-36S/3"
         },
         {
             "id": 4,
@@ -96,20 +92,20 @@
             "port": "32005",
             "apiPort": "33005",
             "private": "26d38ba3c1727c49b5f025093ef2af54145fa5671fe84a13c645617dff4df67c",
-            "private_bls": "11821168942909477287987368242493991337343987017412330748513037699351741519171",
+            "private_bls": "19875373148849171651763491229023627298764420668805888722365071443037330883001",
             "address": "0xd4F4f56f2316730D32cAf7236f3f8238C0209392",
-            "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+            "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
             "provider": "ws://0.0.0.0:8546",
             "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
             "timeout": "30000ms",
-            "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/dln4",
+            "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/dln4",
             "g1Path": "../storage/kzg/g1.point",
             "g2Path": "../storage/kzg/g2.point",
             "order": 3000,
             "challengeOrder": 3000,
             "tableDir": "../storage/kzg/SRSTables",
             "chainId": 40525,
-            "dbLoc": "../storage/store/09D-09M-2022Y-15H-00M-44S/4"
+            "dbLoc": "../storage/store/13D-09M-2022Y-20H-38M-36S/4"
         }
     ],
     "staker": [
@@ -136,12 +132,12 @@
     ],
     "cha": [],
     "ret": {
-        "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+        "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
         "provider": "ws://0.0.0.0:8546",
         "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
         "timeout": "30000ms",
         "numconn": 120,
-        "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/ret",
+        "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/ret",
         "g1Path": "../storage/kzg/g1.point",
         "g2Path": "../storage/kzg/g2.point",
         "order": 3000,
@@ -150,23 +146,28 @@
     },
     "rsv": {
         "hostname": "0.0.0.0",
-        "port": "32000",
-        "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+        "apiPort": "32000",
+        "grpcPort": "31999",
+        "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
         "provider": "ws://0.0.0.0:8546",
         "graphProvider": "http://localhost:8000/subgraphs/name/datalayr",
         "timeout": "30000ms",
         "numconn": 120,
         "chainId": 40525,
-        "logpath": "../storage/logs/09D-09M-2022Y-15H-00M-44S/rsv",
+        "logpath": "../storage/logs/13D-09M-2022Y-20H-38M-36S/rsv",
         "g1Path": "../storage/kzg/g1.point",
         "g2Path": "../storage/kzg/g2.point",
         "order": 3000,
         "tableDir": "../storage/kzg/SRSTables"
     },
     "con": {
-        "dlraddr": "0x1A086dd3d7e26B87562b2924947C8cD4c5BdD756",
+        "dlraddr": "0xdaE97900D4B184c5D2012dcdB658c008966466DD",
         "provider": "ws://0.0.0.0:8546",
         "chainId": 40525
     },
-    "chainId": 40525
+    "chainId": 40525,
+    "numDis": 1,
+    "numDln": 4,
+    "numStaker": 4,
+    "numCha": 0
 }

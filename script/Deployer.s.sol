@@ -60,7 +60,7 @@ contract EigenLayrDeployer is
 
     uint256 public constant DURATION_SCALE = 1 hours;
     // Eigen public eigen;
-    IERC20 public eigenToken;
+    IERC20 public eigen;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
@@ -112,7 +112,6 @@ contract EigenLayrDeployer is
     bytes32 public ephemeralKey =
         0x3290567812345678123456781234577812345698123456781234567812344389;
 
-    uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
 
     uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
@@ -176,15 +175,15 @@ contract EigenLayrDeployer is
         );
         // initialize InvestmentStrategyBase proxy
         strat.initialize(address(investmentManager), weth);
-        vm.writeLine("deployedAddresses/wethStrat", vm.toString(address(strat)));
+        vm.writeFile("deployedAddresses/wethStrat", vm.toString(address(strat)));
 
-        eigenToken = new ERC20PresetFixedSupply(
+        eigen = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             msg.sender
         );
-        vm.writeFile("deployedAddresses/eigen", vm.toString(address(eigenToken)));
+        vm.writeFile("deployedAddresses/eigen", vm.toString(address(eigen)));
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
         eigenStrat = new InvestmentStrategyBase();
         eigenStrat = InvestmentStrategyBase(
@@ -198,7 +197,7 @@ contract EigenLayrDeployer is
         );
         vm.writeFile("deployedAddresses/eigenStrat", vm.toString(address(eigenStrat)));
         // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(address(investmentManager), eigenToken);
+        eigenStrat.initialize(address(investmentManager), eigen);
 
         // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
         IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
@@ -268,7 +267,7 @@ contract EigenLayrDeployer is
         for (uint i = 0; i < numStaker ; ++i) {
             address stakerAddr = stdJson.readAddress(json, string.concat(".staker[", string.concat(vm.toString(i), "].address")));    
             weth.transfer(stakerAddr, wethAmount);
-            eigenToken.transfer(stakerAddr, wethAmount);
+            eigen.transfer(stakerAddr, wethAmount);
             emit log("stakerAddr");
             emit log_address(stakerAddr);
         }
@@ -304,8 +303,8 @@ contract EigenLayrDeployer is
             delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
 
             vm.startBroadcast(stakerPrivKeyUint);
-            eigenToken.approve(address(investmentManager), wethAmount);
-            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
+            eigen.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigen, wethAmount);
             weth.approve(address(investmentManager), wethAmount);
             investmentManager.depositIntoStrategy(stakerAddr, strat, weth, wethAmount);
             investmentManager.investorStratShares(stakerAddr, strat);
@@ -444,7 +443,7 @@ contract Allocate is
     InvestmentManager public investmentManager;
     IERC20 public weth;
     InvestmentStrategyBase public wethStrat;
-    IERC20 public eigenToken;
+    IERC20 public eigen;
     InvestmentStrategyBase public eigenStrat;
     //performs basic deployment before each test
     function run() external {
@@ -464,7 +463,7 @@ contract Allocate is
         investmentManager = InvestmentManager(stdJson.readAddress(addressJson, ".investmentManager"));
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
         wethStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".wethStrat"));
-        eigenToken = IERC20(stdJson.readAddress(addressJson, ".eigenToken"));
+        eigen = IERC20(stdJson.readAddress(addressJson, ".eigen"));
         eigenStrat = InvestmentStrategyBase(stdJson.readAddress(addressJson, ".eigenStrat"));
         address dlsm = stdJson.readAddress(addressJson, ".dlsm");
 
@@ -481,7 +480,7 @@ contract Allocate is
         for (uint i = 0; i < numStaker ; ++i) {
             address stakerAddr = stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));    
             weth.transfer(stakerAddr, wethAmount);
-            eigenToken.transfer(stakerAddr, wethAmount);
+            eigen.transfer(stakerAddr, wethAmount);
             emit log("stakerAddr");
             emit log_address(stakerAddr);
         }
@@ -517,8 +516,8 @@ contract Allocate is
             delegation.registerAsDelegate(IDelegationTerms(dlnAddr));
 
             vm.startBroadcast(stakerPrivKeyUint);
-            eigenToken.approve(address(investmentManager), wethAmount);
-            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigenToken, wethAmount);
+            eigen.approve(address(investmentManager), wethAmount);
+            investmentManager.depositIntoStrategy(stakerAddr, eigenStrat, eigen, wethAmount);
             weth.approve(address(investmentManager), wethAmount);
             investmentManager.depositIntoStrategy(stakerAddr, wethStrat, weth, wethAmount);
             investmentManager.investorStratShares(stakerAddr, wethStrat);
