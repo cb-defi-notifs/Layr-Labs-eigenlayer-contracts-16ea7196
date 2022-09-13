@@ -3,8 +3,6 @@ pragma solidity ^0.8.9.0;
 
 import "./mocks/LiquidStakingToken.sol";
 
-import "../contracts/core/Eigen.sol";
-
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 
@@ -13,6 +11,7 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
+import "../contracts/middleware/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
@@ -28,7 +27,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
-
 
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
@@ -52,12 +50,12 @@ contract EigenLayrDeployer is
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
+    PauserRegistry public pauserReg;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
     IERC20 public weth;
     WETH public liquidStakingMockToken;
-
 
     InvestmentStrategyBase public wethStrat;
     IRepository public dlRepository;
@@ -65,7 +63,6 @@ contract EigenLayrDeployer is
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
-
    
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -96,15 +93,12 @@ contract EigenLayrDeployer is
     uint8 durationToInit = 2;
     
     address storer = address(420);
+    address pauser = address(69);
+    address unpauser = address(489);
     address operator = address(0x4206904396bF2f8b173350ADdEc5007A52664293); //sk: e88d9d864d5d731226020c5d2f02b62a4ce2a4534a39c225d32d3db795f83319
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-    
-
-    
-    
-    
 
     struct nonSignerInfo {
         uint256 xA0;
@@ -121,7 +115,6 @@ contract EigenLayrDeployer is
         uint256 sigma0;
         uint256 sigma1;
     }
-
 
     modifier cannotReinit(){
         cheats.expectRevert(
@@ -142,6 +135,9 @@ contract EigenLayrDeployer is
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
+
+        //deploy pauser registry
+        pauserReg = new PauserRegistry(pauser, unpauser);
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
@@ -182,23 +178,26 @@ contract EigenLayrDeployer is
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
                 )
             )
         );
+
         eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             address(this)
         );
+
+
         // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, pauserReg)
                 )
             )
         );
@@ -207,18 +206,20 @@ contract EigenLayrDeployer is
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, governor);
+        slasher.initialize(investmentManager, delegation, pauserReg, governor);
 
         delegates = [acct_0, acct_1];
         
         investmentManager.initialize(
             slasher,
+            pauserReg,
             governor
         );
 
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
+            pauserReg,
             undelegationFraudproofInterval
         );
 
@@ -229,7 +230,8 @@ contract EigenLayrDeployer is
         liquidStakingMockToken = new WETH();
         liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
         liquidStakingMockStrat.initialize(
-            IERC20(address(liquidStakingMockToken))
+            IERC20(address(liquidStakingMockToken)),
+            pauserReg
         );
 
         //loads hardcoded signer set
@@ -300,10 +302,10 @@ contract EigenLayrDeployer is
             delegation,
             dlRepository,
             weth,
+            pauserReg,
             feePerBytePerTime
         );
-
-
+        
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
@@ -339,14 +341,17 @@ contract EigenLayrDeployer is
             address(this)
         );
         uint256 _paymentFraudproofCollateral = 1e16;
+
+
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
             _paymentFraudproofCollateral,
             dlRepository,
-            dlsm
+            dlsm,
+            pauserReg
         );
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);

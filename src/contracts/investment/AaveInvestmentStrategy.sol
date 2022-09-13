@@ -14,9 +14,13 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         InvestmentStrategyBase(_investmentManager)
     {}
 
-    function initialize(IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
+    function initialize(
+        IERC20 _underlyingToken, 
+        ILendingPool _lendingPool, 
+        IERC20 _aToken, 
+        IPauserRegistry _pauserRegistry
     ) public initializer {
-        super.initialize(_underlyingToken);
+        super.initialize(_underlyingToken, _pauserRegistry);
         lendingPool = _lendingPool;
         aToken = _aToken;
         underlyingToken.safeApprove(address(_lendingPool), type(uint256).max);
@@ -36,7 +40,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
     function deposit(
         IERC20 token,
         uint256 amount
-    ) external override onlyInvestmentManager returns (uint256 newShares) {
+    ) external override whenNotPaused onlyInvestmentManager returns (uint256 newShares) {
         uint256 aTokenIncrease;
         uint256 aTokensBefore;
         if (token == underlyingToken) {

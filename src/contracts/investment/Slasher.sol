@@ -5,6 +5,7 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
+import "../utils/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
@@ -20,7 +21,8 @@ import "forge-std/Test.sol";
 contract Slasher is 
     Initializable,
     OwnableUpgradeable,
-    ISlasher
+    ISlasher,
+    Pausable
     // ,DSTest 
 {
     // the InvestmentManager contract for EigenLayr
@@ -50,8 +52,10 @@ contract Slasher is
     function initialize(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _delegation,
+        IPauserRegistry pauserRegistry,
         address _eigenLayrGovernance
     ) external initializer {
+        _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
         _addGloballyPermissionedContract(address(investmentManager));
         delegation = _delegation;
@@ -63,7 +67,7 @@ contract Slasher is
     /**
      * @notice used for giving permission of slashing to contracts. 
      */
-    function addPermissionedContracts(address[] calldata contracts) external onlyOwner {
+    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _addGloballyPermissionedContract(contracts[i]);
             unchecked {
@@ -75,7 +79,7 @@ contract Slasher is
     /**
      * @notice used for revoking permission of slashing from contracts. 
      */
-    function removePermissionedContracts(address[] calldata contracts) external onlyOwner {
+    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _removeGloballyPermissionedContract(contracts[i]);
             unchecked {
@@ -102,7 +106,7 @@ contract Slasher is
      */
     function freezeOperator(
         address toBeFrozen
-    ) external {
+    ) external whenNotPaused {
         require(canSlash(toBeFrozen, msg.sender), "Slasher.freezeOperator: msg.sender does not have permission to slash this operator");
         _freezeOperator(toBeFrozen, msg.sender);
     }

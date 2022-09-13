@@ -255,7 +255,7 @@ contract DelegationTests is TestHelper {
         slashingContracts[0] = slashingContract;
 
         cheats.startPrank(slashingContract);
-        slasher.addPermissionedContracts(slashingContracts);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
         slasher.freezeOperator(operator);
         cheats.stopPrank();
 
@@ -298,6 +298,7 @@ contract DelegationTests is TestHelper {
         //delegation has already been initialized in the Deployer test contract
         delegation.initialize(
             investmentManager,
+            pauserReg,
             undelegationFraudproofInterval
         );
     }
@@ -413,8 +414,7 @@ contract DelegationTests is TestHelper {
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
 
-        
-
+    
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
@@ -437,9 +437,6 @@ contract DelegationTests is TestHelper {
             dlsm.confirmDataStore(data, searchData);
 
             emit log_named_uint("gas cost", gasbefore - gasleft());
-
-            // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(dlsm.taskNumber() - 1);
-            // assertTrue(sighash != bytes32(0), "Data store not committed");
         }
     }
 
@@ -567,3 +564,5 @@ contract DelegationTests is TestHelper {
     }
 
 }
+
+

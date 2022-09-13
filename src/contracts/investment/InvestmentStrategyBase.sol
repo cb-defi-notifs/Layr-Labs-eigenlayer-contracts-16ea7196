@@ -2,9 +2,11 @@
 pragma solidity ^0.8.9.0;
 
 import "../interfaces/IInvestmentManager.sol";
+import "../utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+
 
 /**
  * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
@@ -13,6 +15,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 */
 contract InvestmentStrategyBase is
     Initializable,
+    Pausable,
     IInvestmentStrategy
 {
     using SafeERC20 for IERC20;
@@ -32,8 +35,12 @@ contract InvestmentStrategyBase is
         //_disableInitializers();
     }
 
-    function initialize(IERC20 _underlyingToken) public initializer {
+    function initialize(
+        IERC20 _underlyingToken,
+        IPauserRegistry pauserRegistry
+    ) public initializer {
         underlyingToken = _underlyingToken;
+        _initializePauser(pauserRegistry);
     }
 
     /**
@@ -49,6 +56,7 @@ contract InvestmentStrategyBase is
         uint256 amount
     )
         external virtual override
+        whenNotPaused
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -82,6 +90,7 @@ contract InvestmentStrategyBase is
         uint256 shareAmount
     )
         external virtual override 
+        whenNotPaused
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");

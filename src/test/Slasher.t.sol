@@ -74,9 +74,9 @@ contract SlasherTests is
         address[] memory addressArray = new address[](1);
         addressArray[0] = inputAddr;
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.addPermissionedContracts(addressArray);
+        slasher.addGloballyPermissionedContracts(addressArray);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        slasher.removePermissionedContracts(addressArray);
+        slasher.removeGloballyPermissionedContracts(addressArray);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         slasher.resetFrozenStatus(addressArray);
         cheats.stopPrank();

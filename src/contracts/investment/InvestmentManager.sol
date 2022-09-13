@@ -5,6 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "../utils/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "forge-std/Test.sol";
@@ -23,8 +24,10 @@ contract InvestmentManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
-    InvestmentManagerStorage
-    ,DSTest
+    InvestmentManagerStorage,
+    Pausable
+    // ,DSTest
+
 {
     using SafeERC20 for IERC20;
 
@@ -80,14 +83,14 @@ contract InvestmentManager is
      */
     function initialize(
         ISlasher _slasher,
+        IPauserRegistry pauserRegistry,
         address _governor
     ) external initializer {
         _transferOwnership(_governor);
         slasher = _slasher;
+        
+        _initializePauser(pauserRegistry);
     }
-
-
-
     /**
      * @notice used for investing a depositor's asset into the specified strategy in the
      *         behalf of the depositor
@@ -132,6 +135,7 @@ contract InvestmentManager is
         uint256 shareAmount
     ) 
         external
+        whenNotPaused
         onlyNotFrozen(msg.sender)
         onlyNotDelegated(msg.sender)
         nonReentrant
@@ -166,9 +170,11 @@ contract InvestmentManager is
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
+        whenNotPaused
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns(bytes32)
+
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
@@ -284,6 +290,7 @@ contract InvestmentManager is
         bool receiveAsTokens
     )
         external
+        whenNotPaused
         onlyNotFrozen(depositor)
         nonReentrant
     {
@@ -428,7 +435,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+    ) external whenNotPaused onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength; ) {
@@ -467,7 +474,8 @@ contract InvestmentManager is
         address slashedAddress,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external onlyOwner nonReentrant {
+    ) external whenNotPaused onlyOwner onlyFrozen(slashedAddress) nonReentrant {
+
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(
             strategies, 
@@ -713,5 +721,4 @@ contract InvestmentManager is
             )
         );
     }
-
 }

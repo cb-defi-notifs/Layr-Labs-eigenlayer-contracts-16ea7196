@@ -10,9 +10,13 @@ import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
 import "../BLSSignatureChecker.sol";
 
+
+
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
+import "../../utils/Pausable.sol";
+
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
@@ -26,7 +30,9 @@ import "./DataLayrChallengeUtils.sol";
  */
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
-    BLSSignatureChecker
+    BLSSignatureChecker,
+    Pausable
+    //,DSTest
 {
     using BytesLib for bytes;
 
@@ -82,6 +88,7 @@ contract DataLayrServiceManager is
         IEigenLayrDelegation _eigenLayrDelegation,
         IRepository _repository,
         IERC20 _collateralToken,
+        IPauserRegistry pauserRegistry,
         uint256 _feePerBytePerTime
     ) 
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
@@ -90,6 +97,10 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
+
+        _initializePauser(pauserRegistry);
+
+
         
     }
 
@@ -140,7 +151,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external returns(uint32){
+    ) external whenNotPaused returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -262,7 +273,10 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external {
+    function confirmDataStore(
+        bytes calldata data, 
+        DataStoreSearchData memory searchData
+        )external whenNotPaused {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
