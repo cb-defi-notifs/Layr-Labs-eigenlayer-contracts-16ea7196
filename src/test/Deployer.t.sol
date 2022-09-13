@@ -28,7 +28,6 @@ import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
-
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
 
@@ -57,14 +56,12 @@ contract EigenLayrDeployer is
     IERC20 public weth;
     WETH public liquidStakingMockToken;
 
-
     InvestmentStrategyBase public wethStrat;
     IRepository public dlRepository;
     ProxyAdmin public eigenLayrProxyAdmin;
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
-
    
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -101,11 +98,6 @@ contract EigenLayrDeployer is
     address acct_0 = cheats.addr(uint256(priv_key_0));
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
-    
-
-    
-    
-    
 
     struct nonSignerInfo {
         uint256 xA0;
@@ -122,7 +114,6 @@ contract EigenLayrDeployer is
         uint256 sigma0;
         uint256 sigma1;
     }
-
 
     modifier cannotReinit(){
         cheats.expectRevert(
@@ -147,8 +138,6 @@ contract EigenLayrDeployer is
         //deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
 
-
-
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
@@ -160,8 +149,6 @@ contract EigenLayrDeployer is
                 )
             )
         );
-
-
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
         investmentManager = new InvestmentManager(delegation);
@@ -235,14 +222,8 @@ contract EigenLayrDeployer is
             undelegationFraudproofInterval
         );
 
-
-
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
-
-
-
-
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
@@ -251,7 +232,6 @@ contract EigenLayrDeployer is
             IERC20(address(liquidStakingMockToken)),
             pauserReg
         );
-
 
         //loads hardcoded signer set
         _setSigners();
@@ -315,7 +295,6 @@ contract EigenLayrDeployer is
 
         dlRepository = new Repository(delegation, investmentManager);
 
-
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             investmentManager,
@@ -326,7 +305,6 @@ contract EigenLayrDeployer is
             feePerBytePerTime
         );
         
-
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
@@ -373,7 +351,6 @@ contract EigenLayrDeployer is
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
-
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);
