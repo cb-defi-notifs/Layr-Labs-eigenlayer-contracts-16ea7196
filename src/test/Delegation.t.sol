@@ -214,8 +214,6 @@ contract DelegationTests is TestHelper {
 
         cheats.warp(withdrawalPeriod + 1 days);
 
-        withdrawAsTokens==true;
-
         if(withdrawAsTokens) {
             _testCompleteQueuedWithdrawalTokens(
                             depositor, 
@@ -544,12 +542,6 @@ contract DelegationTests is TestHelper {
         for (uint i = 0; i < strategyArray.length; i++) {
                 //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
                 uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i]/priorTotalShares[i];
-
-                emit log_named_uint("strategyTokenBalance", strategyTokenBalance[i]);
-                emit log_named_uint("balanceBefore", balanceBefore[i]);
-                emit log_named_uint("delta",  strategyTokenBalance[i] * shareAmounts[i]/priorTotalShares[i]);
-                emit log_named_uint("final",strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
-
 
                 require(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer) 
                                             == balanceBefore[i] + tokenBalanceDelta, "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented");
