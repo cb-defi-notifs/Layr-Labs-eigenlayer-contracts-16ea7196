@@ -8,13 +8,12 @@ contract PausableTests is
     TestHelper
 {
     ///@dev test that pausing a contract works
-    function testPausability(
+    function testPausingWithdrawalsFromInvestmentManager(
         uint256 amountToDeposit,
         uint256 amountToWithdraw
     ) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
         cheats.assume(amountToWithdraw <= amountToDeposit);
-
 
         cheats.startPrank(pauser);
         investmentManager.pause();
@@ -33,13 +32,13 @@ contract PausableTests is
                 weth,
                 amountToWithdraw
         );
-        
         cheats.stopPrank();
     }
 
-    function testUnauthorizedPauser(
+    function testUnauthorizedPauserInvestmentManager(
         address unauthorizedPauser
     ) public fuzzedAddress(unauthorizedPauser){
+        cheats.assume(unauthorizedPauser != pauserReg.unpauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
         investmentManager.pause();
@@ -68,6 +67,7 @@ contract PausableTests is
     fuzzedAddress(newPauser) 
     fuzzedAddress(fakePauser)
     {
+        cheats.assume(fakePauser != pauserReg.unpauser());
         cheats.startPrank(fakePauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as unpauser"));
         pauserReg.setPauser(newPauser);
