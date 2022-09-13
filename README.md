@@ -12,7 +12,12 @@ https://onbjerg.github.io/foundry-book/index.html
 
 `slither .`
 
-## Generate Inheritance and Control-Flow Graph
+## Generate Inheritance and Control-Flow Graphs
 
-first install surya, then run
+first install surya
+
+then run
 `surya inheritance ./src/contracts/**/*.sol | dot -Tpng > InheritanceGraph.png`
+and/or
+`surya graph ./src/contracts/middleware/*.sol | dot -Tpng > MiddlewareControlFlowGraph.png`
+and/or
