@@ -476,6 +476,11 @@ contract Allocate is
         emit log("wethAmount");
         emit log_uint(wethAmount);
         vm.startBroadcast(msg.sender);
+        // weth.transfer(address(this), weth.balanceOf(msg.sender));
+        // eigen.transfer(address(this), eigen.balanceOf(msg.sender));
+        // vm.stopBroadcast();
+
+        // vm.startBroadcast();
         // deployer allocate weth, eigen to staker
         for (uint i = 0; i < numStaker ; ++i) {
             address stakerAddr = stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));    
@@ -491,7 +496,6 @@ contract Allocate is
             emit log("disAddr");
             emit log_address(disAddr);
         }
-
         vm.stopBroadcast();
 
         // dln, staker delegations        

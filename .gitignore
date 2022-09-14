@@ -4,6 +4,8 @@
 coverage
 coverage.json
 typechain
+config.json
+contract.addresses
 
 #Hardhat files
 cache
