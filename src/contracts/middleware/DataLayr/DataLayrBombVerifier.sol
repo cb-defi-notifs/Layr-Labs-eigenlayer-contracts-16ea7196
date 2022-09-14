@@ -9,19 +9,43 @@ import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../libraries/BN254.sol";
 
+/**
+ * @notice The core slashing module of DataLayr. Using Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
+ * @dev In order to prove that an operator wasn’t storing data at certain time, a challenger proves the following:
+ *      1) The existence of a certain datastore referred to as the DETONATION datastore
+ *      2) The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing,
+ *          that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
+ *      3) The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's
+ *          header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
+ *      4) The operator certified the storing of DETONATION datastore
+ * If these 4 points are proved, the operator is slashed.
+ * The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
+ */
 contract DataLayrBombVerifier {
+    /// @notice This struct is exactly IDataLayrServiceManager.DataStoreSearchData without the duration, used for identifying the correct bomb datastore.
     struct DataStoresForDuration {
         uint256 timestamp;
         uint32 index;
         IDataLayrServiceManager.DataStoreMetadata metadata;
     }
 
+    /**
+     * @notice This struct includes proofs of the metadata of the DETONATION datastore and as many potential BOMB datastores as it takes to find one
+     * that the operator signed and the datastore from which the operator to be slashed started serving DataLayr.
+     */
     struct DataStoreProofs {
         IDataLayrServiceManager.DataStoreSearchData operatorFromDataStore;
         IDataLayrServiceManager.DataStoreSearchData[] bombDataStores;
         IDataLayrServiceManager.DataStoreSearchData detonationDataStore;
     }
 
+    /**
+    * `operatorIndex` is the index in the operator's list of indexes in the `dlRegsitry` that provides the operator's index at the time of the BOMB datastore
+    * `totalOperatorsIndex` is the index in the list of total operators over time in the `dlRegsitry` that provides the total number of operators at the time
+    *  of the BOMB datastore
+    * `detonationNonSignerIndex` is the index within the non-signer list of the DETONATION datastore that proves that the operator signed on the availability
+    *  of the DETONATION datastore
+    * */
     struct Indexes {
         uint32 operatorIndex;
         uint32 totalOperatorsIndex;
@@ -36,6 +60,7 @@ contract DataLayrBombVerifier {
         BN254.G2Point polyEquivalenceProof;
     }
 
+    /// @notice determines how often bombs will 'appear'
     // bomb will trigger every once every ~2^(256-249) = 2^7 = 128 chances
     // BOMB_THRESHOLD can be tuned up to increase the chance of bombs and therefore 
     // reduce the expected value of not storing the data
@@ -43,6 +68,7 @@ contract DataLayrBombVerifier {
     // increase the amount of nodes that will sign off on datastores
     uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
 
+    // TODO: document/explain more
     uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public immutable dlsm;
@@ -62,24 +88,44 @@ contract DataLayrBombVerifier {
         dlekRegistry = _dlekRegistry;
     }
 
-    // The DETONATION datastore is the datastore whose header hash is mapped to one of the active datastores at its time of initialization
-    // The datastore that the DETONATION datastore is mapped to is called the BOMB datastore
-    // The BOMB datastore is the datastore whose data, when hashed with some auxillary information was below BOMB_THRESHOLD (the BOMB condition)
-    // If such was the case, the operator should not have signed the DETONATION datastore
+    /**
+    * @notice Used to prove that `operator` improperly signed a datastore meeting the BOMB condition, making the operator subject to slashing.
+    * The header hash of the DETONATION datastore id is mapped to one of the active datastores at the time, the BOMB datastore. If the operator
+    * signed off on the availabilty of the BOMB datastore, then the function proceeds. If not, datastores are iterated through consecutively by
+    * id until a datastore that the operator has signed is found. The first datastore that the operator hash signed is considered the BOMB datastore.
+    * Ultimately, the BOMB condition is checked against a combined hash of the data stored in the BOMB datastore, the operator's ephemeral key, and 
+    * the header hash of the DETONATION datastore
+    * 
+    * @dev Exceptionally verbose explanation:
+    * The DETONATION datastore is the datastore whose header hash is mapped to one of the active datastores at its time of initialization.
+    * The datastore that the DETONATION datastore is mapped to is called the BOMB datastore.
+    * The BOMB datastore is the datastore whose data, when hashed with some auxiliary information, returned a hash value below BOMB_THRESHOLD
+    * (the BOMB condition).
+    * If such was the case, the operator should not have signed the DETONATION datastore, and thus 'detonated the bomb', making them subject
+    * to slashing.
 
-    // In datalayr, every datastore is a potential DETONATION datastore, and it's corresponding potential BOMB datastore should
-    // always be checked for the BOMB condition
-    // The sender of this function is a party that is proving the existence of a certain operator that signed a DETONATION datastore whose corresponding
-    // BOMB datastore met the BOMB condition
+    * In datalayr, every datastore is a potential DETONATION datastore, and it's corresponding potential BOMB datastore should
+    * always be checked for the BOMB condition
+    * The sender of this function is a party that is proving the existence of a certain operator that signed a DETONATION datastore whose corresponding
+    * BOMB datastore met the BOMB condition
 
-    //tick, tick, tick, tick, ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+    * tick, tick, tick, tick, ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
 
-    // signatoryRecords input is formatted as following, with 'n' being its length:
-    // signatoryRecords[0] is for the 'detonation' DataStore
-    // signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb' 
-    // DataStore returned by the 'verifyBombDataStoreId' function and any immediately following series DataStores *that the operator did NOT sign*
-    // signatoryRecords[n] is for the DataStore that is ultimately treated as the 'bomb' DataStore
-    // this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
+    * @param operator is the address of the operator to slash
+    * @param dataStoreProofs are the proofs of the datastores needed to calculate the bomb function
+    * @param signatoryRecords are the signatory records needed to prove that the operator signed the DETONATION datastore and to prove the correct
+    *       BOMB datastore that the operator signed and all of the signatory records of potential BOMB datastores that the operator did not sign
+    * @param sandwichProofs are the proofs of which datastores were active for each duration at the time the DETONATION datastore was initialized
+    *       and will be explained in more detail further in the document
+    * @param disclosureProof is the proof of the data the operator was storing of the BOMB datastore
+
+    * @dev signatoryRecords input is formatted as following, with 'n' being its length:
+    * signatoryRecords[0] is for the 'detonation' DataStore
+    * signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb' DataStore returned by the 
+    * 'verifyBombDataStoreId' function and any immediately following series DataStores *that the operator did NOT sign*
+    * signatoryRecords[n] is for the DataStore that is ultimately treated as the 'bomb' DataStore
+    * this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
+    */
     function verifyBomb(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
@@ -89,6 +135,7 @@ contract DataLayrBombVerifier {
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
+        // verify integrity of submitted metadata by checking against its stored hashes
         require(
             verifyMetadataPreImage(dataStoreProofs.operatorFromDataStore),
             "DataLayrBombVerifier.verifyBomb: operatorFrom metadata preimage incorrect"
@@ -109,7 +156,7 @@ contract DataLayrBombVerifier {
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
-            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraudproof interval has passed
+            //Require that the operator is actively registered or, if they have deregistered, it is still before the 'BOMB_FRAUDRPOOF_INTERVAL' has passed
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
@@ -145,11 +192,10 @@ contract DataLayrBombVerifier {
                         uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
          */
         /**
-          @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of 
-               non-signers pubkey is recorded in the compressed signatory record in an  ascending
-               manner.      
+          @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that the hash of all 
+               non-signers' pubkeys are recorded in the compressed signatory record in a strictly ascending order.
         */
-// first we verify that the operator did indeed sign the 'detonation' DataStore
+        // first we verify that the operator did indeed sign the 'detonation' DataStore
         {
             //the block number since the operator has been active
             uint32 operatorActiveFromBlockNumber = dlRegistry.getFromBlockNumberForOperator(operator);
@@ -161,7 +207,7 @@ contract DataLayrBombVerifier {
             // The BOMB datastore must be a datastore for which a signature from the operator has been submitted on chain
             // Then, we have an attestation that they have stored said data, so they can check it for the BOMB condition
             uint256 ultimateBombDataStoreIndex = dataStoreProofs.bombDataStores.length - 1;
-            //verify all non signed DataStores from bomb till first signed to get correct BOMB datastore
+            //verify all non signed DataStores from bomb till reaching the first signed DataStore to get the correct BOMB datastore
             for (uint i = 0; i < ultimateBombDataStoreIndex; ++i) {
                 require(dataStoreProofs.bombDataStores[i].metadata.globalDataStoreId == bombGlobalDataStoreId, 
                     "DataLayrBombVerifier.verifyBomb: bombDataStore is not for correct id");
