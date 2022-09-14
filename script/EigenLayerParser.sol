@@ -45,6 +45,7 @@ contract EigenLayerParser is Script, DSTest
     InvestmentStrategyBase public eigenStrat;
 
     string internal configJson;
+    string internal addressJson;
 
     function parseEigenLayerParams() internal {
         configJson = vm.readFile("config.json");
@@ -53,7 +54,7 @@ contract EigenLayerParser is Script, DSTest
         numStaker = stdJson.readUint(configJson, ".numStaker");
         numCha = stdJson.readUint(configJson, ".numCha");
 
-        string memory addressJson = vm.readFile("contract.addresses");
+        addressJson = vm.readFile("contract.addresses");
         delegation = EigenLayrDelegation(stdJson.readAddress(addressJson, ".delegation"));
         investmentManager = InvestmentManager(stdJson.readAddress(addressJson, ".investmentManager"));
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
