@@ -164,10 +164,11 @@ abstract contract BLSSignatureChecker is
         // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
         _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
+        // copy total stakes amounts to `signedTotals` -- the 'signedStake' amounts are decreased later, to reflect non-signers
+        signedTotals.totalStakeFirstQuorum = localStakeObject.firstQuorumStake;
         signedTotals.signedStakeFirstQuorum = localStakeObject.firstQuorumStake;
-        signedTotals.totalStakeFirstQuorum = signedTotals.signedStakeFirstQuorum;
+        signedTotals.totalStakeSecondQuorum = localStakeObject.secondQuorumStake;
         signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
-        signedTotals.totalStakeSecondQuorum = signedTotals.signedStakeSecondQuorum;
 
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
