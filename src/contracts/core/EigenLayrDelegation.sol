@@ -38,8 +38,7 @@ contract EigenLayrDelegation is
 
     // INITIALIZING FUNCTIONS
     constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     /**
