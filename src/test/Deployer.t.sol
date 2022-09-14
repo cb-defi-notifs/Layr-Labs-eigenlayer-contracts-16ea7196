@@ -203,7 +203,16 @@ contract EigenLayrDeployer is
         // actually initialize the investmentManager (proxy) contraxt
         address governor = address(this);
         // deploy slasher and service factory contracts
-        slasher = new Slasher();
+        Slasher slasherImplementation = new Slasher();
+        slasher = Slasher(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(slasherImplementation),
+                    address(eigenLayrProxyAdmin),
+                    ""
+                )
+            )
+        );
         slasher.initialize(investmentManager, delegation, pauserReg, governor);
 
         delegates = [acct_0, acct_1];

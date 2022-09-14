@@ -44,8 +44,7 @@ contract Slasher is
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
     constructor(){
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS
