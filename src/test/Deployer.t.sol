@@ -42,7 +42,6 @@ contract EigenLayrDeployer is
 
     uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
-    // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
@@ -162,7 +161,7 @@ contract EigenLayrDeployer is
             )
         );
 
-        //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
+        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -227,10 +226,14 @@ contract EigenLayrDeployer is
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
-        liquidStakingMockStrat.initialize(
-            IERC20(address(liquidStakingMockToken)),
-            pauserReg
+        liquidStakingMockStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(baseStrategyImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, pauserReg)
+                )
+            )
         );
 
         //loads hardcoded signer set

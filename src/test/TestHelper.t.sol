@@ -642,10 +642,15 @@ contract TestHelper is EigenLayrDeployer {
 
     // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token
     function _testAddStrategy() internal returns (IInvestmentStrategy) {
-        InvestmentStrategyBase strategy = new InvestmentStrategyBase(investmentManager);
-        // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
-        // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strategy.initialize(weth, pauserReg);
+        InvestmentStrategyBase strategy = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(baseStrategyImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
+                )
+            )
+        );
         return strategy;
     }
 
