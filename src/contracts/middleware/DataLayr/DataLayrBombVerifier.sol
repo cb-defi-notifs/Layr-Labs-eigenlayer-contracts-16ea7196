@@ -200,9 +200,7 @@ contract DataLayrBombVerifier {
             //the block number since the operator has been active
             uint32 operatorActiveFromBlockNumber = dlRegistry.getFromBlockNumberForOperator(operator);
             // fetch hash of operator's pubkey
-            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                operator
-            );
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
             // The BOMB datastore must be a datastore for which a signature from the operator has been submitted on chain
             // Then, we have an attestation that they have stored said data, so they can check it for the BOMB condition
@@ -219,9 +217,9 @@ contract DataLayrBombVerifier {
                 
                 //There are 2 conditions under which the BOMB datastore id must increment
                 //1. The BOMB datastore is based off of stakes before the operator joined
-                //2. The BOMB datastore included the stake of the operator, but the operator did not sign
+                //2. The BOMB datastore included the stake of the operator, but the operator did not sign it
                 //This conditional statement checks (1)
-                if(dataStoreProofs.bombDataStores[i].metadata.blockNumber < operatorActiveFromBlockNumber) {
+                if(dataStoreProofs.bombDataStores[i].metadata.blockNumber >= operatorActiveFromBlockNumber) {
                     //If we make it inside of this loop, then the BOMB datastore included the operator's stake
                     //So we check the proof that the operator did not sign for this datastore
                     // Verify that the signatoryRecord supplied as input related to the i'th potential BOMB datastore is correct
