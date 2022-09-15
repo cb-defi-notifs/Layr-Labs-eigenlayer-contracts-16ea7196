@@ -656,6 +656,12 @@ contract DataLayrBombVerifier {
         return (uint8(durationIndex), offsetRemaining);
     }
 
+    /**
+     * @notice Gets the specific coset/chunk number that `operator` was assigned for the datastore specified by `searchData`.
+     * `operatorIndex` and `totalOperatorsIndex` are the indexes in their relative arrays in the `dlRegistry` that are used to prove the total number of operators
+     * and the index of `operator` at `searchData.metadata.blockNumber`. These are used to calculate which cosets were used for the datastore based off of other
+     * information in the header.
+     */
     function getChunkNumber(
         address operator,
         uint32 operatorIndex,
@@ -664,7 +670,7 @@ contract DataLayrBombVerifier {
     ) internal view returns (uint32) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
-        constructed during call to initDataStore in DataLayr.sol by the disperser.
+        constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
         */
         require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
@@ -688,7 +694,12 @@ contract DataLayrBombVerifier {
         return (operatorIndex + searchData.metadata.globalDataStoreId) % totalOperatorsIndex;
     }
 
-
+    /**
+     * @notice This function verifies that `disclosureProof.poly` was the data that operator was storing for `dataStoreId` and it is the polynomial that is
+     *  commited to by the KZG commitment `(disclosureProof.multireveal[2], disclosureProof.multireveal[3])`.
+     * @dev The coset of the zero polynomial is determined from `operatorIndex` and `totalOperatorsIndex` and the metadata of the datastore provided by `searchData`.
+     * @return proofSuccess is 'true' if the proof succeeded. The function will revert otherwise.
+     */
     function nonInteractivePolynomialProof(
         address operator,
         uint32 operatorIndex,
@@ -696,7 +707,7 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) internal view returns (bool) {
+    ) internal view returns (bool proofSuccess) {
         uint32 chunkNumber = getChunkNumber(
             operator,
             operatorIndex,
@@ -711,17 +722,17 @@ contract DataLayrBombVerifier {
             searchData.metadata.headerHash == keccak256(disclosureProof.header),
             "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
         );
-        bool res = challengeUtils.nonInteractivePolynomialProof(
+
+        return (challengeUtils.nonInteractivePolynomialProof(
             disclosureProof.header,
             chunkNumber,
             disclosureProof.poly,
             disclosureProof.multiRevealProof,
             disclosureProof.polyEquivalenceProof
-        );
-
-        return res;
+        ));
     }
 
+    /// @notice This function verifies that `searchData` provided matches the data that was stored for the given datastore
     function verifyMetadataPreImage(
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) internal view returns (bool) {
