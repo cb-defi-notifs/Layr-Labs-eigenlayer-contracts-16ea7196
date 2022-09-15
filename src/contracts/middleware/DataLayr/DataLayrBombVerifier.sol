@@ -277,10 +277,7 @@ contract DataLayrBombVerifier {
                 "DataLayrBombVerifier.verfiyBomb: BOMB datastore was not using the operator's stake");
 
             // check that operator was *not* in the non-signer set (i.e. they *did* sign) for the ultimate 'bomb' DataStore
-            if (
-                signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes.length !=
-                0
-            ) {
+            if (signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes.length != 0) {
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkExclusionFromNonSignerSet(
