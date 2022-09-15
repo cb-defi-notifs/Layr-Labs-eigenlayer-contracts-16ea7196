@@ -489,25 +489,27 @@ contract DataLayrBombVerifier {
                 //if storage agrees with provers claims, continue to next duration
                 continue;
             }
-            /*
-                calculate the greater of ((init time of detonationDataStoreInitTimestamp) - duration) and fromTime
-                since 'fromTime' is the time at which the operator registered, if
-                fromTime is > (init time of detonationDataStoreInitTimestamp) - duration), then we only care about DataStores
-                starting from 'fromTime'
+            /**
+             * Calculate the greater of ((init time of detonationDataStoreInitTimestamp) - duration) and fromTime.
+             * Since 'fromTime' is the time at which the operator registered, if
+             * fromTime is > (init time of detonationDataStoreInitTimestamp) - duration), then we only care about DataStores
+             * starting from 'fromTime'
             */
             uint256 sandwichTimestamp = max(
                 detonationDataStoreInitTimestamp - ((i + 1) * dlsm.DURATION_SCALE()),
                 fromTime
             );
-            //verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata
-            //the second datastore is the first datastore after sandwichTimestamp. this is the first active datastore for the duration at the detonationDataStoreInitTimestamp
-            //in memory, store it's durationDataStoreId
+            /**
+             * @dev Verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata.
+             * The second datastore is the first datastore after `sandwichTimestamp`. This is the first active datastore for the duration which was initialized at
+             * or after the `sandwichTimestamp`. We store its durationDataStoreId in the `firstDataStoreForDuration` memory array.
+             */
             firstDataStoreForDuration[i] = verifyDataStoreIdSandwich(
                 sandwichTimestamp,
                 i + 1,
                 sandwichProofs[i][0]
             ).durationDataStoreId;
-            // verify the sandwich proof and store the metadata of the first datastore after detonationDataStoreInitTimestamp for the given duration
+            // verify the sandwich proof and store the metadata of the first datastore after `detonationDataStoreInitTimestamp` for the given duration
             IDataLayrServiceManager.DataStoreMetadata
                 memory detonationDataStoreMetadata = verifyDataStoreIdSandwich(
                     detonationDataStoreInitTimestamp,
