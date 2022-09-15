@@ -426,14 +426,24 @@ contract DataLayrBombVerifier {
         return dataStoreProofs.bombDataStores[0].metadata.globalDataStoreId;
     }
 
-    // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     /**
-     * @param sandwichProofs is a list of length euqal to the number of durations that datastores can be stored. Each element is 
+     * @notice This function verifies the sandwich proof for each duration, then maps the `detonationHeaderHashValue` to one of the active datastores determined
+     * by the sandwich proofs. This is the first potential BOMB datastore. The function returns the duration and id of the potential BOMB datastore and the
+     * id of the earliest datastore after or at `detonationDataStoreInitTimestamp`
+     * 
+     * @param detonationHeaderHashValue is the integer value of the DETONATION datastore's header hash
+     * @param fromTime is the time from which the operator to slash hash been serving DataLayr
+     * @param detonationDataStoreInitTimestamp is the time at which the DETONATION datastore was initialized
+     * @param sandwichProofs are proofs for each duration of the different datastore ids that were active (not expired) at `detonationDataStoreInitTimestamp`
+     * 
+     * @param sandwichProofs is a list of length equal to the number of durations that datastores can be stored. Each element is 
      * 2 sandwich proofs of the datastores surrounding the boundaries of the duration. For example, if the first duration is 1 day,
      * then sandwichProofs[0][0] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp - 1 day or
      * @param fromTime. sandwichProofs[0][1] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp
      *
      * Then the BOMB datastore is picked from random by taking @param detonationHeaderHashValue. TODO: Finish this comment
+     * 
+     * @dev returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
      */
     function verifySandwiches(
         uint256 detonationHeaderHashValue,
@@ -557,6 +567,7 @@ contract DataLayrBombVerifier {
      * search data for the earliest datastore with the same `duration`, which was created *after* `sandwichTimestamp`.
      * @dev This function hashes the metadata in `sandwich` to verify its correctness and checks that the initialization times of the provided datastores are 
      * before and after `sandwichTime`, respectively, and verifies that their ids are consecutive.
+     * @return the metadata for the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
     */
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
