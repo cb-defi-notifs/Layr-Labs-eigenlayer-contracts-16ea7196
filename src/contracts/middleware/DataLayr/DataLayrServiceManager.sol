@@ -97,11 +97,7 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
-
         _initializePauser(pauserRegistry);
-
-
-        
     }
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) external onlyRepositoryGovernance {
