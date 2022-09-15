@@ -381,7 +381,6 @@ contract DataLayrServiceManager is
     /**
      @notice returns the number of data stores for the @param duration
      */
-    /// CRITIC -- change the name to `getNumDataStoresForDuration`?
     function getNumDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
