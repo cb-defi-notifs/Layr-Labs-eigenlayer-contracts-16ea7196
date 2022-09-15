@@ -643,17 +643,17 @@ contract DataLayrBombVerifier {
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
     ) internal pure returns (uint8, uint32) {
-        uint32 offsetLeft = offset;
+        uint32 offsetRemaining = offset;
         uint256 durationIndex = 0;
         for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
-            //we use > not >= because offsetLeft should be the index within the correct duration
-            if (numberActiveDataStoresForDuration[durationIndex] > offsetLeft) {
+            //we use > not >= because offsetRemaining should be the index within the correct duration
+            if (numberActiveDataStoresForDuration[durationIndex] > offsetRemaining) {
                 break;
             }
-            offsetLeft -= numberActiveDataStoresForDuration[durationIndex];
+            offsetRemaining -= numberActiveDataStoresForDuration[durationIndex];
         }
 
-        return (uint8(durationIndex), offsetLeft);
+        return (uint8(durationIndex), offsetRemaining);
     }
 
     function getChunkNumber(
