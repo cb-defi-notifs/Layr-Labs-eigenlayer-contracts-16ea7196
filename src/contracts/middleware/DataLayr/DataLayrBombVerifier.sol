@@ -666,15 +666,13 @@ contract DataLayrBombVerifier {
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayr.sol by the disperser.
         */
-
-
         require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
                                                 ) == DataStoreUtils.computeDataStoreHash(searchData.metadata), "search.metadataclear preimage is incorrect");
 
-        // check that disperser had acquire quorum for this dataStore
+        // check that disperser acquired quorum for this dataStore
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
 
         operatorIndex = dlRegistry.getOperatorIndex(
