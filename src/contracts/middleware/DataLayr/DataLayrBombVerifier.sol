@@ -238,6 +238,7 @@ contract DataLayrBombVerifier {
                         "DataLayrBombVerifier.verifyBomb: Bomb datastore signatory record does not match hash"
                     );
 
+                    // verify that the operator was in the non-signer set (i.e did *NOT* sign) for this datastore
                     require(
                         signatoryRecords[i].nonSignerPubkeyHashes[
                             indexes.successiveSignerIndexes[i]
@@ -275,7 +276,7 @@ contract DataLayrBombVerifier {
             require(dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.blockNumber >= operatorActiveFromBlockNumber, 
                 "DataLayrBombVerifier.verfiyBomb: BOMB datastore was not using the operator's stake");
 
-            // check that operator was *not* in the non-signer set (i.e. they did sign) for the ultimate 'bomb' DataStore
+            // check that operator was *not* in the non-signer set (i.e. they *did* sign) for the ultimate 'bomb' DataStore
             if (
                 signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes.length !=
                 0
@@ -289,7 +290,7 @@ contract DataLayrBombVerifier {
                 );
             }
 
-            //Verify that the operator did sign the DETONATION datastore
+            //Verify that the operator *did* sign the DETONATION datastore
             uint256 lastSignatoryRecordIndex = signatoryRecords.length - 1;
 
             // Verify that the signatoryRecord supplied as input related to the 'detonation' DataStore is correct
@@ -306,9 +307,11 @@ contract DataLayrBombVerifier {
                     ),
                 "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
             );
-            //require that the detonation is happening for a datastore using the operators stake
-            require(dataStoreProofs.detonationDataStore.metadata.blockNumber > operatorActiveFromBlockNumber, 
-                "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake");
+            // require that the detonation is happening for a datastore using the operators stake
+            require(
+                dataStoreProofs.detonationDataStore.metadata.blockNumber > operatorActiveFromBlockNumber, 
+                "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake"
+            );
 
             // check that operator was *not* in the non-signer set (i.e. they did sign) for the 'detonation' DataStore
             if (signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes.length != 0) {
