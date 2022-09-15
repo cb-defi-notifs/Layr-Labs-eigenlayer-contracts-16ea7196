@@ -309,7 +309,7 @@ contract DataLayrBombVerifier {
             );
             // require that the detonation is happening for a datastore using the operators stake
             require(
-                dataStoreProofs.detonationDataStore.metadata.blockNumber > operatorActiveFromBlockNumber, 
+                dataStoreProofs.detonationDataStore.metadata.blockNumber >= operatorActiveFromBlockNumber, 
                 "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake"
             );
 
