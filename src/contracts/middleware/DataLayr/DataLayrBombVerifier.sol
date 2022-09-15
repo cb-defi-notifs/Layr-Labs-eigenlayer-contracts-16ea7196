@@ -389,7 +389,7 @@ contract DataLayrBombVerifier {
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
-            uint8 duration,
+            uint8 durationIndex,
             uint32 calculatedDataStoreId,
             uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         ) = verifySandwiches(
@@ -407,7 +407,7 @@ contract DataLayrBombVerifier {
         // fetch the durationDataStoreId and globalDataStoreId for the specific 'detonation' DataStore specified by the parameters
         // check that the specified bombDataStore info matches the calculated info
         require(
-            dataStoreProofs.bombDataStores[0].duration == duration,
+            dataStoreProofs.bombDataStores[0].duration == (durationIndex + 1),
             "DataLayrBombVerifier.verifyBombDataStoreId: bomb datastore id's duration is the same as calculated"
         );
         require(
@@ -453,9 +453,9 @@ contract DataLayrBombVerifier {
     )
         internal view
         returns (
-            uint8,
-            uint32,
-            uint32
+            uint8 durationIndex,
+            uint32 calculatedDataStoreId,
+            uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         )
     {
         uint32 numberActiveDataStores;
@@ -470,7 +470,7 @@ contract DataLayrBombVerifier {
             dlsm.MAX_DATASTORE_DURATION()
         );
 
-        uint32 nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
+        nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
         
         //for each duration
         for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
@@ -540,18 +540,20 @@ contract DataLayrBombVerifier {
         );
         // find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'
         // we can think of this as the DataStore location specified by 'selectedDataStoreIndex'
+        uint32 offset;
         (
-            uint8 durationIndex,
-            uint32 offset
+            durationIndex,
+            offset
         ) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
                 selectedDataStoreIndex,
                 numberActiveDataStoresForDuration
             );
 
+        calculatedDataStoreId = firstDataStoreForDuration[durationIndex] + offset;
         // return the pseudo-randomized `durationIndex` and `durationDataStoreId`, specified by `selectedDataStoreIndex`, as well as the `nextGlobalDataStoreIdAfterBomb`
         return (
-            durationIndex + 1,
-            firstDataStoreForDuration[durationIndex] + offset,
+            durationIndex,
+            calculatedDataStoreId,
             nextGlobalDataStoreIdAfterDetonationTimestamp
         );
     }
@@ -634,17 +636,19 @@ contract DataLayrBombVerifier {
         return sandwich[1].metadata;
     }
 
-    // inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration
-    // given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'
-    // in other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to a specific DataStore within that bin
-    //
-    // given an ordered list of groups and the number of elements in each group, given an offset, calculate which group and index within the group the offset points to
+    /**
+     * @notice given an ordered list of groups and the number of elements in each group, as well as a total offset, calculates which group and index within the group
+     * the offset points to.
+     * @dev Inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration.
+     * Given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'.
+     * In other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to the index of a DataStore within that bin
+     */
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
-    ) internal pure returns (uint8, uint32) {
-        uint32 offsetRemaining = offset;
-        uint256 durationIndex = 0;
+    ) internal pure returns (uint8 durationIndex, uint32 offsetRemaining) {
+        offsetRemaining = offset;
+        durationIndex = 0;
         for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
             //we use > not >= because offsetRemaining should be the index within the correct duration
             if (numberActiveDataStoresForDuration[durationIndex] > offsetRemaining) {
@@ -667,7 +671,7 @@ contract DataLayrBombVerifier {
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) internal view returns (uint32) {
+    ) internal view returns (uint32 chunkNumber) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
         constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
