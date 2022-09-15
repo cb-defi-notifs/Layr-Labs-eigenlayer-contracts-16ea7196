@@ -249,8 +249,11 @@ contract DataLayrBombVerifier {
                 ++bombGlobalDataStoreId;
             }
 
-            require(dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId == bombGlobalDataStoreId, 
-                    "DataLayrBombVerifier.verifyBomb: bombDataStore is not for correct id");
+            // verify that the correct BOMB dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
+            require(
+                dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId == bombGlobalDataStoreId, 
+                "DataLayrBombVerifier.verifyBomb: provided bomb datastore id must be as calculated"
+            );
 
             //verify the preimage of the last provided BOMB datastore (the valid one) is consistent with storage
             require(
@@ -323,13 +326,6 @@ contract DataLayrBombVerifier {
             }
         }
 
-        // verify that the correct BOMB dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
-        require(
-            dataStoreProofs.bombDataStores[dataStoreProofs.bombDataStores.length - 1].metadata.globalDataStoreId ==
-                bombGlobalDataStoreId,
-            "DataLayrBombVerifier.verifyBomb: provided bomb datastore id must be as calculated"
-        );
-
         // check the disclosure of the data chunk that the operator committed to storing
         require(
             nonInteractivePolynomialProof(
@@ -344,11 +340,11 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyBomb: I from multireveal is not the commitment of poly"
         );
 
-        // fetch the operator's most recent ephemeral key
+        // fetch the operator's ephemeral key for the DETONATION datastore
         bytes32 ek = dlekRegistry.getEphemeralKeyForTaskNumber(operator, dataStoreProofs.detonationDataStore.metadata.globalDataStoreId);
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
-        // If it is was met, there was a .....  ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+        // If it is met, there was a ........  ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
         // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
         // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
         // 💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥
@@ -362,6 +358,7 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyBomb: No bomb"
         );
 
+        // trigger slashing
         dlsm.freezeOperator(operator);
     }
 
