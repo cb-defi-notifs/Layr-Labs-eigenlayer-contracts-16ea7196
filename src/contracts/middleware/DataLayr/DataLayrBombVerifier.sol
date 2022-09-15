@@ -548,7 +548,7 @@ contract DataLayrBombVerifier {
                 numberActiveDataStoresForDuration
             );
 
-        // return the pseudo-randomized durationIndex and durationDataStoreId, specified by selectedDataStoreIndex, as well as the nextGlobalDataStoreIdAfterBomb
+        // return the pseudo-randomized `durationIndex` and `durationDataStoreId`, specified by `selectedDataStoreIndex`, as well as the `nextGlobalDataStoreIdAfterBomb`
         return (
             durationIndex + 1,
             firstDataStoreForDuration[durationIndex] + offset,
@@ -644,16 +644,16 @@ contract DataLayrBombVerifier {
         uint32[] memory numberActiveDataStoresForDuration
     ) internal pure returns (uint8, uint32) {
         uint32 offsetLeft = offset;
-        uint256 i = 0;
-        for (; i < numberActiveDataStoresForDuration.length; ++i) {
+        uint256 durationIndex = 0;
+        for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
             //we use > not >= because offsetLeft should be the index within the correct duration
-            if (numberActiveDataStoresForDuration[i] > offsetLeft) {
+            if (numberActiveDataStoresForDuration[durationIndex] > offsetLeft) {
                 break;
             }
-            offsetLeft -= numberActiveDataStoresForDuration[i];
+            offsetLeft -= numberActiveDataStoresForDuration[durationIndex];
         }
 
-        return (uint8(i), offsetLeft);
+        return (uint8(durationIndex), offsetLeft);
     }
 
     function getChunkNumber(
