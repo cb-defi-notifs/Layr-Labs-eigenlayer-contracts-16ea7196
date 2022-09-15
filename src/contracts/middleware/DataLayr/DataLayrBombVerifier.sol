@@ -166,7 +166,7 @@ contract DataLayrBombVerifier {
             );
         }
 
-        // get globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId, based on input info
+        // get globalDataStoreId at bomb DataStore
         uint32 bombGlobalDataStoreId = verifyBombDataStoreId(
             operator,
             dataStoreProofs,
@@ -362,7 +362,7 @@ contract DataLayrBombVerifier {
         dlsm.freezeOperator(operator);
     }
 
-    // return globalDataStoreId at bomb DataStore
+    // returns globalDataStoreId at bomb DataStore
     function verifyBombDataStoreId(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
@@ -371,9 +371,7 @@ contract DataLayrBombVerifier {
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
-            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
-                operator
-            );
+            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(operator);
 
             // ensure that operatorFromHeaderHash corresponds to the correct dataStoreId (i.e. the one at which the operator registered)
             require(
@@ -424,16 +422,15 @@ contract DataLayrBombVerifier {
                 nextGlobalDataStoreIdAfterDetonationTimestamp,
             "DataLayrBombVerifier.verifyBombDataStoreId: next datastore after bomb does not match provided detonation datastore"
         );
-        // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
+        // return globalDataStoreId at bomb DataStore
         return dataStoreProofs.bombDataStores[0].metadata.globalDataStoreId;
-        // note that this matches detonationGlobalDataStoreId, as checked above;
     }
 
     // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     /**
      * Finds all of the active datastores after @param fromTime and before @param detonationDataStoreInitTimestamp. 
      *
-     * @param sandwichProofs is a list of the length of the number of durations that datastores cna be stored. Each element is 
+     * @param sandwichProofs is a list of length euqal to the number of durations that datastores can be stored. Each element is 
      * 2 sandwich proofs of the datastores surrounding the boundaries of the duration. For example, if the first duration is 1 day,
      * then sandwichProofs[0][0] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp - 1 day or
      * @param fromTime. sandwichProofs[0][1] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp
@@ -491,7 +488,7 @@ contract DataLayrBombVerifier {
                 starting from 'fromTime'
             */
             uint256 sandwichTimestamp = max(
-                detonationDataStoreInitTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
+                detonationDataStoreInitTimestamp - ((i + 1) * dlsm.DURATION_SCALE()),
                 fromTime
             );
             //verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata
