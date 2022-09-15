@@ -518,7 +518,6 @@ contract DataLayrBombVerifier {
                 );
             //The DETONATION datastore id is the nextGlobalDataStoreIdAfterDetonationTimestamp: the datastore with the lowest datastoreid after
             //the detonationDataStoreMetadata
-            //TODO: is this sound? think so
             if (
                 nextGlobalDataStoreIdAfterDetonationTimestamp >
                 detonationDataStoreMetadata.globalDataStoreId
