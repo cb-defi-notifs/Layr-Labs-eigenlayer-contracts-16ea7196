@@ -428,8 +428,6 @@ contract DataLayrBombVerifier {
 
     // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     /**
-     * Finds all of the active datastores after @param fromTime and before @param detonationDataStoreInitTimestamp. 
-     *
      * @param sandwichProofs is a list of length euqal to the number of durations that datastores can be stored. Each element is 
      * 2 sandwich proofs of the datastores surrounding the boundaries of the duration. For example, if the first duration is 1 day,
      * then sandwichProofs[0][0] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp - 1 day or
@@ -551,8 +549,14 @@ contract DataLayrBombVerifier {
     // returns the first durationDataStoreId and globalDataStoreId at or after the sandwichTimestamp, for the specified duration
 
     /** 
-     * For a certain @param duration, checks that the two datastores provided in @param sandwich
-     * are the datastores just before and after (or equal) @param sandwichTimestamp in that order
+     * @notice For a certain @param duration, checks that the two datastores provided in @param sandwich
+     * are the datastores just before and after (or equal) @param sandwichTimestamp, in that order
+     * @notice For the given `duration` and `sandwichTimestamp`, this function returns the metadata of the earliest datastore that was stored
+     *  for `duration` and which was initialized after `sandwichTimestamp`.
+     * @dev `sandwich[0]` is the search data for the latest datastore with `duration`, which was created *before* `sandwichTimestamp`. `sandwich[1]` is the 
+     * search data for the earliest datastore with the same `duration`, which was created *after* `sandwichTimestamp`.
+     * @dev This function hashes the metadata in `sandwich` to verify its correctness and checks that the initialization times of the provided datastores are 
+     * before and after `sandwichTime`, respectively, and verifies that their ids are consecutive.
     */
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
@@ -608,7 +612,7 @@ contract DataLayrBombVerifier {
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x and y datastore must be incremental or y datastore is not first in the duration"
             );
         } else {
-            //if sandwich[1].timestamp, the prover is claiming there is no datastore after sandwichTimestamp for the duration
+            //if sandwich[1].timestamp is 0, the prover is claiming that there is no datastore after sandwichTimestamp for the duration
             require(
                 dlsm.getNumDataStoresForDuration(duration) ==
                     sandwich[0].metadata.durationDataStoreId,
