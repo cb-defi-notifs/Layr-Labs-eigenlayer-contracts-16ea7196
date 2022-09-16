@@ -50,7 +50,8 @@ contract ProvisionWeth is
         address dlsm = stdJson.readAddress(addressJson, ".dlsm");
         // deployer allocate weth, eigen to disperser
         configJson = vm.readFile("recipient.json");
-        uint256 recipientPrivKey = stdJson.readUint(configJson, string.concat(".private"));
+        uint256 recipientPrivKey = stdJson.readUint(configJson, ".private");
+        emit log_uint(recipientPrivKey);
         address recipientAddr = cheats.addr(recipientPrivKey);        
         weth.transfer(recipientAddr, wethAmount);
         payable(recipientAddr).transfer(1 ether);
