@@ -27,7 +27,7 @@ interface IEphemeralKeyRegistry {
 
     function proveStaleEphemeralKey(address dataLayrNode) external;
  
-    function verifyEphemeralKeyIntegrity(address dataLayrNode, bytes32 leakedEphemeralKey) external;
+    function proveLeakedEphemeralKey(address dataLayrNode, bytes32 leakedEphemeralKey) external;
 
     function getLastEKPostTimestamp(address dataLayrNode) external returns (uint192);
 

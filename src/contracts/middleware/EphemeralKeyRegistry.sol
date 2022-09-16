@@ -231,7 +231,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      * @param operator The operator who leaked their ephemeral key.
      * @param leakedEphemeralKey The ephemeral key for the operator, which they were not supposed to reveal.
     */
-    function verifyEphemeralKeyIntegrity(address operator, bytes32 leakedEphemeralKey) external {
+    function proveLeakedEphemeralKey(address operator, bytes32 leakedEphemeralKey) external {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
