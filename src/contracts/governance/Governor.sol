@@ -43,7 +43,7 @@ contract Governor_Experimental is RepositoryAccess {
         /// @notice the ordered list of target addresses for calls to be made
         address[] targets;
         /// @notice The ordered list of values (i.e. msg.value) to be passed to the calls to be made
-        uint[] values;
+        uint256[] values;
         /// @notice The ordered list of function signatures to be called
         string[] signatures;
         /// @notice The ordered list of calldata to be passed to each call
@@ -89,6 +89,7 @@ contract Governor_Experimental is RepositoryAccess {
         Executed
     }
     /// @notice The address of the Protocol Timelock
+
     Timelock public timelock;
     /// @notice The maximum number of actions that can be included in a proposal
     uint16 public constant proposalMaxOperations = 10;
@@ -97,9 +98,10 @@ contract Governor_Experimental is RepositoryAccess {
     /// @notice The duration of voting on a proposal, in seconds
     uint256 public constant votingPeriod = 7 days;
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256( "EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     /// @notice The EIP-712 typehash for the ballot struct used by the contract
-    bytes32 public constant BALLOT_TYPEHASH =keccak256("Ballot(uint256 proposalId,bool support)");
+    bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,bool support)");
 
     IVoteWeigher public immutable VOTE_WEIGHTER;
 
@@ -133,14 +135,14 @@ contract Governor_Experimental is RepositoryAccess {
     mapping(uint256 => Proposal) public proposals;
 
     /// @notice The latest proposal for each proposer
-    mapping(address => uint) public latestProposalIds;
+    mapping(address => uint256) public latestProposalIds;
 
     /// @notice An event emitted when a new proposal is created
     event ProposalCreated(
         uint256 id,
         address proposer,
         address[] targets,
-        uint[] values,
+        uint256[] values,
         string[] signatures,
         bytes[] calldatas,
         uint256 startTime,
@@ -150,11 +152,7 @@ contract Governor_Experimental is RepositoryAccess {
 
     /// @notice An event emitted when a vote has been cast on a proposal
     event VoteCast(
-        address voter,
-        uint256 proposalId,
-        bool support,
-        uint256 firstQuorumVotes,
-        uint256 secondQuorumVotes
+        address voter, uint256 proposalId, bool support, uint256 firstQuorumVotes, uint256 secondQuorumVotes
     );
 
     /// @notice An event emitted when a proposal has been canceled
@@ -186,57 +184,52 @@ contract Governor_Experimental is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    ) RepositoryAccess(_repository)
+    )
+        RepositoryAccess(_repository)
     {
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
-        _setQuorumsAndThresholds(_firstQuorumPercentage, _secondQuorumPercentage, _proposalThresholdFirstQuorumPercentage, _proposalThresholdSecondQuorumPercentage);
-
+        _setQuorumsAndThresholds(
+            _firstQuorumPercentage,
+            _secondQuorumPercentage,
+            _proposalThresholdFirstQuorumPercentage,
+            _proposalThresholdSecondQuorumPercentage
+        );
     }
 
     function propose(
         address[] memory targets,
-        uint[] memory values,
+        uint256[] memory values,
         string[] memory signatures,
         bytes[] memory calldatas,
         string memory description
-    ) external returns (uint256) {
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
-            msg.sender
-        );
+    )
+        external
+        returns (uint256)
+    {
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(msg.sender);
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
             require(
-                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake() >=
-                    proposalThresholdFirstQuorumPercentage ||
-                    (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake() >=
-                    proposalThresholdSecondQuorumPercentage ||
-                    msg.sender == multisig,
+                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake()
+                    >= proposalThresholdFirstQuorumPercentage
+                    || (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake()
+                        >= proposalThresholdSecondQuorumPercentage || msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
         }
         require(
-            targets.length == values.length &&
-                targets.length == signatures.length &&
-                targets.length == calldatas.length,
+            targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length,
             "RepositoryGovernance::propose: proposal function information arity mismatch"
         );
-        require(
-            targets.length != 0,
-            "RepositoryGovernance::propose: must provide actions"
-        );
-        require(
-            targets.length <= proposalMaxOperations,
-            "RepositoryGovernance::propose: too many actions"
-        );
+        require(targets.length != 0, "RepositoryGovernance::propose: must provide actions");
+        require(targets.length <= proposalMaxOperations, "RepositoryGovernance::propose: too many actions");
 
         uint256 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
-            ProposalState proposersLatestProposalState = state(
-                latestProposalId
-            );
+            ProposalState proposersLatestProposalState = state(latestProposalId);
             require(
                 proposersLatestProposalState != ProposalState.Active,
                 "RepositoryGovernance::propose: one live proposal per proposer, found an already active proposal"
@@ -279,7 +272,7 @@ contract Governor_Experimental is RepositoryAccess {
             newProposal.startTime,
             newProposal.endTime,
             description
-        );
+            );
         return newProposal.id;
     }
 
@@ -291,29 +284,17 @@ contract Governor_Experimental is RepositoryAccess {
         Proposal storage proposal = proposals[proposalId];
         uint256 eta = block.timestamp + timelock.delay();
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
-            _queueOrRevert(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i],
-                eta
-            );
+            _queueOrRevert(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
         }
         proposal.eta = eta;
         emit ProposalQueued(proposalId, eta);
     }
 
-    function _queueOrRevert(
-        address target,
-        uint256 value,
-        string memory signature,
-        bytes memory data,
-        uint256 eta
-    ) internal {
+    function _queueOrRevert(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
+        internal
+    {
         require(
-            !timelock.queuedTransactions(
-                keccak256(abi.encode(target, value, signature, data, eta))
-            ),
+            !timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
             "RepositoryGovernance::_queueOrRevert: proposal action already queued at eta"
         );
         timelock.queueTransaction(target, value, signature, data, eta);
@@ -328,11 +309,7 @@ contract Governor_Experimental is RepositoryAccess {
         proposal.executed = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.executeTransaction{value: proposal.values[i]}(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i],
-                proposal.eta
+                proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta
             );
         }
         emit ProposalExecuted(proposalId);
@@ -341,35 +318,27 @@ contract Governor_Experimental is RepositoryAccess {
     function cancel(uint256 proposalId) external {
         ProposalState stateOfProposal = state(proposalId);
         require(
-            stateOfProposal != ProposalState.Executed,
-            "RepositoryGovernance::cancel: cannot cancel executed proposal"
+            stateOfProposal != ProposalState.Executed, "RepositoryGovernance::cancel: cannot cancel executed proposal"
         );
 
         Proposal storage proposal = proposals[proposalId];
         require(proposal.proposer != multisig, "multisig does not have to meet threshold requirements");
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
-            proposal.proposer
-        );
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(proposal.proposer);
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
             require(
-                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake() >=
-                    proposalThresholdFirstQuorumPercentage ||
-                    (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake() >=
-                    proposalThresholdSecondQuorumPercentage ||
-                    msg.sender == multisig,
+                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake()
+                    >= proposalThresholdFirstQuorumPercentage
+                    || (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake()
+                        >= proposalThresholdSecondQuorumPercentage || msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
         }
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
             timelock.cancelTransaction(
-                proposal.targets[i],
-                proposal.values[i],
-                proposal.signatures[i],
-                proposal.calldatas[i],
-                proposal.eta
+                proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta
             );
         }
 
@@ -381,7 +350,7 @@ contract Governor_Experimental is RepositoryAccess {
         view
         returns (
             address[] memory targets,
-            uint[] memory values,
+            uint256[] memory values,
             string[] memory signatures,
             bytes[] memory calldatas
         )
@@ -390,19 +359,12 @@ contract Governor_Experimental is RepositoryAccess {
         return (p.targets, p.values, p.signatures, p.calldatas);
     }
 
-    function getReceipt(uint256 proposalId, address voter)
-        external
-        view
-        returns (Receipt memory)
-    {
+    function getReceipt(uint256 proposalId, address voter) external view returns (Receipt memory) {
         return receipts[proposalId][voter];
     }
 
     function state(uint256 proposalId) public view returns (ProposalState) {
-        require(
-            proposalCount >= proposalId && proposalId > 0,
-            "RepositoryGovernance::state: invalid proposal id"
-        );
+        require(proposalCount >= proposalId && proposalId > 0, "RepositoryGovernance::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
             return ProposalState.Canceled;
@@ -411,20 +373,20 @@ contract Governor_Experimental is RepositoryAccess {
         } else if (block.timestamp <= proposal.endTime) {
             return ProposalState.Active;
         } else if (
-            proposal.forVotesFirstQuorum <= proposal.againstVotesFirstQuorum ||
-            proposal.forVotesSecondQuorum <= proposal.againstVotesSecondQuorum ||
-            (
-                ((proposal.forVotesFirstQuorum * 100) / IQuorumRegistry(address(_registry())).totalFirstQuorumStake() <
-                firstQuorumPercentage)
-                &&
-                (proposal.proposer != multisig)
-            ) ||
-            (
-                ((proposal.forVotesSecondQuorum * 100) / IQuorumRegistry(address(_registry())).totalSecondQuorumStake() <
-                secondQuorumPercentage)
-                &&
-                (proposal.proposer != multisig)
-            )
+            proposal.forVotesFirstQuorum <= proposal.againstVotesFirstQuorum
+                || proposal.forVotesSecondQuorum <= proposal.againstVotesSecondQuorum
+                || (
+                    (
+                        (proposal.forVotesFirstQuorum * 100) / IQuorumRegistry(address(_registry())).totalFirstQuorumStake()
+                            < firstQuorumPercentage
+                    ) && (proposal.proposer != multisig)
+                )
+                || (
+                    (
+                        (proposal.forVotesSecondQuorum * 100)
+                            / IQuorumRegistry(address(_registry())).totalSecondQuorumStake() < secondQuorumPercentage
+                    ) && (proposal.proposer != multisig)
+                )
         ) {
             return ProposalState.Defeated;
         } else if (proposal.eta == 0) {
@@ -442,48 +404,21 @@ contract Governor_Experimental is RepositoryAccess {
         return _castVote(msg.sender, proposalId, support);
     }
 
-    function castVoteBySig(
-        uint256 proposalId,
-        bool support,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this))
-        );
-        bytes32 structHash = keccak256(
-            abi.encode(BALLOT_TYPEHASH, proposalId, support)
-        );
-        bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, structHash)
-        );
+    function castVoteBySig(uint256 proposalId, bool support, uint8 v, bytes32 r, bytes32 s) external {
+        bytes32 domainSeparator = keccak256(abi.encode(DOMAIN_TYPEHASH, getChainId(), address(this)));
+        bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         address signatory = ecrecover(digest, v, r, s);
-        require(
-            signatory != address(0),
-            "RepositoryGovernance::castVoteBySig: invalid signature"
-        );
+        require(signatory != address(0), "RepositoryGovernance::castVoteBySig: invalid signature");
         return _castVote(signatory, proposalId, support);
     }
 
-    function _castVote(
-        address voter,
-        uint256 proposalId,
-        bool support
-    ) internal {
-        require(
-            state(proposalId) == ProposalState.Active,
-            "RepositoryGovernance::_castVote: voting is closed"
-        );
+    function _castVote(address voter, uint256 proposalId, bool support) internal {
+        require(state(proposalId) == ProposalState.Active, "RepositoryGovernance::_castVote: voting is closed");
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = receipts[proposalId][voter];
-        require(
-            !receipt.hasVoted,
-            "RepositoryGovernance::_castVote: voter already voted"
-        );
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(
-            voter
-        );
+        require(!receipt.hasVoted, "RepositoryGovernance::_castVote: voter already voted");
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(voter);
 
         if (support) {
             proposal.forVotesFirstQuorum = proposal.forVotesFirstQuorum + firstQuorumStake;
@@ -505,8 +440,16 @@ contract Governor_Experimental is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    ) external onlyTimelock {
-        _setQuorumsAndThresholds(_firstQuorumPercentage, _secondQuorumPercentage, _proposalThresholdFirstQuorumPercentage, _proposalThresholdSecondQuorumPercentage);
+    )
+        external
+        onlyTimelock
+    {
+        _setQuorumsAndThresholds(
+            _firstQuorumPercentage,
+            _secondQuorumPercentage,
+            _proposalThresholdFirstQuorumPercentage,
+            _proposalThresholdSecondQuorumPercentage
+        );
     }
 
     function _setQuorumsAndThresholds(
@@ -514,11 +457,19 @@ contract Governor_Experimental is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    ) internal {
+    )
+        internal
+    {
         require(_firstQuorumPercentage > 0 && _firstQuorumPercentage < 100, "bad _firstQuorumPercentage");
         require(_secondQuorumPercentage > 0 && _secondQuorumPercentage < 100, "bad _secondQuorumPercentage");
-        require(_proposalThresholdFirstQuorumPercentage > 0 && _proposalThresholdFirstQuorumPercentage < 100, "bad _proposalThresholdFirstQuorumPercentage");
-        require(_proposalThresholdSecondQuorumPercentage > 0 && _proposalThresholdSecondQuorumPercentage < 100, "bad _proposalThresholdSecondQuorumPercentage");
+        require(
+            _proposalThresholdFirstQuorumPercentage > 0 && _proposalThresholdFirstQuorumPercentage < 100,
+            "bad _proposalThresholdFirstQuorumPercentage"
+        );
+        require(
+            _proposalThresholdSecondQuorumPercentage > 0 && _proposalThresholdSecondQuorumPercentage < 100,
+            "bad _proposalThresholdSecondQuorumPercentage"
+        );
 
         firstQuorumPercentage = _firstQuorumPercentage;
         secondQuorumPercentage = _secondQuorumPercentage;
@@ -547,12 +498,9 @@ contract Governor_Experimental is RepositoryAccess {
         emit TimelockTransferred(address(timelock), address(_timelock));
         timelock = _timelock;
     }
-    
+
     // TODO: reintroduce a way to update stakes before simply fetching them?
-    function _getVoterStakes(address user)
-        internal view
-        returns (uint96, uint96)
-    {
+    function _getVoterStakes(address user) internal view returns (uint96, uint96) {
         (uint96 firstQuorumStake, uint96 secondQuorumStake) = IQuorumRegistry(address(_registry())).operatorStakes(user);
         return (firstQuorumStake, secondQuorumStake);
     }

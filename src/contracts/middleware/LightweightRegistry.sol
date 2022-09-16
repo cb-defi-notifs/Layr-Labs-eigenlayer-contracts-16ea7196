@@ -6,43 +6,37 @@ import "../interfaces/IRegistry.sol";
 import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
- * @notice This contract is used for 
-            - registering new operators 
-            - committing to and finalizing de-registration as an operator 
-            - updating the stakes of the operator
+ * @notice This contract is used for
+ * - registering new operators
+ * - committing to and finalizing de-registration as an operator
+ * - updating the stakes of the operator
  */
 
-contract LightweightRegistry is
-    IRegistry,
-    VoteWeigherBase
-{
-    // DATA STRUCTURES 
+contract LightweightRegistry is IRegistry, VoteWeigherBase {
+    // DATA STRUCTURES
     /**
      * @notice  Data structure for storing info on operators to be used for:
-     *           - sending data by the sequencer
-     *           - payment and associated challenges
+     * - sending data by the sequencer
+     * - payment and associated challenges
      */
     struct Operator {
         // start block from which the  operator has been registered
         uint32 fromBlockNumber;
-
         // block until which operator is slashable, 0 if not in unbonding period
         uint32 slashableUntil;
-
-        // indicates whether the operator is actively registered for storing data or not 
+        // indicates whether the operator is actively registered for storing data or not
         uint8 active; //bool
-
         uint96 stake;
     }
 
     // number of registrants of this service
-    uint64 public numOperators;  
+    uint64 public numOperators;
 
     uint128 public nodeEthStake = 1 wei;
-    
+
     /// @notice used for storing Registrant info on each operator while registration
     mapping(address => Operator) public registry;
 
@@ -50,27 +44,17 @@ contract LightweightRegistry is
     uint256[] internal _quorumBips = [MAX_BIPS];
 
     // EVENTS
-    event StakeAdded(
-        address operator,
-        uint96 stake
-    );
+    event StakeAdded(address operator, uint96 stake);
     // uint48 prevUpdatetaskNumber
 
-    event StakeUpdate(
-        address operator,
-        uint96 stake
-    );
+    event StakeUpdate(address operator, uint96 stake);
 
     /**
      * @notice
      */
-    event Registration(
-        address registrant
-    );
+    event Registration(address registrant);
 
-    event Deregistration(
-        address registrant
-    );
+    event Deregistration(address registrant);
 
     constructor(
         Repository _repository,
@@ -92,9 +76,9 @@ contract LightweightRegistry is
     }
 
     /**
-      @notice Used by an operator to de-register itself from providing service to the middleware.
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
      */
-    /** 
+    /**
      */
     function deregisterOperator() external virtual returns (bool) {
         _deregisterOperator();
@@ -102,16 +86,12 @@ contract LightweightRegistry is
     }
 
     function _deregisterOperator() internal {
-        require(
-            registry[msg.sender].active > 0,
-            "Operator is already registered"
-        );
+        require(registry[msg.sender].active > 0, "Operator is already registered");
 
         /**
-         @notice this info is used in retroactive proofs
+         * @notice this info is used in retroactive proofs
          */
         registry[msg.sender].slashableUntil = uint32(block.number + 50400); // 7 days assuming blocks every 12.5 secs
-
 
         // committing to not being subjected to middleware slashing conditions from this point forward
         registry[msg.sender].active = 0;
@@ -127,12 +107,12 @@ contract LightweightRegistry is
     /**
      * @notice Used for updating information on ETH and EIGEN deposits of nodes.
      * @param operators are the nodes whose information on their ETH and EIGEN deposits
-     *        getting updated
+     * getting updated
      */
     function updateStakes(address[] calldata operators) external {
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
-        for (uint256 i = 0; i < operatorsLength; ) {
+        for (uint256 i = 0; i < operatorsLength;) {
             //get current wight and update accordingly
             uint96 stake = weightOfOperator(operators[i], 0);
 
@@ -143,20 +123,14 @@ contract LightweightRegistry is
 
             registry[operators[i]].stake = stake;
 
-            emit StakeUpdate(
-                operators[i],
-                stake
-            );
+            emit StakeUpdate(operators[i], stake);
             unchecked {
                 ++i;
             }
         }
     }
 
-    function setNodeEthStake(uint128 _nodeEthStake)
-        external
-        onlyRepositoryGovernance
-    {
+    function setNodeEthStake(uint128 _nodeEthStake) external onlyRepositoryGovernance {
         nodeEthStake = _nodeEthStake;
     }
 
@@ -166,38 +140,26 @@ contract LightweightRegistry is
     }
 
     /// @notice called for registering as a operator
-    function registerOperator() external virtual {        
+    function registerOperator() external virtual {
         _registerOperator(msg.sender);
     }
 
-    /// @param operator is the node who is registering to be a operator     
-    function _registerOperator(
-        address operator
-    ) internal virtual {
-        require(
-            registry[operator].active == 0,
-            "Operator is already registered"
-        );
+    /// @param operator is the node who is registering to be a operator
+    function _registerOperator(address operator) internal virtual {
+        require(registry[operator].active == 0, "Operator is already registered");
 
         uint96 stake = uint96(weightOfOperator(operator, 0));
-        require(
-            stake >= nodeEthStake,
-            "Not enough eth value staked"
-        );
-        
+        require(stake >= nodeEthStake, "Not enough eth value staked");
+
         // store the registrant's info in relation
-        registry[operator] = Operator({
-            active: 1,
-            fromBlockNumber: uint32(block.number),
-            slashableUntil: 0,
-            stake: stake
-        });
+        registry[operator] =
+            Operator({active: 1, fromBlockNumber: uint32(block.number), slashableUntil: 0, stake: stake});
 
         // increment number of registrants
         unchecked {
             ++numOperators;
         }
-            
+
         emit Registration(operator);
     }
 
@@ -209,19 +171,15 @@ contract LightweightRegistry is
         return registry[operator].stake > 0;
     }
 
-    function getOperatorStatus(address operator) external view returns(uint8) {
+    function getOperatorStatus(address operator) external view returns (uint8) {
         return registry[operator].active;
     }
 
     /**
      * @notice returns the block number from which the operator has been registered.
      * @param operator The operator of interest
-     */ 
-    function getFromBlockNumberForOperator(address operator)
-        external
-        view
-        returns (uint32)
-    {
+     */
+    function getFromBlockNumberForOperator(address operator) external view returns (uint32) {
         return registry[operator].fromBlockNumber;
     }
 }

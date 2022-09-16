@@ -4,14 +4,9 @@ pragma solidity ^0.8.9.0;
 
 import "./TestHelper.t.sol";
 
-contract PausableTests is
-    TestHelper
-{
+contract PausableTests is TestHelper {
     ///@dev test that pausing a contract works
-    function testPausingWithdrawalsFromInvestmentManager(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw
-    ) public {
+    function testPausingWithdrawalsFromInvestmentManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
@@ -26,18 +21,14 @@ contract PausableTests is
         cheats.prank(sender);
 
         cheats.expectRevert(bytes("Pausable: paused"));
-        investmentManager.withdrawFromStrategy(
-                strategyIndex,
-                wethStrat,
-                weth,
-                amountToWithdraw
-        );
+        investmentManager.withdrawFromStrategy(strategyIndex, wethStrat, weth, amountToWithdraw);
         cheats.stopPrank();
     }
 
-    function testUnauthorizedPauserInvestmentManager(
-        address unauthorizedPauser
-    ) public fuzzedAddress(unauthorizedPauser){
+    function testUnauthorizedPauserInvestmentManager(address unauthorizedPauser)
+        public
+        fuzzedAddress(unauthorizedPauser)
+    {
         cheats.assume(unauthorizedPauser != pauserReg.unpauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
@@ -45,27 +36,22 @@ contract PausableTests is
         cheats.stopPrank();
     }
 
-    function testSetPauser(address newPauser) fuzzedAddress(newPauser) public {
+    function testSetPauser(address newPauser) public fuzzedAddress(newPauser) {
         cheats.startPrank(unpauser);
         pauserReg.setPauser(newPauser);
         cheats.stopPrank();
-
     }
 
-    function testSetUnpauser(address newUnpauser) fuzzedAddress(newUnpauser) public {
+    function testSetUnpauser(address newUnpauser) public fuzzedAddress(newUnpauser) {
         cheats.startPrank(unpauser);
         pauserReg.setUnpauser(newUnpauser);
         cheats.stopPrank();
-
     }
 
-    function testSetPauserUnauthorized(
-        address fakePauser, 
-        address newPauser
-    ) 
-    public
-    fuzzedAddress(newPauser) 
-    fuzzedAddress(fakePauser)
+    function testSetPauserUnauthorized(address fakePauser, address newPauser)
+        public
+        fuzzedAddress(newPauser)
+        fuzzedAddress(fakePauser)
     {
         cheats.assume(fakePauser != pauserReg.unpauser());
         cheats.startPrank(fakePauser);
@@ -73,5 +59,4 @@ contract PausableTests is
         pauserReg.setPauser(newPauser);
         cheats.stopPrank();
     }
-
 }

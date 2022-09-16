@@ -2,13 +2,9 @@
 pragma solidity ^0.8.9.0;
 
 interface ISlasher {
-    function freezeOperator(
-        address toSlash
-    ) external;
+    function freezeOperator(address toSlash) external;
 
-    function isFrozen(
-        address staker
-    ) external view returns(bool);
+    function isFrozen(address staker) external view returns (bool);
 
     function revokeSlashingAbility(address operator) external;
 
