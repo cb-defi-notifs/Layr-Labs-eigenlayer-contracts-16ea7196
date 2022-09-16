@@ -35,7 +35,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     // max amount of time that an operator can take to update their ephemeral key
     uint256 public constant UPDATE_PERIOD = 18 days;
 
-    //max amout of time operator has to submit and confirm the ephemeral key reveal transaction
+    // max amout of time operator has to submit and confirm the ephemeral key reveal transaction
     uint256 public constant REVEAL_PERIOD = 3 days;
 
     // operator => history of ephemeral keys, hashes of them, timestamp at which they were posted, and start/end taskNumbers
@@ -71,13 +71,28 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      *        deregisterOperator  in BLSRegistryWithBomb.sol
      * @param prevEK is the preimage. 
      */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external onlyRegistry {
+    function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external {
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+
+        require(
+            // check if call is coming from the 'Registry'
+            msg.sender == address(registry)
+            ||
+            // otherwise, check if operator recently de-registered         
+            // specifically, check if the operator de-registered within (UPDATE_PERIOD + REVEAL_PERIOD) of the current time
+            ((operator == msg.sender) && (block.timestamp <= registry.getOperatorDeregisterTime(operator) + UPDATE_PERIOD + REVEAL_PERIOD)),
+            "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: onlyRegistry OR must have recently de-registered"
+        );
+
         // retrieve the most recent EK entry for the operator
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
         // check that the preimage matches with the hash
-        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment");
+        require(
+            existingEKEntry.keyHash == keccak256(abi.encode(prevEK)),
+            "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"
+        );
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
@@ -86,8 +101,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         existingEKEntry.endTaskNumber = currentTaskNumber - 1;
         EKHistory[operator][historyLength] = existingEKEntry;        
     }
-
-
 
     /**
      * @notice Used by the operator to update their ephemeral key hash and post their 
@@ -129,13 +142,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         EKHistory[msg.sender].push(newEKEntry);
     }
 
-    // @notice retrieve the operator's current ephemeral key hash
+    /// @notice retrieve the operator's current ephemeral key hash
     function getCurrEphemeralKeyHash(address operator) external view returns (bytes32){
         uint256 historyLength = _getEKHistoryLength(operator);
         return EKHistory[operator][historyLength - 1].keyHash;
     }
 
-    // @notice retrieve the operator's current ephemeral key itself
+    /// @notice retrieve the operator's current ephemeral key itself
     function getLatestEphemeralKey(address operator)
         external view
         returns (bytes32)
@@ -184,7 +197,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         revert("EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: did not find EK");
     }   
 
-
     /** 
      * @notice Used for proving that an operator hasn't updated their ephemeral key within the update window.
      * @param operator The operator with a stale ephemeral key
@@ -194,22 +206,25 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
 
-        //check if operator is still active in the DLRegistry
-        require(
-            registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE,
-            "EphemeralKeyRegistry.proveStaleEphemeralKey: operator not active"
-        );
-
-        if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
-            IServiceManager serviceManager = repository.serviceManager();
-            //trigger slashing for operator who hasn't updated their EK
-            serviceManager.freezeOperator(operator);
+        if (
+            //check if operator is still active in the DLRegistry
+            (registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE)
+            ||
+            // otherwise, check if operator recently de-registered         
+            // specifically, check if the operator de-registered within (UPDATE_PERIOD + REVEAL_PERIOD) of the current time
+            (block.timestamp <= registry.getOperatorDeregisterTime(operator) + UPDATE_PERIOD + REVEAL_PERIOD)
+            )
+        {
+            // check whether the ephemeral key is actually stale (if statement passes if EK is stale)
+            if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
+                IServiceManager serviceManager = repository.serviceManager();
+                //trigger slashing for operator who hasn't updated their EK
+                serviceManager.freezeOperator(operator);
+            }
         }
-
     }
-
 
     /**
      * @notice Used for proving that an operator leaked an ephemeral key that was not supposed to be revealed.
@@ -220,7 +235,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
-        if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD){
+        if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD) {
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
                 IServiceManager serviceManager = repository.serviceManager();
                 //trigger slashing function for that datalayr node address
@@ -229,7 +244,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         }
     }
 
-    // @notice Returns the UTC timestamp at which the operator last renewed their ephemeral key
+    /// @notice Returns the UTC timestamp at which the operator last renewed their ephemeral key
     function getLastEKPostTimestamp(address operator) external view returns (uint192) {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
