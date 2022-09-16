@@ -40,7 +40,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)
      * @param EKHash is the hash of the Ephemeral key that is being currently used by the
      * @param operator for signing on bomb-based queries.
-     
+    */
     function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
         // record the new EK entry
         EKHistory[operator].push(
