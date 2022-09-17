@@ -49,8 +49,7 @@ contract ProvisionWeth is
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
         address dlsm = stdJson.readAddress(addressJson, ".dlsm");
         // deployer allocate weth, eigen to disperser
-        configJson = vm.readFile("recipient.json");
-        uint256 recipientPrivKey = stdJson.readUint(configJson, ".private");
+        uint256 recipientPrivKey = cheats.parseUint(cheats.readLine("recipient"));
         emit log_uint(recipientPrivKey);
         address recipientAddr = cheats.addr(recipientPrivKey);        
         weth.transfer(recipientAddr, wethAmount);
