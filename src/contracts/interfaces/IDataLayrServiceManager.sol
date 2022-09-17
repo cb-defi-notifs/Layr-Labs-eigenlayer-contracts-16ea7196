@@ -77,7 +77,7 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
     
-    function totalDataStoresForDuration(uint8 duration) external view returns(uint32);
+    function getNumDataStoresForDuration(uint8 duration) external view returns(uint32);
 
     function collateralToken() external view returns(IERC20);
 

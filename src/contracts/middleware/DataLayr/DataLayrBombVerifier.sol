@@ -438,7 +438,7 @@ contract DataLayrBombVerifier {
             ) {
                 //prover is claiming no datastores for given duration
                 require(
-                    dlsm.totalDataStoresForDuration(i + 1) == 0,
+                    dlsm.getNumDataStoresForDuration(i + 1) == 0,
                     "DataLayrBombVerifier.verifySandwiches: DataStores for duration are not 0"
                 );
                 //if storage agrees with provers claims, continue to next duration
@@ -573,7 +573,7 @@ contract DataLayrBombVerifier {
         } else {
             //if sandwich[1].timestamp, the prover is claiming there is no datastore after sandwichTimestamp for the duration
             require(
-                dlsm.totalDataStoresForDuration(duration) ==
+                dlsm.getNumDataStoresForDuration(duration) ==
                     sandwich[0].metadata.durationDataStoreId,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x datastore is not the last datastore in the duration or no datastores for duration"
             );

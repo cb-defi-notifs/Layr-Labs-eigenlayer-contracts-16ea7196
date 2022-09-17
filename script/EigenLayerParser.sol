@@ -20,7 +20,6 @@ import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../src/contracts/middleware/EphemeralKeyRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../src/contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
