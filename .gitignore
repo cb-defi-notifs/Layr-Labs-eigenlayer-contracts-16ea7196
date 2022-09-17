@@ -18,3 +18,8 @@ out
 *.DS_Store
 
 broadcast
+
+# Deployment tools
+contract.addresses
+config.json
+deployedAddresses
