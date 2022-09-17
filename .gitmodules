@@ -4,9 +4,6 @@
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "eignlayr-contracts/lib/ds-test"]
-	path = eignlayr-contracts/lib/ds-test
-	url = https://github.com/dapphub/ds-test
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std

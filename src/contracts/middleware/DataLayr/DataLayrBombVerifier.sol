@@ -1,27 +1,50 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../libraries/BN254_Constants.sol";
-import "../../libraries/DataStoreHash.sol";
 import "./DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreHash.sol";
+import "../../libraries/BN254.sol";
 
+/**
+ * @notice The core slashing module of DataLayr. Using Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
+ * @dev In order to prove that an operator wasn’t storing data at certain time, a challenger proves the following:
+ *      1) The existence of a certain datastore referred to as the DETONATION datastore
+ *      2) The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing,
+ *          that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
+ *      3) The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's
+ *          header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
+ *      4) The operator certified the storing of DETONATION datastore
+ * If these 4 points are proved, the operator is slashed.
+ * The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
+ */
 contract DataLayrBombVerifier {
+    /// @notice This struct is exactly IDataLayrServiceManager.DataStoreSearchData without the duration, used for identifying the correct bomb datastore.
     struct DataStoresForDuration {
         uint256 timestamp;
         uint32 index;
         IDataLayrServiceManager.DataStoreMetadata metadata;
     }
 
+    /**
+     * @notice This struct includes proofs of the metadata of the DETONATION datastore and as many potential BOMB datastores as it takes to find one
+     * that the operator signed and the datastore from which the operator to be slashed started serving DataLayr.
+     */
     struct DataStoreProofs {
         IDataLayrServiceManager.DataStoreSearchData operatorFromDataStore;
         IDataLayrServiceManager.DataStoreSearchData[] bombDataStores;
         IDataLayrServiceManager.DataStoreSearchData detonationDataStore;
     }
 
+    /**
+    * `operatorIndex` is the index in the operator's list of indexes in the `dlRegsitry` that provides the operator's index at the time of the BOMB datastore
+    * `totalOperatorsIndex` is the index in the list of total operators over time in the `dlRegsitry` that provides the total number of operators at the time
+    *  of the BOMB datastore
+    * `detonationNonSignerIndex` is the index within the non-signer list of the DETONATION datastore that proves that the operator signed on the availability
+    *  of the DETONATION datastore
+    * */
     struct Indexes {
         uint32 operatorIndex;
         uint32 totalOperatorsIndex;
@@ -31,13 +54,12 @@ contract DataLayrBombVerifier {
 
     struct DisclosureProof {
         bytes header;
-        uint256[4] multireveal;
         bytes poly;
-        uint256[4] zeroPoly;
-        bytes zeroPolyProof;
-        uint256[4] pi;
+        DataLayrChallengeUtils.MultiRevealProof multiRevealProof;
+        BN254.G2Point polyEquivalenceProof;
     }
 
+    /// @notice determines how often bombs will 'appear'
     // bomb will trigger every once every ~2^(256-249) = 2^7 = 128 chances
     // BOMB_THRESHOLD can be tuned up to increase the chance of bombs and therefore 
     // reduce the expected value of not storing the data
@@ -45,6 +67,7 @@ contract DataLayrBombVerifier {
     // increase the amount of nodes that will sign off on datastores
     uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
 
+    // TODO: document/explain more
     uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public immutable dlsm;
@@ -64,24 +87,40 @@ contract DataLayrBombVerifier {
         dlekRegistry = _dlekRegistry;
     }
 
-    // The DETONATION datastore is the datastore whose header hash is mapped to one of the active datastores at its time of initialization
-    // The datastore that the DETONATION datastore is mapped to is called the BOMB datastore
-    // The BOMB datastore is the datastore whose data, when hashed with some auxillary information was below BOMB_THRESHOLD (the BOMB condition)
-    // If such was the case, the operator should not have signed the DETONATION datastore
-
-    // In datalayr, every datastore is a potential DETONATION datastore, and it's corresponding potential BOMB datastore should
-    // always be checked for the BOMB condition
-    // The sender of this function is a party that is proving the existence of a certain operator that signed a DETONATION datastore whose corresponding
-    // BOMB datastore met the BOMB condition
-
-    //tick, tick, tick, tick, ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
-
-    // signatoryRecords input is formatted as following, with 'n' being its length:
-    // signatoryRecords[0] is for the 'detonation' DataStore
-    // signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb' 
-    // DataStore returned by the 'verifyBombDataStoreId' function and any immediately following series DataStores *that the operator did NOT sign*
-    // signatoryRecords[n] is for the DataStore that is ultimately treated as the 'bomb' DataStore
-    // this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
+    /**
+    * @notice Used to prove that `operator` improperly signed a datastore meeting the BOMB condition, making the operator subject to slashing.
+    * The header hash of the DETONATION datastore id is mapped to one of the active datastores at the time, the BOMB datastore. If the operator
+    * signed off on the availabilty of the BOMB datastore, then the function proceeds. If not, datastores are iterated through consecutively by
+    * id until a datastore that the operator has signed is found. The first datastore that the operator hash signed is considered the BOMB datastore.
+    * Ultimately, the BOMB condition is checked against a combined hash of the data stored in the BOMB datastore, the operator's ephemeral key, and 
+    * the header hash of the DETONATION datastore
+    * 
+    * @dev Exceptionally verbose explanation:
+    * The DETONATION datastore is the datastore whose header hash is mapped to one of the active datastores at its time of initialization.
+    * The datastore that the DETONATION datastore is mapped to is called the BOMB datastore.
+    * The BOMB datastore is the datastore whose data, when hashed with some auxiliary information, returned a hash value below BOMB_THRESHOLD
+    * (the BOMB condition).
+    * If such was the case, the operator should not have signed the DETONATION datastore, and thus 'detonated the bomb', making them subject
+    * to slashing.
+    * In datalayr, every datastore is a potential DETONATION datastore, and it's corresponding potential BOMB datastore should
+    * always be checked for the BOMB condition
+    * The sender of this function is a party that is proving the existence of a certain operator that signed a DETONATION datastore whose corresponding
+    * BOMB datastore met the BOMB condition
+    * tick, tick, tick, tick, ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+    * @param operator is the address of the operator to slash
+    * @param dataStoreProofs are the proofs of the datastores needed to calculate the bomb function
+    * @param signatoryRecords are the signatory records needed to prove that the operator signed the DETONATION datastore and to prove the correct
+    *       BOMB datastore that the operator signed and all of the signatory records of potential BOMB datastores that the operator did not sign
+    * @param sandwichProofs are the proofs of which datastores were active for each duration at the time the DETONATION datastore was initialized
+    *       and will be explained in more detail further in the document
+    * @param disclosureProof is the proof of the data the operator was storing of the BOMB datastore
+    * @dev signatoryRecords input is formatted as following, with 'n' being its length:
+    * signatoryRecords[0] is for the 'detonation' DataStore
+    * signatoryRecords[1] through (inclusive) signatoryRecords[n-2] is for the DataStores starting at the 'bomb' DataStore returned by the 
+    * 'verifyBombDataStoreId' function and any immediately following series DataStores *that the operator did NOT sign*
+    * signatoryRecords[n] is for the DataStore that is ultimately treated as the 'bomb' DataStore
+    * this will be the first DataStore at or after the DataStore returned by the 'verifyBombDataStoreId' function *that the operator DID sign*
+    */
     function verifyBomb(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
@@ -91,6 +130,7 @@ contract DataLayrBombVerifier {
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
     ) external {
+        // verify integrity of submitted metadata by checking against its stored hashes
         require(
             verifyMetadataPreImage(dataStoreProofs.operatorFromDataStore),
             "DataLayrBombVerifier.verifyBomb: operatorFrom metadata preimage incorrect"
@@ -108,20 +148,20 @@ contract DataLayrBombVerifier {
             );
             //deregisterTime is 0 if the operator is still registered and serving
             //otherwise it is the time at will/have stopped serving all of their existing datstores
-            //TODO: Check this definition ^
             uint256 deregisterTime = dlRegistry.getOperatorDeregisterTime(
                 operator
             );
-            //Require that the operator is registrered and, if they have deregistered, it is still before the bomb fraud proof interval has passed
+            //Require that the operator is actively registered or, if they have deregistered, it is still before the 'BOMB_FRAUDRPOOF_INTERVAL' has passed
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
                         deregisterTime >=
-                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL))
+                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL)),
+                "DataLayrBombVerifier.verifyBomb: invalid operator or time"
             );
         }
 
-        // get globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId, based on input info
+        // get globalDataStoreId at bomb DataStore
         uint32 bombGlobalDataStoreId = verifyBombDataStoreId(
             operator,
             dataStoreProofs,
@@ -147,23 +187,20 @@ contract DataLayrBombVerifier {
                         uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
          */
         /**
-          @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of 
-               non-signers pubkey is recorded in the compressed signatory record in an  ascending
-               manner.      
+          @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that the hash of all 
+               non-signers' pubkeys are recorded in the compressed signatory record in a strictly ascending order.
         */
-// first we verify that the operator did indeed sign the 'detonation' DataStore
+        // first we verify that the operator did indeed sign the 'detonation' DataStore
         {
             //the block number since the operator has been active
             uint32 operatorActiveFromBlockNumber = dlRegistry.getFromBlockNumberForOperator(operator);
             // fetch hash of operator's pubkey
-            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(
-                operator
-            );
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
 
             // The BOMB datastore must be a datastore for which a signature from the operator has been submitted on chain
             // Then, we have an attestation that they have stored said data, so they can check it for the BOMB condition
             uint256 ultimateBombDataStoreIndex = dataStoreProofs.bombDataStores.length - 1;
-            //verify all non signed DataStores from bomb till first signed to get correct BOMB datastore
+            //verify all non signed DataStores from bomb till reaching the first signed DataStore to get the correct BOMB datastore
             for (uint i = 0; i < ultimateBombDataStoreIndex; ++i) {
                 require(dataStoreProofs.bombDataStores[i].metadata.globalDataStoreId == bombGlobalDataStoreId, 
                     "DataLayrBombVerifier.verifyBomb: bombDataStore is not for correct id");
@@ -175,9 +212,9 @@ contract DataLayrBombVerifier {
                 
                 //There are 2 conditions under which the BOMB datastore id must increment
                 //1. The BOMB datastore is based off of stakes before the operator joined
-                //2. The BOMB datastore included the stake of the operator, but the operator did not sign
+                //2. The BOMB datastore included the stake of the operator, but the operator did not sign it
                 //This conditional statement checks (1)
-                if(dataStoreProofs.bombDataStores[i].metadata.blockNumber < operatorActiveFromBlockNumber) {
+                if(dataStoreProofs.bombDataStores[i].metadata.blockNumber >= operatorActiveFromBlockNumber) {
                     //If we make it inside of this loop, then the BOMB datastore included the operator's stake
                     //So we check the proof that the operator did not sign for this datastore
                     // Verify that the signatoryRecord supplied as input related to the i'th potential BOMB datastore is correct
@@ -196,6 +233,7 @@ contract DataLayrBombVerifier {
                         "DataLayrBombVerifier.verifyBomb: Bomb datastore signatory record does not match hash"
                     );
 
+                    // verify that the operator was in the non-signer set (i.e did *NOT* sign) for this datastore
                     require(
                         signatoryRecords[i].nonSignerPubkeyHashes[
                             indexes.successiveSignerIndexes[i]
@@ -206,8 +244,11 @@ contract DataLayrBombVerifier {
                 ++bombGlobalDataStoreId;
             }
 
-            require(dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId == bombGlobalDataStoreId, 
-                    "DataLayrBombVerifier.verifyBomb: bombDataStore is not for correct id");
+            // verify that the correct BOMB dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
+            require(
+                dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId == bombGlobalDataStoreId, 
+                "DataLayrBombVerifier.verifyBomb: provided bomb datastore id must be as calculated"
+            );
 
             //verify the preimage of the last provided BOMB datastore (the valid one) is consistent with storage
             require(
@@ -233,21 +274,19 @@ contract DataLayrBombVerifier {
             require(dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.blockNumber >= operatorActiveFromBlockNumber, 
                 "DataLayrBombVerifier.verfiyBomb: BOMB datastore was not using the operator's stake");
 
-            // check that operator was *not* in the non-signer set (i.e. they did sign) for the ultimate 'bomb' DataStore
-            if (
-                signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes.length !=
-                0
-            ) {
+            // check that operator was *not* in the non-signer set (i.e. they *did* sign) for the ultimate 'bomb' DataStore
+            if (signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes.length != 0) {
                 // check that operator was *not* in the non-signer set (i.e. they did sign)
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkExclusionFromNonSignerSet(
                     operatorPubkeyHash,
-                    indexes.detonationNonSignerIndex,
+                    // TODO: @gpsanant please confirm that this is indeed the correct index to use here
+                    indexes.operatorIndex,
                     signatoryRecords[ultimateBombDataStoreIndex]
                 );
             }
 
-            //Verify that the operator did sign the DETONATION datastore
+            //Verify that the operator *did* sign the DETONATION datastore
             uint256 lastSignatoryRecordIndex = signatoryRecords.length - 1;
 
             // Verify that the signatoryRecord supplied as input related to the 'detonation' DataStore is correct
@@ -264,9 +303,11 @@ contract DataLayrBombVerifier {
                     ),
                 "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
             );
-            //require that the detonation is happening for a datastore using the operators stake
-            require(dataStoreProofs.detonationDataStore.metadata.blockNumber > operatorActiveFromBlockNumber, 
-                "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake");
+            // require that the detonation is happening for a datastore using the operators stake
+            require(
+                dataStoreProofs.detonationDataStore.metadata.blockNumber >= operatorActiveFromBlockNumber, 
+                "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake"
+            );
 
             // check that operator was *not* in the non-signer set (i.e. they did sign) for the 'detonation' DataStore
             if (signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes.length != 0) {
@@ -279,13 +320,6 @@ contract DataLayrBombVerifier {
                 );
             }
         }
-
-        // verify that the correct BOMB dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
-        require(
-            dataStoreProofs.bombDataStores[dataStoreProofs.bombDataStores.length - 1].metadata.globalDataStoreId ==
-                bombGlobalDataStoreId,
-            "DataLayrBombVerifier.verifyBomb: provided bomb datastore id must be as calculated"
-        );
 
         // check the disclosure of the data chunk that the operator committed to storing
         require(
@@ -301,11 +335,11 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyBomb: I from multireveal is not the commitment of poly"
         );
 
-        // fetch the operator's most recent ephemeral key
+        // fetch the operator's ephemeral key for the DETONATION datastore
         bytes32 ek = dlekRegistry.getEphemeralKeyForTaskNumber(operator, dataStoreProofs.detonationDataStore.metadata.globalDataStoreId);
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
-        // If it is was met, there was a .....  ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
+        // If it is met, there was a ........  ⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️⏲️
         // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
         // 💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣💣
         // 💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥💥
@@ -319,10 +353,11 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyBomb: No bomb"
         );
 
+        // trigger slashing
         dlsm.freezeOperator(operator);
     }
 
-    // return globalDataStoreId at bomb DataStore
+    // returns globalDataStoreId at bomb DataStore
     function verifyBombDataStoreId(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
@@ -331,9 +366,7 @@ contract DataLayrBombVerifier {
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
-            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(
-                operator
-            );
+            uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(operator);
 
             // ensure that operatorFromHeaderHash corresponds to the correct dataStoreId (i.e. the one at which the operator registered)
             require(
@@ -351,7 +384,7 @@ contract DataLayrBombVerifier {
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (
-            uint8 duration,
+            uint8 durationIndex,
             uint32 calculatedDataStoreId,
             uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         ) = verifySandwiches(
@@ -369,7 +402,7 @@ contract DataLayrBombVerifier {
         // fetch the durationDataStoreId and globalDataStoreId for the specific 'detonation' DataStore specified by the parameters
         // check that the specified bombDataStore info matches the calculated info
         require(
-            dataStoreProofs.bombDataStores[0].duration == duration,
+            dataStoreProofs.bombDataStores[0].duration == (durationIndex + 1),
             "DataLayrBombVerifier.verifyBombDataStoreId: bomb datastore id's duration is the same as calculated"
         );
         require(
@@ -384,21 +417,28 @@ contract DataLayrBombVerifier {
                 nextGlobalDataStoreIdAfterDetonationTimestamp,
             "DataLayrBombVerifier.verifyBombDataStoreId: next datastore after bomb does not match provided detonation datastore"
         );
-        // return globalDataStoreId at bomb DataStore, as well as detonationGlobalDataStoreId
+        // return globalDataStoreId at bomb DataStore
         return dataStoreProofs.bombDataStores[0].metadata.globalDataStoreId;
-        // note that this matches detonationGlobalDataStoreId, as checked above;
     }
 
-    // returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
     /**
-     * Finds all of the active datastores after @param fromTime and before @param detonationDataStoreInitTimestamp. 
-     *
-     * @param sandwichProofs is a list of the length of the number of durations that datastores cna be stored. Each element is 
+     * @notice This function verifies the sandwich proof for each duration, then maps the `detonationHeaderHashValue` to one of the active datastores determined
+     * by the sandwich proofs. This is the first potential BOMB datastore. The function returns the duration and id of the potential BOMB datastore and the
+     * id of the earliest datastore after or at `detonationDataStoreInitTimestamp`
+     * 
+     * @param detonationHeaderHashValue is the integer value of the DETONATION datastore's header hash
+     * @param fromTime is the time from which the operator to slash hash been serving DataLayr
+     * @param detonationDataStoreInitTimestamp is the time at which the DETONATION datastore was initialized
+     * @param sandwichProofs are proofs for each duration of the different datastore ids that were active (not expired) at `detonationDataStoreInitTimestamp`
+     * 
+     * @param sandwichProofs is a list of length equal to the number of durations that datastores can be stored. Each element is 
      * 2 sandwich proofs of the datastores surrounding the boundaries of the duration. For example, if the first duration is 1 day,
      * then sandwichProofs[0][0] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp - 1 day or
      * @param fromTime. sandwichProofs[0][1] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp
      *
      * Then the BOMB datastore is picked from random by taking @param detonationHeaderHashValue. TODO: Finish this comment
+     * 
+     * @dev returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
      */
     function verifySandwiches(
         uint256 detonationHeaderHashValue,
@@ -408,9 +448,9 @@ contract DataLayrBombVerifier {
     )
         internal view
         returns (
-            uint8,
-            uint32,
-            uint32
+            uint8 durationIndex,
+            uint32 calculatedDataStoreId,
+            uint32 nextGlobalDataStoreIdAfterDetonationTimestamp
         )
     {
         uint32 numberActiveDataStores;
@@ -425,7 +465,7 @@ contract DataLayrBombVerifier {
             dlsm.MAX_DATASTORE_DURATION()
         );
 
-        uint32 nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
+        nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
         
         //for each duration
         for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
@@ -438,31 +478,33 @@ contract DataLayrBombVerifier {
             ) {
                 //prover is claiming no datastores for given duration
                 require(
-                    dlsm.totalDataStoresForDuration(i + 1) == 0,
+                    dlsm.getNumDataStoresForDuration(i + 1) == 0,
                     "DataLayrBombVerifier.verifySandwiches: DataStores for duration are not 0"
                 );
                 //if storage agrees with provers claims, continue to next duration
                 continue;
             }
-            /*
-                calculate the greater of ((init time of detonationDataStoreInitTimestamp) - duration) and fromTime
-                since 'fromTime' is the time at which the operator registered, if
-                fromTime is > (init time of detonationDataStoreInitTimestamp) - duration), then we only care about DataStores
-                starting from 'fromTime'
+            /**
+             * Calculate the greater of ((init time of detonationDataStoreInitTimestamp) - duration) and fromTime.
+             * Since 'fromTime' is the time at which the operator registered, if
+             * fromTime is > (init time of detonationDataStoreInitTimestamp) - duration), then we only care about DataStores
+             * starting from 'fromTime'
             */
             uint256 sandwichTimestamp = max(
-                detonationDataStoreInitTimestamp - (i + 1) * dlsm.DURATION_SCALE(),
+                detonationDataStoreInitTimestamp - ((i + 1) * dlsm.DURATION_SCALE()),
                 fromTime
             );
-            //verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata
-            //the second datastore is the first datastore after sandwichTimestamp. this is the first active datastore for the duration at the detonationDataStoreInitTimestamp
-            //in memory, store it's durationDataStoreId
+            /**
+             * @dev Verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata.
+             * The second datastore is the first datastore after `sandwichTimestamp`. This is the first active datastore for the duration which was initialized at
+             * or after the `sandwichTimestamp`. We store its durationDataStoreId in the `firstDataStoreForDuration` memory array.
+             */
             firstDataStoreForDuration[i] = verifyDataStoreIdSandwich(
                 sandwichTimestamp,
                 i + 1,
                 sandwichProofs[i][0]
             ).durationDataStoreId;
-            // verify the sandwich proof and store the metadata of the first datastore after detonationDataStoreInitTimestamp for the given duration
+            // verify the sandwich proof and store the metadata of the first datastore after `detonationDataStoreInitTimestamp` for the given duration
             IDataLayrServiceManager.DataStoreMetadata
                 memory detonationDataStoreMetadata = verifyDataStoreIdSandwich(
                     detonationDataStoreInitTimestamp,
@@ -471,7 +513,6 @@ contract DataLayrBombVerifier {
                 );
             //The DETONATION datastore id is the nextGlobalDataStoreIdAfterDetonationTimestamp: the datastore with the lowest datastoreid after
             //the detonationDataStoreMetadata
-            //TODO: is this sound? think so
             if (
                 nextGlobalDataStoreIdAfterDetonationTimestamp >
                 detonationDataStoreMetadata.globalDataStoreId
@@ -494,18 +535,20 @@ contract DataLayrBombVerifier {
         );
         // find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'
         // we can think of this as the DataStore location specified by 'selectedDataStoreIndex'
+        uint32 offset;
         (
-            uint8 durationIndex,
-            uint32 offset
+            durationIndex,
+            offset
         ) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
                 selectedDataStoreIndex,
                 numberActiveDataStoresForDuration
             );
 
-        // return the pseudo-randomized durationIndex and durationDataStoreId, specified by selectedDataStoreIndex, as well as the nextGlobalDataStoreIdAfterBomb
+        calculatedDataStoreId = firstDataStoreForDuration[durationIndex] + offset;
+        // return the pseudo-randomized `durationIndex` and `durationDataStoreId`, specified by `selectedDataStoreIndex`, as well as the `nextGlobalDataStoreIdAfterBomb`
         return (
-            durationIndex + 1,
-            firstDataStoreForDuration[durationIndex] + offset,
+            durationIndex,
+            calculatedDataStoreId,
             nextGlobalDataStoreIdAfterDetonationTimestamp
         );
     }
@@ -514,8 +557,15 @@ contract DataLayrBombVerifier {
     // returns the first durationDataStoreId and globalDataStoreId at or after the sandwichTimestamp, for the specified duration
 
     /** 
-     * For a certain @param duration, checks that the two datastores provided in @param sandwich
-     * are the datastores just before and after (or equal) @param sandwichTimestamp in that order
+     * @notice For a certain @param duration, checks that the two datastores provided in @param sandwich
+     * are the datastores just before and after (or equal) @param sandwichTimestamp, in that order
+     * @notice For the given `duration` and `sandwichTimestamp`, this function returns the metadata of the earliest datastore that was stored
+     *  for `duration` and which was initialized after `sandwichTimestamp`.
+     * @dev `sandwich[0]` is the search data for the latest datastore with `duration`, which was created *before* `sandwichTimestamp`. `sandwich[1]` is the 
+     * search data for the earliest datastore with the same `duration`, which was created *after* `sandwichTimestamp`.
+     * @dev This function hashes the metadata in `sandwich` to verify its correctness and checks that the initialization times of the provided datastores are 
+     * before and after `sandwichTime`, respectively, and verifies that their ids are consecutive.
+     * @return the metadata for the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
     */
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
@@ -571,9 +621,9 @@ contract DataLayrBombVerifier {
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x and y datastore must be incremental or y datastore is not first in the duration"
             );
         } else {
-            //if sandwich[1].timestamp, the prover is claiming there is no datastore after sandwichTimestamp for the duration
+            //if sandwich[1].timestamp is 0, the prover is claiming that there is no datastore after sandwichTimestamp for the duration
             require(
-                dlsm.totalDataStoresForDuration(duration) ==
+                dlsm.getNumDataStoresForDuration(duration) ==
                     sandwich[0].metadata.durationDataStoreId,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x datastore is not the last datastore in the duration or no datastores for duration"
             );
@@ -581,47 +631,53 @@ contract DataLayrBombVerifier {
         return sandwich[1].metadata;
     }
 
-    // inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration
-    // given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'
-    // in other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to a specific DataStore within that bin
-    //
-    // given an ordered list of groups and the number of elements in each group, given an offset, calculate which group and index within the group the offset points to
+    /**
+     * @notice given an ordered list of groups and the number of elements in each group, as well as a total offset, calculates which group and index within the group
+     * the offset points to.
+     * @dev Inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration.
+     * Given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'.
+     * In other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to the index of a DataStore within that bin
+     */
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
-    ) internal pure returns (uint8, uint32) {
-        uint32 offsetLeft = offset;
-        uint256 i = 0;
-        for (; i < numberActiveDataStoresForDuration.length; ++i) {
-            //we use > not >= because offsetLeft should be the index within the correct duration
-            if (numberActiveDataStoresForDuration[i] > offsetLeft) {
+    ) internal pure returns (uint8 durationIndex, uint32 offsetRemaining) {
+        offsetRemaining = offset;
+        durationIndex = 0;
+        for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
+            //we use > not >= because offsetRemaining should be the index within the correct duration
+            if (numberActiveDataStoresForDuration[durationIndex] > offsetRemaining) {
                 break;
             }
-            offsetLeft -= numberActiveDataStoresForDuration[i];
+            offsetRemaining -= numberActiveDataStoresForDuration[durationIndex];
         }
 
-        return (uint8(i), offsetLeft);
+        return (uint8(durationIndex), offsetRemaining);
     }
 
+    /**
+     * @notice Gets the specific coset/chunk number that `operator` was assigned for the datastore specified by `searchData`.
+     * `operatorIndex` and `totalOperatorsIndex` are the indexes in their relative arrays in the `dlRegistry` that are used to prove the total number of operators
+     * and the index of `operator` at `searchData.metadata.blockNumber`. These are used to calculate which cosets were used for the datastore based off of other
+     * information in the header.
+     */
     function getChunkNumber(
         address operator,
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) internal view returns (uint32) {
+    ) internal view returns (uint32 chunkNumber) {
         /**
         Get information on the dataStore for which disperser is being challenged. This dataStore was 
-        constructed during call to initDataStore in DataLayr.sol by the disperser.
+        constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
         */
-
-
         require(dlsm.getDataStoreHashesForDurationAtTimestamp(
                                                     searchData.duration, 
                                                     searchData.timestamp,
                                                     searchData.index
                                                 ) == DataStoreHash.computeDataStoreHash(searchData.metadata), "search.metadataclear preimage is incorrect");
 
-        // check that disperser had acquire quorum for this dataStore
+        // check that disperser acquired quorum for this dataStore
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
 
         operatorIndex = dlRegistry.getOperatorIndex(
@@ -637,7 +693,12 @@ contract DataLayrBombVerifier {
         return (operatorIndex + searchData.metadata.globalDataStoreId) % totalOperatorsIndex;
     }
 
-
+    /**
+     * @notice This function verifies that `disclosureProof.poly` was the data that operator was storing for `dataStoreId` and it is the polynomial that is
+     *  commited to by the KZG commitment `(disclosureProof.multireveal[2], disclosureProof.multireveal[3])`.
+     * @dev The coset of the zero polynomial is determined from `operatorIndex` and `totalOperatorsIndex` and the metadata of the datastore provided by `searchData`.
+     * @return proofSuccess is 'true' if the proof succeeded. The function will revert otherwise.
+     */
     function nonInteractivePolynomialProof(
         address operator,
         uint32 operatorIndex,
@@ -645,29 +706,32 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-
-    ) internal view returns (bool) {
+    ) internal view returns (bool proofSuccess) {
         uint32 chunkNumber = getChunkNumber(
             operator,
             operatorIndex,
             totalOperatorsIndex,
             searchData
         );
-        require(searchData.metadata.globalDataStoreId == dataStoreId, "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId");
-        require(searchData.metadata.headerHash == keccak256(disclosureProof.header), "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData");
-        bool res = challengeUtils.nonInteractivePolynomialProof(
-            chunkNumber,
-            disclosureProof.header,
-            disclosureProof.multireveal,
-            disclosureProof.poly,
-            disclosureProof.zeroPoly,
-            disclosureProof.zeroPolyProof,
-            disclosureProof.pi
+        require(
+            searchData.metadata.globalDataStoreId == dataStoreId,
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId"
+        );
+        require(
+            searchData.metadata.headerHash == keccak256(disclosureProof.header),
+            "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
         );
 
-        return res;
+        return (challengeUtils.nonInteractivePolynomialProof(
+            disclosureProof.header,
+            chunkNumber,
+            disclosureProof.poly,
+            disclosureProof.multiRevealProof,
+            disclosureProof.polyEquivalenceProof
+        ));
     }
 
+    /// @notice This function verifies that `searchData` provided matches the data that was stored for the given datastore
     function verifyMetadataPreImage(
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
     ) internal view returns (bool) {

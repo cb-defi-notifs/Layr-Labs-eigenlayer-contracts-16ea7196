@@ -110,10 +110,6 @@ contract DataLayrServiceManager is
         dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
     }
 
-    function setDisclosureChallenge(DataLayrDisclosureChallenge _dataLayrDisclosureChallenge) public onlyRepositoryGovernance {
-        dataLayrDisclosureChallenge = _dataLayrDisclosureChallenge;
-    }
-
     function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) public onlyRepositoryGovernance {
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
@@ -352,7 +348,6 @@ contract DataLayrServiceManager is
     function freezeOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge) ||
-            msg.sender == address(dataLayrDisclosureChallenge) ||
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
@@ -419,7 +414,6 @@ contract DataLayrServiceManager is
     /**
      @notice returns the number of data stores for the @param duration
      */
-    /// CRITIC -- change the name to `getNumDataStoresForDuration`?
     function getNumDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;

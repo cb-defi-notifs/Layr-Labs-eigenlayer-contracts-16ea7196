@@ -20,7 +20,6 @@ import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../src/contracts/middleware/EphemeralKeyRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../src/contracts/middleware/DataLayr/DataLayrDisclosureChallenge.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -78,7 +77,6 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentManager public dataLayrPaymentManager;
-    DataLayrDisclosureChallenge public dataLayrDisclosureChallenge;
 
     // ERC20PresetFixedSupply public liquidStakingMockToken;
     // InvestmentStrategyBase public liquidStakingMockStrat;
@@ -384,15 +382,9 @@ contract EigenLayrDeployer is
         );
         emit log_address(dlRepository.owner());
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
-        dataLayrDisclosureChallenge = new DataLayrDisclosureChallenge(
-            dlsm,
-            dlReg,
-            challengeUtils
-        );
         vm.stopBroadcast();
         vm.startBroadcast(mainHonchoPrivKey);
         dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setDisclosureChallenge(dataLayrDisclosureChallenge);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
         vm.stopBroadcast();
