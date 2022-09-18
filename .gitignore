@@ -20,6 +20,4 @@ out
 broadcast
 
 # Deployment tools
-contract.addresses
-config.json
-deployedAddresses
+/data
