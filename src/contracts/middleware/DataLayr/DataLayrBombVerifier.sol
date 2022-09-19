@@ -583,8 +583,8 @@ contract DataLayrBombVerifier {
         );
         // make sure that the second timestamp is at or after the sandwichTimestamp
         require(
-            sandwich[1].timestamp >= sandwichTimestamp,
-            "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].timestamp must be at or after sandwich time"
+            sandwich[1].timestamp >= sandwichTimestamp || sandwich[1].timestamp == 0,
+            "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].timestamp must be at or after sandwich time or 0"
         );
 
         // If sandwichTimestamp is before the first datastore for the given duration, set sandwich[0].timestamp equal to 0
@@ -601,6 +601,10 @@ contract DataLayrBombVerifier {
                 ) == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+        } else {
+            //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks 
+            require(sandwich[0].metadata.durationDataStoreId == 0, 
+                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].timstamp was 0 but duration datastore id was not");
         }
         // If sandwichTimestamp is after the last datastore for the given duration, set sandwich[1].timestamp equal to 0
         // because there is no datastore after sandwichTimestamp for the duration
@@ -699,7 +703,7 @@ contract DataLayrBombVerifier {
 
     /**
      * @notice This function verifies that `disclosureProof.poly` was the data that operator was storing for `dataStoreId` and it is the polynomial that is
-     *  commited to by the KZG commitment `(disclosureProof.multireveal[2], disclosureProof.multireveal[3])`.
+     *  commited to by the KZG commitment `disclosureProof.interpolationPoly`.
      * @dev The coset of the zero polynomial is determined from `operatorIndex` and `totalOperatorsIndex` and the metadata of the datastore provided by `searchData`.
      * @return 'true' if the proof succeeded. The function will revert otherwise.
      */
