@@ -34,10 +34,12 @@ contract Slasher is
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
     mapping(address => bool) public frozenStatus;
 
+    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
-    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 unbondedAfter);
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
@@ -115,18 +117,16 @@ contract Slasher is
 
     // INTERNAL FUNCTIONS
     function _optIntoSlashing(address operator, address contractAddress) internal {
-        if (bondedUntil[operator][contractAddress] == 0) {
-            //allow the contract to slash anytime before a time VERY far in the future
-            bondedUntil[operator][contractAddress] = type(uint32).max;
-            emit OptedIntoSlashing(operator, contractAddress);        
-        }
+        //allow the contract to slash anytime before a time VERY far in the future
+        bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL;
+        emit OptedIntoSlashing(operator, contractAddress);        
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
-        if (bondedUntil[operator][contractAddress] == type(uint32).max) {
+        if (bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL) {
             //contractAddress can now only slash operator before unbondedAfter
             bondedUntil[operator][contractAddress] = unbondedAfter;
-            emit SlashingAbilityRevoked(operator, contractAddress);        
+            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);        
         }
     }
 

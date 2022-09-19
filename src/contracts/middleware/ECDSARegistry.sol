@@ -3,8 +3,6 @@ pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
 import "../interfaces/IECDSARegistry.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-
 
 // import "forge-std/Test.sol";
 
@@ -194,11 +192,6 @@ contract ECDSARegistry is
 
         // store hash of 'stakes' and record that an update has occurred
         _processStakeHashUpdate(keccak256(updatedStakesArray));
-    }
-
-    //return when the operator is unbonded from the middleware, if they deregister now
-    function unbondedAfter(address operator) public override returns (uint32) {
-        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     /**

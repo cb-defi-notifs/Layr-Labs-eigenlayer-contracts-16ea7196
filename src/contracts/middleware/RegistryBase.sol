@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
@@ -515,7 +516,9 @@ abstract contract RegistryBase is
     }
 
     //return when the operator is unbonded from the middleware, if they deregister now
-    function unbondedAfter(address operator) public virtual returns (uint32);
+    function unbondedAfter(address operator) public view virtual returns (uint32) {
+        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
+    }
 }
 
 
