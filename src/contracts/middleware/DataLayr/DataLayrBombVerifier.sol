@@ -68,7 +68,7 @@ contract DataLayrBombVerifier {
     // increase the amount of nodes that will sign off on datastores
     uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
 
-    // TODO: document/explain more
+    // This is the interval in which the bomb must be proven
     uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public immutable dlsm;
@@ -160,8 +160,7 @@ contract DataLayrBombVerifier {
             require(
                 fromDataStoreId != 0 &&
                     (deregisterTime == 0 ||
-                        deregisterTime >=
-                        (block.timestamp - BOMB_FRAUDRPOOF_INTERVAL)),
+                        block.timestamp <= deregisterTime + BOMB_FRAUDRPOOF_INTERVAL),
                 "DataLayrBombVerifier.verifyBomb: invalid operator or time"
             );
         }
@@ -247,6 +246,11 @@ contract DataLayrBombVerifier {
                     );
                 }
                 ++bombGlobalDataStoreId;
+                //if we have incremented through all datastores after the initial BOMB datastore id, up until detonation, then there is
+                //no proof of custody needed, as they have not signed/been paid for a while!
+                if (bombGlobalDataStoreId == dataStoreProofs.detonationDataStore.metadata.globalDataStoreId) {
+                    return;
+                }
             }
 
             // verify that the correct BOMB dataStoreId (the first the operator signed at or above the pseudo-random dataStoreId) matches the provided data
@@ -440,7 +444,34 @@ contract DataLayrBombVerifier {
      * then sandwichProofs[0][0] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp - 1 day or
      * @param fromTime. sandwichProofs[0][1] is a proof of the 2 datastores for duration 1 day surrounding @param detonationDataStoreInitTimestamp
      *
-     * Then the BOMB datastore is picked from random by taking @param detonationHeaderHashValue. TODO: Finish this comment
+     * Then the BOMB datastore is picked from random by taking @param detonationHeaderHashValue and taking it modulo the number of active datastores
+     * for example, if the current datastores for durations are
+     * 
+     * Duration 1: ids 10-20
+     * Duration 2: ids 1
+     * Duration 3: ids 10-12
+     * Duration 4: ids 10-22
+     * Duration 5: ids 10-20
+     * Duration 6: ids 10-20
+     * Duration 7: ids 10-20
+     * Duration 8: ids 10-20
+     * Duration 9: ids 10-20
+     * Duration 10: ids 10
+     * Duration 11: ids 13-20
+     * Duration 12: ids 10-20
+     * Duration 13: none
+     * Duration 14: ids 1-20
+     * 
+     * and @param detonationHeaderHashValue is 100, the initially selected BOMB datastore will be
+     * 100 - (11 datastores in Duration 1) - (1 datastores in Duration 2)  - (3 datastores in Duration 3)  - (13 datastores in Duration 4) 
+     *     - (11 datastores in Duration 5) - (11 datastores in Duration 6) - (11 datastores in Duration 7) - (11 datastores in Duration 8) 
+     *     - (11 datastores in Duration 9) - (1 datastores in Duration 10) - (8 datastores in Duration 11) 
+     * = the 8th datastore in Duration 12 which is: Duration 12, id 17
+     * 
+     * If the challenged DLN did not sign off on the availability of the initial selected BOMB datastore, then the algorithm checks the 
+     * incremental datastores *by global datastore id*. This means that if Duration 12, id 17 was global datastore id 50, then it is checked whether
+     * the DLN signed off on global datastore id 51, 52, ... until a signed datastore is found. There is a possible gas greiving attack that should 
+     * be thought about more here.
      * 
      * @dev returns a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
      */
