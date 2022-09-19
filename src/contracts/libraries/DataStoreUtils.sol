@@ -5,6 +5,17 @@ pragma solidity ^0.8.9.0;
 import "../interfaces/IDataLayrServiceManager.sol";
 
 library DataStoreUtils {
+    function computeSignatoryRecordHash(uint32 globalDataStoreId, bytes32[] memory nonSignerPubkeyHashes, uint256 totalEthStakeSigned, uint256 totalEigenStakeSigned) internal pure returns(bytes32) {
+        return keccak256(
+            abi.encodePacked(
+                globalDataStoreId,
+                nonSignerPubkeyHashes,
+                totalEthStakeSigned,
+                totalEigenStakeSigned
+            )
+        );
+    }
+
     function computeDataStoreHash(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     ) 
