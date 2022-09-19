@@ -285,7 +285,6 @@ contract DataLayrBombVerifier {
                 //not super critic: new call here, maybe change comment
                 challengeUtils.checkExclusionFromNonSignerSet(
                     operatorPubkeyHash,
-                    // TODO: @gpsanant please confirm that this is indeed the correct index to use here
                     indexes.operatorIndex,
                     signatoryRecords[ultimateBombDataStoreIndex]
                 );
