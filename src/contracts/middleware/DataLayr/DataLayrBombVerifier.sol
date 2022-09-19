@@ -584,8 +584,8 @@ contract DataLayrBombVerifier {
         );
         // make sure that the second timestamp is at or after the sandwichTimestamp
         require(
-            sandwich[1].timestamp >= sandwichTimestamp,
-            "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].timestamp must be at or after sandwich time"
+            sandwich[1].timestamp >= sandwichTimestamp || sandwich[1].timestamp == 0,
+            "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].timestamp must be at or after sandwich time or 0"
         );
 
         // If sandwichTimestamp is before the first datastore for the given duration, set sandwich[0].timestamp equal to 0
@@ -602,6 +602,10 @@ contract DataLayrBombVerifier {
                 ) == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+        } else {
+            //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks 
+            require(sandwich[0].metadata.durationDataStoreId == 0, 
+                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].timstamp was 0 but duration datastore id was not");
         }
         // If sandwichTimestamp is after the last datastore for the given duration, set sandwich[1].timestamp equal to 0
         // because there is no datastore after sandwichTimestamp for the duration
