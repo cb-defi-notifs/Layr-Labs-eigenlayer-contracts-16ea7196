@@ -704,7 +704,7 @@ contract DataLayrBombVerifier {
 
     /**
      * @notice This function verifies that `disclosureProof.poly` was the data that operator was storing for `dataStoreId` and it is the polynomial that is
-     *  commited to by the KZG commitment `(disclosureProof.multireveal[2], disclosureProof.multireveal[3])`.
+     *  commited to by the KZG commitment `disclosureProof.interpolationPoly`.
      * @dev The coset of the zero polynomial is determined from `operatorIndex` and `totalOperatorsIndex` and the metadata of the datastore provided by `searchData`.
      * @return 'true' if the proof succeeded. The function will revert otherwise.
      */
