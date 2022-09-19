@@ -702,7 +702,7 @@ contract DataLayrBombVerifier {
      * @notice This function verifies that `disclosureProof.poly` was the data that operator was storing for `dataStoreId` and it is the polynomial that is
      *  commited to by the KZG commitment `(disclosureProof.multireveal[2], disclosureProof.multireveal[3])`.
      * @dev The coset of the zero polynomial is determined from `operatorIndex` and `totalOperatorsIndex` and the metadata of the datastore provided by `searchData`.
-     * @return proofSuccess is 'true' if the proof succeeded. The function will revert otherwise.
+     * @return 'true' if the proof succeeded. The function will revert otherwise.
      */
     function nonInteractivePolynomialProof(
         address operator,
@@ -711,7 +711,7 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) internal view returns (bool proofSuccess) {
+    ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(
             operator,
             operatorIndex,
@@ -727,13 +727,14 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
         );
 
-        return (challengeUtils.nonInteractivePolynomialProof(
-            disclosureProof.header,
-            chunkNumber,
-            disclosureProof.poly,
-            disclosureProof.multiRevealProof,
-            disclosureProof.polyEquivalenceProof
-        ));
+        return 
+            challengeUtils.nonInteractivePolynomialProof(
+                disclosureProof.header,
+                chunkNumber,
+                disclosureProof.poly,
+                disclosureProof.multiRevealProof,
+                disclosureProof.polyEquivalenceProof
+            );
     }
 
     /// @notice This function verifies that `searchData` provided matches the data that was stored for the given datastore
