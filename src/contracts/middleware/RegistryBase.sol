@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../libraries/BytesLib.sol";
@@ -24,6 +25,7 @@ abstract contract RegistryBase is
 {
     using BytesLib for bytes;
 
+    uint32 public immutable UNBONDING_PERIOD;
     uint128 public minimumStakeFirstQuorum = 1 wei;
     uint128 public minimumStakeSecondQuorum = 1 wei;
     
@@ -75,6 +77,7 @@ abstract contract RegistryBase is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        uint32 unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
@@ -88,6 +91,8 @@ abstract contract RegistryBase is
             _quorumBips
         )
     {
+        //set unbonding period
+        UNBONDING_PERIOD = unbondingPeriod;
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);
@@ -343,6 +348,9 @@ abstract contract RegistryBase is
         // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
+        //revoke that slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntil(msg.sender));
+        
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
     }
@@ -378,6 +386,8 @@ abstract contract RegistryBase is
 
     // Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList`
     function _addRegistrant(address operator, bytes32 pubkeyHash, OperatorStake memory _operatorStake, string calldata socket) internal {
+        require(investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max, 
+            "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager");
         // store the Operator's info in mapping
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
@@ -502,6 +512,11 @@ abstract contract RegistryBase is
             operator == operatorList[index],
             "RegistryBase._deregistrationCheck: Incorrect index supplied"
         );
+    }
+
+    //return when the operator is unbonded from the middleware, if they deregister now
+    function bondedUntil(address operator) public view virtual returns (uint32) {
+        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 }
 

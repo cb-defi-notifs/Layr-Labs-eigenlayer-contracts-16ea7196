@@ -65,6 +65,8 @@ contract TestHelper is EigenLayrDeployer {
         //     bytes calldata data,
         //     string calldata socket
         // )
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
         dlReg.registerOperator(
             operatorType,
             ephemeralKey,
@@ -428,6 +430,8 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.startPrank(sender);
         
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
         
         dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
 

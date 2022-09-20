@@ -304,7 +304,8 @@ contract EigenLayrDeployer is
             pauserReg,
             feePerBytePerTime
         );
-        
+
+        uint32 unbondingPeriod = uint32(14 days);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
@@ -327,6 +328,7 @@ contract EigenLayrDeployer is
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
