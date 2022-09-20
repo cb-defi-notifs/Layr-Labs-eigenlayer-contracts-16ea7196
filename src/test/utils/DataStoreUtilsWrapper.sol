@@ -13,28 +13,6 @@ contract DataStoreUtilsWrapper {
         return DataStoreUtils.computeDataStoreHash(metadata);
     }
 
-    function computeDataStoreHashFromArgsExternal(
-        bytes32 headerHash,
-        uint32 durationDataStoreId,
-        uint32 globalDataStoreId,
-        uint32 blockNumber,
-        uint96 fee,
-        address confirmer,
-        bytes32 signatoryRecordHash
-    ) external pure returns (bytes32) {
-        return (
-            DataStoreUtils.computeDataStoreHashFromArgs(
-                headerHash,
-                durationDataStoreId,
-                globalDataStoreId,
-                blockNumber,
-                fee,
-                confirmer,
-                signatoryRecordHash
-            )
-        );
-    }
-
     function packDataStoreMetadataExternal(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     )
