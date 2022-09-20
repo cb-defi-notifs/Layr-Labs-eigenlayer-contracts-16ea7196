@@ -219,6 +219,7 @@ contract EigenLayrDeployer is
         delegation.initialize(
             investmentManager,
             pauserReg,
+            governor,
             undelegationFraudproofInterval
         );
 

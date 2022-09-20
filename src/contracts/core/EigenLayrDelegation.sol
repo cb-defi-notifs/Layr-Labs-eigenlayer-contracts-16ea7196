@@ -44,21 +44,21 @@ contract EigenLayrDelegation is
         //_disableInitializers();
     }
 
-    /**
-     * @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
-     */
+    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
     event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
-    /**
-     * @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
-     */
+
+    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
-    // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
-    // sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**)
-    // transfers ownership to `msg.sender`
+    /**
+     * @notice Sets the `investMentManager` address (**currently modifiable by contract owner -- see below**),
+     * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
+     * and transfers ownership to `intialOwner`
+     */
     function initialize(
         IInvestmentManager _investmentManager,
         IPauserRegistry pauserRegistry,
+        address initialOwner,
         uint256 _undelegationFraudproofInterval
     ) external initializer {
         require(
@@ -68,19 +68,22 @@ contract EigenLayrDelegation is
         _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
         undelegationFraudproofInterval = _undelegationFraudproofInterval;
-        _transferOwnership(msg.sender);
+        _transferOwnership(initialOwner);
     }
 
     // EXTERNAL FUNCTIONS
-    /// @notice This will be called by an operator to register itself as a delegate that stakers
-    ///         can choose to delegate to.
-    /// @param dt is the delegation terms contract that operator has for those who delegate to them.
+    /**
+     * @notice This will be called by an operator to register itself as a delegate that stakers can choose to delegate to.
+     * @param dt is the `DelegationTerms` contract that the operator has for those who delegate to them.
+     * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
+     * in a more 'trustful' manner.
+     */
     function registerAsDelegate(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
             "EigenLayrDelegation.registerAsDelegate: Delegate has already registered"
         );
-        // store the address of the delegation contract that operator is providing.
+        // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
         _delegate(msg.sender, msg.sender);
     }
