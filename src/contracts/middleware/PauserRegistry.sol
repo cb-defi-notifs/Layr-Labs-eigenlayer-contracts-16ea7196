@@ -12,13 +12,9 @@ contract PauserRegistry is IPauserRegistry {
     address public pauser;
     address public unpauser;
 
-    event PauserChanged (
-        address newPauser
-    );
+    event PauserChanged(address previousPauser,address newPauser);
 
-    event UnpauserChanged (
-        address newUnpauser
-    );
+    event UnpauserChanged(address previousUnpauser,address newUnpauser);
 
     modifier onlyPauser {
         require(msg.sender == pauser,  "msg.sender is not permissioned as pauser");
@@ -34,27 +30,29 @@ contract PauserRegistry is IPauserRegistry {
         address _pauser,
         address _unpauser
     ) {
-        pauser = _pauser;
-        unpauser = _unpauser;
-
-
-        emit PauserChanged(pauser);
-        emit UnpauserChanged(unpauser);
-        
+        _setPauser(_pauser);
+        _setUnpauser(_unpauser);
     }
 
-    //sets new pauser - only callable by unpauser, as the unpauser has a higher threshold
+    /// @notice Sets new pauser - only callable by unpauser, as the unpauser is expected to be kept more secure, e.g. being a multisig with a higher threshold
     function setPauser(address newPauser) external onlyUnpauser {
-        require(newPauser != address(0) && pauser != address(0), "pauser has not been inititalized by registry");
-        pauser = newPauser;
-
-        emit PauserChanged(newPauser);
+        _setPauser(newPauser);
     }
 
+    /// @notice Sets new unpauser - only callable by unpauser, as the unpauser is expected to be kept more secure, e.g. being a multisig with a higher threshold
     function setUnpauser(address newUnpauser) external onlyUnpauser {
-        require(newUnpauser != address(0) && unpauser != address(0), "unpauser has not been inititalized by registry");
-        unpauser = newUnpauser;
+        _setUnpauser(newUnpauser);
+    }
 
-        emit UnpauserChanged(newUnpauser);
+    function _setPauser(address newPauser) internal {
+        require(newPauser != address(0), "PauserRegistry._setPauser: zero address input");
+        emit PauserChanged(pauser, newPauser);
+        pauser = newPauser;
+    }
+
+    function _setUnpauser(address newUnpauser) internal {
+        require(newUnpauser != address(0), "PauserRegistry._setUnpauser: zero address input");
+        emit UnpauserChanged(unpauser, newUnpauser);
+        unpauser = newUnpauser;
     }
 }
