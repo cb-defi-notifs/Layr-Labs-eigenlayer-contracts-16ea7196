@@ -29,7 +29,6 @@ contract Pausable {
      */
     event Unpaused(address account);
 
-
     modifier onlyPauser {
         require(msg.sender == pauserRegistry.pauser(),  "msg.sender is not permissioned as pauser");
         _;
@@ -82,8 +81,6 @@ contract Pausable {
 
         emit Unpaused(msg.sender);
     }
-
-    
 
     /**
      * @dev Returns true if the contract is paused, and false otherwise.

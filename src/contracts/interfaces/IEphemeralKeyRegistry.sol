@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9.0;
 
+/**
+ * @title Interface for an Ephemeral Key Registry, designed for use with Proofs of Custody.
+ * @author Layr Labs, Inc.
+ * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
+ * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
+ */
+
 interface IEphemeralKeyRegistry {
     function postFirstEphemeralKeyHash(
         address operator,

@@ -6,6 +6,11 @@ import "./ISlasher.sol";
 import "./IEigenLayrDelegation.sol";
 import "./IServiceManager.sol";
 
+/**
+ * @title Interface for the primary entrypoint to EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice See the `InvestmentManager` contract itself for implementation details.
+ */
 interface IInvestmentManager {
     // used for storing details of queued withdrawals
     struct WithdrawalStorage {

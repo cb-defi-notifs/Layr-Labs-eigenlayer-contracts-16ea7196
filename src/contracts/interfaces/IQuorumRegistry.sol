@@ -3,6 +3,13 @@ pragma solidity ^0.8.9.0;
 
 import "./IRegistry.sol";
 
+
+/**
+ * @title Interface for a `Registry`-type contract that uses either 1 or 2 quorums.
+ * @author Layr Labs, Inc.
+ * @notice This contract does not currently support n-quorums where n >= 3.
+ * Note in particular the presence of only `firstQuorumStake` and `secondQuorumStake` in the `OperatorStake` struct.
+*/
 interface IQuorumRegistry is IRegistry {
     // DATA STRUCTURES 
     enum Active {

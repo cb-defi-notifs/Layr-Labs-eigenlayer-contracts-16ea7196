@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
+/**
+ * @title Interface for the primary 'slashing' contract for EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice See the `Slasher` contract itself for implementation details.
+ */
 interface ISlasher {
     function freezeOperator(
         address toSlash

@@ -4,6 +4,11 @@ pragma solidity ^0.8.9.0;
 import "./IPaymentManager.sol";
 import "./IDataLayrServiceManager.sol";
 
+/**
+ * @title Minimal interface extension to `IPaymentManager`.
+ * @author Layr Labs, Inc.
+ * @notice Adds a single DataLayr-specific function to the base interface.
+*/
 interface IDataLayrPaymentManager is IPaymentManager {
 
     function respondToPaymentChallengeFinal(
