@@ -4,6 +4,10 @@ pragma solidity ^0.8.9.0;
 
 import "../interfaces/IDataLayrServiceManager.sol";
 
+/**
+ * @title Library of functions shared across DataLayr.
+ * @author Layr Labs, Inc.
+ */
 library DataStoreUtils {
     function computeSignatoryRecordHash(uint32 globalDataStoreId, bytes32[] memory nonSignerPubkeyHashes, uint256 totalEthStakeSigned, uint256 totalEigenStakeSigned) internal pure returns(bytes32) {
         return keccak256(

@@ -7,6 +7,8 @@ import "../interfaces/IECDSARegistry.sol";
 // import "forge-std/Test.sol";
 
 /**
+ * @title A Registry-type contract using ECDSA signatures.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for 
             - registering new operators 
             - committing to and finalizing de-registration as an operator 

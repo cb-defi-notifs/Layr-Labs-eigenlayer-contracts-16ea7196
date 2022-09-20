@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED AND MIT
-// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
+// several functions are from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
 // remainder is UNLICENSED
 pragma solidity ^0.8.9.0;
 
+/**
+ * @title Library for operations related to BLS Signatures used in EigenLayer middleware.
+ * @author Layr Labs, Inc. with credit to Chih Cheng Liang
+ * @notice Uses the BN254 curve.
+ */
 library BLS {
 
     // BN 254 CONSTANTS

@@ -10,12 +10,12 @@ import "./BLSRegistry.sol";
 import "forge-std/Test.sol";
 
 /**
- * @notice This contract is used for 
-            - registering new operators 
-            - committing to and finalizing de-registration as an operator for the middleware 
-            - updating the stakes of the operator
+ * @title Adds Proof of Custody functionality to the `BLSRegistry` contract.
+ * @author Layr Labs, Inc.
+ * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
+ * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
+ * This contract relies on an `EphemeralKeyRegistry` to store operator's ephemeral keys.
  */
-
 contract BLSRegistryWithBomb is
     BLSRegistry
     // ,DSTest

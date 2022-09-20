@@ -7,12 +7,13 @@ import "../interfaces/IBLSRegistry.sol";
 import "forge-std/Test.sol";
 
 /**
+ * @title A Registry-type contract using aggregate BLS signatures.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for 
             - registering new operators 
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
  */
-
 contract BLSRegistry is
     RegistryBase,
     IBLSRegistry

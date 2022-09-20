@@ -11,8 +11,9 @@ import "../permissions/RepositoryAccess.sol";
 import "forge-std/Test.sol";
 
 /**
- @notice This is the contract for checking that the aggregated signatures of all operators which is being 
-         asserted by the disperser is valid.
+ * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
+ * @author Layr Labs, Inc.
+ * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
 abstract contract BLSSignatureChecker is
     RepositoryAccess
