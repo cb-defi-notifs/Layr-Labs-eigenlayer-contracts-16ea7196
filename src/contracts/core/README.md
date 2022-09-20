@@ -37,7 +37,7 @@ In order to be able to withdraw only a specific amount of assets from its strate
 
 ### Delegation with EigenLayer
 `EigenLayrDelegation` is the contract for delegation in EigenLayer. The main functionalities of this contract are:
-   - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to.  This is done by calling `registerAsDelegate`. 
+   - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to.  This is done by calling `registerAsOperator`. 
    - for enabling anyone to register as an operator. This is done by calling `delegateToSelf`. 
    - for a registered delegator to delegate its stake to the operator of its agreed upon delegation terms contract. This is done using `delegateTo` or `delegateToBySignature` who have to specify the `operator`. The later one requires specifying the `delegator` for whom delegation is being done by the third party by using its signature.
    - for a delegator to undelegate its assets from EigenLayer. That requires the delegator to call `commitUndelegation` in order to notify the system that a delegator wants to stop  participating in the functioning of EigenLayer. Then, `finalizeUndelegation` must be called by a delegator to notify that its stake is no longer active on any queries, which in turn launches the challenge period. Next, anyone can call `contestUndelegationCommit` to challenge whether a delegator has finalized its undelegation after satisfying its obligations in EigenLayr or not.

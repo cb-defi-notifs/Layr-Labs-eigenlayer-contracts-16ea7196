@@ -78,10 +78,10 @@ contract EigenLayrDelegation is
      * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
      * in a more 'trustful' manner.
      */
-    function registerAsDelegate(IDelegationTerms dt) external {
+    function registerAsOperator(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "EigenLayrDelegation.registerAsDelegate: Delegate has already registered"
+            "EigenLayrDelegation.registerAsOperator: Delegate has already registered"
         );
         // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
@@ -425,7 +425,7 @@ contract EigenLayrDelegation is
         return (delegated[staker] == DelegationStatus.DELEGATED);
     }
 
-    //returns if an operator can be delegated to, i.e. it has called `registerAsDelegate`
+    //returns if an operator can be delegated to, i.e. it has called `registerAsOperator`
     function isOperator(address operator) external view returns(bool) {
         return(address(delegationTerms[operator]) != address(0));
     }

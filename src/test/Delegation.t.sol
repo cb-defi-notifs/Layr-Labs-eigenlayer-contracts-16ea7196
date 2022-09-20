@@ -22,7 +22,7 @@ contract DelegationTests is TestHelper {
     function testSelfOperatorDelegate(address sender) public {
         cheats.assume(sender != address(0));
         cheats.assume(sender != address(eigenLayrProxyAdmin));
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+        _testRegisterAsOperator(sender, IDelegationTerms(sender));
     }
 
     
@@ -47,7 +47,7 @@ contract DelegationTests is TestHelper {
         cheats.assume(eigenAmount >=0 && eigenAmount <= 1e18); 
 
         if(!delegation.isOperator(operator)){
-            _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
 
         uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
@@ -177,7 +177,7 @@ contract DelegationTests is TestHelper {
             operator,
             1
         );
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
         _testDepositStrategies(staker, 1e18, numStratsToAdd);
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
@@ -236,12 +236,12 @@ contract DelegationTests is TestHelper {
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times
     /// @param operator is the operator being delegated to.
-    function testRegisterAsDelegateMultipleTimes(
+    function testRegisterAsOperatorMultipleTimes(
             address operator
         ) public fuzzedAddress(operator){
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
-        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsDelegate: Delegate has already registered"));
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));  
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: Delegate has already registered"));
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));  
     }
 
     /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator

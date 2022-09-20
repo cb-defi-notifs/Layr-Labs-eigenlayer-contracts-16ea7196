@@ -58,19 +58,19 @@ contract InvestmentTests is
 
     /**
      * Testing queued withdrawals in the investment manager
-     * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
+     * @notice This test registers `staker` as a delegate if `registerAsOperator` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
      *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy. It then tries to call `completeQueuedWithdrawal`
      *          and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
      * @notice In the event that the call to `completeQueuedWithdrawal` correctly reverted above, this function then fast-forwards to just past the `unlockTime`
      *          for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
      * @param staker The caller who will create the queued withdrawal.
-     * @param registerAsDelegate When true, `staker` will register as a delegate inside of the call to `_createQueuedWithdrawal`. Otherwise they will not.
+     * @param registerAsOperator When true, `staker` will register as a delegate inside of the call to `_createQueuedWithdrawal`. Otherwise they will not.
      * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
      * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
     function testQueuedWithdrawal(
         address staker,
-        bool registerAsDelegate,
+        bool registerAsOperator,
         uint96 amountToDeposit,
         uint96 amountToWithdraw
     )
@@ -97,7 +97,7 @@ contract InvestmentTests is
         );
 
         // create the queued withdrawal
-        _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+        _createQueuedWithdrawal(staker, registerAsOperator, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
 
         // If `staker` is actively delegated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
         if (delegation.isDelegated(staker)) {
@@ -146,7 +146,7 @@ contract InvestmentTests is
 
         // harcoded inputs
         address staker = acct_0;
-        bool registerAsDelegate = true;
+        bool registerAsOperator = true;
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
             IInvestmentManager.WithdrawerAndNonce({
                 withdrawer: staker,
@@ -163,7 +163,7 @@ contract InvestmentTests is
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            _createQueuedWithdrawal(staker, registerAsOperator, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
         }
 
         // retrieve information about the queued withdrawal
@@ -267,12 +267,12 @@ contract InvestmentTests is
      * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
      *          response depending on whether `staker` is delegated or not.
      * @param staker The address to initiate the queued withdrawal
-     * @param registerAsDelegate If true, `staker` will also register as a delegate in the course of this function
+     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
      * @param amountToDeposit The amount of WETH to deposit
      */
     function _createQueuedWithdrawal(
         address staker,
-        bool registerAsDelegate,
+        bool registerAsOperator,
         uint256 amountToDeposit,
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
@@ -284,10 +284,10 @@ contract InvestmentTests is
     {
         require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
-        // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
-        if (registerAsDelegate) {
+        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
+        if (registerAsOperator) {
             assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
-            _testRegisterAsDelegate(staker, IDelegationTerms(staker));
+            _testRegisterAsOperator(staker, IDelegationTerms(staker));
             assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
         }
 
