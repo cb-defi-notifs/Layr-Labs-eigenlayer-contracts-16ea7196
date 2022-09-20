@@ -13,7 +13,10 @@ import "../../middleware/PaymentManager.sol";
 import "forge-std/Test.sol";
 
 
-/// @notice This contract is used for doing interactive payment challenges on DataLayr
+/**
+ * @title This contract is used for doing interactive payment challenges on DataLayr.
+ * @author Layr Labs, Inc.
+ */
 contract DataLayrPaymentManager is
     PaymentManager,
     IDataLayrPaymentManager,

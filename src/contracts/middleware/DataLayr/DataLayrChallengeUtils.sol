@@ -6,6 +6,10 @@ import "../../libraries/Merkle.sol";
 import "../../libraries/BN254.sol";
 import "../../libraries/BLS.sol";
 
+/**
+ * @title Stand-alone utility contract that implements reuseable 'challenge'-related functionality for DataLayr.
+ * @author Layr Labs, Inc.
+ */
 contract DataLayrChallengeUtils {
 
     struct MultiRevealProof {

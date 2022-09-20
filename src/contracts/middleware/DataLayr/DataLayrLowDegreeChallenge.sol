@@ -15,6 +15,10 @@ import "./DataLayrChallengeBase.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
 
+/**
+ * @title Used to create and manage low degree challenges related to DataLayr.
+ * @author Layr Labs, Inc.
+ */
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
     

@@ -12,6 +12,11 @@ import "./DataLayrBombVerifier.sol";
 import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
+/**
+ * @title Storage variables for the `DataLayrServiceManager` contract.
+ * @author Layr Labs, Inc.
+ * @notice This storage contract is separate from the logic to simplify the upgrade process.
+ */
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
     /**********************
         CONSTANTS

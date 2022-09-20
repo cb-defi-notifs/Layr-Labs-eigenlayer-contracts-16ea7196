@@ -9,11 +9,13 @@ import "./VoteWeigherBaseStorage.sol";
 
 
 /**
- @notice This contract is used for 
-            - computing the total weight of an operator for any of the quorums that are considered
-              by the middleware    
-            - addition and removal of strategies and the associated weighting criteria that are assigned 
-              by the middleware for each of the quorum(s)
+ * @title A simple implementation of the `IVoteWeigher` interface.
+ * @author Layr Labs, Inc.
+ * @notice This contract is used for 
+ *           - computing the total weight of an operator for any of the quorums that are considered
+ *             by the middleware    
+ *           - addition and removal of strategies and the associated weighting criteria that are assigned 
+ *             by the middleware for each of the quorum(s)
  */
 contract VoteWeigherBase is 
     VoteWeigherBaseStorage

@@ -6,6 +6,10 @@ import "../interfaces/IPauserRegistry.sol";
 
 import "forge-std/Test.sol";
 
+/**
+ * @title Adds pausability to a contract.
+ * @author Layr Labs, Inc.
+ */
 contract Pausable {
 
     // modifier onlyPauser {

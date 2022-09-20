@@ -3,7 +3,10 @@ pragma solidity ^0.8.9.0;
 
 import "../interfaces/IPauserRegistry.sol";
 
-
+/**
+ * @title Defines pauser & unpauser roles + modifiers to be used elsewhere.
+ * @author Layr Labs, Inc.
+ */
 contract PauserRegistry is IPauserRegistry {
 
     address public pauser;

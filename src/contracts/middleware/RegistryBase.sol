@@ -11,12 +11,14 @@ import "../libraries/BLS.sol";
 // import "forge-std/Test.sol";
 
 /**
+ * @title An abstract Registry-type contract that is signature scheme agnostic.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for 
             - registering new operators 
             - committing to and finalizing de-registration as an operator 
             - updating the stakes of the operator
+    @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
-
 abstract contract RegistryBase is
     IQuorumRegistry,
     VoteWeigherBase

@@ -6,7 +6,11 @@ import "../interfaces/IInvestmentStrategy.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "../permissions/RepositoryAccess.sol";
 
-/// @notice This is the contract for specifying all storage variables of VoteWeigherBase.sol
+/**
+ * @title Storage variables for the `VoteWeigherBase` contract.
+ * @author Layr Labs, Inc.
+ * @notice This storage contract is separate from the logic to simplify the upgrade process.
+ */
 abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
 
     /** 

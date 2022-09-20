@@ -10,6 +10,8 @@ import "../../libraries/DataStoreUtils.sol";
 import "../../libraries/BN254.sol";
 
 /**
+ * @title Used to check Proofs of Custody in DataLayr.
+ * @author Layr Labs, Inc.
  * @notice The core slashing module of DataLayr. Using Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
  * @dev In order to prove that an operator wasn’t storing data at certain time, a challenger proves the following:
  *      1) The existence of a certain datastore referred to as the DETONATION datastore

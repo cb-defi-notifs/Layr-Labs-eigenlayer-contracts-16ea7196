@@ -23,6 +23,8 @@ import "./DataLayrChallengeUtils.sol";
 
 
 /**
+ * @title Primary entrypoint for procuring services from DataLayr.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for:
             - initializing the data store by the disperser
             - confirming the data store by the disperser with inferred aggregated signatures of the quorum

@@ -8,14 +8,14 @@ import "../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-    /*
-     The Repository contract is intended to be the central source of "ground truth" for
-     a single middleware on EigenLayr.
-     Other contracts can refer to the Repository in order to determine the "official"
-     contracts for the middleware, making it the central point for upgrades-by-changing-contract-addresses.
-     The owner of the Repository for a middleware holds *tremendous power* – this role
-     should only be given to a multisig or governance contract.
-    */
+/**
+ * @title A central hub contract for a single middleware on EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice The Repository contract is intended to be the central source of "ground truth" for a single middleware on EigenLayr.
+ * @notice The owner of the Repository for a middleware holds *tremendous power* – this role should only be given to a multisig or governance contract.
+ * @dev Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point
+ *  for upgrades-by-changing-contract-addresses.
+*/
 contract Repository is Ownable, Initializable, IRepository {
     // address of the Delegation contract of EigenLayr
     IEigenLayrDelegation public immutable delegation;
