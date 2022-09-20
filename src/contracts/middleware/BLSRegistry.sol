@@ -2,6 +2,8 @@
 pragma solidity ^0.8.9.0;
 
 import "./RegistryBase.sol";
+import "../interfaces/IBLSRegistry.sol";
+
 import "forge-std/Test.sol";
 
 /**
@@ -12,7 +14,8 @@ import "forge-std/Test.sol";
  */
 
 contract BLSRegistry is
-    RegistryBase
+    RegistryBase,
+    IBLSRegistry
 {
     using BytesLib for bytes;
 
@@ -146,19 +149,23 @@ contract BLSRegistry is
      * @param index is the sender's location in the dynamic array `operatorList`
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
         return true;
     }
 
-    function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
-        // verify that the `msg.sender` is an active operator and that they've provided the correct `index`
-        _deregistrationCheck(msg.sender, index);
+    /**
+     * @notice Used to process de-registering an operator from providing service to the middleware.
+     * @param operator The operator to be deregistered
+     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param index is the sender's location in the dynamic array `operatorList`
+     */
+
+    function _deregisterOperator(address operator, uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
+        // verify that the `operator` is an active operator and that they've provided the correct `index`
+        _deregistrationCheck(operator, index);
         
-        /**
-         * @notice verify that the sender is a operator that is doing deregistration for itself
-         * @dev Fetch operator's stored pubkeyHash
-         */
-        bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
+        /// @dev Fetch operator's stored pubkeyHash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
         bytes32 pubkeyHashFromInput = keccak256(
             abi.encodePacked(
                 pubkeyToRemoveAff[0],
@@ -214,6 +221,58 @@ contract BLSRegistry is
             // increase _totalStake by operator's updated stakes
             _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
             _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
+    }
+
+// TODO: de-dupe code copied from `updateStakes`, if reasonably possible
+    /**
+     * @notice Used for removing operators that no longer meet the minimum requirements
+     * @param operators are the nodes who will potentially be booted
+     */
+    function bootOperators(address[] calldata operators, uint256[4][] memory pubkeysToRemoveAff, uint32[] memory indices) external {
+        // copy total stake to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+
+        // placeholders reused inside of loop
+        OperatorStake memory currentStakes;
+        bytes32 pubkeyHash;
+        uint256 operatorsLength = operators.length;
+        // iterating over all the tuples that are to be updated
+        for (uint256 i = 0; i < operatorsLength; ) {
+            // get operator's pubkeyHash
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
+
+            // update the stake for the i-th operator
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+            // remove the operator from the list of operators if they do *not* meet the minimum requirements
+            if (
+                (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
+                &&
+                (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
+            ) {
+                // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
+                _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
+            }
+
+            // in the case that the operator *does indeed* meet the minimum requirements
+            else {
+                // increase _totalStake by operator's updated stakes
+                _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+                _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
+            }
 
             unchecked {
                 ++i;

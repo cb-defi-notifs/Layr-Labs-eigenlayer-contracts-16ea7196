@@ -10,9 +10,13 @@ import "../../interfaces/IDelegationTerms.sol";
 import "./DataLayrServiceManagerStorage.sol";
 import "../BLSSignatureChecker.sol";
 
+
+
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
+import "../../utils/Pausable.sol";
+
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
@@ -26,7 +30,9 @@ import "./DataLayrChallengeUtils.sol";
  */
 contract DataLayrServiceManager is
     DataLayrServiceManagerStorage,
-    BLSSignatureChecker
+    BLSSignatureChecker,
+    Pausable
+    //,DSTest
 {
     using BytesLib for bytes;
 
@@ -34,12 +40,6 @@ contract DataLayrServiceManager is
     /**********************
         ERROR MESSAGES
      **********************/
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(
-        address repositoryGovernance,
-        address sender
-    );
-
     // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
     error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
 
@@ -82,6 +82,7 @@ contract DataLayrServiceManager is
         IEigenLayrDelegation _eigenLayrDelegation,
         IRepository _repository,
         IERC20 _collateralToken,
+        IPauserRegistry pauserRegistry,
         uint256 _feePerBytePerTime
     ) 
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
@@ -90,7 +91,7 @@ contract DataLayrServiceManager is
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
-        
+        _initializePauser(pauserRegistry);
     }
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge) external onlyRepositoryGovernance {
@@ -140,7 +141,7 @@ contract DataLayrServiceManager is
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external returns(uint32){
+    ) external whenNotPaused returns(uint32){
         bytes32 headerHash = keccak256(header);
 
         /********************************************
@@ -262,7 +263,10 @@ contract DataLayrServiceManager is
              uint256[2] sigma
             >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external {
+    function confirmDataStore(
+        bytes calldata data, 
+        DataStoreSearchData memory searchData
+        )external whenNotPaused {
         /*******************************************************
          verify the disperser's claim on composition of quorum
          *******************************************************/
@@ -380,7 +384,6 @@ contract DataLayrServiceManager is
     /**
      @notice returns the number of data stores for the @param duration
      */
-    /// CRITIC -- change the name to `getNumDataStoresForDuration`?
     function getNumDataStoresForDuration(uint8 duration) public view returns(uint32){
         if(duration==1){
             return dataStoresForDuration.one_duration;
@@ -439,12 +442,4 @@ contract DataLayrServiceManager is
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
     }
-
-    /* function removed for now since it tries to modify an immutable variable
-    function setPaymentToken(
-        IERC20 _paymentToken
-    ) public onlyRepositoryGovernance {
-        paymentToken = _paymentToken;
-    }
-    */
 }

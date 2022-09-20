@@ -59,7 +59,6 @@ contract ECDSARegistry is
             _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
-        // TODO: verify this initialization is correct
         bytes memory emptyBytes;
         _processStakeHashUpdate(keccak256(emptyBytes));
     }

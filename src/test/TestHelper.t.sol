@@ -6,7 +6,6 @@ import "../test/Deployer.t.sol";
 
 contract TestHelper is EigenLayrDeployer {
 
-
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -134,7 +133,6 @@ contract TestHelper is EigenLayrDeployer {
             start = 0;
         }
         
-
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
@@ -234,7 +232,6 @@ contract TestHelper is EigenLayrDeployer {
     function _testDepositEigen(address sender, uint256 amountToDeposit) public {
         _testDepositToStrategy(sender, amountToDeposit, eigenToken, eigenStrat);
     }
-
 
     /**
      * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
@@ -347,7 +344,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
    function _testInitDataStore(uint256 timeStampForInit, address confirmer)
@@ -442,7 +438,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         // verify that registration was stored correctly
-        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeStakeFirstQuorum()) {
+        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
             assertTrue(
                 dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit,
                 "ethStaked not increased!"
@@ -454,7 +450,7 @@ contract TestHelper is EigenLayrDeployer {
             );
         }
         if (
-            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeStakeSecondQuorum()
+            (operatorType & 2) == 2 && eigenToDeposit > dlReg.minimumStakeSecondQuorum()
         ) {
             assertTrue(
                 dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit,
@@ -516,7 +512,6 @@ contract TestHelper is EigenLayrDeployer {
             >
      */
         
-
         bytes memory data = abi.encodePacked(
             keccak256(
                 abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
@@ -654,7 +649,7 @@ contract TestHelper is EigenLayrDeployer {
         InvestmentStrategyBase strategy = new InvestmentStrategyBase(investmentManager);
         // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
         // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strategy.initialize(weth);
+        strategy.initialize(weth, pauserReg);
         return strategy;
     }
 
@@ -707,6 +702,4 @@ contract TestHelper is EigenLayrDeployer {
             );
         }
     }
-
-
 }
