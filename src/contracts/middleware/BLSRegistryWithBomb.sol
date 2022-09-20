@@ -52,7 +52,7 @@ contract BLSRegistryWithBomb is
               For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
 
         //post last ephemeral key reveal on chain
         ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);

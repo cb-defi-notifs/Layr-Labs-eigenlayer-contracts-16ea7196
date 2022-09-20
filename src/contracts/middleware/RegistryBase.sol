@@ -24,8 +24,8 @@ abstract contract RegistryBase is
 {
     using BytesLib for bytes;
 
-    uint128 public nodeStakeFirstQuorum = 1 wei;
-    uint128 public nodeStakeSecondQuorum = 1 wei;
+    uint128 public minimumStakeFirstQuorum = 1 wei;
+    uint128 public minimumStakeSecondQuorum = 1 wei;
     
     /// @notice a sequential counter that is incremented whenver new operator registers
     uint32 public nextOperatorId;
@@ -146,18 +146,18 @@ abstract contract RegistryBase is
         
     }
 
-    function setNodeStakeSecondQuorum(uint128 _nodeStakeSecondQuorum)
+    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum)
         external
         onlyRepositoryGovernance
     {
-        nodeStakeSecondQuorum = _nodeStakeSecondQuorum;
+        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
 
-    function setNodeStakeFirstQuorum(uint128 _nodeStakeFirstQuorum)
+    function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum)
         external
         onlyRepositoryGovernance
     {
-        nodeStakeFirstQuorum = _nodeStakeFirstQuorum;
+        minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
     }
 
     /// @notice returns the unique ID of the specified operator 
@@ -304,7 +304,7 @@ abstract contract RegistryBase is
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
-        registry[msg.sender].deregisterTime = block.timestamp;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         // gas saving by caching length here
         uint256 pubkeyHashToStakeHistoryLengthMinusOne = pubkeyHashToStakeHistory[pubkeyHash].length - 1;
@@ -432,7 +432,7 @@ abstract contract RegistryBase is
         if ((operatorType & 1) == 1) {
             _operatorStake.firstQuorumStake = uint96(weightOfOperator(operator, 0));
             // check if minimum requirement has been met
-            if (_operatorStake.firstQuorumStake < nodeStakeFirstQuorum) {
+            if (_operatorStake.firstQuorumStake < minimumStakeFirstQuorum) {
                 _operatorStake.firstQuorumStake = uint96(0);
             }
         }
@@ -441,7 +441,7 @@ abstract contract RegistryBase is
         if ((operatorType & 2) == 2) {
             _operatorStake.secondQuorumStake = uint96(weightOfOperator(operator, 1));
             // check if minimum requirement has been met
-            if (_operatorStake.secondQuorumStake < nodeStakeSecondQuorum) {
+            if (_operatorStake.secondQuorumStake < minimumStakeSecondQuorum) {
                 _operatorStake.secondQuorumStake = uint96(0);
             }
         }
@@ -462,10 +462,10 @@ abstract contract RegistryBase is
         updatedOperatorStake.secondQuorumStake = weightOfOperator(operator, 1);
 
         // check if minimum requirements have been met
-        if (updatedOperatorStake.firstQuorumStake < nodeStakeFirstQuorum) {
+        if (updatedOperatorStake.firstQuorumStake < minimumStakeFirstQuorum) {
             updatedOperatorStake.firstQuorumStake = uint96(0);
         }
-        if (updatedOperatorStake.secondQuorumStake < nodeStakeSecondQuorum) {
+        if (updatedOperatorStake.secondQuorumStake < minimumStakeSecondQuorum) {
             updatedOperatorStake.secondQuorumStake = uint96(0);
         }
         //set nextUpdateBlockNumber in prev stakes

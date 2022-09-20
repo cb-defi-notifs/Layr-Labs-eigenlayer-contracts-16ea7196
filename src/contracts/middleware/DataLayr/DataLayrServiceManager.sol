@@ -40,12 +40,6 @@ contract DataLayrServiceManager is
     /**********************
         ERROR MESSAGES
      **********************/
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(
-        address repositoryGovernance,
-        address sender
-    );
-
     // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
     error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
 
@@ -439,12 +433,4 @@ contract DataLayrServiceManager is
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
     }
-
-    /* function removed for now since it tries to modify an immutable variable
-    function setPaymentToken(
-        IERC20 _paymentToken
-    ) public onlyRepositoryGovernance {
-        paymentToken = _paymentToken;
-    }
-    */
 }
