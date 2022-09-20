@@ -19,7 +19,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      Data structures    
      ******************/
     struct EKEntry {
+        // hash of the ephemeral key, to be revealed after usage
         bytes32 keyHash;
+
+        // the ephemeral key itself, i.e. the preimage of `keyHash`
         bytes32 ephemeralKey;
 
         // timestamp when the keyhash is first recorded
@@ -110,12 +113,22 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      * @param prevEK is the previous ephemeral key.
      * @param newEKHash is the hash of the new ephemeral key.
      */
-    function updateEphemeralKeyPreImage(bytes32 prevEK, bytes32 newEKHash) external {
+    function revealAndUpdateEphemeralKey(bytes32 prevEK, bytes32 newEKHash) external {
         // retrieve the most recent EK entry for the operator
         uint256 historyLength = _getEKHistoryLength(msg.sender);
         EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength - 1];
 
-        require(existingEKEntry.keyHash == keccak256(abi.encode(prevEK)), "EphemeralKeyRegistry.updateEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment");
+        // verify that the operator is active
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+        require(
+            registry.getOperatorStatus(msg.sender) == IQuorumRegistry.Active.ACTIVE,
+            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: operator is not active"
+        );
+
+        require(
+            existingEKEntry.keyHash == keccak256(abi.encode(prevEK)),
+            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"
+        );
 
         // checking the validity period of the ephemeral key update
         require(
@@ -198,32 +211,28 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }   
 
     /** 
-     * @notice Used for proving that an operator hasn't updated their ephemeral key within the update window.
+     * @notice Used for proving that an operator hasn't reveal their ephemeral key within the reveal window.
      * @param operator The operator with a stale ephemeral key
     */
-    function proveStaleEphemeralKey(address operator) external {
-        // get the info on latest EK 
+    function proveStaleUnrevealedEphemeralKey(address operator) external {
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+        // check that the ephemeral key is not yet revealed
+        require(
+            existingEKEntry.ephemeralKey == bytes32(0),
+            "EphemeralKeyRegistry.proveStaleEphemeralKey: ephemeralKey is already revealed"
+        );
 
-        if (
-            //check if operator is still active in the DLRegistry
-            (registry.getOperatorStatus(operator) == IQuorumRegistry.Active.ACTIVE)
-            ||
-            // otherwise, check if operator recently de-registered         
-            // specifically, check if the operator de-registered within (UPDATE_PERIOD + REVEAL_PERIOD) of the current time
-            (block.timestamp <= registry.getOperatorDeregisterTime(operator) + UPDATE_PERIOD + REVEAL_PERIOD)
-            )
-        {
-            // check whether the ephemeral key is actually stale (if statement passes if EK is stale)
-            if((block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD)) {
-                IServiceManager serviceManager = repository.serviceManager();
-                //trigger slashing for operator who hasn't updated their EK
-                serviceManager.freezeOperator(operator);
-            }
-        }
+        // check that the ephemeral key is actually stale
+        require(
+            block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD,
+            "EphemeralKeyRegistry.proveStaleEphemeralKey: ephemeralKey is not stale"
+        );
+
+        //trigger slashing of operator who hasn't updated their EK
+        IServiceManager serviceManager = repository.serviceManager();
+        serviceManager.freezeOperator(operator);
     }
 
     /**
@@ -237,8 +246,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
 
         if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD) {
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
+                //trigger slashing function of the operator
                 IServiceManager serviceManager = repository.serviceManager();
-                //trigger slashing function for that datalayr node address
                 serviceManager.freezeOperator(operator);
             }
         }

@@ -12,24 +12,24 @@ interface IEphemeralKeyRegistry {
         bytes32 EK
     ) external;
 
-    function updateEphemeralKeyPreImage(
+    function revealAndUpdateEphemeralKey(
         bytes32 prevEK, 
         bytes32 currEKHash
     ) external;
     
-    function getCurrEphemeralKeyHash(address dataLayrNode)
+    function getCurrEphemeralKeyHash(address operator)
         external
         returns (bytes32);
 
-    function getLatestEphemeralKey(address dataLayrNode)
+    function getLatestEphemeralKey(address operator)
         external
         returns (bytes32);
 
-    function proveStaleEphemeralKey(address dataLayrNode) external;
+    function proveStaleUnrevealedEphemeralKey(address operator) external;
  
-    function proveLeakedEphemeralKey(address dataLayrNode, bytes32 leakedEphemeralKey) external;
+    function proveLeakedEphemeralKey(address operator, bytes32 leakedEphemeralKey) external;
 
-    function getLastEKPostTimestamp(address dataLayrNode) external returns (uint192);
+    function getLastEKPostTimestamp(address operator) external returns (uint192);
 
     function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber)
         external view
