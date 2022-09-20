@@ -31,7 +31,7 @@ contract InvestmentManager is
 {
     using SafeERC20 for IERC20;
 
-    //value to set initTimestamp and unlockTimestamp to indicate a withdrawal is queued
+    // value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized, but has not yet had its waiting period triggered
     uint32 public constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
 
     event WithdrawalQueued(
