@@ -2,13 +2,15 @@
 pragma solidity ^0.8.9.0;
 
 import "./aave/ILendingPool.sol";
-import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
+abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
     using SafeERC20 for IERC20;
+
+    ILendingPool public lendingPool;
+    IERC20 public aToken;
 
     constructor(IInvestmentManager _investmentManager) 
         InvestmentStrategyBase(_investmentManager)
