@@ -9,18 +9,14 @@ import "forge-std/Test.sol";
 /**
  * @title Adds pausability to a contract.
  * @author Layr Labs, Inc.
+ * @notice Contracts that inherit from this contract define their own `pause` and `unpause` (and/or related) functions.
+ * These functions should be permissioned as "onlyPauser" which defers to a `PauserRegistry` for determining access control.
  */
 contract Pausable {
-
-    // modifier onlyPauser {
-    //     require(msg.sender == IPauserRegistry(address(dlsm)).pauser());
-    // }
-
-    //every contract has its own pausing functionality, ie, its own pause() and unpause() functiun
-    // those functions are permissioned as "onlyPauser"  which refers to a Pauser Registry
-
+    // address of the `PauserRegistry` contract that this contract defers to for determining access control (for pausing).
     IPauserRegistry public pauserRegistry;
 
+    /// @dev whether or not the contract is currently paused
     bool private _paused;
 
     /**
