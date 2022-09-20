@@ -74,7 +74,7 @@ contract VoteWeigherBase is
     }
 
     /**
-     @notice Add new strategies and the associated multiplier to the @param quorumNumber  
+     @notice Adds new strategies and the associated multipliers to the @param quorumNumber.  
      */
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber, 
@@ -84,12 +84,10 @@ contract VoteWeigherBase is
     }
 
     /**
-     @notice This function is used for removing strategies and their associated weight from 
-             mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
-     */
-    /**  
-     @dev higher indices should be *first* in the list of @param indicesToRemove, since otherwise
-            the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove
+     * @notice This function is used for removing strategies and their associated weight from the
+     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
+     * @dev higher indices should be *first* in the list of @param indicesToRemove, since otherwise
+     * the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove
      */
     function removeStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
@@ -116,7 +114,7 @@ contract VoteWeigherBase is
         }
     }
 
-    // returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber]
+    /// @notice Returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber].
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         require(
             quorumNumber < NUMBER_OF_QUORUMS,

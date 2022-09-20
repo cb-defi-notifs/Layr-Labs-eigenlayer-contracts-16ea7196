@@ -14,26 +14,26 @@ import "../permissions/RepositoryAccess.sol";
 abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
 
     /** 
-     @notice In weighting a particular investment strategy, underlying asset for that strategy is 
-             multiplied by its multiplier then divided by WEIGHTING_DIVISOR
+     @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is 
+             multiplied by its multiplier, then divided by WEIGHTING_DIVISOR
      */
     struct StrategyAndWeightingMultiplier {
         IInvestmentStrategy strategy;
         uint96 multiplier;
     }
 
-    // constant used as a divisor in calculating weights
+    /// @notice Constant used as a divisor in calculating weights.
     uint256 internal constant WEIGHTING_DIVISOR = 1e18;
-    // maximum length of dynamic arrays in `strategiesConsideredAndMultipliers` mapping
+    /// @notice Maximum length of dynamic arrays in the `strategiesConsideredAndMultipliers` mapping.
     uint8 internal constant MAX_WEIGHING_FUNCTION_LENGTH = 32;
-    /// @notice Constant used as a divisor in dealing with BIPS amounts
+    /// @notice Constant used as a divisor in dealing with BIPS amounts.
     uint256 internal constant MAX_BIPS = 10000;
 
-    // the address of the Delegation contract for EigenLayr
+    /// @notice The address of the Delegation contract for EigenLayr.
     IEigenLayrDelegation public immutable delegation;
-    // the address of the InvestmentManager contract for EigenLayr
+    /// @notice The address of the InvestmentManager contract for EigenLayr.
     IInvestmentManager public immutable investmentManager;
-    // number of quorums that are being used by the middleware
+    /// @notice Number of quorums that are being used by the middleware.
     uint256 public immutable NUMBER_OF_QUORUMS;
 
     /** 
@@ -42,9 +42,8 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
-     * @notice This defines the earnings split between different quorums.
-     *          Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
-     * @notice The sum of all entries, i.e. quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS] should *always* be 10,000!
+     * @notice This defines the earnings split between different quorums. Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
+     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS]) should *always* be 10,000!
      */ 
     mapping(uint256 => uint256) public quorumBips;
 
