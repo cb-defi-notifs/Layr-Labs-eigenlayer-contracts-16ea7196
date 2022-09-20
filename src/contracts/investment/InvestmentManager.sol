@@ -31,11 +31,13 @@ contract InvestmentManager is
     // ,DSTest
 {
     using SafeERC20 for IERC20;
+    /// @notice Emitted when a new withdrawal is queued by `depositor`
     event WithdrawalQueued(
         address indexed depositor,
         address indexed withdrawer,
         bytes32 withdrawalRoot
     );
+    /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(
         address indexed depositor,
         address indexed withdrawer,
@@ -69,40 +71,27 @@ contract InvestmentManager is
 
     // EXTERNAL FUNCTIONS
 
-
     /**
-     * @notice Initializes the investment manager contract with a given set of strategies
-     *         and slashing rules.
-     */
-    /**
-     * @param _slasher is the set of slashing rules to be used for the strategies associated with 
-     *        this investment manager contract   
+     * @notice Initializes the investment manager contract.
+     * @param _slasher The primary slashing contract of EigenLayr.
+     * @param pauserRegistry Used for access control of pausing.
+     * @param initialOwner Ownership of this contract is transferred to this address.
      */
     function initialize(
         ISlasher _slasher,
         IPauserRegistry pauserRegistry,
-        address _governor
+        address initialOwner
     ) external initializer {
-        _transferOwnership(_governor);
+        _transferOwnership(initialOwner);
         slasher = _slasher;
-        
         _initializePauser(pauserRegistry);
     }
     /**
-     * @notice used for investing a depositor's asset into the specified strategy in the
-     *         behalf of the depositor
-     */
-    /**
-     * @param depositor is the address of the user who is investing assets into specified strategy,
+     * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
+     * @param depositor is the address of the user who is investing assets into specified strategy
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
-     */
-    /**
-     * @dev this function is called when a user stakes ETH for the purpose of depositing
-     *      into liquid staking first, use the associated liquid stake token for providing
-     *      validation service to EigenLayr and invest the token in DeFi. For more details,
-     *      see EigenLayrDeposit.sol.
      */
     function depositIntoStrategy(
         address depositor,
@@ -120,8 +109,6 @@ contract InvestmentManager is
 
     /**
      * @notice Used to withdraw the given token and shareAmount from the given strategy.
-     */
-    /**
      * @dev Only those stakers who have notified the system that they want to undelegate
      *      from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
      *      call this function.
@@ -228,8 +215,8 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
-     *          that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
+     * @notice Used to complete a queued withdrawal in the given token and shareAmount from the given `strategies`,
+     *          that was initiated by `depositor`. The `withdrawer` address is looked up in storage.
      */
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -336,6 +323,7 @@ contract InvestmentManager is
         queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp = uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD;
     }
 
+    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
     function slashShares(
         address slashedAddress,
         address recipient,
@@ -375,6 +363,7 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
+    /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
     function slashQueuedWithdrawal(       
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -407,6 +396,10 @@ contract InvestmentManager is
 
     // INTERNAL FUNCTIONS
 
+    /**
+     * @notice Deposits `amount` of `token` into `strategy`, *from* `msg.sender`, credited to `depositor`
+     * @dev the `msg.sender` must first approve this contract to transfer at least `amount` of `token`
+     */
     function _depositIntoStrategy(
         address depositor,
         IInvestmentStrategy strategy,
@@ -438,9 +431,11 @@ contract InvestmentManager is
         return shares;
     }
     
-    // withdraws 'shareAmount' shares that 'depositor' holds in 'strategy', to their address
-    // if the amount of shares represents all of the depositor's shares in said strategy,
-    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    /**
+     * @notice Withdraws `shareAmount` shares that `depositor` holds in `strategy`, to their address
+     * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
+     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
+     */
     function _withdrawFromStrategy(
         address depositor,
         uint256 strategyIndex,
@@ -448,6 +443,7 @@ contract InvestmentManager is
         IERC20 token,
         uint256 shareAmount
     ) internal returns (bool strategyRemovedFromArray) {
+        // reduce the depositor's shares
         strategyRemovedFromArray = _removeShares(
             depositor,
             strategyIndex,
@@ -458,9 +454,11 @@ contract InvestmentManager is
         strategy.withdraw(depositor, token, shareAmount);
     }
 
-    // decreases the shares that 'depositor' holds in 'strategy' by 'shareAmount'
-    // if the amount of shares represents all of the depositor's shares in said strategy,
-    // then the strategy is removed from investorStrats[depositor] and 'true' is returned
+    /**
+     * @notice Decreases the shares that `depositor` holds in `strategy` by `shareAmount`.
+     * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
+     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
+     */
     function _removeShares(
         address depositor,
         uint256 strategyIndex,
@@ -546,9 +544,7 @@ contract InvestmentManager is
     }
     
     /**
-     * @notice get all details on the depositor's investments and shares
-     */
-    /**
+     * @notice Get all details on the depositor's investments and corresponding shares
      * @return (depositor's strategies, shares in these strategies)
      */
     function getDeposits(address depositor)
@@ -575,12 +571,12 @@ contract InvestmentManager is
         );
     }
 
-    function investorStratsLength(address investor)
+    function investorStratsLength(address depositor)
         external
         view
         returns (uint256)
     {
-        return investorStrats[investor].length;
+        return investorStrats[depositor].length;
     }
 
     function calculateWithdrawalRoot(
