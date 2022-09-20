@@ -13,6 +13,8 @@ import "forge-std/Test.sol";
 
 
 /**
+ * @title The primary 'slashing' contract for EigenLayr.
+ * @author Layr Labs, Inc.
  * @notice This contract specifies details on slashing. The functionalities are:
  *          - adding contracts who have permission to perform slashing,
  *          - revoking permission for slashing from specified contracts,

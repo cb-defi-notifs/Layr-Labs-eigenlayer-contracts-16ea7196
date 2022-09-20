@@ -6,6 +6,11 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
+/**
+ * @title Storage variables for the `InvestmentManager` contract.
+ * @author Layr Labs, Inc.
+ * @notice This storage contract is separate from the logic to simplify the upgrade process.
+ */
 abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     // fixed waiting period for withdrawals

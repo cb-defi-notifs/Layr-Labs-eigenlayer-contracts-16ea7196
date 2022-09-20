@@ -9,7 +9,9 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 
 /**
- * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
+ * @title Base implementation of `IInvestmentStrategy` interface, designed to be inherited from by more complex strategies.
+ * @author Layr Labs, Inc.
+ * @notice Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Implements minimal versions of the IInvestmentStrategy functions, this contract is designed to be inherited by
  * more complex investment strategies, which can then override its functions as necessary.
 */

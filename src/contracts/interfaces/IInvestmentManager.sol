@@ -7,7 +7,7 @@ import "./IEigenLayrDelegation.sol";
 import "./IServiceManager.sol";
 
 /**
- * @title Interface for the primary entrypoint to EigenLayr.
+ * @title Interface for the primary entrypoint for funds into EigenLayr.
  * @author Layr Labs, Inc.
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
