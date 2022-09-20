@@ -243,7 +243,11 @@ contract InvestmentTests is
             size := extcodesize(nonexistentStrategy)
         }
         cheats.assume(size == 0);
+        // check against calls from precompile addresses -- was getting fuzzy failures from this
+        cheats.assume(uint160(nonexistentStrategy) > 9);
         
+        // harcoded input
+        uint256 testDepositAmount = 10;
         IERC20 token = new ERC20PresetFixedSupply(
             "badToken",
             "BADTOKEN",
@@ -252,7 +256,7 @@ contract InvestmentTests is
         );
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert();
-        investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, 10);
+        investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
 
