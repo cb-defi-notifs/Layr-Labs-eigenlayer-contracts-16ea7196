@@ -402,7 +402,7 @@ contract EigenLayrDelegation is
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
-            // update the total share deposited in favor of the strategy in the operator's portfolio
+            // update the delegate share amount of the strategy, in the operator's portfolio
             operatorShares[operator][strategies[i]] += shares[i];
             unchecked {
                 ++i;
@@ -415,26 +415,18 @@ contract EigenLayrDelegation is
 
     // VIEW FUNCTIONS
 
-    /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
-    ///         and is not within the challenge period for its last undelegation.
+    /// @notice checks whether a staker is currently undelegated
     function isNotDelegated(address staker) public view returns (bool) {
         return (delegated[staker] == DelegationStatus.UNDELEGATED);
     }
 
-    function isDelegated(address staker)
-        public
-        view
-        returns (bool)
-    {
+    /// @notice checks whether a staker is currently delegated
+    function isDelegated(address staker) public view returns (bool) {
         return (delegated[staker] == DelegationStatus.DELEGATED);
     }
 
-    //returns if an operator can be delegated to, i.e. it has a delegation terms
-    function isOperator(address operator)
-        external
-        view
-        returns(bool)
-    {
+    //returns if an operator can be delegated to, i.e. it has called `registerAsDelegate`
+    function isOperator(address operator) external view returns(bool) {
         return(address(delegationTerms[operator]) != address(0));
     }
 }
