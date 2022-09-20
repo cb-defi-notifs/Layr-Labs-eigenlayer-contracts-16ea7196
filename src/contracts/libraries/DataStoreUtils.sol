@@ -9,6 +9,7 @@ import "../interfaces/IDataLayrServiceManager.sol";
  * @author Layr Labs, Inc.
  */
 library DataStoreUtils {
+    /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
     function computeSignatoryRecordHash(uint32 globalDataStoreId, bytes32[] memory nonSignerPubkeyHashes, uint256 totalEthStakeSigned, uint256 totalEigenStakeSigned) internal pure returns(bytes32) {
         return keccak256(
             abi.encodePacked(
@@ -20,6 +21,7 @@ library DataStoreUtils {
         );
     }
 
+    /// @notice Computes the hash of a single DataStore's metadata.
     function computeDataStoreHash(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     ) 
@@ -39,6 +41,7 @@ library DataStoreUtils {
         return dsHash;
     }
 
+    /// @notice Similar to `computeDataStoreHash` but takes the metadata entries as inputs rather than the metadata struct itself.
     function computeDataStoreHashFromArgs(
         bytes32 headerHash,
         uint32 durationDataStoreId,

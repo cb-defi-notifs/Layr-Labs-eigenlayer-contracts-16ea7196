@@ -489,7 +489,7 @@ abstract contract BLSSignatureChecker is
             pubkeyHashes
         );
 
-        // set compressedSignatoryRecord variable used for payment fraudproofs
+        // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
             // taskHash,
             taskNumberToConfirm,
