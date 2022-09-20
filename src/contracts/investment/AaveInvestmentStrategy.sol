@@ -34,7 +34,6 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
         underlyingToken.safeApprove(address(_lendingPool), type(uint256).max);
     }
 
-
     /**
      * @notice Used to deposit tokens into this InvestmentStrategy
      * @param token is the ERC20 token being deposited
@@ -91,7 +90,6 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
         totalShares += newShares;
     }
 
-
     /**
      * @notice Used to withdraw tokens from this InvestmentStrategy, to the `depositor`'s address
      * @param token is the ERC20 token being transferred out
@@ -128,12 +126,11 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
         totalShares -= shareAmount;
     }
 
-    
     function explanation() external pure override returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    // internal function used to fetch this contract's current balance of `aToken`
+    /// @notice Internal function used to fetch this contract's current balance of `aToken`
     function _tokenBalance() internal view override returns(uint256) {
         return aToken.balanceOf(address(this));
     }

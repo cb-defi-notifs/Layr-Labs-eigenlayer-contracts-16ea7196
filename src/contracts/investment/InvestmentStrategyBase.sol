@@ -215,7 +215,7 @@ contract InvestmentStrategyBase is
             );
     }
 
-    // internal function used to fetch this contract's current balance of `underlyingToken`
+    /// @notice Internal function used to fetch this contract's current balance of `underlyingToken`
     function _tokenBalance() internal view virtual returns(uint256) {
         return underlyingToken.balanceOf(address(this));
     }

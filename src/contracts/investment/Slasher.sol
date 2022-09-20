@@ -27,9 +27,9 @@ contract Slasher is
     Pausable
     // ,DSTest 
 {
-    // the InvestmentManager contract for EigenLayr
+    /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public investmentManager;
-    // the EigenLayrDelegation contract
+    /// @notice The EigenLayrDelegation contract of EigenLayr
     IEigenLayrDelegation public delegation;
     // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
@@ -65,9 +65,7 @@ contract Slasher is
         _addGloballyPermissionedContract(address(_delegation));
     }
 
-    /**
-     * @notice used for giving permission of slashing to contracts. 
-     */
+    /// @notice Used to give global slashing permission to specific contracts. 
     function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _addGloballyPermissionedContract(contracts[i]);
@@ -77,9 +75,7 @@ contract Slasher is
         } 
     }
 
-    /**
-     * @notice used for revoking permission of slashing from contracts. 
-     */
+    /// @notice Used to revoke global slashing permission from contracts. 
     function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _removeGloballyPermissionedContract(contracts[i]);
@@ -89,7 +85,7 @@ contract Slasher is
         }
     }
 
-    // give the `contractAddress` permission to slash your funds
+    /// @notice Gives the `contractAddress` permission to slash your funds.
     function allowToSlash(address contractAddress) external {
         _optIntoSlashing(msg.sender, contractAddress);        
     }
@@ -97,13 +93,15 @@ contract Slasher is
      TODO: we still need to figure out how/when to appropriately call this function
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
-    // called by a contract to revoke its ability to slash `operator`
+    /// @notice Called by a contract to revoke its ability to slash `operator`.
     function revokeSlashingAbility(address operator) external {
         _revokeSlashingAbility(operator, msg.sender);
     }
 
     /**
-     * @notice Used for slashing a certain operator
+     * @notice Used for 'slashing' a certain operator.
+     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing.
+     * @param toBeFrozen The operator to be frozen.
      */
     function freezeOperator(
         address toBeFrozen
@@ -112,6 +110,7 @@ contract Slasher is
         _freezeOperator(toBeFrozen, msg.sender);
     }
 
+    /// @notice Removes the 'frozen' status from all the `frozenAddresses`
     function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
         for (uint256 i = 0; i < frozenAddresses.length; ) {
             _resetFrozenStatus(frozenAddresses[i]);
@@ -163,6 +162,11 @@ contract Slasher is
     }
 
     // VIEW FUNCTIONS
+    /**
+     * @notice Used to determine whether `staker` is actively 'frozen'.
+     * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
+     * to an operator who has their status set to frozen. Otherwise returns 'false'.
+     */
     function isFrozen(address staker) external view returns (bool) {
         if (frozenStatus[staker]) {
             return true;
@@ -174,6 +178,7 @@ contract Slasher is
         }
     }
 
+    /// @notice Checks if `slashingContract` is allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
         if (globallyPermissionedContracts[slashingContract]) {
             return true;
