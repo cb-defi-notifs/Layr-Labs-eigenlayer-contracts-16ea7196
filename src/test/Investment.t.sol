@@ -131,8 +131,8 @@ contract InvestmentTests is
      * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
     function testFraudproofQueuedWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw 
+        uint96 amountToDeposit,
+        uint96 amountToWithdraw 
     ) public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
