@@ -350,7 +350,7 @@ abstract contract RegistryBase is
         address swappedOperator = _popRegistrant(index);
 
         //revoke that slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, unbondedAfter(msg.sender));
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntil(msg.sender));
         
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
@@ -516,7 +516,7 @@ abstract contract RegistryBase is
     }
 
     //return when the operator is unbonded from the middleware, if they deregister now
-    function unbondedAfter(address operator) public view virtual returns (uint32) {
+    function bondedUntil(address operator) public view virtual returns (uint32) {
         return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 }
