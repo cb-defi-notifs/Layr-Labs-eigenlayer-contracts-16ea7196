@@ -33,21 +33,22 @@ contract Slasher is
     IEigenLayrDelegation public delegation;
     // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
-    // user => contract => if that contract can slash the user
-    mapping(address => mapping(address => bool)) public optedIntoSlashing;
+    // user => contract => the time before which the contract is allowed to slash the user
+    mapping(address => mapping(address => uint32)) public bondedUntil;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
     mapping(address => bool) public frozenStatus;
+
+    uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
-    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress);
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 unbondedAfter);
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
     constructor(){
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS
@@ -93,9 +94,9 @@ contract Slasher is
      TODO: we still need to figure out how/when to appropriately call this function
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
-    /// @notice Called by a contract to revoke its ability to slash `operator`.
-    function revokeSlashingAbility(address operator) external {
-        _revokeSlashingAbility(operator, msg.sender);
+    /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
+        _revokeSlashingAbility(operator, msg.sender, unbondedAfter);
     }
 
     /**
@@ -120,16 +121,16 @@ contract Slasher is
 
     // INTERNAL FUNCTIONS
     function _optIntoSlashing(address operator, address contractAddress) internal {
-        if (!optedIntoSlashing[operator][contractAddress]) {
-            optedIntoSlashing[operator][contractAddress] = true;
-            emit OptedIntoSlashing(operator, contractAddress);        
-        }
+        //allow the contract to slash anytime before a time VERY far in the future
+        bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL;
+        emit OptedIntoSlashing(operator, contractAddress);        
     }
 
-    function _revokeSlashingAbility(address operator, address contractAddress) internal {
-        if (optedIntoSlashing[operator][contractAddress]) {
-            optedIntoSlashing[operator][contractAddress] = false;
-            emit SlashingAbilityRevoked(operator, contractAddress);        
+    function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
+        if (bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL) {
+            //contractAddress can now only slash operator before unbondedAfter
+            bondedUntil[operator][contractAddress] = unbondedAfter;
+            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);        
         }
     }
 
@@ -182,7 +183,7 @@ contract Slasher is
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
         if (globallyPermissionedContracts[slashingContract]) {
             return true;
-        } else if (optedIntoSlashing[toBeSlashed][slashingContract]) {
+        } else if (block.timestamp < bondedUntil[toBeSlashed][slashingContract]) {
             return true;
         } else {
             return false;

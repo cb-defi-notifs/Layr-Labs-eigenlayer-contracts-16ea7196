@@ -33,8 +33,7 @@ contract InvestmentStrategyBase is
 
     constructor(IInvestmentManager _investmentManager) {
         investmentManager = _investmentManager;
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(

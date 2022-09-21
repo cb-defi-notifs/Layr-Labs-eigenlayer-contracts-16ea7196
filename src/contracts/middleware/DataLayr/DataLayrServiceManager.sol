@@ -330,9 +330,18 @@ contract DataLayrServiceManager is
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
             msg.sender == address(dataLayrPaymentManager),
-            "DataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
+            "DataLayrServiceManager.freezeOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
+    }
+
+    // called in the event of deregistration
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
+        require(
+            msg.sender == address(_registry()),
+            "DataLayrServiceManager.revokeSlashingAbility: Only registry resolvers can revoke slashing ability on operators"
+        );
+        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime)

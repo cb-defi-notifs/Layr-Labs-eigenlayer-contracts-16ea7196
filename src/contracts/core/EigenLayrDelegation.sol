@@ -40,8 +40,7 @@ contract EigenLayrDelegation is
 
     // INITIALIZING FUNCTIONS
     constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
