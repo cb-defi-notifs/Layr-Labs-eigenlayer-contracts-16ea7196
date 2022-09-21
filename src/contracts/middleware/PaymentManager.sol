@@ -229,7 +229,7 @@ abstract contract PaymentManager is
 
     
     /// @notice This function can only be called after the challenge window for the payment claim has completed.
-    function redeemPayment() whenNotPaused external {
+    function redeemPayment() external whenNotPaused {
         require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
