@@ -1,45 +1,23 @@
 name: Automatic Testing
 
 on:
-  pull_request:
-    types: [opened, reopened]
+  [push,
+    pull_request:
+      types: [opened, reopened]
+  ]
 
 concurrency:
   group: ${{github.workflow}}-${{github.ref}}
   cancel-in-progress: true
 
 jobs:
-  # lint:
-  #   name: Run Linters
-  #   runs-on: ubuntu-latest
-
-  #   strategy:
-  #     matrix:
-  #       node-version: [16.x]
-
-  #   steps:
-  #     - uses: actions/checkout@v3
-
-  #     - name: Use Node.js
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node-version }}
-  #         cache: "yarn"
-
-  #     - name: Install Foundry
-  #       uses: foundry-rs/foundry-toolchain@v1
-  #       with:
-  #         version: nightly
-
-  #     - run: yarn lint:check
-
-  forge:
-    name: Run Unit Tests
+  check:
+    name: Foundry Project
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        # with:
-        #   submodules: recursive
+        with:
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -49,12 +27,8 @@ jobs:
       - name: Install forge dependencies
         run: forge install
 
-      # - name: "Create env file"
-      #   run: |
-      #     touch .env
-      #     echo MAINNET_RPC="${{ secrets.MAINNET_RPC }}" >> .env
-      #     echo RINKEBY_RPC="${{ secrets.RINKEBY_RPC }}" >> .env
-      #     cat .env
       - name: Run tests
-        shell: bash
-        run: forge test -vv
+        run: forge test -vvv
+
+      - name: Run snapshot
+        run: forge snapshot
