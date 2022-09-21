@@ -37,7 +37,7 @@ contract DataLayrPaymentManager is
         dataLayrServiceManager = _dataLayrServiceManager;
     }
 
-    //an operator can respond to challenges and breakdown the amount
+    /// @notice Used to perform the final step in a payment challenge, in which the 'trueAmount' is determined and the winner of the challenge is decided.
     function respondToPaymentChallengeFinal(
         address operator,
         uint256 stakeIndex,

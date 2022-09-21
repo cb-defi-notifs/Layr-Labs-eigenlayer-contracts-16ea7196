@@ -28,8 +28,10 @@ contract DataLayrChallengeUtils {
 
     constructor() {}
 
-    // makes sure that operatorPubkeyHash was *excluded* from set of non-signers
-    // reverts if the operator is in the non-signer set
+    /**
+     * @notice Makes sure that operatorPubkeyHash was *excluded* from set of non-signers
+     * @dev Reverts if the operator *is* in the non-signer set.
+     */
     function checkExclusionFromNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
@@ -69,8 +71,10 @@ contract DataLayrChallengeUtils {
         }
     }
 
-    // makes sure that operatorPubkeyHash was *included* in set of non-signers
-    // reverts if the operator is *not* in the non-signer set
+    /**
+     * @notice Makes sure that operatorPubkeyHash was *included* in set of non-signers.
+     * Reverts if the operator is *not* in the non-signer set.
+     */
     function checkInclusionInNonSignerSet(
         bytes32 operatorPubkeyHash,
         uint256 nonSignerIndex,
@@ -82,6 +86,7 @@ contract DataLayrChallengeUtils {
         );
     }
 
+    /// @notice Parses the KZGMetadata from a DataStore header.
     function getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
         // bytes calldata header
         bytes calldata header
@@ -114,6 +119,7 @@ contract DataLayrChallengeUtils {
             });
     }
 
+    /// @notice Parses the number of systematic chunks from a DataStore header.
     function getNumSysFromHeader(
         // bytes calldata header
         bytes calldata header
@@ -172,7 +178,7 @@ contract DataLayrChallengeUtils {
         return uint32(reversed);
     }
 
-    //takes the log base 2 of n and returns it
+    /// @notice Takes the log base 2 of n and returns it.
     function log2(uint256 n) internal pure returns (uint256) {
         require(n > 0, "Log must be defined");
         uint256 log = 0;
@@ -182,7 +188,7 @@ contract DataLayrChallengeUtils {
         return log;
     }
 
-    //finds the next power of 2 greater than n and returns it
+    /// @notice Finds the next power of 2 greater than n and returns it.
     function nextPowerOf2(uint256 n) public pure returns (uint256) {
         uint256 res = 1;
         while (1 << res < n) {
@@ -254,7 +260,7 @@ contract DataLayrChallengeUtils {
         }
     }
 
-    // opens up kzg commitment c(x) at r and makes sure c(r) = s. proof (pi) is in G2 to allow for calculation of Z in G1
+    /// @notice Opens up kzg commitment c(x) at r and makes sure c(r) = s. proof (pi) is in G2 to allow for calculation of Z in G1
     function openPolynomialAtPoint(
         BN254.G1Point memory c,
         BN254.G2Point calldata pi,
@@ -586,7 +592,7 @@ contract DataLayrChallengeUtils {
             );
     }
 
-    //evaluates the given polynomial "poly" at value "r" and returns the result
+    /// @notice Evaluates the given polynomial "poly" at value "r" and returns the result.
     function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
         public
         pure

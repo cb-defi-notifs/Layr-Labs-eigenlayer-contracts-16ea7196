@@ -75,6 +75,7 @@ abstract contract DataLayrChallengeBase {
 
     function _returnChallengerCollateral(bytes32 headerHash) internal virtual;
 
+    /// @notice Initiates a new challenge.
     function openChallenge(
         bytes calldata header,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
@@ -118,7 +119,7 @@ abstract contract DataLayrChallengeBase {
         _challengeCreationEvent(headerHash);
     }
 
-    // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
+    /// @notice Mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
     function resolveChallenge(bytes32 headerHash) external {
         require(challengeExists(headerHash), "Challenge does not exist");
         require(!challengeUnsuccessful(headerHash), "Challenge failed");

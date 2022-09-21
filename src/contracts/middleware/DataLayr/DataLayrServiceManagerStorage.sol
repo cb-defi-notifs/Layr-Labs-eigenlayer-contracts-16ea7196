@@ -52,9 +52,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      *         for storing per byte for per unit time. 
      */
     uint256 public feePerBytePerTime;
-
-    /// @notice counter for number of assertions of data that has happened on this DataLayr
-    //uint32 public dataStoreId = 1;
     
     uint256 public disclosurePaymentPerByte;
 

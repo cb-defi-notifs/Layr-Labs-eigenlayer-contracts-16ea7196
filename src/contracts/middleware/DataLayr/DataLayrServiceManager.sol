@@ -38,7 +38,6 @@ contract DataLayrServiceManager is
 {
     using BytesLib for bytes;
 
-
     /**********************
         ERROR MESSAGES
      **********************/
