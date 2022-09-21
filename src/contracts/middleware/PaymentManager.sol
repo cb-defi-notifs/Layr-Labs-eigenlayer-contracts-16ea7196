@@ -10,7 +10,7 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
-import "../utils/Pausable.sol";
+import "../permissions/Pausable.sol";
 
 
 import "forge-std/Test.sol";

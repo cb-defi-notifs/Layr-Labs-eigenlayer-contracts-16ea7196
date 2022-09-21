@@ -5,7 +5,7 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
-import "../utils/Pausable.sol";
+import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
