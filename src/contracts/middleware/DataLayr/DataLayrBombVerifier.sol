@@ -68,10 +68,10 @@ contract DataLayrBombVerifier {
     // reduce the expected value of not storing the data
     // BOMB_THRESHOLD can be tuned down to decrease the chance of bombs and therefore
     // increase the amount of nodes that will sign off on datastores
-    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
+    uint256 public constant BOMB_THRESHOLD = uint256(2)**uint256(249);
 
     // This is the interval in which the bomb must be proven
-    uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
+    uint256 public constant BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public immutable dlsm;
     IQuorumRegistry public immutable dlRegistry;
