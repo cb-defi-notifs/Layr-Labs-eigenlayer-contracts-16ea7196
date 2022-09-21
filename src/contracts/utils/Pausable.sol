@@ -64,7 +64,7 @@ contract Pausable {
      *         contract functionality.  It is permissioned to the "PAUSER"
      *         address, which is a low threshold multisig.
      */  
-    function pause() public onlyPauser {
+    function pause() external onlyPauser {
         _paused = true;
 
         emit Paused(msg.sender);
@@ -76,7 +76,7 @@ contract Pausable {
      *         address, which is a reputed committee controlled, high threshold 
      *         multisig.
      */  
-    function unpause() public onlyUnpauser {
+    function unpause() external onlyUnpauser {
         _paused = false;
 
         emit Unpaused(msg.sender);
