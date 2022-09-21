@@ -74,17 +74,17 @@ contract InvestmentManager is
     /**
      * @notice Initializes the investment manager contract.
      * @param _slasher The primary slashing contract of EigenLayr.
-     * @param pauserRegistry Used for access control of pausing.
+     * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
     function initialize(
         ISlasher _slasher,
-        IPauserRegistry pauserRegistry,
+        IPauserRegistry _pauserRegistry,
         address initialOwner
     ) external initializer {
         _transferOwnership(initialOwner);
         slasher = _slasher;
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
     }
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`

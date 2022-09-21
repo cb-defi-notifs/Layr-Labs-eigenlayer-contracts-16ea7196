@@ -39,10 +39,10 @@ contract InvestmentStrategyBase is
 
     function initialize(
         IERC20 _underlyingToken,
-        IPauserRegistry pauserRegistry
+        IPauserRegistry _pauserRegistry
     ) public initializer {
         underlyingToken = _underlyingToken;
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
     }
 
     /**

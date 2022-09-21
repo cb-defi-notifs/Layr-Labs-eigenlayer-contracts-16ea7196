@@ -54,10 +54,10 @@ contract Slasher is
     function initialize(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _delegation,
-        IPauserRegistry pauserRegistry,
+        IPauserRegistry _pauserRegistry,
         address _eigenLayrGovernance
     ) external initializer {
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
