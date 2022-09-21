@@ -45,11 +45,11 @@ contract ProvisionWeth is
     function run() external {
         vm.startBroadcast();
         // read meta data from json
-        addressJson = vm.readFile("contract.addresses");
+        addressJson = vm.readFile("data/addresses.json");
         weth = IERC20(stdJson.readAddress(addressJson, ".weth"));
         address dlsm = stdJson.readAddress(addressJson, ".dlsm");
         // deployer allocate weth, eigen to disperser
-        uint256 recipientPrivKey = cheats.parseUint(cheats.readLine("recipient"));
+        uint256 recipientPrivKey = cheats.parseUint(cheats.readLine("data/recipient"));
         emit log_uint(recipientPrivKey);
         address recipientAddr = cheats.addr(recipientPrivKey);        
         weth.transfer(recipientAddr, wethAmount);
