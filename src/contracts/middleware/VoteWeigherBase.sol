@@ -29,6 +29,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         uint256[] memory _quorumBips
     )
         VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
+    // solhint-disable-next-line no-empty-blocks
     {}
 
     /**

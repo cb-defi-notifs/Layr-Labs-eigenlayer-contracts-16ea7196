@@ -46,10 +46,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     // operator => history of ephemeral keys, hashes of them, timestamp at which they were posted, and start/end taskNumbers
     mapping(address => EKEntry[]) public EKHistory;
 
-    constructor(IRepository _repository)
-        RepositoryAccess(_repository)
-    {
-    }
+    // solhint-disable-next-line no-empty-blocks
+    constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     /**
      * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)

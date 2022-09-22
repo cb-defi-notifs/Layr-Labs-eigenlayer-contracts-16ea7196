@@ -15,6 +15,7 @@ import "./LIDO/IStableSwapStateOracle.sol";
 contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
     IStableSwapStateOracle public stableSwapOracle;
 
+    // solhint-disable-next-line no-empty-blocks
     constructor(IInvestmentManager _investmentManager) AaveInvestmentStrategy(_investmentManager) {}
 
     function initialize(

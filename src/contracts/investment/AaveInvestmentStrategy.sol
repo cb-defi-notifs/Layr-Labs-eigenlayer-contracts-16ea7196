@@ -18,6 +18,7 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
     ILendingPool public lendingPool;
     IERC20 public aToken;
 
+    // solhint-disable-next-line no-empty-blocks
     constructor(IInvestmentManager _investmentManager) InvestmentStrategyBase(_investmentManager) {}
 
     function initialize(

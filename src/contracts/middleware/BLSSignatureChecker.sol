@@ -47,6 +47,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         bytes32[] pubkeyHashes
     );
 
+    // solhint-disable-next-line no-empty-blocks
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)

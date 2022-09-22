@@ -60,6 +60,7 @@ contract Timelock {
 
     fallback() external payable {}
 
+    // solhint-disable-next-line no-empty-blocks
     receive() external payable {}
 
     function setDelay(uint256 delay_) external {

@@ -25,8 +25,6 @@ contract DataLayrChallengeUtils {
         uint32 numPar;
     }
 
-    constructor() {}
-
     /**
      * @notice Makes sure that operatorPubkeyHash was *excluded* from set of non-signers
      * @dev Reverts if the operator *is* in the non-signer set.

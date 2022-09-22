@@ -53,6 +53,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             _DEGREE_CHALLENGE_RESPONSE_WINDOW,
             _DEGREE_CHALLENGE_COLLATERAL_AMOUNT
         )
+    // solhint-disable-next-line no-empty-blocks
     {}
 
     // headerHash => LowDegreeChallenge struct
