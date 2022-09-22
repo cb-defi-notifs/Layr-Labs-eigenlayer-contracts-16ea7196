@@ -203,6 +203,12 @@ abstract contract RegistryBase is
         return amount < nodeEthStake ? 0 : amount;
     }
 
+    //allows registrants to update their socket in case their public ip changes
+    function updateSocket(string calldata socket) external {
+        require(registry[msg.sender].active != 0, "RegistryBase.updateSocket: sender is not a registered operator");
+        registry[msg.sender].socket = socket;
+    }
+
     function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
         // Removes the registrant with the given pubkeyHash from the index in registrantList
 
