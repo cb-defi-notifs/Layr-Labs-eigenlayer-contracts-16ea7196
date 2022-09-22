@@ -45,7 +45,8 @@ contract BLSRegistry is
         bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
-        bytes32 apkHash
+        bytes32 apkHash,
+        string socket
     );
 
     constructor(
@@ -199,8 +200,6 @@ contract BLSRegistry is
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
-            // extract the socket address
-            socket: socket,
             deregisterTime: 0
         });
 
@@ -238,7 +237,7 @@ contract BLSRegistry is
             totalStakeHistory.push(_totalStake);
         }
             
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash, socket);
     }
 
     /**

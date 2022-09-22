@@ -51,9 +51,6 @@ abstract contract RegistryBase is
         // indicates whether the operator is actively registered for storing data or not 
         uint8 active; //bool
 
-        // socket address of the node
-        string socket;
-
         uint256 deregisterTime;
     }
 
@@ -105,6 +102,8 @@ abstract contract RegistryBase is
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
     // EVENTS
+    event SocketUpdate(address operator, string socket);
+
     event StakeAdded(
         address operator,
         uint96 ethStake,
@@ -201,6 +200,12 @@ abstract contract RegistryBase is
 
         // check that minimum delegation limit is satisfied
         return amount < nodeEthStake ? 0 : amount;
+    }
+
+    //allows registrants to update their socket in case their public ip changes
+    function updateSocket(string calldata socket) external {
+        require(registry[msg.sender].active != 0, "RegistryBase.updateSocket: sender is not a registered operator");
+        emit SocketUpdate(msg.sender, socket);
     }
 
     function popRegistrant(bytes32 pubkeyHash, uint32 index) internal returns(address) {
