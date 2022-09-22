@@ -47,7 +47,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      */
     function initialize(
         IInvestmentManager _investmentManager,
-        IPauserRegistry pauserRegistry,
+        IPauserRegistry _pauserRegistry,
         address initialOwner,
         uint256 _undelegationFraudproofInterval
     )
@@ -58,7 +58,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
             _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
             "EigenLayrDelegation.initialize: _undelegationFraudproofInterval too large"
         );
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
         undelegationFraudproofInterval = _undelegationFraudproofInterval;
         _transferOwnership(initialOwner);
