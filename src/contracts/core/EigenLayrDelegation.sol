@@ -372,7 +372,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
-            // update the delegate share amount of the strategy, in the operator's portfolio
+            // update the share amounts for each of the operator's strategies
             operatorShares[operator][strategies[i]] += shares[i];
             unchecked {
                 ++i;
