@@ -27,6 +27,11 @@ contract InvestmentTests is
         uint96 amountToDeposit,
         uint96 amountToWithdraw
     ) public {
+        // want to deposit at least 1 wei
+        cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
+        // cannot withdraw more than we deposit
         cheats.assume(amountToWithdraw <= amountToDeposit);
         // hard-coded inputs
         address sender = signers[0];
@@ -76,7 +81,13 @@ contract InvestmentTests is
     )
         public fuzzedAddress(staker)
     {
-        cheats.assume(amountToDeposit > amountToWithdraw);
+        // want to deposit at least 1 wei
+        cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
+        // cannot withdraw more than we deposit
+        cheats.assume(amountToWithdraw <= amountToDeposit);
+
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
@@ -141,6 +152,8 @@ contract InvestmentTests is
 
         // want to deposit at least 1 wei
         cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
         // cannot withdraw more than we deposit
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
@@ -288,9 +301,9 @@ contract InvestmentTests is
 
         // we do this here to ensure that `staker` is delegated if `registerAsDelegate` is true
         if (registerAsDelegate) {
-            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
+            assertTrue(!delegation.isDelegated(staker), "_createQueuedWithdrawal: staker is already delegated");
             _testRegisterAsDelegate(staker, IDelegationTerms(staker));
-            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
+            assertTrue(delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be");
         }
 
         {
@@ -309,19 +322,21 @@ contract InvestmentTests is
         if (delegation.isDelegated(staker)) {
             assertTrue(
                 !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
-                "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
         }
         // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and         
         else if (delegation.isNotDelegated(staker)) {
             assertTrue(
                 investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
-                "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
         } else {
-            revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
+            revert("_createQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
         }
         cheats.stopPrank();
         return withdrawalRoot;
     }
+
+    // TODO: add test(s) that confirm deposits + withdrawals *of zero shares* fail correctly.
 }
