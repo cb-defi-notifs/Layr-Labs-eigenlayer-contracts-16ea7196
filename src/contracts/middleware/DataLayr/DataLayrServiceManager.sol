@@ -13,12 +13,14 @@ import "../BLSSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
-import "../../utils/Pausable.sol";
+import "../../permissions/Pausable.sol";
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 
 /**
+ * @title Primary entrypoint for procuring services from DataLayr.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for:
  * - initializing the data store by the disperser
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum

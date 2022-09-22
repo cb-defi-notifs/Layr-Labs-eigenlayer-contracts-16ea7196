@@ -6,9 +6,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
- * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
+ * @title Extremely simple implementation of `IInvestmentStrategy` interface.
+ * @author Layr Labs, Inc.
+ * @notice Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Assumes shares are always 1-to-1 with the underlyingToken.
- */
+ * @dev Unlike `InvestmentStrategyBase`, this contract is *not* designed to be inherited from.
+*/
 contract InvestmentStrategyWrapper is IInvestmentStrategy {
     using SafeERC20 for IERC20;
 

@@ -4,7 +4,12 @@ pragma solidity ^0.8.9.0;
 
 import "../interfaces/IDataLayrServiceManager.sol";
 
+/**
+ * @title Library of functions shared across DataLayr.
+ * @author Layr Labs, Inc.
+ */
 library DataStoreUtils {
+    /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
     function computeSignatoryRecordHash(uint32 globalDataStoreId, bytes32[] memory nonSignerPubkeyHashes, uint256 totalEthStakeSigned, uint256 totalEigenStakeSigned) internal pure returns(bytes32) {
         return keccak256(
             abi.encodePacked(
@@ -16,6 +21,7 @@ library DataStoreUtils {
         );
     }
 
+    /// @notice Computes the hash of a single DataStore's metadata.
     function computeDataStoreHash(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     ) 
@@ -35,29 +41,7 @@ library DataStoreUtils {
         return dsHash;
     }
 
-    function computeDataStoreHashFromArgs(
-        bytes32 headerHash,
-        uint32 durationDataStoreId,
-        uint32 globalDataStoreId,
-        uint32 blockNumber,
-        uint96 fee,
-        address confirmer,
-        bytes32 signatoryRecordHash
-    ) internal pure returns (bytes32) {
-        bytes32 dsHash = keccak256(
-            abi.encodePacked(
-                headerHash,
-                durationDataStoreId,
-                globalDataStoreId,
-                blockNumber,
-                fee,
-                confirmer,
-                signatoryRecordHash
-            )
-        );
-        return dsHash;
-    }
-
+    /// @notice uses `abi.encodePacked` to encode a DataStore's metadata into a compressed format
     function packDataStoreMetadata(
         IDataLayrServiceManager.DataStoreMetadata memory metadata
     )
@@ -76,6 +60,7 @@ library DataStoreUtils {
         );
     }
 
+    /// @notice uses `abi.encodePacked` to encode a DataStore's searchData into a compressed format
     function packDataStoreSearchData(
         IDataLayrServiceManager.DataStoreSearchData memory searchData
     )
@@ -161,9 +146,10 @@ library DataStoreUtils {
     uint256 internal constant MEMORY_OFFSET_timestamp = 64;
     uint256 internal constant MEMORY_OFFSET_index = 96;
 
-    // pointer to start of single 'bytes calldata' input -- accounts for function signture, length and offset encoding
-    // uint256 internal constant pointer = 68;
-
+    /**
+     * @notice Unpacks the packed metadata of a DataStore into a metadata struct.
+     * @param packedMetadata should be in the same form as the output of `packDataStoreMetadata`
+     */
     function unpackDataStoreMetadata(
         bytes calldata packedMetadata
     )
@@ -229,6 +215,10 @@ library DataStoreUtils {
         return metadata;
     }
 
+    /**
+     * @notice Unpacks the packed searchData of a DataStore into a searchData struct.
+     * @param packedSearchData should be in the same form as the output of `packDataStoreSearchData`
+     */
     function unpackDataStoreSearchData(
         bytes calldata packedSearchData
     )

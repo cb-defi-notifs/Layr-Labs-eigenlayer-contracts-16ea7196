@@ -9,8 +9,9 @@ import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 
 /**
- * @notice This is the contract for checking that the aggregated signatures of all operators which is being
- * asserted by the disperser is valid.
+ * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
+ * @author Layr Labs, Inc.
+ * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
 abstract contract BLSSignatureChecker is RepositoryAccess {
 
@@ -452,7 +453,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             pubkeyHashes
             );
 
-        // set compressedSignatoryRecord variable used for payment fraudproofs
+        // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
             // taskHash,
             taskNumberToConfirm,

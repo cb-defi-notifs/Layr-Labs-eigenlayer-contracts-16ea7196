@@ -3,6 +3,11 @@ pragma solidity ^0.8.9.0;
 
 import "./IDelegationTerms.sol";
 
+/**
+ * @title Interface for the primary delegation contract for EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice See the `EigenLayrDelegation` contract itself for implementation details.
+ */
 interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
@@ -11,7 +16,7 @@ interface IEigenLayrDelegation {
         UNDELEGATION_COMMITTED
     }
 
-    function registerAsDelegate(IDelegationTerms dt) external;
+    function registerAsOperator(IDelegationTerms dt) external;
 
     function delegationTerms(address operator) external view returns (IDelegationTerms);
 

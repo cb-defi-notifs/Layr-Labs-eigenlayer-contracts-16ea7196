@@ -5,9 +5,9 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/IRepositoryAccess.sol";
 
 /**
- * @notice This contract is for enacting access control for repository contract.
+ * @title Defines access controls based around a single `Repository` contract.
+ * @author Layr Labs, Inc.
  */
-
 abstract contract RepositoryAccess is IRepositoryAccess {
     // the unique, immutable Repository contract associated with this contract
     IRepository public immutable repository;

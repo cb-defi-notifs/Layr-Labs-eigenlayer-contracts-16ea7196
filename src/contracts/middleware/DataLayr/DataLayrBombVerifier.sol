@@ -10,6 +10,8 @@ import "../../libraries/DataStoreUtils.sol";
 import "../../libraries/BN254.sol";
 
 /**
+ * @title Used to check Proofs of Custody in DataLayr.
+ * @author Layr Labs, Inc.
  * @notice The core slashing module of DataLayr. Using Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
  * @dev In order to prove that an operator wasn’t storing data at certain time, a challenger proves the following:
  *      1) The existence of a certain datastore referred to as the DETONATION datastore
@@ -66,10 +68,10 @@ contract DataLayrBombVerifier {
     // reduce the expected value of not storing the data
     // BOMB_THRESHOLD can be tuned down to decrease the chance of bombs and therefore
     // increase the amount of nodes that will sign off on datastores
-    uint256 public BOMB_THRESHOLD = uint256(2)**uint256(249);
+    uint256 public constant BOMB_THRESHOLD = uint256(2)**uint256(249);
 
     // This is the interval in which the bomb must be proven
-    uint256 public BOMB_FRAUDRPOOF_INTERVAL = 7 days;
+    uint256 public constant BOMB_FRAUDRPOOF_INTERVAL = 7 days;
 
     IDataLayrServiceManager public immutable dlsm;
     IQuorumRegistry public immutable dlRegistry;

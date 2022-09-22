@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9.0;
 
+/**
+ * @title Small library for checking Merkle proofs.
+ * @author Original authorship of this code is unclear. This implementation is adapted from Polygon's.
+ * See https://github.com/maticnetwork/contracts/commits/main/contracts/common/lib/Merkle.sol
+ */
 library Merkle {
     /**
      @notice this function checks whether the given @param leaf is actually a member (leaf) of the 

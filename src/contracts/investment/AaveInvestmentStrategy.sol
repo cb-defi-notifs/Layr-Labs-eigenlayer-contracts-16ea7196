@@ -2,13 +2,21 @@
 pragma solidity ^0.8.9.0;
 
 import "./aave/ILendingPool.sol";
-import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
+/**
+ * @title InvestmentStrategy that lends tokens out on AAVE.
+ * @author Layr Labs, Inc.
+ * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
+ * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
+*/
+abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
     using SafeERC20 for IERC20;
+
+    ILendingPool public lendingPool;
+    IERC20 public aToken;
 
     constructor(IInvestmentManager _investmentManager) InvestmentStrategyBase(_investmentManager) {}
 
@@ -112,8 +120,8 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    // internal function used to fetch this contract's current balance of `aToken`
-    function _tokenBalance() internal view override returns (uint256) {
+    /// @notice Internal function used to fetch this contract's current balance of `aToken`.
+    function _tokenBalance() internal view override returns(uint256) {
         return aToken.balanceOf(address(this));
     }
 }

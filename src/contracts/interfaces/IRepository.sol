@@ -6,9 +6,9 @@ import "./IVoteWeigher.sol";
 import "./IRegistry.sol";
 
 /**
- * @notice This is the interface for Repository contract.
+ * @title This is the interface for the `Repository` contract.
+ * @author Layr Labs, Inc.
  */
-
 interface IRepository {
     /// @notice returns voteWeigher contract for the middleware
     function voteWeigher() external view returns (IVoteWeigher);

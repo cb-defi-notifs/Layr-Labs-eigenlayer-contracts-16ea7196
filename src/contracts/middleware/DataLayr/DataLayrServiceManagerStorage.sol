@@ -12,6 +12,11 @@ import "./DataLayrBombVerifier.sol";
 import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
+/**
+ * @title Storage variables for the `DataLayrServiceManager` contract.
+ * @author Layr Labs, Inc.
+ * @notice This storage contract is separate from the logic to simplify the upgrade process.
+ */
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
     /**********************
         CONSTANTS
@@ -47,9 +52,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      *         for storing per byte for per unit time. 
      */
     uint256 public feePerBytePerTime;
-
-    /// @notice counter for number of assertions of data that has happened on this DataLayr
-    //uint32 public dataStoreId = 1;
     
     uint256 public disclosurePaymentPerByte;
 

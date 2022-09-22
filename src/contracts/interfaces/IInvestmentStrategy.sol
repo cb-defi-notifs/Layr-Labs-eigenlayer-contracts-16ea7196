@@ -3,6 +3,11 @@ pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+/**
+ * @title Minimal interface for an `InvestmentStrategy` contract.
+ * @author Layr Labs, Inc.
+ * @notice Custom `InvestmentStrategy` implementations may expand extensively on this interface.
+ */
 interface IInvestmentStrategy {
     function explanation() external returns (string memory);
 

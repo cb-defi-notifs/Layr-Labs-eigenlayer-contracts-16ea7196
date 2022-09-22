@@ -8,6 +8,8 @@ import "./VoteWeigherBaseStorage.sol";
 // import "forge-std/Test.sol";
 
 /**
+ * @title A simple implementation of the `IVoteWeigher` interface.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for
  * - computing the total weight of an operator for any of the quorums that are considered
  * by the middleware
@@ -68,7 +70,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
     }
 
     /**
-     * @notice Add new strategies and the associated multiplier to the @param quorumNumber
+     * @notice Adds new strategies and the associated multipliers to the @param quorumNumber.  
      */
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
@@ -81,10 +83,8 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
     }
 
     /**
-     * @notice This function is used for removing strategies and their associated weight from
-     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber.
-     */
-    /**
+     * @notice This function is used for removing strategies and their associated weights from the
+     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
      * @dev higher indices should be *first* in the list of @param indicesToRemove, since otherwise
      * the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove
      */
@@ -116,7 +116,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         }
     }
 
-    // returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber]
+    /// @notice Returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber].
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         require(
             quorumNumber < NUMBER_OF_QUORUMS,

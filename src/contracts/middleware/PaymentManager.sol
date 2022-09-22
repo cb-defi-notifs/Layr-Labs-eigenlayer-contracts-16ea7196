@@ -10,11 +10,13 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
-import "../utils/Pausable.sol";
+import "../permissions/Pausable.sol";
 
 // import "forge-std/Test.sol";
 
 /**
+ * @title Controls 'rolled-up' middleware payments.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for doing interactive payment challenges.
  * @notice The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
  * function -- see DataLayrPaymentManager for an example
