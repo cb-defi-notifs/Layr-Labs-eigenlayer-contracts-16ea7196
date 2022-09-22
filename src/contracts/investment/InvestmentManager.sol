@@ -583,7 +583,7 @@ contract InvestmentManager is
         uint256 shareAmount
     ) internal returns (bool) {
         // sanity check on `shareAmount` input
-        require(shares != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
+        require(shareAmount != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
 
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
