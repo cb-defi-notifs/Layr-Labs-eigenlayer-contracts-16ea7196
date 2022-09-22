@@ -298,8 +298,7 @@ contract DelegationTests is TestHelper {
         //delegation has already been initialized in the Deployer test contract
         delegation.initialize(
             investmentManager,
-            pauserReg,
-            undelegationFraudproofInterval
+            pauserReg
         );
     }
 
@@ -450,8 +449,6 @@ contract DelegationTests is TestHelper {
         IInvestmentManager altInvestmentManager = new InvestmentManager(altDelegation);
         cheats.expectRevert(bytes("Ownable: caller is not the owner"));
         delegation.setInvestmentManager(altInvestmentManager);
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        delegation.setUndelegationFraudproofInterval(100);
         cheats.stopPrank();
     }
 

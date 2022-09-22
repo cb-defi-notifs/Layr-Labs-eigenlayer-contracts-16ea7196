@@ -52,20 +52,13 @@ contract EigenLayrDelegation is
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
-    // sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**)
     // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
-        IPauserRegistry pauserRegistry,
-        uint256 _undelegationFraudproofInterval
+        IPauserRegistry pauserRegistry
     ) external initializer {
-        require(
-            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
-            "EigenLayrDelegation.initialize: _undelegationFraudproofInterval too large"
-        );
         _initializePauser(pauserRegistry);
         investmentManager = _investmentManager;
-        undelegationFraudproofInterval = _undelegationFraudproofInterval;
         _transferOwnership(msg.sender);
     }
 
@@ -195,14 +188,6 @@ contract EigenLayrDelegation is
 
     function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {
         investmentManager = _investmentManager;
-    }
-
-    function setUndelegationFraudproofInterval(uint256 _undelegationFraudproofInterval) external onlyOwner {
-        require(
-            _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
-            "EigenLayrDelegation.setUndelegationFraudproofInterval: _undelegationFraudproofInterval too large"
-        );
-        undelegationFraudproofInterval = _undelegationFraudproofInterval;
     }
 
     // INTERNAL FUNCTIONS

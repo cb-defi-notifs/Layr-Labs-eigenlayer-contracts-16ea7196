@@ -219,8 +219,7 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract
         delegation.initialize(
             investmentManager,
-            pauserReg,
-            undelegationFraudproofInterval
+            pauserReg
         );
 
         // deploy all the DataLayr contracts
