@@ -183,6 +183,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             )
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
+            // slither-disable-next-line write-after-write
             placeholder := shr(
                 BIT_SHIFT_numberNonSigners,
                 calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners))
@@ -289,6 +290,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
+                // slither-disable-next-line variable-scope
                 stakeIndex := shr(
                     BIT_SHIFT_stakeIndex,
                     calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY))
@@ -328,6 +330,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                 .secondQuorumStake;
 
             // add the pubkey of the operator to the aggregate pubkeys in Jacobian coordinate system.
+            // slither-disable-next-line unused-return
             BLS.addJac(aggNonSignerPubkey, pk);
 
             unchecked {
@@ -399,6 +402,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                 BLS.MODULUS;
 
             // do the addition in Jacobian coordinates
+            // slither-disable-next-line unused-return
             BLS.addJac(pk, aggNonSignerPubkey);
 
             // reorder for pairing

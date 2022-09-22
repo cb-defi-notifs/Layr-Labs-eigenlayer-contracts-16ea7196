@@ -115,6 +115,7 @@ contract Timelock {
         emit CancelTransaction(txHash, target, value, signature, data, eta);
     }
 
+    // slither-disable-next-line missing-zero-check
     function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
         external
         payable
