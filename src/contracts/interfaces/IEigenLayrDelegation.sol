@@ -3,6 +3,11 @@ pragma solidity ^0.8.9.0;
 
 import "./IDelegationTerms.sol";
 
+/**
+ * @title Interface for the primary delegation contract for EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice See the `EigenLayrDelegation` contract itself for implementation details.
+ */
 interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
@@ -11,42 +16,26 @@ interface IEigenLayrDelegation {
         UNDELEGATION_COMMITTED
     }
 
-    function registerAsDelegate(IDelegationTerms dt) external;
+    function registerAsOperator(IDelegationTerms dt) external;
 
-    function delegationTerms(address operator)
-        external
-        view
-        returns (IDelegationTerms);
+    function delegationTerms(address operator) external view returns (IDelegationTerms);
 
-    function operatorShares(address operator, IInvestmentStrategy investmentStrategy)
-        external
-        view
-        returns (uint256);
+    function operatorShares(address operator, IInvestmentStrategy investmentStrategy) external view returns (uint256);
 
-    function isNotDelegated(address staker)
-        external
-        returns (bool);
+    function isNotDelegated(address staker) external returns (bool);
 
-    function delegation(address delegator)
-        external
-        view
-        returns (address);
+    function delegation(address delegator) external view returns (address);
 
-    function isDelegated(address staker)
-        external
-        view
-        returns (bool);
+    function isDelegated(address staker) external view returns (bool);
 
-    function isOperator(address operator)
-        external
-        view
-        returns (bool);
-    
+    function isOperator(address operator) external view returns (bool);
+
     function decreaseDelegatedShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    ) external;
+    )
+        external;
 
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 

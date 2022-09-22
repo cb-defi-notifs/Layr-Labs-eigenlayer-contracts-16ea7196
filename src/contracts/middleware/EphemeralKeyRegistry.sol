@@ -6,13 +6,15 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
 /**
- @notice This contract has the functionality for ---
-            (1) storing revealed ephemeral keys for each operator from past,
-            (2) checking if ephemeral keys revealed too early and then slashing if needed,
-            (3) recording when a previous ephemeral key is made inactive
+ * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
+ * @author Layr Labs, Inc.
+ * @notice This contract has the functionality for ---
+ *           (1) storing revealed ephemeral keys for each operator from past,
+ *           (2) checking if ephemeral keys revealed too early and then slashing if needed,
+ *           (3) recording when a previous ephemeral key is made inactive
+ * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
+ * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-
-
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     
     /******************
@@ -44,10 +46,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     // operator => history of ephemeral keys, hashes of them, timestamp at which they were posted, and start/end taskNumbers
     mapping(address => EKEntry[]) public EKHistory;
 
-    constructor(IRepository _repository)
-        RepositoryAccess(_repository)
-    {
-    }
+    // solhint-disable-next-line no-empty-blocks
+    constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     /**
      * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration)

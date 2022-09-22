@@ -6,6 +6,11 @@ import "./ISlasher.sol";
 import "./IEigenLayrDelegation.sol";
 import "./IServiceManager.sol";
 
+/**
+ * @title Interface for the primary entrypoint for funds into EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice See the `InvestmentManager` contract itself for implementation details.
+ */
 interface IInvestmentManager {
     // used for storing details of queued withdrawals
     struct WithdrawalStorage {
@@ -20,37 +25,23 @@ interface IInvestmentManager {
         uint96 nonce;
     }
 
-    function depositIntoStrategy(
-        address depositor,
-        IInvestmentStrategy strategies,
-        IERC20 token,
-        uint256 amount
-    ) external returns (uint256);
+    function depositIntoStrategy(address depositor, IInvestmentStrategy strategies, IERC20 token, uint256 amount)
+        external
+        returns (uint256);
 
     function withdrawFromStrategy(
         uint256 strategyIndex,
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    ) external;
+    )
+        external;
 
-    function investorStratShares(address user, IInvestmentStrategy strategy)
-        external
-        view
-        returns (uint256 shares);
+    function investorStratShares(address user, IInvestmentStrategy strategy) external view returns (uint256 shares);
 
-    function getDeposits(address depositor)
-        external
-        view
-        returns (
-            IInvestmentStrategy[] memory,
-            uint256[] memory
-        );
+    function getDeposits(address depositor) external view returns (IInvestmentStrategy[] memory, uint256[] memory);
 
-    function investorStratsLength(address investor)
-        external
-        view
-        returns (uint256);
+    function investorStratsLength(address investor) external view returns (uint256);
 
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -78,7 +69,8 @@ interface IInvestmentManager {
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bytes calldata data,
         IServiceManager slashingContract
-    ) external;
+    )
+        external;
 
     function slashShares(
         address slashedAddress,
@@ -87,16 +79,18 @@ interface IInvestmentManager {
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    ) external;
+    )
+        external;
 
-    function slashQueuedWithdrawal(       
+    function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         address slashedAddress,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external;
+    )
+        external;
 
     function canCompleteQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -104,7 +98,9 @@ interface IInvestmentManager {
         uint256[] calldata shareAmounts,
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    ) external returns (bool);
+    )
+        external
+        returns (bool);
 
     function calculateWithdrawalRoot(
         IInvestmentStrategy[] calldata strategies,
@@ -112,7 +108,9 @@ interface IInvestmentManager {
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
-        external pure returns (bytes32);
+        external
+        pure
+        returns (bytes32);
 
     function delegation() external view returns (IEigenLayrDelegation);
 

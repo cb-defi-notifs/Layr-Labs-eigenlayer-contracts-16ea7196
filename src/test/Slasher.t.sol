@@ -4,14 +4,12 @@ pragma solidity ^0.8.9.0;
 import "./Deployer.t.sol";
 import "./TestHelper.t.sol";
 
-contract SlasherTests is
-    TestHelper
-{
+contract SlasherTests is TestHelper {
     /**
-    * @notice this function tests the slashing process by first freezing 
-    *          the operator and then calling the investmentManager.slashShares()
-    *          to actually enforce the slashing conditions.
-    */
+     * @notice this function tests the slashing process by first freezing
+     * the operator and then calling the investmentManager.slashShares()
+     * to actually enforce the slashing conditions.
+     */
     function testSlashing() public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
@@ -27,13 +25,12 @@ contract SlasherTests is
         // have `_operator` make deposits in WETH strategy
         _testWethDeposit(_operator, amountToDeposit);
         // register `_operator` as an operator
-        _testRegisterAsDelegate(_operator, IDelegationTerms(_operator));
+        _testRegisterAsOperator(_operator, IDelegationTerms(_operator));
 
         // make deposit in WETH strategy from each of `accounts`, then delegate them to `_operator`
-        for (uint i=0; i<accounts.length; i++){            
+        for (uint256 i = 0; i < accounts.length; i++) {
             depositAmounts[i] = _testWethDeposit(accounts[i], amountToDeposit);
             _testDelegateToOperator(accounts[i], _operator);
-
         }
 
         uint256[] memory shareAmounts = new uint256[](1);
@@ -47,27 +44,25 @@ contract SlasherTests is
         slasher.freezeOperator(_operator);
         cheats.stopPrank();
 
-        uint prev_shares = delegation.operatorShares(_operator, strategyArray[0]);
+        uint256 prev_shares = delegation.operatorShares(_operator, strategyArray[0]);
 
-        investmentManager.slashShares(
-            _operator, 
-            acct_0, 
-            strategyArray, 
-            tokensArray, 
-            strategyIndexes, 
-            shareAmounts
+        investmentManager.slashShares(_operator, acct_0, strategyArray, tokensArray, strategyIndexes, shareAmounts);
+
+        require(
+            delegation.operatorShares(_operator, strategyArray[0]) + shareAmounts[0] == prev_shares,
+            "Malicious Operator slashed by incorrect amount"
         );
-
-        require(delegation.operatorShares(_operator, strategyArray[0]) + shareAmounts[0] == prev_shares, "Malicious Operator slashed by incorrect amount");
     }
 
     /**
-    * @notice testing ownable permissions for slashing functions 
-    *         addPermissionedContracts(), removePermissionedContracts()
-    *         and resetFrozenStatus().
-    */
+     * @notice testing ownable permissions for slashing functions
+     * addPermissionedContracts(), removePermissionedContracts()
+     * and resetFrozenStatus().
+     */
     function testOnlyOwnerFunctions(address incorrectCaller, address inputAddr)
-        public fuzzedAddress(incorrectCaller) fuzzedAddress(inputAddr)
+        public
+        fuzzedAddress(incorrectCaller)
+        fuzzedAddress(inputAddr)
     {
         cheats.assume(incorrectCaller != slasher.owner());
         cheats.startPrank(incorrectCaller);
@@ -81,5 +76,4 @@ contract SlasherTests is
         slasher.resetFrozenStatus(addressArray);
         cheats.stopPrank();
     }
-    
 }
