@@ -331,12 +331,13 @@ contract InvestmentManager is
         if(investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
             delegation.undelegate(depositor);
         }
+        // store length for gas savings
+        uint256 strategiesLength = strategies.length;
         //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if(receiveAsTokens){
             
             // actually withdraw the funds
-            //uint256 strategiesLength = strategies.length;
-            for (uint256 i = 0; i < strategies.length; ) {
+            for (uint256 i = 0; i < strategiesLength;) {
                 // tell the strategy to send the appropriate amount of funds to the depositor
                 strategies[i].withdraw(
                     withdrawalStorageCopy.withdrawer,
@@ -349,9 +350,11 @@ contract InvestmentManager is
             }
         } else {
             //else increase their shares
-            //TODO: @JEFFC please help optimize this call and cleanup delegation checks
-            for (uint i = 0; i < strategies.length; i++) {
-                _addShares(msg.sender, strategies[i], shares[i]);
+            for (uint256 i = 0; i < strategiesLength;) {
+                _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -513,7 +516,10 @@ contract InvestmentManager is
     //this function adds shares for a given strategy to a depositor and runs through 
     //all necessary logic that needs to be run on a deposit
     function _addShares(address depositor, IInvestmentStrategy strategy, uint256 shares) internal {
-        // if they dont have existing shares of this strategy, add it to their strats
+        // sanity check on `shares` input
+        require(shares != 0, "InvestmentManager._addShares: shares should not be zero!");
+
+       // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
                 investorStrats[depositor].length <= MAX_INVESTOR_STRATS_LENGTH,
@@ -538,16 +544,11 @@ contract InvestmentManager is
         // transfer tokens from the sender to the strategy
         token.safeTransferFrom(msg.sender, address(strategy), amount);
 
-        // deposit the assets into the specified strategy and get the equivalent amount of
-        // shares in that strategy
+        // deposit the assets into the specified strategy and get the equivalent amount of shares in that strategy
         shares = strategy.deposit(token, amount);
-        require(shares != 0, "InvestmentManager._depositIntoStrategy: shares should not be zero!");
 
-        // add the returned shares to their existing shares for this strategy
-        //add the new shares to the depositor
+        // add the returned shares to the depositor's existing shares for this strategy
         _addShares(depositor, strategy, shares);
-
-        
 
         return shares;
     }
@@ -581,6 +582,9 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         uint256 shareAmount
     ) internal returns (bool) {
+        // sanity check on `shareAmount` input
+        require(shares != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
+
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
