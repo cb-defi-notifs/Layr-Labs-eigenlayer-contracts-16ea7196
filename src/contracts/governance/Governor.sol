@@ -23,6 +23,10 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/**
+ * @title Experimental governance contract.
+ * @author Layr Labs, Inc.
+ */
 pragma solidity ^0.8.9.0;
 
 import "../interfaces/IVoteWeigher.sol";
@@ -32,7 +36,7 @@ import "./Timelock.sol";
 import "../permissions/RepositoryAccess.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract Governor_Experimental is RepositoryAccess {
+contract Governor is RepositoryAccess {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -297,6 +301,7 @@ contract Governor_Experimental is RepositoryAccess {
             !timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))),
             "RepositoryGovernance::_queueOrRevert: proposal action already queued at eta"
         );
+        // slither-disable-next-line unused-return
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
@@ -308,6 +313,7 @@ contract Governor_Experimental is RepositoryAccess {
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint256 i = 0; i < proposal.targets.length; ++i) {
+            // slither-disable-next-line unused-return
             timelock.executeTransaction{value: proposal.values[i]}(
                 proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta
             );

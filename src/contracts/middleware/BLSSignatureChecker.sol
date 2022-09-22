@@ -9,8 +9,9 @@ import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 
 /**
- * @notice This is the contract for checking that the aggregated signatures of all operators which is being
- * asserted by the disperser is valid.
+ * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
+ * @author Layr Labs, Inc.
+ * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
 abstract contract BLSSignatureChecker is RepositoryAccess {
 
@@ -46,6 +47,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         bytes32[] pubkeyHashes
     );
 
+    // solhint-disable-next-line no-empty-blocks
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
@@ -181,6 +183,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             )
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
+            // slither-disable-next-line write-after-write
             placeholder := shr(
                 BIT_SHIFT_numberNonSigners,
                 calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners))
@@ -287,6 +290,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
+                // slither-disable-next-line variable-scope
                 stakeIndex := shr(
                     BIT_SHIFT_stakeIndex,
                     calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY))
@@ -326,6 +330,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                 .secondQuorumStake;
 
             // add the pubkey of the operator to the aggregate pubkeys in Jacobian coordinate system.
+            // slither-disable-next-line unused-return
             BLS.addJac(aggNonSignerPubkey, pk);
 
             unchecked {
@@ -397,6 +402,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                 BLS.MODULUS;
 
             // do the addition in Jacobian coordinates
+            // slither-disable-next-line unused-return
             BLS.addJac(pk, aggNonSignerPubkey);
 
             // reorder for pairing
@@ -452,7 +458,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             pubkeyHashes
             );
 
-        // set compressedSignatoryRecord variable used for payment fraudproofs
+        // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
             // taskHash,
             taskNumberToConfirm,

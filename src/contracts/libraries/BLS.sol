@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED AND MIT
-// hashing to the curve is from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
+// several functions are from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
 // remainder is UNLICENSED
 pragma solidity ^0.8.9.0;
 
+/**
+ * @title Library for operations related to BLS Signatures used in EigenLayer middleware.
+ * @author Layr Labs, Inc. with credit to Chih Cheng Liang
+ * @notice Uses the BN254 curve.
+ */
 library BLS {
     // BN 254 CONSTANTS
     // modulus for the underlying field F_q of the elliptic curve
@@ -335,14 +340,10 @@ library BLS {
      * - conversion to Jacobian coordinates,
      * - do the subtraction of pubkey from aggregated pubkey,
      * - convert the updated aggregated pubkey back to affine coordinates.
-     */
-    /**
      * @param pubkeyToRemoveAff is the pubkey that is to be removed,
      * @param existingAggPubkeyAff is the aggregated pubkey.
-     */
-    /**
      * @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
-     */
+     */ 
     function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff)
         internal
         view
@@ -363,10 +364,8 @@ library BLS {
         pubkeyToRemoveJac[4] = 1;
         existingAggPubkeyJac[4] = 1;
 
-        /**
-         * @notice subtract pubkeyToRemoveJac from the aggregate pubkey
-         */
-        // negate pubkeyToRemoveJac
+        /// @notice subtract pubkeyToRemoveJac from the aggregate pubkey
+        // negate pubkeyToRemoveJac  
         pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
         pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
         // add the negation to existingAggPubkeyJac

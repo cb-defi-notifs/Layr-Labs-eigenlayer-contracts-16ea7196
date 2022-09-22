@@ -15,6 +15,10 @@ import "./DataLayrChallengeBase.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
 
+/**
+ * @title Used to create and manage low degree challenges related to DataLayr.
+ * @author Layr Labs, Inc.
+ */
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
 
@@ -49,16 +53,19 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             _DEGREE_CHALLENGE_RESPONSE_WINDOW,
             _DEGREE_CHALLENGE_COLLATERAL_AMOUNT
         )
+    // solhint-disable-next-line no-empty-blocks
     {}
 
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
-    /// @notice This function tests whether a polynomial's degree is not greater than a provided degree
-    /// @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
-    /// @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
-    /// @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
-    /// We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+    /**
+     * @notice This function tests whether a polynomial's degree is not greater than a provided degree
+     * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
+     * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
+     * @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+     * We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     */
 
     //TODO: we need to hardcode a merkle root hash in storage
     function lowDegreenessProof(

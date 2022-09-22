@@ -5,6 +5,11 @@ import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IDelegationTerms.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 
+/**
+ * @title Storage variables for the `EigenLayrDelegation` contract.
+ * @author Layr Labs, Inc.
+ * @notice This storage contract is separate from the logic to simplify the upgrade process.
+ */
 abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice Gas budget provided in calls to DelegationTerms contracts
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
@@ -20,7 +25,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    // the InvestmentManager contract for EigenLayr
+    /// @notice The InvestmentManager contract for EigenLayr
     IInvestmentManager public investmentManager;
 
     // operator => investment strategy => num shares delegated

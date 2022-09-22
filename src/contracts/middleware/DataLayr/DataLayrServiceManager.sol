@@ -13,12 +13,14 @@ import "../BLSSignatureChecker.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
-import "../../utils/Pausable.sol";
+import "../../permissions/Pausable.sol";
 
 import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 
 /**
+ * @title Primary entrypoint for procuring services from DataLayr.
+ * @author Layr Labs, Inc.
  * @notice This contract is used for:
  * - initializing the data store by the disperser
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
@@ -69,7 +71,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         IEigenLayrDelegation _eigenLayrDelegation,
         IRepository _repository,
         IERC20 _collateralToken,
-        IPauserRegistry pauserRegistry,
+        IPauserRegistry _pauserRegistry,
         uint256 _feePerBytePerTime
     )
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
@@ -78,7 +80,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
     }
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge)

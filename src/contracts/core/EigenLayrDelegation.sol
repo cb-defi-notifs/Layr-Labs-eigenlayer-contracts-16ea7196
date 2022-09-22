@@ -7,12 +7,14 @@ import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
-import "../utils/Pausable.sol";
+import "../permissions/Pausable.sol";
 import "../investment/Slasher.sol";
 
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
+ * @title The primary delegation contract for EigenLayr.
+ * @author Layr Labs, Inc.
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
  * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
  * - for enabling anyone to register as an operator
@@ -32,39 +34,43 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         _disableInitializers();
     }
 
-    /**
-     * @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
-     */
+    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
     event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
-    /**
-     * @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
-     */
+
+    /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
-    // sets the `investMentManager` address (**currently modifiable by contract owner -- see below**)
-    // transfers ownership to `msg.sender`
+    /**
+     * @notice Sets the `investMentManager` address (**currently modifiable by contract owner -- see below**),
+     * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
+     * and transfers ownership to `intialOwner`
+     */
     function initialize(
         IInvestmentManager _investmentManager,
-        IPauserRegistry _pauserRegistry
+        IPauserRegistry _pauserRegistry,
+        address initialOwner
     )
         external
         initializer
     {
         _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
-        _transferOwnership(msg.sender);
+        _transferOwnership(initialOwner);
     }
 
     // EXTERNAL FUNCTIONS
-    /// @notice This will be called by an operator to register itself as a delegate that stakers
-    ///         can choose to delegate to.
-    /// @param dt is the delegation terms contract that operator has for those who delegate to them.
-    function registerAsDelegate(IDelegationTerms dt) external {
+    /**
+     * @notice This will be called by an operator to register itself as a delegate that stakers can choose to delegate to.
+     * @param dt is the `DelegationTerms` contract that the operator has for those who delegate to them.
+     * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
+     * in a more 'trustful' manner.
+     */
+    function registerAsOperator(IDelegationTerms dt) external {
         require(
             address(delegationTerms[msg.sender]) == address(0),
-            "EigenLayrDelegation.registerAsDelegate: Delegate has already registered"
+            "EigenLayrDelegation.registerAsOperator: Delegate has already registered"
         );
-        // store the address of the delegation contract that operator is providing.
+        // store the address of the delegation contract that the operator is providing.
         delegationTerms[msg.sender] = dt;
         _delegate(msg.sender, msg.sender);
     }
@@ -235,7 +241,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
         for (uint256 i = 0; i < stratsLength;) {
-            // update the total share deposited in favor of the strategy in the operator's portfolio
+            // update the share amounts for each of the operator's strategies
             operatorShares[operator][strategies[i]] += shares[i];
             unchecked {
                 ++i;
@@ -248,18 +254,18 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // VIEW FUNCTIONS
 
-    /// @notice checks whether a staker is currently undelegated OR has committed to undelegation
-    ///         and is not within the challenge period for its last undelegation.
+    /// @notice Checks whether a staker is currently undelegated.
     function isNotDelegated(address staker) public view returns (bool) {
         return (delegated[staker] == DelegationStatus.UNDELEGATED);
     }
 
+    /// @notice Checks whether a staker is currently delegated.
     function isDelegated(address staker) public view returns (bool) {
         return (delegated[staker] == DelegationStatus.DELEGATED);
     }
 
-    //returns if an operator can be delegated to, i.e. it has a delegation terms
-    function isOperator(address operator) external view returns (bool) {
-        return (address(delegationTerms[operator]) != address(0));
+    /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
+    function isOperator(address operator) external view returns(bool) {
+        return(address(delegationTerms[operator]) != address(0));
     }
 }

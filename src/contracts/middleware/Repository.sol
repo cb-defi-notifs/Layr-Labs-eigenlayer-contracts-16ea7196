@@ -8,32 +8,32 @@ import "../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-/*
-     The Repository contract is intended to be the central source of "ground truth" for
-     a single middleware on EigenLayr.
-     Other contracts can refer to the Repository in order to determine the "official"
-     contracts for the middleware, making it the central point for upgrades-by-changing-contract-addresses.
-     The owner of the Repository for a middleware holds *tremendous power* – this role
-     should only be given to a multisig or governance contract.
-    */
+/**
+ * @title A central hub contract for a single middleware on EigenLayr.
+ * @author Layr Labs, Inc.
+ * @notice The Repository contract is intended to be the central source of "ground truth" for a single middleware on EigenLayr.
+ * @notice The owner of the Repository for a middleware holds *tremendous power* – this role should only be given to a multisig or governance contract.
+ * @dev Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point
+ *  for upgrades-by-changing-contract-addresses.
+*/
 contract Repository is Ownable, Initializable, IRepository {
-    // address of the Delegation contract of EigenLayr
+    /// @notice Address of the Delegation contract of EigenLayr.
     IEigenLayrDelegation public immutable delegation;
-    // address of the InvestmentManager contract of EigenLayr
+    /// @notice Address of the InvestmentManager contract of EigenLayr.
     IInvestmentManager public immutable investmentManager;
-    // the VoteWeigher contract for this middleware, which determines quorum weighing functions
+    /// @notice The VoteWeigher contract for this middleware, which determines quorum weighing functions.
     IVoteWeigher public voteWeigher;
-    // the Registry contract for this middleware, where operators register and deregister
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
     IRegistry public registry;
-    // the ServiceManager contract for this middleware, where tasks are created / initiated
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
     IServiceManager public serviceManager;
 
     event VoteWeigherSet(IVoteWeigher indexed previousAddress, IVoteWeigher indexed newAddress);
     event ServiceManagerSet(IServiceManager indexed previousAddress, IServiceManager indexed newAddress);
     event RegistrySet(IRegistry indexed previousAddress, IRegistry indexed newAddress);
 
-    // set the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
-    constructor(IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
+    /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
+    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
         delegation = _delegation;
         investmentManager = _investmentManager;
     }
@@ -43,7 +43,7 @@ contract Repository is Ownable, Initializable, IRepository {
         return Ownable.owner();
     }
 
-    // @notice initializer (callable only once). Used for setting the associated contracts for the middleware and owner of this contract.
+    /// @notice initializer (callable only once). Used for setting the associated contracts for the middleware and the intial owner of this contract.
     function initialize(
         IVoteWeigher _voteWeigher,
         IServiceManager _serviceManager,

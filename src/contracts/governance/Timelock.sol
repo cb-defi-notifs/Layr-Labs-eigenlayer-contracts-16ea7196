@@ -60,6 +60,7 @@ contract Timelock {
 
     fallback() external payable {}
 
+    // solhint-disable-next-line no-empty-blocks
     receive() external payable {}
 
     function setDelay(uint256 delay_) external {
@@ -114,6 +115,7 @@ contract Timelock {
         emit CancelTransaction(txHash, target, value, signature, data, eta);
     }
 
+    // slither-disable-next-line missing-zero-check
     function executeTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta)
         external
         payable

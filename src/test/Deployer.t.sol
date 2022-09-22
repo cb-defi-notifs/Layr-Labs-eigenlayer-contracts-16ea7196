@@ -11,7 +11,7 @@ import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
 import "../contracts/middleware/Repository.sol";
-import "../contracts/middleware/PauserRegistry.sol";
+import "../contracts/permissions/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
@@ -168,7 +168,8 @@ contract EigenLayrDeployer is
         // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
         delegation.initialize(
             investmentManager,
-            pauserReg
+            pauserReg,
+            initialOwner
         );
 
         // deploy slasher as upgradable proxy and initialize it 

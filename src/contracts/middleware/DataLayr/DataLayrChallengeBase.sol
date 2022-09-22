@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../../libraries/DataStoreUtils.sol";
 
+/**
+ * @title Abstract contract that implements reuseable 'challenge' functionality for DataLayr.
+ * @author Layr Labs, Inc.
+ */
 abstract contract DataLayrChallengeBase {
     using SafeERC20 for IERC20;
 
@@ -87,7 +91,7 @@ abstract contract DataLayrChallengeBase {
         _challengeCreationEvent(headerHash);
     }
 
-    // mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
+    /// @notice Mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
     function resolveChallenge(bytes32 headerHash) external {
         require(challengeExists(headerHash), "Challenge does not exist");
         require(!challengeUnsuccessful(headerHash), "Challenge failed");

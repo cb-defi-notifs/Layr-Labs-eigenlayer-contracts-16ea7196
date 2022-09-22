@@ -12,7 +12,7 @@ contract TestHelper is EigenLayrDeployer {
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
         for (uint i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
@@ -416,7 +416,7 @@ contract TestHelper is EigenLayrDeployer {
         uint256 eigenToDeposit = 1e10;
         _testWethDeposit(sender, wethToDeposit);
         _testDepositEigen(sender, eigenToDeposit);
-        _testRegisterAsDelegate(sender, IDelegationTerms(sender));
+        _testRegisterAsOperator(sender, IDelegationTerms(sender));
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
@@ -558,22 +558,22 @@ contract TestHelper is EigenLayrDeployer {
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsDelegate(address sender, IDelegationTerms dt)
+    function _testRegisterAsOperator(address sender, IDelegationTerms dt)
         internal
     {
         
         cheats.startPrank(sender);
-        delegation.registerAsDelegate(dt);
-        assertTrue(delegation.isOperator(sender), "testRegisterAsDelegate: sender is not a delegate");
+        delegation.registerAsOperator(dt);
+        assertTrue(delegation.isOperator(sender), "testRegisterAsOperator: sender is not a delegate");
 
         assertTrue(
             delegation.delegationTerms(sender) == dt,
-            "_testRegisterAsDelegate: delegationTerms not set appropriately"
+            "_testRegisterAsOperator: delegationTerms not set appropriately"
         );
 
         assertTrue(
             delegation.isDelegated(sender),
-            "_testRegisterAsDelegate: sender not marked as actively delegated"
+            "_testRegisterAsOperator: sender not marked as actively delegated"
         );
         cheats.stopPrank();
 

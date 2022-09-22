@@ -186,6 +186,7 @@ library BytesLib {
                 // Copy over the first `submod` bytes of the new data as in
                 // case 1 above.
                 let slengthmod := mod(slength, 32)
+                // solhint-disable-next-line no-unused-vars
                 let mlengthmod := mod(mlength, 32)
                 let submod := sub(32, slengthmod)
                 let mc := add(_postBytes, submod)
@@ -452,6 +453,7 @@ library BytesLib {
 
                         // the next line is the loop condition:
                         // while(uint256(mc < end) + cb == 2)
+                        // solhint-disable-next-line no-empty-blocks
                         for {} eq(add(lt(mc, end), cb), 2) {
                             sc := add(sc, 1)
                             mc := add(mc, 0x20)

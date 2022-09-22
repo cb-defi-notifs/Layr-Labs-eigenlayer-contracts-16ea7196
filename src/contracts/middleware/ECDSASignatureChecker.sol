@@ -6,10 +6,12 @@ import "../interfaces/IECDSARegistry.sol";
 import "../libraries/BytesLib.sol";
 import "../permissions/RepositoryAccess.sol";
 
-// import "forge-std/Test.sol";
-
+/**
+ * @title Used for checking ECDSA signatures from the operators of a `BLSRegistry`.
+ * @author Layr Labs, Inc.
+ * @notice This is the contract for checking the validity of operator signatures.
+ */
 abstract contract ECDSASignatureChecker is RepositoryAccess {
-
     using BytesLib for bytes;
 
     struct SignatoryTotals {

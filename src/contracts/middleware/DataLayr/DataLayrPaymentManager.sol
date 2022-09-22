@@ -10,9 +10,11 @@ import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
-// import "forge-std/Test.sol";
 
-/// @notice This contract is used for doing interactive payment challenges on DataLayr
+/**
+ * @title This contract is used for doing interactive payment challenges on DataLayr.
+ * @author Layr Labs, Inc.
+ */
 contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
@@ -30,7 +32,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         dataLayrServiceManager = _dataLayrServiceManager;
     }
 
-    //an operator can respond to challenges and breakdown the amount
+    /// @notice Used to perform the final step in a payment challenge, in which the 'trueAmount' is determined and the winner of the challenge is decided.
     function respondToPaymentChallengeFinal(
         address operator,
         uint256 stakeIndex,

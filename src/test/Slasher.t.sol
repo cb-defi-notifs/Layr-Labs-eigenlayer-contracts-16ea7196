@@ -25,7 +25,7 @@ contract SlasherTests is TestHelper {
         // have `_operator` make deposits in WETH strategy
         _testWethDeposit(_operator, amountToDeposit);
         // register `_operator` as an operator
-        _testRegisterAsDelegate(_operator, IDelegationTerms(_operator));
+        _testRegisterAsOperator(_operator, IDelegationTerms(_operator));
 
         // make deposit in WETH strategy from each of `accounts`, then delegate them to `_operator`
         for (uint256 i = 0; i < accounts.length; i++) {
