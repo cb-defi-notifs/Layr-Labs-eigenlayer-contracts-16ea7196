@@ -10,19 +10,12 @@ import "../../interfaces/IDataLayrPaymentManager.sol";
 import "../Repository.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
-import "forge-std/Test.sol";
-
 
 /**
  * @title This contract is used for doing interactive payment challenges on DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrPaymentManager is
-    PaymentManager,
-    IDataLayrPaymentManager,
-    Initializable
-    // ,DSTest 
-    {
+contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
 
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
@@ -32,7 +25,9 @@ contract DataLayrPaymentManager is
         IRepository _repository,
         IDataLayrServiceManager _dataLayrServiceManager,
         IPauserRegistry _pauserReg
-    )  PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg) initializer
+    )
+        PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
+        initializer
     {
         dataLayrServiceManager = _dataLayrServiceManager;
     }
@@ -45,7 +40,9 @@ contract DataLayrPaymentManager is
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakesSigned,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) external {
+    )
+        external
+    {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
@@ -57,9 +54,7 @@ contract DataLayrPaymentManager is
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(
             dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
-                searchData.duration, 
-                searchData.timestamp,
-                searchData.index
+                searchData.duration, searchData.timestamp, searchData.index
             ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
         );
@@ -90,7 +85,7 @@ contract DataLayrPaymentManager is
         //2^32 is an impossible index because it is more than the max number of registrants
         //the challenger marks 2^32 as the index to show that operator has not signed
         if (nonSignerIndex == 1 << 32) {
-            for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
+            for (uint256 i = 0; i < nonSignerPubkeyHashes.length;) {
                 require(
                     nonSignerPubkeyHashes[i] != operatorPubkeyHash,
                     "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator was not a signatory"
@@ -100,7 +95,8 @@ contract DataLayrPaymentManager is
                     ++i;
                 }
             }
-            IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
+            IQuorumRegistry.OperatorStake memory operatorStake =
+                registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
 
             // scoped block helps fix stack too deep
             {
@@ -110,8 +106,8 @@ contract DataLayrPaymentManager is
                 );
 
                 require(
-                    operatorStake.nextUpdateBlockNumber == 0 ||
-                        operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
+                    operatorStake.nextUpdateBlockNumber == 0
+                        || operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
                     "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too early"
                 );
             }
@@ -134,52 +130,52 @@ contract DataLayrPaymentManager is
             trueAmount = uint120(
                 (
                     (
-                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0)) * uint256(operatorStake.firstQuorumStake)) /
-                        totalStakesSigned.signedStakeFirstQuorum
+                        (
+                            uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(0))
+                                * uint256(operatorStake.firstQuorumStake)
+                        ) / totalStakesSigned.signedStakeFirstQuorum
                     )
-                    +
-                    (
-                        (uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1)) * uint256(operatorStake.secondQuorumStake)) /
-                        totalStakesSigned.signedStakeSecondQuorum
-                    )
-                )
-                / MAX_BIPS
+                        + (
+                            (
+                                uint256(searchData.metadata.fee) * uint256(voteWeigher.quorumBips(1))
+                                    * uint256(operatorStake.secondQuorumStake)
+                            ) / totalStakesSigned.signedStakeSecondQuorum
+                        )
+                ) / MAX_BIPS
             );
         } else {
             //either the operator must have been a non signer or the task was based off of stakes before the operator registered
             require(
                 nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash
-                || searchData.metadata.blockNumber < registry.getFromBlockNumberForOperator(operator),
+                    || searchData.metadata.blockNumber < registry.getFromBlockNumberForOperator(operator),
                 "DataLayrPaymentManager.respondToPaymentChallengeFinal: Signer index is incorrect"
             );
         }
 
-    {   
-        //final entity is the entity calling this function, i.e., it is their turn to make the final response
-        bool finalEntityCorrect = trueAmount != challenge.amount1;
-        /*
+        {
+            //final entity is the entity calling this function, i.e., it is their turn to make the final response
+            bool finalEntityCorrect = trueAmount != challenge.amount1;
+            /*
         * if status is OPERATOR_TURN_ONE_STEP, it is the operator's turn. This means the challenger was the one who set challenge.amount1 last.  
         * If trueAmount != challenge.amount1, then the challenger is wrong (doesn't mean operator is right).
         */
-        if (challenge.status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
-            _resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
-        } 
-        /*
+            if (challenge.status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
+                _resolve(challenge, finalEntityCorrect ? challenge.operator : challenge.challenger);
+            }
+            /*
         * if status is CHALLENGER_TURN_ONE_STEP, it is the challenger's turn. This means the operator was the one who set challenge.amount1 last.  
         * If trueAmount != challenge.amount1, then the operator is wrong and the challenger is correct
         */
-        
-        else if (challenge.status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
-            _resolve(challenge, finalEntityCorrect ? challenge.challenger : challenge.operator);
-        } else {
-            revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
-        }
+            else if (challenge.status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
+                _resolve(challenge, finalEntityCorrect ? challenge.challenger : challenge.operator);
+            } else {
+                revert("DataLayrPaymentManager.respondToPaymentChallengeFinal: Not in one step challenge phase");
+            }
 
-        challenge.status = ChallengeStatus.RESOLVED;
-    }
+            challenge.status = ChallengeStatus.RESOLVED;
+        }
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
     }
-
 }

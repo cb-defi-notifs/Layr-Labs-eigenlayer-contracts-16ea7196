@@ -12,31 +12,24 @@ import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
 import "../permissions/Pausable.sol";
 
-
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title Controls 'rolled-up' middleware payments.
  * @author Layr Labs, Inc.
  * @notice This contract is used for doing interactive payment challenges.
  * @notice The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
- *        function -- see DataLayrPaymentManager for an example
+ * function -- see DataLayrPaymentManager for an example
  */
- // 
-abstract contract PaymentManager is 
-    RepositoryAccess,
-    IPaymentManager,
-    Pausable
-    //,DSTest
-    {
+//
+abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable {
+
     using SafeERC20 for IERC20;
-    /**********************
-     DATA STRUCTURES
-     **********************/
+    // DATA STRUCTURES
 
     /**
-     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment 
-     *         claim by a registered operator.
+     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment
+     * claim by a registered operator.
      */
     uint256 public constant paymentFraudproofInterval = 7 days;
     /// @notice Constant used as a divisor in dealing with BIPS amounts
@@ -51,19 +44,19 @@ abstract contract PaymentManager is
     IERC20 public immutable collateralToken;
 
     /**
-     @notice Specifies the payment that has to be made as a collateral for fraudproof 
-             during payment challenges
+     * @notice Specifies the payment that has to be made as a collateral for fraudproof
+     * during payment challenges
      */
     uint256 public paymentFraudproofCollateral;
 
     /**
      * @notice The global EigenLayr Delegation contract, which is primarily used by
-     *      stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayrDelegation.sol. 
+     * stakers to delegate their stake to operators who serve as middleware nodes.
+     * @dev For more details, see EigenLayrDelegation.sol.
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
-    /// @notice mapping between the operator and its current committed payment or last redeemed payment 
+    /// @notice mapping between the operator and its current committed payment or last redeemed payment
     mapping(address => Payment) public operatorToPayment;
 
     /// @notice mapping from operator => PaymentChallenge
@@ -75,19 +68,16 @@ abstract contract PaymentManager is
     /// @notice depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
 
-    /******** 
-     EVENTS
-     ********/
+    /**
+     *
+     * EVENTS
+     *
+     */
     /// @notice Emitted when the `paymentFraudproofCollateral` variable is modified
     event PaymentFraudproofCollateralSet(uint256 previousValue, uint256 newValue);
 
     /// @notice Emitted when an operator commits to a payment by calling the `commitPayment` function
-    event PaymentCommit(
-        address operator,
-        uint32 fromTaskNumber,
-        uint32 toTaskNumber,
-        uint256 fee
-    );
+    event PaymentCommit(address operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint256 fee);
 
     /// @notice Emitted when a new challenge is created through a call to the `initPaymentChallenge` function
     event PaymentChallengeInit(address indexed operator, address challenger);
@@ -96,7 +86,9 @@ abstract contract PaymentManager is
     event PaymentRedemption(address indexed operator, uint256 fee);
 
     /// @notice Emitted when a bisection step is performed in a challenge, through a call to the `performChallengeBisectionStep` function
-    event PaymentBreakdown(address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
+    event PaymentBreakdown(
+        address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2
+    );
 
     /// @notice Emitted upon successful resolution of a payment challenge, within a call to `resolveChallenge`
     event PaymentChallengeResolution(address indexed operator, bool operatorWon);
@@ -109,13 +101,13 @@ abstract contract PaymentManager is
         uint256 _paymentFraudproofCollateral,
         IRepository _repository,
         IPauserRegistry _pauserReg
-    )   
+    )
         // set repository address equal to that of serviceManager
-        RepositoryAccess(_repository) 
+        RepositoryAccess(_repository)
     {
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-        
+
         IServiceManager serviceManager_ = _repository.serviceManager();
         collateralToken = serviceManager_.collateralToken();
         eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
@@ -124,10 +116,10 @@ abstract contract PaymentManager is
     }
 
     /**
-     * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware 
-     * @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees      
-     * @param amount is amount of futures fees being deposited     
-     */ 
+     * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
+     * @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees
+     * @param amount is amount of futures fees being deposited
+     */
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
@@ -139,7 +131,7 @@ abstract contract PaymentManager is
 
     /// @notice Used for deducting the fees from the payer to the middleware
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
-        if (initiator != payer){
+        if (initiator != payer) {
             if (allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;
             }
@@ -153,15 +145,13 @@ abstract contract PaymentManager is
      * @notice Modifies the `paymentFraudproofCollateral` amount.
      * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
      */
-    function setPaymentFraudproofCollateral(
-        uint256 _paymentFraudproofCollateral
-    ) external onlyRepositoryGovernance {
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external onlyRepositoryGovernance {
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 
     /**
-     @notice This is used by an operator to make claim on the  amount that they deserve 
-             for their service since their last payment until toTaskNumber  
+     * @notice This is used by an operator to make claim on the  amount that they deserve
+     * for their service since their last payment until toTaskNumber
      */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
@@ -181,15 +171,13 @@ abstract contract PaymentManager is
         );
 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.safeTransferFrom(
-            msg.sender,
-            address(this),
-            paymentFraudproofCollateral
-        );
+        collateralToken.safeTransferFrom(msg.sender, address(this), paymentFraudproofCollateral);
 
-        /********************
-         recording payment claims for the operator
-         ********************/
+        /**
+         *
+         * recording payment claims for the operator
+         *
+         */
 
         uint32 fromTaskNumber;
 
@@ -198,13 +186,12 @@ abstract contract PaymentManager is
 
         // for the special case of this being the first payment that is being claimed by the operator;
         /**
-         @notice this special case also implies that the operator must be claiming payment from 
-                 when the operator registered.   
+         * @notice this special case also implies that the operator must be claiming payment from
+         * when the operator registered.
          */
         if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
             // get the taskNumber when the operator registered
             fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
-
         } else {
             // you have to redeem starting from the last task you previously redeemed up to
             fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
@@ -227,10 +214,10 @@ abstract contract PaymentManager is
         emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
     }
 
-    
     /// @notice This function can only be called after the challenge window for the payment claim has completed.
     function redeemPayment() external whenNotPaused {
-        require(operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
+        require(
+            operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
 
@@ -245,18 +232,13 @@ abstract contract PaymentManager is
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
 
-        collateralToken.safeTransfer(
-            msg.sender,
-            operatorToPayment[msg.sender].collateral
-        );
-
-        
+        collateralToken.safeTransfer(msg.sender, operatorToPayment[msg.sender].collateral);
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
-        
+
         // transfer the amount due in the payment claim of the operator to its delegation
         // terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);
@@ -272,11 +254,7 @@ abstract contract PaymentManager is
     function _payForServiceHook(IDelegationTerms dt, uint256 amount) internal {
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
         (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(
-                IDelegationTerms.payForService.selector,
-                paymentToken,
-                amount
-            )
+            abi.encodeWithSelector(IDelegationTerms.payForService.selector, paymentToken, amount)
         );
         // if the internal call fails, we emit a special event rather than reverting
         if (!success) {
@@ -289,33 +267,28 @@ abstract contract PaymentManager is
      * @param operator is the operator against whose payment claim the fraudproof is being made
      * @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
      * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
-     **/
-    function initPaymentChallenge(
-        address operator,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
-        
+     *
+     */
+    function initPaymentChallenge(address operator, uint120 amount1, uint120 amount2) external {
         require(
-            block.timestamp < operatorToPayment[operator].confirmAt 
-                &&
-                operatorToPayment[operator].status == PaymentStatus.COMMITTED,
+            block.timestamp < operatorToPayment[operator].confirmAt
+                && operatorToPayment[operator].status == PaymentStatus.COMMITTED,
             "PaymentManager.initPaymentChallenge: Fraudproof interval has passed for payment"
         );
 
         // store challenge details
         operatorToPaymentChallenge[operator] = PaymentChallenge(
-                operator,
-                msg.sender,
-                address(repository.serviceManager()),
-                operatorToPayment[operator].fromTaskNumber,
-                operatorToPayment[operator].toTaskNumber,
-                amount1,
-                amount2,
-                // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
-                uint32(block.timestamp + paymentFraudproofInterval),
-                // set the status for the operator to respond next
-                ChallengeStatus.OPERATOR_TURN
+            operator,
+            msg.sender,
+            address(repository.serviceManager()),
+            operatorToPayment[operator].fromTaskNumber,
+            operatorToPayment[operator].toTaskNumber,
+            amount1,
+            amount2,
+            // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
+            uint32(block.timestamp + paymentFraudproofInterval),
+            // set the status for the operator to respond next
+            ChallengeStatus.OPERATOR_TURN
         );
 
         //move collateral over
@@ -331,24 +304,21 @@ abstract contract PaymentManager is
      * @notice Perform a single bisection step in an existing interactive payment challenge.
      * @param operator The middleware operator who was challenged (used to look up challenge details)
      * @param secondHalf If true, then the caller wishes to challenge the amount claimed as payment in the *second half* of the
-     *        previous bisection step. If false then the *first half* is indicated instead.
+     * previous bisection step. If false then the *first half* is indicated instead.
      * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
      * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
-     */ 
-    function performChallengeBisectionStep(
-        address operator,
-        bool secondHalf,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
+     */
+    function performChallengeBisectionStep(address operator, bool secondHalf, uint120 amount1, uint120 amount2)
+        external
+    {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
         ChallengeStatus status = challenge.status;
 
         require(
-            (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender) ||
-                (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
+            (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender)
+                || (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
             "PaymentManager.performChallengeBisectionStep: Must be challenger and their turn or operator and their turn"
         );
 
@@ -363,10 +333,10 @@ abstract contract PaymentManager is
 
         /**
          * @notice Change the challenged interval to the one the challenger cares about.
-         *          If the difference between the current start and end is even, then the new interval has an endpoint halfway in-between
-         *          If the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-         *          or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
-         *          In other words, it's simple when the difference is even, and when the difference is odd, we just always make the first half the smaller one.
+         * If the difference between the current start and end is even, then the new interval has an endpoint halfway in-between
+         * If the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
+         * or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+         * In other words, it's simple when the difference is even, and when the difference is odd, we just always make the first half the smaller one.
          */
         if (secondHalf) {
             challenge.fromTaskNumber = fromTaskNumber + diff;
@@ -384,43 +354,43 @@ abstract contract PaymentManager is
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
-        
-        emit PaymentBreakdown(operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
+
+        emit PaymentBreakdown(
+            operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2
+            );
     }
 
     /**
      * @notice This function is used for updating the status of the challenge in terms of who
-     *        has to respond to the interactive challenge mechanism next -  is it going to be
-     *        challenger or the operator.   
+     * has to respond to the interactive challenge mechanism next -  is it going to be
+     * challenger or the operator.
      * @param operator is the operator whose payment claim is being challenged
      * @param diff is the number of tasks across which payment is being challenged in this iteration
-     */ 
-    function _updateStatus(address operator, uint32 diff)
-        internal
-        returns (bool)
-    {
+     */
+    function _updateStatus(address operator, uint32 diff) internal returns (bool) {
         // payment challenge for one task
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
+            operatorToPaymentChallenge[operator].status =
+                msg.sender == operator
+                ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP
+                : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
-        // payment challenge across more than one task
+            // payment challenge across more than one task
         } else {
             // set to dissection turn of either challenger or operator
-            operatorToPaymentChallenge[operator].status = msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
+            operatorToPaymentChallenge[operator].status =
+                msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
             return true;
         }
-   }
+    }
 
     // an operator can respond to challenges and breakdown the amount
     // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
-    function _updateChallengeAmounts(
-        address operator, 
-        DissectionType dissectionType,
-        uint120 amount1,
-        uint120 amount2
-    ) internal {
+    function _updateChallengeAmounts(address operator, DissectionType dissectionType, uint120 amount1, uint120 amount2)
+        internal
+    {
         if (dissectionType == DissectionType.FIRST_HALF) {
             // if first half is challenged, break the first half of the payment into two halves
             require(
@@ -454,7 +424,7 @@ abstract contract PaymentManager is
         // if operator did not respond
         if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
             _resolve(challenge, challenge.challenger);
-        // if challenger did not respond
+            // if challenger did not respond
         } else if (status == ChallengeStatus.CHALLENGER_TURN || status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
             _resolve(challenge, challenge.operator);
         }
@@ -463,7 +433,7 @@ abstract contract PaymentManager is
     /**
      * @param challenge The challenge that is being resolved
      * @param winner Address of the winner of the challenge.
-    */
+     */
     function _resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
         address challenger = challenge.challenger;
@@ -476,24 +446,18 @@ abstract contract PaymentManager is
             * transfer them only challengers collateral, not their own collateral (which is still
             * locked up in this contract)
              */
-            collateralToken.safeTransfer(
-                operator,
-                operatorToPayment[operator].collateral
-            );
+            collateralToken.safeTransfer(operator, operatorToPayment[operator].collateral);
             emit PaymentChallengeResolution(operator, true);
         } else {
             // challeger was correct, reset payment
             operatorToPayment[operator].status = PaymentStatus.REDEEMED;
             //give them their collateral and the operator's
-            collateralToken.safeTransfer(
-                challenger,
-                2 * operatorToPayment[operator].collateral
-            );
+            collateralToken.safeTransfer(challenger, 2 * operatorToPayment[operator].collateral);
             emit PaymentChallengeResolution(operator, false);
         }
     }
 
-    function getChallengeStatus(address operator) external view returns(ChallengeStatus) {
+    function getChallengeStatus(address operator) external view returns (ChallengeStatus) {
         return operatorToPaymentChallenge[operator].status;
     }
 
@@ -517,11 +481,7 @@ abstract contract PaymentManager is
         return operatorToPaymentChallenge[operator].toTaskNumber - operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
-    function getPaymentCollateral(address operator)
-        external
-        view
-        returns (uint256)
-    {
+    function getPaymentCollateral(address operator) external view returns (uint256) {
         return operatorToPayment[operator].collateral;
     }
 

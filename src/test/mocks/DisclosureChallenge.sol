@@ -6,7 +6,9 @@ import "forge-std/Test.sol";
 contract DataLayrDisclosureChallenge is DSTest {
     DisclosureChallenge public challenge;
     uint256 disclosureFraudproofInterval = 1 days;
+
     event Resolved(bool challengeSuccessful);
+
     struct DisclosureChallenge {
         address operator;
         address challenger;
@@ -30,35 +32,19 @@ contract DataLayrDisclosureChallenge is DSTest {
         uint48 increment
     ) {
         challenge = DisclosureChallenge(
-            operator,
-            challenger,
-            uint32(block.timestamp),
-            false,
-            x_low,
-            y_low,
-            x_high,
-            y_high,
-            increment,
-            0
+            operator, challenger, uint32(block.timestamp), false, x_low, y_low, x_high, y_high, increment, 0
         );
     }
 
     //challenger challenges a particular half of the payment
-    function challengeCommitmentHalf(bool half, uint256[4] memory coors)
-        external
-    {
+    function challengeCommitmentHalf(bool half, uint256[4] memory coors) external {
         bool turn = challenge.turn;
         require(
-            (turn && challenge.challenger == msg.sender) ||
-                (!turn && challenge.operator == msg.sender),
+            (turn && challenge.challenger == msg.sender) || (!turn && challenge.operator == msg.sender),
             "Must be challenger and thier turn or operator and their turn"
         );
         require(challenge.increment != 1, "Time to do one step proof");
-        require(
-            block.timestamp <
-                challenge.commitTime + disclosureFraudproofInterval,
-            "Fraudproof interval has passed"
-        );
+        require(block.timestamp < challenge.commitTime + disclosureFraudproofInterval, "Fraudproof interval has passed");
         uint256 x_contest;
         uint256 y_contest;
         if (half) {
@@ -72,17 +58,12 @@ contract DataLayrDisclosureChallenge is DSTest {
         uint256[2] memory sum;
         //add the contested points and make sure they arent what other party claimed
         assembly {
-            if iszero(staticcall(not(0), 0x06, coors, 0x80, sum, 0x40)) {
-                revert(0, 0)
-            }
+            if iszero(staticcall(not(0), 0x06, coors, 0x80, sum, 0x40)) { revert(0, 0) }
         }
         // emit log_named_uint("sumx", sum[0]);
         // emit log_named_uint("sumy", sum[1]);
 
-        require(
-            sum[0] != x_contest || sum[1] != y_contest,
-            "Cannot commit to same polynomial as DLN"
-        );
+        require(sum[0] != x_contest || sum[1] != y_contest, "Cannot commit to same polynomial as DLN");
         //update new commitment points
         challenge.x_low = coors[0];
         challenge.y_low = coors[1];
@@ -96,10 +77,8 @@ contract DataLayrDisclosureChallenge is DSTest {
 
     function resolveTimeout(bytes32 headerHash) public {
         require(
-            block.timestamp >
-                challenge.commitTime + disclosureFraudproofInterval &&
-                block.timestamp <
-                challenge.commitTime + (2 * disclosureFraudproofInterval),
+            block.timestamp > challenge.commitTime + disclosureFraudproofInterval
+                && block.timestamp < challenge.commitTime + (2 * disclosureFraudproofInterval),
             "Fraudproof interval has passed"
         );
         if (challenge.turn) {
@@ -120,29 +99,19 @@ contract DataLayrDisclosureChallenge is DSTest {
         bytes calldata poly,
         bool[] calldata leftRightFlags,
         bytes32[] calldata proof
-    ) external {
+    )
+        external
+    {
         bool turn = challenge.turn;
         require(
-            (turn && challenge.challenger == msg.sender) ||
-                (!turn && challenge.operator == msg.sender),
+            (turn && challenge.challenger == msg.sender) || (!turn && challenge.operator == msg.sender),
             "Must be challenger and thier turn or operator and their turn"
         );
         require(challenge.increment == 1, "Time to do dissection proof");
-        require(
-            block.timestamp <
-                challenge.commitTime + disclosureFraudproofInterval,
-            "Fraudproof interval has passed"
-        );
+        require(block.timestamp < challenge.commitTime + disclosureFraudproofInterval, "Fraudproof interval has passed");
         //degree of proved leaf
-        uint48 degree = proveDegreeLeaf(
-            leftRightFlags,
-            keccak256(abi.encodePacked(x_power, y_power)),
-            proof
-        );
-        require(
-            challenge.oneStepDegree == degree,
-            "Correct degree was not proven"
-        );
+        uint48 degree = proveDegreeLeaf(leftRightFlags, keccak256(abi.encodePacked(x_power, y_power)), proof);
+        require(challenge.oneStepDegree == degree, "Correct degree was not proven");
         uint256[3] memory contest_point;
         if (half) {
             //left leaf
@@ -165,48 +134,35 @@ contract DataLayrDisclosureChallenge is DSTest {
         coors[2] = uint256(bytes32(poly[degree * 32:degree * 32 + 32]));
         uint256[2] memory product;
         assembly {
-            if iszero(
-                staticcall(not(0), 0x07, coors, 0x60, product, 0x40)
-            ) {
-                revert(0, 0)
-            }
+            if iszero(staticcall(not(0), 0x07, coors, 0x60, product, 0x40)) { revert(0, 0) }
         }
 
         if (turn) {
             // emit log_uint(1);
             //if challenger turn, challenge successful if points dont match
-            resolve(
-                headerHash,
-                contest_point[0] != product[0] || contest_point[1] != product[1]
-            );
+            resolve(headerHash, contest_point[0] != product[0] || contest_point[1] != product[1]);
         } else {
             // emit log_uint(1);
             //if operator turn, challenge successful if points match
-            resolve(
-                headerHash,
-                contest_point[0] == product[0] && contest_point[1] == product[1]
-            );
+            resolve(headerHash, contest_point[0] == product[0] && contest_point[1] == product[1]);
         }
     }
 
-    function proveDegreeLeaf(
-        bool[] calldata leftRightFlags,
-        bytes32 nodeToProve,
-        bytes32[] calldata proof
-    ) public pure returns (uint48) {
+    function proveDegreeLeaf(bool[] calldata leftRightFlags, bytes32 nodeToProve, bytes32[] calldata proof)
+        public
+        pure
+        returns (uint48)
+    {
         //prove first level of tree
         uint256 len = leftRightFlags.length;
         // -1 because proved first level
-        require(
-            len == 2, /*dlsm.log2NumPowersOfTau()*/
-            "Proof is not the correct length"
-        );
+        require(len == 2, /*dlsm.log2NumPowersOfTau()*/ "Proof is not the correct length");
         uint48 powerOf2 = 1;
         //degree of power being proved
         uint48 degree;
         bytes32 node = nodeToProve;
         // emit log_named_bytes32("left", node);
-        for (uint i = 0; i < len; ) {
+        for (uint256 i = 0; i < len;) {
             if (leftRightFlags[i]) {
                 //left branch
                 // emit log_named_bytes32("left", node);
@@ -233,10 +189,7 @@ contract DataLayrDisclosureChallenge is DSTest {
             }
         }
         require(
-            node ==
-                bytes32(
-                    0xd86cacfeb1475a3f4929c5545ea581e284831d5576d24b21b017606bd63d130d
-                ), /*dlsm.powersOfTauMerkleRoot()*/
+            node == bytes32(0xd86cacfeb1475a3f4929c5545ea581e284831d5576d24b21b017606bd63d130d), /*dlsm.powersOfTauMerkleRoot()*/
             "Proof doesn't match correct merkle root"
         );
         return degree;

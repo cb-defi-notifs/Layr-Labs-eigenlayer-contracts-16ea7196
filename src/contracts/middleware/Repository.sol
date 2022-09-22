@@ -39,7 +39,7 @@ contract Repository is Ownable, Initializable, IRepository {
     }
 
     /// @notice returns the owner of this repository contract
-    function owner() public view override(Ownable, IRepository) returns (address) {
+    function owner() public view override (Ownable, IRepository) returns (address) {
         return Ownable.owner();
     }
 
@@ -49,7 +49,10 @@ contract Repository is Ownable, Initializable, IRepository {
         IServiceManager _serviceManager,
         IRegistry _registry,
         address initialOwner
-    ) external initializer {
+    )
+        external
+        initializer
+    {
         _setVoteWeigher(_voteWeigher);
         _setServiceManager(_serviceManager);
         _setRegistry(_registry);
@@ -72,28 +75,19 @@ contract Repository is Ownable, Initializable, IRepository {
     }
 
     function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
-        require(
-            address(_voteWeigher) != address(0),
-            "Repository._setVoteWeigher: zero address bad!"
-        );
+        require(address(_voteWeigher) != address(0), "Repository._setVoteWeigher: zero address bad!");
         emit VoteWeigherSet(voteWeigher, _voteWeigher);
         voteWeigher = _voteWeigher;
     }
 
     function _setServiceManager(IServiceManager _serviceManager) internal {
-        require(
-            address(_serviceManager) != address(0),
-            "Repository._setServiceManager: zero address bad!"
-        );
+        require(address(_serviceManager) != address(0), "Repository._setServiceManager: zero address bad!");
         emit ServiceManagerSet(serviceManager, _serviceManager);
         serviceManager = _serviceManager;
     }
 
     function _setRegistry(IRegistry _registry) internal {
-        require(
-            address(_registry) != address(0),
-            "Repository._setRegistry: zero address bad!"
-        );
+        require(address(_registry) != address(0), "Repository._setRegistry: zero address bad!");
         emit RegistrySet(registry, _registry);
         registry = _registry;
     }

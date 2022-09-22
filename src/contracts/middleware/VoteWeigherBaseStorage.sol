@@ -12,10 +12,9 @@ import "../permissions/RepositoryAccess.sol";
  * @notice This storage contract is separate from the logic to simplify the upgrade process.
  */
 abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
-
     /** 
-     @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is 
-             multiplied by its multiplier, then divided by WEIGHTING_DIVISOR
+     * @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is 
+     * multiplied by its multiplier, then divided by WEIGHTING_DIVISOR
      */
     struct StrategyAndWeightingMultiplier {
         IInvestmentStrategy strategy;
@@ -36,9 +35,9 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
     /// @notice Number of quorums that are being used by the middleware.
     uint256 public immutable NUMBER_OF_QUORUMS;
 
-    /** 
-     @notice mapping from quorum number to the list of strategies considered and their 
-             corresponding weights for that specific quorum
+    /**
+     * @notice mapping from quorum number to the list of strategies considered and their
+     * corresponding weights for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
@@ -59,7 +58,10 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
         // verify that the provided `_quorumBips` is of the correct length
-        require(_quorumBips.length == _NUMBER_OF_QUORUMS, "VoteWeigherBaseStorage.constructor: _quorumBips.length != _NUMBER_OF_QUORUMS");
+        require(
+            _quorumBips.length == _NUMBER_OF_QUORUMS,
+            "VoteWeigherBaseStorage.constructor: _quorumBips.length != _NUMBER_OF_QUORUMS"
+        );
         uint256 totalQuorumBips;
         for (uint256 i; i < _NUMBER_OF_QUORUMS; ++i) {
             totalQuorumBips += _quorumBips[i];
@@ -70,6 +72,5 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         delegation = _delegation;
         investmentManager = _investmentManager;
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
-
     }
 }

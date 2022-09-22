@@ -8,5 +8,5 @@ import "./IRepository.sol";
  * @author Layr Labs, Inc.
  */
 interface IRepositoryAccess {
-    function repository() external view returns(IRepository);
+    function repository() external view returns (IRepository);
 }
