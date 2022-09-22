@@ -78,7 +78,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
-
         _initializePauser(pauserRegistry);
     }
 
@@ -343,14 +342,28 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // called in the event of challenge resolution
     function freezeOperator(address operator) external {
         require(
-            msg.sender == address(dataLayrLowDegreeChallenge) || msg.sender == address(dataLayrBombVerifier)
-                || msg.sender == address(ephemeralKeyRegistry) || msg.sender == address(dataLayrPaymentManager),
-            "DataLayrServiceManager.slashOperator: Only challenge resolvers can slash operators"
+            msg.sender == address(dataLayrLowDegreeChallenge) ||
+            msg.sender == address(dataLayrBombVerifier) ||
+            msg.sender == address(ephemeralKeyRegistry) ||
+            msg.sender == address(dataLayrPaymentManager),
+            "DataLayrServiceManager.freezeOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
+    // called in the event of deregistration
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
+        require(
+            msg.sender == address(_registry()),
+            "DataLayrServiceManager.revokeSlashingAbility: Only registry resolvers can revoke slashing ability on operators"
+        );
+        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
+    }
+
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime)
+        external
+        onlyRepositoryGovernance
+    {
         feePerBytePerTime = _feePerBytePerTime;
     }
 
@@ -392,7 +405,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     /**
      * @notice returns the number of data stores for the @param duration
      */
-    /// CRITIC -- change the name to `getNumDataStoresForDuration`?
     function getNumDataStoresForDuration(uint8 duration) public view returns (uint32) {
         if (duration == 1) {
             return dataStoresForDuration.one_duration;
@@ -457,12 +469,4 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
     }
-
-    /* function removed for now since it tries to modify an immutable variable
-    function setPaymentToken(
-        IERC20 _paymentToken
-    ) public onlyRepositoryGovernance {
-        paymentToken = _paymentToken;
-    }
-    */
 }

@@ -33,12 +33,15 @@ import "./utils/SignatureUtils.sol";
 
 import "forge-std/Test.sol";
 
-contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
+contract EigenLayrDeployer is
+    Signers,
+    SignatureUtils,
+    DSTest
+{
     using BytesLib for bytes;
 
     uint256 public constant DURATION_SCALE = 1 hours;
     Vm cheats = Vm(HEVM_ADDRESS);
-    // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
@@ -58,16 +61,19 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
-
+   
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
     //from testing seed phrase
-    bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
-    bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
-
+    bytes32 priv_key_0 =
+        0x1234567812345678123456781234567812345678123456781234567812345678;
+    bytes32 priv_key_1 =
+        0x1234567812345678123456781234567812345698123456781234567812348976;
+    bytes32 public ephemeralKey =
+        0x3290567812345678123456781234577812345698123456781234567812344389;
+    
     // number of strategies deployed
     uint256 public numberOfStrats;
     //strategy indexes for undelegation (see commitUndelegation function)
@@ -83,7 +89,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
     uint8 durationToInit = 2;
-
+    
     address storer = address(420);
     address pauser = address(69);
     address unpauser = address(489);
@@ -108,12 +114,14 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         uint256 sigma1;
     }
 
-    modifier cannotReinit() {
-        cheats.expectRevert(bytes("Initializable: contract is already initialized"));
+    modifier cannotReinit(){
+        cheats.expectRevert(
+            bytes("Initializable: contract is already initialized")
+        );
         _;
     }
 
-    modifier fuzzedAddress(address addr) {
+    modifier fuzzedAddress(address addr){
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
@@ -130,6 +138,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         pauserReg = new PauserRegistry(pauser, unpauser);
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `investmentManager` address
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
             address(
@@ -142,6 +151,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `slasher` address
         investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
             address(
@@ -153,7 +163,34 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
-        //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
+        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
+        delegation.initialize(
+            investmentManager,
+            pauserReg,
+            undelegationFraudproofInterval
+        );
+
+        // deploy slasher as upgradable proxy and initialize it 
+        address initialOwner = address(this);
+        Slasher slasherImplementation = new Slasher();
+        slasher = Slasher(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(slasherImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
+                )
+            )
+        );
+        
+        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
+        investmentManager.initialize(
+            slasher,
+            pauserReg,
+            initialOwner
+        );
+
+        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -180,6 +217,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             address(this)
         );
 
+
         // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
@@ -191,26 +229,22 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
-        // actually initialize the investmentManager (proxy) contraxt
-        address governor = address(this);
-        // deploy slasher and service factory contracts
-        slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, pauserReg, governor);
-
         delegates = [acct_0, acct_1];
-
-        investmentManager.initialize(slasher, pauserReg, governor);
-
-        // initialize the delegation (proxy) contract
-        delegation.initialize(investmentManager, pauserReg, undelegationFraudproofInterval);
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
-        liquidStakingMockStrat.initialize(IERC20(address(liquidStakingMockToken)), pauserReg);
+        liquidStakingMockStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(baseStrategyImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, pauserReg)
+                )
+            )
+        );
 
         //loads hardcoded signer set
         _setSigners();
@@ -284,15 +318,16 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             feePerBytePerTime
         );
 
+        uint32 unbondingPeriod = uint32(14 days);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
-            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
+            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         ethStratsAndMultipliers[0].strategy = wethStrat;
         ethStratsAndMultipliers[0].multiplier = multiplier;
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
-            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
+            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
         eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
@@ -306,14 +341,21 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers
         );
 
-        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
+        Repository(address(dlRepository)).initialize(
+            dlReg,
+            dlsm,
+            dlReg,
+            address(this)
+        );
         uint256 _paymentFraudproofCollateral = 1e16;
+
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
             weth,
@@ -329,27 +371,48 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
+    
 
-    function calculateFee(uint32 totalBytes, uint256 feePerBytePerTime, uint256 duration)
-        internal
-        pure
-        returns (uint256)
-    {
-        return uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
+    function calculateFee(
+        uint32 totalBytes,
+        uint256 feePerBytePerTime,
+        uint256 duration
+    ) internal pure returns (uint256) {
+        return
+            uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
     }
 
     function testDeploymentSuccessful() public {
         // assertTrue(address(eigen) != address(0), "eigen failed to deploy");
-        assertTrue(address(eigenToken) != address(0), "eigenToken failed to deploy");
-        assertTrue(address(delegation) != address(0), "delegation failed to deploy");
-        assertTrue(address(investmentManager) != address(0), "investmentManager failed to deploy");
+        assertTrue(
+            address(eigenToken) != address(0),
+            "eigenToken failed to deploy"
+        );
+        assertTrue(
+            address(delegation) != address(0),
+            "delegation failed to deploy"
+        );
+        assertTrue(
+            address(investmentManager) != address(0),
+            "investmentManager failed to deploy"
+        );
         assertTrue(address(slasher) != address(0), "slasher failed to deploy");
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
-        assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
-        assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
-        assertTrue(dlsm.repository() == dlRepository, "repository set incorrectly in dlsm");
+        assertTrue(
+            address(dlRepository) != address(0),
+            "dlRepository failed to deploy"
+        );
+        assertTrue(
+            dlRepository.serviceManager() == dlsm,
+            "ServiceManager set incorrectly"
+        );
+        assertTrue(
+            dlsm.repository() == dlRepository,
+            "repository set incorrectly in dlsm"
+        );
+
     }
 
     function testSig() public view {
@@ -386,7 +449,9 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
                 // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
                 staticcall(not(0), 0x08, input, 0x180, add(input, 0x160), 0x20)
-            ) { revert(0, 0) }
+            ) {
+                revert(0, 0)
+            }
         }
 
         // check that the provided signature is correct

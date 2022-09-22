@@ -26,8 +26,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
 
     constructor(IInvestmentManager _investmentManager) {
         investmentManager = _investmentManager;
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(IERC20 _underlyingToken, IPauserRegistry pauserRegistry) public initializer {

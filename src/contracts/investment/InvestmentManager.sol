@@ -52,8 +52,7 @@ contract InvestmentManager is
     }
 
     constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS

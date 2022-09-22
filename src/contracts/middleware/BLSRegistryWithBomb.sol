@@ -26,6 +26,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
@@ -35,6 +36,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
@@ -48,11 +50,8 @@ contract BLSRegistryWithBomb is BLSRegistry {
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      * For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey)
-        external
-        returns (bool)
-    {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
 
         //post last ephemeral key reveal on chain
         ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);

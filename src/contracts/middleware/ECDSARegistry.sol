@@ -36,6 +36,7 @@ contract ECDSARegistry is RegistryBase, IECDSARegistry {
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
@@ -45,13 +46,13 @@ contract ECDSARegistry is RegistryBase, IECDSARegistry {
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
             _secondQuorumStrategiesConsideredAndMultipliers
         )
     {
-        // TODO: verify this initialization is correct
         bytes memory emptyBytes;
         _processStakeHashUpdate(keccak256(emptyBytes));
     }

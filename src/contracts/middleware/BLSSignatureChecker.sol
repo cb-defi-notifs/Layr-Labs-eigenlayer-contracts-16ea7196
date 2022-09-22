@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9 .0;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BytesLib.sol";
+import "../libraries/DataStoreUtils.sol";
 import "../libraries/BLS.sol";
 import "../permissions/RepositoryAccess.sol";
 
@@ -12,7 +13,6 @@ import "../permissions/RepositoryAccess.sol";
  * asserted by the disperser is valid.
  */
 abstract contract BLSSignatureChecker is RepositoryAccess {
-    // ,DSTest
 
     using BytesLib for bytes;
     // DATA STRUCTURES
@@ -135,13 +135,18 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             msgHash := calldataload(pointer)
 
             // Get the 6 bytes immediately after the above, which represent the index of the totalStake in the 'totalStakeHistory' array
-            placeholder := shr(BIT_SHIFT_totalStakeIndex, calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex)))
+            placeholder := shr(
+                BIT_SHIFT_totalStakeIndex,
+                calldataload(add(pointer, CALLDATA_OFFSET_totalStakeIndex))
+            )
         }
 
         // fetch the 4 byte stakesBlockNumber, the block number from which stakes are going to be read from
         assembly {
-            stakesBlockNumber :=
-                shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
+            stakesBlockNumber := shr(
+                BIT_SHIFT_stakesBlockNumber,
+                calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber))
+            )
         }
 
         // obtain registry contract for querying information on stake later
@@ -154,23 +159,32 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         uint256[6] memory aggNonSignerPubkey;
 
         // get information on total stakes
-        IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
+        IQuorumRegistry.OperatorStake memory localStakeObject = registry
+            .getTotalStakeFromIndex(placeholder);
 
         // check that the returned OperatorStake object is the most recent for the stakesBlockNumber
         _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
+        // copy total stakes amounts to `signedTotals` -- the 'signedStake' amounts are decreased later, to reflect non-signers
+        signedTotals.totalStakeFirstQuorum = localStakeObject.firstQuorumStake;
         signedTotals.signedStakeFirstQuorum = localStakeObject.firstQuorumStake;
-        signedTotals.totalStakeFirstQuorum = signedTotals.signedStakeFirstQuorum;
-        signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
-        signedTotals.totalStakeSecondQuorum = signedTotals.signedStakeSecondQuorum;
+        signedTotals.totalStakeSecondQuorum = localStakeObject
+            .secondQuorumStake;
+        signedTotals.signedStakeSecondQuorum = localStakeObject
+            .secondQuorumStake;
 
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
-            taskNumberToConfirm :=
-                shr(BIT_SHIFT_taskNumberToConfirm, calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm)))
+            taskNumberToConfirm := shr(
+                BIT_SHIFT_taskNumberToConfirm,
+                calldataload(add(pointer, CALLDATA_OFFSET_taskNumberToConfirm))
+            )
             // get the 4 bytes immediately after the above, which represent the
             // number of operators that aren't present in the quorum
-            placeholder := shr(BIT_SHIFT_numberNonSigners, calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners)))
+            placeholder := shr(
+                BIT_SHIFT_numberNonSigners,
+                calldataload(add(pointer, CALLDATA_OFFSET_numberNonSigners))
+            )
         }
 
         // we have read (32 + 6 + 4 + 4 + 4) = 50 bytes of calldata so far
@@ -180,11 +194,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
 
         /**
-         *
-         * next step involves computing the aggregated pub key of all the operators
+         * @dev The next step involves computing the aggregated pub key of all the operators
          * that are not part of the quorum for this specific taskNumber.
-         *
          */
+
         /**
          * @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata;
          * Note that this need not be a special case and *could* be subsumed in the for loop below.
@@ -222,7 +235,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
+                stakeIndex := shr(
+                    BIT_SHIFT_stakeIndex,
+                    calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY))
+                )
             }
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
@@ -247,8 +263,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
             // subtract operator stakes from totals
-            signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
-            signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
+            signedTotals.signedStakeFirstQuorum -= localStakeObject
+                .firstQuorumStake;
+            signedTotals.signedStakeSecondQuorum -= localStakeObject
+                .secondQuorumStake;
         }
 
         // temporary variable for storing the pubkey of operators in Jacobian coordinates
@@ -269,7 +287,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
+                stakeIndex := shr(
+                    BIT_SHIFT_stakeIndex,
+                    calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY))
+                )
             }
 
             // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
@@ -299,8 +320,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             _validateOperatorStake(localStakeObject, stakesBlockNumber);
 
             //subtract validator stakes from totals
-            signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
-            signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
+            signedTotals.signedStakeFirstQuorum -= localStakeObject
+                .firstQuorumStake;
+            signedTotals.signedStakeSecondQuorum -= localStakeObject
+                .secondQuorumStake;
 
             // add the pubkey of the operator to the aggregate pubkeys in Jacobian coordinate system.
             BLS.addJac(aggNonSignerPubkey, pk);
@@ -366,8 +389,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
              * operators that are part of the quorum
              */
             // negate aggNonSignerPubkey
-            aggNonSignerPubkey[2] = (BLS.MODULUS - aggNonSignerPubkey[2]) % BLS.MODULUS;
-            aggNonSignerPubkey[3] = (BLS.MODULUS - aggNonSignerPubkey[3]) % BLS.MODULUS;
+            aggNonSignerPubkey[2] =
+                (BLS.MODULUS - aggNonSignerPubkey[2]) %
+                BLS.MODULUS;
+            aggNonSignerPubkey[3] =
+                (BLS.MODULUS - aggNonSignerPubkey[3]) %
+                BLS.MODULUS;
 
             // do the addition in Jacobian coordinates
             BLS.addJac(pk, aggNonSignerPubkey);
@@ -410,7 +437,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         }
 
         // check that the provided signature is correct
-        require(input[11] == 1, "BLSSignatureChecker.checkSignatures: Pairing unsuccessful");
+        require(
+            input[11] == 1,
+            "BLSSignatureChecker.checkSignatures: Pairing unsuccessful"
+        );
 
         emit SignatoryRecord(
             msgHash,
@@ -423,14 +453,12 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             );
 
         // set compressedSignatoryRecord variable used for payment fraudproofs
-        compressedSignatoryRecord = keccak256(
-            abi.encodePacked(
-                // taskHash,
-                taskNumberToConfirm,
-                pubkeyHashes,
-                signedTotals.signedStakeFirstQuorum,
-                signedTotals.signedStakeSecondQuorum
-            )
+        compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
+            // taskHash,
+            taskNumberToConfirm,
+            pubkeyHashes,
+            signedTotals.signedStakeFirstQuorum,
+            signedTotals.signedStakeSecondQuorum
         );
 
         // return taskNumber, stakesBlockNumber, msgHash, total stakes that signed, and a hash of the signatories

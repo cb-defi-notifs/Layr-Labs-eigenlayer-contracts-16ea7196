@@ -13,17 +13,15 @@ import "../EphemeralKeyRegistry.sol";
 import "../../permissions/RepositoryAccess.sol";
 
 abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
-    /**
-     *
-     * CONSTANTS
-     *
-     */
+    /**********************
+        CONSTANTS
+     **********************/
     //TODO: mechanism to change any of these values?
-    uint256 public constant DURATION_SCALE = 1 hours;
-    uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 5;
+    uint256 constant public DURATION_SCALE = 1 hours;
+    uint256 constant public NUM_DS_PER_BLOCK_PER_DURATION = 5;
     // NOTE: these values are measured in *DURATION_SCALE*
-    uint8 public constant MIN_DATASTORE_DURATION = 1;
-    uint8 public constant MAX_DATASTORE_DURATION = 14;
+    uint8 constant public MIN_DATASTORE_DURATION = 1;
+    uint8 constant public MAX_DATASTORE_DURATION = 14;
 
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
@@ -34,11 +32,11 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     /**
      * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     * delegators to delegate their stake to operators who would serve as DataLayr
-     * nodes and so on.
+     *      delegators to delegate their stake to operators who would serve as DataLayr
+     *      nodes and so on.
      */
     /**
-     * @dev For more details, see EigenLayrDelegation.sol.
+      @dev For more details, see EigenLayrDelegation.sol. 
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
@@ -46,13 +44,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     /**
      * @notice service fee that will be paid out by the disperser to the DataLayr nodes
-     * for storing per byte for per unit time.
+     *         for storing per byte for per unit time. 
      */
     uint256 public feePerBytePerTime;
 
     /// @notice counter for number of assertions of data that has happened on this DataLayr
     //uint32 public dataStoreId = 1;
-
+    
     uint256 public disclosurePaymentPerByte;
 
     uint48 public numPowersOfTau; // num of leaves in the root tree
@@ -79,25 +77,22 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      hash(x^l - w^l)       hash(x^l - (w^2)^l)                   hash(x^l - (w^{k-1})^l)        hash(x^l - (w^k)^l) 
      
      This tree is computed off-chain and only the Merkle roots are stored on-chain.
-    */
-    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees?
+     */
+    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees? 
     bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
      * @notice mapping between the dataStoreId for a particular assertion of data into
-     * DataLayr and a compressed information on the signatures of the DataLayr
-     * nodes who signed up to be the part of the quorum.
+     *         DataLayr and a compressed information on the signatures of the DataLayr 
+     *         nodes who signed up to be the part of the quorum.  
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
-
+    
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
     //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
     //in that block
-    mapping(uint8 => mapping(uint256 => bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public
-        dataStoreHashesForDurationAtTimestamp;
-    //total number of datastores that have been stored for a certain duration
-    mapping(uint8 => uint32) public totalDataStoresForDuration;
-
+    mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreHashesForDurationAtTimestamp;
+ 
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
     DataLayrBombVerifier public dataLayrBombVerifier;
@@ -109,11 +104,8 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     DataLayrPaymentManager public dataLayrPaymentManager;
 
-    constructor(
-        IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _eigenLayrDelegation,
-        IERC20 _collateralToken
-    ) {
+    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _eigenLayrDelegation, IERC20 _collateralToken) 
+    {
         investmentManager = _investmentManager;
         eigenLayrDelegation = _eigenLayrDelegation;
         collateralToken = _collateralToken;

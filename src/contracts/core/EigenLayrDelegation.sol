@@ -29,8 +29,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // INITIALIZING FUNCTIONS
     constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     /**
