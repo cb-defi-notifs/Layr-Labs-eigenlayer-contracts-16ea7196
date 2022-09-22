@@ -35,47 +35,44 @@ contract DataStoreUtilsTests is DSTest {
         public
     {
         // form struct from arguments
-        IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = 
-            dataStoreMetadataFromArgs(
-                headerHash,
-                durationDataStoreId,
-                globalDataStoreId,
-                blockNumber,
-                fee,
-                confirmer,
-                signatoryRecordHash
+        IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
+            headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
         );
         // pack the struct
         bytes memory packedMetadata = dataStoreUtilsWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
         // unpack the struct
-        IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct = dataStoreUtilsWrapper.unpackDataStoreMetadataExternal(packedMetadata);
+        IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct =
+            dataStoreUtilsWrapper.unpackDataStoreMetadataExternal(packedMetadata);
         // check the struct entries
         assertEq(
-            headerHash, unpackedStruct.headerHash,
+            headerHash,
+            unpackedStruct.headerHash,
             "testPackUnpackDataStoreMetadata: unpacked headerHash does not match original one"
         );
         assertEq(
-            durationDataStoreId, unpackedStruct.durationDataStoreId,
+            durationDataStoreId,
+            unpackedStruct.durationDataStoreId,
             "testPackUnpackDataStoreMetadata: unpacked durationDataStoreId does not match original one"
         );
         assertEq(
-            globalDataStoreId, unpackedStruct.globalDataStoreId,
+            globalDataStoreId,
+            unpackedStruct.globalDataStoreId,
             "testPackUnpackDataStoreMetadata: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            blockNumber, unpackedStruct.blockNumber,
+            blockNumber,
+            unpackedStruct.blockNumber,
             "testPackUnpackDataStoreMetadata: unpacked blockNumber does not match original one"
         );
+        assertEq(fee, unpackedStruct.fee, "testPackUnpackDataStoreMetadata: unpacked fee does not match original one");
         assertEq(
-            fee, unpackedStruct.fee,
-            "testPackUnpackDataStoreMetadata: unpacked fee does not match original one"
-        );
-        assertEq(
-            confirmer, unpackedStruct.confirmer,
+            confirmer,
+            unpackedStruct.confirmer,
             "testPackUnpackDataStoreMetadata: unpacked confirmer does not match original one"
         );
         assertEq(
-            signatoryRecordHash, unpackedStruct.signatoryRecordHash,
+            signatoryRecordHash,
+            unpackedStruct.signatoryRecordHash,
             "testPackUnpackDataStoreMetadata: unpacked signatoryRecordHash does not match original one"
         );
 
@@ -101,64 +98,73 @@ contract DataStoreUtilsTests is DSTest {
         public
     {
         // form struct from arguments
-        IDataLayrServiceManager.DataStoreSearchData memory searchDataStructBeforePacking = 
-            dataStoreSearchDataFromArgs(
-                headerHash,
-                durationDataStoreId,
-                globalDataStoreId,
-                blockNumber,
-                fee,
-                confirmer,
-                signatoryRecordHash,
-                duration,
-                timestamp,
-                index
+        IDataLayrServiceManager.DataStoreSearchData memory searchDataStructBeforePacking = dataStoreSearchDataFromArgs(
+            headerHash,
+            durationDataStoreId,
+            globalDataStoreId,
+            blockNumber,
+            fee,
+            confirmer,
+            signatoryRecordHash,
+            duration,
+            timestamp,
+            index
         );
 
         // pack the struct
-        bytes memory packedSearchData = dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchDataStructBeforePacking);
+        bytes memory packedSearchData =
+            dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchDataStructBeforePacking);
         // unpack the struct
-        IDataLayrServiceManager.DataStoreSearchData memory unpackedStruct = dataStoreUtilsWrapper.unpackDataStoreSearchDataExternal(packedSearchData);
+        IDataLayrServiceManager.DataStoreSearchData memory unpackedStruct =
+            dataStoreUtilsWrapper.unpackDataStoreSearchDataExternal(packedSearchData);
         // check the struct entries
         assertEq(
-            headerHash, unpackedStruct.metadata.headerHash,
+            headerHash,
+            unpackedStruct.metadata.headerHash,
             "testPackUnpackDataStoreSearchData: unpacked headerHash does not match original one"
         );
         assertEq(
-            durationDataStoreId, unpackedStruct.metadata.durationDataStoreId,
+            durationDataStoreId,
+            unpackedStruct.metadata.durationDataStoreId,
             "testPackUnpackDataStoreSearchData: unpacked durationDataStoreId does not match original one"
         );
         assertEq(
-            globalDataStoreId, unpackedStruct.metadata.globalDataStoreId,
+            globalDataStoreId,
+            unpackedStruct.metadata.globalDataStoreId,
             "testPackUnpackDataStoreSearchData: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            blockNumber, unpackedStruct.metadata.blockNumber,
+            blockNumber,
+            unpackedStruct.metadata.blockNumber,
             "testPackUnpackDataStoreSearchData: unpacked blockNumber does not match original one"
         );
         assertEq(
-            fee, unpackedStruct.metadata.fee,
+            fee,
+            unpackedStruct.metadata.fee,
             "testPackUnpackDataStoreSearchData: unpacked fee does not match original one"
         );
         assertEq(
-            confirmer, unpackedStruct.metadata.confirmer,
+            confirmer,
+            unpackedStruct.metadata.confirmer,
             "testPackUnpackDataStoreSearchData: unpacked confirmer does not match original one"
         );
         assertEq(
-            signatoryRecordHash, unpackedStruct.metadata.signatoryRecordHash,
+            signatoryRecordHash,
+            unpackedStruct.metadata.signatoryRecordHash,
             "testPackUnpackDataStoreSearchData: unpacked signatoryRecordHash does not match original one"
         );
         assertEq(
-            duration, unpackedStruct.duration,
+            duration,
+            unpackedStruct.duration,
             "testPackUnpackDataStoreSearchData: unpacked duration does not match original one"
         );
         assertEq(
-            timestamp, unpackedStruct.timestamp,
+            timestamp,
+            unpackedStruct.timestamp,
             "testPackUnpackDataStoreSearchData: unpacked timestamp does not match original one"
         );
         assertEq(
-            index, unpackedStruct.index,
-            "testPackUnpackDataStoreSearchData: unpacked index does not match original one"
+            index, unpackedStruct.index, "testPackUnpackDataStoreSearchData: unpacked index does not match original one"
         );
 
         // failsafe extra check, in case we modify the struct entries and forget a specific check above -- just check the full bytes against each other
@@ -177,7 +183,9 @@ contract DataStoreUtilsTests is DSTest {
         address confirmer,
         bytes32 signatoryRecordHash
     )
-        internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct)
+        internal
+        pure
+        returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct)
     {
         metadataStruct = IDataLayrServiceManager.DataStoreMetadata({
             headerHash: headerHash,
@@ -203,17 +211,12 @@ contract DataStoreUtilsTests is DSTest {
         uint256 timestamp,
         uint32 index
     )
-        internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct)
+        internal
+        pure
+        returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct)
     {
-        searchDataStruct.metadata = 
-            dataStoreMetadataFromArgs(
-                headerHash,
-                durationDataStoreId,
-                globalDataStoreId,
-                blockNumber,
-                fee,
-                confirmer,
-                signatoryRecordHash
+        searchDataStruct.metadata = dataStoreMetadataFromArgs(
+            headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
         );
         searchDataStruct.duration = duration;
         searchDataStruct.timestamp = timestamp;

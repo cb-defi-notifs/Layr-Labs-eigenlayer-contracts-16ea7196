@@ -8,7 +8,7 @@ import "../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-    /*
+/*
      The Repository contract is intended to be the central source of "ground truth" for
      a single middleware on EigenLayr.
      Other contracts can refer to the Repository in order to determine the "official"
@@ -33,13 +33,13 @@ contract Repository is Ownable, Initializable, IRepository {
     event RegistrySet(IRegistry indexed previousAddress, IRegistry indexed newAddress);
 
     // set the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
-    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
+    constructor(IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
         delegation = _delegation;
         investmentManager = _investmentManager;
     }
 
     /// @notice returns the owner of this repository contract
-    function owner() public view override(Ownable, IRepository) returns (address) {
+    function owner() public view override (Ownable, IRepository) returns (address) {
         return Ownable.owner();
     }
 
@@ -49,7 +49,10 @@ contract Repository is Ownable, Initializable, IRepository {
         IServiceManager _serviceManager,
         IRegistry _registry,
         address initialOwner
-    ) external initializer {
+    )
+        external
+        initializer
+    {
         _setVoteWeigher(_voteWeigher);
         _setServiceManager(_serviceManager);
         _setRegistry(_registry);
@@ -72,28 +75,19 @@ contract Repository is Ownable, Initializable, IRepository {
     }
 
     function _setVoteWeigher(IVoteWeigher _voteWeigher) internal {
-        require(
-            address(_voteWeigher) != address(0),
-            "Repository._setVoteWeigher: zero address bad!"
-        );
+        require(address(_voteWeigher) != address(0), "Repository._setVoteWeigher: zero address bad!");
         emit VoteWeigherSet(voteWeigher, _voteWeigher);
         voteWeigher = _voteWeigher;
     }
 
     function _setServiceManager(IServiceManager _serviceManager) internal {
-        require(
-            address(_serviceManager) != address(0),
-            "Repository._setServiceManager: zero address bad!"
-        );
+        require(address(_serviceManager) != address(0), "Repository._setServiceManager: zero address bad!");
         emit ServiceManagerSet(serviceManager, _serviceManager);
         serviceManager = _serviceManager;
     }
 
     function _setRegistry(IRegistry _registry) internal {
-        require(
-            address(_registry) != address(0),
-            "Repository._setRegistry: zero address bad!"
-        );
+        require(address(_registry) != address(0), "Repository._setRegistry: zero address bad!");
         emit RegistrySet(registry, _registry);
         registry = _registry;
     }

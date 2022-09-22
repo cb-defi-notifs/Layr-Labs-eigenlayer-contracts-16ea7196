@@ -63,6 +63,8 @@ contract TestHelper is EigenLayrDeployer {
         //     bytes calldata data,
         //     string calldata socket
         // )
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
         dlReg.registerOperator(
             operatorType,
             ephemeralKey,
@@ -419,6 +421,8 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.startPrank(sender);
         
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
         
         dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
 
@@ -427,7 +431,7 @@ contract TestHelper is EigenLayrDeployer {
 
 
         // verify that registration was stored correctly
-        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.nodeStakeFirstQuorum()) {
+        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
             assertTrue(
                 dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit,
                 "ethStaked not increased!"
@@ -439,7 +443,7 @@ contract TestHelper is EigenLayrDeployer {
             );
         }
         if (
-            (operatorType & 2) == 2 && eigenToDeposit > dlReg.nodeStakeSecondQuorum()
+            (operatorType & 2) == 2 && eigenToDeposit > dlReg.minimumStakeSecondQuorum()
         ) {
             assertTrue(
                 dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit,
@@ -633,23 +637,29 @@ contract TestHelper is EigenLayrDeployer {
 
     }
 
-    // deploys a InvestmentStrategyBase contract and initializes it to treat 'weth' token as its underlying token
-    function _testAddStrategy() internal returns (IInvestmentStrategy) {
-        InvestmentStrategyBase strategy = new InvestmentStrategyBase(investmentManager);
-        // deploying these as upgradeable proxies was causing a weird stack overflow error, so we're just using implementation contracts themselves for now
-        // strategy = InvestmentStrategyBase(address(new TransparentUpgradeableProxy(address(strat), address(eigenLayrProxyAdmin), "")));
-        strategy.initialize(weth, pauserReg);
+    // deploys a InvestmentStrategyBase contract and initializes it to treat `underlyingToken` as its underlying token
+    function _testAddStrategyBase(IERC20 underlyingToken) internal returns (IInvestmentStrategy) {
+        InvestmentStrategyBase strategy = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(baseStrategyImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, underlyingToken, pauserReg)
+                )
+            )
+        );
         return strategy;
     }
 
-    // deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits 'amountToDeposit' to each of them from 'sender'
+    // deploys 'numStratsToAdd' strategies using '_testAddStrategyBase' and then deposits 'amountToDeposit' to each of them from 'sender'
     function _testDepositStrategies(
         address sender,
         uint256 amountToDeposit,
         uint16 numStratsToAdd
     ) internal {
-        // hard-coded input
+        // hard-coded inputs
         uint96 multiplier = 1e18;
+        IERC20 underlyingToken = weth;
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         IInvestmentStrategy[]
@@ -657,7 +667,7 @@ contract TestHelper is EigenLayrDeployer {
                 numStratsToAdd
             );
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            stratsToDepositTo[i] = _testAddStrategy();
+            stratsToDepositTo[i] = _testAddStrategyBase(underlyingToken);
             _testDepositToStrategy(
                 sender,
                 amountToDeposit,

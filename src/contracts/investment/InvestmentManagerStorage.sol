@@ -7,7 +7,6 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
 abstract contract InvestmentManagerStorage is IInvestmentManager {
-
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;

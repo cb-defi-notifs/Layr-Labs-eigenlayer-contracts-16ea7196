@@ -7,19 +7,16 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "./BLSRegistry.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
- * @notice This contract is used for 
-            - registering new operators 
-            - committing to and finalizing de-registration as an operator for the middleware 
-            - updating the stakes of the operator
+ * @notice This contract is used for
+ * - registering new operators
+ * - committing to and finalizing de-registration as an operator for the middleware
+ * - updating the stakes of the operator
  */
 
-contract BLSRegistryWithBomb is
-    BLSRegistry
-    // ,DSTest
-{
+contract BLSRegistryWithBomb is BLSRegistry {
     using BytesLib for bytes;
 
     IEphemeralKeyRegistry public ephemeralKeyRegistry;
@@ -29,6 +26,7 @@ contract BLSRegistryWithBomb is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
@@ -38,6 +36,7 @@ contract BLSRegistryWithBomb is
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
@@ -48,28 +47,25 @@ contract BLSRegistryWithBomb is
     }
 
     /**
-      @notice Used by an operator to de-register itself from providing service to the middleware.
-              For detailed comments, see deregisterOperator in BLSRegistry.sol.
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
+     * For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
 
         //post last ephemeral key reveal on chain
         ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
-        
+
         return true;
     }
 
     /**
-     @notice called for registering as an operator. For detailed comments, see 
-             registerOperator in BLSRegistry.sol.
+     * @notice called for registering as an operator. For detailed comments, see
+     * registerOperator in BLSRegistry.sol.
      */
-    function registerOperator(
-        uint8 operatorType,
-        bytes32 ephemeralKeyHash,
-        bytes calldata data,
-        string calldata socket
-    ) external {        
+    function registerOperator(uint8 operatorType, bytes32 ephemeralKeyHash, bytes calldata data, string calldata socket)
+        external
+    {
         _registerOperator(msg.sender, operatorType, data, socket);
 
         //add ephemeral key to ephemeral key registry
@@ -77,16 +73,12 @@ contract BLSRegistryWithBomb is
     }
 
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
-    function registerOperator(
-        uint8,
-        bytes calldata,
-        string calldata
-    ) external override pure {        
+    function registerOperator(uint8, bytes calldata, string calldata) external pure override {
         revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
 
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
-    function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
+    function deregisterOperator(uint256[4] memory, uint32) external pure override returns (bool) {
         revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
     }
 }

@@ -43,7 +43,6 @@ contract EigenLayrDeployer is
     uint256 public constant DURATION_SCALE = 1 hours;
     uint32 public constant MAX_WITHDRAWAL_PERIOD = 7 days;
     Vm cheats = Vm(HEVM_ADDRESS);
-    // Eigen public eigen;
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
@@ -140,6 +139,7 @@ contract EigenLayrDeployer is
         pauserReg = new PauserRegistry(pauser, unpauser);
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `investmentManager` address
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
             address(
@@ -152,6 +152,7 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `slasher` address
         investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
             address(
@@ -163,7 +164,34 @@ contract EigenLayrDeployer is
             )
         );
 
-        //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
+        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
+        delegation.initialize(
+            investmentManager,
+            pauserReg,
+            undelegationFraudproofInterval
+        );
+
+        // deploy slasher as upgradable proxy and initialize it 
+        address initialOwner = address(this);
+        Slasher slasherImplementation = new Slasher();
+        slasher = Slasher(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(slasherImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
+                )
+            )
+        );
+        
+        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
+        investmentManager.initialize(
+            slasher,
+            pauserReg,
+            initialOwner
+        );
+
+        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -202,35 +230,21 @@ contract EigenLayrDeployer is
             )
         );
 
-        // actually initialize the investmentManager (proxy) contraxt
-        address governor = address(this);
-        // deploy slasher and service factory contracts
-        slasher = new Slasher();
-        slasher.initialize(investmentManager, delegation, pauserReg, governor);
-
         delegates = [acct_0, acct_1];
-        
-        investmentManager.initialize(
-            slasher,
-            pauserReg,
-            governor
-        );
-
-        // initialize the delegation (proxy) contract
-        delegation.initialize(
-            investmentManager,
-            pauserReg
-        );
 
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
 
         // set up a strategy for a mock liquid staking token
         liquidStakingMockToken = new WETH();
-        liquidStakingMockStrat = new InvestmentStrategyBase(investmentManager);
-        liquidStakingMockStrat.initialize(
-            IERC20(address(liquidStakingMockToken)),
-            pauserReg
+        liquidStakingMockStrat = InvestmentStrategyBase(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(baseStrategyImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, pauserReg)
+                )
+            )
         );
 
         //loads hardcoded signer set
@@ -304,7 +318,8 @@ contract EigenLayrDeployer is
             pauserReg,
             feePerBytePerTime
         );
-        
+
+        uint32 unbondingPeriod = uint32(14 days);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
@@ -327,6 +342,7 @@ contract EigenLayrDeployer is
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,

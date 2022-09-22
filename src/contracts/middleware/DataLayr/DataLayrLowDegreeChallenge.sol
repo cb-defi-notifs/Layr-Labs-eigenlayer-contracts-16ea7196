@@ -17,7 +17,7 @@ import "../../libraries/BLS.sol";
 
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
-    
+
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
         uint256 commitTime;
@@ -28,29 +28,31 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     }
 
     // length of window during which the responses can be made to the challenge
-    uint32 internal constant  _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
+    uint32 internal constant _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
     // amount of token required to be placed as collateral when a challenge is opened
     uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
 
-    uint256 internal constant MAX_POT_DEGREE = (2**28);
+    uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
 
-    event LowDegreeChallengeInit(
-        bytes32 indexed headerHash,
-        address challenger
-    );
+    event LowDegreeChallengeInit(bytes32 indexed headerHash, address challenger);
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )   DataLayrChallengeBase(_dataLayrServiceManager, _dlRegistry, _challengeUtils, _DEGREE_CHALLENGE_RESPONSE_WINDOW, _DEGREE_CHALLENGE_COLLATERAL_AMOUNT)
-    {
-    }
+    )
+        DataLayrChallengeBase(
+            _dataLayrServiceManager,
+            _dlRegistry,
+            _challengeUtils,
+            _DEGREE_CHALLENGE_RESPONSE_WINDOW,
+            _DEGREE_CHALLENGE_COLLATERAL_AMOUNT
+        )
+    {}
 
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
-
 
     /// @notice This function tests whether a polynomial's degree is not greater than a provided degree
     /// @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
@@ -64,19 +66,28 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1
-    ) external view {
-
+    )
+        external
+        view
+    {
         //retreiving the kzg commitment to the data in the form of a polynomial
-        DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata = challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+        DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
+            challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
 
         //the index of the merkle tree containing the potElement
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
-        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof), "Merkle proof was not validated");
+        require(
+            Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof),
+            "Merkle proof was not validated"
+        );
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
-        require(BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2), "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed");
+        require(
+            BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2),
+            "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed"
+        );
     }
 
     function respondToLowDegreeChallenge(
@@ -86,7 +97,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256[4] calldata piPower,
         uint256 s,
         uint256 sPrime
-    ) external {
+    )
+        external
+    {
         //TODO: Implement this
         // bytes32 headerHash = keccak256(header);
 
@@ -204,6 +217,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     function _returnChallengerCollateral(bytes32 headerHash) internal override {
         IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        collateralToken.safeTransfer(lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral);
+        collateralToken.safeTransfer(
+            lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral
+        );
     }
 }

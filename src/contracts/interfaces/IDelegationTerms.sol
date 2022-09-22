@@ -5,16 +5,14 @@ import "./IInvestmentStrategy.sol";
 
 //TODO: discuss if we can structure the inputs of these functions better
 interface IDelegationTerms {
-    function payForService(
-        IERC20 token,
-        uint256 amount
-    ) external payable;
+    function payForService(IERC20 token, uint256 amount) external payable;
 
     function onDelegationWithdrawn(
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external;
+    )
+        external;
 
     // function onDelegationReceived(
     //     address delegator,
@@ -25,5 +23,6 @@ interface IDelegationTerms {
         address delegator,
         IInvestmentStrategy[] memory investorStrats,
         uint256[] memory investorShares
-    ) external;
+    )
+        external;
 }

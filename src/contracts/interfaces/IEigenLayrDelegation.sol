@@ -11,42 +11,26 @@ interface IEigenLayrDelegation {
 
     function registerAsDelegate(IDelegationTerms dt) external;
 
-    function delegationTerms(address operator)
-        external
-        view
-        returns (IDelegationTerms);
+    function delegationTerms(address operator) external view returns (IDelegationTerms);
 
-    function operatorShares(address operator, IInvestmentStrategy investmentStrategy)
-        external
-        view
-        returns (uint256);
+    function operatorShares(address operator, IInvestmentStrategy investmentStrategy) external view returns (uint256);
 
-    function isNotDelegated(address staker)
-        external
-        returns (bool);
+    function isNotDelegated(address staker) external returns (bool);
 
-    function delegation(address delegator)
-        external
-        view
-        returns (address);
+    function delegation(address delegator) external view returns (address);
 
     function undelegate(address staker) external;
 
-    function isDelegated(address staker)
-        external
-        view
-        returns (bool);
+    function isDelegated(address staker) external view returns (bool);
 
-    function isOperator(address operator)
-        external
-        view
-        returns (bool);
-    
+    function isOperator(address operator) external view returns (bool);
+
     function decreaseDelegatedShares(
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    ) external;
+    )
+        external;
 
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 

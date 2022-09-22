@@ -8,10 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 /**
  * Simple, basic, "do-nothing" InvestmentStrategy that holds a single underlying token and returns it on withdrawals.
  * Assumes shares are always 1-to-1 with the underlyingToken.
-*/
-contract InvestmentStrategyWrapper is
-    IInvestmentStrategy
-{
+ */
+contract InvestmentStrategyWrapper is IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
     IInvestmentManager public immutable investmentManager;
@@ -33,17 +31,10 @@ contract InvestmentStrategyWrapper is
      * @param token is the ERC20 token being deposited
      * @param amount is the amount of token being deposited
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
-     *       `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
+     * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
-    function deposit(
-        IERC20 token,
-        uint256 amount
-    )
-        external virtual override
-        onlyInvestmentManager
-        returns (uint256)
-    {
+    function deposit(IERC20 token, uint256 amount) external virtual override onlyInvestmentManager returns (uint256) {
         require(token == underlyingToken, "InvestmentStrategyWrapper.deposit: Can only deposit underlyingToken");
         totalShares += amount;
         return amount;
@@ -54,26 +45,29 @@ contract InvestmentStrategyWrapper is
      * @param token is the ERC20 token being transferred out
      * @param shareAmount is the amount of shares being withdrawn
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
-     *      other functions, and individual share balances are recorded in the investmentManager as well
+     * other functions, and individual share balances are recorded in the investmentManager as well
      */
-    function withdraw(
-        address depositor,
-        IERC20 token,
-        uint256 shareAmount
-    )
-        external virtual override
+    function withdraw(address depositor, IERC20 token, uint256 shareAmount)
+        external
+        virtual
+        override
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyWrapper.withdraw: Can only withdraw the strategy token");
-        require(shareAmount <= totalShares, "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares");
+        require(
+            shareAmount <= totalShares,
+            "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares"
+        );
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
-        unchecked{totalShares -= shareAmount;}
+        unchecked {
+            totalShares -= shareAmount;
+        }
         underlyingToken.safeTransfer(depositor, shareAmount);
     }
 
-    /** 
+    /**
      * @notice Currently returns a brief string explaining the strategy's goal & purpose, but for more complex
-     *          strategies, may be a link to metadata that explains in more detail.
+     * strategies, may be a link to metadata that explains in more detail.
      */
     function explanation() external pure virtual override returns (string memory) {
         return "Wrapper InvestmentStrategy to simply store tokens. Assumes fixed 1-to-1 share-underlying exchange.";
@@ -85,11 +79,7 @@ contract InvestmentStrategyWrapper is
      * @param amountShares is the amount of shares to calculate its conversion into the underlying token
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
-    function sharesToUnderlyingView(uint256 amountShares)
-        public
-        view virtual override
-        returns (uint256)
-    {
+    function sharesToUnderlyingView(uint256 amountShares) public view virtual override returns (uint256) {
         return amountShares;
     }
 
@@ -99,11 +89,7 @@ contract InvestmentStrategyWrapper is
      * @param amountShares is the amount of shares to calculate its conversion into the underlying token
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
-    function sharesToUnderlying(uint256 amountShares)
-        public
-        view virtual override
-        returns (uint256)
-    {
+    function sharesToUnderlying(uint256 amountShares) public view virtual override returns (uint256) {
         return amountShares;
     }
 
@@ -113,12 +99,8 @@ contract InvestmentStrategyWrapper is
      * @param amountUnderlying is the amount of `underlyingToken` to calculate its conversion into strategy shares
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
-    function underlyingToSharesView(uint256 amountUnderlying)
-        external
-        view virtual
-        returns (uint256)
-    {
-        return amountUnderlying;        
+    function underlyingToSharesView(uint256 amountUnderlying) external view virtual returns (uint256) {
+        return amountUnderlying;
     }
 
     /**
@@ -127,17 +109,13 @@ contract InvestmentStrategyWrapper is
      * @param amountUnderlying is the amount of `underlyingToken` to calculate its conversion into strategy shares
      * @dev Implementation for these functions in particular may vary signifcantly for different strategies
      */
-    function underlyingToShares(uint256 amountUnderlying)
-        external
-        view virtual
-        returns (uint256)
-    {
-        return amountUnderlying;        
+    function underlyingToShares(uint256 amountUnderlying) external view virtual returns (uint256) {
+        return amountUnderlying;
     }
 
     /**
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
-     *         this strategy. In contrast to `userUnderlying`, this function guarantees no state modifications
+     * this strategy. In contrast to `userUnderlying`, this function guarantees no state modifications
      */
     function userUnderlyingView(address user) external view virtual returns (uint256) {
         return sharesToUnderlyingView(shares(user));
@@ -145,7 +123,7 @@ contract InvestmentStrategyWrapper is
 
     /**
      * @notice convenience function for fetching the current underlying value of all of the `user`'s shares in
-     *         this strategy. In contrast to `userUnderlyingView`, this function **may** make state modifications
+     * this strategy. In contrast to `userUnderlyingView`, this function **may** make state modifications
      */
     function userUnderlying(address user) external virtual returns (uint256) {
         return sharesToUnderlying(shares(user));
@@ -153,13 +131,9 @@ contract InvestmentStrategyWrapper is
 
     /**
      * @notice convenience function for fetching the current total shares of `user` in this strategy, by
-     *          querying the `investmentManager` contract
+     * querying the `investmentManager` contract
      */
     function shares(address user) public view virtual returns (uint256) {
-        return
-            IInvestmentManager(investmentManager).investorStratShares(
-                user,
-                IInvestmentStrategy(address(this))
-            );
+        return IInvestmentManager(investmentManager).investorStratShares(user, IInvestmentStrategy(address(this)));
     }
 }

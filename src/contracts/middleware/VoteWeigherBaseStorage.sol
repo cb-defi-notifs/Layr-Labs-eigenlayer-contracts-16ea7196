@@ -8,10 +8,9 @@ import "../permissions/RepositoryAccess.sol";
 
 /// @notice This is the contract for specifying all storage variables of VoteWeigherBase.sol
 abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
-
-    /** 
-     @notice In weighting a particular investment strategy, underlying asset for that strategy is 
-             multiplied by its multiplier then divided by WEIGHTING_DIVISOR
+    /**
+     * @notice In weighting a particular investment strategy, underlying asset for that strategy is
+     * multiplied by its multiplier then divided by WEIGHTING_DIVISOR
      */
     struct StrategyAndWeightingMultiplier {
         IInvestmentStrategy strategy;
@@ -32,16 +31,16 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
     // number of quorums that are being used by the middleware
     uint256 public immutable NUMBER_OF_QUORUMS;
 
-    /** 
-     @notice mapping from quorum number to the list of strategies considered and their 
-             corresponding weights for that specific quorum
+    /**
+     * @notice mapping from quorum number to the list of strategies considered and their
+     * corresponding weights for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
      * @notice This defines the earnings split between different quorums.
-     *          Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
+     * Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
      * @notice The sum of all entries, i.e. quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS] should *always* be 10,000!
-     */ 
+     */
     mapping(uint256 => uint256) public quorumBips;
 
     constructor(
@@ -56,7 +55,10 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
         // verify that the provided `_quorumBips` is of the correct length
-        require(_quorumBips.length == _NUMBER_OF_QUORUMS, "VoteWeigherBaseStorage.constructor: _quorumBips.length != _NUMBER_OF_QUORUMS");
+        require(
+            _quorumBips.length == _NUMBER_OF_QUORUMS,
+            "VoteWeigherBaseStorage.constructor: _quorumBips.length != _NUMBER_OF_QUORUMS"
+        );
         uint256 totalQuorumBips;
         for (uint256 i; i < _NUMBER_OF_QUORUMS; ++i) {
             totalQuorumBips += _quorumBips[i];
@@ -67,6 +69,5 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         delegation = _delegation;
         investmentManager = _investmentManager;
         NUMBER_OF_QUORUMS = _NUMBER_OF_QUORUMS;
-
     }
 }
