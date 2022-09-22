@@ -43,7 +43,7 @@ contract DelegationTests is TestHelper {
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
 
         if (!delegation.isOperator(operator)) {
-            _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
 
         uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
@@ -138,7 +138,7 @@ contract DelegationTests is TestHelper {
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
         uint96 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
         uint96 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
-        _testRegisterAsDelegate(operator, IDelegationTerms(operator));
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
         _testDepositStrategies(staker, 1e18, numStratsToAdd);
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
@@ -188,7 +188,7 @@ contract DelegationTests is TestHelper {
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
-        delegation.initialize(investmentManager, pauserReg, undelegationFraudproofInterval);
+        delegation.initialize(investmentManager, pauserReg, address(this), undelegationFraudproofInterval);
     }
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times
