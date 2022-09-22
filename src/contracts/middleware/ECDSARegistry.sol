@@ -33,7 +33,8 @@ contract ECDSARegistry is
      */
     event Registration(
         address indexed registrant,
-        bytes32 pubkeyHash
+        bytes32 pubkeyHash,
+        string socket
     );
 
     constructor(
@@ -148,8 +149,6 @@ contract ECDSARegistry is
             fromTaskNumber: currentTaskNumber,
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
-            // extract the socket address
-            socket: socket,
             deregisterTime: 0
         });
 
@@ -207,7 +206,7 @@ contract ECDSARegistry is
         }
 
         emit StakeAdded(operator, _operatorStake.ethStake, _operatorStake.eigenStake, stakeHashUpdates.length, currentTaskNumber, stakeHashUpdates[stakeHashUpdates.length - 1]);
-        emit Registration(operator, pubkeyHash);
+        emit Registration(operator, pubkeyHash, socket);
     }
 
     /**
