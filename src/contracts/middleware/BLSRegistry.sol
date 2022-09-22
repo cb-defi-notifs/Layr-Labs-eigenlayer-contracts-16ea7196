@@ -290,6 +290,7 @@ contract BLSRegistry is
      */
     function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
         // update stored aggregate public key
+        // slither-disable-next-line costly-loop
         apk = newApk;
 
         // store the current block number in which the aggregated pubkey is being updated 

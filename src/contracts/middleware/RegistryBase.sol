@@ -379,6 +379,7 @@ abstract contract RegistryBase is
             operatorList[index] = swappedOperator;
         }
 
+        // slither-disable-next-line costly-loop
         operatorList.pop();
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
