@@ -9,30 +9,21 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../utils/Pausable.sol";
 import "../investment/Slasher.sol";
-// import "forge-std/Test.sol";
 
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
 /**
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- *            - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
- *            - for enabling anyone to register as an operator
- *            - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
- *            - for a staker to undelegate its assets from EigenLayr
- *            - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
+ * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
+ * - for enabling anyone to register as an operator
+ * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
+ * - for a staker to undelegate its assets from EigenLayr
+ * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
-contract EigenLayrDelegation is
-    Initializable,
-    OwnableUpgradeable,
-    EigenLayrDelegationStorage,
-    Pausable
-    // ,DSTest
-{
+contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
+
     modifier onlyInvestmentManager() {
-        require(
-            msg.sender == address(investmentManager),
-            "onlyInvestmentManager"
-        );
+        require(msg.sender == address(investmentManager), "onlyInvestmentManager");
         _;
     }
 
@@ -57,7 +48,10 @@ contract EigenLayrDelegation is
         IInvestmentManager _investmentManager,
         IPauserRegistry pauserRegistry,
         uint256 _undelegationFraudproofInterval
-    ) external initializer {
+    )
+        external
+        initializer
+    {
         require(
             _undelegationFraudproofInterval <= MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL,
             "EigenLayrDelegation.initialize: _undelegationFraudproofInterval too large"
@@ -90,34 +84,17 @@ contract EigenLayrDelegation is
 
     // delegates from `staker` to `operator`
     // requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
-    function delegateToBySignature(
-        address staker,
-        address operator,
-        uint256 expiry,
-        bytes32 r,
-        bytes32 vs
-    ) external whenNotPaused {
-        require(
-            expiry == 0 || expiry >= block.timestamp,
-            "delegation signature expired"
-        );
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
+        external
+        whenNotPaused
+    {
+        require(expiry == 0 || expiry >= block.timestamp, "delegation signature expired");
         // calculate struct hash, then increment `staker`'s nonce
-        bytes32 structHash = keccak256(
-            abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry)
-        );
-        bytes32 digestHash = keccak256(
-            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
-        );
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
         //check validity of signature
-        address recoveredAddress = ECDSA.recover(
-            digestHash,
-            r,
-            vs
-        );
-        require(
-            recoveredAddress == staker,
-            "EigenLayrDelegation.delegateToBySignature: sig not from staker"
-        );
+        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
+        require(recoveredAddress == staker, "EigenLayrDelegation.delegateToBySignature: sig not from staker");
         _delegate(staker, operator);
     }
 
@@ -125,23 +102,20 @@ contract EigenLayrDelegation is
     ///         participating in the functioning of EigenLayr.
     function initUndelegation() external whenNotPaused {
         require(
-            isDelegated(msg.sender),
-            "EigenLayrDelegation.initUndelegation: Staker does not have existing delegation"
+            isDelegated(msg.sender), "EigenLayrDelegation.initUndelegation: Staker does not have existing delegation"
         );
 
         // get the current operator for the staker (msg.sender)
         address operator = delegation[msg.sender];
         // checks that operator has not been frozen
         ISlasher slasher = investmentManager.slasher();
-        require(!slasher.frozenStatus(operator),
+        require(
+            !slasher.frozenStatus(operator),
             "EigenLayrDelegation.initUndelegation: operator has been frozen. must wait for resolution before undelegation"
         );
 
         // retrieve list of strategies and their shares from investment manager
-        (
-            IInvestmentStrategy[] memory strategies,
-            uint256[] memory shares
-        ) = investmentManager.getDeposits(msg.sender);
+        (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(msg.sender);
 
         // remove strategy shares from delegate's shares
         uint256 stratsLength = strategies.length;
@@ -173,18 +147,17 @@ contract EigenLayrDelegation is
         );
 
         // set time of undelegation finalization which is the end of the corresponding challenge period
-        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudproofInterval; 
+        undelegationFinalizedTime[msg.sender] = block.timestamp + undelegationFraudproofInterval;
 
         // set that the staker has committed to undelegating
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_COMMITTED;
-        
     }
 
     /**
      * @notice This function is called by a staker to complete the three-step undelegation process.
-     *          Prior to calling `finalizeUndelegation`, a staker is expected to call `commitUndelegation` and
-     *          wait until all existing obligations have been served, before calling `commitUndelegation` and
-     *          waiting through the `undelegationFraudproofInterval`.
+     * Prior to calling `finalizeUndelegation`, a staker is expected to call `commitUndelegation` and
+     * wait until all existing obligations have been served, before calling `commitUndelegation` and
+     * waiting through the `undelegationFraudproofInterval`.
      */
     function finalizeUndelegation() external {
         _finalizeUndelegation();
@@ -201,7 +174,7 @@ contract EigenLayrDelegation is
             "EigenLayrDelegation.finalizeUndelegation: fraudproof period has not passed"
         );
 
-         // set that the staker has undelegated
+        // set that the staker has undelegated
         delegated[msg.sender] = DelegationStatus.UNDELEGATED;
     }
 
@@ -213,11 +186,9 @@ contract EigenLayrDelegation is
     /// @notice This function can be called by anyone to challenge whether a staker has
     ///         finalized its undelegation after satisfying its obligations in EigenLayr or not.
     /// @param staker is the staker against whom challenge is being raised
-    function contestUndelegationCommit(
-        address staker,
-        bytes calldata data,
-        IServiceManager slashingContract
-    ) external {
+    function contestUndelegationCommit(address staker, bytes calldata data, IServiceManager slashingContract)
+        external
+    {
         require(
             delegated[staker] == DelegationStatus.UNDELEGATION_COMMITTED,
             "EigenLayrDelegation.contestUndelegationCommit: Challenge period hasn't yet started"
@@ -231,10 +202,7 @@ contract EigenLayrDelegation is
         ISlasher slasher = investmentManager.slasher();
         // verify that the `slashingContract` does really have permission to slash the `staker`
         require(
-            slasher.canSlash(
-                delegation[staker],
-                address(slashingContract)
-            ),
+            slasher.canSlash(delegation[staker], address(slashingContract)),
             "EigenLayrDelegation.contestUndelegationCommit: Contract does not have rights to prevent undelegation"
         );
 
@@ -245,25 +213,27 @@ contract EigenLayrDelegation is
         }
 
         // perform the slashing itself
-        slasher.freezeOperator(staker); 
+        slasher.freezeOperator(staker);
 
         // reset status of staker to having committed to undelegation but not yet finalized
         delegated[msg.sender] = DelegationStatus.UNDELEGATION_INITIALIZED;
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
-    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
+    function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
+        external
+        onlyInvestmentManager
+    {
         //if the staker is delegated to an operator
-        if(isDelegated(staker)) {
-            
+        if (isDelegated(staker)) {
             address operator = delegation[staker];
-            
+
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
 
             //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
+            uint256[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
 
@@ -274,9 +244,12 @@ contract EigenLayrDelegation is
     }
 
     //decreases a stakers delegated shares to a certain strategy, usually whenever they withdraw from EigenLayr
-    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external onlyInvestmentManager {
+    function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
+        external
+        onlyInvestmentManager
+    {
         //if the staker is delegated to an operator
-        if(isDelegated(staker)) {
+        if (isDelegated(staker)) {
             address operator = delegation[staker];
 
             // subtract strategy shares from delegate's shares
@@ -284,7 +257,7 @@ contract EigenLayrDelegation is
 
             //Calls into operator's delegationTerms contract to update weights of individual staker
             IInvestmentStrategy[] memory investorStrats = new IInvestmentStrategy[](1);
-            uint[] memory investorShares = new uint[](1);
+            uint256[] memory investorShares = new uint[](1);
             investorStrats[0] = strategy;
             investorShares[0] = shares;
 
@@ -298,8 +271,11 @@ contract EigenLayrDelegation is
         address staker,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    ) external onlyInvestmentManager {
-        if(isDelegated(staker)) {
+    )
+        external
+        onlyInvestmentManager
+    {
+        if (isDelegated(staker)) {
             address operator = delegation[staker];
 
             // subtract strategy shares from delegate's shares
@@ -331,15 +307,17 @@ contract EigenLayrDelegation is
 
     // INTERNAL FUNCTIONS
 
-    function _delegationReceivedHook(IDelegationTerms dt, address staker, IInvestmentStrategy[] memory strategies, uint256[] memory shares) internal {
+    function _delegationReceivedHook(
+        IDelegationTerms dt,
+        address staker,
+        IInvestmentStrategy[] memory strategies,
+        uint256[] memory shares
+    )
+        internal
+    {
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
         (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(
-                IDelegationTerms.onDelegationReceived.selector,
-                staker,
-                strategies,
-                shares
-            )
+            abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares)
         );
         // if the internal call fails, we emit a special event rather than reverting
         if (!success) {
@@ -347,15 +325,17 @@ contract EigenLayrDelegation is
         }
     }
 
-    function _delegationWithdrawnHook(IDelegationTerms dt, address staker, IInvestmentStrategy[] memory strategies, uint256[] memory shares) internal {
+    function _delegationWithdrawnHook(
+        IDelegationTerms dt,
+        address staker,
+        IInvestmentStrategy[] memory strategies,
+        uint256[] memory shares
+    )
+        internal
+    {
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
         (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(
-                IDelegationTerms.onDelegationWithdrawn.selector,
-                staker,
-                strategies,
-                shares    
-            )            
+            abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares)
         );
         // if the internal call fails, we emit a special event rather than reverting
         if (!success) {
@@ -367,19 +347,13 @@ contract EigenLayrDelegation is
     function _delegate(address staker, address operator) internal {
         IDelegationTerms dt = delegationTerms[operator];
         require(
-            address(dt) != address(0),
-            "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
+            address(dt) != address(0), "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"
         );
 
-        require(
-            isNotDelegated(staker),
-            "EigenLayrDelegation._delegate: staker has existing delegation"
-        );
+        require(isNotDelegated(staker), "EigenLayrDelegation._delegate: staker has existing delegation");
         // checks that operator has not been frozen
         ISlasher slasher = investmentManager.slasher();
-        require(!slasher.frozenStatus(operator),
-            "EigenLayrDelegation._delegate: cannot delegate to a frozen operator"
-        );
+        require(!slasher.frozenStatus(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
         delegation[staker] = operator;
@@ -388,10 +362,7 @@ contract EigenLayrDelegation is
         delegated[staker] = DelegationStatus.DELEGATED;
 
         // retrieve list of strategies and their shares from investment manager
-        (
-            IInvestmentStrategy[] memory strategies,
-            uint256[] memory shares
-        ) = investmentManager.getDeposits(staker);
+        (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(staker);
 
         // add strategy shares to delegate's shares
         uint256 stratsLength = strategies.length;
@@ -415,20 +386,12 @@ contract EigenLayrDelegation is
         return (delegated[staker] == DelegationStatus.UNDELEGATED);
     }
 
-    function isDelegated(address staker)
-        public
-        view
-        returns (bool)
-    {
+    function isDelegated(address staker) public view returns (bool) {
         return (delegated[staker] == DelegationStatus.DELEGATED);
     }
 
     //returns if an operator can be delegated to, i.e. it has a delegation terms
-    function isOperator(address operator)
-        external
-        view
-        returns(bool)
-    {
-        return(address(delegationTerms[operator]) != address(0));
+    function isOperator(address operator) external view returns (bool) {
+        return (address(delegationTerms[operator]) != address(0));
     }
 }

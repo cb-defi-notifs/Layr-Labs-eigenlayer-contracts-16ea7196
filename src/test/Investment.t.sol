@@ -5,28 +5,19 @@ import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
 
-contract InvestmentTests is
-    TestHelper
-{
+contract InvestmentTests is TestHelper {
     /**
      * @notice Verifies that it is possible to deposit WETH
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
-    function testWethDeposit(uint256 amountToDeposit)
-        public
-        returns (uint256 amountDeposited)
-    {
+    function testWethDeposit(uint256 amountToDeposit) public returns (uint256 amountDeposited) {
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
-    
     ///@notice This test verifies that it is possible to withdraw WETH after depositing it
     ///@param amountToDeposit The amount of WETH to try depositing
     ///@param amountToWithdraw The amount of shares to try withdrawing
-    function testWethWithdrawal(
-        uint96 amountToDeposit,
-        uint96 amountToWithdraw
-    ) public {
+    function testWethWithdrawal(uint96 amountToDeposit, uint96 amountToWithdraw) public {
         cheats.assume(amountToWithdraw <= amountToDeposit);
         // hard-coded inputs
         address sender = signers[0];
@@ -40,7 +31,6 @@ contract InvestmentTests is
      * @param amountToDeposit Fuzzed input for the amount deposited into the strategy, prior to withdrawing all shares
      */
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
-
         // hard-coded inputs
         IInvestmentStrategy _strat = wethStrat;
         IERC20 underlyingToken = weth;
@@ -53,16 +43,20 @@ contract InvestmentTests is
         uint256 investorSharesAfter = investmentManager.investorStratShares(sender, _strat);
         uint256 investorStratsLengthAfter = investmentManager.investorStratsLength(sender);
         assertEq(investorSharesAfter, 0, "testRemovalOfStrategyOnWithdrawal: did not remove all shares!");
-        assertEq(investorStratsLengthBefore - investorStratsLengthAfter, 1, "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be");
+        assertEq(
+            investorStratsLengthBefore - investorStratsLengthAfter,
+            1,
+            "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be"
+        );
     }
 
     /**
      * Testing queued withdrawals in the investment manager
      * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
-     *          and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy. It then tries to call `completeQueuedWithdrawal`
-     *          and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
+     * and then starts a queued withdrawal for `amountToWithdraw` of shares in the same WETH strategy. It then tries to call `completeQueuedWithdrawal`
+     * and verifies that it correctly (passes) reverts in the event that the `staker` is (not) delegated.
      * @notice In the event that the call to `completeQueuedWithdrawal` correctly reverted above, this function then fast-forwards to just past the `unlockTime`
-     *          for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
+     * for the queued withdrawal and verifies that a call to `completeQueuedWithdrawal` completes appropriately.
      * @param staker The caller who will create the queued withdrawal.
      * @param registerAsDelegate When true, `staker` will register as a delegate inside of the call to `_createQueuedWithdrawal`. Otherwise they will not.
      * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
@@ -74,7 +68,8 @@ contract InvestmentTests is
         uint96 amountToDeposit,
         uint96 amountToWithdraw
     )
-        public fuzzedAddress(staker)
+        public
+        fuzzedAddress(staker)
     {
         cheats.assume(amountToDeposit > amountToWithdraw);
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
@@ -89,19 +84,26 @@ contract InvestmentTests is
             tokensArray[0] = weth;
             strategyIndexes[0] = 0;
         }
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-            IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: staker,
-                nonce: 0
-            }
-        );
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
 
         // create the queued withdrawal
-        _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+        _createQueuedWithdrawal(
+            staker,
+            registerAsDelegate,
+            amountToDeposit,
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            strategyIndexes,
+            withdrawerAndNonce
+        );
 
         // If `staker` is actively delegated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
         if (delegation.isDelegated(staker)) {
-            cheats.expectRevert("InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated");
+            cheats.expectRevert(
+                "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
+            );
         }
 
         cheats.startPrank(staker);
@@ -115,12 +117,16 @@ contract InvestmentTests is
             // (uint32 initTimestamp, uint32 unlockTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);
             uint32 unlockTimestamp;
             {
-                bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-                (, unlockTimestamp, ) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);                
+                bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(
+                    strategyArray, tokensArray, shareAmounts, withdrawerAndNonce
+                );
+                (, unlockTimestamp,) = investmentManager.queuedWithdrawals(staker, withdrawalRoot);
             }
             // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
             cheats.warp(unlockTimestamp);
-            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+            investmentManager.completeQueuedWithdrawal(
+                strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
+            );
         }
         cheats.stopPrank();
     }
@@ -130,10 +136,7 @@ contract InvestmentTests is
      * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
      * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
-    function testFraudproofQueuedWithdrawal(
-        uint256 amountToDeposit,
-        uint256 amountToWithdraw 
-    ) public {
+    function testFraudproofQueuedWithdrawal(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
@@ -147,12 +150,8 @@ contract InvestmentTests is
         // harcoded inputs
         address staker = acct_0;
         bool registerAsDelegate = true;
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-            IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: staker,
-                nonce: 0
-            }
-        );
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
         // TODO: this is copied input from `_testConfirmDataStoreSelfOperators` -- test fails unless I do this `warp`
         uint256 initTime = 1000000001;
         cheats.warp(initTime);
@@ -163,7 +162,16 @@ contract InvestmentTests is
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            _createQueuedWithdrawal(staker, registerAsDelegate, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            _createQueuedWithdrawal(
+                staker,
+                registerAsDelegate,
+                amountToDeposit,
+                strategyArray,
+                tokensArray,
+                shareAmounts,
+                strategyIndexes,
+                withdrawerAndNonce
+            );
         }
 
         // retrieve information about the queued withdrawal
@@ -177,7 +185,8 @@ contract InvestmentTests is
 
         // deploy library-wrapper contract and use it to pack the searchData
         DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
-        bytes memory calldataForStakeWithdrawalVerification = dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
+        bytes memory calldataForStakeWithdrawalVerification =
+            dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
 
         // give slashing permission to the DLSM
         {
@@ -199,9 +208,17 @@ contract InvestmentTests is
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.fraudproofQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
+        investmentManager.fraudproofQueuedWithdrawal(
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            staker,
+            withdrawerAndNonce,
+            calldataForStakeWithdrawalVerification,
+            dlsm
+        );
     }
-    
+
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
     /// @param numStratsToAdd is the number of strategies being added and deposited into
     function testDepositStrategies(uint16 numStratsToAdd) public {
@@ -217,8 +234,8 @@ contract InvestmentTests is
     }
 
     /**
-     *  @notice Tries to deposit an unsupported token into an `InvestmentStrategyBase` contract by calling `investmentManager.depositIntoStrategy`.
-     *          Verifies that reversion occurs correctly.
+     * @notice Tries to deposit an unsupported token into an `InvestmentStrategyBase` contract by calling `investmentManager.depositIntoStrategy`.
+     * Verifies that reversion occurs correctly.
      */
     function testDepositUnsupportedToken() public {
         IERC20 token = new ERC20PresetFixedSupply(
@@ -232,9 +249,9 @@ contract InvestmentTests is
         investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
     }
 
-     /**
-     *  @notice Tries to deposit into an unsupported strategy by calling `investmentManager.depositIntoStrategy`.
-     *          Verifies that reversion occurs correctly.
+    /**
+     * @notice Tries to deposit into an unsupported strategy by calling `investmentManager.depositIntoStrategy`.
+     * Verifies that reversion occurs correctly.
      */
     function testDepositNonexistantStrategy(address nonexistentStrategy) public fuzzedAddress(nonexistentStrategy) {
         // assume that the fuzzed address is not already a contract!
@@ -243,7 +260,7 @@ contract InvestmentTests is
             size := extcodesize(nonexistentStrategy)
         }
         cheats.assume(size == 0);
-        
+
         IERC20 token = new ERC20PresetFixedSupply(
             "badToken",
             "BADTOKEN",
@@ -255,13 +272,12 @@ contract InvestmentTests is
         investmentManager.depositIntoStrategy(msg.sender, IInvestmentStrategy(nonexistentStrategy), token, 10);
     }
 
-
     /**
      * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
-     *          into the WETH strategy, and then queues a withdrawal using
-     *          `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * into the WETH strategy, and then queues a withdrawal using
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
      * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
-     *          response depending on whether `staker` is delegated or not.
+     * response depending on whether `staker` is delegated or not.
      * @param staker The address to initiate the queued withdrawal
      * @param registerAsDelegate If true, `staker` will also register as a delegate in the course of this function
      * @param amountToDeposit The amount of WETH to deposit
@@ -284,7 +300,9 @@ contract InvestmentTests is
         if (registerAsDelegate) {
             assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
             _testRegisterAsDelegate(staker, IDelegationTerms(staker));
-            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
+            assertTrue(
+                delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be"
+            );
         }
 
         {
@@ -302,14 +320,18 @@ contract InvestmentTests is
         // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
         if (delegation.isDelegated(staker)) {
             assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                !investmentManager.canCompleteQueuedWithdrawal(
+                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
+                ),
                 "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
         }
-        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and         
+        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
         else if (delegation.isNotDelegated(staker)) {
             assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                investmentManager.canCompleteQueuedWithdrawal(
+                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
+                ),
                 "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
         } else {

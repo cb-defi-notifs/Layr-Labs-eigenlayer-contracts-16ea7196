@@ -5,7 +5,6 @@ import "./IPaymentManager.sol";
 import "./IDataLayrServiceManager.sol";
 
 interface IDataLayrPaymentManager is IPaymentManager {
-
     function respondToPaymentChallengeFinal(
         address operator,
         uint256 stakeIndex,
@@ -13,7 +12,6 @@ interface IDataLayrPaymentManager is IPaymentManager {
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakes,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) external;
-
-
+    )
+        external;
 }
