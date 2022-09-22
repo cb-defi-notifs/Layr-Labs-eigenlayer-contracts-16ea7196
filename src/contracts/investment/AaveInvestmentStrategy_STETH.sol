@@ -5,7 +5,7 @@ import "./AaveInvestmentStrategy.sol";
 import "./LIDO/IStableSwapStateOracle.sol";
 
 /**
- * @title InvestmentStrategy that lends LIDO's stETH (0x1982b2f5814301d4e9a8b0201555376e62f82428) out on AAVE.
+ * @title InvestmentStrategy that lends LIDO's stETH (0xae7ab96520de3a18e5e111b5eaab095312d7fe84) out on AAVE.
  * @author Layr Labs, Inc.
  * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
  * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
