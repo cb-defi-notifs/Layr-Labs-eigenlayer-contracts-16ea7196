@@ -20,7 +20,7 @@ interface IInvestmentManager {
         uint96 nonce;
     }
 
-    function depositIntoStrategy(address depositor, IInvestmentStrategy strategies, IERC20 token, uint256 amount)
+    function depositIntoStrategy(IInvestmentStrategy strategies, IERC20 token, uint256 amount)
         external
         returns (uint256);
 

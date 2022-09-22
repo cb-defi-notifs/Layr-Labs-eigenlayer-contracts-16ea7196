@@ -164,15 +164,14 @@ contract EigenLayrDeployer is
             )
         );
 
+        address initialOwner = address(this);
         // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
         delegation.initialize(
             investmentManager,
-            pauserReg,
-            undelegationFraudproofInterval
+            pauserReg
         );
 
         // deploy slasher as upgradable proxy and initialize it 
-        address initialOwner = address(this);
         Slasher slasherImplementation = new Slasher();
         slasher = Slasher(
             address(

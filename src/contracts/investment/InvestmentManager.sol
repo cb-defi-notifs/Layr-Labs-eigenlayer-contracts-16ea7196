@@ -89,7 +89,7 @@ contract InvestmentManager is
      * validation service to EigenLayr and invest the token in DeFi. For more details,
      * see EigenLayrDeposit.sol.
      */
-    function depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
+    function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
         nonReentrant
@@ -158,8 +158,6 @@ contract InvestmentManager is
 
         uint256 strategyIndexIndex;
 
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
 
@@ -167,7 +165,7 @@ contract InvestmentManager is
         for (uint256 i = 0; i < strategiesLength;) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
-            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shareAmounts[i])) {
+            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shares[i])) {
                 unchecked {
                     ++strategyIndexIndex;
                 }

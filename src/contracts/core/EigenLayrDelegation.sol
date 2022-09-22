@@ -45,12 +45,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     // transfers ownership to `msg.sender`
     function initialize(
         IInvestmentManager _investmentManager,
-        IPauserRegistry pauserRegistry,
+        IPauserRegistry _pauserRegistry
     )
         external
         initializer
     {
-        _initializePauser(pauserRegistry);
+        _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
         _transferOwnership(msg.sender);
     }
