@@ -23,7 +23,6 @@ import "../investment/Slasher.sol";
  * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
-
     modifier onlyInvestmentManager() {
         require(msg.sender == address(investmentManager), "onlyInvestmentManager");
         _;
@@ -265,7 +264,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
-    function isOperator(address operator) external view returns(bool) {
-        return(address(delegationTerms[operator]) != address(0));
+    function isOperator(address operator) external view returns (bool) {
+        return (address(delegationTerms[operator]) != address(0));
     }
 }

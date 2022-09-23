@@ -12,8 +12,8 @@ import "../permissions/RepositoryAccess.sol";
  * @notice This storage contract is separate from the logic to simplify the upgrade process.
  */
 abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
-    /** 
-     * @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is 
+    /**
+     * @notice In weighing a particular investment strategy, the amount of underlying asset for that strategy is
      * multiplied by its multiplier, then divided by WEIGHTING_DIVISOR
      */
     struct StrategyAndWeightingMultiplier {
@@ -43,7 +43,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
     /**
      * @notice This defines the earnings split between different quorums. Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
      * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS]) should *always* be 10,000!
-     */ 
+     */
     mapping(uint256 => uint256) public quorumBips;
 
     constructor(

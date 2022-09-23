@@ -11,22 +11,16 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "forge-std/Test.sol";
 
-
 /**
  * @title The primary 'slashing' contract for EigenLayr.
  * @author Layr Labs, Inc.
  * @notice This contract specifies details on slashing. The functionalities are:
- *          - adding contracts who have permission to perform slashing,
- *          - revoking permission for slashing from specified contracts,
- *          - calling investManager to do actual slashing.          
+ * - adding contracts who have permission to perform slashing,
+ * - revoking permission for slashing from specified contracts,
+ * - calling investManager to do actual slashing.
  */
-contract Slasher is 
-    Initializable,
-    OwnableUpgradeable,
-    ISlasher,
-    Pausable
-    // ,DSTest 
-{
+contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
+    // ,DSTest
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
@@ -47,7 +41,7 @@ contract Slasher is
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor(){
+    constructor() {
         _disableInitializers();
     }
 
@@ -57,7 +51,10 @@ contract Slasher is
         IEigenLayrDelegation _delegation,
         IPauserRegistry _pauserRegistry,
         address _eigenLayrGovernance
-    ) external initializer {
+    )
+        external
+        initializer
+    {
         _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
         _addGloballyPermissionedContract(address(investmentManager));
@@ -67,17 +64,17 @@ contract Slasher is
         _addGloballyPermissionedContract(address(_delegation));
     }
 
-    /// @notice Used to give global slashing permission to specific contracts. 
+    /// @notice Used to give global slashing permission to specific contracts.
     function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _addGloballyPermissionedContract(contracts[i]);
             unchecked {
                 ++i;
             }
-        } 
+        }
     }
 
-    /// @notice Used to revoke global slashing permission from contracts. 
+    /// @notice Used to revoke global slashing permission from contracts.
     function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
         for (uint256 i = 0; i < contracts.length;) {
             _removeGloballyPermissionedContract(contracts[i]);
@@ -89,13 +86,14 @@ contract Slasher is
 
     /// @notice Gives the `contractAddress` permission to slash your funds.
     function allowToSlash(address contractAddress) external {
-        _optIntoSlashing(msg.sender, contractAddress);        
+        _optIntoSlashing(msg.sender, contractAddress);
     }
     /*
      TODO: we still need to figure out how/when to appropriately call this function
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
     /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
+
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
         _revokeSlashingAbility(operator, msg.sender, unbondedAfter);
     }
@@ -105,18 +103,21 @@ contract Slasher is
      * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing.
      * @param toBeFrozen The operator to be frozen.
      */
-    function freezeOperator(
-        address toBeFrozen
-    ) external whenNotPaused {
-        require(canSlash(toBeFrozen, msg.sender), "Slasher.freezeOperator: msg.sender does not have permission to slash this operator");
+    function freezeOperator(address toBeFrozen) external whenNotPaused {
+        require(
+            canSlash(toBeFrozen, msg.sender),
+            "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
+        );
         _freezeOperator(toBeFrozen, msg.sender);
     }
 
     /// @notice Removes the 'frozen' status from all the `frozenAddresses`
     function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
-        for (uint256 i = 0; i < frozenAddresses.length; ) {
+        for (uint256 i = 0; i < frozenAddresses.length;) {
             _resetFrozenStatus(frozenAddresses[i]);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -124,14 +125,14 @@ contract Slasher is
     function _optIntoSlashing(address operator, address contractAddress) internal {
         //allow the contract to slash anytime before a time VERY far in the future
         bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL;
-        emit OptedIntoSlashing(operator, contractAddress);        
+        emit OptedIntoSlashing(operator, contractAddress);
     }
 
     function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
         if (bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL) {
             //contractAddress can now only slash operator before unbondedAfter
             bondedUntil[operator][contractAddress] = unbondedAfter;
-            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);        
+            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);
         }
     }
 
@@ -176,7 +177,7 @@ contract Slasher is
             return true;
         } else if (delegation.isDelegated(staker)) {
             address operatorAddress = delegation.delegation(staker);
-            return(frozenStatus[operatorAddress]);
+            return (frozenStatus[operatorAddress]);
         } else {
             return false;
         }

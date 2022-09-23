@@ -99,7 +99,16 @@ contract InvestmentTests is TestHelper {
             IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
 
         // create the queued withdrawal
-        _createQueuedWithdrawal(staker, registerAsOperator, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+        _createQueuedWithdrawal(
+            staker,
+            registerAsOperator,
+            amountToDeposit,
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            strategyIndexes,
+            withdrawerAndNonce
+        );
 
         // If `staker` is actively delegated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
         if (delegation.isDelegated(staker)) {
@@ -152,12 +161,8 @@ contract InvestmentTests is TestHelper {
         // harcoded inputs
         address staker = acct_0;
         bool registerAsOperator = true;
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-            IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: staker,
-                nonce: 0
-            }
-        );
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
         // TODO: this is copied input from `_testConfirmDataStoreSelfOperators` -- test fails unless I do this `warp`
         uint256 initTime = 1000000001;
         cheats.warp(initTime);
@@ -168,7 +173,16 @@ contract InvestmentTests is TestHelper {
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            bytes32 withdrawalRoot = _createQueuedWithdrawal(staker, registerAsOperator, amountToDeposit, strategyArray, tokensArray, shareAmounts, strategyIndexes, withdrawerAndNonce);
+            bytes32 withdrawalRoot = _createQueuedWithdrawal(
+                staker,
+                registerAsOperator,
+                amountToDeposit,
+                strategyArray,
+                tokensArray,
+                shareAmounts,
+                strategyIndexes,
+                withdrawerAndNonce
+            );
             cheats.prank(staker);
             investmentManager.startQueuedWithdrawalWaitingPeriod(
                 staker,
@@ -257,7 +271,7 @@ contract InvestmentTests is TestHelper {
         cheats.assume(size == 0);
         // check against calls from precompile addresses -- was getting fuzzy failures from this
         cheats.assume(uint160(nonexistentStrategy) > 9);
-        
+
         // harcoded input
         uint256 testDepositAmount = 10;
 
@@ -300,7 +314,9 @@ contract InvestmentTests is TestHelper {
         if (registerAsOperator) {
             assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
             _testRegisterAsOperator(staker, IDelegationTerms(staker));
-            assertTrue(delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be");
+            assertTrue(
+                delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be"
+            );
         }
 
         {

@@ -275,12 +275,10 @@ contract DelegationTests is TestHelper {
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times
     /// @param operator is the operator being delegated to.
-    function testRegisterAsOperatorMultipleTimes(
-            address operator
-        ) public fuzzedAddress(operator){
+    function testRegisterAsOperatorMultipleTimes(address operator) public fuzzedAddress(operator) {
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
         cheats.expectRevert(bytes("EigenLayrDelegation.registerAsOperator: Delegate has already registered"));
-        _testRegisterAsOperator(operator, IDelegationTerms(operator));  
+        _testRegisterAsOperator(operator, IDelegationTerms(operator));
     }
 
     /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator
