@@ -63,8 +63,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
     /**
-     @notice For a given l, zeroPolynomialCommitmentMerkleRoots[l] represents the root of merkle tree 
-     that is given by:
+     * @notice For a given l, zeroPolynomialCommitmentMerkleRoots[l] represents the root of merkle tree
 
                                     zeroPolynomialCommitmentMerkleRoots[l]
                                                         :    
@@ -82,21 +81,22 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      
      This tree is computed off-chain and only the Merkle roots are stored on-chain.
      */
-    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees? 
+    // CRITIC: does that mean there are only 32 possible 32 possible merkle trees?
     bytes32[32] public zeroPolynomialCommitmentMerkleRoots;
 
     /**
      * @notice mapping between the dataStoreId for a particular assertion of data into
-     *         DataLayr and a compressed information on the signatures of the DataLayr 
-     *         nodes who signed up to be the part of the quorum.  
+     * DataLayr and a compressed information on the signatures of the DataLayr
+     * nodes who signed up to be the part of the quorum.
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
-    
+
     //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
     //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
     //in that block
-    mapping(uint8 => mapping(uint256 =>  bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public dataStoreHashesForDurationAtTimestamp;
- 
+    mapping(uint8 => mapping(uint256 => bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public
+        dataStoreHashesForDurationAtTimestamp;
+
     DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
 
     DataLayrBombVerifier public dataLayrBombVerifier;

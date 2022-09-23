@@ -342,8 +342,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // called in the event of challenge resolution
     function freezeOperator(address operator) external {
         require(
-            msg.sender == address(dataLayrBombVerifier) ||
-            msg.sender == address(ephemeralKeyRegistry) ||
+            msg.sender == address(dataLayrLowDegreeChallenge)
+                || msg.sender == address(dataLayrBombVerifier)
                 || msg.sender == address(ephemeralKeyRegistry)
                 || msg.sender == address(dataLayrPaymentManager),
             "DataLayrServiceManager.freezeOperator: Only challenge resolvers can slash operators"
