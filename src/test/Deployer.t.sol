@@ -37,6 +37,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     using BytesLib for bytes;
 
     uint256 public constant DURATION_SCALE = 1 hours;
+    uint32 public constant MAX_WITHDRAWAL_PERIOD = 7 days;
     Vm cheats = Vm(HEVM_ADDRESS);
     IERC20 public eigenToken;
     InvestmentStrategyBase public eigenStrat;
@@ -154,9 +155,9 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
-        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
         address initialOwner = address(this);
-        delegation.initialize(investmentManager, pauserReg, initialOwner, undelegationFraudproofInterval);
+        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
+        delegation.initialize(investmentManager, pauserReg, initialOwner);
 
         // deploy slasher as upgradable proxy and initialize it
         Slasher slasherImplementation = new Slasher();

@@ -5,6 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
@@ -30,6 +31,12 @@ contract InvestmentManager is
     Pausable
 {
     using SafeERC20 for IERC20;
+
+    /**
+     * @notice Value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized,
+     * but has not yet had its waiting period triggered
+     */
+    uint32 internal constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
 
     /// @notice Emitted when a new withdrawal is queued by `depositor`
     event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
@@ -76,19 +83,65 @@ contract InvestmentManager is
     }
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
-     * @param depositor is the address of the user who is investing assets into specified strategy
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
      */
-
-    function depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
+    function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns (uint256 shares)
     {
-        shares = _depositIntoStrategy(depositor, strategy, token, amount);
+        shares = _depositIntoStrategy(msg.sender, strategy, token, amount);
+    }
+
+    /**
+     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
+     */
+    /**
+     * @param strategy is the specified strategy where investment is to be made,
+     * @param token is the denomination in which the investment is to be made,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @param staker the staker that the assets will be deposited on behalf of
+     * @param expiry the timestamp at which the signature expires
+     * @param r and @param vs are the elements of the ECDSA signature
+     */
+    function depositIntoStrategyOnBehalfOf(
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 amount,
+        address staker,
+        uint256 expiry,
+        bytes32 r,
+        bytes32 vs
+    ) external nonReentrant returns (uint256 shares) {
+        //make not frozen check here instead of modifier
+        require(
+            !slasher.isFrozen(staker),
+            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
+        );
+
+        require(
+            expiry == 0 || expiry >= block.timestamp,
+            "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
+        );
+        // calculate struct hash, then increment `staker`'s nonce
+        bytes32 structHash = keccak256(
+            abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry)
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
+        );
+        //check validity of signature
+        address recoveredAddress = ECDSA.recover(
+            digestHash,
+            r,
+            vs
+        );
+        require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+        
+        shares = _depositIntoStrategy(staker, strategy, token, amount);
     }
 
     /**
@@ -129,13 +182,14 @@ contract InvestmentManager is
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        uint256[] calldata shares,
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
         whenNotPaused
         onlyNotFrozen(msg.sender)
         nonReentrant
+        returns (bytes32)
     {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
@@ -148,17 +202,14 @@ contract InvestmentManager is
 
         uint256 strategyIndexIndex;
 
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
-
         // modify delegated shares accordingly, if applicable
-        delegation.decreaseDelegatedShares(msg.sender, strategies, shareAmounts);
+        delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
-
-            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shareAmounts[i])) {
+            if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shares[i])) {
                 unchecked {
                     ++strategyIndexIndex;
                 }
@@ -170,15 +221,65 @@ contract InvestmentManager is
             }
         }
 
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+                strategies, 
+                tokens, 
+                shares, 
+                withdrawerAndNonce
+            );
+
+
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: uint32(block.timestamp),
+            initTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             withdrawer: withdrawerAndNonce.withdrawer,
-            unlockTimestamp: (uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD)
+            unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
         });
 
         emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, withdrawalRoot);
+
+        return withdrawalRoot;
     }
+    /*
+    * 
+    * The withdrawal flow is:
+    * - Depositer starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
+    * - Withdrawer then waits for the queued withdrawal tx to be included in the chain, and then sets the stakeInactiveAfter. This cannot
+    *   be set when starting the queued withdrawal, as it is there may be transactions the increase the tasks upon which the stake is active 
+    *   that get mined before the withdrawal.
+    * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
+    *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
+    */
+    function startQueuedWithdrawalWaitingPeriod(
+        address depositor,
+        bytes32 withdrawalRoot,
+        uint32 stakeInactiveAfter
+    ) external {
+        require(
+            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp ==
+                type(uint32).max,
+            "Withdrawal stake inactive claim has already been made"
+        );
+        require(
+            queuedWithdrawals[depositor][withdrawalRoot].withdrawer ==
+                msg.sender,
+            "InvestmentManager.setStakeInactiveAfterClaim: Sender is not the withdrawer"
+        );
+        //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
+        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
+            initTimestamp: uint32(block.timestamp),
+            withdrawer: msg.sender,
+            unlockTimestamp: max(
+                (uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD),
+                stakeInactiveAfter
+            )
+        });
+    }
+
+    function max(uint32 x, uint32 y) internal pure returns (uint32) {
+        return x > y ? x : y;
+    }
+
 
     /**
      * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
@@ -187,9 +288,10 @@ contract InvestmentManager is
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        uint256[] calldata shares,
         address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce,
+        bool receiveAsTokens
     )
         external
         whenNotPaused
@@ -197,7 +299,12 @@ contract InvestmentManager is
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+            strategies, 
+            tokens, 
+            shares, 
+            withdrawerAndNonce
+        );
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
@@ -221,13 +328,36 @@ contract InvestmentManager is
         //reset the storage slot in mapping of queued withdrawals
         delete queuedWithdrawals[depositor][withdrawalRoot];
 
-        // actually withdraw the funds
+        //if the depositor has no existing shares and they are delegated, undelegate 
+        //this allows people a "hard reset" in their relationship with EigenLayer after 
+        //withdrawing all of their stake
+        if(investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
+            delegation.undelegate(depositor);
+        }
+        // store length for gas savings
         uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
-            // tell the strategy to send the appropriate amount of funds to the depositor
-            strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shareAmounts[i]);
-            unchecked {
-                ++i;
+        //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
+        if(receiveAsTokens){
+            
+            // actually withdraw the funds
+            for (uint256 i = 0; i < strategiesLength;) {
+                // tell the strategy to send the appropriate amount of funds to the depositor
+                strategies[i].withdraw(
+                    withdrawalStorageCopy.withdrawer,
+                    tokens[i],
+                    shares[i]
+                );
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            //else increase their shares
+            for (uint256 i = 0; i < strategiesLength;) {
+                _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -242,10 +372,10 @@ contract InvestmentManager is
      * which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
      * 'unlockTimestamp' to the current UTC time plus the WITHDRAWAL_WAITING_PERIOD, pushing back the unlock time for the funds to be withdrawn.
      */
-    function fraudproofQueuedWithdrawal(
+    function challengeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
+        uint256[] calldata shares,
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bytes calldata data,
@@ -254,9 +384,20 @@ contract InvestmentManager is
         external
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+            strategies, 
+            tokens, 
+            shares, 
+            withdrawerAndNonce
+        );
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
+
+        //verify the withdrawer has supplied the unbonding time
+        require(
+            withdrawalStorageCopy.initTimestamp != type(uint32).max,
+            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
+        );
 
         // verify that the queued withdrawal actually exists
         require(
@@ -284,10 +425,9 @@ contract InvestmentManager is
                 data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
             );
         }
-
-        // update unlockTimestamp in storage, which resets the WITHDRAWAL_WAITING_PERIOD for the withdrawal
-        queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp =
-            uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD;
+        
+        // set the withdrawer equal to address(0), allowing the slasher custody of the funds
+        queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
     }
 
     /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
@@ -333,70 +473,85 @@ contract InvestmentManager is
     function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address slashedAddress,
+        uint256[] calldata shares,
+        address depositor,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
         whenNotPaused
         onlyOwner
-        onlyFrozen(slashedAddress)
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+            strategies, 
+            tokens, 
+            shares, 
+            withdrawerAndNonce
+        );
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[slashedAddress][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
+        // verify that the queued withdrawal has been successfully challenged
+        require(
+            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0)
+            || slasher.isFrozen(depositor),
+            "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
+        );
+
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[slashedAddress][withdrawalRoot];
+        delete queuedWithdrawals[depositor][withdrawalRoot];
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
             // tell the strategy to send the appropriate amount of funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            strategies[i].withdraw(recipient, tokens[i], shares[i]);
             unchecked {
                 ++i;
             }
         }
     }
-
+    
     // INTERNAL FUNCTIONS
 
-    /**
-     * @notice Deposits `amount` of `token` into `strategy`, *from* `msg.sender`, credited to `depositor`
-     * @dev the `msg.sender` must first approve this contract to transfer at least `amount` of `token`
-     */
-    function _depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
-        internal
-        returns (uint256 shares)
-    {
-        // if they dont have existing shares of this strategy, add it to their strats
+    /// @notice This function adds shares for a given strategy to a depositor and runs through the necessary update logic
+    function _addShares(address depositor, IInvestmentStrategy strategy, uint256 shares) internal {
+        // sanity check on `shares` input
+        require(shares != 0, "InvestmentManager._addShares: shares should not be zero!");
+
+       // if they dont have existing shares of this strategy, add it to their strats
         if (investorStratShares[depositor][strategy] == 0) {
             require(
                 investorStrats[depositor].length <= MAX_INVESTOR_STRATS_LENGTH,
-                "InvestmentManager._depositIntoStrategy: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"
+                "InvestmentManager._addShares: deposit would exceed MAX_INVESTOR_STRATS_LENGTH"
             );
             investorStrats[depositor].push(strategy);
         }
-        // transfer tokens from the sender to the strategy
-        token.safeTransferFrom(msg.sender, address(strategy), amount);
-
-        // deposit the assets into the specified strategy and get the equivalent amount of
-        // shares in that strategy
-        shares = strategy.deposit(token, amount);
-        require(shares != 0, "InvestmentManager._depositIntoStrategy: shares should not be zero!");
 
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
 
         // if applicable, increase delegated shares accordingly
         delegation.increaseDelegatedShares(depositor, strategy, shares);
+    }
+
+    function _depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
+        internal
+        returns (uint256 shares)
+    {
+        // transfer tokens from the sender to the strategy
+        token.safeTransferFrom(msg.sender, address(strategy), amount);
+
+        // deposit the assets into the specified strategy and get the equivalent amount of shares in that strategy
+        shares = strategy.deposit(token, amount);
+
+        // add the returned shares to the depositor's existing shares for this strategy
+        _addShares(depositor, strategy, shares);
 
         return shares;
     }
@@ -430,6 +585,9 @@ contract InvestmentManager is
         internal
         returns (bool)
     {
+        // sanity check on `shareAmount` input
+        require(shareAmount != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
+
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
@@ -491,7 +649,12 @@ contract InvestmentManager is
         returns (bool)
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(
+            strategies,
+            tokens,
+            shareAmounts,
+            withdrawerAndNonce
+        );
 
         // verify that the queued withdrawal actually exists
         require(
@@ -512,6 +675,7 @@ contract InvestmentManager is
     function getDeposits(address depositor) external view returns (IInvestmentStrategy[] memory, uint256[] memory) {
         uint256 strategiesLength = investorStrats[depositor].length;
         uint256[] memory shares = new uint256[](strategiesLength);
+
         for (uint256 i = 0; i < strategiesLength;) {
             shares[i] = investorStratShares[depositor][investorStrats[depositor][i]];
             unchecked {

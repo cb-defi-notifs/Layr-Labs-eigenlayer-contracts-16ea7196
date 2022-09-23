@@ -57,6 +57,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     {
         _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
+        _addGloballyPermissionedContract(address(investmentManager));
         delegation = _delegation;
         _transferOwnership(_eigenLayrGovernance);
         // add EigenLayrDelegation to list of permissioned contracts

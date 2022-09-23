@@ -11,9 +11,7 @@ import "./IDelegationTerms.sol";
 interface IEigenLayrDelegation {
     enum DelegationStatus {
         UNDELEGATED,
-        DELEGATED,
-        UNDELEGATION_INITIALIZED,
-        UNDELEGATION_COMMITTED
+        DELEGATED
     }
 
     function registerAsOperator(IDelegationTerms dt) external;
@@ -25,6 +23,8 @@ interface IEigenLayrDelegation {
     function isNotDelegated(address staker) external returns (bool);
 
     function delegation(address delegator) external view returns (address);
+
+    function undelegate(address staker) external;
 
     function isDelegated(address staker) external view returns (bool);
 

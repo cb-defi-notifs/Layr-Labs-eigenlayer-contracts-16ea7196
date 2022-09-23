@@ -18,6 +18,11 @@ contract InvestmentTests is TestHelper {
     ///@param amountToDeposit The amount of WETH to try depositing
     ///@param amountToWithdraw The amount of shares to try withdrawing
     function testWethWithdrawal(uint96 amountToDeposit, uint96 amountToWithdraw) public {
+        // want to deposit at least 1 wei
+        cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
+        // cannot withdraw more than we deposit
         cheats.assume(amountToWithdraw <= amountToDeposit);
         // hard-coded inputs
         address sender = signers[0];
@@ -71,7 +76,13 @@ contract InvestmentTests is TestHelper {
         public
         fuzzedAddress(staker)
     {
-        cheats.assume(amountToDeposit > amountToWithdraw);
+        // want to deposit at least 1 wei
+        cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
+        // cannot withdraw more than we deposit
+        cheats.assume(amountToWithdraw <= amountToDeposit);
+
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
         uint256[] memory shareAmounts = new uint256[](1);
@@ -108,7 +119,7 @@ contract InvestmentTests is TestHelper {
 
         cheats.startPrank(staker);
         // try to complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce);
+        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
         // TODO: add checks surrounding successful completion (e.g. funds being correctly transferred)
 
         if (delegation.isDelegated(staker)) {
@@ -124,9 +135,7 @@ contract InvestmentTests is TestHelper {
             }
             // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
             cheats.warp(unlockTimestamp);
-            investmentManager.completeQueuedWithdrawal(
-                strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
-            );
+            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
         }
         cheats.stopPrank();
     }
@@ -144,6 +153,8 @@ contract InvestmentTests is TestHelper {
 
         // want to deposit at least 1 wei
         cheats.assume(amountToDeposit > 0);
+        // want to withdraw at least 1 wei
+        cheats.assume(amountToWithdraw > 0);
         // cannot withdraw more than we deposit
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
@@ -162,7 +173,7 @@ contract InvestmentTests is TestHelper {
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            _createQueuedWithdrawal(
+            bytes32 withdrawalRoot = _createQueuedWithdrawal(
                 staker,
                 registerAsOperator,
                 amountToDeposit,
@@ -171,6 +182,12 @@ contract InvestmentTests is TestHelper {
                 shareAmounts,
                 strategyIndexes,
                 withdrawerAndNonce
+            );
+            cheats.prank(staker);
+            investmentManager.startQueuedWithdrawalWaitingPeriod(
+                staker,
+                withdrawalRoot,
+                uint32(block.timestamp)
             );
         }
 
@@ -208,15 +225,7 @@ contract InvestmentTests is TestHelper {
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.fraudproofQueuedWithdrawal(
-            strategyArray,
-            tokensArray,
-            shareAmounts,
-            staker,
-            withdrawerAndNonce,
-            calldataForStakeWithdrawalVerification,
-            dlsm
-        );
+        investmentManager.challengeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
     }
 
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
@@ -246,7 +255,7 @@ contract InvestmentTests is TestHelper {
         );
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert(bytes("InvestmentStrategyBase.deposit: Can only deposit underlyingToken"));
-        investmentManager.depositIntoStrategy(msg.sender, wethStrat, token, 10);
+        investmentManager.depositIntoStrategy(wethStrat, token, 10);
     }
 
     /**
@@ -274,9 +283,7 @@ contract InvestmentTests is TestHelper {
         );
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert();
-        investmentManager.depositIntoStrategy(
-            msg.sender, IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount
-        );
+        investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
     }
 
     /**
@@ -299,7 +306,7 @@ contract InvestmentTests is TestHelper {
         uint256[] memory strategyIndexes,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
-        internal
+        internal returns(bytes32)
     {
         require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
@@ -323,27 +330,26 @@ contract InvestmentTests is TestHelper {
 
         //queue the withdrawal
         cheats.startPrank(staker);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
         // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
         if (delegation.isDelegated(staker)) {
             assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(
-                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
-                ),
-                "testQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
         }
         // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
         else if (delegation.isNotDelegated(staker)) {
             assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(
-                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
-                ),
-                "testQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
         } else {
-            revert("testQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
+            revert("_createQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
         }
         cheats.stopPrank();
+        return withdrawalRoot;
     }
+
+    // TODO: add test(s) that confirm deposits + withdrawals *of zero shares* fail correctly.
 }

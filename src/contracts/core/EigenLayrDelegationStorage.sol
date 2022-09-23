@@ -14,9 +14,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice Gas budget provided in calls to DelegationTerms contracts
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
-    /// @notice Maximum value that `undelegationFraudproofInterval` may take
-    uint256 internal constant MAX_UNDELEGATION_FRAUD_PROOF_INTERVAL = 7 days;
-
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
@@ -31,9 +28,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice The InvestmentManager contract for EigenLayr
     IInvestmentManager public investmentManager;
 
-    /// @notice The fraudproof interval for undelegation, defined in seconds.
-    uint256 public undelegationFraudproofInterval;
-
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
 
@@ -42,12 +36,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
 
     // staker => operator
     mapping(address => address) public delegation;
-
-    // staker => UTC time at which undelegation is finalized
-    mapping(address => uint256) public undelegationFinalizedTime;
-
-    // staker => UTC time at which undelegation was initialized
-    mapping(address => uint256) public undelegationInitTime;
 
     // staker => whether they are delegated or not
     mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
