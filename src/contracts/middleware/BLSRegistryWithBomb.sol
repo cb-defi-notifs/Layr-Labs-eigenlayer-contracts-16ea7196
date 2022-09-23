@@ -50,7 +50,10 @@ contract BLSRegistryWithBomb is BLSRegistry {
      * @notice Used by an operator to de-register itself from providing service to the middleware.
      * For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey)
+        external
+        returns (bool)
+    {
         _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
 
         //post last ephemeral key reveal on chain

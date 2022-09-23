@@ -14,8 +14,8 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @notice The Repository contract is intended to be the central source of "ground truth" for a single middleware on EigenLayr.
  * @notice The owner of the Repository for a middleware holds *tremendous power* – this role should only be given to a multisig or governance contract.
  * @dev Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point
- *  for upgrades-by-changing-contract-addresses.
-*/
+ * for upgrades-by-changing-contract-addresses.
+ */
 contract Repository is Ownable, Initializable, IRepository {
     /// @notice Address of the Delegation contract of EigenLayr.
     IEigenLayrDelegation public immutable delegation;
@@ -33,7 +33,7 @@ contract Repository is Ownable, Initializable, IRepository {
     event RegistrySet(IRegistry indexed previousAddress, IRegistry indexed newAddress);
 
     /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses -- these are global to EigenLayr and should not change
-    constructor (IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
+    constructor(IEigenLayrDelegation _delegation, IInvestmentManager _investmentManager) {
         delegation = _delegation;
         investmentManager = _investmentManager;
     }

@@ -486,11 +486,7 @@ contract DataLayrChallengeUtils {
     }
 
     /// @notice Evaluates the given polynomial "poly" at value "r" and returns the result.
-    function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
-        public
-        pure
-        returns (uint256)
-    {
+    function linearPolynomialEvaluation(bytes calldata poly, uint256 r) public pure returns (uint256) {
         uint256 sum;
         uint256 length = poly.length;
         uint256 rPower = 1;

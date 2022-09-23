@@ -190,7 +190,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
 
     /// @notice Internal function used to fetch this contract's current balance of `underlyingToken`.
     // slither-disable-next-line dead-code
-    function _tokenBalance() internal view virtual returns(uint256) {
+    function _tokenBalance() internal view virtual returns (uint256) {
         return underlyingToken.balanceOf(address(this));
     }
 }

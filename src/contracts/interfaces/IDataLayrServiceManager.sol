@@ -6,7 +6,6 @@ import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 
 interface IDataLayrServiceManager is IServiceManager {
-
     //Relevant metadata for a given datastore
     struct DataStoreMetadata {
         bytes32 headerHash;
@@ -32,7 +31,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 totalEigenStakeSigned;
     }
 
-    struct DataStoresForDuration{
+    struct DataStoresForDuration {
         uint32 one_duration;
         uint32 two_duration;
         uint32 three_duration;
@@ -44,7 +43,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint32 latestTime;
     }
 
-    struct DataStoreHashInputs{
+    struct DataStoreHashInputs {
         bytes32 headerHash;
         uint32 dataStoreId;
         uint32 blockNumber;
@@ -58,21 +57,26 @@ interface IDataLayrServiceManager is IServiceManager {
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external returns(uint32);
+    )
+        external
+        returns (uint32);
 
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external;
 
-    function numPowersOfTau() external view returns(uint48);
+    function numPowersOfTau() external view returns (uint48);
 
-    function log2NumPowersOfTau() external view returns(uint48);
-    
-    function DURATION_SCALE() external view returns(uint256);
+    function log2NumPowersOfTau() external view returns (uint48);
 
-    function MAX_DATASTORE_DURATION() external view returns(uint8);
+    function DURATION_SCALE() external view returns (uint256);
 
-    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
-    
-    function getNumDataStoresForDuration(uint8 duration) external view returns(uint32);
+    function MAX_DATASTORE_DURATION() external view returns (uint8);
 
-    function collateralToken() external view returns(IERC20);
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
+        external
+        view
+        returns (bytes32);
+
+    function getNumDataStoresForDuration(uint8 duration) external view returns (uint32);
+
+    function collateralToken() external view returns (IERC20);
 }

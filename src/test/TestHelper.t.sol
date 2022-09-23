@@ -3,9 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../test/Deployer.t.sol";
 
-
 contract TestHelper is EigenLayrDeployer {
-
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -14,33 +12,22 @@ contract TestHelper is EigenLayrDeployer {
         weth.transfer(_challenger, 1e18);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
 
-        for (uint i; i < delegates.length; i++) {
+        for (uint256 i; i < delegates.length; i++) {
             //initialize weth, eigen and eth balances for delegator
             eigenToken.transfer(delegates[i], amountEigenToDeposit);
             weth.transfer(delegates[i], amountEthToDeposit);
             cheats.deal(delegates[i], amountEthToDeposit);
-            
 
             cheats.startPrank(delegates[i]);
 
             //deposit delegator's eigen into investment manager
             eigenToken.approve(address(investmentManager), type(uint256).max);
 
-            investmentManager.depositIntoStrategy(
-                delegates[i],
-                eigenStrat,
-                eigenToken,
-                amountEigenToDeposit
-            );
+            investmentManager.depositIntoStrategy(delegates[i], eigenStrat, eigenToken, amountEigenToDeposit);
 
             //depost weth into investment manager
             weth.approve(address(investmentManager), type(uint256).max);
-            investmentManager.depositIntoStrategy(
-                delegates[i],
-                wethStrat,
-                weth,
-                amountEthToDeposit
-            );
+            investmentManager.depositIntoStrategy(delegates[i], wethStrat, weth, amountEthToDeposit);
 
             cheats.stopPrank();
 
@@ -50,9 +37,10 @@ contract TestHelper is EigenLayrDeployer {
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
-            assertTrue(delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit);
+            assertTrue(
+                delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit
+            );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
-
         }
 
         cheats.startPrank(operator);
@@ -67,12 +55,7 @@ contract TestHelper is EigenLayrDeployer {
         // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        dlReg.registerOperator(
-            operatorType,
-            ephemeralKey,
-            registrationData[0],
-            socket
-        );
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0], socket);
         cheats.stopPrank();
     }
 
@@ -85,21 +68,23 @@ contract TestHelper is EigenLayrDeployer {
         uint32 blockNumber,
         uint32 dataStoreId,
         IDataLayrServiceManager.DataStoreSearchData memory searchData
-    ) internal {
-        /** 
-        @param data This calldata is of the format:
-                <
-                bytes32 headerHash,
-                uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-                uint32 blockNumber
-                uint32 dataStoreId
-                uint32 numberOfNonSigners,
-                uint256[numberOfSigners][4] pubkeys of nonsigners,
-                uint32 apkIndex,
-                uint256[4] apk,
-                uint256[2] sigma
-                >
-        */
+    )
+        internal
+    {
+        /**
+         * @param data This calldata is of the format:
+         * <
+         * bytes32 headerHash,
+         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+         * uint32 blockNumber
+         * uint32 dataStoreId
+         * uint32 numberOfNonSigners,
+         * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 apkIndex,
+         * uint256[4] apk,
+         * uint256[2] sigma
+         * >
+         */
 
         bytes memory data = abi.encodePacked(
             msgHash,
@@ -121,26 +106,21 @@ contract TestHelper is EigenLayrDeployer {
     }
 
     /**
-    @param numberOfSigners is the number of signers in the quorum of DLNs
-    @param includeOperator is a boolean that indicates whether or not we want to also register 
-    the operator no. 0, for test case where they are not already registered as a delegator.
-    **/
-    function _testRegisterSigners(uint32 numberOfSigners, bool includeOperator)
-        internal
-    {
+     * @param numberOfSigners is the number of signers in the quorum of DLNs
+     * @param includeOperator is a boolean that indicates whether or not we want to also register
+     * the operator no. 0, for test case where they are not already registered as a delegator.
+     *
+     */
+    function _testRegisterSigners(uint32 numberOfSigners, bool includeOperator) internal {
         uint256 start = 1;
         if (includeOperator) {
             start = 0;
         }
-        
+
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            
-            _testRegisterAdditionalSelfOperator(
-                signers[i],
-                registrationData[i]
-            );
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
         }
     }
 
@@ -148,7 +128,10 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(sender);
         delegation.initUndelegation();
         delegation.commitUndelegation();
-        assertTrue(delegation.undelegationFinalizedTime(sender)==block.timestamp + undelegationFraudproofInterval, "_testCommitUndelegation: undelegation time not set correctly");
+        assertTrue(
+            delegation.undelegationFinalizedTime(sender) == block.timestamp + undelegationFraudproofInterval,
+            "_testCommitUndelegation: undelegation time not set correctly"
+        );
         cheats.stopPrank();
     }
 
@@ -156,7 +139,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(sender);
         delegation.finalizeUndelegation();
         cheats.stopPrank();
-        assertTrue(delegation.isNotDelegated(sender)==true, "testDelegation: staker is not undelegated");
+        assertTrue(delegation.isNotDelegated(sender) == true, "testDelegation: staker is not undelegated");
     }
 
     //Internal function for assembling calldata - prevents stack too deep errors
@@ -167,21 +150,25 @@ contract TestHelper is EigenLayrDeployer {
         nonSignerInfo memory nonsigners,
         uint32 blockNumber,
         uint32 dataStoreId
-    ) internal view returns (bytes memory) {
-        /** 
-        @param data This calldata is of the format:
-            <
-             bytes32 msgHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-             uint32 blockNumber
-             uint32 dataStoreId
-             uint32 numberOfNonSigners,
-             uint256[numberOfSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >s
-        */
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        /**
+         * @param data This calldata is of the format:
+         * <
+         * bytes32 msgHash,
+         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+         * uint32 blockNumber
+         * uint32 dataStoreId
+         * uint32 numberOfNonSigners,
+         * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 apkIndex,
+         * uint256[4] apk,
+         * uint256[2] sigma
+         * >s
+         */
         bytes memory data = abi.encodePacked(
             msgHash,
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
@@ -214,14 +201,10 @@ contract TestHelper is EigenLayrDeployer {
      * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
      * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
      */
-    function _testWethDeposit(address sender, uint256 amountToDeposit)
-        internal
-        returns (uint256 amountDeposited)
-    {
+    function _testWethDeposit(address sender, uint256 amountToDeposit) internal returns (uint256 amountDeposited) {
         cheats.assume(amountToDeposit <= wethInitialSupply);
         // transfer WETH to `sender` and have them deposit it into `strat`
         amountDeposited = _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
-
     }
 
     /**
@@ -235,8 +218,8 @@ contract TestHelper is EigenLayrDeployer {
 
     /**
      * @notice Deposits `amountToDeposit` of `underlyingToken` from address `sender` into `stratToDepositTo`.
-     *          *If*  `sender` has zero shares prior to deposit, *then* checks that `stratToDepositTo` is correctly added to their `investorStrats` array.
-     *          
+     * *If*  `sender` has zero shares prior to deposit, *then* checks that `stratToDepositTo` is correctly added to their `investorStrats` array.
+     *
      * @param sender The address to spoof calls from using `cheats.startPrank(sender)`
      * @param amountToDeposit Amount of WETH that is first *transferred from this contract to `sender`* and then deposited by `sender` into `stratToDepositTo`
      */
@@ -245,7 +228,10 @@ contract TestHelper is EigenLayrDeployer {
         uint256 amountToDeposit,
         IERC20 underlyingToken,
         IInvestmentStrategy stratToDepositTo
-    ) internal returns (uint256 amountDeposited) {
+    )
+        internal
+        returns (uint256 amountDeposited)
+    {
         // deposits will revert when amountToDeposit is 0
         cheats.assume(amountToDeposit > 0);
 
@@ -263,20 +249,15 @@ contract TestHelper is EigenLayrDeployer {
             cheats.startPrank(sender);
             underlyingToken.approve(address(investmentManager), type(uint256).max);
 
-            investmentManager.depositIntoStrategy(
-                sender,
-                stratToDepositTo,
-                underlyingToken,
-                amountToDeposit
-            );
+            investmentManager.depositIntoStrategy(sender, stratToDepositTo, underlyingToken, amountToDeposit);
             amountDeposited = amountToDeposit;
 
             //check if depositor has never used this strat, that it is added correctly to investorStrats array.
-            if(operatorSharesBefore == 0){
+            if (operatorSharesBefore == 0) {
                 // check that strategy is appropriately added to dynamic array of all of sender's strategies
                 assertTrue(
-                    investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1) ==
-                        stratToDepositTo,
+                    investmentManager.investorStrats(sender, investmentManager.investorStratsLength(sender) - 1)
+                        == stratToDepositTo,
                     "_depositToStrategy: investorStrats array updated incorrectly"
                 );
             }
@@ -298,7 +279,9 @@ contract TestHelper is EigenLayrDeployer {
         uint256 amountSharesToWithdraw,
         IERC20 underlyingToken,
         IInvestmentStrategy stratToWithdrawFrom
-    ) internal {
+    )
+        internal
+    {
         // fetch the length of `sender`'s dynamic `investorStrats` array
         uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(sender);
         // fetch `sender`'s existing share amount
@@ -318,19 +301,12 @@ contract TestHelper is EigenLayrDeployer {
         if (amountSharesToWithdraw > existingShares) {
             cheats.expectRevert(bytes("InvestmentManager._removeShares: shareAmount too high"));
             investmentManager.withdrawFromStrategy(
-
-                strategyIndex,
-                stratToWithdrawFrom,
-                underlyingToken,
-                amountSharesToWithdraw
+                strategyIndex, stratToWithdrawFrom, underlyingToken, amountSharesToWithdraw
             );
             return;
         } else {
             investmentManager.withdrawFromStrategy(
-                strategyIndex,
-                stratToWithdrawFrom,
-                underlyingToken,
-                amountSharesToWithdraw
+                strategyIndex, stratToWithdrawFrom, underlyingToken, amountSharesToWithdraw
             );
         }
 
@@ -346,13 +322,11 @@ contract TestHelper is EigenLayrDeployer {
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
+    function _testInitDataStore(uint256 timeStampForInit, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
-        bytes memory header = abi.encodePacked(
-            hex"0102030405060708091011121314151617181920"
-        );
+        bytes memory header = abi.encodePacked(hex"0102030405060708091011121314151617181920");
         uint32 totalBytes = 1e6;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
@@ -369,14 +343,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.warp(timeStampForInit);
         uint256 timestamp = block.timestamp;
 
-        uint32 index = dlsm.initDataStore(
-            storer,
-            confirmer,
-            header,
-            durationToInit,
-            totalBytes,
-            blockNumber
-        );
+        uint32 index = dlsm.initDataStore(storer, confirmer, header, durationToInit, totalBytes, blockNumber);
 
         bytes32 headerHash = keccak256(header);
 
@@ -384,41 +351,36 @@ contract TestHelper is EigenLayrDeployer {
 
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
-                headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
-                globalDataStoreId: dlsm.taskNumber() - 1,
-                blockNumber: blockNumber,
-                fee: uint96(fee),
-                confirmer: confirmer,
-                signatoryRecordHash: bytes32(0)
-            });
+        IDataLayrServiceManager.DataStoreMetadata memory metadata = IDataLayrServiceManager.DataStoreMetadata({
+            headerHash: headerHash,
+            durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
+            globalDataStoreId: dlsm.taskNumber() - 1,
+            blockNumber: blockNumber,
+            fee: uint96(fee),
+            confirmer: confirmer,
+            signatoryRecordHash: bytes32(0)
+        });
 
         {
             bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
 
             //check if computed hash matches stored hash in DLSM
             assertTrue(
-                dataStoreHash ==
-                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
+                dataStoreHash == dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
-        
+
         searchData = IDataLayrServiceManager.DataStoreSearchData({
-                metadata: metadata,
-                duration: durationToInit,
-                timestamp: timestamp,
-                index: index
-            });
+            metadata: metadata,
+            duration: durationToInit,
+            timestamp: timestamp,
+            index: index
+        });
         return searchData;
     }
 
-    function _testRegisterAdditionalSelfOperator(
-        address sender,
-        bytes memory data
-    ) internal {
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data) internal {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -429,54 +391,37 @@ contract TestHelper is EigenLayrDeployer {
         string memory socket = "255.255.255.255";
 
         cheats.startPrank(sender);
-        
+
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        
+
         dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
 
         cheats.stopPrank();
 
         // verify that registration was stored correctly
         if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
-            assertTrue(
-                dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit,
-                "ethStaked not increased!"
-            );
+            assertTrue(dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
         } else {
-            assertTrue(
-                dlReg.firstQuorumStakedByOperator(sender) == 0,
-                "ethStaked incorrectly > 0"
-            );
+            assertTrue(dlReg.firstQuorumStakedByOperator(sender) == 0, "ethStaked incorrectly > 0");
         }
-        if (
-            (operatorType & 2) == 2 && eigenToDeposit > dlReg.minimumStakeSecondQuorum()
-        ) {
-            assertTrue(
-                dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit,
-                "eigenStaked not increased!"
-            );
+        if ((operatorType & 2) == 2 && eigenToDeposit > dlReg.minimumStakeSecondQuorum()) {
+            assertTrue(dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit, "eigenStaked not increased!");
         } else {
-            assertTrue(
-                dlReg.secondQuorumStakedByOperator(sender) == 0,
-                "eigenStaked incorrectly > 0"
-            );
+            assertTrue(dlReg.secondQuorumStakedByOperator(sender) == 0, "eigenStaked incorrectly > 0");
         }
     }
 
     // second return value is the complete `searchData` that can serve as an input to `stakeWithdrawalVerification`
-    function _testConfirmDataStoreSelfOperators(uint8 numSigners) 
-        internal 
+    function _testConfirmDataStoreSelfOperators(uint8 numSigners)
+        internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
-        {
+    {
         cheats.assume(numSigners > 0 && numSigners <= 15);
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(
-                signers[i],
-                registrationData[i]
-            );
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
         }
 
         // hard-coded value
@@ -485,8 +430,8 @@ contract TestHelper is EigenLayrDeployer {
         return _testConfirmDataStoreWithoutRegister(index, numSigners);
     }
 
-    function _testConfirmDataStoreWithoutRegister(uint256 index, uint8 numSigners) 
-        internal 
+    function _testConfirmDataStoreWithoutRegister(uint256 index, uint8 numSigners)
+        internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
         uint256 initTime = 1000000001;
@@ -494,27 +439,32 @@ contract TestHelper is EigenLayrDeployer {
 
         uint32 numberOfNonSigners = 0;
         (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numSigners));
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index);//(signatureData[index*2], signatureData[2*index + 1]);
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
 
+        /**
+         * @param data This calldata is of the format:
+         * <
+         * bytes32 msgHash,
+         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
+         * uint32 blockNumber
+         * uint32 dataStoreId
+         * uint32 numberOfNonSigners,
+         * uint256[numberOfNonSigners][4] pubkeys of nonsigners,
+         * uint32 apkIndex,
+         * uint256[4] apk,
+         * uint256[2] sigma
+         * >
+         */
 
-        /** 
-     @param data This calldata is of the format:
-            <
-             bytes32 msgHash,
-             uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-             uint32 blockNumber
-             uint32 dataStoreId
-             uint32 numberOfNonSigners,
-             uint256[numberOfNonSigners][4] pubkeys of nonsigners,
-             uint32 apkIndex,
-             uint256[4] apk,
-             uint256[2] sigma
-            >
-     */
-        
         bytes memory data = abi.encodePacked(
             keccak256(
-                abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
             ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
             searchData.metadata.blockNumber,
@@ -565,60 +515,39 @@ contract TestHelper is EigenLayrDeployer {
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
     // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsOperator(address sender, IDelegationTerms dt)
-        internal
-    {
-        
+    function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
         cheats.startPrank(sender);
         delegation.registerAsOperator(dt);
         assertTrue(delegation.isOperator(sender), "testRegisterAsOperator: sender is not a delegate");
 
         assertTrue(
-            delegation.delegationTerms(sender) == dt,
-            "_testRegisterAsOperator: delegationTerms not set appropriately"
+            delegation.delegationTerms(sender) == dt, "_testRegisterAsOperator: delegationTerms not set appropriately"
         );
 
-        assertTrue(
-            delegation.isDelegated(sender),
-            "_testRegisterAsOperator: sender not marked as actively delegated"
-        );
+        assertTrue(delegation.isDelegated(sender), "_testRegisterAsOperator: sender not marked as actively delegated");
         cheats.stopPrank();
-
     }
-    
+
     // tries to delegate from 'sender' to 'operator'
     // verifies that:
     //                  delegator has at least some shares
     //                  delegatedShares update correctly for 'operator'
     //                  delegated status is updated correctly for 'sender'
-    function _testDelegateToOperator(address sender, address operator)
-        internal
-    {
-        
+    function _testDelegateToOperator(address sender, address operator) internal {
         //delegator-specific information
-        (
-            IInvestmentStrategy[] memory delegateStrategies,
-            uint256[] memory delegateShares
-        ) = investmentManager.getDeposits(sender);
-
+        (IInvestmentStrategy[] memory delegateStrategies, uint256[] memory delegateShares) =
+            investmentManager.getDeposits(sender);
 
         uint256 numStrats = delegateShares.length;
-        assertTrue(
-            numStrats > 0,
-            "_testDelegateToOperator: delegating from address with no investments"
-        );
+        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no investments");
         uint256[] memory inititalSharesInStrats = new uint256[](numStrats);
         for (uint256 i = 0; i < numStrats; ++i) {
-            inititalSharesInStrats[i] = delegation.operatorShares(
-                operator,
-                delegateStrategies[i]
-            );
+            inititalSharesInStrats[i] = delegation.operatorShares(operator, delegateStrategies[i]);
         }
 
         cheats.startPrank(sender);
         delegation.delegateTo(operator);
         cheats.stopPrank();
-
 
         assertTrue(
             delegation.delegation(sender) == operator,
@@ -631,17 +560,12 @@ contract TestHelper is EigenLayrDeployer {
 
         for (uint256 i = 0; i < numStrats; ++i) {
             uint256 operatorSharesBefore = inititalSharesInStrats[i];
-            uint256 operatorSharesAfter = delegation.operatorShares(
-                operator,
-                delegateStrategies[i]
-            );
+            uint256 operatorSharesAfter = delegation.operatorShares(operator, delegateStrategies[i]);
             assertTrue(
-                operatorSharesAfter ==
-                    (operatorSharesBefore + delegateShares[i]),
+                operatorSharesAfter == (operatorSharesBefore + delegateShares[i]),
                 "_testDelegateToOperator: delegatedShares not increased correctly"
             );
         }
-
     }
 
     // deploys a InvestmentStrategyBase contract and initializes it to treat `underlyingToken` as its underlying token
@@ -659,34 +583,23 @@ contract TestHelper is EigenLayrDeployer {
     }
 
     // deploys 'numStratsToAdd' strategies using '_testAddStrategyBase' and then deposits 'amountToDeposit' to each of them from 'sender'
-    function _testDepositStrategies(
-        address sender,
-        uint256 amountToDeposit,
-        uint16 numStratsToAdd
-    ) internal {
+    function _testDepositStrategies(address sender, uint256 amountToDeposit, uint16 numStratsToAdd) internal {
         // hard-coded inputs
         uint96 multiplier = 1e18;
         IERC20 underlyingToken = weth;
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
-        IInvestmentStrategy[]
-            memory stratsToDepositTo = new IInvestmentStrategy[](
+        IInvestmentStrategy[] memory stratsToDepositTo = new IInvestmentStrategy[](
                 numStratsToAdd
             );
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             stratsToDepositTo[i] = _testAddStrategyBase(underlyingToken);
-            _testDepositToStrategy(
-                sender,
-                amountToDeposit,
-                weth,
-                InvestmentStrategyBase(address(stratsToDepositTo[i]))
-            );
+            _testDepositToStrategy(sender, amountToDeposit, weth, InvestmentStrategyBase(address(stratsToDepositTo[i])));
         }
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
             // check that strategy is appropriately added to dynamic array of all of sender's strategies
             assertTrue(
-                investmentManager.investorStrats(sender, i) ==
-                    stratsToDepositTo[i],
+                investmentManager.investorStrats(sender, i) == stratsToDepositTo[i],
                 "investorStrats array updated incorrectly"
             );
 
@@ -696,16 +609,13 @@ contract TestHelper is EigenLayrDeployer {
         }
         // add strategies to dlRegistry
         for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-                memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
                     1
                 );
             ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
             ethStratsAndMultipliers[0].multiplier = multiplier;
-            dlReg.addStrategiesConsideredAndMultipliers(
-                0,
-                ethStratsAndMultipliers
-            );
+            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
         }
     }
 }

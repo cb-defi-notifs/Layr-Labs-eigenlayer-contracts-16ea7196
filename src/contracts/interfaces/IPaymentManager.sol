@@ -7,7 +7,7 @@ import "./IRepositoryAccess.sol";
 /**
  * @title Interface for a `PaymentManager` contract.
  * @author Layr Labs, Inc.
-*/
+ */
 interface IPaymentManager is IRepositoryAccess {
     enum DissectionType {
         INVALID,

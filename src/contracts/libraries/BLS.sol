@@ -343,7 +343,7 @@ library BLS {
      * @param pubkeyToRemoveAff is the pubkey that is to be removed,
      * @param existingAggPubkeyAff is the aggregated pubkey.
      * @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
-     */ 
+     */
     function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff)
         internal
         view
@@ -365,7 +365,7 @@ library BLS {
         existingAggPubkeyJac[4] = 1;
 
         /// @notice subtract pubkeyToRemoveJac from the aggregate pubkey
-        // negate pubkeyToRemoveJac  
+        // negate pubkeyToRemoveJac
         pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
         pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
         // add the negation to existingAggPubkeyJac

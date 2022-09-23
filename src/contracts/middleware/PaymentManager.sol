@@ -23,7 +23,6 @@ import "../permissions/Pausable.sol";
  */
 //
 abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable {
-
     using SafeERC20 for IERC20;
     // DATA STRUCTURES
 

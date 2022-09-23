@@ -10,22 +10,26 @@ import "../interfaces/IDataLayrServiceManager.sol";
  */
 library DataStoreUtils {
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
-    function computeSignatoryRecordHash(uint32 globalDataStoreId, bytes32[] memory nonSignerPubkeyHashes, uint256 totalEthStakeSigned, uint256 totalEigenStakeSigned) internal pure returns(bytes32) {
+    function computeSignatoryRecordHash(
+        uint32 globalDataStoreId,
+        bytes32[] memory nonSignerPubkeyHashes,
+        uint256 totalEthStakeSigned,
+        uint256 totalEigenStakeSigned
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(
-            abi.encodePacked(
-                globalDataStoreId,
-                nonSignerPubkeyHashes,
-                totalEthStakeSigned,
-                totalEigenStakeSigned
-            )
+            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalEthStakeSigned, totalEigenStakeSigned)
         );
     }
 
     /// @notice Computes the hash of a single DataStore's metadata.
-    function computeDataStoreHash(
-        IDataLayrServiceManager.DataStoreMetadata memory metadata
-    ) 
-        internal pure returns (bytes32)
+    function computeDataStoreHash(IDataLayrServiceManager.DataStoreMetadata memory metadata)
+        internal
+        pure
+        returns (bytes32)
     {
         bytes32 dsHash = keccak256(
             abi.encodePacked(
@@ -42,10 +46,10 @@ library DataStoreUtils {
     }
 
     /// @notice uses `abi.encodePacked` to encode a DataStore's metadata into a compressed format
-    function packDataStoreMetadata(
-        IDataLayrServiceManager.DataStoreMetadata memory metadata
-    )
-        internal pure returns (bytes memory)
+    function packDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata)
+        internal
+        pure
+        returns (bytes memory)
     {
         return (
             abi.encodePacked(
@@ -61,17 +65,14 @@ library DataStoreUtils {
     }
 
     /// @notice uses `abi.encodePacked` to encode a DataStore's searchData into a compressed format
-    function packDataStoreSearchData(
-        IDataLayrServiceManager.DataStoreSearchData memory searchData
-    )
-        internal pure returns (bytes memory)
+    function packDataStoreSearchData(IDataLayrServiceManager.DataStoreSearchData memory searchData)
+        internal
+        pure
+        returns (bytes memory)
     {
         return (
             abi.encodePacked(
-                packDataStoreMetadata(searchData.metadata),
-                searchData.duration,
-                searchData.timestamp,
-                searchData.index
+                packDataStoreMetadata(searchData.metadata), searchData.duration, searchData.timestamp, searchData.index
             )
         );
     }
@@ -150,10 +151,10 @@ library DataStoreUtils {
      * @notice Unpacks the packed metadata of a DataStore into a metadata struct.
      * @param packedMetadata should be in the same form as the output of `packDataStoreMetadata`
      */
-    function unpackDataStoreMetadata(
-        bytes calldata packedMetadata
-    )
-        internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadata)
+    function unpackDataStoreMetadata(bytes calldata packedMetadata)
+        internal
+        pure
+        returns (IDataLayrServiceManager.DataStoreMetadata memory metadata)
     {
         uint256 pointer;
         assembly {
@@ -169,41 +170,31 @@ library DataStoreUtils {
                 // store in the durationDataStoreId memory location in `metadata`
                 add(metadata, MEMORY_OFFSET_durationDataStoreId),
                 // read the durationDataStoreId from its calldata position in `packedMetadata`
-                shr(BIT_SHIFT_durationDataStoreId,
-                    calldataload(add(pointer, CALLDATA_OFFSET_durationDataStoreId))
-                )
+                shr(BIT_SHIFT_durationDataStoreId, calldataload(add(pointer, CALLDATA_OFFSET_durationDataStoreId)))
             )
             mstore(
                 // store in the globalDataStoreId memory location in `metadata`
                 add(metadata, MEMORY_OFFSET_globalDataStoreId),
                 // read the globalDataStoreId from its calldata position in `packedMetadata`
-                shr(BIT_SHIFT_globalDataStoreId,
-                    calldataload(add(pointer, CALLDATA_OFFSET_globalDataStoreId))
-                )
+                shr(BIT_SHIFT_globalDataStoreId, calldataload(add(pointer, CALLDATA_OFFSET_globalDataStoreId)))
             )
             mstore(
                 // store in the blockNumber memory location in `metadata`
                 add(metadata, MEMORY_OFFSET_blockNumber),
                 // read the blockNumber from its calldata position in `packedMetadata`
-                shr(BIT_SHIFT_blockNumber,
-                    calldataload(add(pointer, CALLDATA_OFFSET_blockNumber))
-                )
+                shr(BIT_SHIFT_blockNumber, calldataload(add(pointer, CALLDATA_OFFSET_blockNumber)))
             )
             mstore(
                 // store in the fee memory location in `metadata`
                 add(metadata, MEMORY_OFFSET_fee),
                 // read the fee from its calldata position in `packedMetadata`
-                shr(BIT_SHIFT_fee,
-                    calldataload(add(pointer, CALLDATA_OFFSET_fee))
-                )
+                shr(BIT_SHIFT_fee, calldataload(add(pointer, CALLDATA_OFFSET_fee)))
             )
             mstore(
                 // store in the confirmer memory location in `metadata`
                 add(metadata, MEMORY_OFFSET_confirmer),
                 // read the confirmer from its calldata position in `packedMetadata`
-                shr(BIT_SHIFT_confirmer,
-                    calldataload(add(pointer, CALLDATA_OFFSET_confirmer))
-                )
+                shr(BIT_SHIFT_confirmer, calldataload(add(pointer, CALLDATA_OFFSET_confirmer)))
             )
             mstore(
                 // store in the signatoryRecordHash memory location in `metadata`
@@ -219,10 +210,10 @@ library DataStoreUtils {
      * @notice Unpacks the packed searchData of a DataStore into a searchData struct.
      * @param packedSearchData should be in the same form as the output of `packDataStoreSearchData`
      */
-    function unpackDataStoreSearchData(
-        bytes calldata packedSearchData
-    )
-        internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
+    function unpackDataStoreSearchData(bytes calldata packedSearchData)
+        internal
+        pure
+        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
         searchData.metadata = (unpackDataStoreMetadata(packedSearchData));
         uint256 pointer;
@@ -233,9 +224,7 @@ library DataStoreUtils {
                 // store in the duration memory location of `searchData`
                 add(searchData, MEMORY_OFFSET_duration),
                 // read the duration from its calldata position in `packedSearchData`
-                shr(BIT_SHIFT_duration,
-                    calldataload(add(pointer, CALLDATA_OFFSET_duration))
-                )
+                shr(BIT_SHIFT_duration, calldataload(add(pointer, CALLDATA_OFFSET_duration)))
             )
             mstore(
                 // store in the timestamp memory location of `searchData`
@@ -247,9 +236,7 @@ library DataStoreUtils {
                 // store in the index memory location of `searchData`
                 add(searchData, MEMORY_OFFSET_index),
                 // read the index from its calldata position in `packedSearchData`
-                shr(BIT_SHIFT_index,
-                    calldataload(add(pointer, CALLDATA_OFFSET_index))
-                )
+                shr(BIT_SHIFT_index, calldataload(add(pointer, CALLDATA_OFFSET_index)))
             )
         }
         return searchData;

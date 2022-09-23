@@ -11,7 +11,7 @@ import "./LIDO/IStableSwapStateOracle.sol";
  * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
  * @dev This contract uses LIDO's StableSwapStateOracle to determine the current stETH/ETH ratio -- see https://docs.lido.fi/contracts/stable-swap-state-oracle
  * The StableSwapStateOracle on Mainnet is here https://etherscan.io/address/0x3a6bd15abf19581e411621d669b6a2bbe741ffd6#readContract
-*/
+ */
 contract AaveInvestmentStrategy_STETH is AaveInvestmentStrategy {
     IStableSwapStateOracle public stableSwapOracle;
 

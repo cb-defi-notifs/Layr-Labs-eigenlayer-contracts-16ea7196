@@ -8,7 +8,7 @@ import "./IDataLayrServiceManager.sol";
  * @title Minimal interface extension to `IPaymentManager`.
  * @author Layr Labs, Inc.
  * @notice Adds a single DataLayr-specific function to the base interface.
-*/
+ */
 interface IDataLayrPaymentManager is IPaymentManager {
     function respondToPaymentChallengeFinal(
         address operator,

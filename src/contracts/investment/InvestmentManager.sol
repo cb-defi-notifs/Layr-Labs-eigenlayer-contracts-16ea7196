@@ -29,7 +29,6 @@ contract InvestmentManager is
     InvestmentManagerStorage,
     Pausable
 {
-
     using SafeERC20 for IERC20;
 
     /// @notice Emitted when a new withdrawal is queued by `depositor`
@@ -67,11 +66,10 @@ contract InvestmentManager is
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
-    function initialize(
-        ISlasher _slasher,
-        IPauserRegistry _pauserRegistry,
-        address initialOwner
-    ) external initializer {
+    function initialize(ISlasher _slasher, IPauserRegistry _pauserRegistry, address initialOwner)
+        external
+        initializer
+    {
         _transferOwnership(initialOwner);
         slasher = _slasher;
         _initializePauser(_pauserRegistry);
@@ -83,6 +81,7 @@ contract InvestmentManager is
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
      */
+
     function depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
@@ -331,7 +330,7 @@ contract InvestmentManager is
     }
 
     /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
-    function slashQueuedWithdrawal(       
+    function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
@@ -401,7 +400,7 @@ contract InvestmentManager is
 
         return shares;
     }
-    
+
     /**
      * @notice Withdraws `shareAmount` shares that `depositor` holds in `strategy`, to their address
      * @dev If the amount of shares represents all of the depositor`s shares in said strategy,

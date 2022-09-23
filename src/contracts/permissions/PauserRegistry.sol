@@ -8,28 +8,24 @@ import "../interfaces/IPauserRegistry.sol";
  * @author Layr Labs, Inc.
  */
 contract PauserRegistry is IPauserRegistry {
-
     address public pauser;
     address public unpauser;
 
-    event PauserChanged(address previousPauser,address newPauser);
+    event PauserChanged(address previousPauser, address newPauser);
 
-    event UnpauserChanged(address previousUnpauser,address newUnpauser);
+    event UnpauserChanged(address previousUnpauser, address newUnpauser);
 
-    modifier onlyPauser {
-        require(msg.sender == pauser,  "msg.sender is not permissioned as pauser");
+    modifier onlyPauser() {
+        require(msg.sender == pauser, "msg.sender is not permissioned as pauser");
         _;
     }
 
-    modifier onlyUnpauser {
+    modifier onlyUnpauser() {
         require(msg.sender == unpauser, "msg.sender is not permissioned as unpauser");
         _;
     }
 
-    constructor(
-        address _pauser,
-        address _unpauser
-    ) {
+    constructor(address _pauser, address _unpauser) {
         _setPauser(_pauser);
         _setUnpauser(_unpauser);
     }
