@@ -27,7 +27,6 @@ import "./DataLayrChallengeUtils.sol";
  * - doing payment challenge
  */
 contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
-
     using BytesLib for bytes;
 
     // ERROR MESSAGES
@@ -150,7 +149,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         }
 
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
-
 
         // compute time and fees
         // computing the actual period for which data blob needs to be stored
@@ -344,10 +342,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // called in the event of challenge resolution
     function freezeOperator(address operator) external {
         require(
-            msg.sender == address(dataLayrLowDegreeChallenge) ||
             msg.sender == address(dataLayrBombVerifier) ||
             msg.sender == address(ephemeralKeyRegistry) ||
-            msg.sender == address(dataLayrPaymentManager),
+                || msg.sender == address(ephemeralKeyRegistry)
+                || msg.sender == address(dataLayrPaymentManager),
             "DataLayrServiceManager.freezeOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
@@ -362,10 +360,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime)
-        external
-        onlyRepositoryGovernance
-    {
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
         feePerBytePerTime = _feePerBytePerTime;
     }
 

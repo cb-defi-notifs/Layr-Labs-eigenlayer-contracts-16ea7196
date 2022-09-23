@@ -16,7 +16,6 @@ import "../../middleware/PaymentManager.sol";
  * @author Layr Labs, Inc.
  */
 contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
-
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(

@@ -11,7 +11,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @author Layr Labs, Inc.
  * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
  * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
-*/
+ */
 abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
     using SafeERC20 for IERC20;
 
@@ -122,7 +122,7 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
     }
 
     /// @notice Internal function used to fetch this contract's current balance of `aToken`.
-    function _tokenBalance() internal view override returns(uint256) {
+    function _tokenBalance() internal view override returns (uint256) {
         return aToken.balanceOf(address(this));
     }
 }

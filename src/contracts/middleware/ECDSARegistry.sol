@@ -16,7 +16,6 @@ import "../interfaces/IECDSARegistry.sol";
  */
 // TODO: this contract has known concurrency issues with multiple updates to the 'stakes' object landing in quick succession -- need to evaluate potential solutions
 contract ECDSARegistry is RegistryBase, IECDSARegistry {
-
     using BytesLib for bytes;
 
     /// @notice the block numbers at which the stake object was updated

@@ -17,7 +17,6 @@ import "./VoteWeigherBaseStorage.sol";
  * by the middleware for each of the quorum(s)
  */
 contract VoteWeigherBase is VoteWeigherBaseStorage {
-
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
@@ -71,7 +70,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
     }
 
     /**
-     * @notice Adds new strategies and the associated multipliers to the @param quorumNumber.  
+     * @notice Adds new strategies and the associated multipliers to the @param quorumNumber.
      */
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
@@ -85,7 +84,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
 
     /**
      * @notice This function is used for removing strategies and their associated weights from the
-     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber. 
+     * mapping strategiesConsideredAndMultipliers for a specific @param quorumNumber.
      * @dev higher indices should be *first* in the list of @param indicesToRemove, since otherwise
      * the removal of lower index entries will cause a shift in the indices of the other strategiesToRemove
      */
