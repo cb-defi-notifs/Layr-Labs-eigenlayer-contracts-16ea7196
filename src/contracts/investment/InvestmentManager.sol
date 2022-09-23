@@ -5,6 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
@@ -93,6 +94,54 @@ contract InvestmentManager is
         returns (uint256 shares)
     {
         shares = _depositIntoStrategy(msg.sender, strategy, token, amount);
+    }
+
+    /**
+     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
+     */
+    /**
+     * @param strategy is the specified strategy where investment is to be made,
+     * @param token is the denomination in which the investment is to be made,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @param staker the staker that the assets will be deposited on behalf of
+     * @param expiry the timestamp at which the signature expires
+     * @param r and @param vs are the elements of the ECDSA signature
+     */
+    function depositIntoStrategyOnBehalfOf(
+        IInvestmentStrategy strategy,
+        IERC20 token,
+        uint256 amount,
+        address staker,
+        uint256 expiry,
+        bytes32 r,
+        bytes32 vs
+    ) external nonReentrant returns (uint256 shares) {
+        //make not frozen check here instead of modifier
+        require(
+            !slasher.isFrozen(staker),
+            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
+        );
+
+        require(
+            expiry == 0 || expiry >= block.timestamp,
+            "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
+        );
+        // calculate struct hash, then increment `staker`'s nonce
+        bytes32 structHash = keccak256(
+            abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry)
+        );
+        bytes32 digestHash = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
+        );
+        //check validity of signature
+        address recoveredAddress = ECDSA.recover(
+            digestHash,
+            r,
+            vs
+        );
+        require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
+        
+        shares = _depositIntoStrategy(staker, strategy, token, amount);
     }
 
     /**
