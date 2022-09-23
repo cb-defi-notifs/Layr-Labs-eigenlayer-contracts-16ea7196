@@ -474,14 +474,13 @@ contract InvestmentManager is
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shares,
-        address slashedAddress,
+        address depositor,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
     )
         external
         whenNotPaused
         onlyOwner
-        onlyFrozen(slashedAddress)
         nonReentrant
     {
         // find the withdrawalRoot
@@ -494,18 +493,19 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[slashedAddress][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
         // verify that the queued withdrawal has been successfully challenged
         require(
-            queuedWithdrawals[slashedAddress][withdrawalRoot].withdrawer == address(0),
-            "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged"
+            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0)
+            || slasher.isFrozen(depositor),
+            "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[slashedAddress][withdrawalRoot];
+        delete queuedWithdrawals[depositor][withdrawalRoot];
 
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
