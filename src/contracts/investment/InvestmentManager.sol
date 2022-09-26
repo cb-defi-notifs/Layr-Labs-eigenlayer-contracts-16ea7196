@@ -380,7 +380,7 @@ contract InvestmentManager is
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
         );
 
-        address operator = delegation.delegation(depositor);
+        address operator = delegation.delegatedTo(depositor);
 
         require(
             slasher.canSlash(operator, address(slashingContract)),

@@ -550,11 +550,11 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         assertTrue(
-            delegation.delegation(sender) == operator,
+            delegation.delegatedTo(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 

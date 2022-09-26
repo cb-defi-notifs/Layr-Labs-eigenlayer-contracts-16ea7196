@@ -176,7 +176,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         if (frozenStatus[staker]) {
             return true;
         } else if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegation(staker);
+            address operatorAddress = delegation.delegatedTo(staker);
             return (frozenStatus[operatorAddress]);
         } else {
             return false;
