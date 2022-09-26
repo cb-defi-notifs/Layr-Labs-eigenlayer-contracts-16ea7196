@@ -185,7 +185,7 @@ contract DelegationTests is TestHelper {
 
 
 
-        _testStartQueuedWithdrawalWaitingPeriod(depositor, withdrawer, withdrawalRoot, withdrawalPeriod);
+        _testStartQueuedWithdrawalWaitingPeriod(withdrawer, withdrawalRoot, withdrawalPeriod);
 
         cheats.warp(withdrawalPeriod + 1 days);
 
@@ -430,13 +430,18 @@ contract DelegationTests is TestHelper {
                                                     strategyArray[i]));
         }
 
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(depositor)
+        });
+
         // complete the queued withdrawal
         investmentManager.completeQueuedWithdrawal(
-                                    strategyArray, 
-                                    tokensArray,
-                                    shareAmounts, 
-                                    depositor, 
-                                    withdrawerAndNonce, 
+                                    queuedWithdrawal,
                                     false
                                 );   
         
@@ -464,13 +469,18 @@ contract DelegationTests is TestHelper {
             priorTotalShares.push(strategyArray[i].totalShares());
             strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
         }
+        
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(depositor)
+        });
         // complete the queued withdrawal
         investmentManager.completeQueuedWithdrawal(
-                                    strategyArray, 
-                                    tokensArray,
-                                    shareAmounts, 
-                                    depositor, 
-                                    withdrawerAndNonce, 
+                                    queuedWithdrawal,
                                     true
                                 );   
         
@@ -487,14 +497,12 @@ contract DelegationTests is TestHelper {
 
 
     function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
     ) internal {
         cheats.startPrank(withdrawer);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
                                         withdrawalRoot, 
                                         stakeInactiveAfter
                                     );

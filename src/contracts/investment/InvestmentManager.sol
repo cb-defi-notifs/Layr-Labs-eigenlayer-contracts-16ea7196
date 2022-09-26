@@ -38,8 +38,14 @@ contract InvestmentManager is
      */
     uint32 internal constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
 
-    /// @notice Emitted when a new withdrawal is queued by `depositor`
-    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+    /**
+     * @notice Emitted when a new withdrawal is queued by `depositor`.
+     * @param depositor Is the staker who is withdrawing funds from EigenLayer.
+     * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
+     * @param delegatedAddress Is the party who the `staker` was delegated to at the time of creating the queued withdrawal
+     * @param withdrawalRoot Is a hash of the input data for the withdrawal.
+     */
+    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot);
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
@@ -217,43 +223,57 @@ contract InvestmentManager is
             }
         }
 
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        // fetch the address that the `msg.sender` is delegated to
+        address delegatedAddress = delegation.delegatedTo(msg.sender);
+
+        // copy arguments into struct and pull delegation info
+        QueuedWithdrawal memory queuedWithdrawal = QueuedWithdrawal({
+            strategies: strategies,
+            tokens: tokens,
+            shares: shares,
+            depositor: msg.sender,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegatedAddress
+        });
+
+        // calculate the withdrawal root
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         //update storage in mapping of queued withdrawals
-        queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
+        queuedWithdrawals[withdrawalRoot] = WithdrawalStorage({
             initTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             withdrawer: withdrawerAndNonce.withdrawer,
             unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
         });
 
-        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, withdrawalRoot);
+        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, delegatedAddress, withdrawalRoot);
 
         return withdrawalRoot;
     }
+
     /*
     * 
-    * The withdrawal flow is:
-    * - Depositer starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
+    * @notice The withdrawal flow is:
+    * - Depositor starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
     * - Withdrawer then waits for the queued withdrawal tx to be included in the chain, and then sets the stakeInactiveAfter. This cannot
     *   be set when starting the queued withdrawal, as it is there may be transactions the increase the tasks upon which the stake is active 
     *   that get mined before the withdrawal.
     * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
     *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
     */
-
-    function startQueuedWithdrawalWaitingPeriod(address depositor, bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
+    function startQueuedWithdrawalWaitingPeriod(bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
         external
     {
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp == type(uint32).max,
+            queuedWithdrawals[withdrawalRoot].initTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             "Withdrawal stake inactive claim has already been made"
         );
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == msg.sender,
+            queuedWithdrawals[withdrawalRoot].withdrawer == msg.sender,
             "InvestmentManager.setStakeInactiveAfterClaim: Sender is not the withdrawer"
         );
-        //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
-        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
+        // they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
+        queuedWithdrawals[withdrawalRoot] = WithdrawalStorage({
             initTimestamp: uint32(block.timestamp),
             withdrawer: msg.sender,
             unlockTimestamp: max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter)
@@ -269,22 +289,18 @@ contract InvestmentManager is
      * that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
      */
     function completeQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        QueuedWithdrawal calldata queuedWithdrawal,
         bool receiveAsTokens
     )
         external
         whenNotPaused
-        onlyNotFrozen(depositor)
+        onlyNotFrozen(queuedWithdrawal.depositor)
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
         // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
 
         // verify that the queued withdrawal actually exists
         require(
@@ -293,34 +309,34 @@ contract InvestmentManager is
         );
 
         require(
-            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp || delegation.isNotDelegated(depositor),
+            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp || delegation.isNotDelegated(queuedWithdrawal.depositor),
             "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
         );
 
         // TODO: add testing coverage for this
         require(
-            msg.sender == withdrawerAndNonce.withdrawer,
+            msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[depositor][withdrawalRoot];
+        delete queuedWithdrawals[withdrawalRoot];
 
         /**
          * @notice If the `depositor` has no existing shares and they are delegated, undelegate them.
          * This allows people a "hard reset" in their relationship with EigenLayer after withdrawing all of their stake.
          */
-        if (investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
-            delegation.undelegate(depositor);
+        if (investorStrats[queuedWithdrawal.depositor].length == 0 && delegation.isDelegated(queuedWithdrawal.depositor)) {
+            delegation.undelegate(queuedWithdrawal.depositor);
         }
         // store length for gas savings
-        uint256 strategiesLength = strategies.length;
+        uint256 strategiesLength = queuedWithdrawal.strategies.length;
         // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 // tell the strategy to send the appropriate amount of funds to the depositor
-                strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
+                queuedWithdrawal.strategies[i].withdraw(withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
                 unchecked {
                     ++i;
                 }
@@ -328,14 +344,14 @@ contract InvestmentManager is
         } else {
             // else increase their shares
             for (uint256 i = 0; i < strategiesLength;) {
-                _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
+                _addShares(withdrawalStorageCopy.withdrawer, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
                 unchecked {
                     ++i;
                 }
             }
         }
 
-        emit WithdrawalCompleted(depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
+        emit WithdrawalCompleted(queuedWithdrawal.depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
     }
 
     /**
@@ -347,20 +363,16 @@ contract InvestmentManager is
      * 'unlockTimestamp' to the current UTC time plus the WITHDRAWAL_WAITING_PERIOD, pushing back the unlock time for the funds to be withdrawn.
      */
     function challengeQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        QueuedWithdrawal calldata queuedWithdrawal,
         bytes calldata data,
         IServiceManager slashingContract
     )
         external
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
         // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
 
         //verify the withdrawer has supplied the unbonding time
         require(
@@ -380,7 +392,7 @@ contract InvestmentManager is
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
         );
 
-        address operator = delegation.delegatedTo(depositor);
+        address operator = delegation.delegatedTo(queuedWithdrawal.depositor);
 
         require(
             slasher.canSlash(operator, address(slashingContract)),
@@ -396,7 +408,7 @@ contract InvestmentManager is
         }
 
         // set the withdrawer equal to address(0), allowing the slasher custody of the funds
-        queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
+        queuedWithdrawals[withdrawalRoot].withdrawer = address(0);
     }
 
     /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
@@ -440,12 +452,8 @@ contract InvestmentManager is
 
     /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
     function slashQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
         address recipient,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        QueuedWithdrawal calldata queuedWithdrawal
     )
         external
         whenNotPaused
@@ -453,27 +461,27 @@ contract InvestmentManager is
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[withdrawalRoot].initTimestamp > 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
         // verify that the queued withdrawal has been successfully challenged
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(depositor),
+            queuedWithdrawals[withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(queuedWithdrawal.depositor),
             "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[depositor][withdrawalRoot];
+        delete queuedWithdrawals[withdrawalRoot];
 
-        uint256 strategiesLength = strategies.length;
+        uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
             // tell the strategy to send the appropriate amount of funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shares[i]);
+            queuedWithdrawal.strategies[i].withdraw(recipient, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
             unchecked {
                 ++i;
             }
@@ -602,26 +610,45 @@ contract InvestmentManager is
      * @notice Used to check if a queued withdrawal can be completed
      */
     function canCompleteQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        QueuedWithdrawal calldata queuedWithdrawal
     )
         external
         returns (bool)
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[withdrawalRoot].initTimestamp > 0,
             "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
         );
 
         return (
-            uint32(block.timestamp) >= queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp
+            uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
+                || delegation.isNotDelegated(queuedWithdrawal.depositor)
+        );
+    }
+
+// TODO: delete this if we don't need it
+    /**
+     * @notice Used to check if a queued withdrawal can be completed
+     */
+    function canCompleteQueuedWithdrawal(
+        address depositor,
+        bytes32 withdrawalRoot
+    )
+        external
+        returns (bool)
+    {
+        // verify that the queued withdrawal actually exists
+        require(
+            queuedWithdrawals[withdrawalRoot].initTimestamp > 0,
+            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
+        );
+
+        return (
+            uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
                 || delegation.isNotDelegated(depositor)
         );
     }
@@ -648,15 +675,19 @@ contract InvestmentManager is
     }
 
     function calculateWithdrawalRoot(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        QueuedWithdrawal memory queuedWithdrawal
     )
         public
         pure
         returns (bytes32)
     {
-        return (keccak256(abi.encode(strategies, tokens, shareAmounts, withdrawerAndNonce)));
+        return (keccak256(abi.encode(
+            queuedWithdrawal.strategies,
+            queuedWithdrawal.tokens,
+            queuedWithdrawal.shares,
+            queuedWithdrawal.depositor,
+            queuedWithdrawal.withdrawerAndNonce,
+            queuedWithdrawal.delegatedAddress
+        )));
     }
 }
