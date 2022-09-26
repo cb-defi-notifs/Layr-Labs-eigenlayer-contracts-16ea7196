@@ -121,7 +121,7 @@ contract InvestmentManager is
         nonReentrant
         returns (uint256 shares)
     {
-        //make not frozen check here instead of modifier
+        // make not frozen check here instead of modifier
         require(
             !slasher.isFrozen(staker),
             "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
@@ -134,7 +134,7 @@ contract InvestmentManager is
         // calculate struct hash, then increment `staker`'s nonce
         bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        //check validity of signature
+        // check validity of signature
         address recoveredAddress = ECDSA.recover(digestHash, r, vs);
         require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
 
@@ -142,10 +142,18 @@ contract InvestmentManager is
     }
 
     /**
+     * @notice Called by a staker to undelegate entirely from EigenLayer. The staker must first withdraw all of their existing deposits
+     * (through use of the `queueWithdrawal` function), or else otherwise have never deposited in EigenLayer prior to delegating.
+     */
+    function undelegate() external {
+        require(investorStrats[msg.sender].length == 0, "InvestmentManager.undelegate: staker has active deposits");
+        _undelegateIfPossible(msg.sender);
+    }
+
+    /**
      * @notice Used to withdraw the given token and shareAmount from the given strategy.
-     * @dev Only those stakers who have notified the system that they want to undelegate
-     * from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
-     * call this function.
+     * @dev Only those stakers who have undelegated entirely from EigenLayer (or never delegated in the first place)
+     * can call this function.
      */
     function withdrawFromStrategy(
         uint256 strategyIndex,
@@ -304,20 +312,15 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
 
-        //reset the storage slot in mapping of queued withdrawals
+        // reset the storage slot in mapping of queued withdrawals
         delete queuedWithdrawals[depositor][withdrawalRoot];
 
-        /**
-         * if the depositor has no existing shares and they are delegated, undelegate
-         * this allows people a "hard reset" in their relationship with EigenLayer after
-         * withdrawing all of their stake
-         */
-        if (investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
-            delegation.undelegate(depositor);
-        }
+        // undelegate the `depositor`, if they have no existing shares
+        _undelegateIfPossible(depositor);
+
         // store length for gas savings
         uint256 strategiesLength = strategies.length;
-        //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
+        // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
@@ -328,7 +331,7 @@ contract InvestmentManager is
                 }
             }
         } else {
-            //else increase their shares
+            // else increase their shares
             for (uint256 i = 0; i < strategiesLength;) {
                 _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
                 unchecked {
@@ -596,6 +599,17 @@ contract InvestmentManager is
         }
         // return false in the event that the strategy was *not* removed from investorStrats[depositor]
         return false;
+    }
+
+
+    /**
+     * @notice If the `depositor` has no existing shares and they are delegated, undelegate them.
+     * This allows people a "hard reset" in their relationship with EigenLayer after withdrawing all of their stake.
+     */
+    function _undelegateIfPossible(address depositor) internal {
+        if (investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
+            delegation.undelegate(depositor);
+        }
     }
 
     // VIEW FUNCTIONS
