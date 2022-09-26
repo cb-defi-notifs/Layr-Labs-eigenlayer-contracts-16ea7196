@@ -330,6 +330,8 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
+// TODO: reimplement with queued withdrawals
+/*
     //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
@@ -377,7 +379,7 @@ contract TestHelper is EigenLayrDeployer {
         );
         cheats.stopPrank();
     }
-
+*/
     function _testRegisterAdditionalSelfOperator(address sender, bytes memory data) internal {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;

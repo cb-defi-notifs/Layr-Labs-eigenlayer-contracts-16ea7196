@@ -410,7 +410,10 @@ contract DelegationTests is TestHelper {
                                                         strategyArray, 
                                                         tokensArray, 
                                                         shareAmounts, 
-                                                        withdrawerAndNonce);
+                                                        withdrawerAndNonce,
+                                                        // TODO: make this an input
+                                                        true
+        );
         cheats.stopPrank();
         return withdrawalRoot;
     }

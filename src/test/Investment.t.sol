@@ -14,6 +14,8 @@ contract InvestmentTests is TestHelper {
         return _testWethDeposit(signers[0], amountToDeposit);
     }
 
+// TODO: reimplement with queued withdrawals
+/*
     ///@notice This test verifies that it is possible to withdraw WETH after depositing it
     ///@param amountToDeposit The amount of WETH to try depositing
     ///@param amountToWithdraw The amount of shares to try withdrawing
@@ -30,11 +32,14 @@ contract InvestmentTests is TestHelper {
         _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
         _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, wethStrat);
     }
-
+*/
+// TODO: reimplement with queued withdrawals
+/*
     /**
      * @notice Verifies that a strategy gets removed from the dynamic array 'investorStrats' when the user no longer has any shares in the strategy
      * @param amountToDeposit Fuzzed input for the amount deposited into the strategy, prior to withdrawing all shares
      */
+/*
     function testRemovalOfStrategyOnWithdrawal(uint96 amountToDeposit) public {
         // hard-coded inputs
         IInvestmentStrategy _strat = wethStrat;
@@ -54,7 +59,7 @@ contract InvestmentTests is TestHelper {
             "testRemovalOfStrategyOnWithdrawal: strategy not removed from dynamic array when it should be"
         );
     }
-
+*/
     /**
      * Testing queued withdrawals in the investment manager
      * @notice This test registers `staker` as a delegate if `registerAsDelegate` is set to 'true', deposits `amountToDeposit` into a simple WETH strategy,
@@ -338,7 +343,8 @@ contract InvestmentTests is TestHelper {
 
         //queue the withdrawal
         cheats.startPrank(staker);
-        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        // TODO: check with 'undelegateIfPossible' = false, rather than just true
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
         // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
         if (delegation.isDelegated(staker)) {
             assertTrue(

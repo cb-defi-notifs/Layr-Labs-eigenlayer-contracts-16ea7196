@@ -38,14 +38,6 @@ interface IInvestmentManager {
         external
         returns (uint256);
 
-    function withdrawFromStrategy(
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    )
-        external;
-
     function investorStratShares(address user, IInvestmentStrategy strategy) external view returns (uint256 shares);
 
     function getDeposits(address depositor) external view returns (IInvestmentStrategy[] memory, uint256[] memory);
@@ -57,7 +49,8 @@ interface IInvestmentManager {
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce,
+        bool undelegateIfPossible
     )
         external returns(bytes32);
 
