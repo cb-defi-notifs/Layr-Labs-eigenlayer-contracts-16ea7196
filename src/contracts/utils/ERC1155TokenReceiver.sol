@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 /**
  * @title Minimum amount required for a contract to receive ERC1155 tokens.
