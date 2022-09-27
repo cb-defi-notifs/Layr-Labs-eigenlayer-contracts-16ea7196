@@ -45,7 +45,9 @@ contract InvestmentManager is
      * @param delegatedAddress Is the party who the `staker` was delegated to at the time of creating the queued withdrawal
      * @param withdrawalRoot Is a hash of the input data for the withdrawal.
      */
-    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot);
+    event WithdrawalQueued(
+        address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
+    );
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
@@ -254,9 +256,7 @@ contract InvestmentManager is
     * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
     *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
     */
-    function startQueuedWithdrawalWaitingPeriod(bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
-        external
-    {
+    function startQueuedWithdrawalWaitingPeriod(bytes32 withdrawalRoot, uint32 stakeInactiveAfter) external {
         require(
             queuedWithdrawals[withdrawalRoot].initTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             "Withdrawal stake inactive claim has already been made"
@@ -277,10 +277,7 @@ contract InvestmentManager is
      * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
      * that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
      */
-    function completeQueuedWithdrawal(
-        QueuedWithdrawal calldata queuedWithdrawal,
-        bool receiveAsTokens
-    )
+    function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, bool receiveAsTokens)
         external
         whenNotPaused
         // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
@@ -299,7 +296,8 @@ contract InvestmentManager is
         );
 
         require(
-            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp || delegation.isNotDelegated(queuedWithdrawal.depositor),
+            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp
+                || delegation.isNotDelegated(queuedWithdrawal.depositor),
             "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
         );
 
@@ -319,7 +317,9 @@ contract InvestmentManager is
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
                 // tell the strategy to send the appropriate amount of funds to the depositor
-                queuedWithdrawal.strategies[i].withdraw(withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
+                queuedWithdrawal.strategies[i].withdraw(
+                    withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]
+                );
                 unchecked {
                     ++i;
                 }
@@ -434,10 +434,7 @@ contract InvestmentManager is
     }
 
     /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
-    function slashQueuedWithdrawal(
-        address recipient,
-        QueuedWithdrawal calldata queuedWithdrawal
-    )
+    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal)
         external
         whenNotPaused
         onlyOwner
@@ -605,12 +602,7 @@ contract InvestmentManager is
     /**
      * @notice Used to check if a queued withdrawal can be completed
      */
-    function canCompleteQueuedWithdrawal(
-        QueuedWithdrawal calldata queuedWithdrawal
-    )
-        external
-        returns (bool)
-    {
+    function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external returns (bool) {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
@@ -626,17 +618,11 @@ contract InvestmentManager is
         );
     }
 
-// TODO: delete this if we don't need it
+    // TODO: delete this if we don't need it
     /**
      * @notice Used to check if a queued withdrawal can be completed
      */
-    function canCompleteQueuedWithdrawal(
-        address depositor,
-        bytes32 withdrawalRoot
-    )
-        external
-        returns (bool)
-    {
+    function canCompleteQueuedWithdrawal(address depositor, bytes32 withdrawalRoot) external returns (bool) {
         // verify that the queued withdrawal actually exists
         require(
             queuedWithdrawals[withdrawalRoot].initTimestamp > 0,
@@ -670,20 +656,18 @@ contract InvestmentManager is
         return investorStrats[investor].length;
     }
 
-    function calculateWithdrawalRoot(
-        QueuedWithdrawal memory queuedWithdrawal
-    )
-        public
-        pure
-        returns (bytes32)
-    {
-        return (keccak256(abi.encode(
-            queuedWithdrawal.strategies,
-            queuedWithdrawal.tokens,
-            queuedWithdrawal.shares,
-            queuedWithdrawal.depositor,
-            queuedWithdrawal.withdrawerAndNonce,
-            queuedWithdrawal.delegatedAddress
-        )));
+    function calculateWithdrawalRoot(QueuedWithdrawal memory queuedWithdrawal) public pure returns (bytes32) {
+        return (
+            keccak256(
+                abi.encode(
+                    queuedWithdrawal.strategies,
+                    queuedWithdrawal.tokens,
+                    queuedWithdrawal.shares,
+                    queuedWithdrawal.depositor,
+                    queuedWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawal.delegatedAddress
+                )
+            )
+        );
     }
 }

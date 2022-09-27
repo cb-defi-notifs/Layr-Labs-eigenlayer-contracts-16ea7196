@@ -44,11 +44,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
      * and transfers ownership to `intialOwner`
      */
-    function initialize(
-        IInvestmentManager _investmentManager,
-        IPauserRegistry _pauserRegistry,
-        address initialOwner
-    )
+    function initialize(IInvestmentManager _investmentManager, IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {

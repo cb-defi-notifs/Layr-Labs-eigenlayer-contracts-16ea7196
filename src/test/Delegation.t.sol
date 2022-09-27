@@ -90,8 +90,8 @@ contract DelegationTests is TestHelper {
             );
         }
     }
-    
-    /// @notice registers a fixed address as a delegate, delegates to it from a second address, 
+
+    /// @notice registers a fixed address as a delegate, delegates to it from a second address,
     /// and checks that the delegate's voteWeights increase properly
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
@@ -123,46 +123,35 @@ contract DelegationTests is TestHelper {
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
     function testWithdrawal(
-            address operator, 
-            address depositor,
-            address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
-            uint32 withdrawalPeriod,
-            bool withdrawAsTokens
-        ) 
-            public 
-            fuzzedAddress(operator) 
-            fuzzedAddress(depositor) 
-            fuzzedAddress(withdrawer) 
-        {
-
+        address operator,
+        address depositor,
+        address withdrawer,
+        uint256 ethAmount,
+        uint256 eigenAmount,
+        uint32 withdrawalPeriod,
+        bool withdrawAsTokens
+    )
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(depositor)
+        fuzzedAddress(withdrawer)
+    {
         cheats.assume(depositor != operator);
-        cheats.assume(ethAmount <= 1e18); 
-        cheats.assume(eigenAmount <= 1e18); 
-        cheats.assume(withdrawalPeriod < 7 days);//type(uint32).max);
-
+        cheats.assume(ethAmount <= 1e18);
+        cheats.assume(eigenAmount <= 1e18);
+        cheats.assume(withdrawalPeriod < 7 days); //type(uint32).max);
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
-
         //delegator-specific information
-        (
-            IInvestmentStrategy[] memory delegatorStrategies,
-            uint256[] memory delegatorShares
-        ) = investmentManager.getDeposits(depositor);
+        (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+            investmentManager.getDeposits(depositor);
 
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-            IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: withdrawer,
-                nonce: 0
-            }
-        );
-
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: withdrawer, nonce: 0});
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
-            initialOperatorShares[delegatorStrategies[k]] = delegation
-                .operatorShares(operator, delegatorStrategies[k]);
+            initialOperatorShares[delegatorStrategies[k]] = delegation.operatorShares(operator, delegatorStrategies[k]);
         }
 
         uint256[] memory strategyIndexes = new uint256[](2);
@@ -175,52 +164,33 @@ contract DelegationTests is TestHelper {
 
         //initiating queued withdrawal
         bytes32 withdrawalRoot = _testQueueWithdrawal(
-                                    depositor, 
-                                    delegatorStrategies, 
-                                    tokensArray, 
-                                    delegatorShares, 
-                                    strategyIndexes, 
-                                    withdrawerAndNonce
-                                );
-
-
+            depositor, delegatorStrategies, tokensArray, delegatorShares, strategyIndexes, withdrawerAndNonce
+        );
 
         _testStartQueuedWithdrawalWaitingPeriod(withdrawer, withdrawalRoot, withdrawalPeriod);
 
         cheats.warp(withdrawalPeriod + 1 days);
 
-        if(withdrawAsTokens) {
+        if (withdrawAsTokens) {
             _testCompleteQueuedWithdrawalTokens(
-                            depositor, 
-                            delegatorStrategies, 
-                            tokensArray, 
-                            delegatorShares, 
-                            withdrawerAndNonce
-                            );
-
-        }
-        else{
+                depositor, delegatorStrategies, tokensArray, delegatorShares, withdrawerAndNonce
+            );
+        } else {
             _testCompleteQueuedWithdrawalShares(
-                            depositor, 
-                            delegatorStrategies, 
-                            tokensArray, 
-                            delegatorShares, 
-                            withdrawerAndNonce
-                            );
+                depositor, delegatorStrategies, tokensArray, delegatorShares, withdrawerAndNonce
+            );
         }
-
     }
 
-    /// @notice test to see if an operator who is slashed/frozen 
+    /// @notice test to see if an operator who is slashed/frozen
     ///         cannot be undelegated from by their stakers.
     /// @param operator is the operator being delegated to.
     /// @param staker is the staker delegating stake to the operator.
-    function testSlashedOperatorWithdrawal(
-            address operator, 
-            address staker, 
-            uint256 ethAmount, 
-            uint256 eigenAmount
-         ) public fuzzedAddress(operator) fuzzedAddress(staker){
+    function testSlashedOperatorWithdrawal(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(staker)
+    {
         cheats.assume(staker != operator);
         testDelegation(operator, staker, ethAmount, eigenAmount);
 
@@ -234,17 +204,11 @@ contract DelegationTests is TestHelper {
         slasher.freezeOperator(operator);
         cheats.stopPrank();
 
-        (
-            IInvestmentStrategy[] memory updatedStrategies,
-            uint256[] memory updatedShares
-        ) = investmentManager.getDeposits(staker);
+        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            investmentManager.getDeposits(staker);
 
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-            IInvestmentManager.WithdrawerAndNonce({
-                withdrawer: staker,
-                nonce: 0
-            }
-        );
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
 
         uint256[] memory strategyIndexes = new uint256[](2);
         strategyIndexes[0] = 0;
@@ -255,15 +219,10 @@ contract DelegationTests is TestHelper {
         tokensArray[0] = eigenToken;
 
         //initiating queued withdrawal
-        cheats.expectRevert(bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing"));
-        _testQueueWithdrawal(
-                        staker, 
-                        updatedStrategies, 
-                        tokensArray, 
-                        updatedShares, 
-                        strategyIndexes, 
-                        withdrawerAndNonce
-        );  
+        cheats.expectRevert(
+            bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
+        );
+        _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, withdrawerAndNonce);
     }
 
     /// @notice This function tests to ensure that a delegation contract
@@ -300,18 +259,19 @@ contract DelegationTests is TestHelper {
 
     //TODO: Reimplement this with new undelegation system
     function testRedelegateAfterWithdrawal(
-            address operator, 
-            address depositor, 
-            address withdrawer, 
-            uint256 ethAmount, 
-            uint256 eigenAmount,
-            uint32 withdrawalPeriod,
-            bool withdrawAsShares
-        ) 
-            public fuzzedAddress(operator) 
-            fuzzedAddress(depositor)
-            fuzzedAddress(withdrawer)
-        {
+        address operator,
+        address depositor,
+        address withdrawer,
+        uint256 ethAmount,
+        uint256 eigenAmount,
+        uint32 withdrawalPeriod,
+        bool withdrawAsShares
+    )
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(depositor)
+        fuzzedAddress(withdrawer)
+    {
         cheats.assume(depositor != operator);
         //this function performs delegation and subsequent withdrawal
         testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawalPeriod, withdrawAsShares);
@@ -402,17 +362,20 @@ contract DelegationTests is TestHelper {
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
-    ) internal returns(bytes32){
+    )
+        internal
+        returns (bytes32)
+    {
         cheats.startPrank(depositor);
 
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
-                                                        strategyIndexes, 
-                                                        strategyArray, 
-                                                        tokensArray, 
-                                                        shareAmounts, 
-                                                        withdrawerAndNonce,
-                                                        // TODO: make this an input
-                                                        true
+            strategyIndexes,
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            withdrawerAndNonce,
+            // TODO: make this an input
+            true
         );
         cheats.stopPrank();
         return withdrawalRoot;
@@ -424,13 +387,13 @@ contract DelegationTests is TestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
-    ) internal {
+    )
+        internal
+    {
         cheats.startPrank(withdrawerAndNonce.withdrawer);
 
-        for (uint i = 0; i < strategyArray.length; i++) {
-            sharesBefore.push(investmentManager.investorStratShares(
-                                                    withdrawerAndNonce.withdrawer, 
-                                                    strategyArray[i]));
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
         }
 
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
@@ -443,17 +406,15 @@ contract DelegationTests is TestHelper {
         });
 
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(
-                                    queuedWithdrawal,
-                                    false
-                                );   
-        
-        for (uint i = 0; i < strategyArray.length; i++) {
-                require(investmentManager.investorStratShares(
-                                        withdrawerAndNonce.withdrawer, 
-                                        strategyArray[i]
-                                        ) == sharesBefore[i] + shareAmounts[i], "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented");
-        }                                
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, false);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            require(
+                investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i])
+                    == sharesBefore[i] + shareAmounts[i],
+                "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented"
+            );
+        }
         cheats.stopPrank();
     }
 
@@ -463,16 +424,18 @@ contract DelegationTests is TestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
-        ) internal {
+    )
+        internal
+    {
         cheats.startPrank(withdrawerAndNonce.withdrawer);
         emit log_uint(strategyArray.length);
 
-        for (uint i = 0; i < strategyArray.length; i++) {
+        for (uint256 i = 0; i < strategyArray.length; i++) {
             balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
             priorTotalShares.push(strategyArray[i].totalShares());
             strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
         }
-        
+
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
             tokens: tokensArray,
@@ -482,34 +445,30 @@ contract DelegationTests is TestHelper {
             delegatedAddress: delegation.delegatedTo(depositor)
         });
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(
-                                    queuedWithdrawal,
-                                    true
-                                );   
-        
-        for (uint i = 0; i < strategyArray.length; i++) {
-                //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
-                uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i]/priorTotalShares[i];
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
 
-                require(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer) 
-                                            == balanceBefore[i] + tokenBalanceDelta, "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented");
-        }                                
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
+            uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i] / priorTotalShares[i];
+
+            require(
+                strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer)
+                    == balanceBefore[i] + tokenBalanceDelta,
+                "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented"
+            );
+        }
         cheats.stopPrank();
     }
-
-
 
     function _testStartQueuedWithdrawalWaitingPeriod(
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
-    ) internal {
+    )
+        internal
+    {
         cheats.startPrank(withdrawer);
-        investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        withdrawalRoot, 
-                                        stakeInactiveAfter
-                                    );
+        investmentManager.startQueuedWithdrawalWaitingPeriod(withdrawalRoot, stakeInactiveAfter);
         cheats.stopPrank();
     }
-
 }
