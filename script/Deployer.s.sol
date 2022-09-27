@@ -221,6 +221,15 @@ contract EigenLayrDeployer is
         address governor = address(this);
         // deploy slasher and service factory contracts
         slasher = new Slasher();
+        slasher = Slasher(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(slasher),
+                    address(eigenLayrProxyAdmin),
+                    ""
+                )
+            )
+        );
         slasher.initialize(investmentManager, delegation, governor);
         serviceFactory = new ServiceFactory(investmentManager, delegation);
 
