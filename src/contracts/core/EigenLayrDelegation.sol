@@ -98,6 +98,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     function undelegate(address staker) external onlyInvestmentManager {
         delegated[staker] = DelegationStatus.UNDELEGATED;
+        delegation[staker] = address(0);
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
