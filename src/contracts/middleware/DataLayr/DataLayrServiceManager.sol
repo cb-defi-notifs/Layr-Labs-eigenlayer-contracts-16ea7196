@@ -225,7 +225,7 @@ contract DataLayrServiceManager is
             );
 
             require(
-                blockNumber >= (block.number - BLOCK_STALE_MEASURE),
+                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
                 "specified blockNumber is too far in past"
             );    
         }
