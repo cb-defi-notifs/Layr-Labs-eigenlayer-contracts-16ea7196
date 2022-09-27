@@ -12,13 +12,13 @@ import "../libraries/BLS.sol";
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
 
+    mapping(address => bytes32) public operatorToPubkeyHash;
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
     // EVENTS
     event NewPubkeyRegistration(
         address operator,
-        uint256[4] pk,
-        bytes32 pkh
+        uint256[4] pk
     );
 
     constructor() {}
@@ -35,14 +35,16 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
         (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender);
 
         // getting pubkey hash
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+        bytes32 pubkeyHash = BLS.hashPubkey(pk);
         
+        require(operatorToPubkeyHash[msg.sender] == bytes32(0), "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey");
         require(pubkeyHashToOperator[pubkeyHash] == address(0), "BLSPublicKeyRegistry.registerBLSPublicKey: public key already registered");
 
         //store updates
+        operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
         //emit event of new regsitratio
-        emit NewPubkeyRegistration(msg.sender, pk, pubkeyHash);
+        emit NewPubkeyRegistration(msg.sender, pk);
     }
 }

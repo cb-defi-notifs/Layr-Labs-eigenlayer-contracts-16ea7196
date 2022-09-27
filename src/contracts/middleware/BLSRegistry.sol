@@ -159,9 +159,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        bytes32 pubkeyHashFromInput = keccak256(
-            abi.encodePacked(pubkeyToRemoveAff[0], pubkeyToRemoveAff[1], pubkeyToRemoveAff[2], pubkeyToRemoveAff[3])
-        );
+        bytes32 pubkeyHashFromInput = BLS.hashPubkey(pubkeyToRemoveAff);
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(
             pubkeyHash == pubkeyHashFromInput,
