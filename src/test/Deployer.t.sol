@@ -14,6 +14,7 @@ import "../contracts/middleware/Repository.sol";
 import "../contracts/permissions/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
+import "../contracts/middleware/BLSPublicKeyCompendium.sol";
 import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
@@ -46,6 +47,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
+    BLSPublicKeyCompendium public pubkeyCompendium;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
@@ -319,6 +321,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         _quorumBips[0] = 6000;
         _quorumBips[1] = 4000;
 
+        pubkeyCompendium = new BLSPublicKeyCompendium();
+
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
@@ -328,7 +332,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
-            eigenStratsAndMultipliers
+            eigenStratsAndMultipliers,
+            pubkeyCompendium
         );
 
         Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));

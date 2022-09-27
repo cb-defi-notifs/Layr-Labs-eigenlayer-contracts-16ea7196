@@ -18,6 +18,7 @@
 
 // 2019 OKIMS
 
+// ADAPTED BY LayrLabs Inc.
 pragma solidity ^0.8.12.0;
 
 library BN254 {

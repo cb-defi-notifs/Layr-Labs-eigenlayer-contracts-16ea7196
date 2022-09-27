@@ -17,7 +17,8 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
     // EVENTS
     event NewPubkeyRegistration(
         address operator,
-        uint256[4] pk
+        uint256[4] pk,
+        bytes32 pkh
     );
 
     constructor() {}
@@ -42,6 +43,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
         //emit event of new regsitratio
-        emit NewPubkeyRegistration(msg.sender, pk);
+        emit NewPubkeyRegistration(msg.sender, pk, pubkeyHash);
     }
 }

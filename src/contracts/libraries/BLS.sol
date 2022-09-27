@@ -40,7 +40,7 @@ library BLS {
      * @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      * @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */
-    function verifyBLSSigOfPubKeyHash(bytes calldata, address operator, uint256 offset)
+    function verifyBLSSigOfPubKeyHash(bytes calldata data, address operator)
         internal
         view
         returns (uint256, uint256, uint256, uint256)
@@ -53,13 +53,13 @@ library BLS {
 
         assembly {
             //store pk in indexes 2-5, it is a G2 point
-            mstore(add(input, 0x40), calldataload(offset))
-            mstore(add(input, 0x60), calldataload(add(offset, 32)))
-            mstore(add(input, 0x80), calldataload(add(offset, 64)))
-            mstore(add(input, 0xA0), calldataload(add(offset, 96)))
+            mstore(add(input, 0x40), calldataload(data.offset))
+            mstore(add(input, 0x60), calldataload(add(data.offset, 32)))
+            mstore(add(input, 0x80), calldataload(add(data.offset, 64)))
+            mstore(add(input, 0xA0), calldataload(add(data.offset, 96)))
             //store sigma (signature) in indexes 6-7, it is a G1 point
-            mstore(add(input, 0xC0), calldataload(add(offset, 128)))
-            mstore(add(input, 0xE0), calldataload(add(offset, 160)))
+            mstore(add(input, 0xC0), calldataload(add(data.offset, 128)))
+            mstore(add(input, 0xE0), calldataload(add(data.offset, 160)))
             //store the negated G2 generator in indexes 8-11
             mstore(add(input, 0x100), nG2x1)
             mstore(add(input, 0x120), nG2x0)

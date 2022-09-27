@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "../contracts/libraries/BytesLib.sol";
 import "../test/Deployer.t.sol";
 
+
 contract TestHelper is EigenLayrDeployer {
+    using BytesLib for bytes;
+
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -54,7 +58,8 @@ contract TestHelper is EigenLayrDeployer {
         // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0], socket);
+        pubkeyCompendium.registerBLSPublicKey(registrationData[0]);
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0].slice(0, 128), socket);
         cheats.stopPrank();
     }
 
@@ -393,7 +398,8 @@ contract TestHelper is EigenLayrDeployer {
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
 
-        dlReg.registerOperator(operatorType, ephemeralKey, data, socket);
+        pubkeyCompendium.registerBLSPublicKey(data);
+        dlReg.registerOperator(operatorType, ephemeralKey, data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
