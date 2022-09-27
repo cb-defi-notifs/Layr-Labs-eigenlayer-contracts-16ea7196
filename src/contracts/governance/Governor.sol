@@ -27,7 +27,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
  * @title Experimental governance contract.
  * @author Layr Labs, Inc.
  */
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistry.sol";

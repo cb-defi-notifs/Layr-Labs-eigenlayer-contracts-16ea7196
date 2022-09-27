@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BLS.sol";
 
-// import "forge-std/Test.sol";
-
 /**
- * @title An shared contract for EigenLayer operators to register their BLS public keys
+ * @title An shared contract for EigenLayer operators to register their BLS public keys.
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
@@ -24,7 +22,8 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
     constructor() {}
 
     /**
-     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     * @notice Called by an operator to register themselves as the owner of a BLS public key.
+     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
      */
     function registerBLSPublicKey(bytes calldata data)
         external

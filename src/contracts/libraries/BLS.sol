@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED AND MIT
 // several functions are from https://github.com/ChihChengLiang/bls_solidity_python/blob/master/contracts/BLS.sol (MIT license)
 // remainder is UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 /**
  * @title Library for operations related to BLS Signatures used in EigenLayer middleware.
