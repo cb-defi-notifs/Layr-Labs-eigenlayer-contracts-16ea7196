@@ -9,23 +9,17 @@ import "../libraries/BLS.sol";
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
-
     mapping(address => bytes32) public operatorToPubkeyHash;
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
     // EVENTS
-    event NewPubkeyRegistration(
-        address operator,
-        uint256[4] pk
-    );
+    event NewPubkeyRegistration(address operator, uint256[4] pk);
 
     /**
      * @notice Called by an operator to register themselves as the owner of a BLS public key.
      * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
      */
-    function registerBLSPublicKey(bytes calldata data)
-        external
-    {
+    function registerBLSPublicKey(bytes calldata data) external {
         uint256[4] memory pk;
 
         // verify sig of public key and get pubkeyHash back, slice out compressed apk
@@ -33,15 +27,21 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
 
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
-        
-        require(operatorToPubkeyHash[msg.sender] == bytes32(0), "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey");
-        require(pubkeyHashToOperator[pubkeyHash] == address(0), "BLSPublicKeyRegistry.registerBLSPublicKey: public key already registered");
 
-        //store updates
+        require(
+            operatorToPubkeyHash[msg.sender] == bytes32(0),
+            "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey"
+        );
+        require(
+            pubkeyHashToOperator[pubkeyHash] == address(0),
+            "BLSPublicKeyRegistry.registerBLSPublicKey: public key already registered"
+        );
+
+        // store updates
         operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
-        //emit event of new regsitratio
+        // emit event of new regsitration
         emit NewPubkeyRegistration(msg.sender, pk);
     }
 }
