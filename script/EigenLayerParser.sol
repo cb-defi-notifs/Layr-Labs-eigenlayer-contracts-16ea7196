@@ -47,10 +47,10 @@ contract EigenLayerParser is Script, DSTest
     string internal addressJson;
 
     function parseEigenLayerParams() internal {
-        configJson = vm.readFile("data/config.json");
-        numDis = stdJson.readUint(configJson, ".global.numDis");
-        numDln = stdJson.readUint(configJson, ".global.numDln");
-        numStaker = stdJson.readUint(configJson, ".global.numStaker");
+        configJson = vm.readFile("data/participants.json");
+        numDis = stdJson.readUint(configJson, ".numDis");
+        numDln = stdJson.readUint(configJson, ".numDln");
+        numStaker = stdJson.readUint(configJson, ".numStaker");
 
         addressJson = vm.readFile("data/addresses.json");
         delegation = EigenLayrDelegation(stdJson.readAddress(addressJson, ".delegation"));
