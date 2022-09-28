@@ -6,8 +6,7 @@ pragma solidity ^0.8.9;
  * @author Layr Labs, Inc.
  */
 interface IBLSPublicKeyCompendium {
-    function operatorToPubkeyHash(address operator) external returns (bytes32);
-    function pubkeyHashToOperator(bytes32 pubkeyHash) external returns (address);
-    function registerBLSPublicKey(bytes calldata data)
-        external;
+    function operatorToPubkeyHash(address operator) external view returns (bytes32);
+    function pubkeyHashToOperator(bytes32 pubkeyHash) external view returns (address);
+    function registerBLSPublicKey(bytes calldata data) external;
 }
