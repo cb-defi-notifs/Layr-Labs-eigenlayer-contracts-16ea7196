@@ -19,8 +19,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
         uint256[4] pk
     );
 
-    constructor() {}
-
     /**
      * @notice Called by an operator to register themselves as the owner of a BLS public key.
      * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
