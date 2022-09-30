@@ -430,21 +430,24 @@ contract TestHelper is EigenLayrDeployer {
             _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
         }
 
-        // hard-coded value
+        // hard-coded values
         uint256 index = 0;
+        uint256 initTime = 1000000001;
 
-        return _testConfirmDataStoreWithoutRegister(index, numSigners);
+        return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);
     }
 
-    function _testConfirmDataStoreWithoutRegister(uint256 index, uint8 numSigners)
+    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 numSigners)
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
-        uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numSigners));
+        uint256[4] memory apk;
+        {
+            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
+        }
         (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
 
         /**
@@ -478,10 +481,10 @@ contract TestHelper is EigenLayrDeployer {
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            apk_0,
-            apk_1,
-            apk_2,
-            apk_3,
+            apk[0],
+            apk[1],
+            apk[2],
+            apk[3],
             sigma_0,
             sigma_1
         );
