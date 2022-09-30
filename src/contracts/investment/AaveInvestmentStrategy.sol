@@ -2,37 +2,57 @@
 pragma solidity ^0.8.9;
 
 import "./aave/ILendingPool.sol";
-import "./AaveInvestmentStrategyStorage.sol";
 import "./InvestmentStrategyBase.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrategyStorage, InvestmentStrategyBase {
+/**
+ * @title InvestmentStrategy that lends tokens out on AAVE.
+ * @author Layr Labs, Inc.
+ * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
+ * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
+ */
+abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
+    using SafeERC20 for IERC20;
 
-    constructor() {
-        // TODO: uncomment for production use!
-        //_disableInitializers();
-    }
+    ILendingPool public lendingPool;
+    IERC20 public aToken;
 
-    function initialize(address _investmentManager, IERC20 _underlyingToken, ILendingPool _lendingPool, IERC20 _aToken
-    ) initializer public {
-        super.initialize(_investmentManager, _underlyingToken);
+    // solhint-disable-next-line no-empty-blocks
+    constructor(IInvestmentManager _investmentManager) InvestmentStrategyBase(_investmentManager) {}
+
+    function initialize(
+        IERC20 _underlyingToken,
+        ILendingPool _lendingPool,
+        IERC20 _aToken,
+        IPauserRegistry _pauserRegistry
+    )
+        public
+        initializer
+    {
+        super.initialize(_underlyingToken, _pauserRegistry);
         lendingPool = _lendingPool;
         aToken = _aToken;
-        underlyingToken.approve(address(_lendingPool), type(uint256).max);
+        underlyingToken.safeApprove(address(_lendingPool), type(uint256).max);
     }
 
-
     /**
-     * @notice Used for depositing assets into Aave
+     * @notice Used to deposit tokens into this InvestmentStrategy
+     * @param token is the ERC20 token being deposited
+     * @param amount is the amount of token being deposited
+     * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
+     * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
+     * @return newShares is the number of new shares issued at the current exchange ratio.
+     * For this strategy, the exchange ratio is fixed at (1 underlying token) / (1 share) due to the nature of AAVE's ATokens.
+     * @notice This strategy accepts deposits either in the form of `underlyingToken` OR `aToken`
      */
-    /**
-     * @return newShares is the number of shares issued at the current price for each share
-     *         in terms of aToken. 
-     */
-    function deposit(
-        IERC20 token,
-        uint256 amount
-    ) external override onlyInvestmentManager returns (uint256 newShares) {
+    function deposit(IERC20 token, uint256 amount)
+        external
+        override
+        whenNotPaused
+        onlyInvestmentManager
+        returns (uint256 newShares)
+    {
         uint256 aTokenIncrease;
         uint256 aTokensBefore;
         if (token == underlyingToken) {
@@ -41,12 +61,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
 
             //tokens have already been transferred to this contract
             //underlyingToken.transferFrom(depositor, address(this), amounts[0]);
-            lendingPool.deposit(
-                address(underlyingToken),
-                amount,
-                address(this),
-                0
-            );
+            lendingPool.deposit(address(underlyingToken), amount, address(this), 0);
 
             // increment in the aToken balance of this contract due to the new investment
             aTokenIncrease = aToken.balanceOf(address(this)) - aTokensBefore;
@@ -57,7 +72,7 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
             // this includes interest rates accrued on existing investment
             aTokensBefore = aToken.balanceOf(address(this)) - amount;
         } else {
-            revert("can only deposit underlyingToken or aToken");
+            revert("AaveInvestmentStrategy.deposit: can only deposit underlyingToken or aToken");
         }
         if (totalShares == 0) {
             // no existing investment into this investment strategy
@@ -65,8 +80,8 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         } else {
             /**
              * @dev Evaluating the number of new shares that would be issued for the increase
-             *      in aToken at the current price of each share in terms of aToken. This 
-             *      price is given by aTokensBefore / totalShares.  
+             * in aToken at the current price of each share in terms of aToken. This
+             * price is given by aTokensBefore / totalShares.
              */
             newShares = (aTokenIncrease * totalShares) / aTokensBefore;
         }
@@ -75,50 +90,39 @@ abstract contract AaveInvestmentStrategy is Initializable, AaveInvestmentStrateg
         totalShares += newShares;
     }
 
-
     /**
-     * @notice Used for withdrawing assets from Aave in the specified token
+     * @notice Used to withdraw tokens from this InvestmentStrategy, to the `depositor`'s address
+     * @param token is the ERC20 token being transferred out
+     * @param shareAmount is the amount of shares being withdrawn
+     * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
+     * other functions, and individual share balances are recorded in the investmentManager as well
+     * @notice This strategy distributes withdrawals either in the form of `underlyingToken` OR `aToken`
      */
-    /**
-     * @param depositor is the withdrawer's address
-     * @param token is the token in which deposter intends to get back its assets
-     * @param shareAmount is the amount of share that the depositor wants to exchange for 
-     *        withdrawing its assets
-     */
-    function withdraw(
-        address depositor,
-        IERC20 token,
-        uint256 shareAmount
-    ) external override onlyInvestmentManager {
+    function withdraw(address depositor, IERC20 token, uint256 shareAmount) external override onlyInvestmentManager {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
 
         if (token == underlyingToken) {
             //withdraw from lendingPool
-            uint256 amountWithdrawn = lendingPool.withdraw(
-                address(underlyingToken),
-                toWithdraw,
-                depositor
-            );
+            uint256 amountWithdrawn = lendingPool.withdraw(address(underlyingToken), toWithdraw, depositor);
 
             // transfer the underlyingToken to the depositor
-            underlyingToken.transfer(depositor, amountWithdrawn);
-
+            underlyingToken.safeTransfer(depositor, amountWithdrawn);
         } else if (token == aToken) {
-            aToken.transfer(depositor, toWithdraw);
+            aToken.safeTransfer(depositor, toWithdraw);
         } else {
-            revert("can only withdraw as underlyingToken or aToken");
+            revert("AaveInvestmentStrategy.withdraw: can only withdraw as underlyingToken or aToken");
         }
 
         // update the total shares for this investment strategy
         totalShares -= shareAmount;
     }
 
-    
     function explanation() external pure override returns (string memory) {
         return "A simple investment strategy that allows a single asset to be deposited and loans it out on Aave";
     }
 
-    function _tokenBalance() internal view override returns(uint256) {
+    /// @notice Internal function used to fetch this contract's current balance of `aToken`.
+    function _tokenBalance() internal view override returns (uint256) {
         return aToken.balanceOf(address(this));
     }
 }

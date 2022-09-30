@@ -2,43 +2,47 @@
 pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
-
-import "ds-test/test.sol";
+import "../interfaces/IBLSPublicKeyCompendium.sol";
+import "../interfaces/IBLSRegistry.sol";
+import "forge-std/Test.sol";
 
 /**
- * @notice This contract is used for 
-            - registering new operators 
-            - committing to and finalizing de-registration as an operator 
-            - updating the stakes of the operator
+ * @title A Registry-type contract using aggregate BLS signatures.
+ * @author Layr Labs, Inc.
+ * @notice This contract is used for
+ * - registering new operators
+ * - committing to and finalizing de-registration as an operator
+ * - updating the stakes of the operator
  */
-
-contract BLSRegistry is
-    RegistryBase
-{
+contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
+
+    IBLSPublicKeyCompendium public pubkeyCompendium;
 
     /// @notice the task numbers at which the aggregated pubkeys were updated
     uint32[] public apkUpdates;
 
     /**
-     @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, 
-             this is updated whenever a new operator registers or deregisters
+     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators,
+     * this is updated whenever a new operator registers or deregisters
      */
     bytes32[] public apkHashes;
 
     /**
-     @notice used for storing current aggregate public key
+     * @notice used for storing current aggregate public key
+     * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+     * addition in Jacobian coordinate system.
      */
-    /** 
-     @dev Initialized value is the generator of G2 group. It is necessary in order to do 
-     addition in Jacobian coordinate system.
-     */
-    uint256[4] public apk = [G2x0, G2x1, G2y0, G2y1];
+    uint256[4] public apk;
 
-    
     // EVENTS
     /**
-     * @notice
+     * @notice Emitted upon the registration of a new operator for the middleware
+     * @param operator Address of the new operator
+     * @param pkHash The keccak256 hash of the operator's public key
+     * @param pk The operator's public key itself
+     * @param apkHashIndex The index of the latest (i.e. the new) APK update
+     * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
     event Registration(
         address indexed registrant,
@@ -53,444 +57,278 @@ contract BLSRegistry is
         Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        uint256[] memory _quorumBips,
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _quorumBips,
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers
         )
-    {}
-
-    /**
-     @notice called for registering as a operator
-     */
-    /**
-     @param registrantType specifies whether the operator want to register as ETH staker or Eigen stake or both
-     @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
-     @param socket is the socket address of the operator
-     
-     */ 
-    function registerOperator(
-        uint8 registrantType,
-        bytes calldata data,
-        string calldata socket
-    ) public virtual {        
-        _registerOperator(msg.sender, registrantType, data, socket);
-    }
-    
-    /**
-     @param operator is the node who is registering to be a operator
-     */
-    function _registerOperator(
-        address operator,
-        uint8 registrantType,
-        bytes calldata data,
-        string calldata socket
-    ) internal {
-        require(
-            registry[operator].active == 0,
-            "Operator is already registered"
-        );
-
-        OperatorStake memory _operatorStake;
-
-        // if first bit of registrantType is '1', then operator wants to be an ETH validator
-        if ((registrantType & 1) == 1) {
-            // if operator want to be an "ETH" validator, check that they meet the
-            // minimum requirements on how much ETH it must deposit
-            _operatorStake.ethStake = uint96(weightOfOperatorEth(operator));
-            require(
-                _operatorStake.ethStake >= nodeEthStake,
-                "Not enough eth value staked"
-            );
-        }
-
-        //if second bit of registrantType is '1', then operator wants to be an EIGEN validator
-        if ((registrantType & 2) == 2) {
-            // if operator want to be an "Eigen" validator, check that they meet the
-            // minimum requirements on how much Eigen it must deposit
-            _operatorStake.eigenStake = uint96(weightOfOperatorEigen(operator));
-            require(
-                _operatorStake.eigenStake >= nodeEigenStake,
-                "Not enough eigen staked"
-            );
-        }
-
-        require(
-            _operatorStake.ethStake > 0 || _operatorStake.eigenStake > 0,
-            "must register as at least one type of validator"
-        );
-
-
-        
+    {
         /**
-         @notice evaluate the new aggregated pubkey
+         * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+         * addition in Jacobian coordinate system.
+         */
+        uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
+        _processApkUpdate(initApk);
+        //set compendium
+        pubkeyCompendium = _pubkeyCompendium;
+    }
+
+    /**
+     * @notice called for registering as a operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param pkBytes is the abi encoded bn254 G2 public key of the operator
+     * @param socket is the socket address of the operator
+     */
+    function registerOperator(uint8 operatorType, bytes calldata pkBytes, string calldata socket) external virtual {
+        _registerOperator(msg.sender, operatorType, pkBytes, socket);
+    }
+
+    /**
+     * @param operator is the node who is registering to be a operator
+     * @param operatorType specifies whether the operator want to register as staker for one or both quorums
+     * @param pkBytes is the serialized bn254 G2 public key of the operator
+     * @param socket is the socket address of the operator
+     */
+    function _registerOperator(address operator, uint8 operatorType, bytes calldata pkBytes, string calldata socket)
+        internal
+    {
+        OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
+
+        /**
+         * @notice evaluate the new aggregated pubkey
          */
         uint256[4] memory newApk;
-        uint256[4] memory pk;
+        uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
-        
+        // getting pubkey hash
+        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+
+        require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
+
+        require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
 
         {
-
-            // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, operator, 164); 
-            //verifyBLS(data, msg.sender, 164);
-            
             // add pubkey to aggregated pukkey in Jacobian coordinates
-            uint256[6] memory newApkJac = BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
-            
+            uint256[6] memory newApkJac =
+                BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
+
             // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
-
-            apk = newApk;
-        }
-        
-
-        // getting pubkey hash 
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
-        
-
-        if (apkUpdates.length != 0) {
-            // addition doesn't work in this case 
-            // our addition algorithm doesn't work
-            require(pubkeyHash != apkHashes[apkHashes.length - 1], "Apk and pubkey cannot be the same");
         }
 
-        
-        // emit log_bytes(getCompressedApk());
-        // emit log_named_uint("x", input[0]);
-        // emit log_named_uint("y", getYParity(input[0], input[1]) ? 0 : 1);
+        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
+        require(
+            pubkeyHash != apkHashes[apkHashes.length - 1],
+            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
+        );
 
+        // record the APK update and get the hash of the new APK
+        bytes32 newApkHash = _processApkUpdate(newApk);
 
+        // add the operator to the list of registrants and do accounting
+        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
 
-        
-        /**
-         @notice some book-keeping for aggregated pubkey
-         */
-        // get current task number from ServiceManager
-        uint32 currentTaskNumber = IServiceManager(address(repository.serviceManager())).taskNumber();
-
-        // store the current block number in which the aggregated pubkey is being updated 
-        apkUpdates.push(uint32(block.number));
-        
-        //store the hash of aggregate pubkey
-        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);    
-
-        /**
-         @notice some book-keeping for recording info pertaining to the operator
-         */
-        // record the new stake for the operator in the storage
-        _operatorStake.updateBlockNumber = uint32(block.number);
-        pubkeyHashToStakeHistory[pubkeyHash].push(_operatorStake);
-        
-        // store the registrant's info in relation
-        registry[operator] = Registrant({
-            pubkeyHash: pubkeyHash,
-            id: nextRegistrantId,
-            index: numRegistrants(),
-            active: registrantType,
-            fromTaskNumber: currentTaskNumber,
-            fromBlockNumber: uint32(block.number),
-            serveUntil: 0,
-            deregisterTime: 0
-        });
-
-        // record the operator being registered
-        registrantList.push(operator);
-
-        // record operator's index in list of operators
-        OperatorIndex memory operatorIndex;
-        operatorIndex.index = uint32(registrantList.length - 1);
-        pubkeyHashToIndexHistory[pubkeyHash].push(operatorIndex);
-        
-        // Update totalOperatorsHistory
-        _updateTotalOperatorsHistory();
-
-        // update the counter for registrant ID
-        unchecked {
-            ++nextRegistrantId;
-        }
-        
-        
-        {
-            /**
-            @notice some book-keeping for recoding updated total stake
-            */
-            OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-            /**
-            * update total Eigen and ETH that are being employed by the operator for securing
-            * the queries from middleware via EigenLayr
-            */
-            _totalStake.ethStake += _operatorStake.ethStake;
-            _totalStake.eigenStake += _operatorStake.eigenStake;
-            _totalStake.updateBlockNumber = uint32(block.number);
-            // linking with the most recent stake recordd in the past
-            totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-            totalStakeHistory.push(_totalStake);
-        }
-            
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length)-1, newApkHash, socket);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
     }
 
     /**
-      @notice Used by an operator to de-register itself from providing service to the middleware.
-     */
-    /** 
-      @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
+     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param index is the sender's location in the dynamic array `operatorList`
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
         return true;
     }
 
-    function _deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
-        require(
-            registry[msg.sender].active > 0,
-            "Operator is already registered"
-        );
+    /**
+     * @notice Used to process de-registering an operator from providing service to the middleware.
+     * @param operator The operator to be deregistered
+     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param index is the sender's location in the dynamic array `operatorList`
+     */
 
-        require(
-            msg.sender == registrantList[index],
-            "Incorrect index supplied"
-        );
+    function _deregisterOperator(address operator, uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
+        // verify that the `operator` is an active operator and that they've provided the correct `index`
+        _deregistrationCheck(operator, index);
 
-        IServiceManager serviceManager = repository.serviceManager();
-
-        // must store till the latest time a dump expires
-        /**
-         @notice this info is used in forced disclosure
-         */
-        registry[msg.sender].serveUntil = serviceManager.latestTime();
-
-
-        // committing to not signing off on any more data that is being asserted into DataLayr
-        registry[msg.sender].active = 0;
-
-        registry[msg.sender].deregisterTime = block.timestamp;
-        
-        /**
-         @notice verify that the sender is a operator that is doing deregistration for itself 
-         */
-        // get operator's stored pubkeyHash
-        bytes32 pubkeyHash = registry[msg.sender].pubkeyHash;
-        bytes32 pubkeyHashFromInput = keccak256(
-            abi.encodePacked(
-                pubkeyToRemoveAff[0],
-                pubkeyToRemoveAff[1],
-                pubkeyToRemoveAff[2],
-                pubkeyToRemoveAff[3]
-            )
-        );
+        /// @dev Fetch operator's stored pubkeyHash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        bytes32 pubkeyHashFromInput = BLS.hashPubkey(pubkeyToRemoveAff);
         // verify that it matches the 'pubkeyToRemoveAff' input
-        require(pubkeyHash == pubkeyHashFromInput, "incorrect input for commitDeregistration");
+        require(
+            pubkeyHash == pubkeyHashFromInput,
+            "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
+        );
 
-        // determine current stakes
-        OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-            pubkeyHash
-        ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-
-        /**
-         @notice recording the information pertaining to change in stake for this operator in the history
-         */
-        // determine new stakes
-        OperatorStake memory newStakes;
-        // recording the current task number where the operator stake got updated 
-        newStakes.updateBlockNumber = uint32(block.number);
-
-        // setting total staked ETH for the operator to 0
-        newStakes.ethStake = uint96(0);
-        // setting total staked Eigen for the operator to 0
-        newStakes.eigenStake = uint96(0);
-
-        //set next task number in prev stakes
-        pubkeyHashToStakeHistory[pubkeyHash][
-            pubkeyHashToStakeHistory[pubkeyHash].length - 1
-        ].nextUpdateBlockNumber = uint32(block.number);
-
-        // push new stake to storage
-        pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-        // Update registrant list and update index histories
-        address swappedOperator = popRegistrant(pubkeyHash,index);
+        // Perform necessary updates for removing operator, including updating registrant list and index histories
+        _removeRegistrant(pubkeyHash, index);
 
         /**
-         @notice  update info on ETH and Eigen staked with the middleware
-         */
-        // subtract the staked Eigen and ETH of the operator that is getting deregistered from total stake
-        // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        _totalStake.ethStake -= currentStakes.ethStake;
-        _totalStake.eigenStake -= currentStakes.eigenStake;
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
-
-        /**
-         @notice update the aggregated public key of all registered operators and record
-                 this update in history
+         * @notice update the aggregated public key of all registered operators and record
+         * this update in history
          */
         // get existing aggregate public key
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
-        (pk[0], pk[1], pk[2], pk[3]) = removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-        // update stored aggregate public key
-        apk = pk;
+        (pk[0], pk[1], pk[2], pk[3]) = BLS.removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
 
-        // store the current block number in which the aggregated pubkey is being updated 
-        apkUpdates.push(uint32(block.number));
-
-        // store hash of updated aggregated pubkey
-        apkHashes.push(keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])));
-
-        emit Deregistration(msg.sender, swappedOperator);
+        // record the APK update
+        _processApkUpdate(pk);
     }
 
     /**
-     @notice This function is for removing a pubkey from aggregated pubkey. The thesis of this operation:
-              - conversion to Jacobian coordinates,
-              - do the subtraction of pubkey from aggregated pubkey,
-              - convert the updated aggregated pubkey back to affine coordinates.   
+     * @notice Used for updating information on deposits of nodes.
+     * @param operators are the nodes whose deposit information is getting updated
      */
-    /**
-     @param pubkeyToRemoveAff is the pubkey that is to be removed,
-     @param existingAggPubkeyAff is the aggregated pubkey.
-     */
-    /**
-     @dev Jacobian coordinates are stored in the form [x0, x1, y0, y1, z0, z1]
-     */ 
-    function removePubkeyFromAggregate(uint256[4] memory pubkeyToRemoveAff, uint256[4] memory existingAggPubkeyAff) internal view returns (uint256, uint256, uint256, uint256) {
-        uint256[6] memory pubkeyToRemoveJac;
-        uint256[6] memory existingAggPubkeyJac;
-
-        // get x0, x1, y0, y1 from affine coordinates
-        for (uint256 i = 0; i < 4;) {
-            pubkeyToRemoveJac[i] = pubkeyToRemoveAff[i];
-            existingAggPubkeyJac[i] = existingAggPubkeyAff[i];
-            unchecked {
-                ++i;
-            }
-        }
-        // set z0 = 1
-        pubkeyToRemoveJac[4] = 1;
-        existingAggPubkeyJac[4] = 1;
-
-
-        /**
-         @notice subtract pubkeyToRemoveJac from the aggregate pubkey
-         */
-        // negate pubkeyToRemoveJac  
-        pubkeyToRemoveJac[2] = (MODULUS - pubkeyToRemoveJac[2]) % MODULUS;
-        pubkeyToRemoveJac[3] = (MODULUS - pubkeyToRemoveJac[3]) % MODULUS;
-        // add the negation to existingAggPubkeyJac
-        BLS.addJac(existingAggPubkeyJac, pubkeyToRemoveJac);
-
-        // 'addJac' function above modifies the first input in memory, so now we can just return it (but first transform it back to affine)
-        return (BLS.jacToAff(existingAggPubkeyJac));
-    }
-
-    /**
-     * @notice Used for updating information on ETH and EIGEN deposits of nodes.
-     */
-    /**
-     * @param operators are the nodes whose information on their ETH and EIGEN deposits
-     *        getting updated
-     */
-    function updateStakes(address[] calldata operators) public {
+    function updateStakes(address[] calldata operators) external {
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
-        // TODO: test if declaring more variables outside of loop decreases gas usage
+        // placeholders reused inside of loop
+        OperatorStake memory currentStakes;
+        bytes32 pubkeyHash;
         uint256 operatorsLength = operators.length;
         // iterating over all the tuples that are to be updated
-        for (uint256 i = 0; i < operatorsLength; ) {
+        for (uint256 i = 0; i < operatorsLength;) {
             // get operator's pubkeyHash
-            bytes32 pubkeyHash = registry[operators[i]].pubkeyHash;
-            // determine current stakes
-            OperatorStake memory currentStakes = pubkeyHashToStakeHistory[
-                pubkeyHash
-            ][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
-            // determine new stakes
-            OperatorStake memory newStakes;
+            // update the stake for the i-th operator
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
 
-            newStakes.updateBlockNumber = uint32(block.number);
-            newStakes.ethStake = weightOfOperatorEth(operators[i]);
-            newStakes.eigenStake = weightOfOperatorEigen(operators[i]);
+            // increase _totalStake by operator's updated stakes
+            _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
 
-            // check if minimum requirements have been met
-            if (newStakes.ethStake < nodeEthStake) {
-                newStakes.ethStake = uint96(0);
-            }
-            if (newStakes.eigenStake < nodeEigenStake) {
-                newStakes.eigenStake = uint96(0);
-            }
-            //set next task number in prev stakes
-            pubkeyHashToStakeHistory[pubkeyHash][
-                pubkeyHashToStakeHistory[pubkeyHash].length - 1
-            ].nextUpdateBlockNumber = uint32(block.number);
-            // push new stake to storage
-            pubkeyHashToStakeHistory[pubkeyHash].push(newStakes);
-
-
-            /**
-             * update total Eigen and ETH that are being employed by the operator for securing
-             * the queries from middleware via EigenLayr
-             */
-            _totalStake.ethStake = _totalStake.ethStake + newStakes.ethStake - currentStakes.ethStake;
-            _totalStake.eigenStake = _totalStake.eigenStake + newStakes.eigenStake - currentStakes.eigenStake;
-
-            emit StakeUpdate(
-                operators[i],
-                newStakes.ethStake,
-                newStakes.eigenStake,
-                uint32(block.number),
-                currentStakes.updateBlockNumber
-            );
             unchecked {
                 ++i;
             }
         }
 
         // update storage of total stake
-        _totalStake.updateBlockNumber = uint32(block.number);
-        totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
-        totalStakeHistory.push(_totalStake);
+        _recordTotalStakeUpdate(_totalStake);
+    }
+
+    // TODO: de-dupe code copied from `updateStakes`, if reasonably possible
+    /**
+     * @notice Used for removing operators that no longer meet the minimum requirements
+     * @param operators are the nodes who will potentially be booted
+     */
+    function bootOperators(
+        address[] calldata operators,
+        uint256[4][] memory pubkeysToRemoveAff,
+        uint32[] memory indices
+    )
+        external
+    {
+        // copy total stake to memory
+        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+
+        // placeholders reused inside of loop
+        OperatorStake memory currentStakes;
+        bytes32 pubkeyHash;
+        uint256 operatorsLength = operators.length;
+        // iterating over all the tuples that are to be updated
+        for (uint256 i = 0; i < operatorsLength;) {
+            // get operator's pubkeyHash
+            pubkeyHash = registry[operators[i]].pubkeyHash;
+            // fetch operator's existing stakes
+            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+            // decrease _totalStake by operator's existing stakes
+            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
+
+            // update the stake for the i-th operator
+            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+            // remove the operator from the list of operators if they do *not* meet the minimum requirements
+            if (
+                (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
+                    && (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
+            ) {
+                // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
+                _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
+            }
+            // in the case that the operator *does indeed* meet the minimum requirements
+            else {
+                // increase _totalStake by operator's updated stakes
+                _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+                _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // update storage of total stake
+        _recordTotalStakeUpdate(_totalStake);
     }
 
     /**
-     @notice get hash of a historical aggregated public key corresponding to a given index;
-             called by checkSignatures in SignatureChecker.sol.
+     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
+     * @param newApk The updated APK. This will be the `apk` after this function runs!
      */
-    function getCorrectApkHash(uint256 index, uint32 blockNumber)
-        public
-        view
-        returns (bytes32)
-    {
-        require(
-            blockNumber >= apkUpdates[index],
-            "Index too recent"
-        );
+    function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
+        // update stored aggregate public key
+        // slither-disable-next-line costly-loop
+        apk = newApk;
+
+        // store the current block number in which the aggregated pubkey is being updated
+        apkUpdates.push(uint32(block.number));
+
+        //store the hash of aggregate pubkey
+        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
+        apkHashes.push(newApkHash);
+        return newApkHash;
+    }
+
+    // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
+    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns(uint256[4] memory) {
+        uint256[4] memory pk;
+        assembly {
+            mstore(add(pk, 32), calldataload(pkBytes.offset))
+            mstore(pk, calldataload(add(pkBytes.offset, 32)))
+            mstore(add(pk, 96), calldataload(add(pkBytes.offset, 64)))
+            mstore(add(pk, 64), calldataload(add(pkBytes.offset, 96)))
+        }
+        return pk;
+    }
+
+    /**
+     * @notice get hash of a historical aggregated public key corresponding to a given index;
+     * called by checkSignatures in SignatureChecker.sol.
+     */
+    function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
+        require(blockNumber >= apkUpdates[index], "BLSRegistry.getCorrectApkHash: Index too recent");
 
         // if not last update
         if (index != apkUpdates.length - 1) {
-            require(
-                blockNumber < apkUpdates[index + 1],
-                "Not latest valid apk update"
-            );
+            require(blockNumber < apkUpdates[index + 1], "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
         return apkHashes[index];
     }
 
-    function getApkUpdatesLength() public view returns (uint256) {
+    function getApkUpdatesLength() external view returns (uint256) {
         return apkUpdates.length;
     }
 
@@ -498,5 +336,3 @@ contract BLSRegistry is
         return apkHashes.length;
     }
 }
-
-
