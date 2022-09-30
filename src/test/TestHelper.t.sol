@@ -65,7 +65,7 @@ contract TestHelper is EigenLayrDeployer {
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
+   function _testInitDataStore(uint256 initTimestamp, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -82,10 +82,9 @@ contract TestHelper is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
-        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
-        // and 'BLOCK_STALE_MEASURE' is currently 100
-        cheats.roll(block.number + 100);
-        cheats.warp(timeStampForInit);
+        
+        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
+        cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
 
         uint32 index = dlsm.initDataStore(
