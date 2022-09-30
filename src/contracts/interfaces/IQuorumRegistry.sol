@@ -84,6 +84,8 @@ interface IQuorumRegistry is IRegistry {
 
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32);
 
+    function numOperators() external view returns (uint32);
+
     function getOperatorDeregisterTime(address operator) external view returns (uint256);
 
     function operatorStakes(address operator) external view returns (uint96, uint96);

@@ -270,8 +270,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     // number of operators of this service
-    function numOperators() public view returns (uint64) {
-        return uint64(operatorList.length);
+    function numOperators() public view returns (uint32) {
+        return uint32(operatorList.length);
     }
 
     // INTERNAL FUNCTIONS
@@ -391,7 +391,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
             id: nextOperatorId,
-            index: numOperators(),
+            index: uint64(numOperators()),
             active: IQuorumRegistry.Active.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
