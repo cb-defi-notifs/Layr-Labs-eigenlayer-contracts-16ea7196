@@ -29,7 +29,7 @@ interface IQuorumRegistry is IRegistry {
         // id is always unique
         uint32 id;
         // corresponds to position in operatorList
-        uint64 index;
+        uint32 index;
         // start taskNumber from which the  operator has been registered
         uint32 fromTaskNumber;
         // start block from which the  operator has been registered

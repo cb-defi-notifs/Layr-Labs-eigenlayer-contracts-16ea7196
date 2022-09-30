@@ -391,7 +391,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         registry[operator] = Operator({
             pubkeyHash: pubkeyHash,
             id: nextOperatorId,
-            index: uint64(numOperators()),
+            index: numOperators(),
             active: IQuorumRegistry.Active.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
