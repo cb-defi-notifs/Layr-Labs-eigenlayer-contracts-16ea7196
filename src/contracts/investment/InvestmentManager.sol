@@ -222,7 +222,12 @@ contract InvestmentManager is
 
         //update storage in mapping of queued withdrawals
         queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
+            /**
+             * @dev We add `REASONABLE_STAKES_UPDATE_PERIOD` to the current time here to account for the fact that it may take some time for
+             * the operator's stake to be updated on all the middlewares. New tasks created between now at this 'initTimestamp' may still
+             * subject the `msg.sender` to slashing!
+             */
+            initTimestamp: uint32(block.timestamp + REASONABLE_STAKES_UPDATE_PERIOD),
             withdrawer: withdrawerAndNonce.withdrawer,
             unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
         });
@@ -246,17 +251,24 @@ contract InvestmentManager is
         external
     {
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp == type(uint32).max,
-            "Withdrawal stake inactive claim has already been made"
+            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
+            "InvestmentManager.setStakeInactiveAfterClaim: Withdrawal stake inactive claim has already been made"
         );
         require(
             queuedWithdrawals[depositor][withdrawalRoot].withdrawer == msg.sender,
             "InvestmentManager.setStakeInactiveAfterClaim: Sender is not the withdrawer"
         );
+        require(
+            block.timestamp > queuedWithdrawals[depositor][withdrawalRoot].initTimestamp,
+            "InvestmentManager.setStakeInactiveAfterClaim: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
+        );
         //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
         queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
-            initTimestamp: uint32(block.timestamp),
+            // do not modify the initTimestamp
+            initTimestamp: queuedWithdrawals[depositor][withdrawalRoot].initTimestamp,
+            // withdrawer remains `msg.sender`
             withdrawer: msg.sender,
+            // set the unlockTimestamp appropriately
             unlockTimestamp: max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter)
         });
     }
@@ -289,7 +301,7 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal actually exists
         require(
-            withdrawalStorageCopy.initTimestamp > 0,
+            withdrawalStorageCopy.unlockTimestamp != 0,
             "InvestmentManager.completeQueuedWithdrawal: withdrawal does not exist"
         );
 
@@ -364,18 +376,18 @@ contract InvestmentManager is
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
 
-        //verify the withdrawer has supplied the unbonding time
-        require(
-            withdrawalStorageCopy.initTimestamp != type(uint32).max,
-            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
-        );
 
         // verify that the queued withdrawal actually exists
         require(
-            withdrawalStorageCopy.initTimestamp > 0,
+            withdrawalStorageCopy.unlockTimestamp != 0,
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal does not exist"
         );
 
+        //verify the withdrawer has already initiated the withdrawal waiting period 
+        require(
+            withdrawalStorageCopy.unlockTimestamp != QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
+            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
+        );
         // check that it is not too late to provide a fraudproof
         require(
             uint32(block.timestamp) < withdrawalStorageCopy.unlockTimestamp,
@@ -459,7 +471,7 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp != 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
@@ -618,7 +630,7 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].initTimestamp > 0,
+            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp != 0,
             "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
         );
 
