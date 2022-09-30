@@ -51,8 +51,13 @@ contract DelegationTests is TestHelper {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
 
-        uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
-        uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
+        uint256[3] memory amountsBefore;
+        // uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
+        // uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
+        // uint256 wethStratSharesBefore = delegation.operatorShares(operator, wethStrat);
+        amountsBefore[0] = dlReg.weightOfOperator(operator, 0);
+        amountsBefore[1] = dlReg.weightOfOperator(operator, 1);
+        amountsBefore[2] = delegation.operatorShares(operator, wethStrat);
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
@@ -72,20 +77,21 @@ contract DelegationTests is TestHelper {
             uint256 operatorEigenWeightAfter = dlReg.weightOfOperator(operator, 1);
 
             assertTrue(
-                operatorEthWeightAfter - operatorEthWeightBefore == stakerEthWeight,
+                operatorEthWeightAfter - amountsBefore[0] == stakerEthWeight,
                 "testDelegation: operatorEthWeight did not increment by the right amount"
             );
             assertTrue(
-                operatorEigenWeightAfter - operatorEigenWeightBefore == stakerEigenWeight,
+                operatorEigenWeightAfter - amountsBefore[1] == stakerEigenWeight,
                 "Eigen weights did not increment by the right amount"
             );
         }
         {
-            IInvestmentStrategy _strat = investmentManager.investorStrats(staker, 0);
+            IInvestmentStrategy _strat = wethStrat;
+            // IInvestmentStrategy _strat = investmentManager.investorStrats(staker, 0);
             assertTrue(address(_strat) != address(0), "investorStrats not updated correctly");
 
             assertTrue(
-                delegation.operatorShares(operator, _strat) - updatedShares[0] == 0,
+                delegation.operatorShares(operator, _strat) - updatedShares[0] == amountsBefore[2],
                 "ETH operatorShares not updated correctly"
             );
         }
@@ -156,7 +162,6 @@ contract DelegationTests is TestHelper {
                 nonce: 0
             }
         );
-
 
         for (uint256 k = 0; k < delegatorStrategies.length; k++) {
             initialOperatorShares[delegatorStrategies[k]] = delegation
@@ -295,8 +300,6 @@ contract DelegationTests is TestHelper {
     // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     // @param operator is the operator being delegated to.
     // @param staker is the staker delegating stake to the operator.
-
-    //TODO: Reimplement this with new undelegation system
     function testRedelegateAfterWithdrawal(
             address operator, 
             address depositor, 
@@ -306,7 +309,8 @@ contract DelegationTests is TestHelper {
             uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
-            public fuzzedAddress(operator) 
+            public
+            fuzzedAddress(operator) 
             fuzzedAddress(depositor)
             fuzzedAddress(withdrawer)
         {
