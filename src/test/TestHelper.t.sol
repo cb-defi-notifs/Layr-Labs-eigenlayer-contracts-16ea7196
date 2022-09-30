@@ -8,6 +8,8 @@ import "../test/Deployer.t.sol";
 contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
+    uint8 durationToInit = 2;
+
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -65,7 +67,7 @@ contract TestHelper is EigenLayrDeployer {
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 timeStampForInit, address confirmer)
+   function _testInitDataStore(uint256 initTimestamp, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
@@ -82,10 +84,9 @@ contract TestHelper is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
-        // change block number to 100 to avoid underflow in DataLayr (it calculates block.number - BLOCK_STALE_MEASURE)
-        // and 'BLOCK_STALE_MEASURE' is currently 100
-        cheats.roll(block.number + 100);
-        cheats.warp(timeStampForInit);
+
+        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
+        cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
 
         uint32 index = dlsm.initDataStore(
@@ -106,7 +107,7 @@ contract TestHelper is EigenLayrDeployer {
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata({
                 headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
                 blockNumber: blockNumber,
                 fee: uint96(fee),
@@ -403,8 +404,6 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.stopPrank();
 
-
-
         // verify that registration was stored correctly
         if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
             assertTrue(dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
@@ -430,21 +429,28 @@ contract TestHelper is EigenLayrDeployer {
             _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
         }
 
-        // hard-coded value
+        // hard-coded values
         uint256 index = 0;
+        /**
+         * this value *must be the initTime* since the initTime is included in the calcuation of the `msgHash`,
+         *  and the signatures (which we have coded in) are signatures of the `msgHash`, assuming this exact value.
+         */
+        uint256 initTime = 1000000001;
 
-        return _testConfirmDataStoreWithoutRegister(index, numSigners);
+        return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);
     }
 
-    function _testConfirmDataStoreWithoutRegister(uint256 index, uint8 numSigners)
+    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 numSigners)
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
-        uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
         uint32 numberOfNonSigners = 0;
-        (uint256 apk_0, uint256 apk_1, uint256 apk_2, uint256 apk_3) = getAggregatePublicKey(uint256(numSigners));
+        uint256[4] memory apk;
+        {
+            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
+        }
         (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
 
         /**
@@ -478,10 +484,10 @@ contract TestHelper is EigenLayrDeployer {
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now
             uint32(dlReg.getApkUpdatesLength() - 1),
-            apk_0,
-            apk_1,
-            apk_2,
-            apk_3,
+            apk[0],
+            apk[1],
+            apk[2],
+            apk[3],
             sigma_0,
             sigma_1
         );
@@ -623,5 +629,26 @@ contract TestHelper is EigenLayrDeployer {
             ethStratsAndMultipliers[0].multiplier = multiplier;
             dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
         }
+    }
+
+    function _testStartQueuedWithdrawalWaitingPeriod(
+        address depositor,
+        address withdrawer,
+        bytes32 withdrawalRoot,
+        uint32 stakeInactiveAfter
+    ) internal {
+        cheats.startPrank(withdrawer);
+        // TODO: un-hardcode the '8 days' and '30 days' here
+        // '8 days' accounts for the `REASONABLE_STAKES_UPDATE_PERIOD`
+        cheats.warp(block.timestamp + 8 days);
+        // '30 days' is used to prevent overflow in timestamps when stored as uint32 values (2^32 is in the year 2106 in UTC time)
+        cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
+        cheats.assume(stakeInactiveAfter > block.timestamp);
+        investmentManager.startQueuedWithdrawalWaitingPeriod(
+                                        depositor, 
+                                        withdrawalRoot, 
+                                        stakeInactiveAfter
+                                    );
+        cheats.stopPrank();
     }
 }
