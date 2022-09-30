@@ -8,6 +8,8 @@ import "../test/Deployer.t.sol";
 contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
+    uint8 durationToInit = 2;
+
     function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
@@ -82,7 +84,7 @@ contract TestHelper is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
-        
+
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
@@ -105,7 +107,7 @@ contract TestHelper is EigenLayrDeployer {
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata({
                 headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit)-1,
+                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
                 blockNumber: blockNumber,
                 fee: uint96(fee),
@@ -402,8 +404,6 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.stopPrank();
 
-
-
         // verify that registration was stored correctly
         if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
             assertTrue(dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
@@ -431,6 +431,10 @@ contract TestHelper is EigenLayrDeployer {
 
         // hard-coded values
         uint256 index = 0;
+        /**
+         * this value *must be the initTime* since the initTime is included in the calcuation of the `msgHash`,
+         *  and the signatures (which we have coded in) are signatures of the `msgHash`, assuming this exact value.
+         */
         uint256 initTime = 1000000001;
 
         return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);

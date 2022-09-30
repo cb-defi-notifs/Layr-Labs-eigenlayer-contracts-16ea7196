@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
+import "./mocks/ServiceManagerMock.sol";
 
 contract InvestmentTests is TestHelper {
     /**
@@ -145,7 +146,6 @@ contract InvestmentTests is TestHelper {
      * @param amountToDeposit Fuzzed input of amount of WETH deposited. Currently `_createQueuedWithdrawal` uses this as an input to `_testWethDeposit`.
      * @param amountToWithdraw Fuzzed input of the amount of shares to queue the withdrawal for.
      */
-/* TODO: test is currently broken due to incompatible 'cheats.warp' usage in tests. needs to be resolved.
     function testFraudproofQueuedWithdrawal(uint96 amountToDeposit, uint96 amountToWithdraw) public {
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
@@ -164,9 +164,8 @@ contract InvestmentTests is TestHelper {
         bool registerAsOperator = true;
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
             IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
-        // TODO: this is copied input from `_testConfirmDataStoreSelfOperators` -- test fails unless I do this `warp`
-        uint256 initTime = 1000000001;
-        cheats.warp(initTime);
+
+        bytes32 withdrawalRoot;
         {
             // harcoded inputs, also somewhat shared with `_createQueuedWithdrawal`
             strategyArray[0] = wethStrat;
@@ -174,7 +173,7 @@ contract InvestmentTests is TestHelper {
             shareAmounts[0] = amountToWithdraw;
             strategyIndexes[0] = 0;
             // create the queued withdrawal
-            bytes32 withdrawalRoot = _createQueuedWithdrawal(
+            withdrawalRoot = _createQueuedWithdrawal(
                 staker,
                 registerAsOperator,
                 amountToDeposit,
@@ -184,33 +183,25 @@ contract InvestmentTests is TestHelper {
                 strategyIndexes,
                 withdrawerAndNonce
             );
-            _testStartQueuedWithdrawalWaitingPeriod(
-                staker,
-                staker,
-                withdrawalRoot,
-                (uint32(block.timestamp) + 9 days)
-            );
         }
 
-        // retrieve information about the queued withdrawal
-        // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-        // (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
+        // warp to a later time -- beyond the window for the `REASONABLE_STAKES_UPDATE_PERIOD` -- and then initiate the queued withdrawal waiting period
+        cheats.warp(block.timestamp + 8 days);
+        _testStartQueuedWithdrawalWaitingPeriod(
+            staker,
+            staker,
+            withdrawalRoot,
+            (uint32(block.timestamp) + 9 days)
+        );
 
-        // confirm a data store and get the `searchData` for "finding" it
-        uint8 numberOfSigners = uint8(15);
-        IDataLayrServiceManager.DataStoreSearchData memory searchData;
-        (, searchData) = _testConfirmDataStoreSelfOperators(numberOfSigners);
+        ServiceManagerMock mock = new ServiceManagerMock();
+        bytes memory calldataForStakeWithdrawalVerification;
 
-        // deploy library-wrapper contract and use it to pack the searchData
-        DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
-        bytes memory calldataForStakeWithdrawalVerification =
-            dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
-
-        // give slashing permission to the DLSM
+        // give slashing permission to the mock contract
         {
             cheats.startPrank(slasher.owner());
             address[] memory contractsToGiveSlashingPermission = new address[](1);
-            contractsToGiveSlashingPermission[0] = address(dlsm);
+            contractsToGiveSlashingPermission[0] = address(mock);
             slasher.addGloballyPermissionedContracts(contractsToGiveSlashingPermission);
             cheats.stopPrank();
         }
@@ -226,9 +217,17 @@ contract InvestmentTests is TestHelper {
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.challengeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, calldataForStakeWithdrawalVerification, dlsm);
+        investmentManager.challengeQueuedWithdrawal(
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            staker,
+            withdrawerAndNonce,
+            calldataForStakeWithdrawalVerification,
+            IServiceManager(address(mock))
+        );
     }
-*/
+
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
     /// @param numStratsToAdd is the number of strategies being added and deposited into
     function testDepositStrategies(uint16 numStratsToAdd) public {
