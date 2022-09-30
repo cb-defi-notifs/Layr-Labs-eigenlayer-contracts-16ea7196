@@ -29,7 +29,7 @@ contract PausableTests is TestHelper {
         public
         fuzzedAddress(unauthorizedPauser)
     {
-        cheats.assume(unauthorizedPauser != pauserReg.unpauser());
+        cheats.assume(unauthorizedPauser != pauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
         investmentManager.pause();
