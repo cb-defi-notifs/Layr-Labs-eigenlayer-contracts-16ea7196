@@ -183,11 +183,11 @@ contract InvestmentTests is TestHelper {
                 strategyIndexes,
                 withdrawerAndNonce
             );
-            cheats.prank(staker);
-            investmentManager.startQueuedWithdrawalWaitingPeriod(
+            _testStartQueuedWithdrawalWaitingPeriod(
+                staker,
                 staker,
                 withdrawalRoot,
-                uint32(block.timestamp)
+                (uint32(block.timestamp) + 9 days)
             );
         }
 

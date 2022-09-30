@@ -128,7 +128,7 @@ contract DelegationTests is TestHelper {
             address withdrawer, 
             uint256 ethAmount,
             uint256 eigenAmount,
-            uint32 withdrawalPeriod,
+            uint32 stakeInactiveAfter,
             bool withdrawAsTokens
         ) 
             public 
@@ -140,8 +140,6 @@ contract DelegationTests is TestHelper {
         cheats.assume(depositor != operator);
         cheats.assume(ethAmount <= 1e18); 
         cheats.assume(eigenAmount <= 1e18); 
-        cheats.assume(withdrawalPeriod < 7 days);//type(uint32).max);
-
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
@@ -185,9 +183,9 @@ contract DelegationTests is TestHelper {
 
 
 
-        _testStartQueuedWithdrawalWaitingPeriod(depositor, withdrawer, withdrawalRoot, withdrawalPeriod);
+        _testStartQueuedWithdrawalWaitingPeriod(depositor, withdrawer, withdrawalRoot, stakeInactiveAfter);
 
-        cheats.warp(withdrawalPeriod + 1 days);
+        cheats.warp(stakeInactiveAfter + 1 days);
 
         if(withdrawAsTokens) {
             _testCompleteQueuedWithdrawalTokens(
@@ -305,7 +303,7 @@ contract DelegationTests is TestHelper {
             address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 withdrawalPeriod,
+            uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
             public fuzzedAddress(operator) 
@@ -314,7 +312,7 @@ contract DelegationTests is TestHelper {
         {
         cheats.assume(depositor != operator);
         //this function performs delegation and subsequent withdrawal
-        testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawalPeriod, withdrawAsShares);
+        testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, stakeInactiveAfter, withdrawAsShares);
 
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
@@ -483,22 +481,4 @@ contract DelegationTests is TestHelper {
         }                                
         cheats.stopPrank();
     }
-
-
-
-    function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
-        address withdrawer,
-        bytes32 withdrawalRoot,
-        uint32 stakeInactiveAfter
-    ) internal {
-        cheats.startPrank(withdrawer);
-        investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
-                                        withdrawalRoot, 
-                                        stakeInactiveAfter
-                                    );
-        cheats.stopPrank();
-    }
-
 }
