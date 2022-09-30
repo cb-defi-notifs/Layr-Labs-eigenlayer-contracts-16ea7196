@@ -342,11 +342,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
-        require(
-            msg.sender == address(_registry()),
-            "DataLayrServiceManager.revokeSlashingAbility: Only registry resolvers can revoke slashing ability on operators"
-        );
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
