@@ -102,8 +102,6 @@ contract DataLayrChallengeUtils {
             mstore(add(point, 0x20), calldataload(add(pointer, 32)))
             //TODO: PUT THE LOW DEGREENESS PROOF HERE
             degree := shr(224, calldataload(add(pointer, 64)))
-
-        assembly {
             numSys := shr(224, calldataload(add(header.offset, 132)))
         }
 

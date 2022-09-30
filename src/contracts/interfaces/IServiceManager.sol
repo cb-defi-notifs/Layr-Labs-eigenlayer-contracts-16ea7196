@@ -2,12 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-<<<<<<< HEAD
-// import "./IRepositoryAccess.sol";
-// import "./ITaskMetadata.sol";
-=======
 import "./IRepositoryAccess.sol";
->>>>>>> testnet-private
 import "./IEigenLayrDelegation.sol";
 
 /**

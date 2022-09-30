@@ -45,7 +45,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
     event Registration(
-        address indexed registrant,
+        address indexed operator,
         bytes32 pkHash,
         uint256[4] pk,
         uint32 apkHashIndex,
@@ -140,7 +140,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
 
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash, socket);
     }
 
     /**

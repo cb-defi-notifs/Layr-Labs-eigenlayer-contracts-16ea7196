@@ -29,10 +29,9 @@ contract DepositAndDelegate is
 
         vm.startBroadcast(msg.sender);
         eigen.approve(address(investmentManager), wethAmount);
-        investmentManager.depositIntoStrategy(msg.sender, eigenStrat, eigen, wethAmount);
+        investmentManager.depositIntoStrategy(eigenStrat, eigen, wethAmount);
         weth.approve(address(investmentManager), wethAmount);
-        investmentManager.depositIntoStrategy(msg.sender, wethStrat, weth, wethAmount);
-        investmentManager.investorStratShares(msg.sender, wethStrat);
+        investmentManager.depositIntoStrategy(wethStrat, weth, wethAmount);
         delegation.delegateTo(dlnAddr);
         vm.stopBroadcast();
     }

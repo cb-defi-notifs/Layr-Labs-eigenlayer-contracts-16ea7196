@@ -56,9 +56,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // solhint-disable-next-line no-empty-blocks
     {}
 
-    // headerHash => LowDegreeChallenge struct
-    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
-
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
      * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
@@ -222,7 +219,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         emit SuccessfulLowDegreeChallenge(headerHash, msg.sender);
     }
 
-    function _returnChallengerCollateral(bytes32 headerHash) internal override {
+    function _returnChallengerCollateral(bytes32) internal pure override {
         return;
     }
 }
