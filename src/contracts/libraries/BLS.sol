@@ -33,6 +33,22 @@ library BLS {
 
     bytes32 internal constant powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
 
+    function hashPubkey(uint256[4] memory pk)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+    }
+
+    function hashPubkey(uint256[6] memory pk)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+    }
+
     /**
      * @notice verification of BLS signature with the message being pubkey hash
      */
@@ -40,7 +56,7 @@ library BLS {
      * @dev first paramater, data, is the calldata that contains the coordinates for pubkey on G2 and signature on G1
      * @return pubkey is the pubkey and is of the format [x1, x0, y1, y0]
      */
-    function verifyBLSSigOfPubKeyHash(bytes calldata, address operator, uint256 offset)
+    function verifyBLSSigOfPubKeyHash(bytes calldata data, address operator)
         internal
         view
         returns (uint256, uint256, uint256, uint256)
@@ -53,13 +69,13 @@ library BLS {
 
         assembly {
             //store pk in indexes 2-5, it is a G2 point
-            mstore(add(input, 0x40), calldataload(offset))
-            mstore(add(input, 0x60), calldataload(add(offset, 32)))
-            mstore(add(input, 0x80), calldataload(add(offset, 64)))
-            mstore(add(input, 0xA0), calldataload(add(offset, 96)))
+            mstore(add(input, 0x40), calldataload(data.offset))
+            mstore(add(input, 0x60), calldataload(add(data.offset, 32)))
+            mstore(add(input, 0x80), calldataload(add(data.offset, 64)))
+            mstore(add(input, 0xA0), calldataload(add(data.offset, 96)))
             //store sigma (signature) in indexes 6-7, it is a G1 point
-            mstore(add(input, 0xC0), calldataload(add(offset, 128)))
-            mstore(add(input, 0xE0), calldataload(add(offset, 160)))
+            mstore(add(input, 0xC0), calldataload(add(data.offset, 128)))
+            mstore(add(input, 0xE0), calldataload(add(data.offset, 160)))
             //store the negated G2 generator in indexes 8-11
             mstore(add(input, 0x100), nG2x1)
             mstore(add(input, 0x120), nG2x0)

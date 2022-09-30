@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "./RegistryBase.sol";
+import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
-
 import "forge-std/Test.sol";
 
 /**
@@ -16,6 +16,8 @@ import "forge-std/Test.sol";
  */
 contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
+
+    IBLSPublicKeyCompendium public pubkeyCompendium;
 
     /// @notice the task numbers at which the aggregated pubkeys were updated
     uint32[] public apkUpdates;
@@ -52,7 +54,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
             _repository,
@@ -71,25 +74,27 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
         _processApkUpdate(initApk);
+        //set compendium
+        pubkeyCompendium = _pubkeyCompendium;
     }
 
     /**
      * @notice called for registering as a operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
-     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     * @param pkBytes is the abi encoded bn254 G2 public key of the operator
      * @param socket is the socket address of the operator
      */
-    function registerOperator(uint8 operatorType, bytes calldata data, string calldata socket) external virtual {
-        _registerOperator(msg.sender, operatorType, data, socket);
+    function registerOperator(uint8 operatorType, bytes calldata pkBytes, string calldata socket) external virtual {
+        _registerOperator(msg.sender, operatorType, pkBytes, socket);
     }
 
     /**
      * @param operator is the node who is registering to be a operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
-     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1
+     * @param pkBytes is the serialized bn254 G2 public key of the operator
      * @param socket is the socket address of the operator
      */
-    function _registerOperator(address operator, uint8 operatorType, bytes calldata data, string calldata socket)
+    function _registerOperator(address operator, uint8 operatorType, bytes calldata pkBytes, string calldata socket)
         internal
     {
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
@@ -98,13 +103,16 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
          * @notice evaluate the new aggregated pubkey
          */
         uint256[4] memory newApk;
-        uint256[4] memory pk;
+        uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
+
+        // getting pubkey hash
+        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+
+        require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
+
+        require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
 
         {
-            // verify sig of public key and get pubkeyHash back, slice out compressed apk
-            (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, operator, 164);
-            //verifyBLS(data, msg.sender, 164);
-
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac =
                 BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
@@ -112,9 +120,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
         }
-
-        // getting pubkey hash
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
         // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
         require(
@@ -154,9 +159,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        bytes32 pubkeyHashFromInput = keccak256(
-            abi.encodePacked(pubkeyToRemoveAff[0], pubkeyToRemoveAff[1], pubkeyToRemoveAff[2], pubkeyToRemoveAff[3])
-        );
+        bytes32 pubkeyHashFromInput = BLS.hashPubkey(pubkeyToRemoveAff);
         // verify that it matches the 'pubkeyToRemoveAff' input
         require(
             pubkeyHash == pubkeyHashFromInput,
@@ -289,6 +292,18 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
         apkHashes.push(newApkHash);
         return newApkHash;
+    }
+
+    // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
+    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns(uint256[4] memory) {
+        uint256[4] memory pk;
+        assembly {
+            mstore(add(pk, 32), calldataload(pkBytes.offset))
+            mstore(pk, calldataload(add(pkBytes.offset, 32)))
+            mstore(add(pk, 96), calldataload(add(pkBytes.offset, 64)))
+            mstore(add(pk, 64), calldataload(add(pkBytes.offset, 96)))
+        }
+        return pk;
     }
 
     /**

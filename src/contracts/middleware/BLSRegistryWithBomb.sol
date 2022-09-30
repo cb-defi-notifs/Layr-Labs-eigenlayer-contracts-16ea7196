@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEphemeralKeyRegistry.sol";
+import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BytesLib.sol";
 import "./BLSRegistry.sol";
 
@@ -30,7 +31,8 @@ contract BLSRegistryWithBomb is BLSRegistry {
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        IBLSPublicKeyCompendium _pubkeyCompendium
     )
         BLSRegistry(
             _repository,
@@ -40,7 +42,8 @@ contract BLSRegistryWithBomb is BLSRegistry {
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
-            _secondQuorumStrategiesConsideredAndMultipliers
+            _secondQuorumStrategiesConsideredAndMultipliers,
+            _pubkeyCompendium
         )
     {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
@@ -66,10 +69,10 @@ contract BLSRegistryWithBomb is BLSRegistry {
      * @notice called for registering as an operator. For detailed comments, see
      * registerOperator in BLSRegistry.sol.
      */
-    function registerOperator(uint8 operatorType, bytes32 ephemeralKeyHash, bytes calldata data, string calldata socket)
+    function registerOperator(uint8 operatorType, bytes32 ephemeralKeyHash, bytes calldata pkBytes, string calldata socket)
         external
     {
-        _registerOperator(msg.sender, operatorType, data, socket);
+        _registerOperator(msg.sender, operatorType, pkBytes, socket);
 
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);

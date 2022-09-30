@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 // modified version of https://github.com/itstargetconfirmed/wrapped-ether/blob/master/contracts/WETH.sol
 pragma solidity >=0.4.22 <0.9.0;
 
