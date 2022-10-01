@@ -126,6 +126,8 @@ contract EigenLayrDeployer is
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
+        pauserReg = new PauserRegistry(msg.sender, msg.sender);
+
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         // can't initialize immediately since initializer depends on `investmentManager` address
         delegation = new EigenLayrDelegation();
@@ -186,18 +188,16 @@ contract EigenLayrDeployer is
         baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
+        // initialize InvestmentStrategyBase proxy
         wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(wethStrat),
                     address(baseStrategyImplementation),
-                    ""
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
                 )
             )
         );
-        // initialize InvestmentStrategyBase proxy
-        wethStrat.initialize(weth, pauserReg);
-
         vm.writeFile("data/wethStrat.addr", vm.toString(address(weth)));
 
         eigen = new ERC20PresetFixedSupply(
@@ -210,18 +210,16 @@ contract EigenLayrDeployer is
         vm.writeFile("data/eigen.addr", vm.toString(address(eigen)));
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
+        // initialize InvestmentStrategyBase proxy
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigen, pauserReg)
                 )
             )
         );
-
-        // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(eigen, pauserReg);
 
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
 
