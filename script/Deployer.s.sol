@@ -198,7 +198,7 @@ contract EigenLayrDeployer is
                 )
             )
         );
-        vm.writeFile("data/wethStrat.addr", vm.toString(address(weth)));
+        vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
 
         eigen = new ERC20PresetFixedSupply(
             "eigen",
@@ -223,10 +223,10 @@ contract EigenLayrDeployer is
 
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
 
-        vm.stopBroadcast();
-
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
+        vm.stopBroadcast();
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -287,7 +287,7 @@ contract EigenLayrDeployer is
 
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
 
-        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
+        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, msg.sender);
         uint256 _paymentFraudproofCollateral = 1e16;
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
