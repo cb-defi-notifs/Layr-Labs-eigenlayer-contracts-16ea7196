@@ -72,5 +72,21 @@ contract RegistrationTests is TestHelper {
     //     cheats.stopPrank();
     // }
 
+    //Test that when operator tries to register with DataLayr 
+    // with a public key that they haven't registered in the BLSPublicKeyCompendium, it fails
+    function testOperatorDoesNotOwnPublicKey(
+        uint8 operatorIndex, 
+        uint256 ethAmount, 
+        uint256 eigenAmount
+    ) fuzzedOperatorIndex(operatorIndex) public {
+        
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        
+        uint8 operatorType = 3;
+        _testInitiateDelegationAndRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket, eigenAmount, ethAmount);
+
+    } 
+
 }
 
