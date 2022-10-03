@@ -7,17 +7,16 @@ import "./TestHelper.t.sol";
 
 contract RegistrationTests is TestHelper {
 
-    // function testBLSRegistration() public{
+    function testBLSRegistration() public {
+        emit log_address(sample_registrant);
 
-    //     bytes memory data = abi.encodePacked(
-    //         pk[0],
-    //         pk[1],
-    //         pk[2],
-    //         pk[3],
-    //         sigma[0],
-    //         sigma[1]
-    //     );
-    // }
+        bytes memory data = abi.encodePacked(
+            registrationData[0]
+        );
+        cheats.startPrank(signers[0]);
+        blsPkCompendium.registerBLSPublicKey(data);
+        cheats.stopPrank();
+    }
 
     function testRegisterPublicKeyTwice(uint8 index) public {
         cheats.assume(index < registrationData.length);
@@ -26,7 +25,6 @@ contract RegistrationTests is TestHelper {
         pubkeyCompendium.registerBLSPublicKey(registrationData[index]);
         cheats.expectRevert("BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey");
         pubkeyCompendium.registerBLSPublicKey(registrationData[index]);
-        cheats.stopPrank();
     }
 
     // function testRegisterWhileAlreadyActive(uint8 whichIndex) public {
