@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
-import "./TestHelper.t.sol";
+import "./RevertTestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
-contract RegistrationTests is TestHelper {
+contract RegistrationTests is RevertTestHelper {
     using BytesLib for bytes;
 
     function testBLSRegistration(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
@@ -36,7 +35,9 @@ contract RegistrationTests is TestHelper {
         cheats.startPrank(signers[operatorIndex]);
         //try to register the same pubkey twice
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
-        cheats.expectRevert("BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey");
+        cheats.expectRevert(
+            "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey"
+        );
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
     }
 
@@ -51,12 +52,25 @@ contract RegistrationTests is TestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         
         uint8 operatorType = 3;
-        _testInitiateDelegationAndRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket, eigenAmount, ethAmount);
+        _testInitiateDelegationAndRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket,
+            eigenAmount,
+            ethAmount
+        );
         cheats.startPrank(signers[operatorIndex]);
 
         //try to register after already registered
-        cheats.expectRevert("RegistryBase._registrationStakeEvaluation: Operator is already registered");
-        dlReg.registerOperator(3, bytes32(0), registrationData[operatorIndex].slice(0, 128), testSocket);
+        cheats.expectRevert(
+            "RegistryBase._registrationStakeEvaluation: Operator is already registered"
+        );
+        dlReg.registerOperator(
+            3,
+            bytes32(0),
+            registrationData[operatorIndex].slice(0, 128),
+            testSocket
+        );
         cheats.stopPrank();
     }
 
@@ -88,5 +102,22 @@ contract RegistrationTests is TestHelper {
 
     } 
 
+    function testRegisterForDataLayrWithNeitherQuorum(
+        uint8 operatorIndex,
+        uint256 ethAmount,
+        uint256 eigenAmount
+    ) public {
+        cheats.assume(operatorIndex < registrationData.length);
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        uint8 noQuorumOperatorType = 0;
+        _testShouldRevertRegisterOperatorWithDataLayr(
+            operatorIndex,
+            noQuorumOperatorType,
+            testSocket,
+            eigenAmount,
+            ethAmount,
+            "RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"
+        );
+    }
 }
-
