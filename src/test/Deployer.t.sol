@@ -60,6 +60,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
+    IBLSPublicKeyCompendium public blsPkCompendium;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -78,6 +79,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     address[2] public delegates;
     uint256[] sample_pk;
     uint256[] sample_sig;
+    address sample_registrant = cheats.addr(436364636);
 
     uint256[] apks;
     uint256[] sigmas;
@@ -132,6 +134,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         //deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
+        blsPkCompendium = new BLSPublicKeyCompendium();
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         // can't initialize immediately since initializer depends on `investmentManager` address
