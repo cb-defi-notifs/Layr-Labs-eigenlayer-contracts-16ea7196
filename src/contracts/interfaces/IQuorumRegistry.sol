@@ -41,8 +41,6 @@ interface IQuorumRegistry is IRegistry {
         uint32 deregisterTime;
         // indicates whether the operator is actively registered for serving the middleware or not
         Active active;
-        // socket address of the node
-        string socket;
     }
 
     // struct used to give definitive ordering to operators at each blockNumber
