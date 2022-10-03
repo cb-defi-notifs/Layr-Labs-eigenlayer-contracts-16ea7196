@@ -10,9 +10,10 @@ contract TestHelper is EigenLayrDeployer {
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
+    function _testInitiateDelegation(uint8 operatorIndex, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
         public
     {
+        address operator = signers[operatorIndex];
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
@@ -60,8 +61,8 @@ contract TestHelper is EigenLayrDeployer {
         // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[0]);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0].slice(0, 128), socket);
+        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
     }
 

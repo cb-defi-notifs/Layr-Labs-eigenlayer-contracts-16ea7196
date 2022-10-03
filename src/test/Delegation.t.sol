@@ -328,8 +328,8 @@ contract DelegationTests is TestHelper {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
-        address operator = signers[0];
-        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        // address operator = signers[0];
+        _testInitiateDelegation(0, eigenAmount, ethAmount);
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;
 

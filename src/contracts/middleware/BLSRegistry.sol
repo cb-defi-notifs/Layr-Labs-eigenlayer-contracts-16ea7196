@@ -113,7 +113,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
         // getting pubkey hash
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+        bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
         require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
 
