@@ -15,7 +15,7 @@ contract TestHelper is EigenLayrDeployer {
         uint8 operatorType, 
         string memory socket, 
         uint256 amountEigenToDeposit, 
-        uint256 amountEthToDeposit
+        uint256 amountEthToDeposit        
     )
         public
     {
@@ -56,13 +56,6 @@ contract TestHelper is EigenLayrDeployer {
         }
 
         cheats.startPrank(operator);
-        //register operator with vote weigher so they can get payment
-        // function registerOperator(
-        //     uint8 operatorType,
-        //     bytes32 ephemeralKeyHash,
-        //     bytes calldata data,
-        //     string calldata socket
-        // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
