@@ -10,7 +10,13 @@ contract TestHelper is EigenLayrDeployer {
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegation(uint8 operatorIndex, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
+    function _testInitiateDelegationAndRegisterOperatorWithDataLayr(
+        uint8 operatorIndex, 
+        uint8 operatorType, 
+        string memory socket, 
+        uint256 amountEigenToDeposit, 
+        uint256 amountEthToDeposit
+    )
         public
     {
         address operator = signers[operatorIndex];
@@ -51,8 +57,6 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.startPrank(operator);
         //register operator with vote weigher so they can get payment
-        uint8 operatorType = 3;
-        string memory socket = "255.255.255.255";
         // function registerOperator(
         //     uint8 operatorType,
         //     bytes32 ephemeralKeyHash,
@@ -62,7 +66,7 @@ contract TestHelper is EigenLayrDeployer {
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
     }
 
@@ -401,7 +405,7 @@ contract TestHelper is EigenLayrDeployer {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKey, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, testEphemeralKey, data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
