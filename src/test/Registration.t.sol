@@ -11,14 +11,9 @@ contract RegistrationTests is TestHelper {
         emit log_address(sample_registrant);
 
         bytes memory data = abi.encodePacked(
-            sample_pk[0],
-            sample_pk[1],
-            sample_pk[2],
-            sample_pk[3],
-            sample_sig[0],
-            sample_sig[1]
+            registrationData[0]
         );
-        cheats.startPrank(sample_registrant);
+        cheats.startPrank(signers[0]);
         blsPkCompendium.registerBLSPublicKey(data);
         cheats.stopPrank();
     }
