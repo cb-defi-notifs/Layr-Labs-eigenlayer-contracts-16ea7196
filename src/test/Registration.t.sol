@@ -9,14 +9,27 @@ contract RegistrationTests is TestHelper {
     using BytesLib for bytes;
 
     function testBLSRegistration(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
-        emit log_address(sample_registrant);
-
+        address sender = signers[operatorIndex];
         bytes memory data = abi.encodePacked(
             registrationData[operatorIndex]
         );
-        cheats.startPrank(signers[operatorIndex]);
+        cheats.startPrank(sender);
         blsPkCompendium.registerBLSPublicKey(data);
         cheats.stopPrank();
+
+        bytes32 hashofPk = keccak256(
+                              abi.encodePacked(
+                                uint256(bytes32(registrationData[operatorIndex].slice(32,32))),
+                                uint256(bytes32(registrationData[operatorIndex].slice(0,32))),
+                                uint256(bytes32(registrationData[operatorIndex].slice(96,32))),
+                                uint256(bytes32(registrationData[operatorIndex].slice(64,32)))
+                              )
+                            );
+
+        require(blsPkCompendium.operatorToPubkeyHash(sender) == hashofPk, "hash not stored correctly");
+        require(blsPkCompendium.pubkeyHashToOperator(hashofPk) == sender, "hash not stored correctly");
+
+
     }
 
     function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
