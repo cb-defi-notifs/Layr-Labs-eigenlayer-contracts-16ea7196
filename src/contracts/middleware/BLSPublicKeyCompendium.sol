@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BLS.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title An shared contract for EigenLayer operators to register their BLS public keys.
  * @author Layr Labs, Inc.
  */
-contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
+contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
     mapping(address => bytes32) public operatorToPubkeyHash;
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
@@ -26,6 +27,11 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium {
         (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender);
 
         // getting pubkey hash
+        emit log_uint(pk[0]);
+        emit log_uint(pk[1]);
+        emit log_uint(pk[2]);
+        emit log_uint(pk[3]);
+
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
         require(

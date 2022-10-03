@@ -129,6 +129,11 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         _;
     }
 
+    modifier fuzzedOperatorIndex(uint8 operatorIndex) {
+        cheats.assume(operatorIndex < registrationData.length);
+        _;
+    }
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
