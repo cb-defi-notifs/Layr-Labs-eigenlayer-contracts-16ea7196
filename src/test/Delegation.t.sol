@@ -328,8 +328,10 @@ contract DelegationTests is TestHelper {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
-        address operator = signers[0];
-        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        // address operator = signers[0];
+        uint8 operatorType = 3;
+        string memory socket = "255.255.255.255";
+        _testInitiateDelegationAndRegisterOperatorWithDataLayr(0, operatorType, socket, eigenAmount, ethAmount);
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;
 

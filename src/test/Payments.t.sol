@@ -99,7 +99,9 @@ contract PaymentsTests is TestHelper {
     ///@notice tests commiting to reward payouts
     ///@param ethAmount is the amount of delegated eth
     ///@param eigenAmount is the amount of eigen
-    function testRewardPayouts(uint256 ethAmount, uint256 eigenAmount) public {
+    function testRewardPayouts(uint8 index, uint256 ethAmount, uint256 eigenAmount) public {
+        //TODO: @sidu28 why doesn't fuzzing work here?
+        cheats.assume(index < registrationData.length);
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         //G2 coordinates for aggregate PKs for 15 signers
@@ -117,7 +119,8 @@ contract PaymentsTests is TestHelper {
         uint32 numberOfSigners = 15;
         uint120 amountRewards = 10;
 
-        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        uint8 operatorType = 3;
+        _testInitiateDelegationAndRegisterOperatorWithDataLayr(0, operatorType, testSocket, eigenAmount, ethAmount);
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
         _incrementDataStoreID();
