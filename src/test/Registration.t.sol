@@ -8,19 +8,18 @@ import "../contracts/libraries/BytesLib.sol";
 contract RegistrationTests is TestHelper {
     using BytesLib for bytes;
 
-    function testBLSRegistration() public {
+    function testBLSRegistration(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
         emit log_address(sample_registrant);
 
         bytes memory data = abi.encodePacked(
-            registrationData[0]
+            registrationData[operatorIndex]
         );
-        cheats.startPrank(signers[0]);
+        cheats.startPrank(signers[operatorIndex]);
         blsPkCompendium.registerBLSPublicKey(data);
         cheats.stopPrank();
     }
 
-    function testRegisterPublicKeyTwice(uint8 operatorIndex) public {
-        cheats.assume(operatorIndex < registrationData.length);
+    function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
         cheats.startPrank(signers[operatorIndex]);
         //try to register the same pubkey twice
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
@@ -28,14 +27,20 @@ contract RegistrationTests is TestHelper {
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
     }
 
-    function testRegisterWhileAlreadyActive(uint8 operatorIndex, uint256 ethAmount, uint256 eigenAmount) public {
-        //TODO: @sidu28 why doesn't fuzzing work here?
-        cheats.assume(operatorIndex < registrationData.length);
+    function testRegisterWhileAlreadyActive(
+        uint8 operatorIndex, 
+        uint256 ethAmount, 
+        uint256 eigenAmount
+    ) fuzzedOperatorIndex(operatorIndex) public {
+
+        //TODO: @Sidu28 why doesn't fuzzing work here?
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        
         uint8 operatorType = 3;
         _testInitiateDelegationAndRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket, eigenAmount, ethAmount);
         cheats.startPrank(signers[operatorIndex]);
+
         //try to register after already registered
         cheats.expectRevert("RegistryBase._registrationStakeEvaluation: Operator is already registered");
         dlReg.registerOperator(3, bytes32(0), registrationData[operatorIndex].slice(0, 128), testSocket);
