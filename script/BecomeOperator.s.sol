@@ -14,6 +14,6 @@ contract BecomeOperator is
     function run() external {
         parseEigenLayerParams();
         vm.broadcast(msg.sender);
-        delegation.registerAsDelegate(IDelegationTerms(msg.sender));
+        delegation.registerAsOperator(IDelegationTerms(msg.sender));
     }
 }

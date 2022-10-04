@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
-import "../src/contracts/core/Eigen.sol";
-
 import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
 import "../src/contracts/core/EigenLayrDelegation.sol";
 
 import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
-import "../src/contracts/investment/HollowInvestmentStrategy.sol";
 import "../src/contracts/investment/Slasher.sol";
 
-import "../src/contracts/middleware/ServiceFactory.sol";
 import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
@@ -20,6 +15,9 @@ import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../src/contracts/middleware/EphemeralKeyRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
+import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
+
+import "../src/contracts/permissions/PauserRegistry.sol";
 
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -35,7 +33,7 @@ import "../src/contracts/utils/ERC1155TokenReceiver.sol";
 
 import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
-import "../src/contracts/libraries/DataStoreHash.sol";
+import "../src/contracts/libraries/DataStoreUtils.sol";
 
 // # To load the variables in the .env file
 // source .env
@@ -64,14 +62,16 @@ contract EigenLayrDeployer is
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
+    BLSPublicKeyCompendium public pubkeyCompendium;
     Slasher public slasher;
-    ServiceFactory public serviceFactory;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
 
+    PauserRegistry public pauserReg;
     IERC20 public weth;
-    InvestmentStrategyBase public strat;
+    InvestmentStrategyBase public wethStrat;
+    InvestmentStrategyBase public baseStrategyImplementation;
     IRepository public dlRepository;
 
     ProxyAdmin public eigenLayrProxyAdmin;
@@ -120,13 +120,16 @@ contract EigenLayrDeployer is
     function run() external {
 
         vm.startBroadcast();
-
+        address initialOwner = address(this);
         emit log_address(mainHoncho);
         emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
+        pauserReg = new PauserRegistry(msg.sender, msg.sender);
+
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `investmentManager` address
         delegation = new EigenLayrDelegation();
         delegation = EigenLayrDelegation(
             address(
@@ -139,6 +142,7 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
+        // can't initialize immediately since initializer depends on `slasher` address        
         investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
             address(
@@ -152,6 +156,25 @@ contract EigenLayrDeployer is
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
 
+         // deploy slasher as upgradable proxy and initialize it
+        Slasher slasherImplementation = new Slasher();
+        slasher = Slasher(
+            address(
+                new TransparentUpgradeableProxy(
+                    address(slasherImplementation),
+                    address(eigenLayrProxyAdmin),
+                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
+                )
+            )
+        );
+
+        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
+        investmentManager.initialize(slasher, pauserReg, initialOwner);
+
+        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
+        delegation.initialize(investmentManager, pauserReg, initialOwner);
+        vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -162,21 +185,20 @@ contract EigenLayrDeployer is
 
         vm.writeFile("data/weth.addr", vm.toString(address(weth)));
 
+        baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
+
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        strat = new InvestmentStrategyBase();
-        strat = InvestmentStrategyBase(
+        // initialize InvestmentStrategyBase proxy
+        wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(strat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
                 )
             )
         );
-        // initialize InvestmentStrategyBase proxy
-        strat.initialize(address(investmentManager), weth);
-
-        vm.writeFile("data/wethStrat.addr", vm.toString(address(strat)));
+        vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
 
         eigen = new ERC20PresetFixedSupply(
             "eigen",
@@ -188,83 +210,30 @@ contract EigenLayrDeployer is
         vm.writeFile("data/eigen.addr", vm.toString(address(eigen)));
 
         // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        eigenStrat = new InvestmentStrategyBase();
+        // initialize InvestmentStrategyBase proxy
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
-                    address(eigenStrat),
+                    address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    ""
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigen, pauserReg)
                 )
             )
         );
 
         vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
 
-        // initialize InvestmentStrategyBase proxy
-        eigenStrat.initialize(address(investmentManager), eigen);
-
-        // create 'HollowInvestmentStrategy' contracts for 'ConsenusLayerEth' and 'ProofOfStakingEth'
-        IInvestmentStrategy[] memory strats = new IInvestmentStrategy[](2);
-        HollowInvestmentStrategy temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
-        strats[0] = temp;
-        strategies[0] = temp;
-        temp = new HollowInvestmentStrategy();
-        temp.initialize(address(investmentManager));
-        strats[1] = temp;
-        strategies[1] = temp;
-        // add WETH strategy to mapping
-        strategies[2] = IInvestmentStrategy(address(strat));
-
-        // actually initialize the investmentManager (proxy) contraxt
-        address governor = address(this);
-        // deploy slasher and service factory contracts
-        slasher = new Slasher();
-        slasher = Slasher(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(slasher),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
-        );
-        slasher.initialize(investmentManager, delegation, governor);
-        serviceFactory = new ServiceFactory(investmentManager, delegation);
-
-        investmentManager.initialize(
-            slasher,
-            governor
-        );
-
-        // initialize the delegation (proxy) contract
-        delegation.initialize(
-            investmentManager,
-            undelegationFraudProofInterval
-        );
-
-        vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        // deploy all the DataLayr contracts
+        _deployDataLayrContracts();
 
         vm.stopBroadcast();
-
-        // deploy all the DataLayr contracts
-        address dlsm = _deployDataLayrContracts();
-
-        // // set up a strategy for a mock liquid staking token
-        // liquidStakingMockToken = new ERC20PresetFixedSupply();
-        // liquidStakingMockStrat = new InvestmentStrategyBase();
-        // liquidStakingMockStrat.initialize(
-        //     address(investmentManager),
-        //     IERC20(address(liquidStakingMockToken))
-        // );
-        // _allocateAsset(dlsm);
     }
 
-
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
-    function _deployDataLayrContracts() internal returns (address dlsmAddress) {
-        vm.startBroadcast();
+    function _deployDataLayrContracts() internal {
+        // hard-coded input
+        uint96 multiplier = 1e18;
+
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
@@ -277,64 +246,63 @@ contract EigenLayrDeployer is
             delegation,
             dlRepository,
             weth,
+            pauserReg,
             feePerBytePerTime
         );
 
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
 
-        uint256 paymentFraudProofCollateral = 1 wei;
-        dataLayrPaymentManager = new DataLayrPaymentManager(
-            weth,
-            paymentFraudProofCollateral,
-            dlsm
-        );
-
+        uint32 unbondingPeriod = uint32(14 days);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory ethStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                3
-            );
-        for (uint256 i = 0; i < ethStratsAndMultipliers.length; ++i) {
-            ethStratsAndMultipliers[i].strategy = strategies[i];
-            // TODO: change this if needed
-            ethStratsAndMultipliers[i].multiplier = 1e18;
-        }
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[]
-            memory eigenStratsAndMultipliers = new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                1
-            );
+        // hard-coded inputs
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+        ethStratsAndMultipliers[0].strategy = wethStrat;
+        ethStratsAndMultipliers[0].multiplier = multiplier;
+        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
+            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
         eigenStratsAndMultipliers[0].strategy = eigenStrat;
-        eigenStratsAndMultipliers[0].multiplier = 1e18;
+        eigenStratsAndMultipliers[0].multiplier = multiplier;
         uint8 _NUMBER_OF_QUORUMS = 2;
+        uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+        // split 60% ETH quorum, 40% EIGEN quorum
+        _quorumBips[0] = 6000;
+        _quorumBips[1] = 4000;
+
+        pubkeyCompendium = new BLSPublicKeyCompendium();
+
         dlReg = new BLSRegistryWithBomb(
             Repository(address(dlRepository)),
             delegation,
             investmentManager,
             ephemeralKeyRegistry,
+            unbondingPeriod,
             _NUMBER_OF_QUORUMS,
+            _quorumBips,
             ethStratsAndMultipliers,
-            eigenStratsAndMultipliers
+            eigenStratsAndMultipliers,
+            pubkeyCompendium
         );
 
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
-        
-        Repository(address(dlRepository)).initialize(
-            dlReg,
+
+        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, msg.sender);
+        uint256 _paymentFraudproofCollateral = 1e16;
+
+        dataLayrPaymentManager = new DataLayrPaymentManager(
+            weth,
+            _paymentFraudproofCollateral,
+            dlRepository,
             dlsm,
-            dlReg,
-            mainHoncho
+            pauserReg
         );
-        emit log_address(dlRepository.owner());
+
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
-        vm.stopBroadcast();
-        vm.startBroadcast(mainHonchoPrivKey);
+
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
-        vm.stopBroadcast();
-
-        dlsmAddress = address(dlsm);
     }
 
 
@@ -348,8 +316,6 @@ contract EigenLayrDeployer is
         }
         return uint8(b); // or return error ... 
     }
-
-   
 
     function convertString(string memory str) public pure returns (uint256 value) {
         

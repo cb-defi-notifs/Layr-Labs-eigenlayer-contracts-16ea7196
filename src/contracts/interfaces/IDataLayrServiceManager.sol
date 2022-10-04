@@ -1,15 +1,13 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IDataLayr.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 import "./IDataLayrPaymentManager.sol";
 
 
 interface IDataLayrServiceManager is IServiceManager {
-
     //Relevant metadata for a given datastore
     struct DataStoreMetadata {
         bytes32 headerHash;
@@ -23,10 +21,10 @@ interface IDataLayrServiceManager is IServiceManager {
 
     //Stores the data required to index a given datastore's metadata
     struct DataStoreSearchData {
+        DataStoreMetadata metadata;
         uint8 duration;
         uint256 timestamp;
         uint32 index;
-        DataStoreMetadata metadata;
     }
 
     struct SignatoryRecordMinusDataStoreId {
@@ -35,7 +33,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint256 totalEigenStakeSigned;
     }
 
-    struct DataStoresForDuration{
+    struct DataStoresForDuration {
         uint32 one_duration;
         uint32 two_duration;
         uint32 three_duration;
@@ -47,7 +45,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint32 latestTime;
     }
 
-    struct DataStoreHashInputs{
+    struct DataStoreHashInputs {
         bytes32 headerHash;
         uint32 dataStoreId;
         uint32 blockNumber;
@@ -61,19 +59,19 @@ interface IDataLayrServiceManager is IServiceManager {
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external payable returns(uint32);
+    )
+        external
+        returns (uint32);
 
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external payable;
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external;
 
-    function dataStoreIdToFee(uint32) external view returns (uint96);
+    function numPowersOfTau() external view returns (uint48);
 
-    function numPowersOfTau() external view returns(uint48);
+    function log2NumPowersOfTau() external view returns (uint48);
 
-    function log2NumPowersOfTau() external view returns(uint48);
-    
-    function DURATION_SCALE() external view returns(uint256);
+    function DURATION_SCALE() external view returns (uint256);
 
-    function MAX_DATASTORE_DURATION() external view returns(uint8);
+    function MAX_DATASTORE_DURATION() external view returns (uint8);
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
     

@@ -4,22 +4,20 @@ pragma solidity ^0.8.9;
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEphemeralKeyRegistry.sol";
+import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BytesLib.sol";
 import "./BLSRegistry.sol";
 
-import "ds-test/test.sol";
+// import "forge-std/Test.sol";
 
 /**
- * @notice This contract is used for 
-            - registering new operators 
-            - committing to and finalizing de-registration as an operator for the middleware 
-            - updating the stakes of the operator
+ * @title Adds Proof of Custody functionality to the `BLSRegistry` contract.
+ * @author Layr Labs, Inc.
+ * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
+ * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
+ * This contract relies on an `EphemeralKeyRegistry` to store operator's ephemeral keys.
  */
-
-contract BLSRegistryWithBomb is
-    BLSRegistry
-    // ,DSTest
-{
+contract BLSRegistryWithBomb is BLSRegistry {
     using BytesLib for bytes;
 
     IEphemeralKeyRegistry public ephemeralKeyRegistry;
@@ -29,62 +27,64 @@ contract BLSRegistryWithBomb is
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
-        StrategyAndWeightingMultiplier[] memory _ethStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _eigenStrategiesConsideredAndMultipliers
+        uint256[] memory _quorumBips,
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        IBLSPublicKeyCompendium _pubkeyCompendium
     )
         BLSRegistry(
             _repository,
             _delegation,
             _investmentManager,
+            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
-            _ethStrategiesConsideredAndMultipliers,
-            _eigenStrategiesConsideredAndMultipliers
+            _quorumBips,
+            _firstQuorumStrategiesConsideredAndMultipliers,
+            _secondQuorumStrategiesConsideredAndMultipliers,
+            _pubkeyCompendium
         )
     {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     /**
-      @notice Used by an operator to de-register itself from providing service to the middleware.
-              For detailed comments, see deregisterOperator in BLSRegistry.sol.
+     * @notice Used by an operator to de-register itself from providing service to the middleware.
+     * For detailed comments, see deregisterOperator in BLSRegistry.sol.
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey) external returns (bool) {
-        _deregisterOperator(pubkeyToRemoveAff, index);
+    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey)
+        external
+        returns (bool)
+    {
+        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
 
         //post last ephemeral key reveal on chain
         ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
-        
+
         return true;
     }
 
     /**
-     @notice called for registering as an operator. For detailed comments, see 
-             registerOperator in BLSRegistry.sol.
+     * @notice called for registering as an operator. For detailed comments, see
+     * registerOperator in BLSRegistry.sol.
      */
-    function registerOperator(
-        uint8 registrantType,
-        bytes32 ephemeralKeyHash,
-        bytes calldata data,
-        string calldata socket
-    ) external {        
-        _registerOperator(msg.sender, registrantType, data, socket);
+    function registerOperator(uint8 operatorType, bytes32 ephemeralKeyHash, bytes calldata pkBytes, string calldata socket)
+        external
+    {
+        _registerOperator(msg.sender, operatorType, pkBytes, socket);
 
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
     }
 
-    // CRITIC  @ChaoticWalrus, @Sidu28 --- what are following funcs for?
-    function registerOperator(
-        uint8,
-        bytes calldata,
-        string calldata
-    ) public override pure {        
-        revert("must register with ephemeral key");
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
+    function registerOperator(uint8, bytes calldata, string calldata) external pure override {
+        revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
 
-    function deregisterOperator(uint256[4] memory, uint32) external override pure returns (bool) {
-        revert("must deregister with ephemeral key");
-        return false;
+    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
+    function deregisterOperator(uint256[4] memory, uint32) external pure override returns (bool) {
+        revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
     }
 }

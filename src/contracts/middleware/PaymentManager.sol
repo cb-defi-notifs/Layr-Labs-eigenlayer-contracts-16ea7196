@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
@@ -9,671 +10,453 @@ import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
 import "../permissions/RepositoryAccess.sol";
+import "../permissions/Pausable.sol";
 
-import "ds-test/test.sol";
+// import "forge-std/Test.sol";
 
 /**
- @notice This contract is used for doing interactive payment challenge.
+ * @title Controls 'rolled-up' middleware payments.
+ * @author Layr Labs, Inc.
+ * @notice This contract is used for doing interactive payment challenges.
+ * @notice The contract is marked as abstract since it does not implement the `respondToPaymentChallengeFinal`
+ * function -- see DataLayrPaymentManager for an example
  */
-
-
-contract PaymentManager is 
-    RepositoryAccess, 
-    IPaymentManager
-    // ,DSTest 
-    {
-    /**********************
-     DATA STRUCTURES
-     **********************/
+//
+abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable {
+    using SafeERC20 for IERC20;
+    // DATA STRUCTURES
 
     /**
-      @notice used for storing information on the most recent payment made to the operator
+     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment
+     * claim by a registered operator.
      */
-    struct Payment {
-        // taskNumber starting from which payment is being claimed 
-        uint32 fromTaskNumber; 
+    uint256 public constant paymentFraudproofInterval = 7 days;
+    /// @notice Constant used as a divisor in dealing with BIPS amounts
+    uint256 internal constant MAX_BIPS = 10000;
+    /// @notice Gas budget provided in calls to DelegationTerms contracts
+    uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
-        // taskNumber until which payment is being claimed (exclusive) 
-        uint32 toTaskNumber; 
-
-        // recording when committment for payment made; used for fraud proof period
-        uint32 commitTime; 
-
-        // payment for range [fromTaskNumber, toTaskNumber)
-        /// @dev max 1.3e36, keep in mind for token decimals
-        uint120 amount; 
-
-        uint8 status; // 0: committed, 1: redeemed
-
-        uint256 collateral; //account for if collateral changed
-    }
-
-    /**
-      @notice used for storing information on the payment challenge as part of the interactive process
-     */
-    struct PaymentChallenge {
-        // operator whose payment claim is being challenged,
-        address operator;
-
-        // the entity challenging with the fraudproof
-        address challenger;
-
-        // address of the service manager contract
-        address serviceManager;
-
-        // the TaskNumber from which payment has been computed
-        uint32 fromTaskNumber;
-
-        // the TaskNumber until which payment has been computed to
-        uint32 toTaskNumber;
-
-        // reward amount the challenger claims is for the first half of tasks
-        uint120 amount1;
-
-        // reward amount the challenger claims is for the second half of tasks
-        uint120 amount2;
-
-        // used for recording the time when challenge was created
-        uint32 commitTime; // when committed, used for fraud proof period
-
-
-        // indicates the status of the challenge
-        /**
-         @notice The possible status are:
-                    - 0: committed,
-                    - 1: redeemed,
-                    - 2: operator turn (dissection),
-                    - 3: challenger turn (dissection),
-                    - 4: operator turn (one step),
-                    - 5: challenger turn (one step)
-         */
-        uint8 status;   
-    }
-
-
-    struct TotalStakes {
-        uint256 ethStakeSigned;
-        uint256 eigenStakeSigned;
-    }
-
-    /**
-     * @notice challenge window for submitting fraudproof in case of incorrect payment 
-     *         claim by the registered operator 
-     */
-    uint256 public constant paymentFraudProofInterval = 7 days;
-
-// TODO: set this value
-    /**
-     @notice this is the payment that has to be made as a collateral for fraudproof 
-             during payment challenges
-     */
-    uint256 public paymentFraudProofCollateral = 1 wei;
-
-    /**
-     * @notice the ERC20 token that will be used by the disperser to pay the service fees to
-     *         middleware nodes.
-     */
+    /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
 
-    // collateral token used for placing collateral on challenges & payment commits
+    /// @notice Collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
     /**
-     * @notice The EigenLayr delegation contract for this middleware which is primarily used by
-     *      delegators to delegate their stake to operators who would serve as middleware
-     *      nodes and so on.
+     * @notice Specifies the payment that has to be made as a collateral for fraudproof
+     * during payment challenges
      */
+    uint256 public paymentFraudproofCollateral;
+
     /**
-      @dev For more details, see EigenLayrDelegation.sol. 
+     * @notice The global EigenLayr Delegation contract, which is primarily used by
+     * stakers to delegate their stake to operators who serve as middleware nodes.
+     * @dev For more details, see EigenLayrDelegation.sol.
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
 
-    /**
-        @notice mapping between the operator and its current committed payment
-        or last redeemed payment 
-    */
+    /// @notice mapping between the operator and its current committed payment or last redeemed payment
     mapping(address => Payment) public operatorToPayment;
 
-    // operator => PaymentChallenge
+    /// @notice mapping from operator => PaymentChallenge
     mapping(address => PaymentChallenge) public operatorToPaymentChallenge;
 
-    // deposits of future fees to be drawn against when paying for taking service for the task
+    /// @notice Deposits of future fees to be drawn against when paying for service from the middleware
     mapping(address => uint256) public depositsOf;
 
-    // depositors => addresses approved to spend deposits => allowance
+    /// @notice depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
 
+    /**
+     *
+     * EVENTS
+     *
+     */
+    /// @notice Emitted when the `paymentFraudproofCollateral` variable is modified
+    event PaymentFraudproofCollateralSet(uint256 previousValue, uint256 newValue);
 
+    /// @notice Emitted when an operator commits to a payment by calling the `commitPayment` function
+    event PaymentCommit(address operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint256 fee);
 
+    /// @notice Emitted when a new challenge is created through a call to the `initPaymentChallenge` function
+    event PaymentChallengeInit(address indexed operator, address challenger);
 
-    /******** 
-     EVENTS
-     ********/
-    event PaymentCommit(
-        address operator,
-        uint32 fromTaskNumber,
-        uint32 toTaskNumber,
-        uint256 fee
+    /// @notice Emitted when an operator redeems a payment by calling the `redeemPayment` function
+    event PaymentRedemption(address indexed operator, uint256 fee);
+
+    /// @notice Emitted when a bisection step is performed in a challenge, through a call to the `performChallengeBisectionStep` function
+    event PaymentBreakdown(
+        address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2
     );
-    event PaymentRedemption(address operator, uint256 fee);
 
-    event PaymentBreakdown(uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2);
+    /// @notice Emitted upon successful resolution of a payment challenge, within a call to `resolveChallenge`
+    event PaymentChallengeResolution(address indexed operator, bool operatorWon);
 
-    event PaymentChallengeInit(address operator, address challenger);
-
-    event PaymentChallengeResolution(address operator, bool operatorWon);
-
-
+    /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
+    event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
 
     constructor(
         IERC20 _paymentToken,
-        IRepository _repository
-    )   
+        uint256 _paymentFraudproofCollateral,
+        IRepository _repository,
+        IPauserRegistry _pauserReg
+    )
         // set repository address equal to that of serviceManager
-        RepositoryAccess(_repository) 
+        RepositoryAccess(_repository)
     {
         paymentToken = _paymentToken;
-        IServiceManager _serviceManager = _repository.serviceManager();
-        collateralToken = _serviceManager.collateralToken();
-        eigenLayrDelegation = _serviceManager.eigenLayrDelegation();
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+
+        IServiceManager serviceManager_ = _repository.serviceManager();
+        collateralToken = serviceManager_.collateralToken();
+        eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
+
+        _initializePauser(_pauserReg);
     }
 
-
     /**
-     @notice deposit one-time fees by the middleware with this contract for set number of tasks 
+     * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
+     * @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees
+     * @param amount is amount of futures fees being deposited
      */
-    /**
-     @param onBehalfOf could be the msg.sender or someone lese who is depositing 
-     this future fees           
-     */ 
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
-        paymentToken.transferFrom(msg.sender, address(this), amount);
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
         depositsOf[onBehalfOf] += amount;
     }
 
-
-    function setPermanentAllowance(address allowed, uint256 amount) public {
+    function setAllowance(address allowed, uint256 amount) external {
         allowances[msg.sender][allowed] = amount;
     }
 
-
-    /**
-     @notice Used for deducting the fees from the payer to the 
-     */
+    /// @notice Used for deducting the fees from the payer to the middleware
     function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
-        //todo: can this be a permanent allowance? decreases an sstore per fee paying.
-        // NOTE: (from JEFFC) this currently *is* a persistant/permanent allowance, as it isn't getting decreased anywhere
-        if(initiator != payer){
-            require(allowances[payer][initiator] >= feeAmount, "initiator not allowed to spend payers balance");
+        if (initiator != payer) {
+            if (allowances[payer][initiator] != type(uint256).max) {
+                allowances[payer][initiator] -= feeAmount;
+            }
         }
 
+        // decrement `payer`'s stored deposits
         depositsOf[payer] -= feeAmount;
     }
 
-
-
-    function setPaymentFraudProofCollateral(
-        uint256 _paymentFraudProofCollateral
-    ) public onlyRepositoryGovernance {
-        paymentFraudProofCollateral = _paymentFraudProofCollateral;
+    /**
+     * @notice Modifies the `paymentFraudproofCollateral` amount.
+     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     */
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external onlyRepositoryGovernance {
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 
     /**
-     @notice This is used by an operator to make claim on the  amount that they deserve 
-             for their service since their last payment until toTaskNumber  
+     * @notice This is used by an operator to make claim on the  amount that they deserve
+     * for their service since their last payment until toTaskNumber
      */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         // only registered operators can call
         require(
-            registry.getOperatorType(msg.sender) != 0,
-            "Only registered operators can call this function"
+            registry.isRegistered(msg.sender),
+            "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
-        require(toTaskNumber <= taskNumber(), "Cannot claim future payments");
-
-        // operator puts up collateral which can be slashed in case of wrongful payment claim
-        collateralToken.transferFrom(
-            msg.sender,
-            address(this),
-            paymentFraudProofCollateral
-        );
-
-
-
-        /********************
-         recording payment claims for the operator
-         ********************/
-
-        uint32 fromTaskNumber;
-
-        // for the special case of this being the first payment that is being claimed by the operator;
-        /**
-         @notice this special case also implies that the operator must be claiming payment from 
-                 when the operator registered.   
-         */
-        if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
-
-            // get the taskNumber when the operator registered
-            fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
-            require(fromTaskNumber < toTaskNumber, "invalid payment range");
-
-            // record the payment information pertaining to the operator
-            operatorToPayment[msg.sender] = Payment(
-                fromTaskNumber,
-                toTaskNumber,
-                uint32(block.timestamp),
-                amount,
-                // setting to 0 to indicate commitment to payment claim
-                0,
-                paymentFraudProofCollateral
-            );
-
-            emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
-
-            return;
-        }
+        require(toTaskNumber <= _taskNumber(), "PaymentManager.commitPayment: Cannot claim future payments");
 
         // can only claim for a payment after redeeming the last payment
         require(
-            operatorToPayment[msg.sender].status == 1,
-            "Require last payment is redeemed"
+            operatorToPayment[msg.sender].status == PaymentStatus.REDEEMED,
+            "PaymentManager.commitPayment: Require last payment is redeemed"
         );
 
-        // you have to redeem starting from the last time redeemed up to
-        fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
+        // operator puts up collateral which can be slashed in case of wrongful payment claim
+        collateralToken.safeTransferFrom(msg.sender, address(this), paymentFraudproofCollateral);
+
+        /**
+         *
+         * recording payment claims for the operator
+         *
+         */
+
+        uint32 fromTaskNumber;
+
+        // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
+        uint32 confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
+
+        // for the special case of this being the first payment that is being claimed by the operator;
+        /**
+         * @notice this special case also implies that the operator must be claiming payment from
+         * when the operator registered.
+         */
+        if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
+            // get the taskNumber when the operator registered
+            fromTaskNumber = registry.getFromTaskNumberForOperator(msg.sender);
+        } else {
+            // you have to redeem starting from the last task you previously redeemed up to
+            fromTaskNumber = operatorToPayment[msg.sender].toTaskNumber;
+        }
+
         require(fromTaskNumber < toTaskNumber, "invalid payment range");
 
         // update the record for the commitment to payment made by the operator
         operatorToPayment[msg.sender] = Payment(
             fromTaskNumber,
             toTaskNumber,
-            uint32(block.timestamp),
+            confirmAt,
             amount,
-            // set status as 0: committed
-            0,
-            paymentFraudProofCollateral
+            // set payment status as 1: committed
+            PaymentStatus.COMMITTED,
+            // storing collateral amount deposited
+            paymentFraudproofCollateral
         );
 
         emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
     }
 
-    /**
-     @notice This function can only be called after the challenge window for the payment claim has completed.
-     */
-    function redeemPayment() external {
+    /// @notice This function can only be called after the challenge window for the payment claim has completed.
+    function redeemPayment() external whenNotPaused {
         require(
-            block.timestamp >
-                (operatorToPayment[msg.sender].commitTime +
-                    paymentFraudProofInterval) &&
-                operatorToPayment[msg.sender].status == 0,
-            "Payment still eligible for fraud proof"
+            operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
+            "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
+        );
+
+        require(
+            block.timestamp > operatorToPayment[msg.sender].confirmAt,
+            "PaymentManager.redeemPayment: Payment still eligible for fraudproof"
         );
 
         // update the status to show that operator's payment is getting redeemed
-        operatorToPayment[msg.sender].status = 1;
+        operatorToPayment[msg.sender].status = PaymentStatus.REDEEMED;
 
         // transfer back the collateral to the operator as there was no successful
         // challenge to the payment commitment made by the operator.
-        collateralToken.transfer(
-            msg.sender,
-            operatorToPayment[msg.sender].collateral
-        );
+
+        collateralToken.safeTransfer(msg.sender, operatorToPayment[msg.sender].collateral);
 
         ///look up payment amount and delegation terms address for the msg.sender
         uint256 amount = operatorToPayment[msg.sender].amount;
 
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
+
         // transfer the amount due in the payment claim of the operator to its delegation
         // terms contract, where the delegators can withdraw their rewards.
-        paymentToken.transfer(address(dt), amount);
+        paymentToken.safeTransfer(address(dt), amount);
 
-// TODO: make this a low-level call with gas budget that ignores reverts
-        // inform the DelegationTerms contract of the payment, which will determine
-        // the rewards operator and its delegators are eligible for
-        dt.payForService(paymentToken, amount);
-
+        // emit event
         emit PaymentRedemption(msg.sender, amount);
+
+        // inform the DelegationTerms contract of the payment, which will determine the rewards the operator and its delegators are eligible for
+        _payForServiceHook(dt, amount);
+    }
+
+    // inform the DelegationTerms contract of the payment, which will determine the rewards the operator and its delegators are eligible for
+    function _payForServiceHook(IDelegationTerms dt, uint256 amount) internal {
+        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
+        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
+            abi.encodeWithSelector(IDelegationTerms.payForService.selector, paymentToken, amount)
+        );
+        // if the internal call fails, we emit a special event rather than reverting
+        if (!success) {
+            emit OnPayForServiceCallFailure(dt, returnData);
+        }
     }
 
     /**
-    @notice This function would be called by a fraud prover to challenge a payment 
-             by initiating an interactive type proof
-     **/
-    /**
-     @param operator is the operator against whose payment claim the fraud proof is being made
-     @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
-     @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
-     **/
-    function challengePaymentInit(
-        address operator,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
-        
+     * @notice This function is called by a fraud prover to challenge a payment, initiating an interactive-type fraudproof.
+     * @param operator is the operator against whose payment claim the fraudproof is being made
+     * @param amount1 is the reward amount the challenger in that round claims is for the first half of tasks
+     * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
+     *
+     */
+    function initPaymentChallenge(address operator, uint120 amount1, uint120 amount2) external {
         require(
-            block.timestamp <
-                operatorToPayment[operator].commitTime +
-                    paymentFraudProofInterval &&
-                operatorToPayment[operator].status == 0,
-            "Fraud proof interval has passed"
+            block.timestamp < operatorToPayment[operator].confirmAt
+                && operatorToPayment[operator].status == PaymentStatus.COMMITTED,
+            "PaymentManager.initPaymentChallenge: Fraudproof interval has passed for payment"
         );
 
         // store challenge details
         operatorToPaymentChallenge[operator] = PaymentChallenge(
-                operator,
-                msg.sender,
-                address(repository.serviceManager()),
-                operatorToPayment[operator].fromTaskNumber,
-                operatorToPayment[operator].toTaskNumber,
-                amount1,
-                amount2,
-                // recording current timestamp as the commitTime
-                uint32(block.timestamp),
-                // setting operator to respond next
-                uint8(2)
+            operator,
+            msg.sender,
+            address(repository.serviceManager()),
+            operatorToPayment[operator].fromTaskNumber,
+            operatorToPayment[operator].toTaskNumber,
+            amount1,
+            amount2,
+            // recording current timestamp plus the fraudproof interval as the `settleAt` timestamp for this challenge
+            uint32(block.timestamp + paymentFraudproofInterval),
+            // set the status for the operator to respond next
+            ChallengeStatus.OPERATOR_TURN
         );
 
         //move collateral over
         uint256 collateral = operatorToPayment[operator].collateral;
-        collateralToken.transferFrom(msg.sender, address(this), collateral);
-        //update payment
-        operatorToPayment[operator].status = 2;
-        operatorToPayment[operator].commitTime = uint32(block.timestamp);
+        collateralToken.safeTransferFrom(msg.sender, address(this), collateral);
+        // update the payment status and reset the fraudproof window for this payment
+        operatorToPayment[operator].status = PaymentStatus.CHALLENGED;
+        operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
         emit PaymentChallengeInit(operator, msg.sender);
     }
 
-
-    //challenger challenges a particular half of the payment
-    function challengePaymentHalf(
-        address operator,
-        bool half,
-        uint120 amount1,
-        uint120 amount2
-    ) external {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
-        uint8 status = challenge.status;
-
-        require(
-            (status == 3 && challenge.challenger == msg.sender) ||
-                (status == 2 && challenge.operator == msg.sender),
-            "Must be challenger and their turn or operator and their turn"
-        );
-
-
-        require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
-            "Fraud proof interval has passed"
-        );
-
-
-        uint32 fromTaskNumber = challenge.fromTaskNumber;
-        uint32 toTaskNumber = challenge.toTaskNumber;
-        uint32 diff;
-
-        //change interval to the one challenger cares about
-        // if the difference between the current start and end is even, the new interval has an endpoint halfway inbetween
-        // if the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
-        //  or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
-        if (half) {
-            diff = (toTaskNumber - fromTaskNumber) / 2;
-            challenge.fromTaskNumber = fromTaskNumber + diff;
-            //if next step is not final
-            if (updateStatus(operator, diff)) {
-                challenge.toTaskNumber = toTaskNumber;
-            }
-            //TODO: my understanding is that dissection=3 here, not 1 because we are challenging the second half
-            updateChallengeAmounts(operator, 3, amount1, amount2);
-        } else {
-            diff = (toTaskNumber - fromTaskNumber);
-            if (diff % 2 == 1) {
-                diff += 1;
-            }
-            diff /= 2;
-            //if next step is not final
-            if (updateStatus(operator, diff)) {
-                challenge.toTaskNumber = toTaskNumber - diff;
-                challenge.fromTaskNumber = fromTaskNumber;
-            }
-            updateChallengeAmounts(operator, 1, amount1, amount2);
-        }
-        challenge.commitTime = uint32(block.timestamp);
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
-        
-        emit PaymentBreakdown(challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2);
-    }
-
-
-
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
     /**
-     @notice This function is used for updating the status of the challenge in terms of who
-             has to respond to the interactive challenge mechanism next -  is it going to be
-             challenger or the operator.   
+     * @notice Perform a single bisection step in an existing interactive payment challenge.
+     * @param operator The middleware operator who was challenged (used to look up challenge details)
+     * @param secondHalf If true, then the caller wishes to challenge the amount claimed as payment in the *second half* of the
+     * previous bisection step. If false then the *first half* is indicated instead.
+     * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
+     * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
      */
-    /**
-     @param operator is the operator whose payment claim is being challenged
-     @param diff is the number of tasks across which payment is being challenged in this iteration
-     */ 
-    function updateStatus(address operator, uint32 diff)
-        internal
-        returns (bool)
+    function performChallengeBisectionStep(address operator, bool secondHalf, uint120 amount1, uint120 amount2)
+        external
     {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
-        // payment challenge for one data dump
+        ChallengeStatus status = challenge.status;
+
+        require(
+            (status == ChallengeStatus.CHALLENGER_TURN && challenge.challenger == msg.sender)
+                || (status == ChallengeStatus.OPERATOR_TURN && challenge.operator == msg.sender),
+            "PaymentManager.performChallengeBisectionStep: Must be challenger and their turn or operator and their turn"
+        );
+
+        require(
+            block.timestamp < challenge.settleAt,
+            "PaymentManager.performChallengeBisectionStep: Challenge has already settled"
+        );
+
+        uint32 fromTaskNumber = challenge.fromTaskNumber;
+        uint32 toTaskNumber = challenge.toTaskNumber;
+        uint32 diff = (toTaskNumber - fromTaskNumber) / 2;
+
+        /**
+         * @notice Change the challenged interval to the one the challenger cares about.
+         * If the difference between the current start and end is even, then the new interval has an endpoint halfway in-between
+         * If the difference is odd = 2n + 1, the new interval has a "from" endpoint at (start + n = end - (n + 1)) if the second half is challenged,
+         * or a "to" endpoint at (end - (2n + 2)/2 = end - (n + 1) = start + n) if the first half is challenged
+         * In other words, it's simple when the difference is even, and when the difference is odd, we just always make the first half the smaller one.
+         */
+        if (secondHalf) {
+            challenge.fromTaskNumber = fromTaskNumber + diff;
+            _updateChallengeAmounts(operator, DissectionType.SECOND_HALF, amount1, amount2);
+        } else {
+            challenge.toTaskNumber = fromTaskNumber + diff;
+            _updateChallengeAmounts(operator, DissectionType.FIRST_HALF, amount1, amount2);
+        }
+
+        // update who must respond next to the challenge
+        _updateStatus(operator, diff);
+
+        // extend the settlement time for the challenge, giving the next participant in the interactive fraudproof `paymentFraudproofInterval` to respond
+        challenge.settleAt = uint32(block.timestamp + paymentFraudproofInterval);
+
+        // update challenge struct in storage
+        operatorToPaymentChallenge[operator] = challenge;
+
+        emit PaymentBreakdown(
+            operator, challenge.fromTaskNumber, challenge.toTaskNumber, challenge.amount1, challenge.amount2
+            );
+    }
+
+    /**
+     * @notice This function is used for updating the status of the challenge in terms of who
+     * has to respond to the interactive challenge mechanism next -  is it going to be
+     * challenger or the operator.
+     * @param operator is the operator whose payment claim is being challenged
+     * @param diff is the number of tasks across which payment is being challenged in this iteration
+     */
+    function _updateStatus(address operator, uint32 diff) internal returns (bool) {
+        // payment challenge for one task
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            challenge.status = (msg.sender == operator ? 5 : 4);
+            operatorToPaymentChallenge[operator].status =
+                msg.sender == operator
+                ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP
+                : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
-        // payment challenge across more than one data dump
+            // payment challenge across more than one task
         } else {
             // set to dissection turn of either challenger or operator
-            challenge.status = (msg.sender == operator ? 3 : 2);
+            operatorToPaymentChallenge[operator].status =
+                msg.sender == operator ? ChallengeStatus.CHALLENGER_TURN : ChallengeStatus.OPERATOR_TURN;
             return true;
         }
+    }
 
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
-   }
-
-
-// TODO: change this function to just modify a 'PaymentChallenge' in memory, rather than write to storage? (might save gas)
-    //an operator can respond to challenges and breakdown the amount
-    function updateChallengeAmounts(
-        address operator, 
-        uint8 disectionType,
-        uint120 amount1,
-        uint120 amount2
-    ) internal {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
-        if (disectionType == 1) {
-            //if first half is challenged, break the first half of the payment into two halves
+    // an operator can respond to challenges and breakdown the amount
+    // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
+    function _updateChallengeAmounts(address operator, DissectionType dissectionType, uint120 amount1, uint120 amount2)
+        internal
+    {
+        if (dissectionType == DissectionType.FIRST_HALF) {
+            // if first half is challenged, break the first half of the payment into two halves
             require(
-                amount1 + amount2 == challenge.amount1,
-                "Invalid amount breakdown"
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount1,
+                "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
-        } else if (disectionType == 3) {
-            //if second half is challenged, break the second half of the payment into two halves
+        } else if (dissectionType == DissectionType.SECOND_HALF) {
+            // if second half is challenged, break the second half of the payment into two halves
             require(
-                amount1 + amount2 == challenge.amount2,
-                "Invalid amount breakdown"
+                amount1 + amount2 != operatorToPaymentChallenge[operator].amount2,
+                "PaymentManager._updateChallengeAmounts: Invalid amount breakdown"
             );
         } else {
-            revert("Not in operator challenge phase");
+            revert("PaymentManager._updateChallengeAmounts: invalid DissectionType");
         }
-        challenge.amount1 = amount1;
-        challenge.amount2 = amount2;
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
+        // update the stored payment halves
+        operatorToPaymentChallenge[operator].amount1 = amount1;
+        operatorToPaymentChallenge[operator].amount2 = amount2;
     }
 
-    function resolveChallenge(address operator) public {
-        // copy challenge struct to memory
-        PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
-
-        uint256 interval = paymentFraudProofInterval;
-        require(
-            block.timestamp > challenge.commitTime + interval &&
-                block.timestamp < challenge.commitTime + (2 * interval),
-            "Fraud proof interval has passed"
-        );
-        uint8 status = challenge.status;
-        if (status == 2 || status == 4) {
-            // operator did not respond
-            resolve(operator, false);
-        } else if (status == 3 || status == 5) {
-            // challenger did not respond
-            resolve(operator, true);
-        }
-    }
-// TODO: get this working
-/*
-    //an operator can respond to challenges and breakdown the amount
-    function respondToPaymentChallengeFinal(
-        address operator,
-        uint256 stakeIndex,
-        uint48 nonSignerIndex,
-        bytes32[] memory nonSignerPubkeyHashes,
-        TotalStakes calldata totalStakes,
-        bytes32 challengedHeaderHash,
-        IServiceManager.DataStoreSearchData calldata searchData
-    ) external {
+    /// @notice resolve an existing PaymentChallenge for an operator
+    function resolveChallenge(address operator) external {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
         require(
-            block.timestamp <
-                challenge.commitTime + paymentFraudProofInterval,
-            "Fraud proof interval has passed"
+            block.timestamp > challenge.settleAt,
+            "PaymentManager.resolveChallenge: challenge has not yet reached settlement time"
         );
-        uint32 challengedTaskNumber = challenge.fromTaskNumber;
-        uint8 status = challenge.status;
-        //check sigs
-        require(
-            serviceManager.getTaskNumberSignatureHash(challengedTaskNumber) ==
-                keccak256(
-                    abi.encodePacked(
-                        challengedTaskNumber,
-                        nonSignerPubkeyHashes,
-                        totalStakes.ethStakeSigned,
-                        totalStakes.eigenStakeSigned
-                    )
-                ),
-            "Sig record does not match hash"
-        );
-
-        IRegistry registry = repository.registry();
-
-        bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
-
-        // //calculate the true amount deserved
-        uint120 trueAmount;
-
-        //2^32 is an impossible index because it is more than the max number of registrants
-        //the challenger marks 2^32 as the index to show that operator has not signed
-        if (nonSignerIndex == 1 << 32) {
-            for (uint256 i = 0; i < nonSignerPubkeyHashes.length; ) {
-                require(nonSignerPubkeyHashes[i] != operatorPubkeyHash, "Operator was not a signatory");
-
-                unchecked {
-                    ++i;
-                }
-            }
-            //TODO: Change this
-            IQuorumRegistry.OperatorStake memory operatorStake = registry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, stakeIndex);
-
-        // scoped block helps fix stack too deep
-        {
-            (uint32 taskNumberFromHeaderHash, , , uint32 challengedDumpBlockNumber) = (serviceManager.dataLayr()).dataStores(challengedHeaderHash);
-            require(taskNumberFromHeaderHash == challengedTaskNumber, "specified taskNumber does not match provided headerHash");
-            require(
-                operatorStake.updateBlockNumber <= challengedDumpBlockNumber,
-                "Operator stake index is too late"
-            );
-
-            require(
-                operatorStake.nextUpdateBlockNumber == 0 ||
-                    operatorStake.nextUpdateBlockNumber > challengedDumpBlockNumber,
-                "Operator stake index is too early"
-            );
+        ChallengeStatus status = challenge.status;
+        // if operator did not respond
+        if (status == ChallengeStatus.OPERATOR_TURN || status == ChallengeStatus.OPERATOR_TURN_ONE_STEP) {
+            _resolve(challenge, challenge.challenger);
+            // if challenger did not respond
+        } else if (status == ChallengeStatus.CHALLENGER_TURN || status == ChallengeStatus.CHALLENGER_TURN_ONE_STEP) {
+            _resolve(challenge, challenge.operator);
         }
-            require(serviceManager.getTaskNumbersForDuration(
-                searchData.duration, 
-                searchData.timestamp
-            ) == hashLinkedDataStoreMetadatas(searchData.metadatas), "search.metadatas preimage is incorrect");
-
-            //TODO: Change this
-            IServiceManager.DataStoreMetadata memory metadata = searchData.metadatas[searchData.index];
-            require(metadata.globalTaskNumber == challengedTaskNumber, "Loaded TaskNumber does not match challenged");
-
-            //TODO: assumes even eigen eth split
-            trueAmount = uint120(
-                (metadata.fee * operatorStake.ethStake) /
-                    totalStakes.ethStakeSigned /
-                    2 +
-                    (metadata.fee * operatorStake.eigenStake) /
-                    totalStakes.eigenStakeSigned /
-                    2
-            );
-        } else {
-            require(
-                nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash,
-                "Signer index is incorrect"
-            );
-        }
-
-        if (status == 4) {
-            resolve(operator, trueAmount != challenge.amount1);
-        } else if (status == 5) {
-            resolve(operator, trueAmount == challenge.amount1);
-        } else {
-            revert("Not in one step challenge phase");
-        }
-        challenge.status = 1;
-
-        // update challenge struct in storage
-        operatorToPaymentChallenge[operator] = challenge;
     }
-*/
-    /*
-    @notice: resolve payment challenge
-    */
-    function resolve(address operator, bool challengeSuccessful) internal {
-        if (challengeSuccessful) {
+
+    /**
+     * @param challenge The challenge that is being resolved
+     * @param winner Address of the winner of the challenge.
+     */
+    function _resolve(PaymentChallenge memory challenge, address winner) internal {
+        address operator = challenge.operator;
+        address challenger = challenge.challenger;
+        if (winner == operator) {
             // operator was correct, allow for another challenge
-            operatorToPayment[operator].status = 0;
-            operatorToPayment[operator].commitTime = uint32(block.timestamp);
-            //give them previous challengers collateral
-            collateralToken.transfer(
-                operator,
-                operatorToPayment[operator].collateral
-            );
+            operatorToPayment[operator].status = PaymentStatus.COMMITTED;
+            operatorToPayment[operator].confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
+            /*
+            * Since the operator hasn't been proved right (only challenger has been proved wrong)
+            * transfer them only challengers collateral, not their own collateral (which is still
+            * locked up in this contract)
+             */
+            collateralToken.safeTransfer(operator, operatorToPayment[operator].collateral);
             emit PaymentChallengeResolution(operator, true);
         } else {
             // challeger was correct, reset payment
-            operatorToPayment[operator].status = 1;
-            //give them their collateral and the operators
-            collateralToken.transfer(
-                operator,
-                2 * operatorToPayment[operator].collateral
-            );
+            operatorToPayment[operator].status = PaymentStatus.REDEEMED;
+            //give them their collateral and the operator's
+            collateralToken.safeTransfer(challenger, 2 * operatorToPayment[operator].collateral);
             emit PaymentChallengeResolution(operator, false);
         }
     }
 
-    function getChallengeStatus(address operator) external view returns(uint8) {
+    function getChallengeStatus(address operator) external view returns (ChallengeStatus) {
         return operatorToPaymentChallenge[operator].status;
     }
 
@@ -697,26 +480,21 @@ contract PaymentManager is
         return operatorToPaymentChallenge[operator].toTaskNumber - operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
-    function getPaymentCollateral(address operator)
-        public
-        view
-        returns (uint256)
-    {
+    function getPaymentCollateral(address operator) external view returns (uint256) {
         return operatorToPayment[operator].collateral;
     }
 
-    function taskNumber() internal view returns (uint32) {
+    /// @notice Convenience function for fetching the current taskNumber from the `serviceManager`
+    function _taskNumber() internal view returns (uint32) {
         return repository.serviceManager().taskNumber();
     }
 
-// TODO: delete or replace with general solution
-/*
-    function hashLinkedDataStoreMetadatas(IServiceManager.DataStoreMetadata[] memory metadatas) internal pure returns(bytes32) {
-        bytes32 res = bytes32(0);
-        for(uint i = 0; i < metadatas.length; i++) {
-            res = keccak256(abi.encodePacked(res, metadatas[i].durationTaskNumber, metadatas[i].globalTaskNumber, metadatas[i].fee));
-        }
-        return res;
+    /**
+     * @notice Modifies the `paymentFraudproofCollateral` amount.
+     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     */
+    function _setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) internal {
+        emit PaymentFraudproofCollateralSet(paymentFraudproofCollateral, _paymentFraudproofCollateral);
+        paymentFraudproofCollateral = _paymentFraudproofCollateral;
     }
-*/
 }
