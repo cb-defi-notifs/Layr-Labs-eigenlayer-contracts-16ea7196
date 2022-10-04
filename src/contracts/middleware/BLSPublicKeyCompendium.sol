@@ -31,11 +31,11 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
 
         require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),
-            "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey"
+            "BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey"
         );
         require(
             pubkeyHashToOperator[pubkeyHash] == address(0),
-            "BLSPublicKeyRegistry.registerBLSPublicKey: public key already registered"
+            "BLSPublicKeyCompendium.registerBLSPublicKey: public key already registered"
         );
 
         // store updates
