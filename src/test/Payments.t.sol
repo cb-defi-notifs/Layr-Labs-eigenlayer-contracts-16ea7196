@@ -121,7 +121,10 @@ contract PaymentsTests is TestHelper {
 
         uint8 operatorType = 3;
         _testInitiateDelegation(0, operatorType, testSocket, eigenAmount, ethAmount);
-        _testRegisterWithDataLayr(0, operatorType, testSocket);
+        
+        _testRegisterBLSPubKey(0);
+        _testRegisterOperatorWithDataLayr(0, operatorType, testSocket);
+        
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
         _incrementDataStoreID();

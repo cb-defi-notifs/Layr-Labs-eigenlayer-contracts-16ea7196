@@ -59,7 +59,10 @@ contract RegistrationTests is RevertTestHelper {
             eigenAmount,
             ethAmount
         );
-        _testRegisterWithDataLayr(
+        _testRegisterBLSPubKey(
+            operatorIndex
+        );
+        _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
             testSocket
@@ -113,9 +116,15 @@ contract RegistrationTests is RevertTestHelper {
             ethAmount
         );
 
+        _testRegisterBLSPubKey(
+            operatorIndex
+        );
 
-
-
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
+        );
 
     } 
 

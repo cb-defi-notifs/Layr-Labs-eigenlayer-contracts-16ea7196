@@ -56,8 +56,21 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
+    function _testRegisterBLSPubKey(
+        uint8 operatorIndex
+    ) public {
+        address operator = signers[operatorIndex];
 
-    function _testRegisterWithDataLayr(
+        cheats.startPrank(operator);
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
+        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        cheats.stopPrank();
+    }
+
+
+    /// @dev ensure that operator has been delegated by calling _testInitiateDelegation
+    function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint8 operatorType,
         string memory socket
@@ -66,9 +79,6 @@ contract TestHelper is EigenLayrDeployer {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         dlReg.registerOperator(operatorType, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
 
