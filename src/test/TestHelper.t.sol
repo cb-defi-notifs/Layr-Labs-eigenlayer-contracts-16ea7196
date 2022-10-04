@@ -11,13 +11,11 @@ contract TestHelper is EigenLayrDeployer {
     uint8 durationToInit = 2;
 
     function _testInitiateDelegation(
-        uint8 operatorIndex, 
-        uint8 operatorType, 
-        string memory socket, 
+        uint8 operatorIndex,
         uint256 amountEigenToDeposit, 
         uint256 amountEthToDeposit        
     )
-        public
+        public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
         address operator = signers[operatorIndex];
         //setting up operator's delegation terms
@@ -46,6 +44,7 @@ contract TestHelper is EigenLayrDeployer {
             uint256 operatorEigenSharesBefore = delegation.operatorShares(operator, eigenStrat);
             uint256 operatorWETHSharesBefore = delegation.operatorShares(operator, wethStrat);
 
+
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
@@ -53,7 +52,12 @@ contract TestHelper is EigenLayrDeployer {
                 delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit
             );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
+            
         }
+        amountEthStaked += delegation.operatorShares(operator, wethStrat);
+        amountEigenStaked += delegation.operatorShares(operator, eigenStrat);
+
+        return (amountEthStaked, amountEigenStaked);
     }
 
     function _testRegisterBLSPubKey(
@@ -671,7 +675,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-    function getG2PublicKeyHash(bytes calldata data, address signer) public returns(bytes32 pkHash){
+    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
 
         uint256[4] memory pk;
         // verify sig of public key and get pubkeyHash back, slice out compressed apk

@@ -120,7 +120,7 @@ contract PaymentsTests is TestHelper {
         uint120 amountRewards = 10;
 
         uint8 operatorType = 3;
-        _testInitiateDelegation(0, operatorType, testSocket, eigenAmount, ethAmount);
+        _testInitiateDelegation(0, eigenAmount, ethAmount);
         
         _testRegisterBLSPubKey(0);
         _testRegisterOperatorWithDataLayr(0, operatorType, testSocket);

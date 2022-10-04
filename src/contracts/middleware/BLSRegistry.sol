@@ -105,6 +105,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         internal
     {
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
+        
 
         /**
          * @notice evaluate the new aggregated pubkey

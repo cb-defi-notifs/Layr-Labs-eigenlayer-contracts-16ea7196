@@ -453,6 +453,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
                 _operatorStake.firstQuorumStake = uint96(0);
             }
         }
+        emit log_named_uint("_operatorStake eth", _operatorStake.firstQuorumStake);
 
         //if second bit of operatorType is '1', then operator wants to be a validator for the second quorum
         if ((operatorType & 2) == 2) {
@@ -467,6 +468,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             _operatorStake.firstQuorumStake > 0 || _operatorStake.secondQuorumStake > 0,
             "RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"
         );
+
+        emit log_named_uint("_operatorStake eigen", _operatorStake.secondQuorumStake);
 
         return _operatorStake;
     }

@@ -14,15 +14,18 @@ contract RegistrationTests is TestHelper {
     ) fuzzedOperatorIndex(operatorIndex) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+
+        emit log_named_uint("length of reg", dlReg.getLengthOfTotalStakeHistory());
         
-        uint8 operatorType = 1;
-        _testInitiateDelegation(
-            operatorIndex,
-            operatorType,
-            testSocket,
-            eigenAmount,
-            ethAmount
-        );
+        uint8 operatorType = 3;
+        (
+            uint256 amountEthStaked, 
+            uint256 amountEigenStaked
+        ) = _testInitiateDelegation(
+                operatorIndex,
+                eigenAmount,
+                ethAmount
+            );
 
         _testRegisterBLSPubKey(operatorIndex);
         bytes32 hashofPk = keccak256(
@@ -36,16 +39,27 @@ contract RegistrationTests is TestHelper {
         require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
         require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
 
+        {
+            uint96 ethStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).firstQuorumStake;
+            uint96 eigenStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).secondQuorumStake;
+            _testRegisterOperatorWithDataLayr(
+                operatorIndex,
+                operatorType,
+                testSocket
+            );
+
+            uint256 numOperators = dlReg.numOperators();
+            require(dlReg.operatorList(numOperators-1) == signers[operatorIndex], "operatorList not updated");
 
         
-        _testRegisterOperatorWithDataLayr(
-            operatorIndex,
-            operatorType,
-            testSocket
-        );
+            uint96 ethStakedAfter = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).firstQuorumStake;
+            uint96 eigenStakedAfter = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).secondQuorumStake;
 
-        uint256 numOperators = dlReg.numOperators();
-        assertTrue(dlReg.operatorList(numOperators-1) == signers[operatorIndex], "operatorList not updated");
+            emit log_named_uint("ethStakedBefore", ethStakedBefore);
+            emit log_named_uint("ethStakedAfter", ethStakedAfter);
+            require(ethStakedAfter - ethStakedBefore == amountEthStaked, "eth quorum staked value not updated correctly");
+            require(eigenStakedAfter - eigenStakedBefore == amountEigenStaked, "eigen quorum staked value not updated correctly");
+        }
 
 
 
@@ -72,8 +86,6 @@ contract RegistrationTests is TestHelper {
         uint8 operatorType = 3;
         _testInitiateDelegation(
             operatorIndex,
-            operatorType,
-            testSocket,
             eigenAmount,
             ethAmount
         );
@@ -122,11 +134,9 @@ contract RegistrationTests is TestHelper {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
-        uint8 operatorType = 1;
+        uint8 operatorType = 3;
         _testInitiateDelegation(
             operatorIndex,
-            operatorType,
-            testSocket,
             eigenAmount,
             ethAmount
         );
@@ -151,8 +161,6 @@ contract RegistrationTests is TestHelper {
 
         _testInitiateDelegation(
             operatorIndex,
-            noQuorumOperatorType,
-            testSocket,
             eigenAmount,
             ethAmount
         );
