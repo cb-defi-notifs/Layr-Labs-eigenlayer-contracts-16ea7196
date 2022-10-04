@@ -16,16 +16,15 @@ contract RegistrationTests is TestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         
         uint8 operatorType = 1;
-        // _testInitiateDelegation(
-        //     operatorIndex,
-        //     operatorType,
-        //     testSocket,
-        //     eigenAmount,
-        //     ethAmount
-        // );
+        _testInitiateDelegation(
+            operatorIndex,
+            operatorType,
+            testSocket,
+            eigenAmount,
+            ethAmount
+        );
 
         _testRegisterBLSPubKey(operatorIndex);
-
         bytes32 hashofPk = keccak256(
                               abi.encodePacked(
                                 uint256(bytes32(registrationData[operatorIndex].slice(32,32))),
@@ -34,15 +33,20 @@ contract RegistrationTests is TestHelper {
                                 uint256(bytes32(registrationData[operatorIndex].slice(64,32)))
                               )
                             );
-
         require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
         require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
 
-        // _testRegisterOperatorWithDataLayr(
-        //     operatorIndex,
-        //     operatorType,
-        //     testSocket
-        // );
+
+        
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
+        );
+
+        uint256 numOperators = dlReg.numOperators();
+        assertTrue(dlReg.operatorList(numOperators-1) == signers[operatorIndex], "operatorList not updated");
+
 
 
     }

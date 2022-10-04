@@ -49,7 +49,6 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
 
                 // shares of the operator in the investment strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
-                emit log_named_uint("sharesAmount", sharesAmount);
 
 
                 // add the weightage from the shares to the total weight

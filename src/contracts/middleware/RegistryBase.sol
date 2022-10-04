@@ -448,7 +448,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // if first bit of operatorType is '1', then operator wants to be a validator for the first quorum
         if ((operatorType & 1) == 1) {
             _operatorStake.firstQuorumStake = uint96(weightOfOperator(operator, 0));
-            emit log_named_uint("weightOfOperator", weightOfOperator(operator, 0));
             // check if minimum requirement has been met
             if (_operatorStake.firstQuorumStake < minimumStakeFirstQuorum) {
                 _operatorStake.firstQuorumStake = uint96(0);

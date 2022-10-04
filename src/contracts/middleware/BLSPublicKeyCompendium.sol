@@ -27,11 +27,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, msg.sender);
 
         // getting pubkey hash
-        emit log_uint(pk[0]);
-        emit log_uint(pk[1]);
-        emit log_uint(pk[2]);
-        emit log_uint(pk[3]);
-
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
         require(
