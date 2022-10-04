@@ -7,14 +7,24 @@ import "../contracts/libraries/BytesLib.sol";
 contract RegistrationTests is TestHelper {
     using BytesLib for bytes;
 
-    function testBLSRegistration(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
-        address sender = signers[operatorIndex];
-        bytes memory data = abi.encodePacked(
-            registrationData[operatorIndex]
-        );
-        cheats.startPrank(sender);
-        blsPkCompendium.registerBLSPublicKey(data);
-        cheats.stopPrank();
+    function testBLSRegistration(
+        uint8 operatorIndex,
+        uint256 ethAmount, 
+        uint256 eigenAmount
+    ) fuzzedOperatorIndex(operatorIndex) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        
+        uint8 operatorType = 1;
+        // _testInitiateDelegation(
+        //     operatorIndex,
+        //     operatorType,
+        //     testSocket,
+        //     eigenAmount,
+        //     ethAmount
+        // );
+
+        _testRegisterBLSPubKey(operatorIndex);
 
         bytes32 hashofPk = keccak256(
                               abi.encodePacked(
@@ -25,8 +35,14 @@ contract RegistrationTests is TestHelper {
                               )
                             );
 
-        require(blsPkCompendium.operatorToPubkeyHash(sender) == hashofPk, "hash not stored correctly");
-        require(blsPkCompendium.pubkeyHashToOperator(hashofPk) == sender, "hash not stored correctly");
+        require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
+        require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
+
+        // _testRegisterOperatorWithDataLayr(
+        //     operatorIndex,
+        //     operatorType,
+        //     testSocket
+        // );
 
 
     }
@@ -46,8 +62,6 @@ contract RegistrationTests is TestHelper {
         uint256 ethAmount, 
         uint256 eigenAmount
     ) fuzzedOperatorIndex(operatorIndex) public {
-
-        //TODO: @Sidu28 why doesn't fuzzing work here?
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         
@@ -101,12 +115,9 @@ contract RegistrationTests is TestHelper {
         uint256 ethAmount, 
         uint256 eigenAmount
     ) fuzzedOperatorIndex(operatorIndex) public {
-        
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
-
-        
         uint8 operatorType = 1;
         _testInitiateDelegation(
             operatorIndex,
@@ -115,7 +126,6 @@ contract RegistrationTests is TestHelper {
             eigenAmount,
             ethAmount
         );
-
         //registering the operator without having registered their BLS public key
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: operator does not own pubkey"));
 
@@ -124,7 +134,6 @@ contract RegistrationTests is TestHelper {
             operatorType,
             testSocket
         );
-
     } 
 
     function testRegisterForDataLayrWithNeitherQuorum(
@@ -134,8 +143,8 @@ contract RegistrationTests is TestHelper {
     ) fuzzedOperatorIndex(operatorIndex) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-
         uint8 noQuorumOperatorType = 0;
+
         _testInitiateDelegation(
             operatorIndex,
             noQuorumOperatorType,
@@ -143,19 +152,26 @@ contract RegistrationTests is TestHelper {
             eigenAmount,
             ethAmount
         );
-
         _testRegisterBLSPubKey(
             operatorIndex
         );
-
-
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             noQuorumOperatorType,
             testSocket
         );
+    }
+
+    function testRegisteringWithSomeoneElsePubKey(
+        uint8 operatorIndex,
+        uint256 ethAmount,
+        uint256 eigenAmount
+    ) fuzzedOperatorIndex(operatorIndex) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+
 
     }
+
 }
