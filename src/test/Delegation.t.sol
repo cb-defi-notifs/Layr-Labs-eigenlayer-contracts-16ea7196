@@ -331,7 +331,9 @@ contract DelegationTests is TestHelper {
         // address operator = signers[0];
         uint8 operatorType = 3;
         string memory socket = "255.255.255.255";
-        _testInitiateDelegationAndRegisterOperatorWithDataLayr(0, operatorType, socket, eigenAmount, ethAmount);
+        _testInitiateDelegation(0, operatorType, socket, eigenAmount, ethAmount);
+        _testRegisterWithDataLayr(0, operatorType, socket);
+
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;
 

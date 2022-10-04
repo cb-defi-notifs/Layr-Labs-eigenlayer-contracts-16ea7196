@@ -10,7 +10,7 @@ contract TestHelper is EigenLayrDeployer {
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegationAndRegisterOperatorWithDataLayr(
+    function _testInitiateDelegation(
         uint8 operatorIndex, 
         uint8 operatorType, 
         string memory socket, 
@@ -54,6 +54,16 @@ contract TestHelper is EigenLayrDeployer {
             );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
         }
+    }
+
+
+    function _testRegisterWithDataLayr(
+        uint8 operatorIndex,
+        uint8 operatorType,
+        string memory socket
+    ) public {
+
+        address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
@@ -61,6 +71,7 @@ contract TestHelper is EigenLayrDeployer {
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         dlReg.registerOperator(operatorType, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
+
     }
 
     //initiates a data store

@@ -58,7 +58,7 @@ contract RevertTestHelper is TestHelper {
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
-        cheats.expectRevert(revertMessage);
+        //cheats.expectRevert(revertMessage);
         dlReg.registerOperator(operatorType, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
     }

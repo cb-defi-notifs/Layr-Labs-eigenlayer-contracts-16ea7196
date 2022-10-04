@@ -52,12 +52,17 @@ contract RegistrationTests is RevertTestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         
         uint8 operatorType = 3;
-        _testInitiateDelegationAndRegisterOperatorWithDataLayr(
+        _testInitiateDelegation(
             operatorIndex,
             operatorType,
             testSocket,
             eigenAmount,
             ethAmount
+        );
+        _testRegisterWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
         );
         cheats.startPrank(signers[operatorIndex]);
 
@@ -96,9 +101,21 @@ contract RegistrationTests is RevertTestHelper {
         
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+
+
         
-        uint8 operatorType = 3;
-        _testInitiateDelegationAndRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket, eigenAmount, ethAmount);
+        uint8 operatorType = 1;
+        _testInitiateDelegation(
+            operatorIndex,
+            operatorType,
+            testSocket,
+            eigenAmount,
+            ethAmount
+        );
+
+
+
+
 
     } 
 
@@ -106,10 +123,10 @@ contract RegistrationTests is RevertTestHelper {
         uint8 operatorIndex,
         uint256 ethAmount,
         uint256 eigenAmount
-    ) public {
-        cheats.assume(operatorIndex < registrationData.length);
+    ) fuzzedOperatorIndex(operatorIndex) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+
         uint8 noQuorumOperatorType = 0;
         _testShouldRevertRegisterOperatorWithDataLayr(
             operatorIndex,

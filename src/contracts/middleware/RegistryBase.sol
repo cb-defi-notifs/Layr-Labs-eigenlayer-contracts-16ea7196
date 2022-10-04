@@ -9,7 +9,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
-// import "forge-std/Test.sol";
+ import "forge-std/Test.sol";
 
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
@@ -70,6 +70,11 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     );
 
     event Deregistration(address operator, address swapped);
+
+    // enum OperatorType {
+    //     QUORUM_1_VALIDATOR,
+    //     QUORUM_2_VALIDATOR
+    // }
 
     constructor(
         Repository _repository,
@@ -443,6 +448,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // if first bit of operatorType is '1', then operator wants to be a validator for the first quorum
         if ((operatorType & 1) == 1) {
             _operatorStake.firstQuorumStake = uint96(weightOfOperator(operator, 0));
+            emit log_named_uint("weightOfOperator", weightOfOperator(operator, 0));
             // check if minimum requirement has been met
             if (_operatorStake.firstQuorumStake < minimumStakeFirstQuorum) {
                 _operatorStake.firstQuorumStake = uint96(0);

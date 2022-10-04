@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title A simple implementation of the `IVoteWeigher` interface.
@@ -16,7 +16,7 @@ import "./VoteWeigherBaseStorage.sol";
  * - addition and removal of strategies and the associated weighting criteria that are assigned
  * by the middleware for each of the quorum(s)
  */
-contract VoteWeigherBase is VoteWeigherBaseStorage {
+contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
@@ -49,6 +49,8 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
 
                 // shares of the operator in the investment strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
+                emit log_named_uint("sharesAmount", sharesAmount);
+
 
                 // add the weightage from the shares to the total weight
                 if (sharesAmount > 0) {
