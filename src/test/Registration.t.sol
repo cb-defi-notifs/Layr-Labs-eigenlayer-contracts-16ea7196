@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./RevertTestHelper.t.sol";
+import "./TestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
-contract RegistrationTests is RevertTestHelper {
+contract RegistrationTests is TestHelper {
     using BytesLib for bytes;
 
     function testBLSRegistration(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
@@ -116,9 +116,8 @@ contract RegistrationTests is RevertTestHelper {
             ethAmount
         );
 
-        _testRegisterBLSPubKey(
-            operatorIndex
-        );
+        //registering the operator without having registered their BLS public key
+        cheats.expectRevert(bytes("BLSRegistry._registerOperator: operator does not own pubkey"));
 
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
@@ -137,13 +136,26 @@ contract RegistrationTests is RevertTestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
         uint8 noQuorumOperatorType = 0;
-        _testShouldRevertRegisterOperatorWithDataLayr(
+        _testInitiateDelegation(
             operatorIndex,
             noQuorumOperatorType,
             testSocket,
             eigenAmount,
-            ethAmount,
-            "RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"
+            ethAmount
         );
+
+        _testRegisterBLSPubKey(
+            operatorIndex
+        );
+
+
+        cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
+
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            noQuorumOperatorType,
+            testSocket
+        );
+
     }
 }
