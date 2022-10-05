@@ -106,18 +106,6 @@ contract RegistrationTests is TestHelper {
         cheats.stopPrank();
     }
 
-    // function testRegisterWhileAlreadyActive(uint8 operatorIndex, uint256 ethAmount, uint256 eigenAmount) public {
-    //     cheats.assume(operatorIndex < registrationData.length);
-    //     cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-    //     cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-    //     _testInitiateDelegationAndRegisterOperatorWithDataLayr(operatorIndex, eigenAmount, ethAmount);
-    //     cheats.startPrank(signers[operatorIndex]);
-    //     //try to register after already registered
-    //     cheats.expectRevert("RegistryBase._registrationStakeEvaluation: Operator is already registered");
-    //     dlReg.registerOperator(3, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), testSocket);
-    //     cheats.stopPrank();
-    // }
-
     //Test that when operator tries to register with DataLayr 
     // with a public key that they haven't registered in the BLSPublicKeyCompendium, it fails
     function testOperatorDoesNotOwnPublicKey(
