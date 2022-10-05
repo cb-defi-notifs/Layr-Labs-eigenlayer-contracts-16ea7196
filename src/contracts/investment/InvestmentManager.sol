@@ -310,8 +310,8 @@ contract InvestmentManager is
 
         require(
             uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp
-                || delegation.isNotDelegated(queuedWithdrawal.depositor),
-            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
+                || (queuedWithdrawal.delegatedAddress == address(0)),
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor was delegated when withdrawal initiated"
         );
 
         // TODO: add testing coverage for this
@@ -614,7 +614,7 @@ contract InvestmentManager is
     /**
      * @notice Used to check if a queued withdrawal can be completed
      */
-    function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external returns (bool) {
+    function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external view returns (bool) {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
@@ -626,24 +626,7 @@ contract InvestmentManager is
 
         return (
             uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
-                || delegation.isNotDelegated(queuedWithdrawal.depositor)
-        );
-    }
-
-    // TODO: delete this if we don't need it
-    /**
-     * @notice Used to check if a queued withdrawal can be completed
-     */
-    function canCompleteQueuedWithdrawal(address depositor, bytes32 withdrawalRoot) external returns (bool) {
-        // verify that the queued withdrawal actually exists
-        require(
-            queuedWithdrawals[withdrawalRoot].initTimestamp > 0,
-            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
-        );
-
-        return (
-            uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
-                || delegation.isNotDelegated(depositor)
+                || (queuedWithdrawal.delegatedAddress == address(0))
         );
     }
 

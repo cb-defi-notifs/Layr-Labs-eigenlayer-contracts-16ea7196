@@ -118,10 +118,10 @@ contract InvestmentTests is TestHelper {
         );
 
         cheats.startPrank(staker);
-        // If `staker` is actively delegated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
-        if (delegation.isDelegated(staker)) {
+        // If `staker` was actively delegated when queued withdrawal was initiated, then verify that the next call -- to `completeQueuedWithdrawal` -- reverts appropriately
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
             cheats.expectRevert(
-                "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
+                "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor was delegated when withdrawal initiated"
             );
         }
 
@@ -129,7 +129,7 @@ contract InvestmentTests is TestHelper {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
         // TODO: add checks surrounding successful completion (e.g. funds being correctly transferred)
 
-        if (delegation.isDelegated(staker)) {
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
             // retrieve information about the queued withdrawal
             // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
             // (uint32 initTimestamp, uint32 unlockTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(withdrawalRoot);

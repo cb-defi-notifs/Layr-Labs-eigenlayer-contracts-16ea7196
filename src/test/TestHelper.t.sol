@@ -660,10 +660,10 @@ contract TestHelper is EigenLayrDeployer {
 
         // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
         if (registerAsOperator) {
-            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
+            assertTrue(!delegation.isDelegated(staker), "_createQueuedWithdrawal: staker is already delegated");
             _testRegisterAsOperator(staker, IDelegationTerms(staker));
             assertTrue(
-                delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be"
+                delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be"
             );
         }
 
@@ -689,21 +689,21 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
         withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
-        // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
-        if (delegation.isDelegated(staker)) {
+        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
             assertTrue(
                 !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
                 "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
         }
-        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
-        else if (delegation.isNotDelegated(staker)) {
+        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
+        else if (queuedWithdrawal.delegatedAddress == address(0)) {
             assertTrue(
                 investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
                 "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
         } else {
-            revert("_createQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
+            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
         }
         cheats.stopPrank();
         return (withdrawalRoot, queuedWithdrawal);
