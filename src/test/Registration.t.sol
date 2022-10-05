@@ -190,39 +190,39 @@ contract RegistrationTests is TestHelper {
     }
 
 
-    //Test if aggregate PK doesn't change when registered with 0 pub key
-    function testRegisterWithZeroPubKey(
-        uint8 operatorIndex,
-        uint256 ethAmount,
-        uint256 eigenAmount
-    ) fuzzedOperatorIndex(operatorIndex) public {
-        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+    // //Test if aggregate PK doesn't change when registered with 0 pub key
+    // function testRegisterWithZeroPubKey(
+    //     uint8 operatorIndex,
+    //     uint256 ethAmount,
+    //     uint256 eigenAmount
+    // ) fuzzedOperatorIndex(operatorIndex) public {
+    //     cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+    //     cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
-        bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-        address operator = signers[operatorIndex];
-        uint8 operatorType = 3;
-        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
-        emit log_named_bytes32("apkHashBefore", apkHashBefore);
+    //     bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    //     address operator = signers[operatorIndex];
+    //     uint8 operatorType = 3;
+    //     bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
+    //     emit log_named_bytes32("apkHashBefore", apkHashBefore);
 
-        _testInitiateDelegation(
-            operatorIndex,
-            eigenAmount,
-            ethAmount
-        );
-        cheats.startPrank(operator);
-        //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(zeroData);
+    //     _testInitiateDelegation(
+    //         operatorIndex,
+    //         eigenAmount,
+    //         ethAmount
+    //     );
+    //     cheats.startPrank(operator);
+    //     //whitelist the dlsm to slash the operator
+    //     slasher.allowToSlash(address(dlsm));
+    //     pubkeyCompendium.registerBLSPublicKey(zeroData);
 
     
-        dlReg.registerOperator(operatorType, testEphemeralKey, zeroData, testSocket);
+    //     dlReg.registerOperator(operatorType, testEphemeralKey, zeroData, testSocket);
 
-        emit log_named_bytes32("apkHashAfter", dlReg.apkHashes(dlReg.getApkHashesLength()-1));
+    //     emit log_named_bytes32("apkHashAfter", dlReg.apkHashes(dlReg.getApkHashesLength()-1));
 
-        require(dlReg.apkHashes(dlReg.getApkHashesLength()-1) == apkHashBefore, "aggregate public has changed");
-        cheats.stopPrank(); 
-    }
+    //     require(dlReg.apkHashes(dlReg.getApkHashesLength()-1) == apkHashBefore, "aggregate public has changed");
+    //     cheats.stopPrank(); 
+    // }
 
     //test for registering without slashing opt in
     function testRegisterWithoutSlashingOptIn(
@@ -245,7 +245,6 @@ contract RegistrationTests is TestHelper {
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
 
-
         cheats.expectRevert(bytes("RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"));
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
@@ -254,5 +253,37 @@ contract RegistrationTests is TestHelper {
         );
      }
 
+    // function testRegisteringWithSamePubKeyAsAggPubKey(
+    //     uint8 operatorIndex,
+    //     uint256 ethAmount,
+    //     uint256 eigenAmount
+    //  ) fuzzedOperatorIndex(operatorIndex) public {
+    //     cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+    //     cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+    //     uint256[4] memory prevAPK;
+    //     prevAPK[0] = dlReg.apk(0);
+    //     prevAPK[1] = dlReg.apk(1);
+    //     prevAPK[2] = dlReg.apk(2);
+    //     prevAPK[3] = dlReg.apk(3);
+    //     bytes memory packedAPK = abi.encodePacked(
+    //                                 bytes32(prevAPK[0]),
+    //                                 bytes32(prevAPK[1]),
+    //                                 bytes32(prevAPK[2]),
+    //                                 bytes32(prevAPK[3])
+    //                                 );
+        
+    //     uint8 operatorType = 3;
 
+    //     _testInitiateDelegation(
+    //         operatorIndex,
+    //         eigenAmount,
+    //         ethAmount
+    //     );
+    //     cheats.startPrank(signers[operatorIndex]);
+    //     pubkeyCompendium.registerBLSPublicKey(packedAPK);
+
+    
+    //     dlReg.registerOperator(operatorType, testEphemeralKey, packedAPK, testSocket);
+    //     cheats.stopPrank();
+    //  }
 }
