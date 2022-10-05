@@ -110,16 +110,27 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         /**
          * @notice evaluate the new aggregated pubkey
          */
+
         uint256[4] memory newApk;
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
+
         require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
 
         require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
 
+        emit log_named_uint("apk before", apk[0]);
+        emit log_named_uint("apk before", apk[1]);
+        emit log_named_uint("apk before", apk[2]);
+        emit log_named_uint("apk before", apk[3]);
+
+        emit log_named_uint("pk ", pk[0]);
+        emit log_named_uint("pk ", pk[1]);
+        emit log_named_uint("pk ", pk[2]);
+        emit log_named_uint("pk ", pk[3]);
         {
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac =
@@ -137,6 +148,11 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
+
+        emit log_named_uint("apk after", apk[0]);
+        emit log_named_uint("apk after", apk[1]);
+        emit log_named_uint("apk after", apk[2]);
+        emit log_named_uint("apk after", apk[3]);
 
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
@@ -304,7 +320,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
-    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns(uint256[4] memory) {
+    function _parseSerializedPubkey(bytes calldata pkBytes) internal returns(uint256[4] memory) {
         uint256[4] memory pk;
         assembly {
             mstore(add(pk, 32), calldataload(pkBytes.offset))

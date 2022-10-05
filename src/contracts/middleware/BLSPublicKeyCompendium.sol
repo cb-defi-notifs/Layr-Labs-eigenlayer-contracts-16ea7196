@@ -38,10 +38,13 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
             "BLSPublicKeyCompendium.registerBLSPublicKey: public key already registered"
         );
 
+        
+
         // store updates
         operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
+        emit log_named_uint("pk hash in compendium",  pk[0]);
         // emit event of new regsitration
         emit NewPubkeyRegistration(msg.sender, pk);
     }
