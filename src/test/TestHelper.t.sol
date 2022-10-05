@@ -77,16 +77,32 @@ contract TestHelper is EigenLayrDeployer {
     function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint8 operatorType,
+        bytes32 ephemeralKey,
         string memory socket
     ) public {
 
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, testEphemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
 
     }
+
+    function _testDeregisterOperatorWithDataLayr(
+        uint8 operatorIndex,
+        uint256[4] memory pubkeyToRemoveAff,
+        uint8 operatorListIndex,
+        bytes32 finalEphemeralKey
+    ) public {
+
+        address operator = signers[operatorIndex];
+
+        cheats.startPrank(operator);
+        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        cheats.stopPrank();
+    }
+
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct

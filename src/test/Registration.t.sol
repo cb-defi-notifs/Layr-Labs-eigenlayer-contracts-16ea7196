@@ -43,6 +43,7 @@ contract RegistrationTests is TestHelper {
             _testRegisterOperatorWithDataLayr(
                 operatorIndex,
                 operatorType,
+                testEphemeralKey,
                 testSocket
             );
 
@@ -89,6 +90,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
+            testEphemeralKey,
             testSocket
         );
         cheats.startPrank(signers[operatorIndex]);
@@ -128,6 +130,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
+            testEphemeralKey,
             testSocket
         );
     } 
@@ -153,6 +156,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             noQuorumOperatorType,
+            testEphemeralKey,
             testSocket
         );
     }
@@ -166,15 +170,15 @@ contract RegistrationTests is TestHelper {
 
         uint8 operatorType = 1;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
         
         operatorType = 2;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-                _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
 
         operatorType = 3;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
     }
 
 
@@ -233,6 +237,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
+            testEphemeralKey,
             testSocket
         );
      }
