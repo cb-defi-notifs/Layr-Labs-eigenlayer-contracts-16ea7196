@@ -119,11 +119,25 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
+        emit log("hey");
+        emit log_named_uint("pk", pk[0]);
+        emit log_named_uint("pk", pk[1]);
+        emit log_named_uint("pk", pk[2]);
+        emit log_named_uint("pk", pk[3]);
+
+        emit log_named_uint("apk", apk[0]);
+        emit log_named_uint("apk", apk[1]);
+        emit log_named_uint("apk", apk[2]);
+        emit log_named_uint("apk", apk[3]);
+
+
         // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
         require(
             pubkeyHash != apkHashes[apkHashes.length - 1],
             "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
         );
+
+        
 
         require(
             pubkeyHash != hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", 

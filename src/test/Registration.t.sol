@@ -249,37 +249,37 @@ contract RegistrationTests is TestHelper {
         );
      }
 
-    // function testRegisteringWithSamePubKeyAsAggPubKey(
-    //     uint8 operatorIndex,
-    //     uint256 ethAmount,
-    //     uint256 eigenAmount
-    //  ) fuzzedOperatorIndex(operatorIndex) public {
-    //     cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-    //     cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-    //     uint256[4] memory prevAPK;
-    //     prevAPK[0] = dlReg.apk(0);
-    //     prevAPK[1] = dlReg.apk(1);
-    //     prevAPK[2] = dlReg.apk(2);
-    //     prevAPK[3] = dlReg.apk(3);
-    //     bytes memory packedAPK = abi.encodePacked(
-    //                                 bytes32(prevAPK[0]),
-    //                                 bytes32(prevAPK[1]),
-    //                                 bytes32(prevAPK[2]),
-    //                                 bytes32(prevAPK[3])
-    //                                 );
+    function testRegisteringWithSamePubKeyAsAggPubKey(
+        uint8 operatorIndex,
+        uint256 ethAmount,
+        uint256 eigenAmount
+     ) fuzzedOperatorIndex(operatorIndex) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        uint256[4] memory prevAPK;
+        prevAPK[0] = dlReg.apk(0);
+        prevAPK[1] = dlReg.apk(1);
+        prevAPK[2] = dlReg.apk(2);
+        prevAPK[3] = dlReg.apk(3);
+        bytes memory packedAPK = abi.encodePacked(
+                                    bytes32(prevAPK[1]),
+                                    bytes32(prevAPK[0]),
+                                    bytes32(prevAPK[3]),
+                                    bytes32(prevAPK[2])
+                                    );
         
-    //     uint8 operatorType = 3;
+        uint8 operatorType = 3;
 
-    //     _testInitiateDelegation(
-    //         operatorIndex,
-    //         eigenAmount,
-    //         ethAmount
-    //     );
-    //     cheats.startPrank(signers[operatorIndex]);
-    //     pubkeyCompendium.registerBLSPublicKey(packedAPK);
+        _testInitiateDelegation(
+            operatorIndex,
+            eigenAmount,
+            ethAmount
+        );
+         cheats.startPrank(signers[operatorIndex]);
+        // pubkeyCompendium.registerBLSPublicKey(packedAPK);
 
-    
-    //     dlReg.registerOperator(operatorType, testEphemeralKey, packedAPK, testSocket);
-    //     cheats.stopPrank();
-    //  }
+        cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));
+        dlReg.registerOperator(operatorType, testEphemeralKey, packedAPK, testSocket);
+        cheats.stopPrank();
+     }
 }
