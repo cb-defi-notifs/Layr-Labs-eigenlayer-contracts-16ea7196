@@ -192,6 +192,14 @@ contract RegistrationTests is TestHelper {
             testSocket
         );
 
+        operatorType = 3;
+        cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
+        );
+
 
     }
     
