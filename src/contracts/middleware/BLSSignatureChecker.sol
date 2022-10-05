@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IBLSRegistry.sol";
@@ -233,11 +233,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = keccak256(
-                abi.encodePacked(
-                    aggNonSignerPubkey[0], aggNonSignerPubkey[1], aggNonSignerPubkey[2], aggNonSignerPubkey[3]
-                )
-            );
+            bytes32 pubkeyHash = BLS.hashPubkey(aggNonSignerPubkey);
 
             pubkeyHashes[0] = pubkeyHash;
 
@@ -282,7 +278,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+            bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
             //pubkeys should be ordered in ascending order of hash to make proofs of signing or
             // non signing constant time
@@ -342,7 +338,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             // make sure the caller has provided the correct aggPubKey
             require(
                 registry.getCorrectApkHash(apkIndex, stakesBlockNumber)
-                    == keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3])),
+                    == BLS.hashPubkey(pk),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }

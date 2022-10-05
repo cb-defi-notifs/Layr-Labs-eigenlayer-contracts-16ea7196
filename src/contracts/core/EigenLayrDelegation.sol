@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -94,6 +94,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     function undelegate(address staker) external onlyInvestmentManager {
         delegationStatus[staker] = DelegationStatus.UNDELEGATED;
+        delegatedTo[staker] = address(0);
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr

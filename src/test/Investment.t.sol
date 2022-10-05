@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
+import "./mocks/ServiceManagerMock.sol";
 
 contract InvestmentTests is TestHelper {
     /**
@@ -173,10 +174,7 @@ contract InvestmentTests is TestHelper {
         bool registerAsOperator = true;
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
             IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
-        // TODO: this is copied input from `_testConfirmDataStoreSelfOperators` -- test fails unless I do this `warp`
-        uint256 initTime = 1000000001;
-        cheats.warp(initTime);
-        // create the queued withdrawal
+
         (bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal) = _createQueuedWithdrawal(
             staker,
             registerAsOperator,
@@ -187,33 +185,23 @@ contract InvestmentTests is TestHelper {
             strategyIndexes,
             withdrawerAndNonce
         );
-        // start the queued withdrawal waiting period
-        cheats.prank(staker);
-        investmentManager.startQueuedWithdrawalWaitingPeriod(
+
+        // warp to a later time -- beyond the window for the `REASONABLE_STAKES_UPDATE_PERIOD` -- and then initiate the queued withdrawal waiting period
+        cheats.warp(block.timestamp + 8 days);
+        _testStartQueuedWithdrawalWaitingPeriod(
+            staker,
             withdrawalRoot,
-            uint32(block.timestamp)
+            (uint32(block.timestamp) + 9 days)
         );
-        cheats.stopPrank();
 
-        // retrieve information about the queued withdrawal
-        // bytes32 withdrawalRoot = investmentManager.calculateWithdrawalRoot(strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
-        // (uint32 initTimestamp, uint32 latestFraudproofTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(sender, withdrawalRoot);
+        ServiceManagerMock mock = new ServiceManagerMock();
+        bytes memory calldataForStakeWithdrawalVerification;
 
-        // confirm a data store and get the `searchData` for "finding" it
-        uint8 numberOfSigners = uint8(15);
-        IDataLayrServiceManager.DataStoreSearchData memory searchData;
-        (, searchData) = _testConfirmDataStoreSelfOperators(numberOfSigners);
-
-        // deploy library-wrapper contract and use it to pack the searchData
-        DataStoreUtilsWrapper dataStoreUtilsWrapper = new DataStoreUtilsWrapper();
-        bytes memory calldataForStakeWithdrawalVerification =
-            dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchData);
-
-        // give slashing permission to the DLSM
+        // give slashing permission to the mock contract
         {
             cheats.startPrank(slasher.owner());
             address[] memory contractsToGiveSlashingPermission = new address[](1);
-            contractsToGiveSlashingPermission[0] = address(dlsm);
+            contractsToGiveSlashingPermission[0] = address(mock);
             slasher.addGloballyPermissionedContracts(contractsToGiveSlashingPermission);
             cheats.stopPrank();
         }
@@ -229,7 +217,7 @@ contract InvestmentTests is TestHelper {
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.challengeQueuedWithdrawal(queuedWithdrawal, calldataForStakeWithdrawalVerification, dlsm);
+        investmentManager.challengeQueuedWithdrawal(queuedWithdrawal, calldataForStakeWithdrawalVerification, IServiceManager(address(mock)));
     }
 
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
@@ -288,81 +276,6 @@ contract InvestmentTests is TestHelper {
         token.approve(address(investmentManager), type(uint256).max);
         cheats.expectRevert();
         investmentManager.depositIntoStrategy(IInvestmentStrategy(nonexistentStrategy), token, testDepositAmount);
-    }
-
-    /**
-     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
-     * into the WETH strategy, and then queues a withdrawal using
-     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
-     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
-     * response depending on whether `staker` is delegated or not.
-     * @param staker The address to initiate the queued withdrawal
-     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
-     * @param amountToDeposit The amount of WETH to deposit
-     */
-    function _createQueuedWithdrawal(
-        address staker,
-        bool registerAsOperator,
-        uint256 amountToDeposit,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        uint256[] memory strategyIndexes,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
-    )
-        internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
-    {
-        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
-
-        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
-        if (registerAsOperator) {
-            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
-            _testRegisterAsOperator(staker, IDelegationTerms(staker));
-            assertTrue(
-                delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be"
-            );
-        }
-
-        queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
-            strategies: strategyArray,
-            tokens: tokensArray,
-            shares: shareAmounts,
-            depositor: staker,
-            withdrawerAndNonce: withdrawerAndNonce,
-            delegatedAddress: delegation.delegatedTo(staker)
-        });
-
-        {
-            //make deposit in WETH strategy
-            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
-            // We can't withdraw more than we deposit
-            if (shareAmounts[0] > amountDeposited) {
-                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
-            }
-        }
-
-        //queue the withdrawal
-        cheats.startPrank(staker);
-        // TODO: check with 'undelegateIfPossible' = false, rather than just true
-        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
-        // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
-        if (delegation.isDelegated(staker)) {
-            assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
-            );
-        }
-        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
-        else if (delegation.isNotDelegated(staker)) {
-            assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
-            );
-        } else {
-            revert("_createQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
-        }
-        cheats.stopPrank();
-        return (withdrawalRoot, queuedWithdrawal);
     }
 
     // TODO: add test(s) that confirm deposits + withdrawals *of zero shares* fail correctly.

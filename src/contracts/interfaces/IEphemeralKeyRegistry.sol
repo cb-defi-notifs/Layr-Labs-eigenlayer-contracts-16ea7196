@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9.0;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.9;
 
 /**
  * @title Interface for an Ephemeral Key Registry, designed for use with Proofs of Custody.

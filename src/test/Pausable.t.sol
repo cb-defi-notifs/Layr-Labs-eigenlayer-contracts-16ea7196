@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "./TestHelper.t.sol";
 
@@ -30,7 +30,7 @@ contract PausableTests is TestHelper {
         public
         fuzzedAddress(unauthorizedPauser)
     {
-        cheats.assume(unauthorizedPauser != pauserReg.unpauser());
+        cheats.assume(unauthorizedPauser != pauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
         investmentManager.pause();

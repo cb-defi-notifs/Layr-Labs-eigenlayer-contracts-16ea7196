@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -202,7 +202,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
 
             require(
-                blockNumber >= (block.number - BLOCK_STALE_MEASURE),
+                blockNumber + BLOCK_STALE_MEASURE >= block.number,
                 "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
             );
         }

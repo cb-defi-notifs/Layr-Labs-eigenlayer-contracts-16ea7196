@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -20,6 +20,13 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     bytes32 public immutable DOMAIN_SEPARATOR;
     // staker => number of signed deposit nonce (used in depositIntoStrategyOnBehalfOf)
     mapping(address => uint256) public nonces;
+    /**
+     * @notice When a staker undelegates or an operator deregisters, their stake can still be slashed based on tasks/services created
+     * within `REASONABLE_STAKES_UPDATE_PERIOD` of the present moment. In other words, this is the lag between undelegation/deregistration
+     * and the staker's/operator's funds no longer being slashable due to misbehavior *on a new task*.
+     */
+    uint256 public constant REASONABLE_STAKES_UPDATE_PERIOD = 7 days;
+
     // fixed waiting period for withdrawals
     // TODO: set this to a proper interval for production
     uint32 public constant WITHDRAWAL_WAITING_PERIOD = 10 seconds;

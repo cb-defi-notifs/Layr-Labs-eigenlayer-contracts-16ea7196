@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "./TestHelper.t.sol";
 import "forge-std/Test.sol";
@@ -29,7 +29,7 @@ contract DataLayrTests is DSTest, TestHelper {
         _testConfirmDataStoreSelfOperators(15);
         uint256 g = gasleft();
         for (uint256 i = 1; i < 5; i++) {
-            _testConfirmDataStoreWithoutRegister(i, 15);
+            _testConfirmDataStoreWithoutRegister(block.timestamp, i, 15);
         }
         emit log_named_uint("gas", g - gasleft());
     }
