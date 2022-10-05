@@ -158,6 +158,8 @@ contract DelegationTests is TestHelper {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
+        address delegatedTo = delegation.delegatedTo(depositor);
+
         // packed data structure to deal with stack-too-deep issues
         DataForTestWithdrawal memory dataForTestWithdrawal;
 
@@ -190,6 +192,7 @@ contract DelegationTests is TestHelper {
         }
 
         //initiating queued withdrawal
+// TODO: resolve the presence of duplicate-ish functions for creating queued withdrawals
         // (bytes32 withdrawalRoot, ) = _createQueuedWithdrawal(
         //     depositor,
         //     // hardcoded inputs for use with this function
@@ -201,7 +204,6 @@ contract DelegationTests is TestHelper {
         //     strategyIndexes,
         //     dataForTestWithdrawal.withdrawerAndNonce
         // );
-
         bytes32 withdrawalRoot = _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
@@ -221,6 +223,7 @@ contract DelegationTests is TestHelper {
                 dataForTestWithdrawal.delegatorStrategies,
                 tokensArray,
                 dataForTestWithdrawal.delegatorShares,
+                delegatedTo,
                 dataForTestWithdrawal.withdrawerAndNonce
             );
         } else {
@@ -229,6 +232,7 @@ contract DelegationTests is TestHelper {
                 dataForTestWithdrawal.delegatorStrategies,
                 tokensArray,
                 dataForTestWithdrawal.delegatorShares,
+                delegatedTo,
                 dataForTestWithdrawal.withdrawerAndNonce
             );
         }
@@ -436,6 +440,7 @@ contract DelegationTests is TestHelper {
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
+        address delegatedTo,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
         internal
@@ -452,7 +457,7 @@ contract DelegationTests is TestHelper {
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
-            delegatedAddress: delegation.delegatedTo(depositor)
+            delegatedAddress: delegatedTo
         });
 
         // complete the queued withdrawal
@@ -473,6 +478,7 @@ contract DelegationTests is TestHelper {
         IInvestmentStrategy[] memory strategyArray,
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
+        address delegatedTo,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
     )
         internal
@@ -492,7 +498,7 @@ contract DelegationTests is TestHelper {
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
-            delegatedAddress: delegation.delegatedTo(depositor)
+            delegatedAddress: delegatedTo
         });
         // complete the queued withdrawal
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
