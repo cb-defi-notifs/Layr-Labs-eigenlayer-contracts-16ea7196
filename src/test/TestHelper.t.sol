@@ -633,8 +633,83 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
+
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     * into the WETH strategy, and then queues a withdrawal using
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     * response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
+    function _createQueuedWithdrawal(
+        address staker,
+        bool registerAsOperator,
+        uint256 amountToDeposit,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
+    {
+        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+
+        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
+        if (registerAsOperator) {
+            assertTrue(!delegation.isDelegated(staker), "testQueuedWithdrawal: staker is already delegated");
+            _testRegisterAsOperator(staker, IDelegationTerms(staker));
+            assertTrue(
+                delegation.isDelegated(staker), "testQueuedWithdrawal: staker isn't delegated when they should be"
+            );
+        }
+
+        queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: staker,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(staker)
+        });
+
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (shareAmounts[0] > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
+
+        //queue the withdrawal
+        cheats.startPrank(staker);
+        // TODO: check with 'undelegateIfPossible' = false, rather than just true
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
+        // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (delegation.isDelegated(staker)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+        }
+        // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
+        else if (delegation.isNotDelegated(staker)) {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
+        } else {
+            revert("_createQueuedWithdrawal: staker is somehow neither delegated nor *not* delegated, simultaneously");
+        }
+        cheats.stopPrank();
+        return (withdrawalRoot, queuedWithdrawal);
+    }
+
     function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
@@ -647,7 +722,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
         cheats.assume(stakeInactiveAfter > block.timestamp);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
                                         withdrawalRoot, 
                                         stakeInactiveAfter
                                     );
