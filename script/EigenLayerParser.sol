@@ -17,7 +17,7 @@ import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
 import "forge-std/Script.sol";
-import "forge-std/StdJson.sol";
+//import "forge-std/StdJson.sol";
 
 contract EigenLayerParser is Script, DSTest
 {

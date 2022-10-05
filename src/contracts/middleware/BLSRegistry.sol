@@ -117,20 +117,22 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
+        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
+        require(
+            pubkeyHash != apkHashes[apkHashes.length - 1],
+            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
+        );
+
+        // require(
+        //     pubkeyHash != 
+        // )
+
 
         require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
 
         require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
 
-        emit log_named_uint("apk before", apk[0]);
-        emit log_named_uint("apk before", apk[1]);
-        emit log_named_uint("apk before", apk[2]);
-        emit log_named_uint("apk before", apk[3]);
-
-        emit log_named_uint("pk ", pk[0]);
-        emit log_named_uint("pk ", pk[1]);
-        emit log_named_uint("pk ", pk[2]);
-        emit log_named_uint("pk ", pk[3]);
+        
         {
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac =
@@ -140,19 +142,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
         }
 
-        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
-        require(
-            pubkeyHash != apkHashes[apkHashes.length - 1],
-            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
-        );
-
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
-
-        emit log_named_uint("apk after", apk[0]);
-        emit log_named_uint("apk after", apk[1]);
-        emit log_named_uint("apk after", apk[2]);
-        emit log_named_uint("apk after", apk[3]);
 
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
