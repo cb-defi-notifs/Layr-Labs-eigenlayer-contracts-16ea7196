@@ -57,9 +57,6 @@ contract RegistrationTests is TestHelper {
             require(ethStakedAfter - ethStakedBefore == amountEthStaked, "eth quorum staked value not updated correctly");
             require(eigenStakedAfter - eigenStakedBefore == amountEigenStaked, "eigen quorum staked value not updated correctly");
         }
-
-
-
     }
 
     function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
@@ -67,7 +64,7 @@ contract RegistrationTests is TestHelper {
         //try to register the same pubkey twice
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.expectRevert(
-            "BLSPublicKeyRegistry.registerBLSPublicKey: operator already registered pubkey"
+            "BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey"
         );
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
     }
@@ -172,32 +169,33 @@ contract RegistrationTests is TestHelper {
         );
     }
 
-    function testRegisteringWithSomeoneElsePubKey(
-        uint8 operatorIndex,
-        uint256 ethAmount,
-        uint256 eigenAmount
+    function testRegisterWithoutEnoughQuorumStake(
+        uint8 operatorIndex
     ) fuzzedOperatorIndex(operatorIndex) public {
-        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        _testRegisterBLSPubKey(
+            operatorIndex
+        );
 
-        uint8 operatorType = 3;
-        (
-            uint256 amountEthStaked, 
-            uint256 amountEigenStaked
-        ) = _testInitiateDelegation(
-                operatorIndex,
-                eigenAmount,
-                ethAmount
-            );
+        uint8 operatorType = 1;
+        cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
+        );
 
-        _testRegisterBLSPubKey(operatorIndex);  
-        address operator = signers[operatorIndex];
+        operatorType = 2;
+        cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
+        _testRegisterOperatorWithDataLayr(
+            operatorIndex,
+            operatorType,
+            testSocket
+        );
 
-        cheats.startPrank(operator);
-        cheats.expectRevert("BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey");
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
-        cheats.stopPrank();
 
     }
+    
+
+    
 
 }
