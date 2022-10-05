@@ -624,6 +624,10 @@ contract InvestmentManager is
             "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
         );
 
+        if (slasher.isFrozen(queuedWithdrawal.delegatedAddress)) {
+            return false;
+        }
+
         return (
             uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
                 || (queuedWithdrawal.delegatedAddress == address(0))
