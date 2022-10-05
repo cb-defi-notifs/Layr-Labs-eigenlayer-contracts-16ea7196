@@ -190,39 +190,35 @@ contract RegistrationTests is TestHelper {
     }
 
 
-    // //Test if aggregate PK doesn't change when registered with 0 pub key
-    // function testRegisterWithZeroPubKey(
-    //     uint8 operatorIndex,
-    //     uint256 ethAmount,
-    //     uint256 eigenAmount
-    // ) fuzzedOperatorIndex(operatorIndex) public {
-    //     cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-    //     cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+    //Test if aggregate PK doesn't change when registered with 0 pub key
+    function testRegisterWithZeroPubKey(
+        uint8 operatorIndex,
+        uint256 ethAmount,
+        uint256 eigenAmount
+    ) fuzzedOperatorIndex(operatorIndex) public {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
-    //     bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-    //     address operator = signers[operatorIndex];
-    //     uint8 operatorType = 3;
-    //     bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
-    //     emit log_named_bytes32("apkHashBefore", apkHashBefore);
+        bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        address operator = signers[operatorIndex];
+        uint8 operatorType = 3;
+        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
+        emit log_named_bytes32("apkHashBefore", apkHashBefore);
 
-    //     _testInitiateDelegation(
-    //         operatorIndex,
-    //         eigenAmount,
-    //         ethAmount
-    //     );
-    //     cheats.startPrank(operator);
-    //     //whitelist the dlsm to slash the operator
-    //     slasher.allowToSlash(address(dlsm));
-    //     pubkeyCompendium.registerBLSPublicKey(zeroData);
+        _testInitiateDelegation(
+            operatorIndex,
+            eigenAmount,
+            ethAmount
+        );
+        cheats.startPrank(operator);
+        //whitelist the dlsm to slash the operator
+        slasher.allowToSlash(address(dlsm));
+        pubkeyCompendium.registerBLSPublicKey(zeroData);
 
-    
-    //     dlReg.registerOperator(operatorType, testEphemeralKey, zeroData, testSocket);
-
-    //     emit log_named_bytes32("apkHashAfter", dlReg.apkHashes(dlReg.getApkHashesLength()-1));
-
-    //     require(dlReg.apkHashes(dlReg.getApkHashesLength()-1) == apkHashBefore, "aggregate public has changed");
-    //     cheats.stopPrank(); 
-    // }
+        cheats.expectRevert(bytes("BLSRegistry._registerOperator: Cannot register with 0x0 public key"));
+        dlReg.registerOperator(operatorType, testEphemeralKey, zeroData, testSocket);
+        cheats.stopPrank(); 
+    }
 
     //test for registering without slashing opt in
     function testRegisterWithoutSlashingOptIn(

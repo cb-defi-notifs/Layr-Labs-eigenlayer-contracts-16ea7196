@@ -26,7 +26,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "forge-std/Script.sol";
-//import "forge-std/StdJson.sol";
+import "forge-std/StdJson.sol";
 
 import "../src/contracts/utils/ERC165_Universal.sol";
 import "../src/contracts/utils/ERC1155TokenReceiver.sol";

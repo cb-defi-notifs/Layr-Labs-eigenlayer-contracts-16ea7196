@@ -114,6 +114,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         uint256[4] memory newApk;
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
+        
+
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
@@ -123,9 +125,10 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
         );
 
-        // require(
-        //     pubkeyHash != 
-        // )
+        require(
+            pubkeyHash != hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", 
+            "BLSRegistry._registerOperator: Cannot register with 0x0 public key"
+        );
 
 
         require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
