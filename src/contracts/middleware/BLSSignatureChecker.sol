@@ -166,6 +166,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         signedTotals.totalStakeSecondQuorum = localStakeObject.secondQuorumStake;
         signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
 
+
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
             taskNumberToConfirm :=

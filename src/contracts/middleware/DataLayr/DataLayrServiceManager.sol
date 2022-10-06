@@ -52,15 +52,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     // EVENTS
     event InitDataStore(
-        uint32 dataStoreId,
-        uint32 durationDataStoreId,
-        uint32 index,
-        bytes32 indexed headerHash,
-        bytes header,
-        uint32 totalBytes,
-        uint32 storePeriodLength,
-        uint32 blockNumber,
-        uint256 fee
+        IDataLayrServiceManager.DataStoreSearchData searchData,
+        bytes header
     );
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
@@ -202,23 +195,20 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
 
             require(
-                blockNumber + BLOCK_STALE_MEASURE >= block.number,
-                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
-            );
+                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
+                "specified blockNumber is too far in past"
+            );    
         }
 
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = IDataLayrServiceManager.DataStoreSearchData({
+            duration: duration,
+            timestamp: block.timestamp,
+            index: index,
+            metadata: metadata
+        });
+
         // emit event to represent initialization of data store
-        emit InitDataStore(
-            dataStoresForDuration.dataStoreId,
-            getNumDataStoresForDuration(duration),
-            index,
-            headerHash,
-            header,
-            totalBytes,
-            storePeriodLength,
-            blockNumber,
-            fee
-            );
+        emit InitDataStore(searchData, header);
 
         // Updating dataStoresForDuration
         /**
@@ -352,11 +342,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
-        require(
-            msg.sender == address(_registry()),
-            "DataLayrServiceManager.revokeSlashingAbility: Only registry resolvers can revoke slashing ability on operators"
-        );
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 

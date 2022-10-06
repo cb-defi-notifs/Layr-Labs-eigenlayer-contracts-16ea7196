@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -384,12 +384,12 @@ contract DataLayrBombVerifier {
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (uint8 durationIndex, uint32 calculatedDataStoreId, uint32 nextGlobalDataStoreIdAfterDetonationTimestamp) =
-        verifySandwiches(
-            uint256(dataStoreProofs.detonationDataStore.metadata.headerHash),
-            fromTime,
-            dataStoreProofs.detonationDataStore.timestamp,
-            sandwichProofs
-        );
+            verifySandwiches(
+                uint256(dataStoreProofs.detonationDataStore.metadata.headerHash),
+                fromTime,
+                dataStoreProofs.detonationDataStore.timestamp,
+                sandwichProofs
+            );
 
         require(
             sandwichProofs.length == dlsm.MAX_DATASTORE_DURATION() + 1,
@@ -491,7 +491,6 @@ contract DataLayrBombVerifier {
         );
 
         nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
-
         //for each duration
         for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
             // NOTE THAT i is loop index and (i + 1) is duration

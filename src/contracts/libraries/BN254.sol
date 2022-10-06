@@ -66,7 +66,7 @@ library BN254 {
             case 0 { invalid() }
         }
 
-        require(success, "pairing-add-failed");
+        require(success, "ec-add-failed");
     }
 
     /*
@@ -87,7 +87,7 @@ library BN254 {
             switch success
             case 0 { invalid() }
         }
-        require(success, "pairing-mul-failed");
+        require(success, "ec-mul-failed");
     }
 
     /* @return The result of computing the pairing check
