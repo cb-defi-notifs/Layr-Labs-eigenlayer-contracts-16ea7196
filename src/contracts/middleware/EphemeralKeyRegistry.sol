@@ -123,7 +123,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         // verify that the operator is active
         IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
-            registry.getOperatorStatus(msg.sender) == IQuorumRegistry.Active.ACTIVE,
+            registry.getOperatorStatus(msg.sender) == IQuorumRegistry.Status.ACTIVE,
             "EphemeralKeyRegistry.updateEphemeralKeyPreImage: operator is not active"
         );
 

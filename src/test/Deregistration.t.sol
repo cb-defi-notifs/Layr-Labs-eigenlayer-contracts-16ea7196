@@ -73,13 +73,23 @@ contract DeregistrationTests is TestHelper {
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, badEphemeralKey);
     }
 
-    
+    function testDeregisteringAlreadyDeregisteredOperator(
+        uint8 operatorIndex,
+        uint256 ethAmount, 
+        uint256 eigenAmount
+    ) public fuzzedOperatorIndex(operatorIndex) {
 
+        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
+        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);      
+
+        uint8 operatorListIndex = uint8(dlReg.numOperators());                  
+        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex-1, testEphemeralKey);
         
+        cheats.expectRevert(bytes("RegistryBase._deregistrationCheck: Operator is not registered"));
+        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex-1, testEphemeralKey);
 
-
-
+    }
 
 
     /// @notice Helper function that performs registration 
