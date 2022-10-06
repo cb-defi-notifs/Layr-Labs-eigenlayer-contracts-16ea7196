@@ -54,7 +54,33 @@ contract DeregistrationTests is TestHelper {
         cheats.expectRevert(bytes("BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"));
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, testEphemeralKey);
     }
+
+    function testEphemeralKeyDoesNotMatchPostedHash(
+        uint8 operatorIndex,
+        uint256 ethAmount, 
+        uint256 eigenAmount,
+        bytes32 badEphemeralKey
+    ) public fuzzedOperatorIndex(operatorIndex) {
+        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        cheats.assume(badEphemeralKey != testEphemeralKey);
+
+        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
+
+        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
+        uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
+        cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
+        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, badEphemeralKey);
+    }
+
+    
+
+
         
+
+
+
+
 
     /// @notice Helper function that performs registration 
     function BLSRegistration(
