@@ -18,7 +18,7 @@ contract EigenPod is IEigenPod {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
 
-    mapping(bytes32 => VALIDATOR_STATUS) public validatorPubkeyHashes;
+    mapping(bytes32 => VALIDATOR_STATUS) public validatorStauses;
 
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
@@ -31,47 +31,43 @@ contract EigenPod is IEigenPod {
         // stake on ethPOS
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
         //if not previously known validator, then update status
-        if(validatorPubkeyHashes[pubkeyHash] == VALIDATOR_STATUS.INACTIVE) {
-            validatorPubkeyHashes[pubkeyHash] = VALIDATOR_STATUS.INITIALIZED;
+        if(validatorStauses[pubkeyHash] == VALIDATOR_STATUS.INACTIVE) {
+            validatorStauses[pubkeyHash] = VALIDATOR_STATUS.INITIALIZED;
         }
     }
 
     function proveCorrectWithdrawalCredentials(bytes calldata pubkey, bytes32 beaconStateRoot, bytes calldata proofs) external {
         //TODO: verify the beaconStateRoot is consistent with oracle
 
+        // get pubKeyHash
+        bytes32 pubkeyHash = keccak256(abi.encodePacked(pubkey));
+        require(validatorStauses[pubkeyHash] == VALIDATOR_STATUS.INITIALIZED, "EigenPod.proveCorrectWithdrawalCredentials: Validator not initialized");
+        
         bytes32 validatorTreeRoot = proofs.toBytes32(0);
         //offset 32 bytes for validatorTreeRoot
         uint256 pointer = 32;
         //verify that the validatorTreeRoot is within the top level beacon state tree
         bool valid = Merkle.checkMembershipSha256(
             validatorTreeRoot,
-            VALIDATOR_TREE_ROOT_INDEX,
+            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
             beaconStateRoot,
-            proofs.slice(pointer, 32 * NUM_BEACON_STATE_FIELDS);
-        )
+            proofs.slice(pointer, 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS)
+        );
         require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator tree root from beacon state proof");
         //offset the length of the beacon state proof
-        pointer += 32 * NUM_BEACON_STATE_FIELDS;
+        pointer += 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS;
         uint32 validatorIndex = proofs.toUint32(pointer);
         //offset another 4 bytes for the length of the validatorIndex
         pointer += 4;
         //verify that the validatorRoot is within the validator tree
-        bool valid = Merkle.checkMembershipSha256(
+        valid = Merkle.checkMembershipSha256(
             validatorTreeRoot,
             uint256(validatorIndex),
             validatorTreeRoot,
-            proofs.slice(pointer, 32 * VALIDATOR_TREE_HEIGHT);
-        )
-        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator root from validato tree root proof");
+            proofs.slice(pointer, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
+        );
+        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator root from validator tree root proof");
 
-        //verify that the validatorRoot is within the validator tree
-        bool valid = Merkle.checkMembershipSha256(
-            validatorTreeRoot,
-            uint256(validatorIndex),
-            validatorTreeRoot,
-            proofs.slice(pointer, 32 * VALIDATOR_TREE_HEIGHT);
-        )
-        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator root from validato tree root proof");
         //todo: finish this proof
     }
 
