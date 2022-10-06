@@ -89,6 +89,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
 
+
         // check that the preimage matches with the hash
         require(
             existingEKEntry.keyHash == keccak256(abi.encode(prevEK)),
@@ -97,10 +98,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
 
         uint32 currentTaskNumber = repository.serviceManager().taskNumber();
 
+
         // update the EK entry
         existingEKEntry.ephemeralKey = prevEK;
-        existingEKEntry.endTaskNumber = currentTaskNumber - 1;
-        EKHistory[operator][historyLength] = existingEKEntry;
+        existingEKEntry.endTaskNumber = currentTaskNumber - 1;        
+        EKHistory[operator][historyLength - 1] = existingEKEntry;
+
+
     }
 
     /**
@@ -119,7 +123,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         // verify that the operator is active
         IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
-            registry.getOperatorStatus(msg.sender) == IQuorumRegistry.Active.ACTIVE,
+            registry.getOperatorStatus(msg.sender) == IQuorumRegistry.Status.ACTIVE,
             "EphemeralKeyRegistry.updateEphemeralKeyPreImage: operator is not active"
         );
 

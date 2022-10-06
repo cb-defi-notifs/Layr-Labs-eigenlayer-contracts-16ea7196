@@ -173,7 +173,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     /// @notice returns the active status for the specified operator
-    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Active) {
+    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Status) {
         return registry[operator].active;
     }
 
@@ -199,6 +199,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             opStake = pubkeyHashToStakeHistory[pubkeyHash][historyLength - 1];
             return opStake;
         }
+    }
+
+    function getStakeHistoryLength(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToStakeHistory[pubkeyHash].length;
     }
 
     function firstQuorumStakedByOperator(address operator) external view returns (uint96) {
@@ -287,7 +291,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     // MUTATING FUNCTIONS
 
     function updateSocket(string calldata newSocket) external {
-        require(registry[msg.sender].active == IQuorumRegistry.Active.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
+        require(registry[msg.sender].active == IQuorumRegistry.Status.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
         emit SocketUpdate(msg.sender, newSocket);
     }
 
@@ -310,7 +314,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
-        registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
+        registry[msg.sender].active = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         // gas saving by caching length here
@@ -409,7 +413,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             pubkeyHash: pubkeyHash,
             id: nextOperatorId,
             index: numOperators(),
-            active: IQuorumRegistry.Active.ACTIVE,
+            active: IQuorumRegistry.Status.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
@@ -450,7 +454,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         returns (OperatorStake memory)
     {
         require(
-            registry[operator].active == IQuorumRegistry.Active.INACTIVE,
+            registry[operator].active == IQuorumRegistry.Status.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
 
@@ -526,8 +530,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     // verify that the `operator` is an active operator and that they've provided the correct `index`
     function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
-            registry[operator].active != IQuorumRegistry.Active.INACTIVE,
-            "RegistryBase._deregistrationCheck: Operator is already registered"
+            registry[operator].active == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase._deregistrationCheck: Operator is not registered"
         );
 
         require(operator == operatorList[index], "RegistryBase._deregistrationCheck: Incorrect index supplied");
