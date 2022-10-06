@@ -18,7 +18,7 @@ contract DelegationTests is TestHelper {
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
+        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -30,8 +30,8 @@ contract DelegationTests is TestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
-        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
+        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
+        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1], ephemeralKeyHashes[1]);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -328,8 +328,12 @@ contract DelegationTests is TestHelper {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
-        address operator = signers[0];
-        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        // address operator = signers[0];
+        uint8 operatorType = 3;
+        _testInitiateDelegation(0, eigenAmount, ethAmount);
+        _testRegisterBLSPubKey(0);
+        _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
+
         nonSignerInfo memory nonsigner;
         signerInfo memory signer;
 

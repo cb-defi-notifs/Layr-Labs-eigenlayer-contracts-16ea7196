@@ -5,6 +5,8 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
+import "forge-std/Test.sol";
+
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
  * @author Layr Labs, Inc.
@@ -15,7 +17,7 @@ import "../permissions/RepositoryAccess.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
+contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
     // DATA STRUCTURES
     struct EKEntry {
         // hash of the ephemeral key, to be revealed after usage
@@ -85,6 +87,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         // retrieve the most recent EK entry for the operator
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
+
+        emit log_named_bytes32("prevEK", keccak256(abi.encode(prevEK)));
+        emit log_named_bytes32("ephememarl", existingEKEntry.keyHash);
 
         // check that the preimage matches with the hash
         require(
