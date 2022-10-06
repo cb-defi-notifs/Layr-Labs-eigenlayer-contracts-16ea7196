@@ -7,6 +7,10 @@ import "../contracts/libraries/BytesLib.sol";
 contract DeregistrationTests is TestHelper {
     using BytesLib for bytes;
 
+    /**
+    *   @notice Tests that optimistically deregistering works as intended, i.e., 
+    *   the aggregate public key is updated correctly, and all storage is correctly updated.
+    */
     function testBLSDeregistration(
         uint8 operatorIndex,
         uint256 ethAmount, 
@@ -30,14 +34,20 @@ contract DeregistrationTests is TestHelper {
 
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1), testEphemeralKey);
 
-        (,uint32 nextUpdateBlocNumber,,) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
-        require( nextUpdateBlocNumber == 0, "Stake history not updated correctly");
+        (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
+        require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
+        require( firstQuorumStake == 0, "Stake history not updated correctly");
+        require( secondQuorumStake == 0, "Stake history not updated correctly");
 
         bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
         require(currAPKHash == prevAPKHash, "aggregate public key has not been updated correctly following deregistration");
 
     }
 
+    /**
+    *   @notice Tests that deregistering with an incorrect public key
+    *           reverts.
+    */
     function testMismatchedPubkeyHashAndProvidedPubkeyHash(
         uint8 operatorIndex,
         uint256 ethAmount, 
@@ -55,6 +65,11 @@ contract DeregistrationTests is TestHelper {
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, testEphemeralKey);
     }
 
+    /**
+    *   @notice Tests that posting an ephemeral key that does
+    *   not match the posted ek hash in the ekregistry
+    *   reverts the deregistration.
+    */
     function testEphemeralKeyDoesNotMatchPostedHash(
         uint8 operatorIndex,
         uint256 ethAmount, 
@@ -72,7 +87,10 @@ contract DeregistrationTests is TestHelper {
         cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, badEphemeralKey);
     }
-
+    /**
+    *   @notice Tests that deregistering an operator who has already 
+    *           been deregistered/was never registered reverts
+    */
     function testDeregisteringAlreadyDeregisteredOperator(
         uint8 operatorIndex,
         uint256 ethAmount, 
