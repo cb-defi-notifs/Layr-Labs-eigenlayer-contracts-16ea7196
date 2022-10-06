@@ -81,4 +81,61 @@ library Merkle {
         // check whether computed root is same as the Merkle root
         return computedHash == rootHash;
     }
+
+    function merkleizeSha256(
+        uint256 height,
+        bytes32[] memory leaves
+    ) internal pure returns (bytes32) {
+        require(leaves.length == 2**height, "Must merkleize a complete tree");
+        uint256 numNodesInLayer = leaves.length / 2;
+        bytes32[] memory layer = new bytes32[](numNodesInLayer);
+
+        for (uint i = 0; i < numNodesInLayer; i++) {
+            layer[i] = sha256(abi.encodePacked(leaves[2*i], leaves[2*i+1]));
+        }
+
+        numNodesInLayer /= 2;
+
+        while (numNodesInLayer > 0) {
+            for (uint i = 0; i < numNodesInLayer; i++) {
+                layer[i] = sha256(abi.encodePacked(layer[2*i], layer[2*i+1]));
+            }
+        }
+
+        return layer[0];
+    }
+
+    function checkMembershipSha256(
+        bytes32 leaf,
+        uint256 index,
+        bytes32 rootHash,
+        bytes memory proof
+    ) internal pure returns (bool) {
+        require(proof.length % 32 == 0, "Invalid proof length");
+        uint256 proofHeight = proof.length / 32;
+        // Proof of size n means, height of the tree is n+1.
+        // In a tree of height n+1, max #leafs possible is 2 ^ n
+        require(index < 2 ** proofHeight, "Leaf index is too big");
+
+        bytes32 proofElement;
+        bytes32 computedHash = leaf;
+        for (uint256 i = 32; i <= proof.length; i += 32) {
+            assembly {
+                proofElement := mload(add(proof, i))
+            }
+
+            if (index % 2 == 0) {
+                computedHash = sha256(
+                    abi.encodePacked(computedHash, proofElement)
+                );
+            } else {
+                computedHash = sha256(
+                    abi.encodePacked(proofElement, computedHash)
+                );
+            }
+
+            index = index / 2;
+        }
+        return computedHash == rootHash;
+    }
 }
