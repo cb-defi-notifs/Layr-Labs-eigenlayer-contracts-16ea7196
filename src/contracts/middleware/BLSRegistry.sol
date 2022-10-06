@@ -17,6 +17,9 @@ import "forge-std/Test.sol";
 contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
+    //Hash of the zero public key
+    bytes32 ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
+
     IBLSPublicKeyCompendium public pubkeyCompendium;
 
     /// @notice the task numbers at which the aggregated pubkeys were updated
@@ -119,17 +122,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
-        emit log("hey");
-        emit log_named_uint("pk", pk[0]);
-        emit log_named_uint("pk", pk[1]);
-        emit log_named_uint("pk", pk[2]);
-        emit log_named_uint("pk", pk[3]);
-
-        emit log_named_uint("apk", apk[0]);
-        emit log_named_uint("apk", apk[1]);
-        emit log_named_uint("apk", apk[2]);
-        emit log_named_uint("apk", apk[3]);
-
 
         // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
         require(
@@ -137,10 +129,9 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
         );
 
-        
-
+    
         require(
-            pubkeyHash != hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", 
+            pubkeyHash != ZERO_PK_HASH, 
             "BLSRegistry._registerOperator: Cannot register with 0x0 public key"
         );
 
@@ -328,7 +319,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
-    function _parseSerializedPubkey(bytes calldata pkBytes) internal returns(uint256[4] memory) {
+    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns(uint256[4] memory) {
         uint256[4] memory pk;
         assembly {
             mstore(add(pk, 32), calldataload(pkBytes.offset))

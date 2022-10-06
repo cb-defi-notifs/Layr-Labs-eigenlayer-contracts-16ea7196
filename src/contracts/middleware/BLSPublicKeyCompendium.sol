@@ -10,6 +10,10 @@ import "forge-std/Test.sol";
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
+
+    //Hash of the zero public key
+    bytes32 ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
+
     mapping(address => bytes32) public operatorToPubkeyHash;
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
@@ -30,6 +34,11 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
         require(
+            pubkeyHash != ZERO_PK_HASH, 
+            "BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"
+        );
+
+        require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),
             "BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey"
         );
@@ -44,7 +53,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
-        emit log_named_uint("pk hash in compendium",  pk[0]);
         // emit event of new regsitration
         emit NewPubkeyRegistration(msg.sender, pk);
     }

@@ -26,24 +26,24 @@ contract RegistrationTests is TestHelper {
             );
 
         _testRegisterBLSPubKey(operatorIndex);
-        bytes32 hashofPk = keccak256(
-                              abi.encodePacked(
-                                uint256(bytes32(registrationData[operatorIndex].slice(32,32))),
-                                uint256(bytes32(registrationData[operatorIndex].slice(0,32))),
-                                uint256(bytes32(registrationData[operatorIndex].slice(96,32))),
-                                uint256(bytes32(registrationData[operatorIndex].slice(64,32)))
-                              )
-                            );
+
+        uint256[4] memory pk;
+        pk[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
+        pk[1] =uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
+        pk[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
+        pk[3] =uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        bytes32 hashofPk = BLS.hashPubkey(pk);
         require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
         require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
 
         {
+
             uint96 ethStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).firstQuorumStake;
             uint96 eigenStakedBefore = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).secondQuorumStake;
             _testRegisterOperatorWithDataLayr(
                 operatorIndex,
                 operatorType,
-                testEphemeralKey,
+                testEphemeralKeyHash,
                 testSocket
             );
 
@@ -90,7 +90,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
-            testEphemeralKey,
+            testEphemeralKeyHash,
             testSocket
         );
         cheats.startPrank(signers[operatorIndex]);
@@ -130,7 +130,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
-            testEphemeralKey,
+            testEphemeralKeyHash,
             testSocket
         );
     } 
@@ -156,7 +156,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             noQuorumOperatorType,
-            testEphemeralKey,
+            testEphemeralKeyHash,
             testSocket
         );
     }
@@ -170,15 +170,15 @@ contract RegistrationTests is TestHelper {
 
         uint8 operatorType = 1;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKeyHash, testSocket);
         
         operatorType = 2;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKeyHash, testSocket);
 
         operatorType = 3;
         cheats.expectRevert(bytes("RegistryBase._registrationStakeEvaluation: Must register as at least one type of validator"));
-        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKey, testSocket);
+        _testRegisterOperatorWithDataLayr(operatorIndex, operatorType, testEphemeralKeyHash, testSocket);
     }
 
 
@@ -205,10 +205,12 @@ contract RegistrationTests is TestHelper {
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
+
+        cheats.expectRevert(bytes("BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"));
         pubkeyCompendium.registerBLSPublicKey(zeroData);
 
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: Cannot register with 0x0 public key"));
-        dlReg.registerOperator(operatorType, testEphemeralKey, zeroData, testSocket);
+        dlReg.registerOperator(operatorType, testEphemeralKeyHash, zeroData, testSocket);
         cheats.stopPrank(); 
     }
 
@@ -237,7 +239,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterOperatorWithDataLayr(
             operatorIndex,
             operatorType,
-            testEphemeralKey,
+            testEphemeralKeyHash,
             testSocket
         );
      }
@@ -272,7 +274,7 @@ contract RegistrationTests is TestHelper {
         // pubkeyCompendium.registerBLSPublicKey(packedAPK);
 
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));
-        dlReg.registerOperator(operatorType, testEphemeralKey, packedAPK, testSocket);
+        dlReg.registerOperator(operatorType, testEphemeralKeyHash, packedAPK, testSocket);
         cheats.stopPrank();
      }
 }

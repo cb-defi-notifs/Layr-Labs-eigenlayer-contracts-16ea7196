@@ -73,7 +73,7 @@ contract TestHelper is EigenLayrDeployer {
     }
 
 
-    /// @dev ensure that operator has been delegated by calling _testInitiateDelegation
+    /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
     function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint8 operatorType,
@@ -235,7 +235,7 @@ contract TestHelper is EigenLayrDeployer {
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
     }
 
@@ -423,7 +423,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data) internal {
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -439,7 +439,7 @@ contract TestHelper is EigenLayrDeployer {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, testEphemeralKey, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
@@ -465,7 +465,7 @@ contract TestHelper is EigenLayrDeployer {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
 
         // hard-coded values

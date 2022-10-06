@@ -99,9 +99,7 @@ contract PaymentsTests is TestHelper {
     ///@notice tests commiting to reward payouts
     ///@param ethAmount is the amount of delegated eth
     ///@param eigenAmount is the amount of eigen
-    function testRewardPayouts(uint8 index, uint256 ethAmount, uint256 eigenAmount) public {
-        //TODO: @sidu28 why doesn't fuzzing work here?
-        cheats.assume(index < registrationData.length);
+    function testRewardPayouts(uint8 index, uint256 ethAmount, uint256 eigenAmount) public fuzzedOperatorIndex(index) {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         //G2 coordinates for aggregate PKs for 15 signers

@@ -18,7 +18,7 @@ contract DelegationTests is TestHelper {
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
+        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -30,8 +30,8 @@ contract DelegationTests is TestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0]);
-        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1]);
+        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
+        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1], ephemeralKeyHashes[1]);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
