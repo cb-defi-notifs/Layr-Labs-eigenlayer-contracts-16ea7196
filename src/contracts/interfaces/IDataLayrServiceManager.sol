@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
+import "./IDataLayrPaymentManager.sol";
+
 
 interface IDataLayrServiceManager is IServiceManager {
     //Relevant metadata for a given datastore
@@ -71,12 +73,11 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function MAX_DATASTORE_DURATION() external view returns (uint8);
 
-    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
-        external
-        view
-        returns (bytes32);
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
+    
+    function getNumDataStoresForDuration(uint8 duration) external view returns(uint32);
 
-    function getNumDataStoresForDuration(uint8 duration) external view returns (uint32);
+    function collateralToken() external view returns(IERC20);
 
-    function collateralToken() external view returns (IERC20);
+    function dataLayrPaymentManager() external view returns(IDataLayrPaymentManager);
 }

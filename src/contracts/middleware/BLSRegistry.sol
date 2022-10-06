@@ -44,7 +44,14 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param apkHashIndex The index of the latest (i.e. the new) APK update
      * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
-    event Registration(address indexed operator, bytes32 pkHash, uint256[4] pk, uint32 apkHashIndex, bytes32 apkHash);
+    event Registration(
+        address indexed operator,
+        bytes32 pkHash,
+        uint256[4] pk,
+        uint32 apkHashIndex,
+        bytes32 apkHash,
+        string socket
+    );
 
     constructor(
         Repository _repository,
@@ -133,7 +140,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
 
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash, socket);
     }
 
     /**
@@ -220,61 +227,62 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         _recordTotalStakeUpdate(_totalStake);
     }
 
-    // TODO: de-dupe code copied from `updateStakes`, if reasonably possible
-    /**
-     * @notice Used for removing operators that no longer meet the minimum requirements
-     * @param operators are the nodes who will potentially be booted
-     */
-    function bootOperators(
-        address[] calldata operators,
-        uint256[4][] memory pubkeysToRemoveAff,
-        uint32[] memory indices
-    )
-        external
-    {
-        // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+    //TODO: The subgraph doesnt like uint256[4][] argument here. Figure this out laters
+    // // TODO: de-dupe code copied from `updateStakes`, if reasonably possible
+    // /**
+    //  * @notice Used for removing operators that no longer meet the minimum requirements
+    //  * @param operators are the nodes who will potentially be booted
+    //  */
+    // function bootOperators(
+    //     address[] calldata operators,
+    //     uint256[4][] memory pubkeysToRemoveAff,
+    //     uint32[] memory indices
+    // )
+    //     external
+    // {
+    //     // copy total stake to memory
+    //     OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
-        // placeholders reused inside of loop
-        OperatorStake memory currentStakes;
-        bytes32 pubkeyHash;
-        uint256 operatorsLength = operators.length;
-        // iterating over all the tuples that are to be updated
-        for (uint256 i = 0; i < operatorsLength;) {
-            // get operator's pubkeyHash
-            pubkeyHash = registry[operators[i]].pubkeyHash;
-            // fetch operator's existing stakes
-            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-            // decrease _totalStake by operator's existing stakes
-            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
-            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
+    //     // placeholders reused inside of loop
+    //     OperatorStake memory currentStakes;
+    //     bytes32 pubkeyHash;
+    //     uint256 operatorsLength = operators.length;
+    //     // iterating over all the tuples that are to be updated
+    //     for (uint256 i = 0; i < operatorsLength;) {
+    //         // get operator's pubkeyHash
+    //         pubkeyHash = registry[operators[i]].pubkeyHash;
+    //         // fetch operator's existing stakes
+    //         currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+    //         // decrease _totalStake by operator's existing stakes
+    //         _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+    //         _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
 
-            // update the stake for the i-th operator
-            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+    //         // update the stake for the i-th operator
+    //         currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
 
-            // remove the operator from the list of operators if they do *not* meet the minimum requirements
-            if (
-                (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
-                    && (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
-            ) {
-                // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
-                _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
-            }
-            // in the case that the operator *does indeed* meet the minimum requirements
-            else {
-                // increase _totalStake by operator's updated stakes
-                _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
-                _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
-            }
+    //         // remove the operator from the list of operators if they do *not* meet the minimum requirements
+    //         if (
+    //             (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
+    //                 && (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
+    //         ) {
+    //             // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
+    //             _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
+    //         }
+    //         // in the case that the operator *does indeed* meet the minimum requirements
+    //         else {
+    //             // increase _totalStake by operator's updated stakes
+    //             _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+    //             _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
+    //         }
 
-            unchecked {
-                ++i;
-            }
-        }
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
 
-        // update storage of total stake
-        _recordTotalStakeUpdate(_totalStake);
-    }
+    //     // update storage of total stake
+    //     _recordTotalStakeUpdate(_totalStake);
+    // }
 
     /**
      * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays

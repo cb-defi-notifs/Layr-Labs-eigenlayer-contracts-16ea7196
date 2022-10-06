@@ -29,7 +29,7 @@ interface IQuorumRegistry is IRegistry {
         // id is always unique
         uint32 id;
         // corresponds to position in operatorList
-        uint64 index;
+        uint32 index;
         // start taskNumber from which the  operator has been registered
         uint32 fromTaskNumber;
         // start block from which the  operator has been registered
@@ -41,8 +41,6 @@ interface IQuorumRegistry is IRegistry {
         uint32 deregisterTime;
         // indicates whether the operator is actively registered for serving the middleware or not
         Active active;
-        // socket address of the node
-        string socket;
     }
 
     // struct used to give definitive ordering to operators at each blockNumber
@@ -83,6 +81,8 @@ interface IQuorumRegistry is IRegistry {
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32);
 
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32);
+
+    function numOperators() external view returns (uint32);
 
     function getOperatorDeregisterTime(address operator) external view returns (uint256);
 

@@ -50,6 +50,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
     // EVENTS
+    event SocketUpdate(address operator, string socket);
+
     event StakeAdded(
         address operator,
         uint96 firstQuorumStake,
@@ -268,8 +270,20 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     // number of operators of this service
-    function numOperators() public view returns (uint64) {
-        return uint64(operatorList.length);
+    function numOperators() public view returns (uint32) {
+        return uint32(operatorList.length);
+    }
+
+    //return when the operator is unbonded from the middleware, if they deregister now
+    function bondedUntil(address operator) public view virtual returns (uint32) {
+        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
+    }
+
+    // MUTATING FUNCTIONS
+
+    function updateSocket(string calldata newSocket) external {
+        require(registry[msg.sender].active == IQuorumRegistry.Active.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
+        emit SocketUpdate(msg.sender, newSocket);
     }
 
     // INTERNAL FUNCTIONS
@@ -395,7 +409,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
             // extract the socket address
-            socket: socket,
             deregisterTime: 0
         });
 
@@ -513,10 +526,5 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         );
 
         require(operator == operatorList[index], "RegistryBase._deregistrationCheck: Incorrect index supplied");
-    }
-
-    //return when the operator is unbonded from the middleware, if they deregister now
-    function bondedUntil(address operator) public view virtual returns (uint32) {
-        return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 }

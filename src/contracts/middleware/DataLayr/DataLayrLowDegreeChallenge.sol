@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -27,19 +27,19 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 commitTime;
         // challenger's address
         address challenger;
-        // collateral amount associated with the challenge
-        uint256 collateral;
     }
 
     // length of window during which the responses can be made to the challenge
     uint32 internal constant _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
 
-    // amount of token required to be placed as collateral when a challenge is opened
-    uint256 internal constant _DEGREE_CHALLENGE_COLLATERAL_AMOUNT = 1e18;
+    // headerHash => LowDegreeChallenge struct
+    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
+    event SuccessfulLowDegreeChallenge(
+        bytes32 indexed headerHash,
+        address challenger
+    );
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
-
-    event LowDegreeChallengeInit(bytes32 indexed headerHash, address challenger);
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
@@ -50,14 +50,11 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             _dataLayrServiceManager,
             _dlRegistry,
             _challengeUtils,
-            _DEGREE_CHALLENGE_RESPONSE_WINDOW,
-            _DEGREE_CHALLENGE_COLLATERAL_AMOUNT
+            0,
+            0
         )
     // solhint-disable-next-line no-empty-blocks
     {}
-
-    // headerHash => LowDegreeChallenge struct
-    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
@@ -185,6 +182,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
     }
 
+
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
         return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
     }
@@ -213,19 +211,15 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             // the current timestamp when the challenge was created
             block.timestamp,
             // challenger's address
-            msg.sender,
-            COLLATERAL_AMOUNT
+            msg.sender
         );
     }
 
     function _challengeCreationEvent(bytes32 headerHash) internal override {
-        emit LowDegreeChallengeInit(headerHash, msg.sender);
+        emit SuccessfulLowDegreeChallenge(headerHash, msg.sender);
     }
 
-    function _returnChallengerCollateral(bytes32 headerHash) internal override {
-        IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        collateralToken.safeTransfer(
-            lowDegreeChallenges[headerHash].challenger, lowDegreeChallenges[headerHash].collateral
-        );
+    function _returnChallengerCollateral(bytes32) internal pure override {
+        return;
     }
 }
