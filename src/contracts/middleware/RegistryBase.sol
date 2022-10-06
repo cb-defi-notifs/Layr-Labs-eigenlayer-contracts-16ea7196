@@ -201,6 +201,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         }
     }
 
+    function getStakeHistoryLength(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToStakeHistory[pubkeyHash].length;
+    }
+
     function firstQuorumStakedByOperator(address operator) external view returns (uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return opStake.firstQuorumStake;
