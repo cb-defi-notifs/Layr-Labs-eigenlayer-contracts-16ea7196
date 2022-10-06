@@ -1,7 +1,7 @@
 // SPDX-License-Verifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./Registration.t.sol";
+import "./TestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
 contract DeregistrationTests is TestHelper {
