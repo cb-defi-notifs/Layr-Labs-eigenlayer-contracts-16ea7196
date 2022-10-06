@@ -30,10 +30,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterBLSPubKey(operatorIndex);
 
         uint256[4] memory pk;
-        pk[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
-        pk[1] =uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
-        pk[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
-        pk[3] =uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        pk = getG2PKOfRegistrationData(operatorIndex);
         bytes32 hashofPk = BLS.hashPubkey(pk);
         require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
         require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
