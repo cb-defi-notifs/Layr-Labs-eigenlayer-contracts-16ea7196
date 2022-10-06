@@ -9,7 +9,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
-// import "forge-std/Test.sol";
+ import "forge-std/Test.sol";
 
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
@@ -70,6 +70,11 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     );
 
     event Deregistration(address operator, address swapped);
+
+    // enum OperatorType {
+    //     QUORUM_1_VALIDATOR,
+    //     QUORUM_2_VALIDATOR
+    // }
 
     constructor(
         Repository _repository,

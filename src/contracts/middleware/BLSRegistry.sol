@@ -17,6 +17,9 @@ import "forge-std/Test.sol";
 contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
+    //Hash of the zero public key
+    bytes32 ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
+
     IBLSPublicKeyCompendium public pubkeyCompendium;
 
     /// @notice the task numbers at which the aggregated pubkeys were updated
@@ -105,20 +108,39 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         internal
     {
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
+        
 
         /**
          * @notice evaluate the new aggregated pubkey
          */
+
         uint256[4] memory newApk;
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
+        
+
         // getting pubkey hash
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+        bytes32 pubkeyHash = BLS.hashPubkey(pk);
+
+
+        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
+        require(
+            pubkeyHash != apkHashes[apkHashes.length - 1],
+            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
+        );
+
+    
+        require(
+            pubkeyHash != ZERO_PK_HASH, 
+            "BLSRegistry._registerOperator: Cannot register with 0x0 public key"
+        );
+
 
         require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
 
         require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
 
+        
         {
             // add pubkey to aggregated pukkey in Jacobian coordinates
             uint256[6] memory newApkJac =
@@ -127,12 +149,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             // convert back to Affine coordinates
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
         }
-
-        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
-        require(
-            pubkeyHash != apkHashes[apkHashes.length - 1],
-            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
-        );
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);

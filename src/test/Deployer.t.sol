@@ -60,6 +60,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     DataLayrPaymentManager public dataLayrPaymentManager;
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
+    IBLSPublicKeyCompendium public blsPkCompendium;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -68,14 +69,22 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     //from testing seed phrase
     bytes32 priv_key_0 = 0x1234567812345678123456781234567812345678123456781234567812345678;
     bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
-    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public testEphemeralKeyHash = keccak256(abi.encode(testEphemeralKey));
+    
+    string testSocket = "255.255.255.255";
 
     // number of strategies deployed
     uint256 public numberOfStrats;
     //strategy indexes for undelegation (see commitUndelegation function)
     uint256[] public strategyIndexes;
     bytes[] registrationData;
+    bytes32[] ephemeralKeyHashes;
     address[2] public delegates;
+    uint256[] sample_pk;
+    uint256[] sample_sig;
+    address sample_registrant = cheats.addr(436364636);
+
     uint256[] apks;
     uint256[] sigmas;
 
@@ -122,6 +131,12 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         _;
     }
 
+    modifier fuzzedOperatorIndex(uint8 operatorIndex) {
+        require(registrationData.length != 0, "fuzzedOperatorIndex: setup incorrect");
+        cheats.assume(operatorIndex < registrationData.length);
+        _;
+    }
+
     //performs basic deployment before each test
     function setUp() public {
         // deploy proxy admin for ability to upgrade proxy contracts
@@ -129,6 +144,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         //deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
+        blsPkCompendium = new BLSPublicKeyCompendium();
 
         // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
         // can't initialize immediately since initializer depends on `investmentManager` address
@@ -281,6 +297,25 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         registrationData.push(
             hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a41ae35db861ea707fc72c6b7756a6139e8cccf15392e59297c21af365de013b4312caa1e05d5aac7c5513fff386248f1955298f11e0e165ed9a20c9beefe2f8a0"
         );
+
+    
+        ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x1f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x3e9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x4f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x5c9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x6c9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x2a9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x2b9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x1c9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0xad9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0xde9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0xff9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0xea9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x2a9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+        ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
+
+
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
