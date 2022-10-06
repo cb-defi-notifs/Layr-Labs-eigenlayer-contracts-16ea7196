@@ -100,27 +100,26 @@ contract DataLayrChallengeUtils {
             pointer := header.offset
             mstore(point, calldataload(pointer))
             mstore(add(point, 0x20), calldataload(add(pointer, 32)))
-            //skip another 64 bytes for low degreeness proof
-            degree := shr(224, calldataload(add(pointer, 128)))
-
+            //TODO: PUT THE LOW DEGREENESS PROOF HERE
+            degree := shr(224, calldataload(add(pointer, 64)))
             numSys := shr(224, calldataload(add(pointer, 132)))
-            numPar := shr(224, calldataload(add(pointer, 136)))
         }
 
-        return DataStoreKZGMetadata({c: point, degree: degree, numSys: numSys, numPar: numPar});
+        return
+            DataStoreKZGMetadata({
+                c: point,
+                degree: degree,
+                numSys: numSys,
+                numPar: numPar
+            });
     }
 
-    /// @notice Parses the number of systematic chunks from a DataStore header.
     function getNumSysFromHeader(
         // bytes calldata header
         bytes calldata header
-    )
-        external
-        pure
-        returns (uint32)
-    {
+    ) public pure returns (uint32) {
         uint32 numSys = 0;
-
+        
         assembly {
             numSys := shr(224, calldataload(add(header.offset, 132)))
         }
@@ -342,28 +341,44 @@ contract DataLayrChallengeUtils {
         uint256 r = uint256(
             keccak256(
                 abi.encodePacked(
-                    keccak256(poly), multiRevealProof.interpolationPoly.X, multiRevealProof.interpolationPoly.Y
+                    keccak256(poly),
+                    multiRevealProof.interpolationPoly.X,
+                    multiRevealProof.interpolationPoly.Y
                 )
             )
         ) % BLS.MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
-        return openPolynomialAtPoint(multiRevealProof.interpolationPoly, polyEquivalenceProof, r, s);
+        return
+            openPolynomialAtPoint(
+                multiRevealProof.interpolationPoly,
+                polyEquivalenceProof,
+                r,
+                s
+            );
     }
 
     function verifyPolyEquivalenceProof(
         bytes calldata poly,
         BN254.G1Point calldata interpolationPoly,
         BN254.G2Point calldata polyEquivalenceProof
-    )
-        external
-        view
-        returns (bool)
-    {
+    ) public view returns (bool) {
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        uint256 r = uint256(keccak256(abi.encodePacked(keccak256(poly), interpolationPoly.X, interpolationPoly.Y)))
-            % BLS.MODULUS;
+        uint256 r = uint256(
+            keccak256(
+                abi.encodePacked(
+                    keccak256(poly),
+                    interpolationPoly.X,
+                    interpolationPoly.Y
+                )
+            )
+        ) % BLS.MODULUS;
         uint256 s = linearPolynomialEvaluation(poly, r);
-        bool ok = openPolynomialAtPoint(interpolationPoly, polyEquivalenceProof, r, s);
+        bool ok = openPolynomialAtPoint(
+            interpolationPoly,
+            polyEquivalenceProof,
+            r,
+            s
+        );
         return ok;
     }
 
@@ -371,40 +386,62 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         BN254.G1Point[] calldata interpolationPolys,
         BN254.G2Point calldata polyEquivalenceProof
-    )
-        external
-        view
-        returns (bool)
-    {
+    ) public view returns (bool) {
         bytes32[] memory rs = new bytes32[](polys.length);
         //Calculating r, the point at which to evaluate the interpolating polynomial
-        for (uint256 i = 0; i < polys.length; i++) {
-            rs[i] = keccak256(abi.encodePacked(keccak256(polys[i]), interpolationPolys[i].X, interpolationPolys[i].Y));
+        for (uint i = 0; i < polys.length; i++) {
+            rs[i] = keccak256(
+                abi.encodePacked(
+                    keccak256(polys[i]),
+                    interpolationPolys[i].X,
+                    interpolationPolys[i].Y
+                )
+            );
         }
         //this is the point to open each polynomial at
         uint256 r = uint256(keccak256(abi.encodePacked(rs))) % BLS.MODULUS;
         //this is the offset we add to each polynomial to prevent collision
         //we use array to help with stack
         uint256[2] memory gammaAndGammaPower;
-        gammaAndGammaPower[0] = uint256(keccak256(abi.encodePacked(rs, uint256(0)))) % BLS.MODULUS;
+        gammaAndGammaPower[0] =
+            uint256(keccak256(abi.encodePacked(rs, uint256(0)))) %
+            BLS.MODULUS;
         gammaAndGammaPower[1] = gammaAndGammaPower[0];
         //store I1
         BN254.G1Point memory gammaShiftedCommitmentSum = interpolationPolys[0];
         //store I1(r)
-        uint256 gammaShiftedEvaluationSum = linearPolynomialEvaluation(polys[0], r);
-        for (uint256 i = 1; i < interpolationPolys.length; i++) {
+        uint256 gammaShiftedEvaluationSum = linearPolynomialEvaluation(
+            polys[0],
+            r
+        );
+        for (uint i = 1; i < interpolationPolys.length; i++) {
             //gammaShiftedCommitmentSum += gamma^i * Ii
-            gammaShiftedCommitmentSum =
-                BN254.plus(gammaShiftedCommitmentSum, BN254.scalar_mul(interpolationPolys[i], gammaAndGammaPower[1]));
+            gammaShiftedCommitmentSum = BN254.plus(
+                gammaShiftedCommitmentSum,
+                BN254.scalar_mul(interpolationPolys[i], gammaAndGammaPower[1])
+            );
             //gammaShiftedEvaluationSum += gamma^i * Ii(r)
             uint256 eval = linearPolynomialEvaluation(polys[i], r);
-            gammaShiftedEvaluationSum =
-                addmod(gammaShiftedEvaluationSum, mulmod(gammaAndGammaPower[1], eval, BLS.MODULUS), BLS.MODULUS);
+            gammaShiftedEvaluationSum = addmod(
+                gammaShiftedEvaluationSum,
+                mulmod(gammaAndGammaPower[1], eval, BLS.MODULUS),
+                BLS.MODULUS
+            );
             // gammaPower = gamma^(i+1)
-            gammaAndGammaPower[1] = mulmod(gammaAndGammaPower[0], gammaAndGammaPower[1], BLS.MODULUS);
+            gammaAndGammaPower[1] = mulmod(
+                gammaAndGammaPower[0],
+                gammaAndGammaPower[1],
+                BLS.MODULUS
+            );
         }
 
-        return openPolynomialAtPoint(gammaShiftedCommitmentSum, polyEquivalenceProof, r, gammaShiftedEvaluationSum);
+        return
+            openPolynomialAtPoint(
+                gammaShiftedCommitmentSum,
+                polyEquivalenceProof,
+                r,
+                gammaShiftedEvaluationSum
+            );
     }
 
     function batchNonInteractivePolynomialProofs(
@@ -413,17 +450,15 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         MultiRevealProof[] calldata multiRevealProofs,
         BN254.G2Point calldata polyEquivalenceProof
-    )
-        external
-        view
-        returns (bool)
-    {
+    ) public view returns (bool) {
         //randomness from each polynomial
         bytes32[] memory rs = new bytes32[](polys.length);
-        DataStoreKZGMetadata memory dskzgMetadata =
-            getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
+        DataStoreKZGMetadata
+            memory dskzgMetadata = getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
+                header
+            );
         uint256 numProofs = multiRevealProofs.length;
-        for (uint256 i = 0; i < numProofs;) {
+        for (uint256 i = 0; i < numProofs; ) {
             //verify pairing for the commitment to interpolating polynomial
             require(
                 validateDisclosureResponse(
@@ -441,7 +476,7 @@ contract DataLayrChallengeUtils {
             // check that degree of polynomial in the header matches the length of the submitted polynomial
             // i.e. make sure submitted polynomial doesn't contain extra points
             require(
-                (dskzgMetadata.degree + 1) * 32 == polys[i].length,
+                dskzgMetadata.degree * 32 == polys[i].length,
                 "Polynomial must have a 256 bit coefficient for each term"
             );
 
@@ -462,35 +497,61 @@ contract DataLayrChallengeUtils {
         //this is the offset we add to each polynomial to prevent collision
         //we use array to help with stack
         uint256[2] memory gammaAndGammaPower;
-        gammaAndGammaPower[0] = uint256(keccak256(abi.encodePacked(rs, uint256(0)))) % BLS.MODULUS;
+        gammaAndGammaPower[0] =
+            uint256(keccak256(abi.encodePacked(rs, uint256(0)))) %
+            BLS.MODULUS;
         gammaAndGammaPower[1] = gammaAndGammaPower[0];
         //store I1
-        BN254.G1Point memory gammaShiftedCommitmentSum = multiRevealProofs[0].interpolationPoly;
+        BN254.G1Point memory gammaShiftedCommitmentSum = multiRevealProofs[0]
+            .interpolationPoly;
         //store I1(r)
-        uint256 gammaShiftedEvaluationSum = linearPolynomialEvaluation(polys[0], r);
-        for (uint256 i = 1; i < multiRevealProofs.length; i++) {
+        uint256 gammaShiftedEvaluationSum = linearPolynomialEvaluation(
+            polys[0],
+            r
+        );
+        for (uint i = 1; i < multiRevealProofs.length; i++) {
             //gammaShiftedCommitmentSum += gamma^i * Ii
             gammaShiftedCommitmentSum = BN254.plus(
                 gammaShiftedCommitmentSum,
-                BN254.scalar_mul(multiRevealProofs[i].interpolationPoly, gammaAndGammaPower[1])
+                BN254.scalar_mul(
+                    multiRevealProofs[i].interpolationPoly,
+                    gammaAndGammaPower[1]
+                )
             );
             //gammaShiftedEvaluationSum += gamma^i * Ii(r)
             uint256 eval = linearPolynomialEvaluation(polys[i], r);
-            gammaShiftedEvaluationSum =
-                (gammaShiftedEvaluationSum + (((gammaAndGammaPower[1] * eval) % BLS.MODULUS) % BLS.MODULUS));
+            gammaShiftedEvaluationSum = gammaShiftedEvaluationSum = addmod(
+                gammaShiftedEvaluationSum,
+                mulmod(gammaAndGammaPower[1], eval, BLS.MODULUS),
+                BLS.MODULUS
+            );
             // gammaPower = gamma^(i+1)
-            gammaAndGammaPower[1] = mulmod(gammaAndGammaPower[0], gammaAndGammaPower[1], BLS.MODULUS);
+            gammaAndGammaPower[1] = mulmod(
+                gammaAndGammaPower[0],
+                gammaAndGammaPower[1],
+                BLS.MODULUS
+            );
         }
 
-        return openPolynomialAtPoint(gammaShiftedCommitmentSum, polyEquivalenceProof, r, gammaShiftedEvaluationSum);
+        return
+            openPolynomialAtPoint(
+                gammaShiftedCommitmentSum,
+                polyEquivalenceProof,
+                r,
+                gammaShiftedEvaluationSum
+            );
     }
 
-    /// @notice Evaluates the given polynomial "poly" at value "r" and returns the result.
-    function linearPolynomialEvaluation(bytes calldata poly, uint256 r) public pure returns (uint256) {
+    //evaluates the given polynomial "poly" at value "r" and returns the result
+    function linearPolynomialEvaluation(bytes calldata poly, uint256 r)
+        public
+        pure
+        returns (uint256)
+    {
         uint256 sum;
         uint256 length = poly.length;
         uint256 rPower = 1;
-        for (uint256 i = 0; i < length;) {
+        for (uint i = 0; i < length; ) {
             uint256 coefficient = uint256(bytes32(poly[i:i + 32]));
             sum = addmod(sum, mulmod(coefficient, rPower, BLS.MODULUS), BLS.MODULUS);
             rPower = mulmod(rPower, r, BLS.MODULUS);

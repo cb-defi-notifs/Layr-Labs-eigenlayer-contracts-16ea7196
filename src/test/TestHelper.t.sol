@@ -10,9 +10,14 @@ contract TestHelper is EigenLayrDeployer {
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
-        public
+    function _testInitiateDelegation(
+        uint8 operatorIndex,
+        uint256 amountEigenToDeposit, 
+        uint256 amountEthToDeposit        
+    )
+        public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
+        address operator = signers[operatorIndex];
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
@@ -39,6 +44,7 @@ contract TestHelper is EigenLayrDeployer {
             uint256 operatorEigenSharesBefore = delegation.operatorShares(operator, eigenStrat);
             uint256 operatorWETHSharesBefore = delegation.operatorShares(operator, wethStrat);
 
+
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
@@ -46,24 +52,57 @@ contract TestHelper is EigenLayrDeployer {
                 delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit
             );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
+            
         }
+        amountEthStaked += delegation.operatorShares(operator, wethStrat);
+        amountEigenStaked += delegation.operatorShares(operator, eigenStrat);
+
+        return (amountEthStaked, amountEigenStaked);
+    }
+
+    function _testRegisterBLSPubKey(
+        uint8 operatorIndex
+    ) public {
+        address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        //register operator with vote weigher so they can get payment
-        uint8 operatorType = 3;
-        string memory socket = "255.255.255.255";
-        // function registerOperator(
-        //     uint8 operatorType,
-        //     bytes32 ephemeralKeyHash,
-        //     bytes calldata data,
-        //     string calldata socket
-        // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[0]);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0].slice(0, 128), socket);
+        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
     }
+
+
+    /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
+    function _testRegisterOperatorWithDataLayr(
+        uint8 operatorIndex,
+        uint8 operatorType,
+        bytes32 ephemeralKey,
+        string memory socket
+    ) public {
+
+        address operator = signers[operatorIndex];
+
+        cheats.startPrank(operator);
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        cheats.stopPrank();
+
+    }
+
+    function _testDeregisterOperatorWithDataLayr(
+        uint8 operatorIndex,
+        uint256[4] memory pubkeyToRemoveAff,
+        uint8 operatorListIndex,
+        bytes32 finalEphemeralKey
+    ) public {
+
+        address operator = signers[operatorIndex];
+
+        cheats.startPrank(operator);
+        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        cheats.stopPrank();
+    }
+
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
@@ -196,7 +235,7 @@ contract TestHelper is EigenLayrDeployer {
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
     }
 
@@ -386,7 +425,8 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 */
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data) internal {
+
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -402,7 +442,7 @@ contract TestHelper is EigenLayrDeployer {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKey, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
@@ -428,7 +468,7 @@ contract TestHelper is EigenLayrDeployer {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
 
         // hard-coded values
@@ -727,4 +767,17 @@ contract TestHelper is EigenLayrDeployer {
                                     );
         cheats.stopPrank();
     }
+
+    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
+
+        uint256[4] memory pk;
+        // verify sig of public key and get pubkeyHash back, slice out compressed apk
+        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
+
+        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+
+        return pkHash;
+
+    }
 }
+

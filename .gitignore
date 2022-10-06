@@ -4,6 +4,9 @@
 coverage
 coverage.json
 typechain
+config.json
+contract.addresses
+deployedAddresses
 
 #Hardhat files
 cache
@@ -13,3 +16,8 @@ artifacts
 out
 
 *.DS_Store
+
+broadcast
+
+# Deployment tools
+/data

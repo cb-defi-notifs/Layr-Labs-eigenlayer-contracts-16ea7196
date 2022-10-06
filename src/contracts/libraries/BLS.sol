@@ -86,6 +86,7 @@ library BLS {
         // calculate H(m) = H(pk)
         (input[0], input[1]) = hashToG1(keccak256(abi.encodePacked(input[2], input[3], input[4], input[5], operator)));
 
+
         assembly {
             // check the pairing
             if iszero(
