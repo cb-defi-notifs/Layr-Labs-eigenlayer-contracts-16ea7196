@@ -7,6 +7,8 @@ import "../contracts/libraries/BytesLib.sol";
 contract RegistrationTests is TestHelper {
     using BytesLib for bytes;
 
+    /// @notice This test ensures that the optimistic flow for BLS registration 
+    ///         works as intended by checking storage updates in the registration contracts.
     function testBLSRegistration(
         uint8 operatorIndex,
         uint256 ethAmount, 
@@ -60,6 +62,7 @@ contract RegistrationTests is TestHelper {
         }
     }
 
+    /// @notice Tests that registering the same public key twice reverts appropriately.
     function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
         cheats.startPrank(signers[operatorIndex]);
         //try to register the same pubkey twice
@@ -70,6 +73,7 @@ contract RegistrationTests is TestHelper {
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
     }
 
+    /// @notice Tests that re-registering while an msg.sender is actively registered reverts.
     function testRegisterWhileAlreadyActive(
         uint8 operatorIndex, 
         uint256 ethAmount, 
@@ -108,8 +112,8 @@ contract RegistrationTests is TestHelper {
         cheats.stopPrank();
     }
 
-    //Test that when operator tries to register with DataLayr 
-    // with a public key that they haven't registered in the BLSPublicKeyCompendium, it fails
+    /// @notice Test that when operator tries to register with DataLayr with a public key 
+    ///         that they haven't registered in the BLSPublicKeyCompendium, it fails
     function testOperatorDoesNotOwnPublicKey(
         uint8 operatorIndex, 
         uint256 ethAmount, 
@@ -134,7 +138,7 @@ contract RegistrationTests is TestHelper {
             testSocket
         );
     } 
-
+    /// @notice Tests that registering without having delegated in any quorum reverts
     function testRegisterForDataLayrWithNeitherQuorum(
         uint8 operatorIndex,
         uint256 ethAmount,
@@ -160,7 +164,7 @@ contract RegistrationTests is TestHelper {
             testSocket
         );
     }
-
+    /// @notice Tests that registering without adequate quorum stake reverts
     function testRegisterWithoutEnoughQuorumStake(
         uint8 operatorIndex
     ) fuzzedOperatorIndex(operatorIndex) public {
@@ -182,7 +186,7 @@ contract RegistrationTests is TestHelper {
     }
 
 
-    //Test if aggregate PK doesn't change when registered with 0 pub key
+    /// @notice Test if aggregate PK doesn't change when registered with public key = 0.
     function testRegisterWithZeroPubKey(
         uint8 operatorIndex,
         uint256 ethAmount,
@@ -214,7 +218,7 @@ contract RegistrationTests is TestHelper {
         cheats.stopPrank(); 
     }
 
-    //test for registering without slashing opt in
+    /// @notice Tests for registering without having opeted into slashing.
     function testRegisterWithoutSlashingOptIn(
         uint8 operatorIndex,
         uint256 ethAmount,
@@ -243,7 +247,9 @@ contract RegistrationTests is TestHelper {
             testSocket
         );
      }
-
+    /// @notice Tests that when operator registers with the same public key 
+    ///         as the current aggregate public key, it reverts.  Currently
+    ///         signature aggregation doesn't support x + x.
     function testRegisteringWithSamePubKeyAsAggPubKey(
         uint8 operatorIndex,
         uint256 ethAmount,
