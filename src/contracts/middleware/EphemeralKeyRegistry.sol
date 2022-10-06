@@ -88,8 +88,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         uint256 historyLength = _getEKHistoryLength(operator);
         EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
 
-        emit log_named_bytes32("prevEK", keccak256(abi.encode(prevEK)));
-        emit log_named_bytes32("ephememarl", existingEKEntry.keyHash);
 
         // check that the preimage matches with the hash
         require(

@@ -186,7 +186,7 @@ contract RegistrationTests is TestHelper {
     }
 
 
-    /// @notice Test if aggregate PK doesn't change when registered with public key = 0.
+    /// @notice Test if registering with public key = 0 reverts.
     function testRegisterWithZeroPubKey(
         uint8 operatorIndex,
         uint256 ethAmount,
@@ -218,7 +218,7 @@ contract RegistrationTests is TestHelper {
         cheats.stopPrank(); 
     }
 
-    /// @notice Tests for registering without having opeted into slashing.
+    /// @notice Tests for registering without having opted into slashing.
     function testRegisterWithoutSlashingOptIn(
         uint8 operatorIndex,
         uint256 ethAmount,
