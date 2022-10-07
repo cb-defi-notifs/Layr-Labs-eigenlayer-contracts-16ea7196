@@ -9,6 +9,6 @@ import "./IEigenPodFactory.sol";
  */
 
 interface IEigenPod {
-    function initialize(IEigenPodFactory _eigenPodFactor, address owner) external;
+    function initialize(IEigenPodFactory _eigenPodFactory, address owner) external;
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 }

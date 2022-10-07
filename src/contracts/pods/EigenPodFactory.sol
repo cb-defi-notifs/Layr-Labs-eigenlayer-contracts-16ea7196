@@ -11,6 +11,7 @@ import "../interfaces/IEigenPod.sol";
 contract EigenPodFactory is IEigenPodFactory {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
+    
     IBeacon immutable eigenPodBeacon;
 
     struct EigenPodInfo {

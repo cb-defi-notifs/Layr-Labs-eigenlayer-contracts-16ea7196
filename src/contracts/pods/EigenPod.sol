@@ -76,7 +76,7 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].stake = validatorStake;
         validators[merklizedPubkey].status == VALIDATOR_STATUS.STAKED;
         //update factory total stake for this pod
-        //need to substract zero and add the proven balance
+        //need to subtract zero and add the proven balance
         eigenPodFactory.updateBeaconChainStake(owner, 0, validatorStake);
     }
 
@@ -99,13 +99,13 @@ contract EigenPod is IEigenPod, Initializable {
         );
         //require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for provided pubkey");
-        //convert the balance field from 8 bytes of little endian to uint256 big endian 💪
+        //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorStake = fromLittleEndianUint64(validatorFields[2]);
         uint64 prevValidatorStake = validators[merklizedPubkey].stake;
         //update validator stake
         validators[merklizedPubkey].stake = validatorStake;
         //update factory total stake for this pod
-        //need to substract zero and add the proven balance
+        //need to subtract previous proven balance and add the current proven balance
         eigenPodFactory.updateBeaconChainStake(owner, prevValidatorStake, validatorStake);
     }
 
@@ -113,15 +113,19 @@ contract EigenPod is IEigenPod, Initializable {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 
+    //copied from https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code, thanks
     function fromLittleEndianUint64(bytes32 num) internal pure returns (uint64) {
-        bytes32 valueBytes32;
-        for (uint i = 0; i < 8; i++) {
-            // for each byte (0 - 7) inclusive
-            // take the  (8 - i)th byte from the end: (num & bytes32((0xFF00000000000000 >> (8 * i))))
-            // shift it over by i bytes to the right: << (8 * i)
-            valueBytes32 |= (num & bytes32((0xFF00000000000000 >> (8 * i)))) << (8 * i);
-        }
-        return uint64(uint256(valueBytes32));
+        uint64 v = uint64(uint256(num >> 192));
+        //if we number the bytes (1, 2, 3, 4, 5, 6, 7, 8)
+        v = ((v & 0x00ff00ff00ff00ff) << 8) | ((v & 0xff00ff00ff00ff00) >> 8);
+        // (2, 0, 4, 0, 6, 0, 8, 0) | (0, 1, 0, 3, 0, 5, 0, 7)
+        // = (2, 1, 4, 3, 6, 5, 8, 7)
+        v = ((v & 0x0000ffff0000ffff) << 16) | ((v & 0xffff0000ffff0000) >> 16);
+        // (4, 3, 0, 0, 8, 7, 0, 0) | (0, 0, 2, 1, 0, 0, 6, 5)
+        // = (4, 3, 2, 1, 8, 7, 6, 5)
+        // then
+        // = (8, 7, 6, 5, 4, 3, 2, 1)
+        return (v << 32) | (v >> 32);
     }
 
 }
