@@ -69,6 +69,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     function lowDegreeChallenge(
         bytes calldata header,
+        uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData
@@ -81,7 +82,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         proofInG1.X = header.slice(64, 32);
         proofInG1.Y = header.slice(96, 32);
 
-        bool lowDegreeProofVerified = lowDegreenesProof(header, potElement, potMerkleProof, proofInG1);
+        bool lowDegreeProofVerified = lowDegreenesProof(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
 
         if(!lowDegreeProofVerified){
             require(dataStoreHashesForDurationAtTimestamp[dataStoreSearchData.duration][dataStoreSearchData.timestamp][dataStoreSearchData.index] == 

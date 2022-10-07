@@ -135,7 +135,8 @@ library BN254 {
         G1Point memory a1, 
         G2Point memory a2, 
         G1Point memory b1, 
-        G2Point memory b2
+        G2Point memory b2,
+        uint256 pairingGas
     )
         internal
         view
@@ -161,7 +162,7 @@ library BN254 {
 
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-            success := staticcall(sub(gas(), 2000), 8, input, mul(12, 0x20), out, 0x20)
+            success := staticcall(pairingGas, 8, input, mul(12, 0x20), out, 0x20)
             // Use "invalid" to make gas estimation work
             switch success
             case 0 { invalid() }
