@@ -166,14 +166,18 @@ contract InvestmentManager is
 
     /**
      * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
-     */
-    /**
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -413,7 +417,15 @@ contract InvestmentManager is
         queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
     }
 
-    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    /**
+     * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
+     */
     function slashShares(
         address slashedAddress,
         address recipient,
