@@ -223,7 +223,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             dataStoresForDuration.latestTime = _latestTime;
         }
 
-        incrementDataStoresForDuration(duration);
+        _incrementDataStoresForDuration(duration);
 
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
@@ -350,18 +350,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         feePerBytePerTime = _feePerBytePerTime;
     }
 
-    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
-        external
-        view
-        returns (bytes32)
-    {
-        return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
-    }
-
     /**
      * @notice increments the number of data stores for the @param duration
      */
-    function incrementDataStoresForDuration(uint8 duration) public {
+    function _incrementDataStoresForDuration(uint8 duration) internal {
         if (duration == 1) {
             ++dataStoresForDuration.one_duration;
         }
@@ -383,6 +375,14 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             ++dataStoresForDuration.seven_duration;
         }
+    }
+
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
+        external
+        view
+        returns (bytes32)
+    {
+        return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
 
     /**
