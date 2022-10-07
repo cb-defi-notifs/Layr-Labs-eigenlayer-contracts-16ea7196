@@ -45,8 +45,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-    uint128 public firstQuorumSignedThresholdPercentage = 90;
-    uint128 public secondQuorumSignedThresholdPercentage = 90;
+    uint128 public firstQuorumThresholdPercentage = 90;
+    uint128 public secondQuorumThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -322,9 +322,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
             (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
-                >= firstQuorumSignedThresholdPercentage
+                >= firstQuorumThresholdPercentage
                 && (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum
-                    >= secondQuorumSignedThresholdPercentage,
+                    >= secondQuorumThresholdPercentage,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
