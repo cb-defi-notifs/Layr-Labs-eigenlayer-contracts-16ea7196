@@ -45,6 +45,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
+    // sanity checks. should always require *some* signatures, but never *all* signatures
+    uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
+    uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
+
     uint128 public firstQuorumThresholdPercentage = 90;
     uint128 public secondQuorumThresholdPercentage = 90;
 
@@ -94,6 +98,30 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
+    }
+
+    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
+        );
+        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+    }
+
+    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
+        );
+        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
     }
 
     /**
