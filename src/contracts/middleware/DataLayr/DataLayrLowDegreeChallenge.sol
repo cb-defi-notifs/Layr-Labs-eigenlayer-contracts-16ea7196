@@ -65,6 +65,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
      */
 
     //TODO: we need to hardcode a merkle root hash in storage
+    //TODO integreate with slashing
     function lowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
