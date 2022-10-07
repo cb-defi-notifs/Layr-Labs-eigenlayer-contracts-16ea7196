@@ -3,6 +3,7 @@
 pragma solidity ^0.8.9;
 
 import "./Merkle.sol";
+import "./BytesLib.sol";
 
 //TODO: Validate this entire library
 
@@ -11,6 +12,7 @@ import "./Merkle.sol";
 //BeaconBlockHeader Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
 library BeaconChainProofs {
+    using BytesLib for bytes;
     uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
     uint256 public constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
 
@@ -71,5 +73,43 @@ library BeaconChainProofs {
         }
 
         return Merkle.merkleizeSha256(ETH1_DATA_FIELD_TREE_HEIGHT, paddedEth1DataFields);
+    }
+
+    function verifyValidatorFields(
+        bytes32 beaconStateRoot, 
+        bytes calldata proofs, 
+        bytes32[] calldata validatorFields
+    ) internal pure {
+        //offset 32 bytes for validatorTreeRoot
+        uint256 pointer;
+        bool valid;
+        //verify that the validatorTreeRoot is within the top level beacon state tree
+        bytes32 validatorTreeRoot = proofs.toBytes32(0);
+        valid = Merkle.checkMembershipSha256(
+            validatorTreeRoot,
+            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
+            beaconStateRoot,
+            proofs.slice(pointer, 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS)
+        );
+        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator tree root from beacon state proof");
+        //offset the length of the beacon state proof
+        pointer += 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS;
+        // verify the proof of the validator metadata root against the merkle root of the entire validator tree
+        //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
+        bytes32 validatorRoot = proofs.toBytes32(pointer);
+        //offset another 4 bytes for the length of the validatorIndex
+        pointer += 32;
+        //verify that the validatorRoot is within the validator tree
+        valid = Merkle.checkMembershipSha256(
+            validatorRoot,
+            proofs.toUint32(pointer), //validatorIndex
+            validatorTreeRoot,
+            proofs.slice(pointer, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
+        );
+        //offset another 4 bytes for the length of the validatorIndex
+        pointer += 4;
+        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator root from validator tree root proof");
+        //make sure that the provided validatorFields are consistent with the proven leaf
+        require(validatorRoot == Merkle.merkleizeSha256(BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, validatorFields), "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator fields");
     }
 }
