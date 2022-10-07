@@ -276,14 +276,7 @@ contract InvestmentManager is
             "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
         );
         //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
-        queuedWithdrawals[withdrawalRoot] = WithdrawalStorage({
-            // do not modify the initTimestamp
-            initTimestamp: queuedWithdrawals[withdrawalRoot].initTimestamp,
-            // withdrawer remains `msg.sender`
-            withdrawer: msg.sender,
-            // set the unlockTimestamp appropriately
-            unlockTimestamp: max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter)
-        });
+        queuedWithdrawals[withdrawalRoot].unlockTimestamp = max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter);
     }
 
     /**
@@ -565,35 +558,45 @@ contract InvestmentManager is
         // if no existing shares, remove is from this investors strats
 
         if (userShares == 0) {
-            // if the strategy matches with the strategy index provided
-            if (investorStrats[depositor][strategyIndex] == strategy) {
-                // replace the strategy with the last strategy in the list
-                investorStrats[depositor][strategyIndex] =
-                    investorStrats[depositor][investorStrats[depositor].length - 1];
-            } else {
-                //loop through all of the strategies, find the right one, then replace
-                uint256 stratsLength = investorStrats[depositor].length;
-
-                for (uint256 j = 0; j < stratsLength;) {
-                    if (investorStrats[depositor][j] == strategy) {
-                        //replace the strategy with the last strategy in the list
-                        investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
-                        break;
-                    }
-                    unchecked {
-                        ++j;
-                    }
-                }
-            }
-
-            // pop off the last entry in the list of strategies
-            investorStrats[depositor].pop();
+            // remove the strategy from the depositor's dynamic array of strategies
+            _removeStrategyFromInvestorStrats(depositor, strategyIndex, strategy);
 
             // return true in the event that the strategy was removed from investorStrats[depositor]
             return true;
         }
         // return false in the event that the strategy was *not* removed from investorStrats[depositor]
         return false;
+    }
+
+    /**
+     * @notice Removes `strategy` from `depositor`'s dynamic array of strategies, i.e. from `investorStrats[depositor]`
+     * @dev the provided `strategyIndex` input is optimistically used to find the strategy quickly in the list. If the specified
+     * index is incorrect, then we revert to a brute-force search.
+     */
+    function _removeStrategyFromInvestorStrats(address depositor, uint256 strategyIndex, IInvestmentStrategy strategy) internal {
+        // if the strategy matches with the strategy index provided
+        if (investorStrats[depositor][strategyIndex] == strategy) {
+            // replace the strategy with the last strategy in the list
+            investorStrats[depositor][strategyIndex] =
+                investorStrats[depositor][investorStrats[depositor].length - 1];
+        } else {
+            //loop through all of the strategies, find the right one, then replace
+            uint256 stratsLength = investorStrats[depositor].length;
+
+            for (uint256 j = 0; j < stratsLength;) {
+                if (investorStrats[depositor][j] == strategy) {
+                    //replace the strategy with the last strategy in the list
+                    investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
+                    break;
+                }
+                unchecked {
+                    ++j;
+                }
+            }
+        }
+
+        // pop off the last entry in the list of strategies
+        investorStrats[depositor].pop();
     }
 
     /**
