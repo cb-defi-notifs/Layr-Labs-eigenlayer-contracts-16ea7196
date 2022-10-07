@@ -89,11 +89,11 @@ library BeaconChainProofs {
             validatorTreeRoot,
             BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
             beaconStateRoot,
-            proofs.slice(pointer, 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS)
+            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT)
         );
         require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator tree root from beacon state proof");
         //offset the length of the beacon state proof
-        pointer += 32 * BeaconChainProofs.NUM_BEACON_STATE_FIELDS;
+        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
         // verify the proof of the validator metadata root against the merkle root of the entire validator tree
         //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
         bytes32 validatorRoot = proofs.toBytes32(pointer);
