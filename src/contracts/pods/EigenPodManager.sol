@@ -4,11 +4,11 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
-import "../interfaces/IEigenPodFactory.sol";
+import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 
-contract EigenPodFactory is IEigenPodFactory {
+contract EigenPodManager is IEigenPodManager {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
     
@@ -39,7 +39,7 @@ contract EigenPodFactory is IEigenPodFactory {
                         // set the beacon address to the eigenPodBeacon, no initialization data for now
                         abi.encodePacked(
                             type(BeaconProxy).creationCode, 
-                            abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodFactory(address(this)), msg.sender)
+                            abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender)
                         )
                     )
                 );
@@ -54,7 +54,7 @@ contract EigenPodFactory is IEigenPodFactory {
     }
 
     modifier onlyEigenPod(address podOwner, address pod) {
-        require(address(pods[podOwner].pod) == pod, "EigenPodFactory.onlyEigenPod: Not a pod");
+        require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: Not a pod");
         _;
     }
 }

@@ -5,7 +5,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
 import "../interfaces/IETHPOSDeposit.sol";
-import "../interfaces/IEigenPodFactory.sol";
+import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 
 contract EigenPod is IEigenPod, Initializable {
@@ -25,7 +25,7 @@ contract EigenPod is IEigenPod, Initializable {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
 
-    IEigenPodFactory public eigenPodFactory;
+    IEigenPodManager public eigenPodManager;
     address public owner;
     mapping(bytes32 => Validator) public validators;
 
@@ -34,8 +34,8 @@ contract EigenPod is IEigenPod, Initializable {
         _disableInitializers();
     }
 
-    function initialize(IEigenPodFactory _eigenPodFactory, address _owner) external initializer {
-        eigenPodFactory = _eigenPodFactory;
+    function initialize(IEigenPodManager _eigenPodManager, address _owner) external initializer {
+        eigenPodManager = _eigenPodManager;
         owner = _owner;
     }
 
@@ -77,7 +77,7 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].status == VALIDATOR_STATUS.STAKED;
         //update factory total stake for this pod
         //need to subtract zero and add the proven balance
-        eigenPodFactory.updateBeaconChainStake(owner, 0, validatorStake);
+        eigenPodManager.updateBeaconChainStake(owner, 0, validatorStake);
     }
 
     function verifyStakeUpdate(
@@ -106,7 +106,7 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].stake = validatorStake;
         //update factory total stake for this pod
         //need to subtract previous proven balance and add the current proven balance
-        eigenPodFactory.updateBeaconChainStake(owner, prevValidatorStake, validatorStake);
+        eigenPodManager.updateBeaconChainStake(owner, prevValidatorStake, validatorStake);
     }
 
     function podWithdrawalCredentials() internal view returns(bytes memory) {

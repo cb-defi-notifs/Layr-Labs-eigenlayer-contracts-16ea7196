@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./IEigenPodFactory.sol";
+import "./IEigenPodManager.sol";
 
 /**
  * @title Interface for solo staking pods that have their withdrawal credentials pointed to EigenLayer.
@@ -9,6 +9,6 @@ import "./IEigenPodFactory.sol";
  */
 
 interface IEigenPod {
-    function initialize(IEigenPodFactory _eigenPodFactory, address owner) external;
+    function initialize(IEigenPodManager _eigenPodManager, address owner) external;
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
 }
