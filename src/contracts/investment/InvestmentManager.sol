@@ -98,9 +98,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
-     */
-    /**
+     * @notice used for investing an asset into the specified strategy on behalf of a staker, who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
@@ -118,15 +116,10 @@ contract InvestmentManager is
         bytes32 vs
     )
         external
+        onlyNotFrozen(staker)
         nonReentrant
         returns (uint256 shares)
     {
-        //make not frozen check here instead of modifier
-        require(
-            !slasher.isFrozen(staker),
-            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
-        );
-
         require(
             expiry == 0 || expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
@@ -240,6 +233,7 @@ contract InvestmentManager is
 
         return withdrawalRoot;
     }
+
     /*
     * 
     * The withdrawal flow is:
@@ -250,7 +244,6 @@ contract InvestmentManager is
     * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
     *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
     */
-
     function startQueuedWithdrawalWaitingPeriod(address depositor, bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
         external
     {
@@ -406,8 +399,10 @@ contract InvestmentManager is
         );
 
         {
-            // ongoing task is still active at time when staker was finalizing undelegation
-            // and, therefore, hasn't served its obligation.
+            /**
+             * Verify that there is an ongoing task, created at or before the `initTimestamp` and that expires
+             * strictly after the `unlockTimestamp` for this queued withdrawal
+             */
             slashingContract.stakeWithdrawalVerification(
                 data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
             );

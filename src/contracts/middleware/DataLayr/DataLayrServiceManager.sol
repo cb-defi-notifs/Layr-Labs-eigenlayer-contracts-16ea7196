@@ -418,6 +418,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     /**
+     * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
+     * specified `unlockTime`
+     * @dev Function reverts if the verification fails.
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
     function stakeWithdrawalVerification(
