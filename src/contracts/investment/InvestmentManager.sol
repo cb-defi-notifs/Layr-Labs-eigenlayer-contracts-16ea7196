@@ -487,7 +487,7 @@ contract InvestmentManager is
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
-        // verify that the queued withdrawal has been successfully challenged
+        // verify that *either* the queued withdrawal has been successfully challenged, *or* the `depositor` has been frozen
         require(
             queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(depositor),
             "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
