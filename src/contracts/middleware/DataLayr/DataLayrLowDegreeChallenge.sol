@@ -16,6 +16,7 @@ import "./DataLayrChallengeBase.sol";
 
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
+import "../libraries/BytesLib.sol";
 import "../../libraries/DataStoreUtils.sol";
 
 
@@ -25,12 +26,17 @@ import "../../libraries/DataStoreUtils.sol";
  */
 contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
+    using BytesLib for bytes;
 
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
         uint256 commitTime;
         // challenger's address
         address challenger;
+    }
+
+    struct nonSignerExclusionProof {
+
     }
 
     // length of window during which the responses can be made to the challenge
@@ -65,20 +71,25 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        BN254.G1Point memory proofInG1,
         IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData
     ) external {
         
         require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
 
+        /// @dev Refer to the datastore header spec
+        BN254.G1Point proofInG1;
+        proofInG1.X = header.slice(64, 32);
+        proofInG1.Y = header.slice(96, 32);
+
         bool lowDegreeProofVerified = lowDegreenesProof(header, potElement, potMerkleProof, proofInG1);
 
         if(!lowDegreeProofVerified){
-            //ensure that provided searchData matches stored ds searchData
             require(dataStoreHashesForDurationAtTimestamp[dataStoreSearchData.duration][dataStoreSearchData.timestamp][dataStoreSearchData.index] == 
                     DataStoreUtils.computeDataStoreHash(dataStoreSearchData.metadata), 
                 "DataLayrLowDegreeChallenge.lowDegreeChallenge: Provided metadata does not match stored datastore metadata hash"
             );
+
+
 
 
         }
@@ -115,15 +126,13 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
 
-        bool success =  Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof);
-        require(success, "DataLayreLowDegreeChallenge.lowDegreenessProof: Merkle proof was not validated");
+        bool merkleProofValid =  Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof);
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-        success = BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2);
-        require(success, "DataLayreLowDegreeChallenge.lowDegreenessProof: Pairing Failed");
+        (bool pairingSuccessful, bool precompileWorks) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2);
 
-        return success;
+        return (merkleProofValid && pairingSuccessful && precompileWorks);
     }
 
     function respondToLowDegreeChallenge(
