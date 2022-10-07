@@ -56,23 +56,34 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // solhint-disable-next-line no-empty-blocks
     {}
 
+
+    function lowDegreeChallenge(
+        bytes calldata header,
+        BN254.G2Point memory potElement,
+        bytes memory potMerkleProof,
+        BN254.G1Point memory proofInG1,
+
+    ) external {
+
+    }
+
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
      * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
      * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
+     * @param potMerkleProof is the merkle proof for the POT element.
      * @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
      * We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
      */
 
     //TODO: we need to hardcode a merkle root hash in storage
-    //TODO integreate with slashing
     function lowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1
     )
-        external
+        public
         view
     {
         //retreiving the kzg commitment to the data in the form of a polynomial
@@ -85,13 +96,13 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
         require(
             Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof),
-            "Merkle proof was not validated"
+            "DataLayreLowDegreeChallenge.lowDegreenessProof: Merkle proof was not validated"
         );
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
         require(
             BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2),
-            "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed"
+            "DataLayreLowDegreeChallenge.lowDegreenessProof: Pairing Failed"
         );
     }
 
