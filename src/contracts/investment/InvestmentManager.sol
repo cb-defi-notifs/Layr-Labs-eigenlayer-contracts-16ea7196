@@ -464,7 +464,11 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
-    /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+    /**
+     *  @notice Slashes an existing queued withdrawal
+     *  @dev The queued withdrawal must have *either* been created by a 'frozen' operator (or a staker delegated to one)
+     *  *OR* successfully challenged by a previous call to `challengeQueuedWithdrawal`
+     */
     function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
