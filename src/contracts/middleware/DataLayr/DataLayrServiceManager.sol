@@ -58,6 +58,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
 
+    event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
+
     constructor(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -69,7 +71,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
     {
-        feePerBytePerTime = _feePerBytePerTime;
+        _setFeePerBytePerTime(_feePerBytePerTime);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _initializePauser(_pauserRegistry);
@@ -347,7 +349,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
-        feePerBytePerTime = _feePerBytePerTime;
+        _setFeePerBytePerTime(_feePerBytePerTime);
     }
 
     /**
@@ -375,6 +377,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             ++dataStoresForDuration.seven_duration;
         }
+    }
+
+    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
+        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
+        feePerBytePerTime = _feePerBytePerTime;
     }
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
