@@ -91,7 +91,7 @@ library BeaconChainProofs {
             beaconStateRoot,
             proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT)
         );
-        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator tree root from beacon state proof");
+        require(valid, "EigenPod.verifyValidatorFields: Invalid validator tree root from beacon state proof");
         //offset the length of the beacon state proof
         pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
         // verify the proof of the validator metadata root against the merkle root of the entire validator tree
@@ -108,8 +108,8 @@ library BeaconChainProofs {
         );
         //offset another 4 bytes for the length of the validatorIndex
         pointer += 4;
-        require(valid, "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator root from validator tree root proof");
+        require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
         //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, validatorFields), "EigenPod.proveCorrectWithdrawalCredentials: Invalid validator fields");
+        require(validatorRoot == Merkle.merkleizeSha256(BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
     }
 }
