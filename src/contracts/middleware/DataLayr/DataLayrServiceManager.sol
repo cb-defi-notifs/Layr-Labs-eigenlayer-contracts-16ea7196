@@ -223,7 +223,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             dataStoresForDuration.latestTime = _latestTime;
         }
 
-        incrementDataStoresForDuration(duration);
+        _incrementDataStoresForDuration(duration);
 
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
@@ -359,33 +359,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     /**
-     * @notice increments the number of data stores for the @param duration
-     */
-    function incrementDataStoresForDuration(uint8 duration) public {
-        if (duration == 1) {
-            ++dataStoresForDuration.one_duration;
-        }
-        if (duration == 2) {
-            ++dataStoresForDuration.two_duration;
-        }
-        if (duration == 3) {
-            ++dataStoresForDuration.three_duration;
-        }
-        if (duration == 4) {
-            ++dataStoresForDuration.four_duration;
-        }
-        if (duration == 5) {
-            ++dataStoresForDuration.five_duration;
-        }
-        if (duration == 6) {
-            ++dataStoresForDuration.six_duration;
-        }
-        if (duration == 7) {
-            ++dataStoresForDuration.seven_duration;
-        }
-    }
-
-    /**
      * @notice returns the number of data stores for the @param duration
      */
     function getNumDataStoresForDuration(uint8 duration) public view returns (uint32) {
@@ -451,5 +424,34 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
+    }
+
+    // INTERNAL FUNTIONS
+
+    /**
+     * @notice increments the number of data stores for the @param duration
+     */
+    function _incrementDataStoresForDuration(uint8 duration) internal {
+        if (duration == 1) {
+            ++dataStoresForDuration.one_duration;
+        }
+        if (duration == 2) {
+            ++dataStoresForDuration.two_duration;
+        }
+        if (duration == 3) {
+            ++dataStoresForDuration.three_duration;
+        }
+        if (duration == 4) {
+            ++dataStoresForDuration.four_duration;
+        }
+        if (duration == 5) {
+            ++dataStoresForDuration.five_duration;
+        }
+        if (duration == 6) {
+            ++dataStoresForDuration.six_duration;
+        }
+        if (duration == 7) {
+            ++dataStoresForDuration.seven_duration;
+        }
     }
 }
