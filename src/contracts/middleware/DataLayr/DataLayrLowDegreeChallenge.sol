@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
+import "../../interfaces/IDataLayrServiceManager.sol";
+
 
 import "../Repository.sol";
 
@@ -14,6 +16,8 @@ import "./DataLayrChallengeBase.sol";
 
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
+import "../../libraries/DataStoreUtils.sol";
+
 
 /**
  * @title Used to create and manage low degree challenges related to DataLayr.
@@ -62,8 +66,23 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1,
-
+        IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData
     ) external {
+        
+        require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
+
+        bool lowDegreeProofVerified = lowDegreenesProof(header, potElement, potMerkleProof, proofInG1);
+
+        if(!lowDegreeProofVerified){
+            //ensure that provided searchData matches stored ds searchData
+            require(dataStoreHashesForDurationAtTimestamp[dataStoreSearchData.duration][dataStoreSearchData.timestamp][dataStoreSearchData.index] == 
+                    DataStoreUtils.computeDataStoreHash(dataStoreSearchData.metadata), 
+                "DataLayrLowDegreeChallenge.lowDegreeChallenge: Provided metadata does not match stored datastore metadata hash"
+            );
+
+
+        }
+
 
     }
 
@@ -85,6 +104,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     )
         public
         view
+        returns (bool)
     {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
@@ -94,16 +114,16 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
-        require(
-            Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof),
-            "DataLayreLowDegreeChallenge.lowDegreenessProof: Merkle proof was not validated"
-        );
+
+        bool success =  Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof);
+        require(success, "DataLayreLowDegreeChallenge.lowDegreenessProof: Merkle proof was not validated");
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
-        require(
-            BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2),
-            "DataLayreLowDegreeChallenge.lowDegreenessProof: Pairing Failed"
-        );
+
+        success = BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2);
+        require(success, "DataLayreLowDegreeChallenge.lowDegreenessProof: Pairing Failed");
+
+        return success;
     }
 
     function respondToLowDegreeChallenge(

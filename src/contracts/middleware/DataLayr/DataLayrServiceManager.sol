@@ -108,7 +108,15 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @param feePayer is the address of the balance paying the fees for this datastore. check DataLayrPaymentManager for further details
      * @param confirmer is the address that must confirm the datastore
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * CRITIC -- need to describe header structure
+     *  type DataStoreHeader struct {
+     *   KzgCommit      [64]byte
+     *   LowDegreeProof [64]byte
+     *   Degree         uint32 
+     *   NumSys         uint32
+     *   NumPar         uint32
+     *   OrigDataSize   uint32 
+     *   Disperser      [20]byte
+}
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
