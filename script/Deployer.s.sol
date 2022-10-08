@@ -298,7 +298,7 @@ contract EigenLayrDeployer is
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, slasher);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);

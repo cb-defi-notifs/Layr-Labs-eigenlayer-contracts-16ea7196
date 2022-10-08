@@ -67,7 +67,7 @@ abstract contract DataLayrChallengeBase {
                 dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                     searchData.duration, searchData.timestamp, searchData.index
                 ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-                "search.metadataclear preimage is incorrect"
+                "DataLayrChallengeBase.openChallenge: Provided metadata does not match stored datastore metadata hash"
             );
 
             // check that disperser had acquire quorum for this dataStore
@@ -75,13 +75,13 @@ abstract contract DataLayrChallengeBase {
 
             // check that the dataStore is still ongoing
             uint256 expireTime = searchData.timestamp + searchData.duration;
-            require(block.timestamp <= expireTime, "Dump has already expired");
+            require(block.timestamp <= expireTime, "DataLayrChallengeBase.openChallenge: Dump has already expired");
         }
 
         bytes32 headerHash = searchData.metadata.headerHash;
 
         // check that the challenge doesn't exist yet
-        require(!challengeExists(headerHash), "Challenge already opened for headerHash");
+        require(!challengeExists(headerHash), "DataLayrChallengeBase.openChallenge: Challenge already opened for headerHash");
 
         _recordChallengeDetails(header, headerHash);
 
@@ -93,10 +93,10 @@ abstract contract DataLayrChallengeBase {
 
     /// @notice Mark a challenge as successful when it has succeeded. Operators can subsequently be slashed.
     function resolveChallenge(bytes32 headerHash) external {
-        require(challengeExists(headerHash), "Challenge does not exist");
-        require(!challengeUnsuccessful(headerHash), "Challenge failed");
+        require(challengeExists(headerHash), "DataLayrChallengeBase.resolveChallenge: Challenge does not exist");
+        require(!challengeUnsuccessful(headerHash), "DataLayrChallengeBase.resolveChallenge: Challenge failed");
         // check that the challenge window is no longer open
-        require(challengeClosed(headerHash), "Challenge response period has not yet elapsed");
+        require(challengeClosed(headerHash), "DataLayrChallengeBase.resolveChallenge: Challenge response period has not yet elapsed");
 
         // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
         // and to signal that the challenge has been lost by the signers
@@ -115,16 +115,31 @@ abstract contract DataLayrChallengeBase {
         IDataLayrServiceManager.DataStoreSearchData calldata searchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     )
-        external
+        public
     {
         // verify that the challenge has been lost by the operator side
-        require(challengeSuccessful(headerHash), "Challenge not successful");
+        require(challengeSuccessful(headerHash), "DataLayrChallengeBase.slashOperator: Challenge not successful");
 
         require(
             dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
                 searchData.duration, searchData.timestamp, searchData.index
             ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "search.metadata preimage is incorrect"
+            "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
+        );
+
+       
+         bytes32 signatoryRecordHash = keccak256(
+                                            abi.encodePacked(
+                                                searchData.metadata.globalDataStoreId, 
+                                                signatoryRecord.nonSignerPubkeyHashes, 
+                                                signatoryRecord.totalEthStakeSigned, 
+                                                signatoryRecord.totalEigenStakeSigned
+                                            )
+                                        );
+
+        require(
+            searchData.metadata.signatoryRecordHash == signatoryRecordHash, 
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
         );
 
         // verify that operator was active *at the blockNumber*
@@ -140,7 +155,7 @@ abstract contract DataLayrChallengeBase {
                 operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
                     || operatorStake.nextUpdateBlockNumber == 0
             ),
-            "operator was not active during blockNumber specified by dataStoreId / headerHash"
+            "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
         );
 
         /**
@@ -164,6 +179,7 @@ abstract contract DataLayrChallengeBase {
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // check that operator was *not* in the non-signer set (i.e. they *did* sign)
                 challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+                
             }
         }
 

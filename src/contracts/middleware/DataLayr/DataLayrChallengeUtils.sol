@@ -64,48 +64,6 @@ contract DataLayrChallengeUtils {
         }
     }
 
-
-    /**
-     * @notice Makes sure that operatorPubkeyHash was *excluded* from set of non-signers
-     * @dev Reverts if the operator *is* in the non-signer set.
-     */
-    function isExcludedFromNonSignerSet(
-        bytes32 operatorPubkeyHash,
-        uint256 nonSignerIndex,
-        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    )
-        external
-        pure
-        returns (bool)
-    {
-        bool isExcluded = true;
-        if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-            if(
-                //they're either greater than everyone in the nspkh array
-                (
-                    nonSignerIndex == signatoryRecord.nonSignerPubkeyHashes.length
-                        && uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) < uint256(operatorPubkeyHash)
-                )
-                //or nonSigner index is greater than them
-                || (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) > uint256(operatorPubkeyHash))){
-
-                    isExcluded = false;
-                }
-        
-
-            //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
-            if (nonSignerIndex != 0) {
-                //require that the index+1 is before where operatorpubkey hash would be
-                if(
-                    uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) < uint256(operatorPubkeyHash)
-                ){
-                    isExcluded = false;
-                }
-            }
-        }
-        return isExcluded;
-    }
-
     /**
      * @notice Makes sure that operatorPubkeyHash was *included* in set of non-signers.
      * Reverts if the operator is *not* in the non-signer set.
