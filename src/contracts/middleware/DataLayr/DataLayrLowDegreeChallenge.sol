@@ -128,7 +128,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
      *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
 
-    //TODO: we need to hardcode a merkle root hash in storage
     function lowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
