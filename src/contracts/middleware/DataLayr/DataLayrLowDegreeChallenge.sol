@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
-
+import "../../interfaces/ISlasher.sol";
 
 import "../Repository.sol";
 
@@ -16,7 +16,7 @@ import "./DataLayrChallengeBase.sol";
 
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
-import "../libraries/BytesLib.sol";
+import "../../libraries/BytesLib.sol";
 import "../../libraries/DataStoreUtils.sol";
 
 
@@ -28,6 +28,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
+    ISlasher slasher;
+
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
         uint256 commitTime;
@@ -35,8 +37,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         address challenger;
     }
 
-    struct nonSignerExclusionProof {
-
+    struct nonSignerExclusionProof { 
+        bytes32 pubkeyHash;
+        address signerAddress;
     }
 
     // length of window during which the responses can be made to the challenge
@@ -54,7 +57,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils
+        DataLayrChallengeUtils _challengeUtils,
+        ISlasher _slasher
     )
         DataLayrChallengeBase(
             _dataLayrServiceManager,
@@ -64,7 +68,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             0
         )
     // solhint-disable-next-line no-empty-blocks
-    {}
+    {
+        slasher = _slasher;
+    }
 
 
     function lowDegreeChallenge(
@@ -72,7 +78,9 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData
+        nonSignerExclusionProof[] memory nonSignerExclusionProofs,
+        IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         
         require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
@@ -82,20 +90,37 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         proofInG1.X = header.slice(64, 32);
         proofInG1.Y = header.slice(96, 32);
 
-        bool lowDegreeProofVerified = lowDegreenesProof(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
+        bool lowDegreenessProofVerified = lowDegreenessProof(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
 
-        if(!lowDegreeProofVerified){
+        if(!lowDegreenessProofVerified){
+            //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
             require(dataStoreHashesForDurationAtTimestamp[dataStoreSearchData.duration][dataStoreSearchData.timestamp][dataStoreSearchData.index] == 
                     DataStoreUtils.computeDataStoreHash(dataStoreSearchData.metadata), 
                 "DataLayrLowDegreeChallenge.lowDegreeChallenge: Provided metadata does not match stored datastore metadata hash"
             );
 
+            bytes32 signatoryRecordHash = keccak256(abi.encodePacked(
+                                                            dataStoreSearchData.metadata.globalDataStoreId, 
+                                                            signatoryRecord.nonSignerPubkeyHashes, 
+                                                            signatoryRecord.totalEthStakeSigned, 
+                                                            signatoryRecord.totalEigenStakeSigned
+                                                        )
+                                                    );
 
+            require(dataStoreSearchData.metadata.signatoryRecordHash == signatoryRecordHash, "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData");
 
+            uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
+            //prove exclusion from nonsigning set aka inclusion in signing set
+            for(uint i; i < nonSignerExclusionProofs.length;){
+                if(challengeUtils.isExcludedFromNonSignerSet(nonSignerExclusionProofs[i].pubkeyHash, nonSignerIndex, signatoryRecord)){
+                    (bytes32 storedPubkeyHash,,,,,,) = dlRegistry.registry(nonSignerExclusionProofs.signerAddress);
+                    require(storedPubkeyHash == nonSignerExclusionProofs[i].pubkeyHash, "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signer pubkeyHash does not match registry records");
+                    slasher.freezeOperator(nonSignerExclusionProofs.signerAddress);
 
+                    
+                }
+            }
         }
-
-
     }
 
     /**
