@@ -35,7 +35,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     }
 
     struct nonSignerExclusionProof { 
-        bytes32 pubkeyHash;
         address signerAddress;
         uint32 operatorHistoryIndex;
     }
@@ -108,7 +107,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
                 );   
             }   
         }
-    }
+    } 
 
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
