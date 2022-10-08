@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IRegistry";
+import "../../interfaces/IRegistry.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/BN254.sol";
 import "../../libraries/BLS.sol";

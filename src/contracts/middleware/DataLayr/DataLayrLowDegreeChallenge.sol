@@ -79,22 +79,22 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         nonSignerExclusionProof[] memory nonSignerExclusionProofs,
-        IDataLayrServiceManager.DataStoreSearchData dataStoreSearchData,
+        IDataLayrServiceManager.DataStoreSearchData memory dataStoreSearchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         
         require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
 
         /// @dev Refer to the datastore header spec
-        BN254.G1Point proofInG1;
-        proofInG1.X = header.slice(64, 32);
-        proofInG1.Y = header.slice(96, 32);
+        BN254.G1Point memory proofInG1;
+        proofInG1.X = uint256(bytes32(header.slice(64, 32)));
+        proofInG1.Y = uint256(bytes32(header.slice(96, 32)));
 
         bool lowDegreenessProofVerified = lowDegreenessProof(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
 
         if(!lowDegreenessProofVerified){
             //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
-            require(dataStoreHashesForDurationAtTimestamp[dataStoreSearchData.duration][dataStoreSearchData.timestamp][dataStoreSearchData.index] == 
+            require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(dataStoreSearchData.duration, dataStoreSearchData.timestamp, dataStoreSearchData.index) == 
                     DataStoreUtils.computeDataStoreHash(dataStoreSearchData.metadata), 
                 "DataLayrLowDegreeChallenge.lowDegreeChallenge: Provided metadata does not match stored datastore metadata hash"
             );
@@ -113,11 +113,10 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             //prove exclusion from nonsigning set aka inclusion in signing set
             for(uint i; i < nonSignerExclusionProofs.length;){
                 if(challengeUtils.isExcludedFromNonSignerSet(nonSignerExclusionProofs[i].pubkeyHash, nonSignerIndex, signatoryRecord)){
-                    (bytes32 storedPubkeyHash,,,,,,) = dlRegistry.registry(nonSignerExclusionProofs.signerAddress);
-                    require(storedPubkeyHash == nonSignerExclusionProofs[i].pubkeyHash, "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signer pubkeyHash does not match registry records");
-                    slasher.freezeOperator(nonSignerExclusionProofs.signerAddress);
-
+                    bytes32 storedPubkeyHash = dlRegistry.getOperatorPubkeyHash(nonSignerExclusionProofs[i].signerAddress);
                     
+                    require(storedPubkeyHash == nonSignerExclusionProofs[i].pubkeyHash, "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signer pubkeyHash does not match registry records");
+                    slasher.freezeOperator(nonSignerExclusionProofs[i].signerAddress);
                 }
             }
         }
@@ -137,7 +136,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        BN254.G1Point memory proofInG1
+        BN254.G1Point memory proofInG1,
+        uint256 gasLimit
     )
         public
         view
@@ -156,7 +156,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-        (bool pairingSuccessful, bool precompileWorks) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2);
+        (bool pairingSuccessful, bool precompileWorks) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
 
         return (merkleProofValid && pairingSuccessful && precompileWorks);
     }
