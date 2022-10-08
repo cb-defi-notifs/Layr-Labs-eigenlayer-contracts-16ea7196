@@ -35,10 +35,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     // headerHash => LowDegreeChallenge struct
     mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
-    event SuccessfulLowDegreeChallenge(
-        bytes32 indexed headerHash,
-        address challenger
-    );
+    event SuccessfulLowDegreeChallenge(bytes32 indexed headerHash, address challenger);
+
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
 
     constructor(
@@ -70,10 +68,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         BN254.G1Point memory proofInG1
-    )
-        external
-        view
-    {
+    ) external view {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
             challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
@@ -101,9 +96,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256[4] calldata piPower,
         uint256 s,
         uint256 sPrime
-    )
-        external
-    {
+    ) external {
         //TODO: Implement this
         // bytes32 headerHash = keccak256(header);
 
@@ -181,7 +174,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         // IERC20 collateralToken = dataLayrServiceManager.collateralToken();
         // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
     }
-
 
     function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
         return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);

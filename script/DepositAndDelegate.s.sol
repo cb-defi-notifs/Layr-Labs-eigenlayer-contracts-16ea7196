@@ -3,11 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./EigenLayerParser.sol";
 
-contract DepositAndDelegate is
-    Script,
-    DSTest,
-    EigenLayerParser
-{
+contract DepositAndDelegate is Script, DSTest, EigenLayerParser {
     using BytesLib for bytes;
 
     //performs basic deployment before each test
@@ -20,11 +16,13 @@ contract DepositAndDelegate is
 
         //get the corresponding dln
         //is there an easier way to do this?
-        for (uint i = 0; i < numStaker; i++) {
-            address stakerAddr = stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));
-            if(stakerAddr == msg.sender) {
-                dlnAddr = stdJson.readAddress(configJson, string.concat(".dln[", string.concat(vm.toString(i), "].address")));
-            } 
+        for (uint256 i = 0; i < numStaker; i++) {
+            address stakerAddr =
+                stdJson.readAddress(configJson, string.concat(".staker[", string.concat(vm.toString(i), "].address")));
+            if (stakerAddr == msg.sender) {
+                dlnAddr =
+                    stdJson.readAddress(configJson, string.concat(".dln[", string.concat(vm.toString(i), "].address")));
+            }
         }
 
         vm.startBroadcast(msg.sender);

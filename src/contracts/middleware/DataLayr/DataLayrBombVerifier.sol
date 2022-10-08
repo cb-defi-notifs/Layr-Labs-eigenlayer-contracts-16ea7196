@@ -136,9 +136,7 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
-    )
-        external
-    {
+    ) external {
         // verify integrity of submitted metadata by checking against its stored hashes
         require(
             verifyMetadataPreImage(dataStoreProofs.operatorFromDataStore),
@@ -362,11 +360,7 @@ contract DataLayrBombVerifier {
         address operator,
         DataStoreProofs calldata dataStoreProofs,
         DataStoresForDuration[2][2][] calldata sandwichProofs
-    )
-        internal
-        view
-        returns (uint32)
-    {
+    ) internal view returns (uint32) {
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
@@ -384,12 +378,12 @@ contract DataLayrBombVerifier {
         // find the specific DataStore containing the bomb, specified by durationIndex and calculatedDataStoreId
         // 'verifySandwiches' gets a pseudo-randomized durationIndex and durationDataStoreId, as well as the nextGlobalDataStoreIdAfterBomb
         (uint8 durationIndex, uint32 calculatedDataStoreId, uint32 nextGlobalDataStoreIdAfterDetonationTimestamp) =
-            verifySandwiches(
-                uint256(dataStoreProofs.detonationDataStore.metadata.headerHash),
-                fromTime,
-                dataStoreProofs.detonationDataStore.timestamp,
-                sandwichProofs
-            );
+        verifySandwiches(
+            uint256(dataStoreProofs.detonationDataStore.metadata.headerHash),
+            fromTime,
+            dataStoreProofs.detonationDataStore.timestamp,
+            sandwichProofs
+        );
 
         require(
             sandwichProofs.length == dlsm.MAX_DATASTORE_DURATION() + 1,
@@ -571,11 +565,7 @@ contract DataLayrBombVerifier {
         uint256 sandwichTimestamp,
         uint8 duration,
         DataStoresForDuration[2] calldata sandwich
-    )
-        internal
-        view
-        returns (IDataLayrServiceManager.DataStoreMetadata memory)
-    {
+    ) internal view returns (IDataLayrServiceManager.DataStoreMetadata memory) {
         // make sure that the first timestamp is strictly before the sandwichTimestamp
         require(
             sandwich[0].timestamp < sandwichTimestamp,
@@ -643,11 +633,7 @@ contract DataLayrBombVerifier {
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
-    )
-        internal
-        pure
-        returns (uint8 durationIndex, uint32 offsetRemaining)
-    {
+    ) internal pure returns (uint8 durationIndex, uint32 offsetRemaining) {
         offsetRemaining = offset;
         durationIndex = 0;
         for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
@@ -672,11 +658,7 @@ contract DataLayrBombVerifier {
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    )
-        internal
-        view
-        returns (uint32 chunkNumber)
-    {
+    ) internal view returns (uint32 chunkNumber) {
         /**
          * Get information on the dataStore for which disperser is being challenged. This dataStore was
          * constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
@@ -709,11 +691,7 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    )
-        internal
-        view
-        returns (bool)
-    {
+    ) internal view returns (bool) {
         uint32 chunkNumber = getChunkNumber(operator, operatorIndex, totalOperatorsIndex, searchData);
         require(
             searchData.metadata.globalDataStoreId == dataStoreId,
