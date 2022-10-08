@@ -703,7 +703,7 @@ contract TestHelper is EigenLayrDeployer {
 
     }
 
-    function getG2PKOfRegistrationData(uint8 operatorIndex) internal returns(uint256[4] memory){
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
         uint256[4] memory pubkey; 
         pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
         pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));

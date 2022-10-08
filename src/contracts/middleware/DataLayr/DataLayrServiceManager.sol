@@ -45,8 +45,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
     error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
 
-    uint128 public firstQuorumSignedThresholdPercentage = 90;
-    uint128 public secondQuorumSignedThresholdPercentage = 90;
+    // sanity checks. should always require *some* signatures, but never *all* signatures
+    uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
+    uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
+
+    uint128 public firstQuorumThresholdPercentage = 90;
+    uint128 public secondQuorumThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -57,6 +61,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     );
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
+
+    event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -69,7 +75,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
     {
-        feePerBytePerTime = _feePerBytePerTime;
+        _setFeePerBytePerTime(_feePerBytePerTime);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _initializePauser(_pauserRegistry);
@@ -92,6 +98,30 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
+    }
+
+    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
+        );
+        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+    }
+
+    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
+        );
+        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
     }
 
     /**
@@ -320,9 +350,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
             (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
-                >= firstQuorumSignedThresholdPercentage
+                >= firstQuorumThresholdPercentage
                 && (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum
-                    >= secondQuorumSignedThresholdPercentage,
+                    >= secondQuorumThresholdPercentage,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
@@ -347,7 +377,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
-        feePerBytePerTime = _feePerBytePerTime;
+        _setFeePerBytePerTime(_feePerBytePerTime);
     }
 
     /**
@@ -375,6 +405,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             ++dataStoresForDuration.seven_duration;
         }
+    }
+
+    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
+        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
+        feePerBytePerTime = _feePerBytePerTime;
     }
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
@@ -418,6 +453,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     /**
+     * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
+     * specified `unlockTime`
+     * @dev Function reverts if the verification fails.
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
     function stakeWithdrawalVerification(
