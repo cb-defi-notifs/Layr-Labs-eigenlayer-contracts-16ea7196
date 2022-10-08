@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
@@ -14,7 +15,7 @@ contract EigenPodManager is IEigenPodManager {
     
     IBeacon public immutable eigenPodBeacon;
 
-    address public investmentManager;
+    IInvestmentManager public investmentManager;
 
     struct EigenPodInfo {
         uint128 balance; //total balance of all validators in the pod
@@ -24,7 +25,7 @@ contract EigenPodManager is IEigenPodManager {
 
     mapping(address => EigenPodInfo) public pods;
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, address _investmentManager) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
@@ -54,7 +55,13 @@ contract EigenPodManager is IEigenPodManager {
     }
 
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner, msg.sender) {
-        pods[podOwner].balance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
+        uint128 newBalance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
+        pods[podOwner].balance = newBalance;
+        //if the balance updates shows that the pod owner has more deposits than beacon chain balance, freeze them
+        //TODO: add EigenPoManager as globally permissioned slashing contract
+        if(pods[podOwner].stakeDeposited > newBalance) {
+            investmentManager.slasher().freezeOperator(podOwner);
+        }
     }
 
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager(msg.sender) {
@@ -69,7 +76,7 @@ contract EigenPodManager is IEigenPodManager {
     }
 
     modifier onlyInvestmentManager(address addr) {
-        require(addr == investmentManager, "EigenPodManager.onlyEigenPod: Not investmentManager");
+        require(addr == address(investmentManager), "EigenPodManager.onlyEigenPod: Not investmentManager");
         _;
     }
 }
