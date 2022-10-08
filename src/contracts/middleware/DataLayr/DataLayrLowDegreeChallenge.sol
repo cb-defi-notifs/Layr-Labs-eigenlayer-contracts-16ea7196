@@ -67,6 +67,15 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     {}
 
 
+    /**
+    *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and 
+    *   freezes operator if verified as being excluded from nonsigner set.
+    *
+    *   @param header is the header for the datastore in question
+    *   @param nonSignerExclusionProofs are the list of exclusion proofs for an operator in the nonsigner set for a datastore
+    *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
+    *   @param signatoryRecord is the record of signatures on said datastore
+    */
     function lowDegreeChallenge(
         bytes calldata header,
         uint256 pairingGasLimit,
@@ -115,7 +124,8 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
      * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
      * @param potMerkleProof is the merkle proof for the POT element.
      * @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
-     * We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     *                  We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
 
     //TODO: we need to hardcode a merkle root hash in storage
