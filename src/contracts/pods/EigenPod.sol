@@ -13,7 +13,7 @@ contract EigenPod is IEigenPod, Initializable {
 
     struct Validator {
         VALIDATOR_STATUS status;
-        uint64 stake; //stake in gwei
+        uint64 balance; //ethpos stake in gwei
     }
 
     enum VALIDATOR_STATUS {
@@ -42,9 +42,9 @@ contract EigenPod is IEigenPod, Initializable {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        // stake on ethPOS
+        // stake on ethpos
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
-        //if not previously known validator, then update status
+        // if not previously known validator, then update status
         if(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE) {
             validators[merklizedPubkey].status = VALIDATOR_STATUS.INITIALIZED;
         }
@@ -71,16 +71,16 @@ contract EigenPod is IEigenPod, Initializable {
         require(validatorFields[0] == merklizedPubkey, "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for provided pubkey");
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         //convert the balance field from 8 bytes of little endian to uint256 big endian 💪
-        uint64 validatorStake = fromLittleEndianUint64(validatorFields[2]);
-        //update validator stake
-        validators[merklizedPubkey].stake = validatorStake;
+        uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
+        //update validator balance
+        validators[merklizedPubkey].balance = validatorBalance;
         validators[merklizedPubkey].status == VALIDATOR_STATUS.STAKED;
-        //update factory total stake for this pod
+        //update manager total balance for this pod
         //need to subtract zero and add the proven balance
-        eigenPodManager.updateBeaconChainStake(owner, 0, validatorStake);
+        eigenPodManager.updateBeaconChainBalance(owner, 0, validatorBalance);
     }
 
-    function verifyStakeUpdate(
+    function verifyBalanceUpdate(
             bytes calldata pubkey, 
             bytes32 beaconStateRoot, 
             bytes calldata proofs, 
@@ -100,13 +100,13 @@ contract EigenPod is IEigenPod, Initializable {
         //require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for provided pubkey");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorStake = fromLittleEndianUint64(validatorFields[2]);
-        uint64 prevValidatorStake = validators[merklizedPubkey].stake;
-        //update validator stake
-        validators[merklizedPubkey].stake = validatorStake;
-        //update factory total stake for this pod
+        uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
+        uint64 prevValidatorBalance = validators[merklizedPubkey].balance;
+        //update validator balance
+        validators[merklizedPubkey].balance = validatorBalance;
+        //update manager total balance for this pod
         //need to subtract previous proven balance and add the current proven balance
-        eigenPodManager.updateBeaconChainStake(owner, prevValidatorStake, validatorStake);
+        eigenPodManager.updateBeaconChainBalance(owner, prevValidatorBalance, validatorBalance);
     }
 
     function podWithdrawalCredentials() internal view returns(bytes memory) {

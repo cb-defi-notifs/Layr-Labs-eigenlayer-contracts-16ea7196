@@ -8,5 +8,6 @@ pragma solidity ^0.8.9;
 
 interface IEigenPodManager {
     function stake(bytes32 salt, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
-    function updateBeaconChainStake(address podOwner, uint64 stakeToRemove, uint64 stakeToAdd) external;
+    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
+    function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external;
 }

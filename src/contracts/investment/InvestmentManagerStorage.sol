@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IInvestmentManager.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IInvestmentStrategy.sol";
+import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/ISlasher.sol";
 
@@ -46,6 +48,10 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint256) public numWithdrawalsQueued;
+
+    IEigenPodManager public eigenPodManager;
+    IInvestmentStrategy public constant beaconChainETH = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
+
 
     constructor(IEigenLayrDelegation _delegation) {
         //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about met transactions in general

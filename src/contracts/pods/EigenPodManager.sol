@@ -12,18 +12,22 @@ contract EigenPodManager is IEigenPodManager {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
     
-    IBeacon immutable eigenPodBeacon;
+    IBeacon public immutable eigenPodBeacon;
+
+    address public investmentManager;
 
     struct EigenPodInfo {
+        uint128 balance; //total balance of all validators in the pod
+        uint128 stakeDeposited; //amount of balance deposited into EigenLayer
         IEigenPod pod;
-        uint256 stake;
     }
 
     mapping(address => EigenPodInfo) public pods;
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, address _investmentManager) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
+        investmentManager = _investmentManager;
     }
     
 
@@ -49,12 +53,23 @@ contract EigenPodManager is IEigenPodManager {
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
-    function updateBeaconChainStake(address podOwner, uint64 stakeToRemove, uint64 stakeToAdd) external onlyEigenPod(podOwner, msg.sender) {
-        pods[podOwner].stake = pods[podOwner].stake - stakeToRemove + stakeToAdd;
+    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner, msg.sender) {
+        pods[podOwner].balance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
+    }
+
+    function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager(msg.sender) {
+        //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
+        require(pods[podOwner].balance + amount <= pods[podOwner].stakeDeposited, "EigenPodManager.depositBalanceIntoEigenLayer: Cannot deposit more than balance");
+        pods[podOwner].stakeDeposited += amount;
     }
 
     modifier onlyEigenPod(address podOwner, address pod) {
         require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: Not a pod");
+        _;
+    }
+
+    modifier onlyInvestmentManager(address addr) {
+        require(addr == investmentManager, "EigenPodManager.onlyEigenPod: Not investmentManager");
         _;
     }
 }
