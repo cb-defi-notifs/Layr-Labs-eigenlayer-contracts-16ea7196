@@ -61,6 +61,11 @@ contract InvestmentManager is
         _;
     }
 
+    modifier onlyEigenPod(address podOwner, address pod) {
+        require(address(eigenPodManager.getPod(podOwner).pod) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
     constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
         _disableInitializers();
     }
@@ -96,7 +101,7 @@ contract InvestmentManager is
         //make sure that msg.sender has amount beacon chain ETH to deposit
         eigenPodManager.depositBalanceIntoEigenLayer(msg.sender, uint128(amount));
         //add shres for the enshrined beacon chain ETH strategy
-        _addShares(msg.sender, beaconChainETH, amount);
+        _addShares(msg.sender, beaconChainETHStrategy, amount);
         return amount;
     }
 
@@ -465,6 +470,32 @@ contract InvestmentManager is
                 ++i;
             }
         }
+
+        // modify delegated shares accordingly, if applicable
+        delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
+    }
+
+    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    //TODO: standardise whether we use amount or shareAmount acorss the board
+    function slashBeaconChainETH(
+        address slashedAddress,
+        uint256 beaconChainETHStrategyIndex,
+        uint256 shareAmount
+    )
+        external
+        whenNotPaused
+        onlyFrozen(slashedAddress)
+        onlyEigenPod(slashedAddress, msg.sender)
+        nonReentrant
+    {
+        // the internal function will return 'true' in the event the strategy was
+        // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
+        _removeShares(slashedAddress, beaconChainETHStrategyIndex, beaconChainETHStrategy, shareAmount);
+
+        IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](1);
+        strategies[0] = beaconChainETHStrategy;
+        uint256[] memory shareAmounts = new uint256[](1);
+        shareAmounts[0] = shareAmount;
 
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);

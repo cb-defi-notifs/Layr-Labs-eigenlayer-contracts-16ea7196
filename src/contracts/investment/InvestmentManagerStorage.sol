@@ -50,7 +50,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => uint256) public numWithdrawalsQueued;
 
     IEigenPodManager public eigenPodManager;
-    IInvestmentStrategy public constant beaconChainETH = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
+    IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
 
     constructor(IEigenLayrDelegation _delegation) {

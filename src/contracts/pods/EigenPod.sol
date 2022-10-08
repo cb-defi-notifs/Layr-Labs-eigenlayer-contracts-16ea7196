@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
 import "../interfaces/IETHPOSDeposit.sol";
@@ -11,23 +12,23 @@ import "../interfaces/IEigenPod.sol";
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
 
-    struct Validator {
-        VALIDATOR_STATUS status;
-        uint64 balance; //ethpos stake in gwei
-    }
-
-    enum VALIDATOR_STATUS {
-        INACTIVE, //doesnt exist
-        INITIALIZED, //staked on ethpos but withdrawal credentials not proven
-        STAKED //staked on ethpos and withdrawal credentials are pointed
-    }
-
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
 
     IEigenPodManager public eigenPodManager;
     address public owner;
     mapping(bytes32 => Validator) public validators;
+
+    modifier onlyInvestmentManagerOwner {
+        require(msg.sender == Ownable(address(eigenPodManager.investmentManager())).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
+        _;
+    }
+
+    //TODO: Should we make this check cleaner? it's only used in case of slashing...
+    modifier onlyFrozen(address staker) {
+        require(eigenPodManager.investmentManager().slasher().isFrozen(owner), "EigenPod.onlyFrozen: staker has not been frozen");
+        _;
+    }
 
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
@@ -108,6 +109,26 @@ contract EigenPod is IEigenPod, Initializable {
         //need to subtract previous proven balance and add the current proven balance
         eigenPodManager.updateBeaconChainBalance(owner, prevValidatorBalance, validatorBalance);
     }
+
+    /// @notice Slashes the withdrawn ETH of 'frozen' podOwner
+    function slashETH(
+        address recipient,
+        uint256 beaconChainETHStrategyIndex,
+        uint128 amount
+    )
+        external
+        onlyInvestmentManagerOwner
+        onlyFrozen(owner)
+    {
+        //slash their shares in the investment manager
+        eigenPodManager.investmentManager().slashBeaconChainETH(owner, beaconChainETHStrategyIndex, amount);
+        //send slashed ETH to recipient
+        //TODO: Reentrancy gurad here?
+        payable(recipient).call{value: amount}("");
+
+    }
+
+    // INTERNAL FUNCTIONS
 
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));

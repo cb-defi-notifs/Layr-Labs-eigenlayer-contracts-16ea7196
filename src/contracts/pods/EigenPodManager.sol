@@ -17,13 +17,17 @@ contract EigenPodManager is IEigenPodManager {
 
     IInvestmentManager public investmentManager;
 
-    struct EigenPodInfo {
-        uint128 balance; //total balance of all validators in the pod
-        uint128 stakeDeposited; //amount of balance deposited into EigenLayer
-        IEigenPod pod;
+    mapping(address => EigenPodInfo) public pods;
+
+    modifier onlyEigenPod(address podOwner, address pod) {
+        require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: not a pod");
+        _;
     }
 
-    mapping(address => EigenPodInfo) public pods;
+    modifier onlyInvestmentManager(address addr) {
+        require(addr == address(investmentManager), "EigenPodManager.onlyEigenPod: not investmentManager");
+        _;
+    }
 
     constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
@@ -66,17 +70,14 @@ contract EigenPodManager is IEigenPodManager {
 
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager(msg.sender) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].balance + amount <= pods[podOwner].stakeDeposited, "EigenPodManager.depositBalanceIntoEigenLayer: Cannot deposit more than balance");
+        require(pods[podOwner].balance + amount <= pods[podOwner].stakeDeposited, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakeDeposited += amount;
     }
 
-    modifier onlyEigenPod(address podOwner, address pod) {
-        require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: Not a pod");
-        _;
-    }
+    // VIEW FUNCTIONS
 
-    modifier onlyInvestmentManager(address addr) {
-        require(addr == address(investmentManager), "EigenPodManager.onlyEigenPod: Not investmentManager");
-        _;
+    function getPod(address podOwner) external view returns (EigenPodInfo memory) {
+        EigenPodInfo memory podInfo = pods[podOwner];
+        return podInfo;
     }
 }

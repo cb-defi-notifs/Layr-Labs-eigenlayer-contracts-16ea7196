@@ -89,6 +89,13 @@ interface IInvestmentManager {
     )
         external;
 
+    function slashBeaconChainETH(
+        address slashedAddress,
+        uint256 beaconChainETHStrategyIndex,
+        uint256 shareAmount
+    )
+        external;
+
     function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
