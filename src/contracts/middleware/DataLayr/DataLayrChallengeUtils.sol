@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IRegistry.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/BN254.sol";
 import "../../libraries/BLS.sol";
@@ -13,7 +12,6 @@ import "../../libraries/BLS.sol";
  */
 contract DataLayrChallengeUtils {
 
-    IRegistry public dlRegistry;
     struct MultiRevealProof {
         BN254.G1Point interpolationPoly;
         BN254.G1Point revealProof;
