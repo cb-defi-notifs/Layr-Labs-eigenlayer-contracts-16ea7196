@@ -42,7 +42,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
      * @notice This defines the earnings split between different quorums. Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
-     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS]) should *always* be 10,000!
+     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS - 1]) should *always* be 10,000!
      */
     mapping(uint256 => uint256) public quorumBips;
 
