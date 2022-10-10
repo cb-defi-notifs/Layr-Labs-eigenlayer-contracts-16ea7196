@@ -6,14 +6,16 @@ import "../libraries/BLS.sol";
 import "forge-std/Test.sol";
 
 /**
- * @title An shared contract for EigenLayer operators to register their BLS public keys.
+ * @title A shared contract for EigenLayer operators to register their BLS public keys.
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
     //Hash of the zero public key
     bytes32 internal constant ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
 
+    /// @notice mapping from operator addresss to pubkey hash
     mapping(address => bytes32) public operatorToPubkeyHash;
+    /// @notice mapping from pubkey hash to operator addresss
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
     // EVENTS
