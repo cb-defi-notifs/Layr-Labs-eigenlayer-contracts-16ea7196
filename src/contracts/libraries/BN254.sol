@@ -170,6 +170,6 @@ library BN254 {
 
         //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
         //Success is true if the precompile actually goes through (aka all inputs are valid)
-        return (out[0] != 0, success);
+        return (success, out[0] != 0);
     }
 }

@@ -69,12 +69,12 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and 
     *   freezes operator if verified as being excluded from nonsigner set.
     *
-    *   @param header is the header for the datastore in question
+    *   @param header is the header for the datastore in question.
     *   @param nonSignerExclusionProofs are the list of exclusion proofs for an operator in the nonsigner set for a datastore
     *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
     *   @param signatoryRecord is the record of signatures on said datastore
     */
-    function lowDegreeChallenge(
+    function challengeLowDegreeHeader(
         bytes calldata header,
         uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
@@ -92,28 +92,32 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         proofInG1.X = uint256(bytes32(header.slice(64, 32)));
         proofInG1.Y = uint256(bytes32(header.slice(96, 32)));
 
-        bool lowDegreenessProofVerified = lowDegreenessProof(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
+        bool lowDegreenessProofVerified = proveLowDegreeness(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
 
-        if(!lowDegreenessProofVerified){
-            //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
-            require(dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(dataStoreSearchData.duration, dataStoreSearchData.timestamp, dataStoreSearchData.index) == 
-                    DataStoreUtils.computeDataStoreHash(dataStoreSearchData.metadata), 
-                "DataLayrLowDegreeChallenge.lowDegreeChallenge: Provided metadata does not match stored datastore metadata hash"
-            );
+        require(lowDegreenessProofVerified, "Low-degreeness check failed");
 
-            uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
-            //prove exclusion from nonsigning set aka inclusion in signing set
-            for(uint i; i < nonSignerExclusionProofs.length;){
-                slashOperator(
-                    headerHash, 
-                    nonSignerExclusionProofs[i].signerAddress, 
-                    nonSignerIndex, 
-                    nonSignerExclusionProofs[i].operatorHistoryIndex,
-                    dataStoreSearchData,
-                    signatoryRecord
-                );   
-            }   
-        }
+        //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
+        DataStoreUtils.verifyDataStoreMetadata(
+            dataLayrServiceManager,
+            dataStoreSearchData.metadata,
+            dataStoreSearchData.duration,
+            dataStoreSearchData.timestamp,
+            dataStoreSearchData.index,
+            "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
+        );
+
+        uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
+        //prove exclusion from nonsigning set aka inclusion in signing set
+        for(uint i; i < nonSignerExclusionProofs.length;){
+            slashOperator(
+                headerHash, 
+                nonSignerExclusionProofs[i].signerAddress, 
+                nonSignerIndex, 
+                nonSignerExclusionProofs[i].operatorHistoryIndex,
+                dataStoreSearchData,
+                signatoryRecord
+            );   
+        }   
     } 
 
     /**
@@ -126,7 +130,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
      *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
 
-    function lowDegreenessProof(
+    function proveLowDegreeness(
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
@@ -150,7 +154,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-        (bool pairingSuccessful, bool precompileWorks) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
+        ( bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
 
         return (merkleProofValid && pairingSuccessful && precompileWorks);
     }

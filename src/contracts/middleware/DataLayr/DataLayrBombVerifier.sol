@@ -583,11 +583,16 @@ contract DataLayrBombVerifier {
             // There is a datastore before sandwichTimestamp for the duration
             // Verify that the provided metadata of the datastore before sandwichTimestamp (sandwich[0])
             // agrees with the stored hash
-            require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[0].timestamp, sandwich[0].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
+
+            DataStoreUtils.verifyDataStoreMetadata(
+                dlsm,
+                sandwich[0].metadata,
+                duration,
+                sandwich[0].timestamp,
+                sandwich[0].index,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+
         } else {
             //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks
             require(
@@ -601,9 +606,13 @@ contract DataLayrBombVerifier {
             // There is a datastore before sandwichTimestamp for the duration
             // Verify that the provided metadata of the datastore after sandwichTimestamp (sandwich[1])
             // agrees with the stored hash
-            require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[1].timestamp, sandwich[1].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[1].metadata),
+
+            DataStoreUtils.verifyDataStoreMetadata(
+                dlsm,
+                sandwich[1].metadata,
+                duration,
+                sandwich[1].timestamp,
+                sandwich[1].index,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
 
@@ -663,10 +672,14 @@ contract DataLayrBombVerifier {
          * Get information on the dataStore for which disperser is being challenged. This dataStore was
          * constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
          */
-        require(
-            dlsm.getDataStoreHashesForDurationAtTimestamp(searchData.duration, searchData.timestamp, searchData.index)
-                == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "search.metadataclear preimage is incorrect"
+
+        DataStoreUtils.verifyDataStoreMetadata(
+            dlsm,
+            searchData.metadata,
+            searchData.duration,
+            searchData.timestamp,
+            searchData.index,
+            "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
         );
 
         // check that disperser acquired quorum for this dataStore

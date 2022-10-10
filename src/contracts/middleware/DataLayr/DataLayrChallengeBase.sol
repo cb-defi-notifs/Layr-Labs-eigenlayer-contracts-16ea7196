@@ -63,10 +63,12 @@ abstract contract DataLayrChallengeBase {
         // calculate headherHash from header
 
         {
-            require(
-                dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
-                    searchData.duration, searchData.timestamp, searchData.index
-                ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
+            DataStoreUtils.verifyDataStoreMetadata(
+                dataLayrServiceManager,
+                searchData.metadata,
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index,
                 "DataLayrChallengeBase.openChallenge: Provided metadata does not match stored datastore metadata hash"
             );
 
@@ -120,12 +122,14 @@ abstract contract DataLayrChallengeBase {
         // verify that the challenge has been lost by the operator side
         require(challengeSuccessful(headerHash), "DataLayrChallengeBase.slashOperator: Challenge not successful");
 
-        require(
-            dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
-                searchData.duration, searchData.timestamp, searchData.index
-            ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
-        );
+        DataStoreUtils.verifyDataStoreMetadata(
+                dataLayrServiceManager,
+                searchData.metadata,
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index,
+                "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
+            );
 
        
          bytes32 signatoryRecordHash = keccak256(

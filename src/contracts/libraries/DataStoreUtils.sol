@@ -41,6 +41,28 @@ library DataStoreUtils {
         return dsHash;
     }
 
+    function verifyDataStoreMetadata(
+        IDataLayrServiceManager serviceManager,
+        IDataLayrServiceManager.DataStoreMetadata memory metadata,
+        uint8 duration,
+        uint256 timestamp,
+        uint32 index,
+        string memory revertMsg
+    ) 
+        internal
+        view
+    {
+        require(
+            serviceManager.getDataStoreHashesForDurationAtTimestamp(
+                duration, 
+                timestamp, 
+                index
+            ) == DataStoreUtils.computeDataStoreHash(metadata), 
+            revertMsg
+        );
+
+    }
+
     /// @notice uses `abi.encodePacked` to encode a DataStore's metadata into a compressed format
     function packDataStoreMetadata(IDataLayrServiceManager.DataStoreMetadata memory metadata)
         internal

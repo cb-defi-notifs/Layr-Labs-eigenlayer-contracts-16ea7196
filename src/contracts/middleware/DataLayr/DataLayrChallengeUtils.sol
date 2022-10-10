@@ -80,8 +80,6 @@ contract DataLayrChallengeUtils {
         );
     }
 
-
-
     /// @notice Parses the KZGMetadata from a DataStore header.
     function getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
         // bytes calldata header
