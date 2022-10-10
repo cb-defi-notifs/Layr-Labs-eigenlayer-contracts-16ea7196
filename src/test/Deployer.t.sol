@@ -93,14 +93,14 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
-    struct nonSignerInfo {
+    struct NonSignerInfo {
         uint256 xA0;
         uint256 xA1;
         uint256 yA0;
         uint256 yA1;
     }
 
-    struct signerInfo {
+    struct SignerInfo {
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
