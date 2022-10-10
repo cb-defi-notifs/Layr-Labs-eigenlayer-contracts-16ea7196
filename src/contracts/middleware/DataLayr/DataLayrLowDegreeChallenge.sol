@@ -78,8 +78,8 @@ contract DataLayrLowDegreeChallenge {
 
         /// @dev Refer to the datastore header spec
         BN254.G1Point memory lowDegreenessProof;
-        lowDegreenessProof.X = uint256(bytes32(header.slice(64, 32)));
-        lowDegreenessProof.Y = uint256(bytes32(header.slice(96, 32)));
+        lowDegreenessProof.X = uint256(bytes32(header.slice(116, 32)));
+        lowDegreenessProof.Y = uint256(bytes32(header.slice(148, 32)));
 
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
