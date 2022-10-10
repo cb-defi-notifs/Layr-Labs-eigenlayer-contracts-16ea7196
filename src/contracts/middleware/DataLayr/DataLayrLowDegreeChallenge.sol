@@ -74,8 +74,7 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
         
-        bytes32 headerHash = keccak256(header);
-        require(dataStoreSearchData.metadata.headerHash == headerHash, "provided datastore searchData does not match provided header");
+        require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
 
         /// @dev Refer to the datastore header spec
         BN254.G1Point memory lowDegreenessProof;
@@ -156,7 +155,6 @@ contract DataLayrLowDegreeChallenge {
 
     // slash an operator who signed a headerHash but failed a subsequent challenge
     function slashOperator(
-        bytes32 headerHash,
         address operator,
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,

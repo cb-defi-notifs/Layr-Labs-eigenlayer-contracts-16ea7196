@@ -48,7 +48,7 @@ contract DataLayrChallengeUtils {
                 )
                 //or nonSigner index is greater than them
                 || (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) > uint256(operatorPubkeyHash)),
-                "Wrong index"
+                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong index"
             );
 
             //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
@@ -56,7 +56,7 @@ contract DataLayrChallengeUtils {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
                     uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) < uint256(operatorPubkeyHash),
-                    "Wrong index"
+                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Wrong index"
                 );
             }
         }
