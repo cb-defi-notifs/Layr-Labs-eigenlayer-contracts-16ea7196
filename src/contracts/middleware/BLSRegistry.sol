@@ -181,8 +181,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
         );
 
-        // Perform necessary updates for removing operator, including updating registrant list and index histories
-        _removeRegistrant(pubkeyHash, index);
+        // Perform necessary updates for removing operator, including updating operator list and index histories
+        _removeOperator(pubkeyHash, index);
 
         // get existing aggregate public key
         uint256[4] memory pk = apk;

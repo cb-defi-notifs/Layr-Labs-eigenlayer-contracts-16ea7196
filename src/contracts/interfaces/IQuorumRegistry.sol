@@ -46,7 +46,7 @@ interface IQuorumRegistry is IRegistry {
     // struct used to give definitive ordering to operators at each blockNumber
     struct OperatorIndex {
         // blockNumber number at which operator index changed
-        // note that the operator's index is different *for this block number*, i.e. the new index is inclusive of this value
+        // note that the operator's index is different *for this block number*, i.e. the *new* index is *inclusive* of this value
         uint32 toBlockNumber;
         // index of the operator in array of operators, or the total number of operators if in the 'totalOperatorsHistory'
         uint32 index;

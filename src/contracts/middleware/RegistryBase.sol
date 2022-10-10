@@ -298,7 +298,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
-    function _removeRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
