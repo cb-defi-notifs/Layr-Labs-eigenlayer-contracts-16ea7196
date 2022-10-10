@@ -106,9 +106,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
-     */
-    /**
+     * @notice used for investing an asset into the specified strategy on behalf of a staker, who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
@@ -126,15 +124,10 @@ contract InvestmentManager is
         bytes32 vs
     )
         external
+        onlyNotFrozen(staker)
         nonReentrant
         returns (uint256 shares)
     {
-        // make not frozen check here instead of modifier
-        require(
-            !slasher.isFrozen(staker),
-            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
-        );
-
         require(
             expiry == 0 || expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
@@ -165,6 +158,12 @@ contract InvestmentManager is
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -270,7 +269,6 @@ contract InvestmentManager is
             queuedWithdrawals[withdrawalRoot].withdrawer == msg.sender,
             "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Sender is not the withdrawer"
         );
-
         require(
             block.timestamp > queuedWithdrawals[withdrawalRoot].initTimestamp,
             "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
@@ -388,8 +386,10 @@ contract InvestmentManager is
         );
 
         {
-            // ongoing task is still active at time when staker was finalizing undelegation
-            // and, therefore, hasn't served its obligation.
+            /**
+             * Verify that there is an ongoing task, created at or before the `initTimestamp` and that expires
+             * strictly after the `unlockTimestamp` for this queued withdrawal
+             */
             slashingContract.stakeWithdrawalVerification(
                 data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
             );
@@ -399,7 +399,15 @@ contract InvestmentManager is
         queuedWithdrawals[withdrawalRoot].withdrawer = address(0);
     }
 
-    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    /**
+     * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
+     */
     function slashShares(
         address slashedAddress,
         address recipient,
@@ -454,7 +462,7 @@ contract InvestmentManager is
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
-        // verify that the queued withdrawal has been successfully challenged
+        // verify that *either* the queued withdrawal has been successfully challenged, *or* the `depositor` has been frozen
         require(
             queuedWithdrawals[withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(queuedWithdrawal.depositor),
             "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"

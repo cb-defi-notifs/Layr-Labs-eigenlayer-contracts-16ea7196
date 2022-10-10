@@ -15,11 +15,7 @@ library DataStoreUtils {
         bytes32[] memory nonSignerPubkeyHashes,
         uint256 totalEthStakeSigned,
         uint256 totalEigenStakeSigned
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
+    ) internal pure returns (bytes32) {
         return keccak256(
             abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalEthStakeSigned, totalEigenStakeSigned)
         );

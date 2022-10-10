@@ -9,7 +9,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
- import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
@@ -21,7 +21,6 @@ import "../libraries/BLS.sol";
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
 abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
-
     using BytesLib for bytes;
 
     uint32 public immutable UNBONDING_PERIOD;
@@ -85,9 +84,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
-    )
-        VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
-    {
+    ) VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) {
         //set unbonding period
         UNBONDING_PERIOD = unbondingPeriod;
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
@@ -159,12 +156,12 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return operatorIndex.index;
     }
 
-    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
-        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
-    }
-
     function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
         minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
+    }
+
+    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
+        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
 
     /// @notice returns the unique ID of the specified operator
@@ -173,7 +170,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     /// @notice returns the active status for the specified operator
-    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Active) {
+    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Status) {
         return registry[operator].active;
     }
 
@@ -199,6 +196,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             opStake = pubkeyHashToStakeHistory[pubkeyHash][historyLength - 1];
             return opStake;
         }
+    }
+
+    function getStakeHistoryLength(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToStakeHistory[pubkeyHash].length;
     }
 
     function firstQuorumStakedByOperator(address operator) external view returns (uint96) {
@@ -280,14 +281,17 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     //return when the operator is unbonded from the middleware, if they deregister now
-    function bondedUntil(address operator) public view virtual returns (uint32) {
+    function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
         return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     // MUTATING FUNCTIONS
 
     function updateSocket(string calldata newSocket) external {
-        require(registry[msg.sender].active == IQuorumRegistry.Active.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
+        require(
+            registry[msg.sender].active == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase.updateSocket: Can only update socket if active on the service"
+        );
         emit SocketUpdate(msg.sender, newSocket);
     }
 
@@ -310,7 +314,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
-        registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
+        registry[msg.sender].active = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         // gas saving by caching length here
@@ -354,7 +358,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address swappedOperator = _popRegistrant(index);
 
         //revoke that slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntil(msg.sender));
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
@@ -396,9 +400,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address operator,
         bytes32 pubkeyHash,
         OperatorStake memory _operatorStake
-    )
-        internal
-    {
+    ) internal {
         require(
             investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
@@ -408,7 +410,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             pubkeyHash: pubkeyHash,
             id: nextOperatorId,
             index: numOperators(),
-            active: IQuorumRegistry.Active.ACTIVE,
+            active: IQuorumRegistry.Status.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
@@ -448,7 +450,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         returns (OperatorStake memory)
     {
         require(
-            registry[operator].active == IQuorumRegistry.Active.INACTIVE,
+            registry[operator].active == IQuorumRegistry.Status.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
 
@@ -524,8 +526,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     // verify that the `operator` is an active operator and that they've provided the correct `index`
     function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
-            registry[operator].active != IQuorumRegistry.Active.INACTIVE,
-            "RegistryBase._deregistrationCheck: Operator is already registered"
+            registry[operator].active == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase._deregistrationCheck: Operator is not registered"
         );
 
         require(operator == operatorList[index], "RegistryBase._deregistrationCheck: Incorrect index supplied");

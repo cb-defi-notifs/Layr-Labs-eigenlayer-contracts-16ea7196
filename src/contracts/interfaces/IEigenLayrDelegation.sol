@@ -34,8 +34,7 @@ interface IEigenLayrDelegation {
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    )
-        external;
+    ) external;
 
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 

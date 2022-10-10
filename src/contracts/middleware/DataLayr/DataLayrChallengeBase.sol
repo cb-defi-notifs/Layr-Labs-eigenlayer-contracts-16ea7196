@@ -114,9 +114,7 @@ abstract contract DataLayrChallengeBase {
         uint32 operatorHistoryIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    )
-        external
-    {
+    ) external {
         // verify that the challenge has been lost by the operator side
         require(challengeSuccessful(headerHash), "Challenge not successful");
 

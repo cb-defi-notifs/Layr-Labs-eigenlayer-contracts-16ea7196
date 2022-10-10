@@ -19,16 +19,15 @@ import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
-contract EigenLayerParser is Script, DSTest
-{
+contract EigenLayerParser is Script, DSTest {
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
 
-    uint numDis;
-    uint numDln;
-    uint numStaker;
-    uint numCha;
+    uint256 numDis;
+    uint256 numDln;
+    uint256 numStaker;
+    uint256 numCha;
 
     uint256 public constant eigenTotalSupply = 1000e18;
     EigenLayrDelegation public delegation;
