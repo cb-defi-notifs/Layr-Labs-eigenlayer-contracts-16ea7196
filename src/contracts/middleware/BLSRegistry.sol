@@ -22,7 +22,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     IBLSPublicKeyCompendium public pubkeyCompendium;
 
-    /// @notice the task numbers at which the aggregated pubkeys were updated
+    /// @notice the block numbers at which the aggregated pubkeys were updated
     uint32[] public apkUpdates;
 
     /**
