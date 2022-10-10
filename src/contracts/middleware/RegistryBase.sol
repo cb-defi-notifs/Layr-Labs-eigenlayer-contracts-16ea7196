@@ -163,7 +163,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
         minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
-    
+
     /// @notice returns the unique ID of the specified operator
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
@@ -281,7 +281,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     //return when the operator is unbonded from the middleware, if they deregister now
-    function bondedUntil(address operator) public view virtual returns (uint32) {
+    function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
         return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
@@ -358,7 +358,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address swappedOperator = _popRegistrant(index);
 
         //revoke that slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntil(msg.sender));
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
