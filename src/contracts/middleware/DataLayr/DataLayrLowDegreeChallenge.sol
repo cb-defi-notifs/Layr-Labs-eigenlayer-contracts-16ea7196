@@ -11,7 +11,6 @@ import "../../interfaces/IDataLayrServiceManager.sol";
 import "../Repository.sol";
 
 import "./DataLayrChallengeUtils.sol";
-import "./DataLayrChallengeBase.sol";
 
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
@@ -23,9 +22,13 @@ import "../../libraries/DataStoreUtils.sol";
  * @title Used to create and manage low degree challenges related to DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
+contract DataLayrLowDegreeChallenge {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
+
+    IQuorumRegistry public immutable dlRegistry;
+    DataLayrChallengeUtils public immutable challengeUtils;
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     struct LowDegreeChallenge {
         // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
@@ -39,30 +42,17 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint32 operatorHistoryIndex;
     }
 
-    // length of window during which the responses can be made to the challenge
-    uint32 internal constant _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
-
-    // headerHash => LowDegreeChallenge struct
-    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
-
-    event SuccessfulLowDegreeChallenge(bytes32 indexed headerHash, address challenger);
-
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils
-    )
-        DataLayrChallengeBase(
-            _dataLayrServiceManager,
-            _dlRegistry,
-            _challengeUtils,
-            0,
-            0
-        )
-    // solhint-disable-next-line no-empty-blocks
-    {}
+    ) {
+        dataLayrServiceManager = _dataLayrServiceManager;
+        dlRegistry = _dlRegistry;
+        challengeUtils = _challengeUtils;
+    }
 
 
     /**
@@ -163,129 +153,84 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
     }
 
-    function respondToLowDegreeChallenge(
-        bytes calldata header,
-        uint256[2] calldata cPower,
-        uint256[4] calldata pi,
-        uint256[4] calldata piPower,
-        uint256 s,
-        uint256 sPrime
-    ) external {
-        //TODO: Implement this
-        // bytes32 headerHash = keccak256(header);
 
-        // // check that the challenge window is still open
-        // require(
-        //     (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <=
-        //         CHALLENGE_RESPONSE_WINDOW,
-        //     "Challenge response period has already elapsed"
-        // );
+    // slash an operator who signed a headerHash but failed a subsequent challenge
+    function slashOperator(
+        bytes32 headerHash,
+        address operator,
+        uint256 nonSignerIndex,
+        uint32 operatorHistoryIndex,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
+    )
+        internal
+    {
 
-        // DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetaData = challengeUtils
-        //     .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-        //         header
-        //     );
+        DataStoreUtils.verifyDataStoreMetadata(
+                dataLayrServiceManager,
+                searchData.metadata,
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index,
+                "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
+            );
 
-        // uint256 r = uint256(keccak256(abi.encodePacked(dskzgMetaData.c, cPower))) % MODULUS;
+       
+         bytes32 signatoryRecordHash = keccak256(
+                                            abi.encodePacked(
+                                                searchData.metadata.globalDataStoreId, 
+                                                signatoryRecord.nonSignerPubkeyHashes, 
+                                                signatoryRecord.totalEthStakeSigned, 
+                                                signatoryRecord.totalEigenStakeSigned
+                                            )
+                                        );
 
-        // require(
-        //     challengeUtils.openPolynomialAtPoint(dskzgMetaData.c, pi, r, s),
-        //     "Incorrect proof against commitment"
-        // );
-
-        // // TODO: make sure this is the correct power -- shouldn't it actually be (32 - this number) ? -- @Gautham
-        // uint256 power = challengeUtils.nextPowerOf2(dskzgMetaData.numSys) *
-        //     challengeUtils.nextPowerOf2(dskzgMetaData.degree);
-
-        // uint256 rPower;
-
-        // // call modexp precompile at 0x05 to calculate r^power mod (MODULUS)
-        // assembly {
-        //     let freemem := mload(0x40)
-        //     // base size is 32 bytes
-        //     mstore(freemem, 0x20)
-        //     // exponent size is 32 bytes
-        //     mstore(add(freemem, 0x20), 0x20)
-        //     // modulus size is 32 bytes
-        //     mstore(add(freemem, 0x40), 0x20)
-        //     // specifying base as 'r'
-        //     mstore(add(freemem, 0x60), r)
-        //     // specifying exponent as 'power'
-        //     mstore(add(freemem, 0x80), power)
-        //     // specifying modulus as 21888242871839275222246405745257275088696311157297823662689037894645226208583 (i.e. "MODULUS") in hex
-        //     mstore(
-        //         add(freemem, 0xA0),
-        //         0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-        //     )
-        //     // staticcall returns 0 in the case that it reverted, in which case we also want to revert
-        //     if iszero(
-        //         // call modexp precompile with parameters specified above, copying the (single, 32 byte) return value to the freemem location
-        //         staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
-        //     ) {
-        //         revert(0, 0)
-        //     }
-        //     // store the returned value in 'sPower'
-        //     rPower := mload(freemem)
-        // }
-
-        // require(
-        //     challengeUtils.openPolynomialAtPoint(cPower, piPower, r, sPrime),
-        //     "Incorrect proof against commitment power"
-        // );
-
-        // // verify that r^power * s mod (MODULUS) == sPrime
-        // uint256 res;
-        // assembly {
-        //     res := mulmod(rPower, s, MODULUS)
-        // }
-        // require(res == sPrime, "bad sPrime provided");
-
-        // // set challenge commit time equal to 'CHALLENGE_UNSUCCESSFUL', so the same challenge cannot be opened a second time,
-        // // and to signal that the msg.sender correctly answered the challenge
-        // lowDegreeChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
-
-        // // send challenger collateral to msg.sender
-        // IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
-    }
-
-    function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
-    }
-
-    function challengeUnsuccessful(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_UNSUCCESSFUL);
-    }
-
-    function challengeExists(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime != 0);
-    }
-
-    function challengeClosed(bytes32 headerHash) public view override returns (bool) {
-        return ((block.timestamp - lowDegreeChallenges[headerHash].commitTime) > CHALLENGE_RESPONSE_WINDOW);
-    }
-
-    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
-    // and to signal that the challenge has been lost by the signers
-    function _markChallengeSuccessful(bytes32 headerHash) internal override {
-        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
-    }
-
-    function _recordChallengeDetails(bytes calldata, bytes32 headerHash) internal override {
-        // record details of low degree challenge that has been opened
-        lowDegreeChallenges[headerHash] = LowDegreeChallenge(
-            // the current timestamp when the challenge was created
-            block.timestamp,
-            // challenger's address
-            msg.sender
+        require(
+            searchData.metadata.signatoryRecordHash == signatoryRecordHash, 
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
         );
-    }
 
-    function _challengeCreationEvent(bytes32 headerHash) internal override {
-        emit SuccessfulLowDegreeChallenge(headerHash, msg.sender);
-    }
+        // verify that operator was active *at the blockNumber*
+        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+        IQuorumRegistry.OperatorStake memory operatorStake =
+            dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+        require(
+            // operator must have become active/registered before (or at) the block number
+            (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
+            // operator must have still been active after (or until) the block number
+            // either there is a later update, past the specified blockNumber, or they are still active
+            && (
+                operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
+                    || operatorStake.nextUpdateBlockNumber == 0
+            ),
+            "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
+        );
 
-    function _returnChallengerCollateral(bytes32) internal pure override {
-        return;
+        /**
+         * @notice Check that the DataLayr operator who is getting slashed was
+         * actually part of the quorum for the @param dataStoreId.
+         *
+         * The burden of responsibility lies with the challenger to show that the DataLayr operator
+         * is not part of the non-signers for the DataStore. Towards that end, challenger provides
+         * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+         * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+         * then,
+         * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+         */
+        /**
+         * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
+         * non-signers pubkey is recorded in the compressed signatory record in an  ascending
+         * manner.
+         */
+
+        {
+            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                // check that operator was *not* in the non-signer set (i.e. they *did* sign)
+                challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+                
+            }
+        }
+
+        dataLayrServiceManager.freezeOperator(operator);
     }
 }

@@ -131,6 +131,10 @@ library BN254 {
         return out[0] != 0;
     }
 
+    /*
+    * This function is functionally the same as pairing(), however it specifies a gas limit 
+    * the user can set, as a precompile may use the entire gas budget if it reverts.
+    */
     function safePairing(
         G1Point memory a1, 
         G2Point memory a2, 
