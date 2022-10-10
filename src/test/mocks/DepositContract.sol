@@ -29,9 +29,7 @@ interface IDepositContract {
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         bytes32 deposit_data_root
-    )
-        external
-        payable;
+    ) external payable;
 
     /// @notice Query the current deposit root hash.
     /// @return The deposit root hash.
@@ -57,10 +55,7 @@ contract DepositContract is IDepositContract {
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         bytes32 deposit_data_root
-    )
-        external
-        payable
-    {}
+    ) external payable {}
 
     /// @notice Query the current deposit root hash.
     /// @return The deposit root hash.

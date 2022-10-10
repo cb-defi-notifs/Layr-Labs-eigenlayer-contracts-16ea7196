@@ -98,9 +98,7 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
-     */
-    /**
+     * @notice used for investing an asset into the specified strategy on behalf of a staker, who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
@@ -118,15 +116,10 @@ contract InvestmentManager is
         bytes32 vs
     )
         external
+        onlyNotFrozen(staker)
         nonReentrant
         returns (uint256 shares)
     {
-        //make not frozen check here instead of modifier
-        require(
-            !slasher.isFrozen(staker),
-            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
-        );
-
         require(
             expiry == 0 || expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
@@ -166,14 +159,18 @@ contract InvestmentManager is
 
     /**
      * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
-     */
-    /**
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -236,6 +233,7 @@ contract InvestmentManager is
 
         return withdrawalRoot;
     }
+
     /*
     * 
     * The withdrawal flow is:
@@ -246,7 +244,6 @@ contract InvestmentManager is
     * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
     *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
     */
-
     function startQueuedWithdrawalWaitingPeriod(address depositor, bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
         external
     {
@@ -402,8 +399,10 @@ contract InvestmentManager is
         );
 
         {
-            // ongoing task is still active at time when staker was finalizing undelegation
-            // and, therefore, hasn't served its obligation.
+            /**
+             * Verify that there is an ongoing task, created at or before the `initTimestamp` and that expires
+             * strictly after the `unlockTimestamp` for this queued withdrawal
+             */
             slashingContract.stakeWithdrawalVerification(
                 data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
             );
@@ -413,7 +412,15 @@ contract InvestmentManager is
         queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
     }
 
-    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    /**
+     * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
+     */
     function slashShares(
         address slashedAddress,
         address recipient,
@@ -452,7 +459,11 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
-    /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+    /**
+     *  @notice Slashes an existing queued withdrawal
+     *  @dev The queued withdrawal must have *either* been created by a 'frozen' operator (or a staker delegated to one)
+     *  *OR* successfully challenged by a previous call to `challengeQueuedWithdrawal`
+     */
     function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
@@ -475,7 +486,7 @@ contract InvestmentManager is
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
-        // verify that the queued withdrawal has been successfully challenged
+        // verify that *either* the queued withdrawal has been successfully challenged, *or* the `depositor` has been frozen
         require(
             queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(depositor),
             "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"

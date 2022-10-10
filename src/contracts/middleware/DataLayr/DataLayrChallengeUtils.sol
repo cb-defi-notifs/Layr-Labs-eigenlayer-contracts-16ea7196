@@ -120,7 +120,7 @@ contract DataLayrChallengeUtils {
     function getNumSysFromHeader(
         // bytes calldata header
         bytes calldata header
-    ) public pure returns (uint32) {
+    ) external pure returns (uint32) {
         uint32 numSys = 0;
         
         assembly {
@@ -364,7 +364,7 @@ contract DataLayrChallengeUtils {
         bytes calldata poly,
         BN254.G1Point calldata interpolationPoly,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(
             keccak256(
@@ -389,7 +389,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         BN254.G1Point[] calldata interpolationPolys,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         bytes32[] memory rs = new bytes32[](polys.length);
         //Calculating r, the point at which to evaluate the interpolating polynomial
         for (uint i = 0; i < polys.length; i++) {
@@ -453,7 +453,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         MultiRevealProof[] calldata multiRevealProofs,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //randomness from each polynomial
         bytes32[] memory rs = new bytes32[](polys.length);
         DataStoreKZGMetadata

@@ -166,7 +166,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         signedTotals.totalStakeSecondQuorum = localStakeObject.secondQuorumStake;
         signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
 
-
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
             taskNumberToConfirm :=
@@ -338,8 +337,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                registry.getCorrectApkHash(apkIndex, stakesBlockNumber)
-                    == BLS.hashPubkey(pk),
+                registry.getCorrectApkHash(apkIndex, stakesBlockNumber) == BLS.hashPubkey(pk),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }

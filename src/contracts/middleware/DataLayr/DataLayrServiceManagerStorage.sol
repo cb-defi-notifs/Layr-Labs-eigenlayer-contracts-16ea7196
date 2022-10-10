@@ -55,10 +55,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     uint256 public feePerBytePerTime;
 
-    uint256 public disclosurePaymentPerByte;
-
-    uint48 public numPowersOfTau; // num of leaves in the root tree
-    uint48 public log2NumPowersOfTau; // num of leaves in the root tree
+    // TODO: set these values correctly
+    uint48 public constant numPowersOfTau = 0; // num of leaves in the root tree
+    uint48 public constant log2NumPowersOfTau = 0; // num of leaves in the root tree
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...

@@ -52,9 +52,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips
-    )
-        RepositoryAccess(_repository)
-    {
+    ) RepositoryAccess(_repository) {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
         // verify that the provided `_quorumBips` is of the correct length

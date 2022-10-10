@@ -17,6 +17,5 @@ interface IDataLayrPaymentManager is IPaymentManager {
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakes,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    )
-        external;
+    ) external;
 }
