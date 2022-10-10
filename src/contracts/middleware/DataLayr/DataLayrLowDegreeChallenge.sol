@@ -88,13 +88,11 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         require(dataStoreSearchData.metadata.headerHash == headerHash, "provided datastore searchData does not match provided header");
 
         /// @dev Refer to the datastore header spec
-        BN254.G1Point memory proofInG1;
-        proofInG1.X = uint256(bytes32(header.slice(64, 32)));
-        proofInG1.Y = uint256(bytes32(header.slice(96, 32)));
+        BN254.G1Point memory lowDegreenessProof;
+        lowDegreenessProof.X = uint256(bytes32(header.slice(64, 32)));
+        lowDegreenessProof.Y = uint256(bytes32(header.slice(96, 32)));
 
-        bool lowDegreenessProofVerified = proveLowDegreeness(header, potElement, potMerkleProof, proofInG1, pairingGasLimit);
-
-        require(lowDegreenessProofVerified, "Low-degreeness check failed");
+        proveLowDegreeness(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit);
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
         DataStoreUtils.verifyDataStoreMetadata(
@@ -125,7 +123,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
      * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
      * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
      * @param potMerkleProof is the merkle proof for the POT element.
-     * @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+     * @param lowDegreenessProof is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
      *                  We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
      *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
@@ -134,12 +132,11 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        BN254.G1Point memory proofInG1,
+        BN254.G1Point memory lowDegreenessProof,
         uint256 gasLimit
     )
         public
         view
-        returns (bool)
     {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
@@ -150,13 +147,14 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
 
-        bool merkleProofValid =  Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof);
+        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof), 
+                    "DataLayrLowDegreeChallenge.proveLowDegreeness: PoT merkle proof failed"
+        );
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-        ( bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
+       BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, gasLimit);
 
-        return (merkleProofValid && pairingSuccessful && precompileWorks);
     }
 
     function respondToLowDegreeChallenge(
