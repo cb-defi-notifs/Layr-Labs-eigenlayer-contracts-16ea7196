@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
-// import "forge-std/Test.sol";
+import "../interfaces/IEigenPodManager.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -61,6 +61,11 @@ contract InvestmentManager is
         _;
     }
 
+    modifier onlyEigenPod(address podOwner, address pod) {
+        require(address(eigenPodManager.getPod(podOwner).pod) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
     constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
         _disableInitializers();
     }
@@ -70,24 +75,42 @@ contract InvestmentManager is
     /**
      * @notice Initializes the investment manager contract.
      * @param _slasher The primary slashing contract of EigenLayr.
+     * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
-    function initialize(ISlasher _slasher, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(ISlasher _slasher, IEigenPodManager _eigenPodManager, IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
         _transferOwnership(initialOwner);
         slasher = _slasher;
+        eigenPodManager = _eigenPodManager;
         _initializePauser(_pauserRegistry);
     }
+
+    /**
+     * @notice Restakes all the ETH on msg.sender's EigenPod into EigenLayer
+     */
+    function depositBeaconChainETH(uint256 amount)
+        external
+        onlyNotFrozen(msg.sender)
+        nonReentrant
+        returns (uint256)
+    {
+        //make sure that msg.sender has amount beacon chain ETH to deposit
+        eigenPodManager.depositBalanceIntoEigenLayer(msg.sender, uint128(amount));
+        //add shres for the enshrined beacon chain ETH strategy
+        _addShares(msg.sender, beaconChainETHStrategy, amount);
+        return amount;
+    }
+
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
      */
-
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
@@ -447,6 +470,32 @@ contract InvestmentManager is
                 ++i;
             }
         }
+
+        // modify delegated shares accordingly, if applicable
+        delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
+    }
+
+    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    //TODO: standardise whether we use amount or shareAmount acorss the board
+    function slashBeaconChainETH(
+        address slashedAddress,
+        uint256 beaconChainETHStrategyIndex,
+        uint256 shareAmount
+    )
+        external
+        whenNotPaused
+        onlyFrozen(slashedAddress)
+        onlyEigenPod(slashedAddress, msg.sender)
+        nonReentrant
+    {
+        // the internal function will return 'true' in the event the strategy was
+        // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
+        _removeShares(slashedAddress, beaconChainETHStrategyIndex, beaconChainETHStrategy, shareAmount);
+
+        IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](1);
+        strategies[0] = beaconChainETHStrategy;
+        uint256[] memory shareAmounts = new uint256[](1);
+        shareAmounts[0] = shareAmount;
 
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);

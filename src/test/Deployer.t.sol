@@ -4,11 +4,14 @@ pragma solidity ^0.8.9;
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
+import "../contracts/interfaces/IEigenPodManager.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
+
+import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/middleware/Repository.sol";
 import "../contracts/permissions/PauserRegistry.sol";
@@ -172,8 +175,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
+
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, pauserReg, initialOwner);
+        //TODO: handle pod manager correctly
+        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
