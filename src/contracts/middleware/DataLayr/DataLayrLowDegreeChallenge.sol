@@ -98,7 +98,6 @@ contract DataLayrLowDegreeChallenge {
             //prove exclusion from nonsigning set aka inclusion in signing set
             for(uint i; i < nonSignerExclusionProofs.length;){
                 slashOperator(
-                    headerHash, 
                     nonSignerExclusionProofs[i].signerAddress, 
                     nonSignerIndex, 
                     nonSignerExclusionProofs[i].operatorHistoryIndex,
