@@ -64,7 +64,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         // recalculate the signatoryRecordHash, to verify integrity of `nonSignerPubkey` and `totalStakesSigned` inputs.
         bytes32 providedSignatoryRecordHash = keccak256(
             abi.encodePacked(
-                searchData.metadata.headerHash,
                 searchData.metadata.globalDataStoreId,
                 nonSignerPubkeyHashes,
                 totalStakesSigned.signedStakeFirstQuorum,

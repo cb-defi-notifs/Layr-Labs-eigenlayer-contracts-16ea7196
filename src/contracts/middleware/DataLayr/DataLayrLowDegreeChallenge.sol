@@ -173,14 +173,12 @@ contract DataLayrLowDegreeChallenge {
             );
 
        
-         bytes32 signatoryRecordHash = keccak256(
-                                            abi.encodePacked(
-                                                searchData.metadata.globalDataStoreId, 
-                                                signatoryRecord.nonSignerPubkeyHashes, 
-                                                signatoryRecord.totalEthStakeSigned, 
-                                                signatoryRecord.totalEigenStakeSigned
-                                            )
-                                        );
+        bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
+                                                        searchData.metadata.globalDataStoreId, 
+                                                        signatoryRecord.nonSignerPubkeyHashes,
+                                                        signatoryRecord.signedStakeFirstQuorum,
+                                                        signatoryRecord.signedStakeSecondQuorum
+                                                    );
 
         require(
             searchData.metadata.signatoryRecordHash == signatoryRecordHash, 

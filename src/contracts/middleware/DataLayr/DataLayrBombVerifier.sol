@@ -224,8 +224,8 @@ contract DataLayrBombVerifier {
                                 == DataStoreUtils.computeSignatoryRecordHash(
                                     bombGlobalDataStoreId,
                                     signatoryRecords[i].nonSignerPubkeyHashes,
-                                    signatoryRecords[i].totalEthStakeSigned,
-                                    signatoryRecords[i].totalEigenStakeSigned
+                                    signatoryRecords[i].signedStakeFirstQuorum,
+                                    signatoryRecords[i].signedStakeSecondQuorum
                                 ),
                         "DataLayrBombVerifier.verifyBomb: Bomb datastore signatory record does not match hash"
                     );
@@ -264,8 +264,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId,
                         signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEthStakeSigned,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEigenStakeSigned
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeFirstQuorum,
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: BOMB datastore sig record does not match hash"
             );
@@ -296,8 +296,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
                         signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEthStakeSigned,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEigenStakeSigned
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeFirstQuorum,
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
             );

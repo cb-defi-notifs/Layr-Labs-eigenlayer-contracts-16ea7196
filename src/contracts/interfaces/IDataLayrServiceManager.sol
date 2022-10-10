@@ -28,8 +28,8 @@ interface IDataLayrServiceManager is IServiceManager {
 
     struct SignatoryRecordMinusDataStoreId {
         bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
+        uint256 signedStakeFirstQuorum;
+        uint256 signedStakeSecondQuorum;
     }
 
     struct DataStoresForDuration {
