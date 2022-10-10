@@ -188,9 +188,7 @@ contract Governor is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    )
-        RepositoryAccess(_repository)
-    {
+    ) RepositoryAccess(_repository) {
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
@@ -208,10 +206,7 @@ contract Governor is RepositoryAccess {
         string[] memory signatures,
         bytes[] memory calldatas,
         string memory description
-    )
-        external
-        returns (uint256)
-    {
+    ) external returns (uint256) {
         (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(msg.sender);
         {
             // check percentage
@@ -446,10 +441,7 @@ contract Governor is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    )
-        external
-        onlyTimelock
-    {
+    ) external onlyTimelock {
         _setQuorumsAndThresholds(
             _firstQuorumPercentage,
             _secondQuorumPercentage,
@@ -463,9 +455,7 @@ contract Governor is RepositoryAccess {
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    )
-        internal
-    {
+    ) internal {
         require(_firstQuorumPercentage > 0 && _firstQuorumPercentage < 100, "bad _firstQuorumPercentage");
         require(_secondQuorumPercentage > 0 && _secondQuorumPercentage < 100, "bad _secondQuorumPercentage");
         require(

@@ -34,8 +34,7 @@ interface IInvestmentManager {
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    )
-        external;
+    ) external;
 
     function investorStratShares(address user, IInvestmentStrategy strategy) external view returns (uint256 shares);
 
@@ -49,14 +48,10 @@ interface IInvestmentManager {
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external returns(bytes32);
+    ) external returns (bytes32);
 
-    function startQueuedWithdrawalWaitingPeriod(
-        address depositor,
-        bytes32 withdrawalRoot,
-        uint32 stakeInactiveAfter
-    ) external;
+    function startQueuedWithdrawalWaitingPeriod(address depositor, bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
+        external;
 
     function completeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -65,8 +60,7 @@ interface IInvestmentManager {
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bool receiveAsTokens
-    )
-        external;
+    ) external;
 
     function challengeQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -76,8 +70,7 @@ interface IInvestmentManager {
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bytes calldata data,
         IServiceManager slashingContract
-    )
-        external;
+    ) external;
 
     function slashShares(
         address slashedAddress,
@@ -86,8 +79,7 @@ interface IInvestmentManager {
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    )
-        external;
+    ) external;
 
     function slashQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -96,8 +88,7 @@ interface IInvestmentManager {
         address slashedAddress,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external;
+    ) external;
 
     function canCompleteQueuedWithdrawal(
         IInvestmentStrategy[] calldata strategies,
@@ -105,19 +96,14 @@ interface IInvestmentManager {
         uint256[] calldata shareAmounts,
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        returns (bool);
+    ) external returns (bool);
 
     function calculateWithdrawalRoot(
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        pure
-        returns (bytes32);
+    ) external pure returns (bytes32);
 
     function delegation() external view returns (IEigenLayrDelegation);
 

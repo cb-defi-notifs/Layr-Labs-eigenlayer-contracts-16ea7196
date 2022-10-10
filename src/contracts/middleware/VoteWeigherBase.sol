@@ -26,8 +26,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips
-    )
-        VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
+    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) 
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -75,10 +74,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
-    )
-        external
-        onlyRepositoryGovernance
-    {
+    ) external onlyRepositoryGovernance {
         _addStrategiesConsideredAndMultipliers(quorumNumber, _newStrategiesConsideredAndMultipliers);
     }
 
@@ -92,10 +88,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         uint256 quorumNumber,
         IInvestmentStrategy[] calldata _strategiesToRemove,
         uint256[] calldata indicesToRemove
-    )
-        external
-        onlyRepositoryGovernance
-    {
+    ) external onlyRepositoryGovernance {
         uint256 numStrats = indicesToRemove.length;
 
         for (uint256 i = 0; i < numStrats;) {
@@ -128,9 +121,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     function _addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
-    )
-        internal
-    {
+    ) internal {
         uint256 numStratsToAdd = _newStrategiesConsideredAndMultipliers.length;
         uint256 numStratsExisting = strategiesConsideredAndMultipliers[quorumNumber].length;
         require(

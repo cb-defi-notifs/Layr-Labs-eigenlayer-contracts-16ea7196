@@ -26,10 +26,7 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
         ILendingPool _lendingPool,
         IERC20 _aToken,
         IPauserRegistry _pauserRegistry
-    )
-        public
-        initializer
-    {
+    ) public initializer {
         super.initialize(_underlyingToken, _pauserRegistry);
         lendingPool = _lendingPool;
         aToken = _aToken;

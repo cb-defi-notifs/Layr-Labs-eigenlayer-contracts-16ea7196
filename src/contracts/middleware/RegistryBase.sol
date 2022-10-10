@@ -9,7 +9,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
- import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
@@ -21,7 +21,6 @@ import "../libraries/BLS.sol";
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
 abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
-
     using BytesLib for bytes;
 
     uint32 public immutable UNBONDING_PERIOD;
@@ -85,9 +84,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
-    )
-        VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
-    {
+    ) VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) {
         //set unbonding period
         UNBONDING_PERIOD = unbondingPeriod;
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
@@ -291,7 +288,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     // MUTATING FUNCTIONS
 
     function updateSocket(string calldata newSocket) external {
-        require(registry[msg.sender].active == IQuorumRegistry.Status.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
+        require(
+            registry[msg.sender].active == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase.updateSocket: Can only update socket if active on the service"
+        );
         emit SocketUpdate(msg.sender, newSocket);
     }
 
@@ -401,9 +401,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         bytes32 pubkeyHash,
         OperatorStake memory _operatorStake,
         string calldata socket
-    )
-        internal
-    {
+    ) internal {
         require(
             investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
