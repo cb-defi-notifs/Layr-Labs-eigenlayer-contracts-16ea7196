@@ -17,10 +17,11 @@ import "forge-std/Test.sol";
 contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
-    //Hash of the zero public key
+    // Hash of the zero public key
     bytes32 internal constant ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
 
-    IBLSPublicKeyCompendium public pubkeyCompendium;
+    /// @notice contract used for looking up operators' BLS public keys
+    IBLSPublicKeyCompendium public immutable pubkeyCompendium;
 
     /**
      * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, and the block numbers at which the aggregate
@@ -30,7 +31,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     /**
      * @notice used for storing current aggregate public key
-     * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+     * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
      * addition in Jacobian coordinate system.
      */
     uint256[4] public apk;
@@ -76,7 +77,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         )
     {
         /**
-         * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+         * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
          * addition in Jacobian coordinate system.
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
@@ -86,7 +87,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     /**
-     * @notice called for registering as a operator
+     * @notice called for registering as an operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
      * @param pkBytes is the abi encoded bn254 G2 public key of the operator
      * @param socket is the socket address of the operator
@@ -174,26 +175,20 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        bytes32 pubkeyHashFromInput = BLS.hashPubkey(pubkeyToRemoveAff);
-        // verify that it matches the 'pubkeyToRemoveAff' input
+        /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input
         require(
-            pubkeyHash == pubkeyHashFromInput,
+            pubkeyHash == BLS.hashPubkey(pubkeyToRemoveAff),
             "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
         );
 
         // Perform necessary updates for removing operator, including updating registrant list and index histories
         _removeRegistrant(pubkeyHash, index);
 
-        /**
-         * @notice update the aggregated public key of all registered operators and record
-         * this update in history
-         */
         // get existing aggregate public key
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
         (pk[0], pk[1], pk[2], pk[3]) = BLS.removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-
-        // record the APK update
+        // update the aggregate public key of all registered operators and record this update in history
         _processApkUpdate(pk);
     }
 
