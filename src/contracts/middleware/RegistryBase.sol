@@ -210,16 +210,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return (firstQuorumStake > 0 || secondQuorumStake > 0);
     }
 
-    function totalFirstQuorumStake() external view returns (uint96) {
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.firstQuorumStake;
-    }
-
-    function totalSecondQuorumStake() external view returns (uint96) {
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.secondQuorumStake;
-    }
-
     function totalStake() external view returns (uint96, uint96) {
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         return (_totalStake.firstQuorumStake, _totalStake.secondQuorumStake);
@@ -345,7 +335,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
-        //revoke that slashing ability of the service manager
+        //revoke the slashing ability of the service manager
         repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
 
         // Emit `Deregistration` event

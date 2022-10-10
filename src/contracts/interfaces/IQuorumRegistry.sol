@@ -89,8 +89,4 @@ interface IQuorumRegistry is IRegistry {
     function operatorStakes(address operator) external view returns (uint96, uint96);
 
     function totalStake() external view returns (uint96, uint96);
-
-    function totalFirstQuorumStake() external view returns (uint96);
-
-    function totalSecondQuorumStake() external view returns (uint96);
 }
