@@ -6,7 +6,7 @@ import "../libraries/BLS.sol";
 import "forge-std/Test.sol";
 
 /**
- * @title An shared contract for EigenLayer operators to register their BLS public keys.
+ * @title A shared contract for EigenLayer operators to register their BLS public keys.
  * @author Layr Labs, Inc.
  */
 contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
