@@ -37,7 +37,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
 
     /**
      * @notice mapping from quorum number to the list of strategies considered and their
-     * corresponding weights for that specific quorum
+     * corresponding multipliers for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
