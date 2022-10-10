@@ -140,7 +140,7 @@ library BN254 {
     )
         internal
         view
-        return (bool, bool)
+        returns (bool, bool)
     {
         G1Point[2] memory p1 = [a1, b1];
         G2Point[2] memory p2 = [a2, b2];
@@ -171,7 +171,6 @@ library BN254 {
         //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
         //Success is true if the precompile actually goes through (aka all inputs are valid)
 
-        return(success, out[0] != 0) //"BN254.safePairing: precompile failed, check validity of inputs");
-        //require(out[0] != 0, "BN254.safePairing: Pairing failed");
+        return(success, out[0] != 0);
     }
 }

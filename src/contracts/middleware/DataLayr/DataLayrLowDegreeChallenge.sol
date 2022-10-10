@@ -93,7 +93,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         lowDegreenessProof.Y = uint256(bytes32(header.slice(96, 32)));
 
 
-        //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
+        //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
         DataStoreUtils.verifyDataStoreMetadata(
             dataLayrServiceManager,
             dataStoreSearchData.metadata,
@@ -156,7 +156,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
+       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, gasLimit);
        
        return (precompileWorks && pairingSuccessful);
 
