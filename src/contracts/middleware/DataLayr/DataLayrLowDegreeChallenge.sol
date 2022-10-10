@@ -92,7 +92,6 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         lowDegreenessProof.X = uint256(bytes32(header.slice(64, 32)));
         lowDegreenessProof.Y = uint256(bytes32(header.slice(96, 32)));
 
-        proveLowDegreeness(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit);
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record) maatches stored searchData
         DataStoreUtils.verifyDataStoreMetadata(
@@ -104,19 +103,22 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
             "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
         );
 
-        uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
-        //prove exclusion from nonsigning set aka inclusion in signing set
-        for(uint i; i < nonSignerExclusionProofs.length;){
-            slashOperator(
-                headerHash, 
-                nonSignerExclusionProofs[i].signerAddress, 
-                nonSignerIndex, 
-                nonSignerExclusionProofs[i].operatorHistoryIndex,
-                dataStoreSearchData,
-                signatoryRecord
-            );   
-        }   
-    } 
+
+        if(!proveLowDegreeness(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit)){
+            uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
+            //prove exclusion from nonsigning set aka inclusion in signing set
+            for(uint i; i < nonSignerExclusionProofs.length;){
+                slashOperator(
+                    headerHash, 
+                    nonSignerExclusionProofs[i].signerAddress, 
+                    nonSignerIndex, 
+                    nonSignerExclusionProofs[i].operatorHistoryIndex,
+                    dataStoreSearchData,
+                    signatoryRecord
+                );   
+            }   
+        } 
+    }
 
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
@@ -137,6 +139,7 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
     )
         public
         view
+        returns(bool)
     {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
@@ -153,7 +156,10 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-       BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, gasLimit);
+       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, proofInG1, negativeG2, gasLimit);
+       
+       return (precompileWorks && pairingSuccessful);
+
 
     }
 
