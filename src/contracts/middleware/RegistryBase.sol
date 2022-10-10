@@ -156,14 +156,14 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return operatorIndex.index;
     }
 
-    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
-        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
-    }
-
     function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
         minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
     }
 
+    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
+        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
+    }
+    
     /// @notice returns the unique ID of the specified operator
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
