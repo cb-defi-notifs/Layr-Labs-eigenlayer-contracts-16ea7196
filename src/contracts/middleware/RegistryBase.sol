@@ -49,17 +49,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
     // EVENTS
+    /// @notice emitted when `operator` updates their socket address to `socket`
     event SocketUpdate(address operator, string socket);
 
-    event StakeAdded(
-        address operator,
-        uint96 firstQuorumStake,
-        uint96 secondQuorumStake,
-        uint256 updateNumber,
-        uint32 updateBlockNumber,
-        uint32 prevUpdateBlockNumber
-    );
-
+    /// @notice emitted whenever the stake of `operator` is updated
     event StakeUpdate(
         address operator,
         uint96 firstQuorumStake,
@@ -69,11 +62,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     );
 
     event Deregistration(address operator, address swapped);
-
-    // enum OperatorType {
-    //     QUORUM_1_VALIDATOR,
-    //     QUORUM_2_VALIDATOR
-    // }
 
     constructor(
         Repository _repository,
@@ -362,6 +350,15 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
+
+        emit StakeUpdate(
+            msg.sender,
+            // new stakes are zero
+            0,
+            0,
+            uint32(block.number),
+            currentStakes.updateBlockNumber
+            );
     }
 
     // Removes the registrant at the given `index` from the `operatorList`
@@ -437,6 +434,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        // add operator stakes to total stake (in memory)
         _totalStake.firstQuorumStake += _operatorStake.firstQuorumStake;
         _totalStake.secondQuorumStake += _operatorStake.secondQuorumStake;
         // update storage of total stake
@@ -444,6 +442,15 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // Update totalOperatorsHistory array
         _updateTotalOperatorsHistory();
+
+        emit StakeUpdate(
+            operator,
+            _operatorStake.firstQuorumStake,
+            _operatorStake.secondQuorumStake,
+            uint32(block.number),
+            // no previous update block number -- use 0 instead
+            0
+            );
     }
 
     // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
