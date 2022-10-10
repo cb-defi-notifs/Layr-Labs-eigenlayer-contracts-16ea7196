@@ -52,14 +52,15 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
 
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
 
-        DataStoreUtils.verifyDataStoreMetadata(
-                dataLayrServiceManager,
-                searchData.metadata,
-                searchData.duration,
-                searchData.timestamp,
-                searchData.index,
-                "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
-            );
+        require(
+            DataStoreUtils.verifyDataStoreMetadata(
+                    dataLayrServiceManager,
+                    searchData.metadata,
+                    searchData.duration,
+                    searchData.timestamp,
+                    searchData.index
+            ), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
+        );
 
         // recalculate the signatoryRecordHash, to verify integrity of `nonSignerPubkey` and `totalStakesSigned` inputs.
         bytes32 providedSignatoryRecordHash = keccak256(

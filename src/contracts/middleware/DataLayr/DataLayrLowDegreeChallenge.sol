@@ -83,13 +83,14 @@ contract DataLayrLowDegreeChallenge {
 
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
-        DataStoreUtils.verifyDataStoreMetadata(
-            dataLayrServiceManager,
-            dataStoreSearchData.metadata,
-            dataStoreSearchData.duration,
-            dataStoreSearchData.timestamp,
-            dataStoreSearchData.index,
-            "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
+        require(
+            DataStoreUtils.verifyDataStoreMetadata(
+                dataLayrServiceManager,
+                dataStoreSearchData.metadata,
+                dataStoreSearchData.duration,
+                dataStoreSearchData.timestamp,
+                dataStoreSearchData.index
+            ), "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
         );
 
 
@@ -162,15 +163,16 @@ contract DataLayrLowDegreeChallenge {
     )
         internal
     {
-
-        DataStoreUtils.verifyDataStoreMetadata(
-                dataLayrServiceManager,
-                searchData.metadata,
-                searchData.duration,
-                searchData.timestamp,
-                searchData.index,
-                "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
-            );
+        
+        require(
+            DataStoreUtils.verifyDataStoreMetadata(
+                    dataLayrServiceManager,
+                    searchData.metadata,
+                    searchData.duration,
+                    searchData.timestamp,
+                    searchData.index
+            ), "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
+        );
 
        
         bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(

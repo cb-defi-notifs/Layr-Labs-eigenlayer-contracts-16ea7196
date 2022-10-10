@@ -46,21 +46,19 @@ library DataStoreUtils {
         IDataLayrServiceManager.DataStoreMetadata memory metadata,
         uint8 duration,
         uint256 timestamp,
-        uint32 index,
-        string memory revertMsg
+        uint32 index
     ) 
         internal
         view
+        returns (bool)
     {
-        require(
+        return(
             serviceManager.getDataStoreHashesForDurationAtTimestamp(
                 duration, 
                 timestamp, 
                 index
-            ) == DataStoreUtils.computeDataStoreHash(metadata), 
-            revertMsg
+            ) == DataStoreUtils.computeDataStoreHash(metadata)
         );
-
     }
 
     /// @notice uses `abi.encodePacked` to encode a DataStore's metadata into a compressed format
