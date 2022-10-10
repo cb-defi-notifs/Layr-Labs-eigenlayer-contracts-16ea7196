@@ -195,7 +195,7 @@ contract RegistrationTests is TestHelper {
         bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         address operator = signers[operatorIndex];
         uint8 operatorType = 3;
-        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
+        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
         emit log_named_bytes32("apkHashBefore", apkHashBefore);
 
         _testInitiateDelegation(

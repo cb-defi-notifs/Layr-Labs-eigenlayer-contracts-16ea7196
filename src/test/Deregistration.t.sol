@@ -39,7 +39,7 @@ contract DeregistrationTests is TestHelper {
         require( firstQuorumStake == 0, "Stake history not updated correctly");
         require( secondQuorumStake == 0, "Stake history not updated correctly");
 
-        bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
+        bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
         require(currAPKHash == prevAPKHash, "aggregate public key has not been updated correctly following deregistration");
 
     }

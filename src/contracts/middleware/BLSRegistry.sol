@@ -22,14 +22,11 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     IBLSPublicKeyCompendium public pubkeyCompendium;
 
-    /// @notice the block numbers at which the aggregated pubkeys were updated
-    uint32[] public apkUpdates;
-
     /**
-     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators,
-     * this is updated whenever a new operator registers or deregisters
+     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, and the block numbers at which the aggregate
+     * pubkeys were updated. This occurs whenever a new operator registers or deregisters.
      */
-    bytes32[] public apkHashes;
+    ApkUpdate[] internal _apkUpdates;
 
     /**
      * @notice used for storing current aggregate public key
@@ -121,7 +118,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
         // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
         require(
-            pubkeyHash != apkHashes[apkHashes.length - 1],
+            pubkeyHash != _apkUpdates[_apkUpdates.length - 1].apkHash,
             "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
         );
 
@@ -151,7 +148,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // add the operator to the list of registrants and do accounting
         _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
 
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash, socket);
+        emit Registration(operator, pubkeyHash, pk, uint32(_apkUpdates.length - 1), newApkHash, socket);
     }
 
     /**
@@ -296,7 +293,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     // }
 
     /**
-     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
+     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `_apkUpdates` array
      * @param newApk The updated APK. This will be the `apk` after this function runs!
      */
     function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
@@ -304,12 +301,15 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // slither-disable-next-line costly-loop
         apk = newApk;
 
-        // store the current block number in which the aggregated pubkey is being updated
-        apkUpdates.push(uint32(block.number));
-
-        //store the hash of aggregate pubkey
+        // find the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);
+
+        // store the apk hash and the current block number in which the aggregated pubkey is being updated
+        _apkUpdates.push(ApkUpdate({
+            apkHash: newApkHash,
+            blockNumber: uint32(block.number)
+        }));
+
         return newApkHash;
     }
 
@@ -327,24 +327,39 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     /**
      * @notice get hash of a historical aggregated public key corresponding to a given index;
-     * called by checkSignatures in SignatureChecker.sol.
+     * called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
-        require(blockNumber >= apkUpdates[index], "BLSRegistry.getCorrectApkHash: Index too recent");
+        require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: Index too recent");
 
         // if not last update
-        if (index != apkUpdates.length - 1) {
-            require(blockNumber < apkUpdates[index + 1], "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
+        if (index != _apkUpdates.length - 1) {
+            require(blockNumber < _apkUpdates[index + 1].blockNumber, "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
-        return apkHashes[index];
+        return _apkUpdates[index].apkHash;
     }
 
+    /// @notice returns the total number of APK updates that have ever occurred (including one for initializing the pubkey as the generator)
     function getApkUpdatesLength() external view returns (uint256) {
-        return apkUpdates.length;
+        return _apkUpdates.length;
     }
 
-    function getApkHashesLength() external view returns (uint256) {
-        return apkHashes.length;
+    /// @notice returns the `ApkUpdate` struct at `index` in the list of APK updates
+    function apkUpdates(uint256 index) external view returns (ApkUpdate memory) {
+        require(index < _apkUpdates.length, "BLSRegistry.apkUpdates: index input too high");
+        return _apkUpdates[index];
+    }
+
+    /// @notice returns the APK hash that resulted from the `index`th APK update
+    function apkHashes(uint256 index) external view returns (bytes32) {
+        require(index < _apkUpdates.length, "BLSRegistry.apkHashes: index input too high");
+        return _apkUpdates[index].apkHash;
+    }
+
+    /// @notice returns the block number at which the `index`th APK update occurred
+    function apkUpdateBlockNumbers(uint256 index) external view returns (uint32) {
+        require(index < _apkUpdates.length, "BLSRegistry.apkUpdateBlockNumbers: index input too high");
+        return _apkUpdates[index].blockNumber;
     }
 }
