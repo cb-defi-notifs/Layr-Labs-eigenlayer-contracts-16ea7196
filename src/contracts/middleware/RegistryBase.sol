@@ -399,8 +399,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     function _addRegistrant(
         address operator,
         bytes32 pubkeyHash,
-        OperatorStake memory _operatorStake,
-        string calldata socket
+        OperatorStake memory _operatorStake
     ) internal {
         require(
             investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
@@ -415,7 +414,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
-            // extract the socket address
             deregisterTime: 0
         });
 
