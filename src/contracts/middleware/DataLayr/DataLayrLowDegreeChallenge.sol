@@ -30,11 +30,17 @@ contract DataLayrLowDegreeChallenge {
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
+    enum ChallengeStatus{
+        UNSUCCESSFUL,
+        SUCCESSFUL
+    }
+
     struct LowDegreeChallenge {
-        // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
-        uint256 commitTime;
         // challenger's address
         address challenger;
+        // challenge status
+        ChallengeStatus status;
+
     }
 
     struct NonSignerExclusionProof { 
@@ -43,6 +49,8 @@ contract DataLayrLowDegreeChallenge {
     }
 
     event SuccessfulLowDegreeChallenge(bytes32 indexed headerHash, address challenger);
+
+    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
 
     //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
@@ -63,7 +71,6 @@ contract DataLayrLowDegreeChallenge {
     *   freezes operator if verified as being excluded from nonsigner set.
     *
     *   @param header is the header for the datastore in question.
-    *   @param nonSignerExclusionProofs are the list of exclusion proofs for an operator in the nonsigner set for a datastore
     *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
     *   @param signatoryRecord is the record of signatures on said datastore
     */
@@ -72,7 +79,6 @@ contract DataLayrLowDegreeChallenge {
         uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        NonSignerExclusionProof[] memory nonSignerExclusionProofs,
         IDataLayrServiceManager.DataStoreSearchData calldata dataStoreSearchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
@@ -110,20 +116,87 @@ contract DataLayrLowDegreeChallenge {
 
         
         if(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit)){
-            uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
-            //prove exclusion from nonsigning set aka inclusion in signing set
-            for(uint i; i < nonSignerExclusionProofs.length;){
-                _slashOperator(
-                    nonSignerExclusionProofs[i].signerAddress, 
-                    nonSignerIndex, 
-                    nonSignerExclusionProofs[i].operatorHistoryIndex,
-                    dataStoreSearchData,
-                    signatoryRecord
-                );   
-            } 
+            lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(
+                                                                msg.sender,
+                                                                ChallengeStatus.SUCCESSFUL
+                                                            );
             emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);  
+
+            // uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
+            // //prove exclusion from nonsigning set aka inclusion in signing set
+            // for(uint i; i < nonSignerExclusionProofs.length;){
+            //     _slashOperator(
+            //         nonSignerExclusionProofs[i].signerAddress, 
+            //         nonSignerIndex, 
+            //         nonSignerExclusionProofs[i].operatorHistoryIndex,
+            //         dataStoreSearchData,
+            //         signatoryRecord
+            //     );   
+            // } 
         } 
     }
+
+    ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
+
+    function slashOperatorForLowDegreeChallenge(
+        NonSignerExclusionProof[] memory nonSignerExclusionProofs,
+        uint256 nonSignerIndex,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
+    )
+        external
+    {
+
+        for(uint i; i < nonSignerExclusionProofs.length;){
+            address operator = nonSignerExclusionProofs[i].signerAddress;
+            uint32 operatorHistoryIndex = nonSignerExclusionProofs[i].operatorHistoryIndex;
+
+            // verify that operator was active *at the blockNumber*
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+            IQuorumRegistry.OperatorStake memory operatorStake =
+                dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+            require(
+                // operator must have become active/registered before (or at) the block number
+                (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
+                // operator must have still been active after (or until) the block number
+                // either there is a later update, past the specified blockNumber, or they are still active
+                && (
+                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
+                        || operatorStake.nextUpdateBlockNumber == 0
+                ),
+                "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
+            );
+
+            /**
+            * @notice Check that the DataLayr operator who is getting slashed was
+            * actually part of the quorum for the @param dataStoreId.
+            *
+            * The burden of responsibility lies with the challenger to show that the DataLayr operator
+            * is not part of the non-signers for the DataStore. Towards that end, challenger provides
+            * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+            * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+            * then,
+            * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+            */
+            /**
+            * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
+            * non-signers pubkey is recorded in the compressed signatory record in an  ascending
+            * manner.
+            */
+
+            {
+                if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                    // check that operator was *not* in the non-signer set (i.e. they *did* sign)
+                    challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+                    
+                }
+            }
+
+            dataLayrServiceManager.freezeOperator(operator);
+
+        }
+    }
+
 
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
@@ -166,61 +239,5 @@ contract DataLayrLowDegreeChallenge {
        return (precompileWorks && pairingSuccessful);
 
 
-    }
-
-
-    // slash an operator who signed a headerHash but failed a subsequent challenge
-    function _slashOperator(
-        address operator,
-        uint256 nonSignerIndex,
-        uint32 operatorHistoryIndex,
-        IDataLayrServiceManager.DataStoreSearchData calldata searchData,
-        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    )
-        internal
-    {
-
-        // verify that operator was active *at the blockNumber*
-        bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
-        IQuorumRegistry.OperatorStake memory operatorStake =
-            dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
-        require(
-            // operator must have become active/registered before (or at) the block number
-            (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
-            // operator must have still been active after (or until) the block number
-            // either there is a later update, past the specified blockNumber, or they are still active
-            && (
-                operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
-                    || operatorStake.nextUpdateBlockNumber == 0
-            ),
-            "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
-        );
-
-        /**
-         * @notice Check that the DataLayr operator who is getting slashed was
-         * actually part of the quorum for the @param dataStoreId.
-         *
-         * The burden of responsibility lies with the challenger to show that the DataLayr operator
-         * is not part of the non-signers for the DataStore. Towards that end, challenger provides
-         * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
-         * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
-         * then,
-         * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
-         */
-        /**
-         * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
-         * non-signers pubkey is recorded in the compressed signatory record in an  ascending
-         * manner.
-         */
-
-        {
-            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-                // check that operator was *not* in the non-signer set (i.e. they *did* sign)
-                challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
-                
-            }
-        }
-
-        dataLayrServiceManager.freezeOperator(operator);
     }
 }
