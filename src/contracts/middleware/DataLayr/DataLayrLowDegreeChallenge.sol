@@ -37,11 +37,14 @@ contract DataLayrLowDegreeChallenge {
         address challenger;
     }
 
-    struct nonSignerExclusionProof { 
+    struct NonSignerExclusionProof { 
         address signerAddress;
         uint32 operatorHistoryIndex;
     }
 
+    event SuccessfulLowDegreeChallenge(bytes32 indexed headerHash, address challenger);
+
+    //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
 
     constructor(
@@ -69,7 +72,7 @@ contract DataLayrLowDegreeChallenge {
         uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        nonSignerExclusionProof[] memory nonSignerExclusionProofs,
+        NonSignerExclusionProof[] memory nonSignerExclusionProofs,
         IDataLayrServiceManager.DataStoreSearchData calldata dataStoreSearchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
@@ -93,19 +96,32 @@ contract DataLayrLowDegreeChallenge {
             ), "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
         );
 
+        bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
+                                                        dataStoreSearchData.metadata.globalDataStoreId, 
+                                                        signatoryRecord.nonSignerPubkeyHashes,
+                                                        signatoryRecord.signedStakeFirstQuorum,
+                                                        signatoryRecord.signedStakeSecondQuorum
+                                                    );
 
-        if(!proveLowDegreeness(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit)){
+        require(
+            dataStoreSearchData.metadata.signatoryRecordHash == signatoryRecordHash, 
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
+        );
+
+        
+        if(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit)){
             uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
             //prove exclusion from nonsigning set aka inclusion in signing set
             for(uint i; i < nonSignerExclusionProofs.length;){
-                slashOperator(
+                _slashOperator(
                     nonSignerExclusionProofs[i].signerAddress, 
                     nonSignerIndex, 
                     nonSignerExclusionProofs[i].operatorHistoryIndex,
                     dataStoreSearchData,
                     signatoryRecord
                 );   
-            }   
+            } 
+            emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);  
         } 
     }
 
@@ -119,7 +135,7 @@ contract DataLayrLowDegreeChallenge {
      *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
 
-    function proveLowDegreeness(
+    function verifyLowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
@@ -154,7 +170,7 @@ contract DataLayrLowDegreeChallenge {
 
 
     // slash an operator who signed a headerHash but failed a subsequent challenge
-    function slashOperator(
+    function _slashOperator(
         address operator,
         uint256 nonSignerIndex,
         uint32 operatorHistoryIndex,
@@ -163,29 +179,6 @@ contract DataLayrLowDegreeChallenge {
     )
         internal
     {
-        
-        require(
-            DataStoreUtils.verifyDataStoreMetadata(
-                    dataLayrServiceManager,
-                    searchData.metadata,
-                    searchData.duration,
-                    searchData.timestamp,
-                    searchData.index
-            ), "DataLayrChallengeBase.slashOperator: Provided metadata does not match stored datastore metadata hash"
-        );
-
-       
-        bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
-                                                        searchData.metadata.globalDataStoreId, 
-                                                        signatoryRecord.nonSignerPubkeyHashes,
-                                                        signatoryRecord.signedStakeFirstQuorum,
-                                                        signatoryRecord.signedStakeSecondQuorum
-                                                    );
-
-        require(
-            searchData.metadata.signatoryRecordHash == signatoryRecordHash, 
-            "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
-        );
 
         // verify that operator was active *at the blockNumber*
         bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);

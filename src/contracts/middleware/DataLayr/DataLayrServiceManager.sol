@@ -140,12 +140,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @param header is the summary of the data that is being asserted into DataLayr,
      *  type DataStoreHeader struct {
      *   KzgCommit      [64]byte
-     *   LowDegreeProof [64]byte
      *   Degree         uint32 
      *   NumSys         uint32
      *   NumPar         uint32
      *   OrigDataSize   uint32 
      *   Disperser      [20]byte
+    *   LowDegreeProof [64]byte
 }
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
