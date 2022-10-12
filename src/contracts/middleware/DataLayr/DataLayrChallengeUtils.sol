@@ -48,7 +48,7 @@ contract DataLayrChallengeUtils {
                 )
                 //or nonSigner index is greater than them
                 || (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) > uint256(operatorPubkeyHash)),
-                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Pubkey hash at nonSignerIndex is not less than operator pubkey hash"
+                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Pubkey hash at nonSignerIndex is greater than operator pubkey hash"
             );
 
             //  check that uint256(nspkh[index - 1]) < uint256(operatorPubkeyHash)
@@ -56,7 +56,7 @@ contract DataLayrChallengeUtils {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
                     uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) < uint256(operatorPubkeyHash),
-                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Pubkey hash at nonSignerIndex-1 is not less than operator pubkey hash"
+                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Pubkey hash at nonSignerIndex-1 is greater than operator pubkey hash"
                 );
             }
         }
