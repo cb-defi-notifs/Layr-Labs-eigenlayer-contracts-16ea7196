@@ -30,6 +30,8 @@ contract DataLayrLowDegreeChallenge {
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
+    uint256 public PAIRING_GAS_LIMIT = 1000;
+
     enum ChallengeStatus{
         UNSUCCESSFUL,
         SUCCESSFUL
@@ -115,7 +117,7 @@ contract DataLayrLowDegreeChallenge {
         );
 
         
-        if(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof, pairingGasLimit)){
+        if(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof)){
             lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(
                                                                 msg.sender,
                                                                 ChallengeStatus.SUCCESSFUL
@@ -205,15 +207,13 @@ contract DataLayrLowDegreeChallenge {
      * @param potMerkleProof is the merkle proof for the POT element.
      * @param lowDegreenessProof is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
      *                  We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
-     *   @param gasLimit is the gas limit set by the challenger for consumption by the BN254 pairing precompile
      */
 
     function verifyLowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        BN254.G1Point memory lowDegreenessProof,
-        uint256 gasLimit
+        BN254.G1Point memory lowDegreenessProof
     )
         public
         view
@@ -234,7 +234,7 @@ contract DataLayrLowDegreeChallenge {
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, gasLimit);
+       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, PAIRING_GAS_LIMIT);
        
        return (precompileWorks && pairingSuccessful);
 
