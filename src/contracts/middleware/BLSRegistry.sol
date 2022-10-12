@@ -107,10 +107,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     {
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
-        /**
-         * @notice evaluate the new aggregated pubkey
-         */
-
+        /// @notice evaluate the new aggregated pubkey
         uint256[4] memory newApk;
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
