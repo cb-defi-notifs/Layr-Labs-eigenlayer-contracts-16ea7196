@@ -120,60 +120,81 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return operatorIndex.index;
     }
 
-    /*
-     looks up the number of total operators at the specified `blockNumber`.
-     The `index` input is used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from
+    /**
+     * @notice Looks up the number of total operators at the specified `blockNumber`.
+     * @param index Input used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from.
+     * @dev This function will revert if the provided `index` is out of bounds.
     */
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
         require(
             index < uint32(totalOperatorsHistory.length),
-            "RegistryBase.getTotalOperators: TotalOperator indexHistory index exceeds array length"
+            "RegistryBase.getTotalOperators: TotalOperatorsHistory index exceeds array length"
         );
-        // since the 'to' field represents the blockNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
+        /**
+         * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
+         * previous array entry has 'to' == blockNumber, so we check not strict inequality here
+         */
         require(
             index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
-            "RegistryBase.getTotalOperators: TotalOperator indexHistory index is too high"
+            "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
         // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
-            "RegistryBase.getTotalOperators: indexHistory index is too low"
+            "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too low"
         );
         return operatorIndex.index;
     }
 
+    /// @notice adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
     function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
         minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
     }
 
+    /// @notice adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
     function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
         minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
 
-    /// @notice returns the unique ID of the specified operator
+    /// @notice returns the unique ID of the specified `operator`.
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
     }
 
-    /// @notice returns the status for the specified operator
+    /// @notice returns the current status for the specified `operator`.
     function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Status) {
         return registry[operator].status;
     }
 
+    /// @notice returns the stored pubkeyHash for the specified `operator`.
     function getOperatorPubkeyHash(address operator) public view returns (bytes32) {
         return registry[operator].pubkeyHash;
     }
 
+    /**
+     * @notice Returns the stake weight corresponding to `pubkeyHash`, at the
+     * `index`-th entry in the `pubkeyHashToStakeHistory[pubkeyHash]` array.
+     * @param pubkeyHash Hash of the public key of the operator of interest.
+     * @param index Array index for lookup, within the dynamic array `pubkeyHashToStakeHistory[pubkeyHash]`.
+     * @dev Function will revert if `index` is out-of-bounds.
+     */
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index)
         external
         view
         returns (OperatorStake memory)
     {
+        require(
+            index < pubkeyHashToStakeHistory[pubkeyHash].length,
+            "RegistryBase.getStakeFromPubkeyHashAndIndex: pubkeyHashToStakeHistory index exceeds array length"
+        );
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
+    /**
+     * @notice Returns the most recent stake weight for the `operator`
+     * @dev Function returns weights of **0** in the event that the operator has no stake history
+     */
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
         uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
