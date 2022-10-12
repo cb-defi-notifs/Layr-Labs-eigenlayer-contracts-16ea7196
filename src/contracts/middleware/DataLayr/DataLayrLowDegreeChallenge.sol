@@ -140,7 +140,7 @@ contract DataLayrLowDegreeChallenge {
 
     ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
 
-    function slashOperatorForLowDegreeChallenge(
+    function freezeOperatorsForLowDegreeChallenge(
         NonSignerExclusionProof[] memory nonSignerExclusionProofs,
         uint256 nonSignerIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData,
