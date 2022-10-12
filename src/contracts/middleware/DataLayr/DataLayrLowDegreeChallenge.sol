@@ -149,7 +149,7 @@ contract DataLayrLowDegreeChallenge {
         external
     {
 
-        for(uint i; i < nonSignerExclusionProofs.length;){
+        for(uint i; i < nonSignerExclusionProofs.length; i++){
             address operator = nonSignerExclusionProofs[i].signerAddress;
             uint32 operatorHistoryIndex = nonSignerExclusionProofs[i].operatorHistoryIndex;
 
@@ -195,7 +195,6 @@ contract DataLayrLowDegreeChallenge {
             }
 
             dataLayrServiceManager.freezeOperator(operator);
-
         }
     }
 
