@@ -99,10 +99,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // look up the operator's stored pubkeyHash
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
 
-        require(
-            index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length),
-            "RegistryBase.getOperatorIndex: Operator indexHistory index exceeds array length"
-        );
         /**
          * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
          * previous array entry has 'to' == blockNumber, so we check not strict inequality here
@@ -129,10 +125,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @dev This function will revert if the provided `index` is out of bounds.
     */
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
-        require(
-            index < uint32(totalOperatorsHistory.length),
-            "RegistryBase.getTotalOperators: TotalOperatorsHistory index exceeds array length"
-        );
         /**
          * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
          * previous array entry has 'to' == blockNumber, so we check not strict inequality here
@@ -187,16 +179,12 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         view
         returns (OperatorStake memory)
     {
-        require(
-            index < pubkeyHashToStakeHistory[pubkeyHash].length,
-            "RegistryBase.getStakeFromPubkeyHashAndIndex: pubkeyHashToStakeHistory index exceeds array length"
-        );
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
     /**
      * @notice Returns the most recent stake weight for the `operator`
-     * @dev Function returns weights of **0** in the event that the operator has no stake history
+     * @dev Function returns an OperatorStake struct with **every entry equal to 0** in the event that the operator has no stake history
      */
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
@@ -261,10 +249,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @dev Function will revert in the event that `index` is out-of-bounds.
      */
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
-        require(
-            index < totalStakeHistory.length,
-            "RegistryBase.getTotalStakeFromIndex: totalStakeHistory index exceeds array length"
-        );
         return totalStakeHistory[index];
     }
 

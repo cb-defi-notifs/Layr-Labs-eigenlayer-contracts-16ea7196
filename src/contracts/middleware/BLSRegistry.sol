@@ -322,15 +322,10 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
-        // store length for SLOAD savings
-        uint256 apkUpdatesLength = _apkUpdates.length;
-        // sanity check on `index` input
-        require(index < apkUpdatesLength, "BLSRegistry.getCorrectApkHash: index exceeds array length");
-
         require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: index too recent");
 
         // if not last update
-        if (index != apkUpdatesLength - 1) {
+        if (index != _apkUpdates.length - 1) {
             require(blockNumber < _apkUpdates[index + 1].blockNumber, "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
@@ -344,19 +339,16 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     /// @notice returns the `ApkUpdate` struct at `index` in the list of APK updates
     function apkUpdates(uint256 index) external view returns (ApkUpdate memory) {
-        require(index < _apkUpdates.length, "BLSRegistry.apkUpdates: index input too high");
         return _apkUpdates[index];
     }
 
     /// @notice returns the APK hash that resulted from the `index`th APK update
     function apkHashes(uint256 index) external view returns (bytes32) {
-        require(index < _apkUpdates.length, "BLSRegistry.apkHashes: index input too high");
         return _apkUpdates[index].apkHash;
     }
 
     /// @notice returns the block number at which the `index`th APK update occurred
     function apkUpdateBlockNumbers(uint256 index) external view returns (uint32) {
-        require(index < _apkUpdates.length, "BLSRegistry.apkUpdateBlockNumbers: index input too high");
         return _apkUpdates[index].blockNumber;
     }
 }
