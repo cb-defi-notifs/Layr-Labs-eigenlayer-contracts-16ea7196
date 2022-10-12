@@ -30,7 +30,7 @@ contract DataLayrLowDegreeChallenge {
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
-    uint256 public PAIRING_GAS_LIMIT = 1000;
+    uint256 public PAIRING_GAS_LIMIT;
 
     enum ChallengeStatus{
         UNSUCCESSFUL,
