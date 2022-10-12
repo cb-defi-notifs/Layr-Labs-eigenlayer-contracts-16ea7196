@@ -9,8 +9,11 @@ import "./IQuorumRegistry.sol";
  * @notice Adds BLS-specific functions to the base interface.
  */
 interface IBLSRegistry is IQuorumRegistry {
+    /// @notice Data structure used to track the history of the Aggregate Public Key of all operators
     struct ApkUpdate {
+        // keccak256(apk_x0, apk_x1, apk_y0, apk_y1)
         bytes32 apkHash;
+        // block number at which the update occurred
         uint32 blockNumber;
     }
 
