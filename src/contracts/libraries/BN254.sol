@@ -167,9 +167,6 @@ library BN254 {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
             success := staticcall(pairingGas, 8, input, mul(12, 0x20), out, 0x20)
-            // Use "invalid" to make gas estimation work
-            switch success
-            case 0 { invalid() }
         }
 
         //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
