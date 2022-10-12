@@ -117,25 +117,11 @@ contract DataLayrLowDegreeChallenge {
         );
 
         
-        if(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof)){
-            lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(
-                                                                msg.sender,
-                                                                ChallengeStatus.SUCCESSFUL
-                                                            );
-            emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);  
-
-            // uint256 nonSignerIndex = signatoryRecord.nonSignerPubkeyHashes.length;
-            // //prove exclusion from nonsigning set aka inclusion in signing set
-            // for(uint i; i < nonSignerExclusionProofs.length;){
-            //     _slashOperator(
-            //         nonSignerExclusionProofs[i].signerAddress, 
-            //         nonSignerIndex, 
-            //         nonSignerExclusionProofs[i].operatorHistoryIndex,
-            //         dataStoreSearchData,
-            //         signatoryRecord
-            //     );   
-            // } 
-        } 
+        require(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof), "DataLayrLowDegreeChallenge.lowDegreeChallenge: low degreeness proof verified successfully");
+        
+        lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(msg.sender, ChallengeStatus.SUCCESSFUL);
+        emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);  
+        
     }
 
     ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
