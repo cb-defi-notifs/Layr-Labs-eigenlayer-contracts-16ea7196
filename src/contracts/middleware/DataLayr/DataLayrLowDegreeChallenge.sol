@@ -186,13 +186,13 @@ contract DataLayrLowDegreeChallenge {
             * manner.
             */
 
-            {
-                if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
-                    // check that operator was *not* in the non-signer set (i.e. they *did* sign)
-                    challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
-                    
-                }
+            
+            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                // check that operator was *not* in the non-signer set (i.e. they *did* sign)
+                challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+                
             }
+            
 
             dataLayrServiceManager.freezeOperator(operator);
         }
