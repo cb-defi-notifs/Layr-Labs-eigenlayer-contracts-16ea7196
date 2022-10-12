@@ -9,6 +9,21 @@ import "../interfaces/IDataLayrServiceManager.sol";
  * @author Layr Labs, Inc.
  */
 library DataStoreUtils {
+    uint256 public constant BYTES_PER_COEFFICIENT = 31;
+
+    function getTotalBytesFromHeader(bytes calldata header) internal pure returns(uint256) {
+        uint256 totalBytes;
+        assembly {
+            //totalBytes = numSys
+            totalBytes := shr(224, calldataload(add(header.offset, 68)))
+            //totalBytes = numSys + numPar
+            totalBytes := add(totalBytes, shr(224, calldataload(add(header.offset, 72))))
+            //totalBytes = (numSys + numPar) * degree
+            totalBytes := mul(totalBytes, shr(224, calldataload(add(header.offset, 64))))
+        }
+        return totalBytes * BYTES_PER_COEFFICIENT;
+    }
+
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
     function computeSignatoryRecordHash(
         uint32 globalDataStoreId,

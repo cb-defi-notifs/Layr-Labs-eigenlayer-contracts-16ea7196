@@ -111,7 +111,7 @@ contract TestHelper is EigenLayrDeployer {
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
         bytes memory header = abi.encodePacked(
-            hex"0102030405060708091011121314151617181920"
+            hex"010203040506070809101112131415160102030405060708091011121314151601020304050607080910111213141516010203040506070809101112131415160000000400000004"
         );
         uint32 totalBytes = 1e6;
 
@@ -133,7 +133,6 @@ contract TestHelper is EigenLayrDeployer {
             confirmer,
             header,
             durationToInit,
-            totalBytes,
             blockNumber
         );
 

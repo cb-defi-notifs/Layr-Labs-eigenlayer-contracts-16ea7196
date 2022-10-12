@@ -221,7 +221,7 @@ contract PaymentsTests is TestHelper {
 
         cheats.startPrank(storer);
         //increments fromDataStoreID so that you can commit a payment
-        dlsm.initDataStore(storer, address(this), header, duration, 1e6, blockNumber);
+        dlsm.initDataStore(storer, address(this), header, duration, blockNumber);
         cheats.stopPrank();
     }
 }

@@ -154,7 +154,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         bytes32 newApkHash = _processApkUpdate(newApk);
 
         // add the operator to the list of registrants and do accounting
-        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
+        _addRegistrant(operator, pubkeyHash, _operatorStake);
 
         emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash, socket);
     }

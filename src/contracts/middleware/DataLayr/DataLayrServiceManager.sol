@@ -52,6 +52,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     // EVENTS
     event InitDataStore(
+        address feePayer,
         IDataLayrServiceManager.DataStoreSearchData searchData,
         bytes header
     );
@@ -113,7 +114,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
      * implementation in DataLayrBombVerifier.sol.
-     * @param totalBytes  is the size of the data ,
      * @param blockNumber is the block number in Ethereum for which the confirmation will
      * consult total + operator stake amounts.
      * -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
@@ -123,7 +123,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         address confirmer,
         bytes calldata header,
         uint8 duration,
-        uint32 totalBytes,
         uint32 blockNumber
     )
         external
@@ -131,7 +130,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         returns (uint32)
     {
         bytes32 headerHash = keccak256(header);
-
+        uint256 totalBytes = DataStoreUtils.getTotalBytesFromHeader(header);
         // sanity check on the parameters of data blob
         if (totalBytes < MIN_STORE_SIZE) {
             revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
@@ -208,7 +207,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         });
 
         // emit event to represent initialization of data store
-        emit InitDataStore(searchData, header);
+        emit InitDataStore(feePayer, searchData, header);
 
         // Updating dataStoresForDuration
         /**

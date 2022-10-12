@@ -57,7 +57,6 @@ interface IDataLayrServiceManager is IServiceManager {
         address confirmer,
         bytes calldata header,
         uint8 duration,
-        uint32 totalBytes,
         uint32 blockNumber
     )
         external

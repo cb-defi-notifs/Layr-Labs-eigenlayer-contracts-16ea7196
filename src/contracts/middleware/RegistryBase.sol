@@ -395,8 +395,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     function _addRegistrant(
         address operator,
         bytes32 pubkeyHash,
-        OperatorStake memory _operatorStake,
-        string calldata socket
+        OperatorStake memory _operatorStake
     )
         internal
     {
