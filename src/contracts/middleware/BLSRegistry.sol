@@ -325,10 +325,15 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
-        require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: Index too recent");
+        // store length for SLOAD savings
+        uint256 apkUpdatesLength = _apkUpdates.length;
+        // sanity check on `index` input
+        require(index < apkUpdatesLength, "BLSRegistry.getCorrectApkHash: index exceeds array length");
+
+        require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: index too recent");
 
         // if not last update
-        if (index != _apkUpdates.length - 1) {
+        if (index != apkUpdatesLength - 1) {
             require(blockNumber < _apkUpdates[index + 1].blockNumber, "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
