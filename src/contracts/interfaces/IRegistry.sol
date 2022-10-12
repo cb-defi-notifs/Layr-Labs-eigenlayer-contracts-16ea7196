@@ -8,5 +8,5 @@ pragma solidity ^0.8.9;
  * because their function signatures may vary significantly.
  */
 interface IRegistry {
-    function isRegistered(address operator) external view returns (bool);
+    function isActiveOperator(address operator) external view returns (bool);
 }

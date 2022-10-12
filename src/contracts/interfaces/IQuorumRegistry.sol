@@ -67,8 +67,6 @@ interface IQuorumRegistry is IRegistry {
 
     function getOperatorPubkeyHash(address operator) external view returns (bytes32);
 
-    function getOperatorStatus(address operator) external view returns (Status);
-
     function getFromTaskNumberForOperator(address operator) external view returns (uint32);
 
     function getFromBlockNumberForOperator(address operator) external view returns (uint32);

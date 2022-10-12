@@ -147,27 +147,27 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return operatorIndex.index;
     }
 
-    /// @notice adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
+    /// @notice Adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
     function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
         minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
     }
 
-    /// @notice adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
+    /// @notice Adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
     function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
         minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
 
-    /// @notice returns the unique ID of the specified `operator`.
+    /// @notice Returns the unique ID of the specified `operator`.
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
     }
-
-    /// @notice returns the current status for the specified `operator`.
-    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Status) {
-        return registry[operator].status;
+    
+    /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
+    function isActiveOperator(address operator) external view returns (bool) {
+        return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
     }
 
-    /// @notice returns the stored pubkeyHash for the specified `operator`.
+    /// @notice Returns the stored pubkeyHash for the specified `operator`.
     function getOperatorPubkeyHash(address operator) public view returns (bytes32) {
         return registry[operator].pubkeyHash;
     }
@@ -224,11 +224,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     function operatorStakes(address operator) public view returns (uint96, uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return (opStake.firstQuorumStake, opStake.secondQuorumStake);
-    }
-
-    function isRegistered(address operator) external view returns (bool) {
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = operatorStakes(operator);
-        return (firstQuorumStake > 0 || secondQuorumStake > 0);
     }
 
     /// @notice Returns the stake amounts from the latest entry in `totalStakeHistory`.
