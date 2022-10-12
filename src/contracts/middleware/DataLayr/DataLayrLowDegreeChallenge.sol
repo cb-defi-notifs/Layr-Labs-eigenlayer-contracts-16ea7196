@@ -76,7 +76,7 @@ contract DataLayrLowDegreeChallenge {
     *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
     *   @param signatoryRecord is the record of signatures on said datastore
     */
-    function challengeLowDegreeHeader(
+    function challengeLowDegreenessProof(
         bytes calldata header,
         uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
