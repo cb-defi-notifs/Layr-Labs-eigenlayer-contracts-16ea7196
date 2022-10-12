@@ -22,7 +22,7 @@ interface IEigenLayrDelegation {
 
     function isNotDelegated(address staker) external returns (bool);
 
-    function delegation(address delegator) external view returns (address);
+    function delegatedTo(address delegator) external view returns (address);
 
     function undelegate(address staker) external;
 
