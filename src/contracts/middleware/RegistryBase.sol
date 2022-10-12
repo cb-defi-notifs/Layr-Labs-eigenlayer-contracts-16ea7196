@@ -87,10 +87,13 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         _addStrategiesConsideredAndMultipliers(1, _secondQuorumStrategiesConsideredAndMultipliers);
     }
 
-    /*
-     looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
-     The `index` input is used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]`
-     to read data from, where `pubkeyHash` is looked up from `operator`'s registration info
+    /**
+     * @notice Looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
+     * @param index Used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]` to 
+     * read data from, where `pubkeyHash` is looked up from `operator`'s registration info
+     * @param blockNumber Is the desired block number at which we wish to query the operator's position in the `operatorList` array
+     * @dev Function will revert in the event that the specified `index` input does not identify the appropriate entry in the
+     * array `pubkeyHashToIndexHistory[pubkeyHash]` to pull the info from.
     */
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32) {
         // look up the operator's stored pubkeyHash
@@ -100,18 +103,18 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length),
             "RegistryBase.getOperatorIndex: Operator indexHistory index exceeds array length"
         );
-        /*
-         // since the 'to' field represents the taskNumber at which a new index started
-         // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
-        */
+        /**
+         * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
+         * previous array entry has 'to' == blockNumber, so we check not strict inequality here
+         */
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toBlockNumber <= blockNumber,
             "RegistryBase.getOperatorIndex: Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-        /*
-         // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
-         // since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
+        /**
+         * When deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number.
+         * Since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here.
         */
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
@@ -139,7 +142,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too high"
         );
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
+        // Since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
             "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too low"
@@ -161,7 +164,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
     }
-    
+
     /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
     function isActiveOperator(address operator) external view returns (bool) {
         return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
@@ -221,6 +224,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return opStake.secondQuorumStake;
     }
 
+    /**
+     * @notice Returns the most recent stake weights for the `operator`
+     * @dev Function returns weights of **0** in the event that the operator has no stake history
+     */
     function operatorStakes(address operator) public view returns (uint96, uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return (opStake.firstQuorumStake, opStake.secondQuorumStake);
@@ -261,9 +268,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return totalStakeHistory[index];
     }
 
-    /**
-     * @notice returns task number from when operator has been registered.
-     */
+    /// @notice Returns task number from when `operator` has been registered.
     function getFromTaskNumberForOperator(address operator) external view returns (uint32) {
         return registry[operator].fromTaskNumber;
     }
