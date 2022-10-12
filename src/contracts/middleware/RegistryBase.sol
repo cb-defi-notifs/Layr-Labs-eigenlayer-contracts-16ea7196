@@ -231,7 +231,9 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return (firstQuorumStake > 0 || secondQuorumStake > 0);
     }
 
+    /// @notice Returns the stake amounts from the latest entry in `totalStakeHistory`.
     function totalStake() external view returns (uint96, uint96) {
+        // no chance of underflow / error in next line, since an empty entry is pushed in the constructor
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         return (_totalStake.firstQuorumStake, _totalStake.secondQuorumStake);
     }
@@ -252,7 +254,15 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return totalOperatorsHistory.length;
     }
 
+    /**
+     * @notice Returns the `index`-th entry in the dynamic array of total stake, `totalStakeHistory`.
+     * @dev Function will revert in the event that `index` is out-of-bounds.
+     */
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
+        require(
+            index < totalStakeHistory.length,
+            "RegistryBase.getTotalStakeFromIndex: totalStakeHistory index exceeds array length"
+        );
         return totalStakeHistory[index];
     }
 
@@ -263,23 +273,25 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return registry[operator].fromTaskNumber;
     }
 
-    /**
-     * @notice returns block number from when operator has been registered.
-     */
+    /// @notice Returns block number from when `operator` has been registered.
     function getFromBlockNumberForOperator(address operator) external view returns (uint32) {
         return registry[operator].fromBlockNumber;
     }
 
+    /**
+     * @notice Returns the time at which the `operator` deregistered.
+     * @dev Function will return **0** in the event that the operator is actively registered.
+     */
     function getOperatorDeregisterTime(address operator) external view returns (uint256) {
         return registry[operator].deregisterTime;
     }
 
-    // number of operators of this service
+    /// @notice Returns the current number of operators of this service.
     function numOperators() public view returns (uint32) {
         return uint32(operatorList.length);
     }
 
-    //return when the operator is unbonded from the middleware, if they deregister now
+    /// @notice Returns when the operator is unbonded from the middleware, if they deregister now.
     function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
         return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
