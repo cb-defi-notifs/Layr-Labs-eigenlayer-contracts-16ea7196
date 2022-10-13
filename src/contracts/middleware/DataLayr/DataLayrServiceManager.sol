@@ -55,7 +55,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     DataStoresForDuration public dataStoresForDuration;
 
     // EVENTS
-    event InitDataStore(IDataLayrServiceManager.DataStoreSearchData searchData, bytes header);
+    event InitDataStore(
+        IDataLayrServiceManager.DataStoreSearchData searchData,
+        bytes header
+    );
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
 
@@ -97,10 +100,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
-    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage)
-        external
-        onlyRepositoryGovernance
-    {
+    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
         require(
             _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
             "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
@@ -112,10 +112,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
     }
 
-    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage)
-        external
-        onlyRepositoryGovernance
-    {
+    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
         require(
             _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
             "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
@@ -143,13 +140,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @param header is the summary of the data that is being asserted into DataLayr,
      *  type DataStoreHeader struct {
      *   KzgCommit      [64]byte
-     *   Degree         uint32
+     *   Degree         uint32 
      *   NumSys         uint32
      *   NumPar         uint32
-     *   OrigDataSize   uint32
+     *   OrigDataSize   uint32 
      *   Disperser      [20]byte
-     *   LowDegreeProof [64]byte
-     * }
+    *   LowDegreeProof [64]byte
+}
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
@@ -166,7 +163,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    ) external whenNotPaused returns (uint32) {
+    )
+        external
+        whenNotPaused
+        returns (uint32)
+    {
         bytes32 headerHash = keccak256(header);
 
         // sanity check on the parameters of data blob
@@ -231,7 +232,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 blockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified blockNumber is in future"
             );
 
-            require((blockNumber + BLOCK_STALE_MEASURE) >= block.number, "specified blockNumber is too far in past");
+            require(
+                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
+                "specified blockNumber is too far in past"
+            );    
         }
 
         IDataLayrServiceManager.DataStoreSearchData memory searchData = IDataLayrServiceManager.DataStoreSearchData({
@@ -366,8 +370,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // called in the event of challenge resolution
     function freezeOperator(address operator) external {
         require(
-            msg.sender == address(dataLayrLowDegreeChallenge) || msg.sender == address(dataLayrBombVerifier)
-                || msg.sender == address(ephemeralKeyRegistry) || msg.sender == address(dataLayrPaymentManager),
+            msg.sender == address(dataLayrLowDegreeChallenge)
+                || msg.sender == address(dataLayrBombVerifier)
+                || msg.sender == address(ephemeralKeyRegistry)
+                || msg.sender == address(dataLayrPaymentManager),
             "DataLayrServiceManager.freezeOperator: Only challenge resolvers can slash operators"
         );
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
@@ -464,7 +470,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         bytes calldata packedDataStoreSearchData,
         uint256 initTimestamp,
         uint256 unlockTime
-    ) external view {
+    )
+        external
+        view
+    {
         IDataLayrServiceManager.DataStoreSearchData memory searchData =
             DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);

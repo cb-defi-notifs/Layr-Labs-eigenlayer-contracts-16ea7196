@@ -44,7 +44,11 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
      * and transfers ownership to `intialOwner`
      */
-    function initialize(IInvestmentManager _investmentManager, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(
+        IInvestmentManager _investmentManager,
+        IPauserRegistry _pauserRegistry,
+        address initialOwner
+    )
         external
         initializer
     {
@@ -149,7 +153,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         address staker,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    ) external onlyInvestmentManager {
+    )
+        external
+        onlyInvestmentManager
+    {
         if (isDelegated(staker)) {
             address operator = delegation[staker];
 
@@ -179,7 +186,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         address staker,
         IInvestmentStrategy[] memory strategies,
         uint256[] memory shares
-    ) internal {
+    )
+        internal
+    {
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
         (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
             abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares)
@@ -195,7 +204,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         address staker,
         IInvestmentStrategy[] memory strategies,
         uint256[] memory shares
-    ) internal {
+    )
+        internal
+    {
         // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
         (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
             abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares)

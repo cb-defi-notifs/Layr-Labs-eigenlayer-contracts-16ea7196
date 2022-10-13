@@ -370,7 +370,8 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         // payment challenge for one task
         if (diff == 1) {
             //set to one step turn of either challenger or operator
-            operatorToPaymentChallenge[operator].status = msg.sender == operator
+            operatorToPaymentChallenge[operator].status =
+                msg.sender == operator
                 ? ChallengeStatus.CHALLENGER_TURN_ONE_STEP
                 : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;

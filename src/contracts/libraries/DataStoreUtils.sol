@@ -13,11 +13,11 @@ library DataStoreUtils {
     function computeSignatoryRecordHash(
         uint32 globalDataStoreId,
         bytes32[] memory nonSignerPubkeyHashes,
-        uint256 totalFirstQuorumStakeSigned,
-        uint256 totalSecondQuorumStakeSigned
+        uint256 totalEthStakeSigned,
+        uint256 totalEigenStakeSigned
     ) internal pure returns (bytes32) {
         return keccak256(
-            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalFirstQuorumStakeSigned, totalSecondQuorumStakeSigned)
+            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalEthStakeSigned, totalEigenStakeSigned)
         );
     }
 
@@ -47,10 +47,17 @@ library DataStoreUtils {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    ) internal view returns (bool) {
-        return (
-            serviceManager.getDataStoreHashesForDurationAtTimestamp(duration, timestamp, index)
-                == DataStoreUtils.computeDataStoreHash(metadata)
+    ) 
+        internal
+        view
+        returns (bool)
+    {
+        return(
+            serviceManager.getDataStoreHashesForDurationAtTimestamp(
+                duration, 
+                timestamp, 
+                index
+            ) == DataStoreUtils.computeDataStoreHash(metadata)
         );
     }
 

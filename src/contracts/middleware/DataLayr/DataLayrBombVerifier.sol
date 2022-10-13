@@ -585,10 +585,14 @@ contract DataLayrBombVerifier {
             // agrees with the stored hash
             require(
                 DataStoreUtils.verifyDataStoreMetadata(
-                    dlsm, sandwich[0].metadata, duration, sandwich[0].timestamp, sandwich[0].index
-                ),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
+                    dlsm,
+                    sandwich[0].metadata,
+                    duration,
+                    sandwich[0].timestamp,
+                    sandwich[0].index
+                ), "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+
         } else {
             //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks
             require(
@@ -605,9 +609,12 @@ contract DataLayrBombVerifier {
 
             require(
                 DataStoreUtils.verifyDataStoreMetadata(
-                    dlsm, sandwich[1].metadata, duration, sandwich[1].timestamp, sandwich[1].index
-                ),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
+                    dlsm,
+                    sandwich[1].metadata,
+                    duration,
+                    sandwich[1].timestamp,
+                    sandwich[1].index
+                ),"DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
 
             //make sure that sandwich[0] and sandwich[1] are consecutive datastores for the duration by checking that their
@@ -669,9 +676,12 @@ contract DataLayrBombVerifier {
 
         require(
             DataStoreUtils.verifyDataStoreMetadata(
-                dlsm, searchData.metadata, searchData.duration, searchData.timestamp, searchData.index
-            ),
-            "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
+                dlsm,
+                searchData.metadata,
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index
+            ), "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
         );
 
         // check that disperser acquired quorum for this dataStore

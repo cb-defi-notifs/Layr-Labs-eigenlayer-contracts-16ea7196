@@ -424,7 +424,10 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
 
         // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
-            taskNumberToConfirm, pubkeyHashes, signedTotals.signedStakeFirstQuorum, signedTotals.signedStakeSecondQuorum
+            taskNumberToConfirm,
+            pubkeyHashes,
+            signedTotals.signedStakeFirstQuorum,
+            signedTotals.signedStakeSecondQuorum
         );
 
         // return taskNumber, stakesBlockNumber, msgHash, total stakes that signed, and a hash of the signatories

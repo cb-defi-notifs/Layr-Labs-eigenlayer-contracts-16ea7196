@@ -24,7 +24,10 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         IRepository _repository,
         IDataLayrServiceManager _dataLayrServiceManager,
         IPauserRegistry _pauserReg
-    ) PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg) initializer {
+    )
+        PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
+        initializer
+    {
         dataLayrServiceManager = _dataLayrServiceManager;
     }
 
@@ -36,7 +39,9 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         bytes32[] memory nonSignerPubkeyHashes,
         TotalStakes calldata totalStakesSigned,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    ) external {
+    )
+        external
+    {
         // copy challenge struct to memory
         PaymentChallenge memory challenge = operatorToPaymentChallenge[operator];
 
@@ -49,19 +54,23 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
 
         require(
             DataStoreUtils.verifyDataStoreMetadata(
-                dataLayrServiceManager, searchData.metadata, searchData.duration, searchData.timestamp, searchData.index
-            ),
-            "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
+                    dataLayrServiceManager,
+                    searchData.metadata,
+                    searchData.duration,
+                    searchData.timestamp,
+                    searchData.index
+            ), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
         );
 
         // recalculate the signatoryRecordHash, to verify integrity of `nonSignerPubkey` and `totalStakesSigned` inputs.
-        bytes32 providedSignatoryRecordHash = computeSignatoryRecordHash(
-            searchData.metadata.globalDataStoreId,
-            nonSignerPubkeyHashes,
-            totalStakesSigned.signedStakeFirstQuorum,
-            totalStakesSigned.signedStakeSecondQuorum
+        bytes32 providedSignatoryRecordHash = keccak256(
+            abi.encodePacked(
+                searchData.metadata.globalDataStoreId,
+                nonSignerPubkeyHashes,
+                totalStakesSigned.signedStakeFirstQuorum,
+                totalStakesSigned.signedStakeSecondQuorum
+            )
         );
-        
         //checking that `nonSignerPubKeyHashes` and `totalStakesSigned` are correct, now that we know that searchData is valid
         require(
             providedSignatoryRecordHash == searchData.metadata.signatoryRecordHash,
