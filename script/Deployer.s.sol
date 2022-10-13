@@ -111,6 +111,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     address mainHoncho = cheats.addr(mainHonchoPrivKey);
 
+    uint256 gasLimit = 100000;
+
     //performs basic deployment before each test
     function run() external {
         vm.startBroadcast();
@@ -292,7 +294,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);

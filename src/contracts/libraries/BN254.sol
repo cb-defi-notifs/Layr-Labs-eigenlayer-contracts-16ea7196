@@ -135,13 +135,7 @@ library BN254 {
     * This function is functionally the same as pairing(), however it specifies a gas limit 
     * the user can set, as a precompile may use the entire gas budget if it reverts.
     */
-    function safePairing(
-        G1Point memory a1, 
-        G2Point memory a2, 
-        G1Point memory b1, 
-        G2Point memory b2,
-        uint256 pairingGas
-    )
+    function safePairing(G1Point memory a1, G2Point memory a2, G1Point memory b1, G2Point memory b2, uint256 pairingGas)
         internal
         view
         returns (bool, bool)
@@ -172,6 +166,6 @@ library BN254 {
         //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
         //Success is true if the precompile actually goes through (aka all inputs are valid)
 
-        return(success, out[0] != 0);
+        return (success, out[0] != 0);
     }
 }

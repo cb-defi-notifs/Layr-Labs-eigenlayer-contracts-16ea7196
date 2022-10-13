@@ -48,12 +48,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
     event Registration(
-        address indexed operator,
-        bytes32 pkHash,
-        uint256[4] pk,
-        uint32 apkHashIndex,
-        bytes32 apkHash,
-        string socket
+        address indexed operator, bytes32 pkHash, uint256[4] pk, uint32 apkHashIndex, bytes32 apkHash, string socket
     );
 
     constructor(

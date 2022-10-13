@@ -73,10 +73,7 @@ contract InvestmentTests is TestHelper {
         bool registerAsOperator,
         uint96 amountToDeposit,
         uint96 amountToWithdraw
-    )
-        public
-        fuzzedAddress(staker)
-    {
+    ) public fuzzedAddress(staker) {
         // want to deposit at least 1 wei
         cheats.assume(amountToDeposit > 0);
         // want to withdraw at least 1 wei
@@ -120,7 +117,9 @@ contract InvestmentTests is TestHelper {
 
         cheats.startPrank(staker);
         // try to complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
+        investmentManager.completeQueuedWithdrawal(
+            strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true
+        );
         // TODO: add checks surrounding successful completion (e.g. funds being correctly transferred)
 
         if (delegation.isDelegated(staker)) {
@@ -136,7 +135,9 @@ contract InvestmentTests is TestHelper {
             }
             // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
             cheats.warp(unlockTimestamp);
-            investmentManager.completeQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true);
+            investmentManager.completeQueuedWithdrawal(
+                strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce, true
+            );
         }
         cheats.stopPrank();
     }
@@ -187,12 +188,7 @@ contract InvestmentTests is TestHelper {
 
         // warp to a later time -- beyond the window for the `REASONABLE_STAKES_UPDATE_PERIOD` -- and then initiate the queued withdrawal waiting period
         cheats.warp(block.timestamp + 8 days);
-        _testStartQueuedWithdrawalWaitingPeriod(
-            staker,
-            staker,
-            withdrawalRoot,
-            (uint32(block.timestamp) + 9 days)
-        );
+        _testStartQueuedWithdrawalWaitingPeriod(staker, staker, withdrawalRoot, (uint32(block.timestamp) + 9 days));
 
         ServiceManagerMock mock = new ServiceManagerMock();
         bytes memory calldataForStakeWithdrawalVerification;
@@ -305,9 +301,7 @@ contract InvestmentTests is TestHelper {
         uint256[] memory shareAmounts,
         uint256[] memory strategyIndexes,
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
-    )
-        internal returns(bytes32)
-    {
+    ) internal returns (bytes32) {
         require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
 
         // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
@@ -330,18 +324,24 @@ contract InvestmentTests is TestHelper {
 
         //queue the withdrawal
         cheats.startPrank(staker);
-        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce
+        );
         // If `staker` is actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
         if (delegation.isDelegated(staker)) {
             assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                !investmentManager.canCompleteQueuedWithdrawal(
+                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
+                ),
                 "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
             );
         }
         // If `staker` is *not* actively delegated, check that `canCompleteQueuedWithdrawal` correct returns 'ture', and
         else if (delegation.isNotDelegated(staker)) {
             assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce),
+                investmentManager.canCompleteQueuedWithdrawal(
+                    strategyArray, tokensArray, shareAmounts, staker, withdrawerAndNonce
+                ),
                 "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
             );
         } else {

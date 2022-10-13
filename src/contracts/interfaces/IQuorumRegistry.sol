@@ -12,8 +12,8 @@ import "./IRegistry.sol";
 interface IQuorumRegistry is IRegistry {
     // DATA STRUCTURES
     enum Status
+    // default is inactive
     {
-        // default is inactive
         INACTIVE,
         ACTIVE
     }

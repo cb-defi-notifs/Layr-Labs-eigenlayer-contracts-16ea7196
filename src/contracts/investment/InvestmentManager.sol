@@ -114,12 +114,7 @@ contract InvestmentManager is
         uint256 expiry,
         bytes32 r,
         bytes32 vs
-    )
-        external
-        onlyNotFrozen(staker)
-        nonReentrant
-        returns (uint256 shares)
-    {
+    ) external onlyNotFrozen(staker) nonReentrant returns (uint256 shares) {
         require(
             expiry == 0 || expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
@@ -145,13 +140,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    )
-        external
-        whenNotPaused
-        onlyNotFrozen(msg.sender)
-        onlyNotDelegated(msg.sender)
-        nonReentrant
-    {
+    ) external whenNotPaused onlyNotFrozen(msg.sender) onlyNotDelegated(msg.sender) nonReentrant {
         _withdrawFromStrategy(msg.sender, strategyIndex, strategy, token, shareAmount);
         //decrease corresponding operator's shares, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
@@ -178,13 +167,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shares,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        whenNotPaused
-        onlyNotFrozen(msg.sender)
-        nonReentrant
-        returns (bytes32)
-    {
+    ) external whenNotPaused onlyNotFrozen(msg.sender) nonReentrant returns (bytes32) {
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "InvestmentManager.queueWithdrawal: provided nonce incorrect"
@@ -285,12 +268,7 @@ contract InvestmentManager is
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bool receiveAsTokens
-    )
-        external
-        whenNotPaused
-        onlyNotFrozen(depositor)
-        nonReentrant
-    {
+    ) external whenNotPaused onlyNotFrozen(depositor) nonReentrant {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
         // copy storage to memory
@@ -365,14 +343,11 @@ contract InvestmentManager is
         WithdrawerAndNonce calldata withdrawerAndNonce,
         bytes calldata data,
         IServiceManager slashingContract
-    )
-        external
-    {
+    ) external {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
         // copy storage to memory
         WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
-
 
         // verify that the queued withdrawal actually exists
         require(
@@ -380,7 +355,7 @@ contract InvestmentManager is
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal does not exist"
         );
 
-        //verify the withdrawer has already initiated the withdrawal waiting period 
+        //verify the withdrawer has already initiated the withdrawal waiting period
         require(
             withdrawalStorageCopy.unlockTimestamp != QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
@@ -428,13 +403,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata strategyIndexes,
         uint256[] calldata shareAmounts
-    )
-        external
-        whenNotPaused
-        onlyOwner
-        onlyFrozen(slashedAddress)
-        nonReentrant
-    {
+    ) external whenNotPaused onlyOwner onlyFrozen(slashedAddress) nonReentrant {
         uint256 strategyIndexIndex;
         uint256 strategiesLength = strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
@@ -471,12 +440,7 @@ contract InvestmentManager is
         address depositor,
         address recipient,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        whenNotPaused
-        onlyOwner
-        nonReentrant
-    {
+    ) external whenNotPaused onlyOwner nonReentrant {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
 
@@ -555,10 +519,7 @@ contract InvestmentManager is
         IInvestmentStrategy strategy,
         IERC20 token,
         uint256 shareAmount
-    )
-        internal
-        returns (bool strategyRemovedFromArray)
-    {
+    ) internal returns (bool strategyRemovedFromArray) {
         strategyRemovedFromArray = _removeShares(depositor, strategyIndex, strategy, shareAmount);
         // tell the strategy to send the appropriate amount of funds to the depositor
         strategy.withdraw(depositor, token, shareAmount);
@@ -632,10 +593,7 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts,
         address depositor,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        returns (bool)
-    {
+    ) external returns (bool) {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
 
@@ -677,11 +635,7 @@ contract InvestmentManager is
         IERC20[] calldata tokens,
         uint256[] calldata shareAmounts,
         WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        public
-        pure
-        returns (bytes32)
-    {
+    ) public pure returns (bytes32) {
         return (keccak256(abi.encode(strategies, tokens, shareAmounts, withdrawerAndNonce)));
     }
 }

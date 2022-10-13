@@ -4,18 +4,14 @@ pragma solidity ^0.8.9;
 import "../contracts/libraries/BytesLib.sol";
 import "../test/Deployer.t.sol";
 
-
 contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegation(
-        uint8 operatorIndex,
-        uint256 amountEigenToDeposit, 
-        uint256 amountEthToDeposit        
-    )
-        public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
+    function _testInitiateDelegation(uint8 operatorIndex, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
+        public
+        returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
         address operator = signers[operatorIndex];
         //setting up operator's delegation terms
@@ -44,7 +40,6 @@ contract TestHelper is EigenLayrDeployer {
             uint256 operatorEigenSharesBefore = delegation.operatorShares(operator, eigenStrat);
             uint256 operatorWETHSharesBefore = delegation.operatorShares(operator, wethStrat);
 
-
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
@@ -52,7 +47,6 @@ contract TestHelper is EigenLayrDeployer {
                 delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit
             );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
-            
         }
         amountEthStaked += delegation.operatorShares(operator, wethStrat);
         amountEigenStaked += delegation.operatorShares(operator, eigenStrat);
@@ -60,9 +54,7 @@ contract TestHelper is EigenLayrDeployer {
         return (amountEthStaked, amountEigenStaked);
     }
 
-    function _testRegisterBLSPubKey(
-        uint8 operatorIndex
-    ) public {
+    function _testRegisterBLSPubKey(uint8 operatorIndex) public {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
@@ -72,7 +64,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-
     /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
     function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
@@ -80,13 +71,11 @@ contract TestHelper is EigenLayrDeployer {
         bytes32 ephemeralKey,
         string memory socket
     ) public {
-
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
         dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
-
     }
 
     function _testDeregisterOperatorWithDataLayr(
@@ -95,7 +84,6 @@ contract TestHelper is EigenLayrDeployer {
         uint8 operatorListIndex,
         bytes32 finalEphemeralKey
     ) public {
-
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
@@ -103,16 +91,13 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 initTimestamp, address confirmer)
+    function _testInitDataStore(uint256 initTimestamp, address confirmer)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
-        bytes memory header = abi.encodePacked(
-            hex"0102030405060708091011121314151617181920"
-        );
+        bytes memory header = abi.encodePacked(hex"0102030405060708091011121314151617181920");
         uint32 totalBytes = 1e6;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
@@ -128,14 +113,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
 
-        uint32 index = dlsm.initDataStore(
-            storer,
-            confirmer,
-            header,
-            durationToInit,
-            totalBytes,
-            blockNumber
-        );
+        uint32 index = dlsm.initDataStore(storer, confirmer, header, durationToInit, totalBytes, blockNumber);
 
         bytes32 headerHash = keccak256(header);
 
@@ -143,34 +121,32 @@ contract TestHelper is EigenLayrDeployer {
 
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
-                headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
-                globalDataStoreId: dlsm.taskNumber() - 1,
-                blockNumber: blockNumber,
-                fee: uint96(fee),
-                confirmer: confirmer,
-                signatoryRecordHash: bytes32(0)
-            });
+        IDataLayrServiceManager.DataStoreMetadata memory metadata = IDataLayrServiceManager.DataStoreMetadata({
+            headerHash: headerHash,
+            durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
+            globalDataStoreId: dlsm.taskNumber() - 1,
+            blockNumber: blockNumber,
+            fee: uint96(fee),
+            confirmer: confirmer,
+            signatoryRecordHash: bytes32(0)
+        });
 
         {
             bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
 
             //check if computed hash matches stored hash in DLSM
             assertTrue(
-                dataStoreHash ==
-                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
+                dataStoreHash == dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
                 "dataStore hashes do not match"
             );
         }
-        
+
         searchData = IDataLayrServiceManager.DataStoreSearchData({
-                metadata: metadata,
-                duration: durationToInit,
-                timestamp: timestamp,
-                index: index
-            });
+            metadata: metadata,
+            duration: durationToInit,
+            timestamp: timestamp,
+            index: index
+        });
         return searchData;
     }
 
@@ -183,9 +159,7 @@ contract TestHelper is EigenLayrDeployer {
         uint32 blockNumber,
         uint32 dataStoreId,
         IDataLayrServiceManager.DataStoreSearchData memory searchData
-    )
-        internal
-    {
+    ) internal {
         /**
          * @param data This calldata is of the format:
          * <
@@ -247,11 +221,7 @@ contract TestHelper is EigenLayrDeployer {
         nonSignerInfo memory nonsigners,
         uint32 blockNumber,
         uint32 dataStoreId
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    ) internal view returns (bytes memory) {
         /**
          * @param data This calldata is of the format:
          * <
@@ -325,10 +295,7 @@ contract TestHelper is EigenLayrDeployer {
         uint256 amountToDeposit,
         IERC20 underlyingToken,
         IInvestmentStrategy stratToDepositTo
-    )
-        internal
-        returns (uint256 amountDeposited)
-    {
+    ) internal returns (uint256 amountDeposited) {
         // deposits will revert when amountToDeposit is 0
         cheats.assume(amountToDeposit > 0);
 
@@ -342,8 +309,6 @@ contract TestHelper is EigenLayrDeployer {
             emit log_named_uint("while contractBalance is", contractBalance);
             revert("_testDepositToStrategy failure");
         } else {
-
-            
             underlyingToken.transfer(sender, amountToDeposit);
             cheats.startPrank(sender);
             underlyingToken.approve(address(investmentManager), type(uint256).max);
@@ -360,10 +325,6 @@ contract TestHelper is EigenLayrDeployer {
                     "_depositToStrategy: investorStrats array updated incorrectly"
                 );
             }
-
-            
-            
-
 
             //in this case, since shares never grow, the shares should just match the deposited amount
             assertEq(
@@ -382,9 +343,7 @@ contract TestHelper is EigenLayrDeployer {
         uint256 amountSharesToWithdraw,
         IERC20 underlyingToken,
         IInvestmentStrategy stratToWithdrawFrom
-    )
-        internal
-    {
+    ) internal {
         // fetch the length of `sender`'s dynamic `investorStrats` array
         uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(sender);
         // fetch `sender`'s existing share amount
@@ -423,7 +382,9 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash)
+        internal
+    {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -683,16 +644,11 @@ contract TestHelper is EigenLayrDeployer {
         // '30 days' is used to prevent overflow in timestamps when stored as uint32 values (2^32 is in the year 2106 in UTC time)
         cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
         cheats.assume(stakeInactiveAfter > block.timestamp);
-        investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
-                                        withdrawalRoot, 
-                                        stakeInactiveAfter
-                                    );
+        investmentManager.startQueuedWithdrawalWaitingPeriod(depositor, withdrawalRoot, stakeInactiveAfter);
         cheats.stopPrank();
     }
 
-    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
-
+    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns (bytes32 pkHash) {
         uint256[4] memory pk;
         // verify sig of public key and get pubkeyHash back, slice out compressed apk
         (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
@@ -700,18 +656,14 @@ contract TestHelper is EigenLayrDeployer {
         pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
         return pkHash;
-
     }
 
-    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
-        uint256[4] memory pubkey; 
-        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
-        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
-        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
-        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns (uint256[4] memory) {
+        uint256[4] memory pubkey;
+        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32, 32)));
+        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0, 32)));
+        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96, 32)));
+        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64, 32)));
         return pubkey;
     }
-
-
 }
-
