@@ -216,7 +216,9 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @notice Returns the most recent stake weights for the `operator`
      * @dev Function returns weights of **0** in the event that the operator has no stake history
      */
+
     function operatorStakes(address operator) public view returns (uint96, uint96) {
+
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return (opStake.firstQuorumStake, opStake.secondQuorumStake);
     }

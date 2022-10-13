@@ -169,10 +169,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
     }
 
-    function setInvestmentManager(IInvestmentManager _investmentManager) external onlyOwner {
-        investmentManager = _investmentManager;
-    }
-
     // INTERNAL FUNCTIONS
 
     function _delegationReceivedHook(

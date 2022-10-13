@@ -224,8 +224,8 @@ contract DataLayrBombVerifier {
                                 == DataStoreUtils.computeSignatoryRecordHash(
                                     bombGlobalDataStoreId,
                                     signatoryRecords[i].nonSignerPubkeyHashes,
-                                    signatoryRecords[i].totalEthStakeSigned,
-                                    signatoryRecords[i].totalEigenStakeSigned
+                                    signatoryRecords[i].signedStakeFirstQuorum,
+                                    signatoryRecords[i].signedStakeSecondQuorum
                                 ),
                         "DataLayrBombVerifier.verifyBomb: Bomb datastore signatory record does not match hash"
                     );
@@ -264,8 +264,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId,
                         signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEthStakeSigned,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEigenStakeSigned
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeFirstQuorum,
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: BOMB datastore sig record does not match hash"
             );
@@ -296,8 +296,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
                         signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEthStakeSigned,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEigenStakeSigned
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeFirstQuorum,
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
             );
@@ -584,10 +584,14 @@ contract DataLayrBombVerifier {
             // Verify that the provided metadata of the datastore before sandwichTimestamp (sandwich[0])
             // agrees with the stored hash
             require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[0].timestamp, sandwich[0].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
+                dlsm.verifyDataStoreMetadata(
+                    duration,
+                    sandwich[0].timestamp,
+                    sandwich[0].index,
+                    sandwich[0].metadata
+                ), "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+
         } else {
             //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks
             require(
@@ -601,10 +605,14 @@ contract DataLayrBombVerifier {
             // There is a datastore before sandwichTimestamp for the duration
             // Verify that the provided metadata of the datastore after sandwichTimestamp (sandwich[1])
             // agrees with the stored hash
+
             require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[1].timestamp, sandwich[1].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[1].metadata),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
+                dlsm.verifyDataStoreMetadata(
+                    duration,
+                    sandwich[1].timestamp,
+                    sandwich[1].index,
+                    sandwich[1].metadata
+                ),"DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
 
             //make sure that sandwich[0] and sandwich[1] are consecutive datastores for the duration by checking that their
@@ -663,10 +671,14 @@ contract DataLayrBombVerifier {
          * Get information on the dataStore for which disperser is being challenged. This dataStore was
          * constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
          */
+
         require(
-            dlsm.getDataStoreHashesForDurationAtTimestamp(searchData.duration, searchData.timestamp, searchData.index)
-                == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "search.metadataclear preimage is incorrect"
+            dlsm.verifyDataStoreMetadata(
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index,
+                searchData.metadata
+            ), "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
         );
 
         // check that disperser acquired quorum for this dataStore

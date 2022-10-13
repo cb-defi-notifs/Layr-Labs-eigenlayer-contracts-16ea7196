@@ -28,8 +28,8 @@ interface IDataLayrServiceManager is IServiceManager {
 
     struct SignatoryRecordMinusDataStoreId {
         bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
+        uint256 signedStakeFirstQuorum;
+        uint256 signedStakeSecondQuorum;
     }
 
     struct DataStoresForDuration {
@@ -80,4 +80,7 @@ interface IDataLayrServiceManager is IServiceManager {
     function collateralToken() external view returns (IERC20);
 
     function dataLayrPaymentManager() external view returns (IDataLayrPaymentManager);
+
+    function verifyDataStoreMetadata(uint8 duration, uint256 timestamp, uint32 index, DataStoreMetadata memory metadata) external view returns (bool);
+    
 }
