@@ -356,13 +356,13 @@ contract InvestmentManager is
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-
-                if (strategies[i] == beaconChainETHStrategy){
-                    eigenPodManager.withdrawBeaconChainBalance(msg.sender, shares[i]);
-                }
-                else {
+                
+                if (strategies[i] == beaconChainETHStrategy) {
+                    // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
+                    eigenPodManager.withdraw(depositor, msg.sender, shares[i]);
+                } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
-                    strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
+                    strategies[i].withdraw(msg.sender, tokens[i], shares[i]);
                 }
                 unchecked {
                     ++i;
@@ -371,14 +371,14 @@ contract InvestmentManager is
         } else {
             //else increase their shares
             for (uint256 i = 0; i < strategiesLength;) {
-                _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
+                _addShares(msg.sender, strategies[i], shares[i]);
                 unchecked {
                     ++i;
                 }
             }
         }
 
-        emit WithdrawalCompleted(depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
+        emit WithdrawalCompleted(depositor, msg.sender, withdrawalRoot);
     }
 
     /**

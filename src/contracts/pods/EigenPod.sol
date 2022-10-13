@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "../interfaces/IBeaconChainWithdrawer.sol";
+import "../interfaces/IBeaconChainEtherReceiver.sol";
 
 
 contract EigenPod is IEigenPod, Initializable {
@@ -125,7 +126,7 @@ contract EigenPod is IEigenPod, Initializable {
         eigenPodManager.investmentManager().slashBeaconChainETH(owner, beaconChainETHStrategyIndex, amount);
         //send slashed ETH to recipient
         //TODO: Reentrancy gurad here?
-        payable(recipient).call{value: amount}("");
+        IBeaconChainEtherReceiver(recipient).receiveBeaconChainETH{value: amount}();
 
     }
 
@@ -137,8 +138,7 @@ contract EigenPod is IEigenPod, Initializable {
         onlyInvestmentManager
     {
         //transfer ETH directly from pod to msg.sender 
-        IBeaconChainWithdrawer withdrawer = IBeaconChainWithdrawer(recipient);
-        withdrawer.receiveBeaconChainETH{value: amount}();
+        IBeaconChainEtherReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
 
     // INTERNAL FUNCTIONS
