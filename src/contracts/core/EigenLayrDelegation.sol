@@ -16,11 +16,9 @@ import "../investment/Slasher.sol";
  * @title The primary delegation contract for EigenLayr.
  * @author Layr Labs, Inc.
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
- * - for enabling anyone to register as an operator
- * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
+ * - for enabling any staker to register as an operator and specify the delegation terms it is providing
+ * - for a registered staker to delegate its stake to the operator of its choice
  * - for a staker to undelegate its assets from EigenLayr
- * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
     modifier onlyInvestmentManager() {
@@ -44,11 +42,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
      * and transfers ownership to `intialOwner`
      */
-    function initialize(
-        IInvestmentManager _investmentManager,
-        IPauserRegistry _pauserRegistry,
-        address initialOwner
-    )
+    function initialize(IInvestmentManager _investmentManager, IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
@@ -97,8 +91,8 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     function undelegate(address staker) external onlyInvestmentManager {
-        delegated[staker] = DelegationStatus.UNDELEGATED;
-        delegation[staker] = address(0);
+        delegationStatus[staker] = DelegationStatus.UNDELEGATED;
+        delegatedTo[staker] = address(0);
     }
 
     //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
@@ -108,7 +102,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     {
         //if the staker is delegated to an operator
         if (isDelegated(staker)) {
-            address operator = delegation[staker];
+            address operator = delegatedTo[staker];
 
             // add strategy shares to delegate's shares
             operatorShares[operator][strategy] += shares;
@@ -132,7 +126,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     {
         //if the staker is delegated to an operator
         if (isDelegated(staker)) {
-            address operator = delegation[staker];
+            address operator = delegatedTo[staker];
 
             // subtract strategy shares from delegate's shares
             operatorShares[operator][strategy] -= shares;
@@ -158,7 +152,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         onlyInvestmentManager
     {
         if (isDelegated(staker)) {
-            address operator = delegation[staker];
+            address operator = delegatedTo[staker];
 
             // subtract strategy shares from delegate's shares
             uint256 stratsLength = strategies.length;
@@ -230,10 +224,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         require(!slasher.frozenStatus(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
-        delegation[staker] = operator;
+        delegatedTo[staker] = operator;
 
         // record that the staker is delegated
-        delegated[staker] = DelegationStatus.DELEGATED;
+        delegationStatus[staker] = DelegationStatus.DELEGATED;
 
         // retrieve list of strategies and their shares from investment manager
         (IInvestmentStrategy[] memory strategies, uint256[] memory shares) = investmentManager.getDeposits(staker);
@@ -256,12 +250,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     /// @notice Checks whether a staker is currently undelegated.
     function isNotDelegated(address staker) public view returns (bool) {
-        return (delegated[staker] == DelegationStatus.UNDELEGATED);
+        return (delegationStatus[staker] == DelegationStatus.UNDELEGATED);
     }
 
     /// @notice Checks whether a staker is currently delegated.
     function isDelegated(address staker) public view returns (bool) {
-        return (delegated[staker] == DelegationStatus.DELEGATED);
+        return (delegationStatus[staker] == DelegationStatus.DELEGATED);
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
