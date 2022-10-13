@@ -11,9 +11,8 @@ import "./IEigenPod.sol";
 
 interface IEigenPodManager {
     struct EigenPodInfo {
-        uint64 balance; //total balance of all validators in the pod
-        uint64 stakedBalance; //amount of balance deposited into EigenLayer
-        uint64 wtihdrawableBalance; //amount of balance deposited into EigenLayer
+        uint128 balance; //total balance of all validators in the pod
+        uint128 stakedBalance; //amount of balance deposited into EigenLayer
         IEigenPod pod;
     }
 
