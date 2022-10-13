@@ -399,19 +399,6 @@ contract DelegationTests is TestHelper {
         }
     }
 
-    /// @notice testing permissions setInvestmentManager and
-    ///         setUndelegationFraudproofInterval functions.
-
-    function testOwnableFunctions(address badGuy) public fuzzedAddress(badGuy) {
-        cheats.assume(badGuy != delegation.owner());
-        cheats.startPrank(badGuy);
-        EigenLayrDelegation altDelegation = new EigenLayrDelegation();
-        IInvestmentManager altInvestmentManager = new InvestmentManager(altDelegation);
-        cheats.expectRevert(bytes("Ownable: caller is not the owner"));
-        delegation.setInvestmentManager(altInvestmentManager);
-        cheats.stopPrank();
-    }
-
     //*******INTERNAL FUNCTIONS*********//
     function _testQueueWithdrawal(
         address depositor,
