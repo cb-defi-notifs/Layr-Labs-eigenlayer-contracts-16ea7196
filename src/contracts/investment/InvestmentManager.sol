@@ -363,9 +363,9 @@ contract InvestmentManager is
                 else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
-                    unchecked {
-                        ++i;
-                    }
+                }
+                unchecked {
+                    ++i;
                 }
             }
         } else {
