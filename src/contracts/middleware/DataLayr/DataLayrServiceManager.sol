@@ -421,7 +421,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
-        external
+        public
         view
         returns (bytes32)
     {
@@ -497,5 +497,24 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
+    }
+
+    function verifyDataStoreMetadata(
+        uint8 duration,
+        uint256 timestamp,
+        uint32 index,
+        DataStoreMetadata memory metadata
+    ) 
+        external
+        view
+        returns (bool)
+    {
+        return(
+            getDataStoreHashesForDurationAtTimestamp(
+                duration, 
+                timestamp, 
+                index
+            ) == DataStoreUtils.computeDataStoreHash(metadata)
+        );
     }
 }

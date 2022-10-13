@@ -107,6 +107,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     uint256 public constant eigenTotalSupply = 1000e18;
 
+    uint256 public gasLimit = 100000;
+
     uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
 
     address mainHoncho = cheats.addr(mainHonchoPrivKey);
@@ -292,7 +294,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);

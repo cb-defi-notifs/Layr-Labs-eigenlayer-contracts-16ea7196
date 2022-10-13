@@ -13,11 +13,11 @@ library DataStoreUtils {
     function computeSignatoryRecordHash(
         uint32 globalDataStoreId,
         bytes32[] memory nonSignerPubkeyHashes,
-        uint256 totalEthStakeSigned,
-        uint256 totalEigenStakeSigned
+        uint256 signedStakeFirstQuorum,
+        uint256 signedStakeSecondQuorum
     ) internal pure returns (bytes32) {
         return keccak256(
-            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalEthStakeSigned, totalEigenStakeSigned)
+            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, signedStakeFirstQuorum, signedStakeSecondQuorum)
         );
     }
 
@@ -39,26 +39,6 @@ library DataStoreUtils {
             )
         );
         return dsHash;
-    }
-
-    function verifyDataStoreMetadata(
-        IDataLayrServiceManager serviceManager,
-        IDataLayrServiceManager.DataStoreMetadata memory metadata,
-        uint8 duration,
-        uint256 timestamp,
-        uint32 index
-    ) 
-        internal
-        view
-        returns (bool)
-    {
-        return(
-            serviceManager.getDataStoreHashesForDurationAtTimestamp(
-                duration, 
-                timestamp, 
-                index
-            ) == DataStoreUtils.computeDataStoreHash(metadata)
-        );
     }
 
     /// @notice uses `abi.encodePacked` to encode a DataStore's metadata into a compressed format

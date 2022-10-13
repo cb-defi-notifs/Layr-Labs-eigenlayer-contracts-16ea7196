@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -29,7 +29,8 @@ contract DataLayrLowDegreeChallenge {
     DataLayrChallengeUtils public immutable challengeUtils;
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
-    uint256 public PAIRING_GAS_LIMIT;
+    //Fixed gas limit to ensure pairing precompile doesn't use entire gas limit upon reversion
+    uint256 public pairingGasLimit;
 
     enum ChallengeStatus {
         UNSUCCESSFUL,
@@ -55,27 +56,34 @@ contract DataLayrLowDegreeChallenge {
     //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
 
+    modifier onlyRepositoryGovernance() {
+        dataLayrServiceManager.repository().owner();
+        _;
+    }
+
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils
+        DataLayrChallengeUtils _challengeUtils,
+        uint256 _gasLimit
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
+        pairingGasLimit = _gasLimit;
     }
 
     /**
      *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and
      *   freezes operator if verified as being excluded from nonsigner set.
-     *
      *   @param header is the header for the datastore in question.
+     *   @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
+     *   @param potMerkleProof is the merkle proof for the POT element.
      *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
      *   @param signatoryRecord is the record of signatures on said datastore
      */
     function challengeLowDegreenessProof(
         bytes calldata header,
-        uint256 pairingGasLimit,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         IDataLayrServiceManager.DataStoreSearchData calldata dataStoreSearchData,
@@ -86,8 +94,10 @@ contract DataLayrLowDegreeChallenge {
             "provided datastore searchData does not match provided header"
         );
 
-        /// @dev Refer to the datastore header spec
+        /// @dev Refer to the datastore header spec for makeup of header
         BN254.G1Point memory lowDegreenessProof;
+
+        //Slice the header to retrieve the lowdegreeness proof (a G1 point)
         assembly {
             mstore(lowDegreenessProof, calldataload(add(header.offset, 116)))
             mstore(add(lowDegreenessProof, 32), calldataload(add(header.offset, 148)))
@@ -95,12 +105,11 @@ contract DataLayrLowDegreeChallenge {
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
         require(
-            DataStoreUtils.verifyDataStoreMetadata(
-                dataLayrServiceManager,
-                dataStoreSearchData.metadata,
+            dataLayrServiceManager.verifyDataStoreMetadata(
                 dataStoreSearchData.duration,
                 dataStoreSearchData.timestamp,
-                dataStoreSearchData.index
+                dataStoreSearchData.index,
+                dataStoreSearchData.metadata
             ),
             "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
         );
@@ -122,12 +131,13 @@ contract DataLayrLowDegreeChallenge {
             "DataLayrLowDegreeChallenge.lowDegreeChallenge: low degreeness proof verified successfully"
         );
 
-        lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(msg.sender, ChallengeStatus.SUCCESSFUL);
-        emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);
+        bytes32 dataStoreHash = keccak256(abi.encode(dataStoreSearchData));
+        lowDegreeChallenges[dataStoreHash] = LowDegreeChallenge(msg.sender, ChallengeStatus.SUCCESSFUL);
+
+        emit SuccessfulLowDegreeChallenge(dataStoreHash, msg.sender);
     }
 
     ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
-
     function freezeOperatorsForLowDegreeChallenge(
         NonSignerExclusionProof[] memory nonSignerExclusionProofs,
         uint256 nonSignerIndex,
@@ -181,12 +191,13 @@ contract DataLayrLowDegreeChallenge {
     }
 
     /**
-     * @notice This function tests whether a polynomial's degree is not greater than a provided degree
+     * @notice This function verifies that a polynomial's degree is not greater than a provided degree and returns true if 
+               the inputs to the pairing are valid and the pairing is successful.
      * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
      * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
      * @param potMerkleProof is the merkle proof for the POT element.
-     * @param lowDegreenessProof is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
-     *                  We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     * @param lowDegreenessProof is the provided G1 point which is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+     *        This function computes the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
      */
 
     function verifyLowDegreenessProof(
@@ -212,8 +223,13 @@ contract DataLayrLowDegreeChallenge {
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
         (bool precompileWorks, bool pairingSuccessful) =
-            BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, PAIRING_GAS_LIMIT);
+            BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, pairingGasLimit);
 
         return (precompileWorks && pairingSuccessful);
+    }
+
+    //update pairing gas limit
+    function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
+        pairingGasLimit = newGasLimit;
     }
 }

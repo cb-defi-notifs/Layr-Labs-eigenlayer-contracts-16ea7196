@@ -584,12 +584,11 @@ contract DataLayrBombVerifier {
             // Verify that the provided metadata of the datastore before sandwichTimestamp (sandwich[0])
             // agrees with the stored hash
             require(
-                DataStoreUtils.verifyDataStoreMetadata(
-                    dlsm,
-                    sandwich[0].metadata,
+                dlsm.verifyDataStoreMetadata(
                     duration,
                     sandwich[0].timestamp,
-                    sandwich[0].index
+                    sandwich[0].index,
+                    sandwich[0].metadata
                 ), "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
 
@@ -608,12 +607,11 @@ contract DataLayrBombVerifier {
             // agrees with the stored hash
 
             require(
-                DataStoreUtils.verifyDataStoreMetadata(
-                    dlsm,
-                    sandwich[1].metadata,
+                dlsm.verifyDataStoreMetadata(
                     duration,
                     sandwich[1].timestamp,
-                    sandwich[1].index
+                    sandwich[1].index,
+                    sandwich[1].metadata
                 ),"DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
 
@@ -675,12 +673,11 @@ contract DataLayrBombVerifier {
          */
 
         require(
-            DataStoreUtils.verifyDataStoreMetadata(
-                dlsm,
-                searchData.metadata,
+            dlsm.verifyDataStoreMetadata(
                 searchData.duration,
                 searchData.timestamp,
-                searchData.index
+                searchData.index,
+                searchData.metadata
             ), "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
         );
 

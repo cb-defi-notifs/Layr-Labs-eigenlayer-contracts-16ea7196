@@ -93,6 +93,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
+    uint256 public gasLimit = 100000;
+
 
     address storer = address(420);
     address pauser = address(69);
@@ -378,7 +380,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);
