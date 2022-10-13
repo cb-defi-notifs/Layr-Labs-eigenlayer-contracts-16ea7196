@@ -16,11 +16,9 @@ import "../investment/Slasher.sol";
  * @title The primary delegation contract for EigenLayr.
  * @author Layr Labs, Inc.
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
- * - for enabling anyone to register as an operator
- * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
+ * - for enabling any staker to register as an operator and specify the delegation terms it is providing
+ * - for a registered staker to delegate its stake to the operator of its choice
  * - for a staker to undelegate its assets from EigenLayr
- * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
     modifier onlyInvestmentManager() {

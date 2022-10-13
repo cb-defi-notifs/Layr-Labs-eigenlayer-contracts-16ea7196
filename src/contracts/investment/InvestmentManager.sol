@@ -89,13 +89,14 @@ contract InvestmentManager is
         slasher = _slasher;
         _initializePauser(_pauserRegistry);
     }
+
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf
      */
-
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
@@ -106,13 +107,17 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice used for investing an asset into the specified strategy on behalf of a staker, who must sign off on the action
+     * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
+     * who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @param staker the staker that the assets will be deposited on behalf of
      * @param expiry the timestamp at which the signature expires
      * @param r and @param vs are the elements of the ECDSA signature
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
+     * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
+     * targetting stakers who may be attempting to undelegate.
      */
     function depositIntoStrategyOnBehalfOf(
         IInvestmentStrategy strategy,
@@ -278,8 +283,11 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
-     * that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
+     * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
+     * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
+     * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
+     * will simply be transferred to the caller directly.
      */
     function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, bool receiveAsTokens)
         external
@@ -343,11 +351,14 @@ contract InvestmentManager is
 
     /**
      * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
-     * The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
-     * @dev The fraudproof requires providing a repository contract and queryHash, corresponding to a query that was
-     * created at or before the time when the queued withdrawal was initiated, and expires prior to the time at
-     * which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
-     * 'unlockTimestamp' to the current UTC time plus the WITHDRAWAL_WAITING_PERIOD, pushing back the unlock time for the funds to be withdrawn.
+     * The result is setting the 'withdrawer' of the queued withdrawal to the zero address, signalling that the queued withdrawal
+     * can now be slashed through a call to `slashQueuedWithdrawal`.
+     * @param queuedWithdrawal the queued withdrawal to be proven against
+     * @param data Provided as an input to `slashingContract.stakeWithdrawalVerification`, used to check the proof
+     * @param slashingContract Is a contract that the 'delegated address' of the queued withdrawal -- i.e. `queuedWithdrawal.delegatedAddress`,
+     * the operator whom the originator of the queued withdrawal was delegated to at the time of its creation -- signed up to serve. The contract
+     * must still have slashing rights, as checked in `slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract))`
+     * @dev The format of the `data` input may vary significantly depending upon the service.
      */
     function challengeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
@@ -378,10 +389,8 @@ contract InvestmentManager is
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
         );
 
-        address operator = queuedWithdrawal.delegatedAddress;
-
         require(
-            slasher.canSlash(operator, address(slashingContract)),
+            slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract)),
             "InvestmentManager.fraudproofQueuedWithdrawal: Contract does not have rights to slash operator"
         );
 
@@ -401,8 +410,10 @@ contract InvestmentManager is
 
     /**
      * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+     * @param slashedAddress is the frozen address that is having its shares slashes
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
+     * @param recipient The slashed funds are withdrawn as tokens to this address.
      * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
@@ -446,7 +457,10 @@ contract InvestmentManager is
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
 
-    /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+    /**
+     * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+     * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
+     */
     function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal)
         external
         whenNotPaused
@@ -603,7 +617,9 @@ contract InvestmentManager is
     // VIEW FUNCTIONS
 
     /**
-     * @notice Used to check if a queued withdrawal can be completed
+     * @notice Used to check if a queued withdrawal can be completed. Returns 'true' if the withdrawal can be immediately
+     * completed, and 'false' otherwise.
+     * @dev This function will revert if the specified `queuedWithdrawal` does not exist
      */
     function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external view returns (bool) {
         // find the withdrawalRoot
@@ -642,10 +658,12 @@ contract InvestmentManager is
         return (investorStrats[depositor], shares);
     }
 
-    function investorStratsLength(address investor) external view returns (uint256) {
-        return investorStrats[investor].length;
+    /// @notice Simple getter function that returns `investorStrats[staker].length`.
+    function investorStratsLength(address staker) external view returns (uint256) {
+        return investorStrats[staker].length;
     }
 
+    /// @notice Returns the keccak256 hash of `queuedWithdrawal`.
     function calculateWithdrawalRoot(QueuedWithdrawal memory queuedWithdrawal) public pure returns (bytes32) {
         return (
             keccak256(
