@@ -34,7 +34,25 @@ contract EigenPodManager is IEigenPodManager {
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
     }
-    
+
+    function createPod(bytes32 salt) external payable {
+        IEigenPod pod = pods[msg.sender].pod;
+        require(address(pods[msg.sender].pod) == address(0), "EigenPodManager.createPod: Sender already has a pod");
+        //deploy a pod if the sender doesn't have one already
+        pod = 
+            IEigenPod(
+                Create2.deploy(
+                    0, 
+                    salt, 
+                    // set the beacon address to the eigenPodBeacon, no initialization data for now
+                    abi.encodePacked(
+                        type(BeaconProxy).creationCode, 
+                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender)
+                    )
+                )
+            );
+        pods[msg.sender].pod = pod;
+    }
 
     function stake(bytes32 salt, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         IEigenPod pod = pods[msg.sender].pod;
@@ -63,19 +81,22 @@ contract EigenPodManager is IEigenPodManager {
         pods[podOwner].balance = newBalance;
         //if the balance updates shows that the pod owner has more deposits than beacon chain balance, freeze them
         //TODO: add EigenPoManager as globally permissioned slashing contract
-        if(pods[podOwner].stakeDeposited > newBalance) {
+        if(pods[podOwner].stakedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
         }
     }
 
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager(msg.sender) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].balance + amount <= pods[podOwner].stakeDeposited, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
-        pods[podOwner].stakeDeposited += amount;
+        require(pods[podOwner].balance + amount <= pods[podOwner].stakedBalance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
+        pods[podOwner].stakedBalance += amount;
     }
 
     function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager(msg.sender) {
-        pods[podOwner].pod.withdrawETH(recipient, amount);
+        EigenPodInfo memory podInfo = pods[podOwner];
+        //subtract withdrawn amount from stake and balance
+        pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
+        podInfo.pod.withdrawETH(recipient, amount);
     }
 
     // VIEW FUNCTIONS
