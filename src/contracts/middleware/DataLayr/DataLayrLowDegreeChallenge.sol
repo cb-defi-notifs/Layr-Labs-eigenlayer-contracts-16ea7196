@@ -17,7 +17,6 @@ import "../../libraries/BLS.sol";
 import "../../libraries/BytesLib.sol";
 import "../../libraries/DataStoreUtils.sol";
 
-
 /**
  * @title Used to create and manage low degree challenges related to DataLayr.
  * @author Layr Labs, Inc.
@@ -32,7 +31,7 @@ contract DataLayrLowDegreeChallenge {
 
     uint256 public PAIRING_GAS_LIMIT;
 
-    enum ChallengeStatus{
+    enum ChallengeStatus {
         UNSUCCESSFUL,
         SUCCESSFUL
     }
@@ -42,10 +41,9 @@ contract DataLayrLowDegreeChallenge {
         address challenger;
         // challenge status
         ChallengeStatus status;
-
     }
 
-    struct NonSignerExclusionProof { 
+    struct NonSignerExclusionProof {
         address signerAddress;
         uint32 operatorHistoryIndex;
     }
@@ -67,15 +65,14 @@ contract DataLayrLowDegreeChallenge {
         challengeUtils = _challengeUtils;
     }
 
-
     /**
-    *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and 
-    *   freezes operator if verified as being excluded from nonsigner set.
-    *
-    *   @param header is the header for the datastore in question.
-    *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
-    *   @param signatoryRecord is the record of signatures on said datastore
-    */
+     *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and
+     *   freezes operator if verified as being excluded from nonsigner set.
+     *
+     *   @param header is the header for the datastore in question.
+     *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
+     *   @param signatoryRecord is the record of signatures on said datastore
+     */
     function challengeLowDegreenessProof(
         bytes calldata header,
         uint256 pairingGasLimit,
@@ -84,8 +81,10 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager.DataStoreSearchData calldata dataStoreSearchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
     ) external {
-        
-        require(dataStoreSearchData.metadata.headerHash == keccak256(header), "provided datastore searchData does not match provided header");
+        require(
+            dataStoreSearchData.metadata.headerHash == keccak256(header),
+            "provided datastore searchData does not match provided header"
+        );
 
         /// @dev Refer to the datastore header spec
         BN254.G1Point memory lowDegreenessProof;
@@ -93,7 +92,6 @@ contract DataLayrLowDegreeChallenge {
             mstore(lowDegreenessProof, calldataload(add(header.offset, 116)))
             mstore(add(lowDegreenessProof, 32), calldataload(add(header.offset, 148)))
         }
-
 
         //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
         require(
@@ -103,27 +101,29 @@ contract DataLayrLowDegreeChallenge {
                 dataStoreSearchData.duration,
                 dataStoreSearchData.timestamp,
                 dataStoreSearchData.index
-            ), "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
+            ),
+            "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
         );
 
         bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
-                                                        dataStoreSearchData.metadata.globalDataStoreId, 
-                                                        signatoryRecord.nonSignerPubkeyHashes,
-                                                        signatoryRecord.signedStakeFirstQuorum,
-                                                        signatoryRecord.signedStakeSecondQuorum
-                                                    );
+            dataStoreSearchData.metadata.globalDataStoreId,
+            signatoryRecord.nonSignerPubkeyHashes,
+            signatoryRecord.signedStakeFirstQuorum,
+            signatoryRecord.signedStakeSecondQuorum
+        );
 
         require(
-            dataStoreSearchData.metadata.signatoryRecordHash == signatoryRecordHash, 
+            dataStoreSearchData.metadata.signatoryRecordHash == signatoryRecordHash,
             "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
         );
 
-        
-        require(!verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof), "DataLayrLowDegreeChallenge.lowDegreeChallenge: low degreeness proof verified successfully");
-        
+        require(
+            !verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof),
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: low degreeness proof verified successfully"
+        );
+
         lowDegreeChallenges[keccak256(header)] = LowDegreeChallenge(msg.sender, ChallengeStatus.SUCCESSFUL);
-        emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);  
-        
+        emit SuccessfulLowDegreeChallenge(keccak256(header), msg.sender);
     }
 
     ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
@@ -133,11 +133,8 @@ contract DataLayrLowDegreeChallenge {
         uint256 nonSignerIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
-    )
-        external
-    {
-
-        for(uint i; i < nonSignerExclusionProofs.length; i++){
+    ) external {
+        for (uint256 i; i < nonSignerExclusionProofs.length; i++) {
             address operator = nonSignerExclusionProofs[i].signerAddress;
             uint32 operatorHistoryIndex = nonSignerExclusionProofs[i].operatorHistoryIndex;
 
@@ -158,34 +155,30 @@ contract DataLayrLowDegreeChallenge {
             );
 
             /**
-            * @notice Check that the DataLayr operator who is getting slashed was
-            * actually part of the quorum for the @param dataStoreId.
-            *
-            * The burden of responsibility lies with the challenger to show that the DataLayr operator
-            * is not part of the non-signers for the DataStore. Towards that end, challenger provides
-            * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
-            * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
-            * then,
-            * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
-            */
+             * @notice Check that the DataLayr operator who is getting slashed was
+             * actually part of the quorum for the @param dataStoreId.
+             *
+             * The burden of responsibility lies with the challenger to show that the DataLayr operator
+             * is not part of the non-signers for the DataStore. Towards that end, challenger provides
+             * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+             * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+             * then,
+             * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+             */
             /**
-            * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
-            * non-signers pubkey is recorded in the compressed signatory record in an  ascending
-            * manner.
-            */
+             * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
+             * non-signers pubkey is recorded in the compressed signatory record in an  ascending
+             * manner.
+             */
 
-            
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // check that operator was *not* in the non-signer set (i.e. they *did* sign)
                 challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
-                
             }
-            
 
             dataLayrServiceManager.freezeOperator(operator);
         }
     }
-
 
     /**
      * @notice This function tests whether a polynomial's degree is not greater than a provided degree
@@ -201,11 +194,7 @@ contract DataLayrLowDegreeChallenge {
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
         BN254.G1Point memory lowDegreenessProof
-    )
-        public
-        view
-        returns(bool)
-    {
+    ) public view returns (bool) {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
             challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
@@ -215,16 +204,16 @@ contract DataLayrLowDegreeChallenge {
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
 
-        require(Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof), 
-                    "DataLayrLowDegreeChallenge.proveLowDegreeness: PoT merkle proof failed"
+        require(
+            Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof),
+            "DataLayrLowDegreeChallenge.proveLowDegreeness: PoT merkle proof failed"
         );
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
 
-       (bool precompileWorks, bool pairingSuccessful) = BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, PAIRING_GAS_LIMIT);
-       
-       return (precompileWorks && pairingSuccessful);
+        (bool precompileWorks, bool pairingSuccessful) =
+            BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, PAIRING_GAS_LIMIT);
 
-
+        return (precompileWorks && pairingSuccessful);
     }
 }
