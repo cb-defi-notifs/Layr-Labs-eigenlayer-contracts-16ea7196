@@ -521,26 +521,6 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Withdraws `shareAmount` shares that `depositor` holds in `strategy`, to their address
-     * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
-     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
-     */
-    function _withdrawFromStrategy(
-        address depositor,
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    )
-        internal
-        returns (bool strategyRemovedFromArray)
-    {
-        strategyRemovedFromArray = _removeShares(depositor, strategyIndex, strategy, shareAmount);
-        // tell the strategy to send the appropriate amount of funds to the depositor
-        strategy.withdraw(depositor, token, shareAmount);
-    }
-
-    /**
      * @notice Decreases the shares that `depositor` holds in `strategy` by `shareAmount`.
      * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
      * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
