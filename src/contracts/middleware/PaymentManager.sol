@@ -259,7 +259,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.payForService.selector, paymentToken, amount);
         // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
         bool success;
-        bytes32 returnData;
+        bytes32[1] memory returnData;
         // actually make the call
         assembly {
             success := call(
@@ -281,7 +281,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         }
         // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnPayForServiceCallFailure(dt, returnData);
+            emit OnPayForServiceCallFailure(dt, returnData[0]);
         }
     }
 

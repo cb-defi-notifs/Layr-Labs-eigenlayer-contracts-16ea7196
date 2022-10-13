@@ -189,7 +189,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares);
         // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
         bool success;
-        bytes32 returnData;
+        bytes32[1] memory returnData;
         // actually make the call
         assembly {
             success := call(
@@ -211,7 +211,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
         // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnDelegationReceivedCallFailure(dt, returnData);
+            emit OnDelegationReceivedCallFailure(dt, returnData[0]);
         }
     }
 
@@ -231,7 +231,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares);
         // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
         bool success;
-        bytes32 returnData;
+        bytes32[1] memory returnData;
         // actually make the call
         assembly {
             success := call(
@@ -253,7 +253,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
         // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnDelegationWithdrawnCallFailure(dt, returnData);
+            emit OnDelegationWithdrawnCallFailure(dt, returnData[0]);
         }
     }
 
