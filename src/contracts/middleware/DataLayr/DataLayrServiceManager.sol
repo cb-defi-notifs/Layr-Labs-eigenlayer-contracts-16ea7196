@@ -28,23 +28,6 @@ import "./DataLayrChallengeUtils.sol";
  */
 contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
-
-    // ERROR MESSAGES
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
-
-    // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
-    error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
-
-    // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
-    error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
-
-    // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
-    error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
-
-    // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
-    error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
-
     // sanity checks. should always require *some* signatures, but never *all* signatures
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
     uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
@@ -170,16 +153,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     {
         bytes32 headerHash = keccak256(header);
 
-        // sanity check on the parameters of data blob
-        if (totalBytes < MIN_STORE_SIZE) {
-            revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
-        }
-
-        if (totalBytes > MAX_STORE_SIZE) {
-            revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
-        }
-
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+        // sanity check on the parameters of data store
+        require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+        require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
 
         // compute time and fees
         // computing the actual period for which data blob needs to be stored
