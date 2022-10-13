@@ -9,7 +9,7 @@ import "../libraries/BytesLib.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
-import "../interfaces/IBeaconChainEtherReceiver.sol";
+import "../interfaces/IBeaconChainETHReceiver.sol";
 
 
 contract EigenPod is IEigenPod, Initializable {
@@ -126,11 +126,11 @@ contract EigenPod is IEigenPod, Initializable {
         eigenPodManager.investmentManager().slashBeaconChainETH(owner, beaconChainETHStrategyIndex, amount);
         //send slashed ETH to recipient
         //TODO: Reentrancy gurad here?
-        IBeaconChainEtherReceiver(recipient).receiveBeaconChainETH{value: amount}();
+        IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
 
     }
 
-    function withdrawEther(
+    function withdrawETH(
         address recipient,
         uint256 amount
     )
@@ -138,7 +138,7 @@ contract EigenPod is IEigenPod, Initializable {
         onlyInvestmentManager
     {
         //transfer ETH directly from pod to msg.sender 
-        IBeaconChainEtherReceiver(recipient).receiveBeaconChainETH{value: amount}();
+        IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
 
     // INTERNAL FUNCTIONS

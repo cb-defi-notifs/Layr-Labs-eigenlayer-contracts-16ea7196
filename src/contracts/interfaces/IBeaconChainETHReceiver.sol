@@ -2,6 +2,6 @@
 pragma solidity ^0.8.9;
 
 
-interface IBeaconChainEtherReceiver {
+interface IBeaconChainETHReceiver {
     function receiveBeaconChainETH() external payable; 
 }

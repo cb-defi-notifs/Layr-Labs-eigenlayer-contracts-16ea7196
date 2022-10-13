@@ -75,7 +75,7 @@ contract EigenPodManager is IEigenPodManager {
     }
 
     function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager(msg.sender) {
-        pods[podOwner].pod.withdrawEther(recipient, amount);
+        pods[podOwner].pod.withdrawETH(recipient, amount);
     }
 
     // VIEW FUNCTIONS
