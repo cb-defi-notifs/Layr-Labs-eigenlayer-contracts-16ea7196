@@ -16,9 +16,11 @@ import "../investment/Slasher.sol";
  * @title The primary delegation contract for EigenLayr.
  * @author Layr Labs, Inc.
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - for enabling any staker to register as an operator and specify the delegation terms it is providing
- * - for a registered staker to delegate its stake to the operator of its choice
+ * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
+ * - for enabling anyone to register as an operator
+ * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
  * - for a staker to undelegate its assets from EigenLayr
+ * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
     modifier onlyInvestmentManager() {
@@ -32,10 +34,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
-    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
-    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     /**
      * @notice Sets the `investMentManager` address (**currently modifiable by contract owner -- see below**),
@@ -179,13 +181,37 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     )
         internal
     {
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares)
-        );
-        // if the internal call fails, we emit a special event rather than reverting
+        /**
+         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
+         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
+         */
+        // format calldata
+        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares);
+        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
+        bool success;
+        bytes32[1] memory returnData;
+        // actually make the call
+        assembly {
+            success := call(
+                // gas provided to this context
+                LOW_LEVEL_GAS_BUDGET,
+                // address to call
+                dt,
+                // value in wei for call
+                0,
+                // memory location to copy for calldata
+                lowLevelCalldata,
+                // length of memory to copy for calldata
+                mload(lowLevelCalldata),
+                // memory location to copy return data
+                returnData,
+                // byte size of return data to copy to memory
+                32
+            )
+        }
+        // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnDelegationReceivedCallFailure(dt, returnData);
+            emit OnDelegationReceivedCallFailure(dt, returnData[0]);
         }
     }
 
@@ -197,13 +223,37 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     )
         internal
     {
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares)
-        );
-        // if the internal call fails, we emit a special event rather than reverting
+        /**
+         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
+         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
+         */
+        // format calldata
+        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares);
+        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
+        bool success;
+        bytes32[1] memory returnData;
+        // actually make the call
+        assembly {
+            success := call(
+                // gas provided to this context
+                LOW_LEVEL_GAS_BUDGET,
+                // address to call
+                dt,
+                // value in wei for call
+                0,
+                // memory location to copy for calldata
+                lowLevelCalldata,
+                // length of memory to copy for calldata
+                mload(lowLevelCalldata),
+                // memory location to copy return data
+                returnData,
+                // byte size of return data to copy to memory
+                32
+            )
+        }
+        // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnDelegationWithdrawnCallFailure(dt, returnData);
+            emit OnDelegationWithdrawnCallFailure(dt, returnData[0]);
         }
     }
 

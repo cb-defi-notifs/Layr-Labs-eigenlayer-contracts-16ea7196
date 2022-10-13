@@ -93,7 +93,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     event PaymentChallengeResolution(address indexed operator, bool operatorWon);
 
     /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
-    event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     constructor(
         IERC20 _paymentToken,
@@ -251,13 +251,37 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     // inform the DelegationTerms contract of the payment, which will determine the rewards the operator and its delegators are eligible for
     function _payForServiceHook(IDelegationTerms dt, uint256 amount) internal {
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(IDelegationTerms.payForService.selector, paymentToken, amount)
-        );
-        // if the internal call fails, we emit a special event rather than reverting
+        /**
+         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
+         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
+         */
+        // format calldata
+        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.payForService.selector, paymentToken, amount);
+        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
+        bool success;
+        bytes32[1] memory returnData;
+        // actually make the call
+        assembly {
+            success := call(
+                // gas provided to this context
+                LOW_LEVEL_GAS_BUDGET,
+                // address to call
+                dt,
+                // value in wei for call
+                0,
+                // memory location to copy for calldata
+                lowLevelCalldata,
+                // length of memory to copy for calldata
+                mload(lowLevelCalldata),
+                // memory location to copy return data
+                returnData,
+                // byte size of return data to copy to memory
+                32
+            )
+        }
+        // if the call fails, we emit a special event rather than reverting
         if (!success) {
-            emit OnPayForServiceCallFailure(dt, returnData);
+            emit OnPayForServiceCallFailure(dt, returnData[0]);
         }
     }
 
