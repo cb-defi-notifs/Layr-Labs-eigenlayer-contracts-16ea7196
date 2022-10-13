@@ -93,7 +93,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
-    uint256 public gasLimit = 100000;
+    uint256 public gasLimit = 750000;
 
 
     address storer = address(420);

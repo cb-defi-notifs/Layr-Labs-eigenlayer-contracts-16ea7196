@@ -164,23 +164,6 @@ contract DataLayrLowDegreeChallenge {
                 "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
             );
 
-            /**
-             * @notice Check that the DataLayr operator who is getting slashed was
-             * actually part of the quorum for the @param dataStoreId.
-             *
-             * The burden of responsibility lies with the challenger to show that the DataLayr operator
-             * is not part of the non-signers for the DataStore. Towards that end, challenger provides
-             * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
-             * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
-             * then,
-             * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
-             */
-            /**
-             * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
-             * non-signers pubkey is recorded in the compressed signatory record in an  ascending
-             * manner.
-             */
-
             if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
                 // check that operator was *not* in the non-signer set (i.e. they *did* sign)
                 challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);

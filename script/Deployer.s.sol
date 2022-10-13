@@ -107,7 +107,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     uint256 public constant eigenTotalSupply = 1000e18;
 
-    uint256 public gasLimit = 100000;
+    uint256 public gasLimit = 750000;
 
     uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
 
