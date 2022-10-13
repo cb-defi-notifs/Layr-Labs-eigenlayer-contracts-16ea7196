@@ -74,6 +74,11 @@ contract EigenPodManager is IEigenPodManager {
         pods[podOwner].stakeDeposited += amount;
     }
 
+    function withdrawBeaconChainBalance(address podOwner, uint256 amount) external onlyInvestmentManager(msg.sender) {
+        IEigenPod withdrawerPod = pods[podOwner].pod;
+        withdrawerPod.withdrawEther(podOwner, amount);
+    }
+
     // VIEW FUNCTIONS
 
     function getPod(address podOwner) external view returns (EigenPodInfo memory) {

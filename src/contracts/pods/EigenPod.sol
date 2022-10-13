@@ -8,6 +8,8 @@ import "../libraries/BytesLib.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
+import "../interfaces/IBeaconChainWithdrawer.sol";
+
 
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
@@ -21,6 +23,11 @@ contract EigenPod is IEigenPod, Initializable {
 
     modifier onlyInvestmentManagerOwner {
         require(msg.sender == Ownable(address(eigenPodManager.investmentManager())).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
+        _;
+    }
+
+    modifier onlyInvestmentManager {
+        require(msg.sender == address(eigenPodManager.investmentManager()), "EigenPod.InvestmentManager: not investment manager");
         _;
     }
 
@@ -126,6 +133,18 @@ contract EigenPod is IEigenPod, Initializable {
         //TODO: Reentrancy gurad here?
         payable(recipient).call{value: amount}("");
 
+    }
+
+    function withdrawEther(
+        address recipient,
+        uint256 amount
+    )
+        external
+        onlyInvestmentManager
+    {
+        //transfer ETH directly from pod to msg.sender 
+        IBeaconChainWithdrawer withdrawer = IBeaconChainWithdrawer(recipient);
+        withdrawer.receiveBeaconChainETH{value: amount}();
     }
 
     // INTERNAL FUNCTIONS

@@ -22,4 +22,5 @@ interface IEigenPod {
 
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+    function withdrawEther(address recipient, uint256 amount) external;
 }

@@ -356,10 +356,16 @@ contract InvestmentManager is
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-                // tell the strategy to send the appropriate amount of funds to the depositor
-                strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
-                unchecked {
-                    ++i;
+
+                if (strategies[i] == beaconChainETHStrategy){
+                    eigenPodManager.withdrawBeaconChainBalance(msg.sender, shares[i]);
+                }
+                else {
+                    // tell the strategy to send the appropriate amount of funds to the depositor
+                    strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
+                    unchecked {
+                        ++i;
+                    }
                 }
             }
         } else {
