@@ -137,6 +137,7 @@ contract EigenPod is IEigenPod, Initializable {
         external
         onlyInvestmentManager
     {
+        //TODO: Reentrancy gurad here?
         //transfer ETH directly from pod to msg.sender 
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
