@@ -1,74 +1,194 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
+import "../../interfaces/IDataLayrServiceManager.sol";
 
 import "../Repository.sol";
 
 import "./DataLayrChallengeUtils.sol";
-import "./DataLayrChallengeBase.sol";
 
 import "../../libraries/Merkle.sol";
 import "../../libraries/BLS.sol";
+import "../../libraries/BytesLib.sol";
+import "../../libraries/DataStoreUtils.sol";
 
 /**
  * @title Used to create and manage low degree challenges related to DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
+contract DataLayrLowDegreeChallenge {
     using SafeERC20 for IERC20;
+    using BytesLib for bytes;
 
-    struct LowDegreeChallenge {
-        // UTC timestamp (in seconds) at which the challenge was created, used for fraudproof period
-        uint256 commitTime;
-        // challenger's address
-        address challenger;
+    IQuorumRegistry public immutable dlRegistry;
+    DataLayrChallengeUtils public immutable challengeUtils;
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
+
+    //Fixed gas limit to ensure pairing precompile doesn't use entire gas limit upon reversion
+    uint256 public pairingGasLimit;
+
+    enum ChallengeStatus {
+        UNSUCCESSFUL,
+        SUCCESSFUL
     }
 
-    // length of window during which the responses can be made to the challenge
-    uint32 internal constant _DEGREE_CHALLENGE_RESPONSE_WINDOW = 7 days;
+    struct LowDegreeChallenge {
+        // challenger's address
+        address challenger;
+        // challenge status
+        ChallengeStatus status;
+    }
 
-    // headerHash => LowDegreeChallenge struct
-    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
+    struct NonSignerExclusionProof {
+        address signerAddress;
+        uint32 operatorHistoryIndex;
+    }
 
     event SuccessfulLowDegreeChallenge(bytes32 indexed headerHash, address challenger);
 
+    mapping(bytes32 => LowDegreeChallenge) public lowDegreeChallenges;
+
+    //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
+
+    modifier onlyRepositoryGovernance() {
+        dataLayrServiceManager.repository().owner();
+        _;
+    }
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils
-    )
-        DataLayrChallengeBase(
-            _dataLayrServiceManager,
-            _dlRegistry,
-            _challengeUtils,
-            0,
-            0
-        )
-    // solhint-disable-next-line no-empty-blocks
-    {}
+        DataLayrChallengeUtils _challengeUtils,
+        uint256 _gasLimit
+    ) {
+        dataLayrServiceManager = _dataLayrServiceManager;
+        dlRegistry = _dlRegistry;
+        challengeUtils = _challengeUtils;
+        pairingGasLimit = _gasLimit;
+    }
 
     /**
-     * @notice This function tests whether a polynomial's degree is not greater than a provided degree
-     * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
-     * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
-     * @param proofInG1 is the provided G1 point is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
-     * We are essentially computing the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     *   @notice verifies all challenger inputs against stored hashes, computes low degreeness proof and
+     *   freezes operator if verified as being excluded from nonsigner set.
+     *   @param header is the header for the datastore in question.
+     *   @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
+     *   @param potMerkleProof is the merkle proof for the POT element.
+     *   @param dataStoreSearchData is the all relevant data about the datastore being challenged
+     *   @param signatoryRecord is the record of signatures on said datastore
      */
-
-    //TODO: we need to hardcode a merkle root hash in storage
-    function lowDegreenessProof(
+    function challengeLowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
         bytes memory potMerkleProof,
-        BN254.G1Point memory proofInG1
-    ) external view {
+        IDataLayrServiceManager.DataStoreSearchData calldata dataStoreSearchData,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
+    ) external {
+        require(
+            dataStoreSearchData.metadata.headerHash == keccak256(header),
+            "provided datastore searchData does not match provided header"
+        );
+
+        /// @dev Refer to the datastore header spec for makeup of header
+        BN254.G1Point memory lowDegreenessProof;
+
+        //Slice the header to retrieve the lowdegreeness proof (a G1 point)
+        assembly {
+            mstore(lowDegreenessProof, calldataload(add(header.offset, 116)))
+            mstore(add(lowDegreenessProof, 32), calldataload(add(header.offset, 148)))
+        }
+
+        //prove searchData, including nonSignerPubkeyHashes (in the form of signatory record in the metadata) matches stored searchData
+        require(
+            dataLayrServiceManager.verifyDataStoreMetadata(
+                dataStoreSearchData.duration,
+                dataStoreSearchData.timestamp,
+                dataStoreSearchData.index,
+                dataStoreSearchData.metadata
+            ),
+            "DataLayrLowDegreeChallenge.challengeLowDegreeHeader: Provided metadata does not match stored datastore metadata hash"
+        );
+
+        bytes32 signatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
+            dataStoreSearchData.metadata.globalDataStoreId,
+            signatoryRecord.nonSignerPubkeyHashes,
+            signatoryRecord.signedStakeFirstQuorum,
+            signatoryRecord.signedStakeSecondQuorum
+        );
+
+        require(
+            dataStoreSearchData.metadata.signatoryRecordHash == signatoryRecordHash,
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: provided signatoryRecordHash does not match signatorRecordHash in provided searchData"
+        );
+
+        require(
+            !verifyLowDegreenessProof(header, potElement, potMerkleProof, lowDegreenessProof),
+            "DataLayrLowDegreeChallenge.lowDegreeChallenge: low degreeness proof verified successfully"
+        );
+
+        bytes32 dataStoreHash = keccak256(abi.encode(dataStoreSearchData));
+        lowDegreeChallenges[dataStoreHash] = LowDegreeChallenge(msg.sender, ChallengeStatus.SUCCESSFUL);
+
+        emit SuccessfulLowDegreeChallenge(dataStoreHash, msg.sender);
+    }
+
+    ///@notice slash an operator who signed a headerHash but failed a subsequent challenge
+    function freezeOperatorsForLowDegreeChallenge(
+        NonSignerExclusionProof[] memory nonSignerExclusionProofs,
+        uint256 nonSignerIndex,
+        IDataLayrServiceManager.DataStoreSearchData calldata searchData,
+        IDataLayrServiceManager.SignatoryRecordMinusDataStoreId calldata signatoryRecord
+    ) external {
+        for (uint256 i; i < nonSignerExclusionProofs.length; i++) {
+            address operator = nonSignerExclusionProofs[i].signerAddress;
+            uint32 operatorHistoryIndex = nonSignerExclusionProofs[i].operatorHistoryIndex;
+
+            // verify that operator was active *at the blockNumber*
+            bytes32 operatorPubkeyHash = dlRegistry.getOperatorPubkeyHash(operator);
+            IQuorumRegistry.OperatorStake memory operatorStake =
+                dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
+            require(
+                // operator must have become active/registered before (or at) the block number
+                (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
+                // operator must have still been active after (or until) the block number
+                // either there is a later update, past the specified blockNumber, or they are still active
+                && (
+                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
+                        || operatorStake.nextUpdateBlockNumber == 0
+                ),
+                "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
+            );
+
+            if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
+                // check that operator was *not* in the non-signer set (i.e. they *did* sign)
+                challengeUtils.checkExclusionFromNonSignerSet(operatorPubkeyHash, nonSignerIndex, signatoryRecord);
+            }
+
+            dataLayrServiceManager.freezeOperator(operator);
+        }
+    }
+
+    /**
+     * @notice This function verifies that a polynomial's degree is not greater than a provided degree and returns true if 
+               the inputs to the pairing are valid and the pairing is successful.
+     * @param header is the header information, which contains the kzg metadata (commitment and degree to check against)
+     * @param potElement is the G2 point of the POT element we are computing the pairing for (x^{n-m})
+     * @param potMerkleProof is the merkle proof for the POT element.
+     * @param lowDegreenessProof is the provided G1 point which is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
+     *        This function computes the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
+     */
+
+    function verifyLowDegreenessProof(
+        bytes calldata header,
+        BN254.G2Point memory potElement,
+        bytes memory potMerkleProof,
+        BN254.G1Point memory lowDegreenessProof
+    ) public view returns (bool) {
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
             challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
@@ -77,141 +197,22 @@ contract DataLayrLowDegreeChallenge is DataLayrChallengeBase {
         uint256 potIndex = MAX_POT_DEGREE - dskzgMetadata.degree * challengeUtils.nextPowerOf2(dskzgMetadata.numSys);
         //computing hash of the powers of Tau element to verify merkle inclusion
         bytes32 hashOfPOTElement = keccak256(abi.encodePacked(potElement.X, potElement.Y));
+
         require(
             Merkle.checkMembership(hashOfPOTElement, potIndex, BLS.powersOfTauMerkleRoot, potMerkleProof),
-            "Merkle proof was not validated"
+            "DataLayrLowDegreeChallenge.proveLowDegreeness: PoT merkle proof failed"
         );
 
         BN254.G2Point memory negativeG2 = BN254.G2Point({X: [BLS.nG2x1, BLS.nG2x0], Y: [BLS.nG2y1, BLS.nG2y0]});
-        require(
-            BN254.pairing(dskzgMetadata.c, potElement, proofInG1, negativeG2),
-            "DataLayreLowDegreeChallenge.lowDegreenessCheck: Pairing Failed"
-        );
+
+        (bool precompileWorks, bool pairingSuccessful) =
+            BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, pairingGasLimit);
+
+        return (precompileWorks && pairingSuccessful);
     }
 
-    function respondToLowDegreeChallenge(
-        bytes calldata header,
-        uint256[2] calldata cPower,
-        uint256[4] calldata pi,
-        uint256[4] calldata piPower,
-        uint256 s,
-        uint256 sPrime
-    ) external {
-        //TODO: Implement this
-        // bytes32 headerHash = keccak256(header);
-
-        // // check that the challenge window is still open
-        // require(
-        //     (block.timestamp - lowDegreeChallenges[headerHash].commitTime) <=
-        //         CHALLENGE_RESPONSE_WINDOW,
-        //     "Challenge response period has already elapsed"
-        // );
-
-        // DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetaData = challengeUtils
-        //     .getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(
-        //         header
-        //     );
-
-        // uint256 r = uint256(keccak256(abi.encodePacked(dskzgMetaData.c, cPower))) % MODULUS;
-
-        // require(
-        //     challengeUtils.openPolynomialAtPoint(dskzgMetaData.c, pi, r, s),
-        //     "Incorrect proof against commitment"
-        // );
-
-        // // TODO: make sure this is the correct power -- shouldn't it actually be (32 - this number) ? -- @Gautham
-        // uint256 power = challengeUtils.nextPowerOf2(dskzgMetaData.numSys) *
-        //     challengeUtils.nextPowerOf2(dskzgMetaData.degree);
-
-        // uint256 rPower;
-
-        // // call modexp precompile at 0x05 to calculate r^power mod (MODULUS)
-        // assembly {
-        //     let freemem := mload(0x40)
-        //     // base size is 32 bytes
-        //     mstore(freemem, 0x20)
-        //     // exponent size is 32 bytes
-        //     mstore(add(freemem, 0x20), 0x20)
-        //     // modulus size is 32 bytes
-        //     mstore(add(freemem, 0x40), 0x20)
-        //     // specifying base as 'r'
-        //     mstore(add(freemem, 0x60), r)
-        //     // specifying exponent as 'power'
-        //     mstore(add(freemem, 0x80), power)
-        //     // specifying modulus as 21888242871839275222246405745257275088696311157297823662689037894645226208583 (i.e. "MODULUS") in hex
-        //     mstore(
-        //         add(freemem, 0xA0),
-        //         0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
-        //     )
-        //     // staticcall returns 0 in the case that it reverted, in which case we also want to revert
-        //     if iszero(
-        //         // call modexp precompile with parameters specified above, copying the (single, 32 byte) return value to the freemem location
-        //         staticcall(sub(gas(), 2000), 5, freemem, 0xC0, freemem, 0x20)
-        //     ) {
-        //         revert(0, 0)
-        //     }
-        //     // store the returned value in 'sPower'
-        //     rPower := mload(freemem)
-        // }
-
-        // require(
-        //     challengeUtils.openPolynomialAtPoint(cPower, piPower, r, sPrime),
-        //     "Incorrect proof against commitment power"
-        // );
-
-        // // verify that r^power * s mod (MODULUS) == sPrime
-        // uint256 res;
-        // assembly {
-        //     res := mulmod(rPower, s, MODULUS)
-        // }
-        // require(res == sPrime, "bad sPrime provided");
-
-        // // set challenge commit time equal to 'CHALLENGE_UNSUCCESSFUL', so the same challenge cannot be opened a second time,
-        // // and to signal that the msg.sender correctly answered the challenge
-        // lowDegreeChallenges[headerHash].commitTime = CHALLENGE_UNSUCCESSFUL;
-
-        // // send challenger collateral to msg.sender
-        // IERC20 collateralToken = dataLayrServiceManager.collateralToken();
-        // collateralToken.safeTransfer(msg.sender, lowDegreeChallenges[headerHash].collateral);
-    }
-
-    function challengeSuccessful(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_SUCCESSFUL);
-    }
-
-    function challengeUnsuccessful(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime == CHALLENGE_UNSUCCESSFUL);
-    }
-
-    function challengeExists(bytes32 headerHash) public view override returns (bool) {
-        return (lowDegreeChallenges[headerHash].commitTime != 0);
-    }
-
-    function challengeClosed(bytes32 headerHash) public view override returns (bool) {
-        return ((block.timestamp - lowDegreeChallenges[headerHash].commitTime) > CHALLENGE_RESPONSE_WINDOW);
-    }
-
-    // set challenge commit time equal to 'CHALLENGE_SUCCESSFUL', so the same challenge cannot be opened a second time,
-    // and to signal that the challenge has been lost by the signers
-    function _markChallengeSuccessful(bytes32 headerHash) internal override {
-        lowDegreeChallenges[headerHash].commitTime = CHALLENGE_SUCCESSFUL;
-    }
-
-    function _recordChallengeDetails(bytes calldata, bytes32 headerHash) internal override {
-        // record details of low degree challenge that has been opened
-        lowDegreeChallenges[headerHash] = LowDegreeChallenge(
-            // the current timestamp when the challenge was created
-            block.timestamp,
-            // challenger's address
-            msg.sender
-        );
-    }
-
-    function _challengeCreationEvent(bytes32 headerHash) internal override {
-        emit SuccessfulLowDegreeChallenge(headerHash, msg.sender);
-    }
-
-    function _returnChallengerCollateral(bytes32) internal pure override {
-        return;
+    //update pairing gas limit
+    function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
+        pairingGasLimit = newGasLimit;
     }
 }

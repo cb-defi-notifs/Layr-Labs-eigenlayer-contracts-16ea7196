@@ -130,4 +130,48 @@ library BN254 {
 
         return out[0] != 0;
     }
+
+    /*
+    * This function is functionally the same as pairing(), however it specifies a gas limit 
+    * the user can set, as a precompile may use the entire gas budget if it reverts.
+    */
+    function safePairing(
+        G1Point memory a1, 
+        G2Point memory a2, 
+        G1Point memory b1, 
+        G2Point memory b2,
+        uint256 pairingGas
+    )
+        internal
+        view
+        returns (bool, bool)
+    {
+        G1Point[2] memory p1 = [a1, b1];
+        G2Point[2] memory p2 = [a2, b2];
+
+        uint256[12] memory input;
+
+        for (uint256 i = 0; i < 2; i++) {
+            uint256 j = i * 6;
+            input[j + 0] = p1[i].X;
+            input[j + 1] = p1[i].Y;
+            input[j + 2] = p2[i].X[0];
+            input[j + 3] = p2[i].X[1];
+            input[j + 4] = p2[i].Y[0];
+            input[j + 5] = p2[i].Y[1];
+        }
+
+        uint256[1] memory out;
+        bool success;
+
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(pairingGas, 8, input, mul(12, 0x20), out, 0x20)
+        }
+
+        //Out is the output of the pairing precompile, either 0 or 1 based on whether the two pairings are equal.
+        //Success is true if the precompile actually goes through (aka all inputs are valid)
+
+        return(success, out[0] != 0);
+    }
 }
