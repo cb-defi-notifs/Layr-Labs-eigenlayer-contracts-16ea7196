@@ -32,10 +32,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
-    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    event OnDelegationReceivedCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
-    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes returnData);
+    event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     /**
      * @notice Sets the `investMentManager` address (**currently modifiable by contract owner -- see below**),
@@ -179,11 +179,35 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     )
         internal
     {
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares)
-        );
-        // if the internal call fails, we emit a special event rather than reverting
+        /**
+         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
+         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
+         */
+        // format calldata
+        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationReceived.selector, staker, strategies, shares);
+        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
+        bool success;
+        bytes32 returnData;
+        // actually make the call
+        assembly {
+            success := call(
+                // gas provided to this context
+                LOW_LEVEL_GAS_BUDGET,
+                // address to call
+                dt,
+                // value in wei for call
+                0,
+                // memory location to copy for calldata
+                lowLevelCalldata,
+                // length of memory to copy for calldata
+                mload(lowLevelCalldata),
+                // memory location to copy return data
+                returnData,
+                // byte size of return data to copy to memory
+                32
+            )
+        }
+        // if the call fails, we emit a special event rather than reverting
         if (!success) {
             emit OnDelegationReceivedCallFailure(dt, returnData);
         }
@@ -197,11 +221,35 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     )
         internal
     {
-        // we use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation
-        (bool success, bytes memory returnData) = address(dt).call{gas: LOW_LEVEL_GAS_BUDGET}(
-            abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares)
-        );
-        // if the internal call fails, we emit a special event rather than reverting
+        /**
+         * We use low-level call functionality here to ensure that an operator cannot maliciously make this function fail in order to prevent undelegation.
+         * In particular, in-line assembly is also used to prevent the copying of uncapped return data which is also a potential DoS vector.
+         */
+        // format calldata
+        bytes memory lowLevelCalldata = abi.encodeWithSelector(IDelegationTerms.onDelegationWithdrawn.selector, staker, strategies, shares);
+        // Prepare memory for low-level call return data. We accept a max return data length of 32 bytes
+        bool success;
+        bytes32 returnData;
+        // actually make the call
+        assembly {
+            success := call(
+                // gas provided to this context
+                LOW_LEVEL_GAS_BUDGET,
+                // address to call
+                dt,
+                // value in wei for call
+                0,
+                // memory location to copy for calldata
+                lowLevelCalldata,
+                // length of memory to copy for calldata
+                mload(lowLevelCalldata),
+                // memory location to copy return data
+                returnData,
+                // byte size of return data to copy to memory
+                32
+            )
+        }
+        // if the call fails, we emit a special event rather than reverting
         if (!success) {
             emit OnDelegationWithdrawnCallFailure(dt, returnData);
         }
