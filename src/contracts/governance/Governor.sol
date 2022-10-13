@@ -211,10 +211,11 @@ contract Governor is RepositoryAccess {
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
+            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
             require(
-                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake()
+                (uint256(firstQuorumStake) * 100) / firstQuorumTotalStake
                     >= proposalThresholdFirstQuorumPercentage
-                    || (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake()
+                    || (uint256(secondQuorumStake) * 100) / secondQuorumTotalStake
                         >= proposalThresholdSecondQuorumPercentage || msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
@@ -328,10 +329,11 @@ contract Governor is RepositoryAccess {
         {
             // check percentage
             IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
             require(
-                (uint256(firstQuorumStake) * 100) / registry.totalFirstQuorumStake()
+                (uint256(firstQuorumStake) * 100) / firstQuorumTotalStake
                     >= proposalThresholdFirstQuorumPercentage
-                    || (uint256(secondQuorumStake) * 100) / registry.totalSecondQuorumStake()
+                    || (uint256(secondQuorumStake) * 100) / secondQuorumTotalStake
                         >= proposalThresholdSecondQuorumPercentage || msg.sender == multisig,
                 "RepositoryGovernance::propose: proposer votes below proposal threshold"
             );
@@ -367,6 +369,8 @@ contract Governor is RepositoryAccess {
     function state(uint256 proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > 0, "RepositoryGovernance::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
+        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
+        (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
         if (proposal.canceled) {
             return ProposalState.Canceled;
         } else if (block.timestamp <= proposal.startTime) {
@@ -378,14 +382,14 @@ contract Governor is RepositoryAccess {
                 || proposal.forVotesSecondQuorum <= proposal.againstVotesSecondQuorum
                 || (
                     (
-                        (proposal.forVotesFirstQuorum * 100) / IQuorumRegistry(address(_registry())).totalFirstQuorumStake()
+                        (proposal.forVotesFirstQuorum * 100) / firstQuorumTotalStake
                             < firstQuorumPercentage
                     ) && (proposal.proposer != multisig)
                 )
                 || (
                     (
-                        (proposal.forVotesSecondQuorum * 100)
-                            / IQuorumRegistry(address(_registry())).totalSecondQuorumStake() < secondQuorumPercentage
+                        (proposal.forVotesSecondQuorum * 100) / secondQuorumTotalStake
+                            < secondQuorumPercentage
                     ) && (proposal.proposer != multisig)
                 )
         ) {

@@ -17,7 +17,9 @@ import "forge-std/Test.sol";
  * by the middleware for each of the quorum(s)
  */
 contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
+    /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+    /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
     constructor(
@@ -31,8 +33,8 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     {}
 
     /**
-     * @notice This function computes the total weight of the @param operator in the quorum
-     * @param quorumNumber.
+     * @notice This function computes the total weight of the @param operator in the quorum @param quorumNumber.
+     * @dev returns zero in the case that `quorumNumber` is greater than or equal to `NUMBER_OF_QUORUMS`
      */
     function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
         uint96 weight;
@@ -49,7 +51,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
                 // shares of the operator in the investment strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
 
-                // add the weightage from the shares to the total weight
+                // add the weight from the shares for this strategy to the total weight
                 if (sharesAmount > 0) {
                     weight += uint96(
                         (
@@ -89,15 +91,18 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         IInvestmentStrategy[] calldata _strategiesToRemove,
         uint256[] calldata indicesToRemove
     ) external onlyRepositoryGovernance {
-        uint256 numStrats = indicesToRemove.length;
+        uint256 numStrats = _strategiesToRemove.length;
+        // sanity check on input lengths
+        require(indicesToRemove.length == numStrats, "VoteWeigherBase.removeStrategiesConsideredAndWeights: input length mismatch");
 
         for (uint256 i = 0; i < numStrats;) {
+            // check that the provided index is correct
             require(
                 strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]].strategy == _strategiesToRemove[i],
                 "VoteWeigherBase.removeStrategiesConsideredAndWeights: index incorrect"
             );
 
-            // removing strategies and their associated weight
+            // remove strategy and its associated multiplier
             strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber]
                 .length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
@@ -109,7 +114,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         }
     }
 
-    /// @notice Returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber].
+    /// @notice Returns the length of the dynamic array stored in `strategiesConsideredAndMultipliers[quorumNumber]`.
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         require(
             quorumNumber < NUMBER_OF_QUORUMS,

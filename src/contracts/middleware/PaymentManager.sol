@@ -155,9 +155,9 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
-        // only registered operators can call
+        // only active operators can call
         require(
-            registry.isRegistered(msg.sender),
+            registry.isActiveOperator(msg.sender),
             "PaymentManager.commitPayment: Only registered operators can call this function"
         );
 
