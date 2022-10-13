@@ -16,8 +16,7 @@ interface IEigenPod {
 
     enum VALIDATOR_STATUS {
         INACTIVE, //doesnt exist
-        INITIALIZED, //staked on ethpos but withdrawal credentials not proven
-        STAKED //staked on ethpos and withdrawal credentials are pointed
+        ACTIVE //staked on ethpos and withdrawal credentials are pointed
     }
 
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
