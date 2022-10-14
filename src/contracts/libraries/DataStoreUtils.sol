@@ -9,6 +9,8 @@ import "../interfaces/IDataLayrServiceManager.sol";
  * @author Layr Labs, Inc.
  */
 library DataStoreUtils {
+    uint16 public constant MAX_BASIS_POINTS = 10000;
+
     uint256 public constant BYTES_PER_COEFFICIENT = 31;
     uint256 public constant BIT_SHIFT_degree = 224;
     uint256 public constant BIT_SHIFT_numSys = 224;
@@ -24,6 +26,17 @@ library DataStoreUtils {
             numCoefficients := mul(numCoefficients, add(shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree))), 1))
         }
         return numCoefficients * BYTES_PER_COEFFICIENT;
+    }
+
+    function getCodingRatio(bytes calldata header, uint32 totalChunks) internal pure returns(uint16) {
+        uint16 codingRatio;
+        assembly {
+            //codingRatio = numSys
+            codingRatio := shr(BIT_SHIFT_numSys, calldataload(add(header.offset, HEADER_OFFSET_numSys)))
+            //codingRatio = numSys * MAX_BASIS_POINTS / totalChunks
+            codingRatio := div(mul(codingRatio, MAX_BASIS_POINTS), totalChunks)
+        }
+        return codingRatio;
     }
 
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.

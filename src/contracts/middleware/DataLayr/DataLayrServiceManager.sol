@@ -33,8 +33,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
-    uint128 public firstQuorumSignedThresholdPercentage = 90;
-    uint128 public secondQuorumSignedThresholdPercentage = 90;
+    uint16 public quorumThresholdBasisPoints = 9000;
+    uint16 public adversaryThresholdBasisPoints = 8500;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -129,9 +129,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
+                require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+                require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+
+                require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
             }
-            require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
-            require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
             require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
 
@@ -313,9 +315,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
             (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
-                >= firstQuorumSignedThresholdPercentage
+                >= quorumThresholdBasisPoints
                 && (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum
-                    >= secondQuorumSignedThresholdPercentage,
+                    >= quorumThresholdBasisPoints,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
