@@ -131,17 +131,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     {
         bytes32 headerHash = keccak256(header);
         uint256 totalBytes = DataStoreUtils.getTotalBytesFromHeader(header);
-        // sanity check on the parameters of data blob
-        if (totalBytes < MIN_STORE_SIZE) {
-            revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
-        }
-
-        if (totalBytes > MAX_STORE_SIZE) {
-            revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
-        }
+        require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+        require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
         require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
-
         // compute time and fees
         // computing the actual period for which data blob needs to be stored
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
