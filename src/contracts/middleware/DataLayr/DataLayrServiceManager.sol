@@ -121,9 +121,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     function initDataStore(
         address feePayer,
         address confirmer,
-        bytes calldata header,
         uint8 duration,
-        uint32 blockNumber
+        uint32 blockNumber,
+        uint32 totalOperatorsIndex,
+        bytes calldata header
     )
         external
         whenNotPaused
@@ -134,7 +135,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
         require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
+
+
+
         // compute time and fees
         // computing the actual period for which data blob needs to be stored
         uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
@@ -188,7 +192,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
             require(
                 (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
-                "specified blockNumber is too far in past"
+                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
             );    
         }
 
