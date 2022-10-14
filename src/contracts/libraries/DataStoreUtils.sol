@@ -29,14 +29,14 @@ library DataStoreUtils {
     }
 
     function getCodingRatio(bytes calldata header, uint32 totalChunks) internal pure returns(uint16) {
-        uint16 codingRatio;
+        uint32 codingRatio;
         assembly {
             //codingRatio = numSys
             codingRatio := shr(BIT_SHIFT_numSys, calldataload(add(header.offset, HEADER_OFFSET_numSys)))
             //codingRatio = numSys * MAX_BASIS_POINTS / totalChunks
             codingRatio := div(mul(codingRatio, MAX_BASIS_POINTS), totalChunks)
         }
-        return codingRatio;
+        return uint16(codingRatio);
     }
 
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
