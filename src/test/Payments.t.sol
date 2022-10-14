@@ -218,10 +218,10 @@ contract PaymentsTests is TestHelper {
         bytes memory header = hex"0102030405060708091011121314151617181921";
         uint32 blockNumber = uint32(block.number);
         uint8 duration = 2;
-
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
         cheats.startPrank(storer);
         //increments fromDataStoreID so that you can commit a payment
-        dlsm.initDataStore(storer, address(this), header, duration, blockNumber);
+        dlsm.initDataStore(storer, address(this), duration, blockNumber, totalOperatorsIndex, header);
         cheats.stopPrank();
     }
 }

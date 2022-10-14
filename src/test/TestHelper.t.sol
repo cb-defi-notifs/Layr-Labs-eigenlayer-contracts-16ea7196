@@ -123,6 +123,7 @@ contract TestHelper is EigenLayrDeployer {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
@@ -131,9 +132,10 @@ contract TestHelper is EigenLayrDeployer {
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
-            header,
             durationToInit,
-            blockNumber
+            blockNumber,
+            totalOperatorsIndex,
+            header
         );
 
         bytes32 headerHash = keccak256(header);

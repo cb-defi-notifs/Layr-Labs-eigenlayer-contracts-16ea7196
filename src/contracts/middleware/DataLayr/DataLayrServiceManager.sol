@@ -33,18 +33,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
-    // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
-    error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
-
-    // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
-    error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
-
-    // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
-    error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
-
-    // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
-    error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
-
     uint128 public firstQuorumSignedThresholdPercentage = 90;
     uint128 public secondQuorumSignedThresholdPercentage = 90;
 
@@ -131,37 +119,46 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         returns (uint32)
     {
         bytes32 headerHash = keccak256(header);
-        uint256 totalBytes = DataStoreUtils.getTotalBytesFromHeader(header);
-        require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
-        require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+        uint32 storePeriodLength;
+        IDataLayrServiceManager.DataStoreMetadata memory metadata;
+        
+        {
+            uint256 totalBytes;
+            {
+                //fetch the total number of operators for the blockNumber from which stakes are being read from
+                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
 
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
+                totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
+            }
+            require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+            require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
+            require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
 
+            // compute time and fees
+            // computing the actual period for which data blob needs to be stored
+            storePeriodLength = uint32(duration * DURATION_SCALE);
 
-        // compute time and fees
-        // computing the actual period for which data blob needs to be stored
-        uint32 storePeriodLength = uint32(duration * DURATION_SCALE);
+            // evaluate the total service fees that msg.sender has to put in escrow for paying out
+            // the DataLayr nodes for their service
+            uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-        // evaluate the total service fees that msg.sender has to put in escrow for paying out
-        // the DataLayr nodes for their service
-        uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
+            // require that disperser has sent enough fees to this contract to pay for this datastore.
+            // This will revert if the deposits are not high enough due to undeflow.
+            dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
 
-        // require that disperser has sent enough fees to this contract to pay for this datastore.
-        // This will revert if the deposits are not high enough due to undeflow.
-        dataLayrPaymentManager.payFee(msg.sender, feePayer, fee);
-
-        // Recording the initialization of datablob store along with auxiliary info
-        //store metadata locally to be stored
-        IDataLayrServiceManager.DataStoreMetadata memory metadata = IDataLayrServiceManager.DataStoreMetadata({
-            headerHash: headerHash,
-            durationDataStoreId: getNumDataStoresForDuration(duration),
-            globalDataStoreId: dataStoresForDuration.dataStoreId,
-            blockNumber: blockNumber,
-            fee: uint96(fee),
-            confirmer: confirmer,
-            signatoryRecordHash: bytes32(0)
-        });
+            // Recording the initialization of datablob store along with auxiliary info
+            //store metadata locally to be stored
+            metadata = IDataLayrServiceManager.DataStoreMetadata({
+                headerHash: headerHash,
+                durationDataStoreId: getNumDataStoresForDuration(duration),
+                globalDataStoreId: dataStoresForDuration.dataStoreId,
+                blockNumber: blockNumber,
+                fee: uint96(fee),
+                confirmer: confirmer,
+                signatoryRecordHash: bytes32(0)
+            });
+        }
 
         uint32 index;
 

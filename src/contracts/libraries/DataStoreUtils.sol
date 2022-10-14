@@ -10,18 +10,20 @@ import "../interfaces/IDataLayrServiceManager.sol";
  */
 library DataStoreUtils {
     uint256 public constant BYTES_PER_COEFFICIENT = 31;
+    uint256 public constant BIT_SHIFT_degree = 224;
+    uint256 public constant BIT_SHIFT_numSys = 224;
+    uint256 public constant HEADER_OFFSET_degree = 64;
+    uint256 public constant HEADER_OFFSET_numSys = 68;
 
-    function getTotalBytesFromHeader(bytes calldata header) internal pure returns(uint256) {
-        uint256 totalBytes;
+
+    function getTotalBytes(bytes calldata header, uint32 totalChunks) internal pure returns(uint256) {
+        uint256 numCoefficients = totalChunks;
         assembly {
-            //totalBytes = numSys
-            totalBytes := shr(224, calldataload(add(header.offset, 68)))
-            //totalBytes = numSys + numPar
-            totalBytes := add(totalBytes, shr(224, calldataload(add(header.offset, 72))))
-            //totalBytes = (numSys + numPar) * degree
-            totalBytes := mul(totalBytes, shr(224, calldataload(add(header.offset, 64))))
+            //totalBytes = totalChunks * (degree + 1)
+            //NOTE: degree + 1 is the number of coefficients
+            numCoefficients := mul(numCoefficients, add(shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree))), 1))
         }
-        return totalBytes * BYTES_PER_COEFFICIENT;
+        return numCoefficients * BYTES_PER_COEFFICIENT;
     }
 
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
