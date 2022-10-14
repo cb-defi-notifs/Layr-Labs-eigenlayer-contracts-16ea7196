@@ -22,6 +22,11 @@ contract EigenPod is IEigenPod, Initializable {
     address public owner;
     mapping(bytes32 => Validator) public validators;
 
+    modifier onlyEigenPodManager {
+        require(msg.sender == address(eigenPodManager), "EigenPod.InvestmentManager: not eigenPodManager");
+        _;
+    }
+
     modifier onlyInvestmentManagerOwner {
         require(msg.sender == Ownable(address(eigenPodManager.investmentManager())).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
         _;
@@ -48,7 +53,7 @@ contract EigenPod is IEigenPod, Initializable {
         owner = _owner;
     }
 
-    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
+    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
         // stake on ethpos
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
     }
@@ -135,7 +140,7 @@ contract EigenPod is IEigenPod, Initializable {
         uint256 amount
     )
         external
-        onlyInvestmentManager
+        onlyEigenPodManager
     {
         //TODO: Reentrancy gurad here?
         //transfer ETH directly from pod to msg.sender 
