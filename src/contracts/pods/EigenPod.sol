@@ -11,7 +11,17 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
-
+/**
+ * @title The delegate contract used for restaking beacon chain ETH on EigenLayer 
+ * @author Layr Labs, Inc.
+ * @notice The main functionalities are:
+ * - creating new validators with their withdrawal credentials pointed to this contract
+ * - proving from beacon chain state roots that withdrawal credentials are pointed to this contract
+ * - proving from beacon chain state roots the balances of validators with their withdrawal credentials
+ *   pointed to this contract
+ * - updating aggregate balances in the EigenPodManager
+ * - withdrawing eth when withdrawals are initiated
+ */
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
 

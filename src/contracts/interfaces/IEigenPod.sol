@@ -24,6 +24,6 @@ interface IEigenPod {
     //called by EigenPodManager when the owner wants to create another validator
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     //called by EigenPodManager to withdrawETH that has been added to its balance due to a withdrawal
-    //either in case of slashing or withdrawals
+    //either in case of withdrawals
     function withdrawETH(address recipient, uint256 amount) external;
 }
