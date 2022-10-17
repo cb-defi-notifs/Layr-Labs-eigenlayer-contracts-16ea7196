@@ -24,8 +24,8 @@ contract EigenPodManager is IEigenPodManager {
         _;
     }
 
-    modifier onlyInvestmentManager(address addr) {
-        require(addr == address(investmentManager), "EigenPodManager.onlyEigenPod: not investmentManager");
+    modifier onlyInvestmentManager {
+        require(msg.sender == address(investmentManager), "EigenPodManager.onlyEigenPod: not investmentManager");
         _;
     }
 
@@ -86,13 +86,13 @@ contract EigenPodManager is IEigenPodManager {
         }
     }
 
-    function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager(msg.sender) {
+    function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
         require(pods[podOwner].balance + amount <= pods[podOwner].stakedBalance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
     }
 
-    function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager(msg.sender) {
+    function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
         pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
