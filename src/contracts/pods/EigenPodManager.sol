@@ -85,7 +85,7 @@ contract EigenPodManager is IEigenPodManager {
                 Create2.deploy(
                     0, 
                     bytes32(uint256(uint160(msg.sender))), 
-                    // set the beacon address to the eigenPodBeacon, no initialization data for now
+                    // set the beacon address to the eigenPodBeacon and initialize it
                     abi.encodePacked(
                         type(BeaconProxy).creationCode, 
                         abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender)
