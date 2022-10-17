@@ -17,7 +17,8 @@ interface IEigenPodManager {
     }
 
     function investmentManager() external returns(IInvestmentManager);
-    function stake(bytes32 salt, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
+    function createPod() external;
+    function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external;
     function withdraw(address podOwner, address receipient, uint256 amount) external;
