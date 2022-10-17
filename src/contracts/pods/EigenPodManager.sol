@@ -101,7 +101,11 @@ contract EigenPodManager is IEigenPodManager {
 
     // VIEW FUNCTIONS
 
-    function getPod(address podOwner) external view returns (EigenPodInfo memory) {
+    function getPod(address podOwner) external view returns (IEigenPod) {
+        return pods[podOwner].pod;
+    }
+
+    function getPodInfo(address podOwner) external view returns (EigenPodInfo memory) {
         EigenPodInfo memory podInfo = pods[podOwner];
         return podInfo;
     }

@@ -62,7 +62,7 @@ contract InvestmentManager is
     }
 
     modifier onlyEigenPod(address podOwner, address pod) {
-        require(address(eigenPodManager.getPod(podOwner).pod) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
         _;
     }
 

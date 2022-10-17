@@ -22,5 +22,7 @@ interface IEigenPodManager {
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external;
     function withdraw(address podOwner, address receipient, uint256 amount) external;
 
-    function getPod(address podOwner) external view returns(EigenPodInfo memory);
+    function getPod(address podOwner) external view returns(IEigenPod);
+    function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);
+
 }
