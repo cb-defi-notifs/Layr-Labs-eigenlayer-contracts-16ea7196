@@ -13,6 +13,7 @@ import "./BytesLib.sol";
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
 library BeaconChainProofs {
     using BytesLib for bytes;
+    //constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
     uint256 public constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
 
@@ -75,6 +76,12 @@ library BeaconChainProofs {
         return Merkle.merkleizeSha256(paddedEth1DataFields);
     }
 
+    /**
+     * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
+     * @param beaconStateRoot is the beacon chain state root.
+     * @param proofs is the data used in proving the validator's fields
+     * @param validatorFields the claimed fields of the validator
+     */
     function verifyValidatorFields(
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
