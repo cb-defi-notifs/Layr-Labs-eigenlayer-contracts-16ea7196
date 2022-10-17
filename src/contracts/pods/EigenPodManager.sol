@@ -44,12 +44,22 @@ contract EigenPodManager is IEigenPodManager {
         investmentManager = _investmentManager;
     }
 
+    /**
+     * @notice Creates an EigenPod for the sender.
+     */
     function createPod() external {
         require(address(pods[msg.sender].pod) == address(0), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
         deployPod();
     }
 
+    /**
+     * @notice Stakes for a new beacon chain validator on the sender's EigenPod. 
+     * Creates an EigenPod fo the sender if they don't have one already.
+     * @param pubkey The 48 bytes public key of the beacon chain validator.
+     * @param signature The validator's signature of the deposit data.
+     * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
+     */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         IEigenPod pod = pods[msg.sender].pod;
         if(address(pod) == address(0)) {
@@ -60,6 +70,12 @@ contract EigenPodManager is IEigenPodManager {
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
+    /**
+     * @notice Updates the beacon chain balance of the EigenPod, freezing the owner if they have overcommitted beacon chain ETH to EigenLayer.
+     * @param podOwner The owner of the pod to udpate the balance of.
+     * @param balanceToRemove The balance to remove before increasing, used when updating a validators balance.
+     * @param balanceToAdd The balance to add after decreasing, used when updating a validators balance.
+     */
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner, msg.sender) {
         uint128 newBalance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
         pods[podOwner].balance = newBalance;
@@ -73,12 +89,23 @@ contract EigenPodManager is IEigenPodManager {
         }
     }
 
+    /**
+     * @notice Deposits beacon chain ETH into EigenLayer.
+     * @param podOwner The owner of the pod whose balance must be restaked.
+     * @param amount The amount of beacon chain ETH to restake.
+     */
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
         require(pods[podOwner].balance + amount <= pods[podOwner].stakedBalance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
     }
 
+    /**
+     * @notice Withdraws ETH that has been withdrawn from the beacon chain from the EigenPod.
+     * @param podOwner The owner of the pod whose balance must be withdrawn.
+     * @param recipient The recipient of withdrawn ETH.
+     * @param amount The amount of ETH to withdraw.
+     */
     function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
