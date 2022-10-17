@@ -9,6 +9,15 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 
+/**
+ * @title The contract used for creating and managing EigenPods
+ * @author Layr Labs, Inc.
+ * @notice The main functionalities are:
+ * - creating EigenPods
+ * - staking for new validators on EigenPods
+ * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
+ * - withdrawing eth when withdrawals are initiated
+ */
 contract EigenPodManager is IEigenPodManager {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;

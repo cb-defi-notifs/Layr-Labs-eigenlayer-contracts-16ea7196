@@ -12,7 +12,7 @@ import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
 /**
- * @title The delegate contract used for restaking beacon chain ETH on EigenLayer 
+ * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
  * @notice The main functionalities are:
  * - creating new validators with their withdrawal credentials pointed to this contract
