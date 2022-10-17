@@ -10,8 +10,6 @@ library Merkle {
     /**
      @notice this function checks whether the given @param leaf is actually a member (leaf) of the 
              merkle tree with @param rootHash being the Merkle root or not.   
-     */
-    /**
      @param leaf is the element whose membership in the merkle tree is being checked,
      @param index is the leaf index
      @param rootHash is the Merkle root of the Merkle tree,
@@ -82,11 +80,15 @@ library Merkle {
         return computedHash == rootHash;
     }
 
+    /**
+     @notice this function returns the merkle root of a tree created from a set of leaves using sha256 as its hash function
+     @param leaves the leaves of the merkle tree
+
+     @notice requires the leaves.length is a power of 2
+     */ 
     function merkleizeSha256(
-        uint256 height,
         bytes32[] memory leaves
     ) internal pure returns (bytes32) {
-        require(leaves.length == 2**height, "Must merkleize a complete tree");
         uint256 numNodesInLayer = leaves.length / 2;
         bytes32[] memory layer = new bytes32[](numNodesInLayer);
 
@@ -96,10 +98,11 @@ library Merkle {
 
         numNodesInLayer /= 2;
 
-        while (numNodesInLayer > 0) {
+        while (numNodesInLayer != 0) {
             for (uint i = 0; i < numNodesInLayer; i++) {
                 layer[i] = sha256(abi.encodePacked(layer[2*i], layer[2*i+1]));
             }
+            numNodesInLayer /= 2;
         }
 
         return layer[0];

@@ -42,7 +42,7 @@ library BeaconChainProofs {
             paddedHeaderFields[i] = blockHeaderFields[i];
         }
 
-        return Merkle.merkleizeSha256(BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT, paddedHeaderFields);
+        return Merkle.merkleizeSha256(paddedHeaderFields);
     }
 
     function computePhase0BeaconStateRoot(bytes32[NUM_BEACON_STATE_FIELDS] calldata beaconStateFields) internal pure returns(bytes32) {
@@ -52,7 +52,7 @@ library BeaconChainProofs {
             paddedBeaconStateFields[i] = beaconStateFields[i];
         }
         
-        return Merkle.merkleizeSha256(BEACON_STATE_FIELD_TREE_HEIGHT, paddedBeaconStateFields);
+        return Merkle.merkleizeSha256(paddedBeaconStateFields);
     }
 
     function computePhase0ValidatorRoot(bytes32[NUM_VALIDATOR_FIELDS] calldata validatorFields) internal pure returns(bytes32) {  
@@ -62,7 +62,7 @@ library BeaconChainProofs {
             paddedValidatorFields[i] = validatorFields[i];
         }
 
-        return Merkle.merkleizeSha256(VALIDATOR_FIELD_TREE_HEIGHT, paddedValidatorFields);
+        return Merkle.merkleizeSha256(paddedValidatorFields);
     }
 
     function computePhase0Eth1DataRoot(bytes32[NUM_ETH1_DATA_FIELDS] calldata eth1DataFields) internal pure returns(bytes32) {  
@@ -72,7 +72,7 @@ library BeaconChainProofs {
             paddedEth1DataFields[i] = eth1DataFields[i];
         }
 
-        return Merkle.merkleizeSha256(ETH1_DATA_FIELD_TREE_HEIGHT, paddedEth1DataFields);
+        return Merkle.merkleizeSha256(paddedEth1DataFields);
     }
 
     function verifyValidatorFields(
@@ -109,7 +109,8 @@ library BeaconChainProofs {
         //offset another 4 bytes for the length of the validatorIndex
         pointer += 4;
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
+        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
         //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
+        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
     }
 }
