@@ -10,10 +10,11 @@ import "./IEigenPod.sol";
  */
 
 interface IEigenPodManager {
+    //This struct helps manage the info about a certain pod owner's pod
     struct EigenPodInfo {
         uint128 balance; //total balance of all validators in the pod
         uint128 stakedBalance; //amount of balance deposited into EigenLayer
-        IEigenPod pod;
+        IEigenPod pod; //the address of the pow owner's pod
     }
 
     function investmentManager() external returns(IInvestmentManager);
@@ -21,7 +22,7 @@ interface IEigenPodManager {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
     function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external;
-    function withdraw(address podOwner, address receipient, uint256 amount) external;
+    function withdraw(address podOwner, address recipient, uint256 amount) external;
 
     function getPod(address podOwner) external view returns(IEigenPod);
     function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);
