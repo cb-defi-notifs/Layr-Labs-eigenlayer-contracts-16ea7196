@@ -97,7 +97,7 @@ library BeaconChainProofs {
         // verify the proof of the validator metadata root against the merkle root of the entire validator tree
         //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
         bytes32 validatorRoot = proofs.toBytes32(pointer);
-        //offset another 4 bytes for the length of the validatorIndex
+        //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
         //verify that the validatorRoot is within the validator tree
         valid = Merkle.checkMembershipSha256(
