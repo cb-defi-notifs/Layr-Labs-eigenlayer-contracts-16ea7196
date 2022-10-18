@@ -21,16 +21,19 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
     IERC20 public underlyingToken;
     uint256 public totalShares;
 
+    /// @notice Simply checks that the `msg.sender` is the `investmentManager`, which is an address stored immutably at construction.
     modifier onlyInvestmentManager() {
         require(msg.sender == address(investmentManager), "InvestmentStrategyBase.onlyInvestmentManager");
         _;
     }
 
+    /// @notice Since this contract is designed to be initializable, the constructor simply sets `investmentManager`, the only immutable variable.
     constructor(IInvestmentManager _investmentManager) {
         investmentManager = _investmentManager;
         _disableInitializers();
     }
 
+    /// @notice Sets the `underlyingToken` and `pauserRegistry` for the strategy.
     function initialize(IERC20 _underlyingToken, IPauserRegistry _pauserRegistry) public initializer {
         underlyingToken = _underlyingToken;
         _initializePauser(_pauserRegistry);
