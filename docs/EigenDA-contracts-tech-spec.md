@@ -50,13 +50,15 @@ The BLSRegistry contract inherits from the `RegistryBase` contract, and builds o
 
 Designed primarily around a BLS signature scheme and 2-quorum model, it keeps track of all middleware operators and stores information relevant to each of them.
 
-This contract acts as the point of entry and exit for middleware operators: before participating in middleware tasks, operators must register through calling the `registerOperator` function of the BLSRegistry; likewise, should an operator wish to cease providing services to the middleware, they can deregister by calling the `deregisterOperator` function of BLSRegistry. Note that in such a case, an operator must continue to serve their existing obligations; by deregistering an operator simply ceases to commit to serving *new* tasks (technically, this is following a brief delay as well -- the operator may also be required to serve new tasks created within ~8-10 minutes following their call to `deregisterOperator`).
+This contract acts as the point of entry and exit for middleware operators: before participating in middleware tasks, operators must register through calling the `registerOperator` function of the BLSRegistry; likewise, should an operator wish to cease providing services to the middleware, they can deregister by calling the `deregisterOperator` function of BLSRegistry. Note that in such a case, an operator must continue to serve their existing obligations; by deregistering an operator simply ceases to commit to serving *new* tasks (technically, this is following a brief delay as well -- the operator may also be required to serve new tasks created within approximately 8-10 minutes following their call to `deregisterOperator`).
 
 Each active middleware operator is associated with a public key corresponding to a point on the quadratic extension of the alt_bn128 (i.e. Barreto-Naehrig, bn254, or bn256) curve aka the G2 of alt_bn128. New middleware operators provide a signature proving control over their public key to the BLSRegistry. In addition to storing all operators’ public keys, the BLSRegistry keeps track of the value of each operator’s stake, their position in an array of all operators, and the time until which they have committed to storing data.
 
 Importantly, the BLSRegistry also stores an aggregate public key, against which the combined signatures of middleware operators can be checked. 
 Additionally, BLSRegistry stores historical records of the aggregate public key, operator stakes, and operator array positions for all time. This historical data can all be referenced as needed, e.g. as part of the payment challenge process.
 
+### BLSRegistryWithBomb
+The BLSRegistryWithBomb contract inherits from the `BLSRegistry`, simply adding minimal functionality in order to support Data Availability Sampling (DAS) through interactions with an `EmphemeralKeyRegistry` contract.
 
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone
