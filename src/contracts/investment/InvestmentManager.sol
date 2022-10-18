@@ -48,14 +48,9 @@ contract InvestmentManager is
     event WithdrawalQueued(
         address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
     );
-    
+
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
-
-    modifier onlyNotDelegated(address user) {
-        require(delegation.isNotDelegated(user), "InvestmentManager.onlyNotDelegated: user is actively delegated");
-        _;
-    }
 
     modifier onlyNotFrozen(address staker) {
         require(
