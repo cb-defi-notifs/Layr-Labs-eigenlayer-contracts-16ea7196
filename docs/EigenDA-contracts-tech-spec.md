@@ -17,7 +17,18 @@ We proceed from the same general assumptions as though outlined in the [EigenLay
 The
 
 ### DataLayrServiceManager
-The 
+The DataLayrServiceManager contract serves as the central contract for interacting with DataLayr.  It allows a disperser to assert chunks of data (called DataStores) into DataLayr and verify the asserted data with a quorum of signatures from DataLayr validator nodes.  This is a two step process:
+
+
+
+1. First there is the `initDataStore` workflow which involves:
+    - Notifying the settlement layer that the disperser has asserted the data into DataLayr and is waiting for a signature from the DataLayr operator quorum.
+    - Place into escrow the service fees that the DataLayr operators will receive from the disperser.
+
+2. Once the dataStore has been initialized, the disperser calls `confirmDataStore` which involves:
+    * Notifying that signatures on the dataStore from quorum of DataLayr nodes have been obtained,
+     * Check that the aggregate signature is valid,
+     * Check whether quorum has been achieved or not.
 
 ### BLSRegistry
 Each

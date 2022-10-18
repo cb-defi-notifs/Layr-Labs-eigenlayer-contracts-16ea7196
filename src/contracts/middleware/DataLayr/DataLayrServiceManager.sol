@@ -24,7 +24,7 @@ import "./DataLayrChallengeUtils.sol";
  * @notice This contract is used for:
  * - initializing the data store by the disperser
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
- * - doing payment challenge
+ * - freezing operators as the result of various "challenges"
  */
 contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
@@ -109,8 +109,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     /**
      * @notice This function is used for
-     * - notifying in the Ethereum that the disperser has asserted the data blob
-     * into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
+     * - notifying via Ethereum that the disperser has asserted the data blob
+     * into DataLayr and is waiting to obtain quorum of DataLayr operators to sign,
      * - asserting the metadata corresponding to the data asserted into DataLayr
      * - escrow the service fees that DataLayr operators will receive from the disperser
      * on account of their service.
@@ -118,7 +118,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * This function returns the index of the data blob in dataStoreIdsForDuration[duration][block.timestamp]
      */
     /**
-     * @param feePayer is the address of the balance paying the fees for this datastore. check DataLayrPaymentManager for further details
+     * @param feePayer is the address that will be paying the fees for this datastore. check DataLayrPaymentManager for further details
      * @param confirmer is the address that must confirm the datastore
      * @param header is the summary of the data that is being asserted into DataLayr,
      *  type DataStoreHeader struct {
@@ -184,6 +184,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
         uint32 index;
 
+        /**
+         * Stores the hash of the datastore's metadata into the `dataStoreHashesForDurationAtTimestamp` mapping. 
+         * We iterate through the mapping and store the hash in the first available empty storage slot.
+         * This hash is stored to be checked during the quorum signature verification, ensuring that the correct dataStore is signed and confirmed.
+         */
         {
             // uint g = gasleft();
             //iterate the index throughout the loop
@@ -233,11 +238,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
-
         if (_latestTime > dataStoresForDuration.latestTime) {
             dataStoresForDuration.latestTime = _latestTime;
         }
 
+        // increments the number of datastores for the specific duration of the asserted DataStore
         _incrementDataStoresForDuration(duration);
 
         // increment the counter
@@ -249,11 +254,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @notice This function is used for
      * - disperser to notify that signatures on the message, comprising of hash( headerHash ),
      * from quorum of DataLayr nodes have been obtained,
-     * - check that each of the signatures are valid,
-     * - call the DataLayr contract to check that whether quorum has been achieved or not.
+     * - check that the aggregate signature is valid,
+     * - and check whether quorum has been achieved or not.
      */
     /**
-     * @param data is of the format:
+     * @param data Input to the `checkSignatures` function, which is of the format:
      * <
      * bytes32 msgHash,
      * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
@@ -263,16 +268,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * uint256[4] apk,
      * uint256[2] sigma
      * >
+     * @dev 
      */
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external whenNotPaused {
         /**
-         *
-         * verify the disperser's claim on composition of quorum
-         *
+         * Verify that the signatures provided by the disperser are indeed from DataLayr operators who have agreed to be in the quorum.
+         * Additionally, pull relevant information from the provided `data` param, which we subsequently check the integrity of.
          */
-
-        // verify the signatures that disperser is claiming to be of those DataLayr operators
-        // who have agreed to be in the quorum
         (
             uint32 dataStoreIdToConfirm,
             uint32 blockNumberFromTaskHash,
@@ -281,8 +283,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
-        //this keeps bomb and storage conditions stagnant
+        /**
+         * Make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs.
+         * This keeps bomb and storage conditions fixed (to a single blockchain fork).
+         */
         require(
             msgHash
                 == keccak256(
@@ -302,14 +306,17 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             msg.sender == searchData.metadata.confirmer,
             "DataLayrServiceManager.confirmDataStore: Sender is not authorized to confirm this datastore"
         );
+        // check that the DataStore has not already been confirmed
         require(
             searchData.metadata.signatoryRecordHash == bytes32(0),
             "DataLayrServiceManager.confirmDataStore: SignatoryRecord must be bytes32(0)"
         );
+        // verify integrity of `dataStoreIdToConfirm` provided as part of `data` input
         require(
             searchData.metadata.globalDataStoreId == dataStoreIdToConfirm,
             "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data"
         );
+        // verify integrity of `blockNumberFromTaskHash` provided as part of `data` input        
         require(
             searchData.metadata.blockNumber == blockNumberFromTaskHash,
             "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data"
@@ -318,21 +325,21 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
-
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "DataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
         );
 
+        // add the computed signatoryRecordHash to the searchData
         searchData.metadata.signatoryRecordHash = signatoryRecordHash;
 
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well
         bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
-        //storing new hash
+        //storing new hash that now includes the signatory record
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
-        // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
+        // check that the signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
             (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
                 >= firstQuorumThresholdPercentage
