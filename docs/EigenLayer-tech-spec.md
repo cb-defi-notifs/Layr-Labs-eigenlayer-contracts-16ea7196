@@ -115,10 +115,15 @@ Similar to withdrawals, **undelegation** in EigenLayer necessitate a delay or cl
 ## Slashing
 The `Slasher` contract is the central point for slashing in EigenLayer.
 Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. The contract itself can revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `revokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `bondedUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_BONDED_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is called.
+
+Note that **this contract is designed to be deployed as an upgradeable proxy**.
+
 * `bondedUntil[operator][contractAddress]` should only change when either `allowToSlash` or `revokeSlashingAbility` is called
 * `revokeSlashingAbility` should only be callable when `bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL`, and only *by the `contractAddress` itself*
 Any `contractAddress` for which `bondedUntil[operator][contractAddress]` is *strictly greater than the current time* can call `freezeOperator(operator)` and trigger **freezing** of the operator. An operator who is frozen -- *and any staker delegated to them* cannot make new deposits or withdrawals, and cannot complete queued withdrawals, as being frozen signals detection of malicious action and they may be subject to slashing. At present, slashing itself is performed by the owner of the `InvestmentManager` contract, who can also 'unfreeze' accounts.
 * `frozenStatus[operator]` should change *only* when either `freezeOperator` (changing it from 'false' to 'true') or resetFrozenStatus (changing it from 'true' to 'false') is invoked
+
+
 
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone can launch a new service on EigenLayer, permissionlessly
