@@ -60,6 +60,13 @@ Additionally, BLSRegistry stores historical records of the aggregate public key,
 ### BLSRegistryWithBomb
 The BLSRegistryWithBomb contract inherits from the `BLSRegistry`, simply adding minimal functionality in order to support Data Availability Sampling (DAS) through interactions with an `EmphemeralKeyRegistry` contract.
 
+### BLSSignatureChecker
+This is the contract for checking that the aggregated signatures of all operators which is being asserted by the disperser is valid.  The contract's primary method is called `checkSignatures`.  It is called by disperser when it has aggregated all the signatures of the operators that are part of the quorum for a particular taskNumber and is asserting them into on-chain. It then checks that the claim for aggregated signatures are valid.  The thesis of this procedure entails:
+* Computing the aggregated pubkey of all the operators that are not part of the quorum for this specific taskNumber (represented by aggNonSignerPubkey)
+* Getting the aggregated pubkey of all registered nodes at the time of pre-commit by the disperser (represented by pk),
+* Do subtraction of aggNonSignerPubkey from pk over Jacobian coordinate system to get aggregated pubkey of all operators that are part of quorum.
+* Use this aggregated pubkey to verify the aggregated signature under BLS scheme.
+
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone
     * all
