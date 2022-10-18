@@ -30,6 +30,11 @@ The DataLayrServiceManager contract serves as the central contract for interacti
      * Check that the aggregate signature is valid,
      * Check whether quorum has been achieved or not.
 
+### PaymentManager
+The PaymentManager contract manages a middleware's payments.  These payments are made per "task", usually over multiple tasks.  Specifically, there are several key functionalities this contract performs.  They are as follows:
+- Payments to operators are split based on terms set by the specific middleware. Due to the (infeasible) complexity of doing these calculations on chain, payments are "rolled up"...the process is as follows. Nodes make claims on the payment that they are owed since their last payment.  In case of a fraudulent payment claim, the claimer must put up collateral to allow for slashing conditions.  
+- Once a payment has been inititated by an operator, a challenger can challenge a payment by initiating an interactive fraud proof. In this fraud proof,  the challenger and the defender work together to prove an invalid payment request. The challenger repeatedly requests the defender to bisect their requested payment into two separate payments, each over half of the tasks.  Then the challenger can pick which half they disagree with.  The process continues until they settle upon the single task for which the payment is disputed - the disputed payment is then resolved on chain.
+
 ### DataLayrPaymentManager
 The DataLayrPaymentManager contract manages all DataLayr-related payments.  These payments are made per dataStore, usually over multiple dataStores. This contract inherits all of its functionalityfrom the `PaymentManager` contract. In addition to inherited methods from `PaymentManager`, the `DataLayrPaymentManager` contract specifies a `respondToPaymentChallengeFinal` method which specifies a DataLayr-specific final step to the payment challenge flow.
 
