@@ -62,6 +62,12 @@ Withdrawals and undelegation are handled through the `InvestmentManager`. both *
 3. Complete their action, assuming no one has fraudproof-ed their claim made in (2)
 
 ### Investment Manager
+The InvestmentManager contract keeps track of all stakers’ investments, in the form of “shares” in the InvestmentStrategy contracts. Stakers who wish to deposit ERC20 tokens can do so by calling the InvestmentManager, which will transfer the depositor’s tokens to a user-specific InvestmentStrategy contract, which in turn manages the tokens to generate yields in the deposited token (or just passively holds them, if the depositor is risk-averse or the token lacks good yield-generating opportunities).
+
+As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces time delays, in the form of fraudproof periods. The full withdrawal process is outlined in [TODO: add link to withdrawal flow doc](link-here). Lastly, the InvestmentManager processes slashing actions, in which some (or all) of a users shares are transferred to an specified address. Slashing of this kind should only ever occur as the result of an operator taking a provably malicious action.
+
+Note that **this contract is designed to be deployed as an upgradeable proxy**.
+
 The `InvestmentManager` contract stores the shares of individual stakers on a per-strategy basis in the mapping `investorStratShares`; specifically, `investorStratShares[staker][strategy]` stores the number of shares that `staker` has in `strategy`.
 * At any time, the `totalShares` returned by `strategy` should equal the sum of `investorStratShares[staker][strategy]` over all stakers
 * `investorStratShares[staker][strategy]` should only ever increase when either `depositIntoStrategy` or `depositIntoStrategyOnBehalfOf` function of the `InvestmentManager` is invoked (i.e. when the internal `_removeShares` function is invoked)
@@ -87,7 +93,7 @@ OR
 
 Stakers can choose which path they’d like to take by interacting with the EigenLayerDelegation contract. Stakers who wish to delegate select an operator whom they trust to use their restaked assets to serve applications, while operators register to allow others to delegate to them, specifying a `DelegationTerms` contract (or EOA) which receives the funds they earn and can potentially help to define & manage their relationship with any delegators they may have. Operators who do not want others to delegate to them can simply "register as a delegate" while specifying their `DelegationTerms` as their own address.
 
-Note that **this contract is designed to be deployed as an upgradeable proxy**
+Note that **this contract is designed to be deployed as an upgradeable proxy**.
 
 The `EigenLayerDelegation` contract relies heavily upon the `InvestmentManager` contract. It keeps track of all active operators -- specifically by storing the `Delegation Terms` for each operator -- as well as storing what operator each staker is delegated to.
 A **staker** becomes an **operator** by calling `registerAsOperator`. Once registered as an operator, the mapping entry `delegationTerms[operator]` is set **irrevocably** -- in fact we define someone as an operator if `delegationTerms[operator]` returns a nonzero address. Querying `delegationTerms(operator)` returns a `DelegationTerms`-type contract; however, the returned address may be an EOA, in which case the operator is assumed to handle payments through "trusted" means / by doing off-chain computations and separate distributions.

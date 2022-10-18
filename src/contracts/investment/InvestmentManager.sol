@@ -48,6 +48,7 @@ contract InvestmentManager is
     event WithdrawalQueued(
         address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
     );
+    
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
 
@@ -69,6 +70,7 @@ contract InvestmentManager is
         _;
     }
 
+    /// @notice Sets the (**immutable**) `delegation` address.
     constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
         _disableInitializers();
     }
@@ -76,7 +78,8 @@ contract InvestmentManager is
     // EXTERNAL FUNCTIONS
 
     /**
-     * @notice Initializes the investment manager contract.
+     * @notice Initializes the investment manager contract. Sets the `slasher` address (currently **not** modifiable), sets the
+     * `pauserRegistry` (also **not** modifiable after being set), and transfers contract ownership to the specified `initialOwner`.
      * @param _slasher The primary slashing contract of EigenLayr.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
@@ -95,7 +98,8 @@ contract InvestmentManager is
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
-     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
+     * @dev Cannot be called by an address that is 'frozen' (this function will revert if the `msg.sender` is frozen).
      */
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
@@ -118,6 +122,7 @@ contract InvestmentManager is
      * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
      * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
      * targetting stakers who may be attempting to undelegate.
+     * @dev Cannot be called on behalf of a staker that is 'frozen' (this function will revert if the `staker` is frozen).
      */
     function depositIntoStrategyOnBehalfOf(
         IInvestmentStrategy strategy,
@@ -409,8 +414,8 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
-     * @param slashedAddress is the frozen address that is having its shares slashes
+     * @notice Slashes the shares of a 'frozen' operator (or a staker delegated to one)
+     * @param slashedAddress is the frozen address that is having its shares slashed
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
      * @param recipient The slashed funds are withdrawn as tokens to this address.
@@ -497,7 +502,12 @@ contract InvestmentManager is
 
     // INTERNAL FUNCTIONS
 
-    /// @notice This function adds shares for a given strategy to a depositor and runs through the necessary update logic
+    /**
+     * @notice This function adds `shares` for a given `strategy` to the `depositor` and runs through the necessary update logic.
+     * @dev In particular, this function calls `delegation.increaseDelegatedShares(depositor, strategy, shares)` to ensure that all
+     * delegated shares are tracked, increases the stored share amount in `investorStratShares[depositor][strategy]`, and adds `strategy`
+     * to the `depositor`'s list of strategies, if it is not in the list already.
+     */
     function _addShares(address depositor, IInvestmentStrategy strategy, uint256 shares) internal {
         // sanity check on `shares` input
         require(shares != 0, "InvestmentManager._addShares: shares should not be zero!");
@@ -518,6 +528,11 @@ contract InvestmentManager is
         delegation.increaseDelegatedShares(depositor, strategy, shares);
     }
 
+    /**
+     * @notice Internal function in which `amount` of ERC20 `token` is transferred from `msg.sender` to the InvestmentStrategy-type contract
+     * `strategy`, with the resulting shares credited to `depositor`.
+     * @return shares The amount of *new* shares in `strategy` that have been credited to the `depositor`.
+     */
     function _depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         internal
         returns (uint256 shares)
@@ -537,7 +552,7 @@ contract InvestmentManager is
     /**
      * @notice Decreases the shares that `depositor` holds in `strategy` by `shareAmount`.
      * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
-     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
+     * then the strategy is removed from investorStrats[depositor] and 'true' is returned. Otherwise 'false' is returned.
      */
     function _removeShares(address depositor, uint256 strategyIndex, IInvestmentStrategy strategy, uint256 shareAmount)
         internal
