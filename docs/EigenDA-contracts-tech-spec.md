@@ -30,6 +30,9 @@ The DataLayrServiceManager contract serves as the central contract for interacti
      * Check that the aggregate signature is valid,
      * Check whether quorum has been achieved or not.
 
+### DataLayrPaymentManager
+The DataLayrPaymentManager contract manages all DataLayr-related payments.  These payments are made per dataStore, usually over multiple dataStores. This contract inherits all of its functionalityfrom the `PaymentManager` contract. In addition to inherited methods from `PaymentManager`, the `DataLayrPaymentManager` contract specifies a `respondToPaymentChallengeFinal` method which specifies a DataLayr-specific final step to the payment challenge flow.
+
 ### BLSRegistry
 Each
 
