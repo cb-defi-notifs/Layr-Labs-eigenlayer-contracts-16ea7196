@@ -13,17 +13,19 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
     //Hash of the zero public key
     bytes32 internal constant ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
 
-    /// @notice mapping from operator addresss to pubkey hash
+    /// @notice mapping from operator address to pubkey hash
     mapping(address => bytes32) public operatorToPubkeyHash;
-    /// @notice mapping from pubkey hash to operator addresss
+    /// @notice mapping from pubkey hash to operator address
     mapping(bytes32 => address) public pubkeyHashToOperator;
 
     // EVENTS
+    /// @notice Emitted when `operator` registers with the public key `pk`.
     event NewPubkeyRegistration(address operator, uint256[4] pk);
 
     /**
      * @notice Called by an operator to register themselves as the owner of a BLS public key.
      * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
+     * @dev the `data` param is used as an inpute to `BLS.verifyBLSSigOfPubKeyHash(data, msg.sender)`
      */
     function registerBLSPublicKey(bytes calldata data) external {
         uint256[4] memory pk;
@@ -52,7 +54,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
         operatorToPubkeyHash[msg.sender] = pubkeyHash;
         pubkeyHashToOperator[pubkeyHash] = msg.sender;
 
-        // emit event of new regsitration
         emit NewPubkeyRegistration(msg.sender, pk);
     }
 }

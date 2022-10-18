@@ -81,6 +81,14 @@ The main functionalities of this contract are:
 (2) checking if ephemeral keys revealed too early and then slashing if needed.
 (3) recording when a previous ephemeral key is made inactive.
 
+### BLSPublicKeyCompendium
+The `BLSPublicKeyCompendium` contract provides a shared place for EigenLayer operators to register a BLS public key to their standard Ethereum address.
+
+In order to prevent [rogue public key attacks](https://hackmd.io/qIC8w_mzSBKYTm3gT4kUZQ#Rogue-Public-Key-Attacks) and griefing by frontrunning, an operator registering a public key must provide a signature of a hash of their public key concatenated with their address. See the function `verifyBLSSigOfPubKeyHash` of the `BLS` library for additional details.
+
+Each *operator* can only register one public key once, and cannot "deregister" or otherwise change their public key in the Compendium.
+Each *public key* can only be registered by a single operator (i.e. no "sharing" of public keys), and no one can register with the 'zero' public key.
+
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone
     * all
