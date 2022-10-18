@@ -98,6 +98,11 @@ In order to prevent [rogue public key attacks](https://hackmd.io/qIC8w_mzSBKYTm3
 Each *operator* can only register one public key once, and cannot "deregister" or otherwise change their public key in the Compendium.
 Each *public key* can only be registered by a single operator (i.e. no "sharing" of public keys), and no one can register with the 'zero' public key.
 
+### Repository
+A contract fulfilling the Repository role is expected to provide address for all of the other contracts within a single middleware. The Repository contract is intended to be the central source of "ground truth" for a single middleware on EigenLayer. Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point for upgrades-by-changing-contract-addresses. The owner of the Repository for a middleware holds *tremendous power* – this role should only be given to a multisig or governance contract.
+
+Note that despite inheriting from `Initializable`, this contract is **not** designed to be deployed as an upgradeable proxy -- rather, it is designed so that it can be deployed from a factory contract and automatically verified on block explorers like Etherscan, since each new contract created by the Repository will use the same constructor parameters, but may have different `initialize` arguments.
+
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone
     * all
