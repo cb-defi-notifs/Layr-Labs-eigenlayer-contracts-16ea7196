@@ -33,6 +33,18 @@ The DataLayrServiceManager contract serves as the central contract for interacti
 ### DataLayrPaymentManager
 The DataLayrPaymentManager contract manages all DataLayr-related payments.  These payments are made per dataStore, usually over multiple dataStores. This contract inherits all of its functionalityfrom the `PaymentManager` contract. In addition to inherited methods from `PaymentManager`, the `DataLayrPaymentManager` contract specifies a `respondToPaymentChallengeFinal` method which specifies a DataLayr-specific final step to the payment challenge flow.
 
+### DataLayrBombVerifier
+The `DataLayrBombVerifier` is the core slashing module of DataLayr. Using Dankrad's Proofs of Custody, DataLayr is able to slash operators who are provably not storing their data.
+
+If a challenger proves that a operator wasn't storing data at certain time, they prove the following 
+
+1. The existence of a certain datastore referred to as the DETONATION datastore
+2. The existence of a certain datastore referred to as the BOMB datastore, which the operator has certified to storing, that is chosen on-chain via the result of a function of the DETONATION datastore's header hash
+3. The data that the operator was storing for the BOMB datastore, when hashed with the operator's ephemeral key and the DETONATION datastore's header hash, is below a certain threshold defined by the `DataLayrBombVerifier` contract
+4. The operator certified the storing of DETONATION datastore
+
+If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
+
 ### BLSRegistry
 Each
 
