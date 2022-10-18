@@ -50,6 +50,10 @@ If a challenger proves that a operator wasn't storing data at certain time, they
 
 If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
 
+### VoteWeigherBase
+The VoteWeigherBase contract is a minimal contract designed to define "vote weighing functions" for an arbitrary number of quorums, for a single middleware. The number of quorums and `repository` contract for the middleware are defined (immutably) at construction, while the weighing functions themselves can be modified by the `owner` of the `repository` contract.
+A weighing function for a single quorum can be thought of as a vector -- it defines the strategies whose shares the quorum respects, as well as the relative "weights" to give to underlying assets staked in each strategy -- see the documentation of the `weightOfOperator` function below for more details.
+
 ### RegistryBase
 The RegistryBase contract is an abstract contract, meaning it cannot be deployed and is instead only intended to be inerhited from. It defines data structures, storage variables & mappings, events, and logic that should be shareable across different types of registries. At present (Aug 15, 2022), two or our three extant Registry-type contracts – BLSRegistry and ECDSARegistry – inherit from RegistryBase.
 Notably, RegistryBase itself inherits from the `VoteWeigherBase` contract.

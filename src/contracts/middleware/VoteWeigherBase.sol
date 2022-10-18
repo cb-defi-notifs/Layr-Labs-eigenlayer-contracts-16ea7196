@@ -22,6 +22,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
+    /// @notice Sets the (immutable) `repository`, `delegation`, and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
@@ -70,9 +71,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         return weight;
     }
 
-    /**
-     * @notice Adds new strategies and the associated multipliers to the @param quorumNumber.
-     */
+    /// @notice Adds new strategies and the associated multipliers to the @param quorumNumber.
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
@@ -114,7 +113,10 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         }
     }
 
-    /// @notice Returns the length of the dynamic array stored in `strategiesConsideredAndMultipliers[quorumNumber]`.
+    /**
+     * @notice Returns the length of the dynamic array stored in `strategiesConsideredAndMultipliers[quorumNumber]`.
+     * @dev Reverts if `quorumNumber` < `NUMBER_OF_QUORUMS`, i.e. the input is out of bounds.
+     */
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         require(
             quorumNumber < NUMBER_OF_QUORUMS,
@@ -123,6 +125,12 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
+    /** 
+     * @notice Adds `_newStrategiesConsideredAndMultipliers` to the `quorumNumber`-th quorum.
+     * @dev Checks to make sure that the *same* strategy cannot be added multiple times (checks against both against existing and new strategies).
+     * @dev This function has no check to make sure that the strategies for a single quorum have the same underlying asset. This is a concious choice,
+     * since a middleware may want, e.g., a stablecoin quorum that accepts USDC, USDT, DAI, etc. as underlying assets and trades them as "equivalent".
+     */
     function _addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
