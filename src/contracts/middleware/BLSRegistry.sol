@@ -105,6 +105,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     function _registerOperator(address operator, uint8 operatorType, bytes calldata pkBytes, string calldata socket)
         internal
     {
+        // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
         /// @notice evaluate the new aggregated pubkey
@@ -165,7 +166,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      * @param index is the sender's location in the dynamic array `operatorList`
      */
-
     function _deregisterOperator(address operator, uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         // verify that the `operator` is an active operator and that they've provided the correct `index`
         _deregistrationCheck(operator, index);
@@ -322,10 +322,12 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
+        // check that the `index`-th APK update occurred at or before `blockNumber`
         require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: index too recent");
 
         // if not last update
         if (index != _apkUpdates.length - 1) {
+            // check that there was not *another APK update* that occurred at or before `blockNumber`
             require(blockNumber < _apkUpdates[index + 1].blockNumber, "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
