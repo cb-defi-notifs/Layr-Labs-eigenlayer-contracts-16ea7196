@@ -77,8 +77,20 @@ Assets may be depositable or withdrawable to a single `Investment Strategy` cont
 Since individual user's share amounts are stored in the `Investment Manager` itself, it is generally expected that each strategy's `deposit` and `withdraw` functions are restricted to only be callable by the `Investment Manager` itself.
 
 ## Delegation
-The `EigenLayerDelegation` contract relies heavily upon the `InvestmentManager` contract. It keeps track of all active operators -- specifically by storing the `Delegation Terms` for each operator -- as well as storing who each staker is delegated to.
-A **staker** becomes an **operator** by calling `registerAsOperator`. Once registered as an operator, the mapping entry `delegationTerms[operator]` is set **irrevocably** -- we define a staker as an operator if `delegationTerms[operator]` returns a nonzero address. Querying `delegationTerms(operator)` returns a `DelegationTerms`-type contract; however, the returned address may be an EOA, in which case the operator is assumed to handle payments through "trusted" means / by doing off-chain computations and separate distributions.
+The EigenLayerDelegation contract handles delegation of stakers’ deposited funds to “operators”, who actually serve the applications built on EigenLayer. While delegation to someone else is entirely optional, any operator on EigenLayer must also "register as a delegate" through this contract.
+Any staker in EigenLayer may choose to become *either*:
+1. an **operator**, allowing other stakers to delegate to them, and potentially earning a share of the funds generated from using the restaked assets of stakers who delegate to them
+
+OR
+
+2. a **delegator**, choosing to allow an operator to use their restaked assets in securing applications built on EigenLayer
+
+Stakers can choose which path they’d like to take by interacting with the EigenLayerDelegation contract. Stakers who wish to delegate select an operator whom they trust to use their restaked assets to serve applications, while operators register to allow others to delegate to them, specifying a `DelegationTerms` contract (or EOA) which receives the funds they earn and can potentially help to define & manage their relationship with any delegators they may have. Operators who do not want others to delegate to them can simply "register as a delegate" while specifying their `DelegationTerms` as their own address.
+
+Note that **this contract is designed to be deployed as an upgradeable proxy**
+
+The `EigenLayerDelegation` contract relies heavily upon the `InvestmentManager` contract. It keeps track of all active operators -- specifically by storing the `Delegation Terms` for each operator -- as well as storing what operator each staker is delegated to.
+A **staker** becomes an **operator** by calling `registerAsOperator`. Once registered as an operator, the mapping entry `delegationTerms[operator]` is set **irrevocably** -- in fact we define someone as an operator if `delegationTerms[operator]` returns a nonzero address. Querying `delegationTerms(operator)` returns a `DelegationTerms`-type contract; however, the returned address may be an EOA, in which case the operator is assumed to handle payments through "trusted" means / by doing off-chain computations and separate distributions.
 The mapping `delegatedTo` stores which operator each staker is delegated to. Querying `delegatedTo(staker)` will return the *address* of the operator that `staker` is delegated to. Note that operators are always considered to be delegated to *themselves*.
 
 
