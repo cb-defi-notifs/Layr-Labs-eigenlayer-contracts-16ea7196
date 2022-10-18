@@ -67,6 +67,20 @@ This is the contract for checking that the aggregated signatures of all operator
 * Do subtraction of aggNonSignerPubkey from pk over Jacobian coordinate system to get aggregated pubkey of all operators that are part of quorum.
 * Use this aggregated pubkey to verify the aggregated signature under BLS scheme.
 
+### EphemeralKeyRegistry
+The EphemeralKeyRegistry contract primarily serves to store revealed ephemeral keys for each operator, as a part of the "bomb" proof of custody scheme.  The proof of custody game works as follows: A given blob contains a bomb that is “detonated” if that blob is signed on by a DLN, resulting in slashing. Thus, the DLN must avoid signing that blob, forcing them to download and store the blob correctly to detect the bomb’s presence.
+
+Whether or not a blob contains a bomb is determined by the ephemeral key. This ephemeral key is an arbitrary 32-byte value, unique to a given DLN, allowing them to detect the presence of a bomb. This happens as follows:
+* Upon registering, the DLN generates a random ephemeral key (EK) and posts a commitment to it on chain. After a fixed period of time, the DLN reveals the EK and posts a commitment to a new EK.
+* During this disclosure period, a challenger can check for the presence of a bomb in that DLN’s datastores. If a bomb is found and the DLN signed the block, the DLN is slashed!
+* There are several additonal slashing conditions. The first is when a DLN fails to reveal the EK they committed to within a certain time frame, they are slashed. They are also slashed if their ephemeral key is revealed by a third party on chain before the disclosure period starts.
+
+The main functionalities of this contract are:
+
+(1) storing revealed ephemeral keys for each operator from past.
+(2) checking if ephemeral keys revealed too early and then slashing if needed.
+(3) recording when a previous ephemeral key is made inactive.
+
 ## High-Level Goals (And How They Affect Design Decisions)
 1. Anyone
     * all
