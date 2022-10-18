@@ -50,6 +50,10 @@ If a challenger proves that a operator wasn't storing data at certain time, they
 
 If these 4 points are proved, the operator is slashed. The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
 
+### RegistryBase
+The RegistryBase contract is an abstract contract, meaning it cannot be deployed and is instead only intended to be inerhited from. It defines data structures, storage variables & mappings, events, and logic that should be shareable across different types of registries. At present (Aug 15, 2022), two or our three extant Registry-type contracts – BLSRegistry and ECDSARegistry – inherit from RegistryBase.
+Notably, RegistryBase itself inherits from the `VoteWeigherBase` contract.
+
 ### BLSRegistry
 The BLSRegistry contract inherits from the `RegistryBase` contract, and builds on top of it.
 

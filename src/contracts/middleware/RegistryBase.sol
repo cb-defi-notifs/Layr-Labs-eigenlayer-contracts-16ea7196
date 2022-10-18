@@ -61,8 +61,19 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint32 prevUpdateBlockNumber
     );
 
+    /**
+     * @notice Emitted whenever an operator deregisters.
+     * The `swapped` address is the address returned by an internal call to the `_popRegistrant` function.
+     */
     event Deregistration(address operator, address swapped);
 
+    /**
+     * Irrevocably sets the (immutable) `repository`, `delegation`, & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
+     * Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,
+     * to record an initial condition of zero operators with zero total stake.
+     * Adds `_firstQuorumStrategiesConsideredAndMultipliers` and `_secondQuorumStrategiesConsideredAndMultipliers` to the dynamic arrays
+     * `strategiesConsideredAndMultipliers[0]` and `strategiesConsideredAndMultipliers[1]` (i.e. to the weighing functions of the quorums)
+     */
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
@@ -216,9 +227,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @notice Returns the most recent stake weights for the `operator`
      * @dev Function returns weights of **0** in the event that the operator has no stake history
      */
-
     function operatorStakes(address operator) public view returns (uint96, uint96) {
-
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return (opStake.firstQuorumStake, opStake.secondQuorumStake);
     }
@@ -293,7 +302,13 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     // INTERNAL FUNCTIONS
-
+    /**
+     * @notice Called when the total number of operators has changed.
+     * Sets the `toBlockNumber` field on the last entry *so far* in thedynamic array `totalOperatorsHistory` to the current `block.number`,
+     * recording that the previous entry is *no longer the latest* and the block number at which the next was added.
+     * Pushes a new entry to `totalOperatorsHistory`, with `index` field set equal to the new amount of operators, recording the new number
+     * of total operators (and leaving the `toBlockNumber` field at zero, signaling that this is the latest entry in the array)
+     */
     function _updateTotalOperatorsHistory() internal {
         // set the 'toBlockNumber' field on the last entry *so far* in 'totalOperatorsHistory' to the current block number
         totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
@@ -304,7 +319,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     /**
-     * Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
+     * @notice Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
     function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
@@ -370,7 +385,11 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             );
     }
 
-    // Removes the registrant at the given `index` from the `operatorList`
+    /**
+     * @notice Removes the registrant at the given `index` from the `operatorList`
+     * @return swappedOperator is the operator who was swapped with the removed operator in the operatorList,
+     * or the *zero address* in the case that the removed operator was already the list operator in the operatorList.
+     */
     function _popRegistrant(uint32 index) internal returns (address swappedOperator) {
         // gas saving by caching length here
         uint256 operatorListLengthMinusOne = operatorList.length - 1;
@@ -401,7 +420,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return swappedOperator;
     }
 
-    // Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList`
+    /// @notice Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList` and performs necessary related updates.
     function _addRegistrant(
         address operator,
         bytes32 pubkeyHash,
@@ -460,11 +479,20 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             );
     }
 
-    // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
+/**
+ * TODO: critique: "Currently only `_registrationStakeEvaluation` uses the `uint8 registrantType` input -- we should **EITHER** store this
+ * and keep using it in other places as well, **OR** stop using it altogether"
+ */
+    /**
+     * @notice Used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`.
+     * @dev This function does **not** update the stored state of the operator's stakes -- storage updates are performed elsewhere.
+     * @return The newly calculated `OperatorStake` for `operator`, stored in memory but not yet committed to storage.
+     */
     function _registrationStakeEvaluation(address operator, uint8 operatorType)
         internal
         returns (OperatorStake memory)
     {
+        // verify that the `operator` is not already registered
         require(
             registry[operator].status == IQuorumRegistry.Status.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
@@ -498,7 +526,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return _operatorStake;
     }
 
-    // Finds the updated stake for `operator`, stores it and records the update. **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere
+    /**
+     * @notice Finds the updated stake for `operator`, stores it and records the update.
+     * @dev **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere.
+     */
     function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake)
         internal
         returns (OperatorStake memory updatedOperatorStake)
@@ -532,14 +563,14 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return (updatedOperatorStake);
     }
 
-    // records that the `totalStake` is now equal to the input param @_totalStake
+    /// @notice Records that the `totalStake` is now equal to the input param @_totalStake
     function _recordTotalStakeUpdate(OperatorStake memory _totalStake) internal {
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
     }
 
-    // verify that the `operator` is an active operator and that they've provided the correct `index`
+    /// @notice Verify that the `operator` is an active operator and that they've provided the correct `index`
     function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
             registry[operator].status == IQuorumRegistry.Status.ACTIVE,
