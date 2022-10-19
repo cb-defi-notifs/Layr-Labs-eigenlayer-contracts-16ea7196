@@ -7,14 +7,28 @@ import "forge-std/Test.sol";
 contract DataLayrTests is DSTest, TestHelper {
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
+        uint256 numSigners = 15;
+
+        //register all the operators
+        for (uint256 i = 0; i < numSigners; ++i) {
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+        }
+        
         //change the current timestamp to be in the future 100 seconds and init
         return _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
     }
 
     function testLoopInitDataStore() public {
         uint256 g = gasleft();
+        uint256 numSigners = 15;
+
         for (uint256 i = 0; i < 20; i++) {
-            testInitDataStore();
+            if(i==0){
+                for (uint256 i = 0; i < numSigners; ++i) {
+                    _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+                }
+            }
+            _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
         }
         emit log_named_uint("gas", g - gasleft());
     }
@@ -41,6 +55,7 @@ contract DataLayrTests is DSTest, TestHelper {
     function testCodingRatio() public {
 
     }
+    
 
     function testGenerateMsgBytes() public {
 

@@ -176,16 +176,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             });
         }
 
-        // emit log("************************************************************");
-        // emit log_named_bytes32("headerHash", metadata.headerHash);
-        // emit log_named_uint("durationDataStoreId", metadata.durationDataStoreId);
-        // emit log_named_uint("globalDataStoreId", metadata.globalDataStoreId);
-        // emit log_named_uint("blockNumber", metadata.blockNumber);
-        // emit log_named_uint("fee", metadata.fee);
-        // emit log_named_address("confirmer", metadata.confirmer);
-        // emit log_named_bytes32("signatoryRecordHash", metadata.signatoryRecordHash);
-        // emit log_named_bytes32("dsHash",  DataStoreUtils.computeDataStoreHash(metadata));
-
         uint32 index;
 
         {

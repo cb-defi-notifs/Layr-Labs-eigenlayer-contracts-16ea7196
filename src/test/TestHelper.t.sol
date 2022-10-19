@@ -143,16 +143,11 @@ contract TestHelper is EigenLayrDeployer {
 
 
         uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
-
         uint32 degree;
         assembly{
             degree := shr(224, mload(add(header, 96)))
         }
         totalBytes = totalOperators * (degree + 1) * 31;
-
-        // emit log("****************ConfirmDataStoe*************************");
-        // emit log_named_uint("totalOperators", totalOperators);
-        // emit log_named_uint("degree", degree);
         
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
