@@ -130,12 +130,20 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
-                emit log_named_uint("totalOperators", totalOperators);
-                emit log_named_uint("totalBytes", totalBytes);
                 require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
                 require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
-                emit log_named_uint("numSys", DataStoreUtils.getCodingRatio(header, totalOperators));
+
+                /**
+                * @notice coding ratio is numSys/numOperators (where numOperators = numSys + numPar).  This is the minimum 
+                * percentage of all chunks require to reconstruct the data.  
+                * quorumThresholdBasisPoints is the minimum percentage of total signing set that actually signs the datastore
+                * adversaryThresholdBasisPoints is the maximum percentage of the total signing set that witholds their chunks
+                * adversaryThresholdBasisPoints <  quorumThresholdBasisPoints
+                * quorumThresholdBasisPoints - adversaryThresholdBasisPoints represents the minimum percentage 
+                * of operators that must be honest signers. This value must be greater than or equal to the coding ratio 
+                * in order to ensure the data is available.
+                 */
                 require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
                
             }
@@ -150,12 +158,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             // the DataLayr nodes for their service
             uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
 
-            
-            // emit log_named_uint("in init totalBytes", totalBytes);
-            // emit log_named_uint("duration", duration);
-            // emit log_named_uint("DURATION_SCALE", DURATION_SCALE);
-            // emit log_named_uint("feePerBytePerTime", feePerBytePerTime);
-            // emit log("******************************************************");
 
             // require that disperser has sent enough fees to this contract to pay for this datastore.
             // This will revert if the deposits are not high enough due to undeflow.
