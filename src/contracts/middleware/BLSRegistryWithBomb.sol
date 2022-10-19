@@ -20,6 +20,7 @@ import "./BLSRegistry.sol";
 contract BLSRegistryWithBomb is BLSRegistry {
     using BytesLib for bytes;
 
+    // TODO: either make this immutable *or* add a method to change it
     IEphemeralKeyRegistry public ephemeralKeyRegistry;
 
     constructor(
@@ -51,7 +52,9 @@ contract BLSRegistryWithBomb is BLSRegistry {
 
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
-     * For detailed comments, see deregisterOperator in BLSRegistry.sol.
+     * For detailed comments, see the `deregisterOperator` function in BLSRegistry.sol.
+     * Same as `BLSRegistry.deregisterOperator` except adds an external call to `ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey)`,
+     * passing along the additional argument `finalEphemeralKey`.
      */
     function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey)
         external
@@ -66,8 +69,10 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /**
-     * @notice called for registering as an operator. For detailed comments, see
-     * registerOperator in BLSRegistry.sol.
+     * @notice called for registering as an operator.
+     * For detailed comments, see the `registerOperator` function in BLSRegistry.sol.
+     * same as `BLSRegistry.registerOperator` except adds an external call to `ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash)`,
+     * passing along the additional argument `ephemeralKeyHash`.
      */
     function registerOperator(
         uint8 operatorType,

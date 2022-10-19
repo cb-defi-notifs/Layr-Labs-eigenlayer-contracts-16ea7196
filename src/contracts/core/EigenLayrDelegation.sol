@@ -23,6 +23,7 @@ import "../investment/Slasher.sol";
  * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
+    /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
         require(msg.sender == address(investmentManager), "onlyInvestmentManager");
         _;
@@ -59,6 +60,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @param dt is the `DelegationTerms` contract that the operator has for those who delegate to them.
      * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
      * in a more 'trustful' manner.
+     * @dev In the present design, once set, there is no way for an operator to ever modify the address of their DelegationTerms contract.
      */
     function registerAsOperator(IDelegationTerms dt) external {
         require(
@@ -70,14 +72,18 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         _delegate(msg.sender, msg.sender);
     }
 
-    /// @notice This will be called by a staker to delegate its assets to some operator
-    /// @param operator is the operator to whom staker (msg.sender) is delegating its assets
+    /**
+     *  @notice This will be called by a staker to delegate its assets to some operator.
+     *  @param operator is the operator to whom staker (msg.sender) is delegating its assets
+     */
     function delegateTo(address operator) external whenNotPaused {
         _delegate(msg.sender, operator);
     }
 
-    // delegates from `staker` to `operator`
-    // requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
+    /**
+     * @notice Delegates from `staker` to `operator`.
+     * @dev requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
+     */
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
         external
         whenNotPaused
@@ -92,6 +98,11 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         _delegate(staker, operator);
     }
 
+    /**
+     * @notice Undelegates `staker` from the operator who they are delegated to.
+     * @notice Callable only by the InvestmentManager
+     * @dev Should only ever be called in the event that the `staker` has no active deposits in EigenLayer.
+     */
     function undelegate(address staker) external onlyInvestmentManager {
         delegationStatus[staker] = DelegationStatus.UNDELEGATED;
         delegatedTo[staker] = address(0);
@@ -173,6 +184,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // INTERNAL FUNCTIONS
 
+    /** 
+     * @notice Makes a low-level call to `dt.onDelegationReceived(staker, strategies, shares)`, ignoring reverts and with a gas budget 
+     * equal to `LOW_LEVEL_GAS_BUDGET` (a constant defined in this contract).
+     * @dev *If* the low-level call fails, then this function emits the event `OnDelegationReceivedCallFailure(dt, returnData)`, where
+     * `returnData` is *only the first 32 bytes* returned by the call to `dt`.
+     */
     function _delegationReceivedHook(
         IDelegationTerms dt,
         address staker,
@@ -215,6 +232,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
     }
 
+    /** 
+     * @notice Makes a low-level call to `dt.onDelegationWithdrawn(staker, strategies, shares)`, ignoring reverts and with a gas budget 
+     * equal to `LOW_LEVEL_GAS_BUDGET` (a constant defined in this contract).
+     * @dev *If* the low-level call fails, then this function emits the event `OnDelegationReceivedCallFailure(dt, returnData)`, where
+     * `returnData` is *only the first 32 bytes* returned by the call to `dt`.
+     */
     function _delegationWithdrawnHook(
         IDelegationTerms dt,
         address staker,
@@ -257,7 +280,13 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
     }
 
-    // internal function implementing the delegation of 'staker' to 'operator'
+    /**
+     * @notice Internal function implementing the delegation *from* `staker` *to* `operator`.
+     * @param staker The address to delegate *from* -- this address is delegating control of its own assets.
+     * @param operator The address to delegate *to* -- this address is being given power to place the `staker`'s assets at risk on services
+     * @dev Ensures that the operator has registered as a delegate (`address(dt) != address(0)`), verifies that `staker` is not already
+     * delegated, and records the new delegation.
+     */ 
     function _delegate(address staker, address operator) internal {
         IDelegationTerms dt = delegationTerms[operator];
         require(
@@ -294,12 +323,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // VIEW FUNCTIONS
 
-    /// @notice Checks whether a staker is currently undelegated.
+    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
     function isNotDelegated(address staker) public view returns (bool) {
         return (delegationStatus[staker] == DelegationStatus.UNDELEGATED);
     }
 
-    /// @notice Checks whether a staker is currently delegated.
+    /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
     function isDelegated(address staker) public view returns (bool) {
         return (delegationStatus[staker] == DelegationStatus.DELEGATED);
     }

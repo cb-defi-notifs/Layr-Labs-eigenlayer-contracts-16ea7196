@@ -132,8 +132,6 @@ contract DeregistrationTests is TestHelper {
             testEphemeralKeyHash,
             testSocket
         );
-
     }
-
 
 }

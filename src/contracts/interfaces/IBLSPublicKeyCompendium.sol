@@ -6,10 +6,17 @@ pragma solidity ^0.8.9;
  * @author Layr Labs, Inc.
  */
 interface IBLSPublicKeyCompendium {
-    /// @notice mapping from operator addresss to pubkey hash
+    /**
+     * @notice mapping from operator address to pubkey hash.
+     * Returns *zero* if the `operator` has never registered, and otherwise returns the hash of the public key of the operator.
+     */
     function operatorToPubkeyHash(address operator) external view returns (bytes32);
 
-    /// @notice mapping from pubkey hash to operator addresss
+    /**
+     * @notice mapping from pubkey hash to operator address.
+     * Returns *zero* if no operator has ever registered the public key corresponding to `pubkeyHash`,
+     * and otherwise returns the (unique) registered operator who owns the BLS public key that is the preimage of `pubkeyHash`.
+     */
     function pubkeyHashToOperator(bytes32 pubkeyHash) external view returns (address);
 
     /**

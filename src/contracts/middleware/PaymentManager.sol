@@ -67,11 +67,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     /// @notice depositors => addresses approved to spend deposits => allowance
     mapping(address => mapping(address => uint256)) public allowances;
 
-    /**
-     *
-     * EVENTS
-     *
-     */
+    // EVENTS
     /// @notice Emitted when the `paymentFraudproofCollateral` variable is modified
     event PaymentFraudproofCollateralSet(uint256 previousValue, uint256 newValue);
 
@@ -150,7 +146,8 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     /**
      * @notice This is used by an operator to make claim on the  amount that they deserve
-     * for their service since their last payment until toTaskNumber
+     * for their service since their last payment until `toTaskNumber
+     * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
     function commitPayment(uint32 toTaskNumber, uint120 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
@@ -172,21 +169,15 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         // operator puts up collateral which can be slashed in case of wrongful payment claim
         collateralToken.safeTransferFrom(msg.sender, address(this), paymentFraudproofCollateral);
 
-        /**
-         *
-         * recording payment claims for the operator
-         *
-         */
-
+        // recording payment claims for the operator
         uint32 fromTaskNumber;
 
         // calculate the UTC timestamp at which the payment claim will be optimistically confirmed
         uint32 confirmAt = uint32(block.timestamp + paymentFraudproofInterval);
 
-        // for the special case of this being the first payment that is being claimed by the operator;
         /**
-         * @notice this special case also implies that the operator must be claiming payment from
-         * when the operator registered.
+         * @notice For the special case of this being the first payment that is being claimed by the operator,
+         * the operator must be claiming payment starting from when they registered.
          */
         if (operatorToPayment[msg.sender].fromTaskNumber == 0) {
             // get the taskNumber when the operator registered
@@ -215,11 +206,13 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     /// @notice This function can only be called after the challenge window for the payment claim has completed.
     function redeemPayment() external whenNotPaused {
+        // verify that the `msg.sender` has a committed payment
         require(
             operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,
             "PaymentManager.redeemPayment: Payment Status is not 'COMMITTED'"
         );
 
+        // check that the fraudproof period has already transpired
         require(
             block.timestamp > operatorToPayment[msg.sender].confirmAt,
             "PaymentManager.redeemPayment: Payment still eligible for fraudproof"
@@ -228,18 +221,14 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         // update the status to show that operator's payment is getting redeemed
         operatorToPayment[msg.sender].status = PaymentStatus.REDEEMED;
 
-        // transfer back the collateral to the operator as there was no successful
-        // challenge to the payment commitment made by the operator.
-
+        // Transfer back the collateral to the operator as there was no successful challenge to the payment commitment made by the operator.
         collateralToken.safeTransfer(msg.sender, operatorToPayment[msg.sender].collateral);
 
-        ///look up payment amount and delegation terms address for the msg.sender
+        // look up payment amount and delegation terms address for the `msg.sender`
         uint256 amount = operatorToPayment[msg.sender].amount;
-
         IDelegationTerms dt = eigenLayrDelegation.delegationTerms(msg.sender);
 
-        // transfer the amount due in the payment claim of the operator to its delegation
-        // terms contract, where the delegators can withdraw their rewards.
+        // transfer the amount due in the payment claim of the operator to its delegation terms contract, where the delegators can withdraw their rewards.
         paymentToken.safeTransfer(address(dt), amount);
 
         // emit event
@@ -384,11 +373,13 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     }
 
     /**
-     * @notice This function is used for updating the status of the challenge in terms of who
-     * has to respond to the interactive challenge mechanism next -  is it going to be
-     * challenger or the operator.
+     * @notice This function is used for updating the status of the challenge in terms of who has to respon
+     * to the interactive challenge mechanism next -  is it going to be challenger or the operator.
      * @param operator is the operator whose payment claim is being challenged
      * @param diff is the number of tasks across which payment is being challenged in this iteration
+     * @dev If the challenge is over only one task, then the challenge is marked specially as a one step challenge –
+     * the smallest unit over which a challenge can be proposed – and 'true' is returned.
+     * Otherwise status is updated normally and 'false' is returned.
      */
     function _updateStatus(address operator, uint32 diff) internal returns (bool) {
         // payment challenge for one task
@@ -400,7 +391,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
                 : ChallengeStatus.OPERATOR_TURN_ONE_STEP;
             return false;
 
-            // payment challenge across more than one task
+        // payment challenge across more than one task
         } else {
             // set to dissection turn of either challenger or operator
             operatorToPaymentChallenge[operator].status =
@@ -409,8 +400,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         }
     }
 
-    // an operator can respond to challenges and breakdown the amount
-    // used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
+    /// @notice Used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
     function _updateChallengeAmounts(address operator, DissectionType dissectionType, uint120 amount1, uint120 amount2)
         internal
     {
@@ -454,8 +444,12 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     }
 
     /**
-     * @param challenge The challenge that is being resolved
+     * @notice Resolves a single payment challenge, paying the winner.
+     * @param challenge The challenge that is being resolved.
      * @param winner Address of the winner of the challenge.
+     * @dev If challenger is proven correct, then they are refunded their own collateral plus the collateral put up by the operator.
+     * If operator is proven correct, then the challenger's collateral is transferred to them, since the operator still hasn't been
+     * proven right, and thus their collateral is still required in case they are challenged again.
      */
     function _resolve(PaymentChallenge memory challenge, address winner) internal {
         address operator = challenge.operator;
