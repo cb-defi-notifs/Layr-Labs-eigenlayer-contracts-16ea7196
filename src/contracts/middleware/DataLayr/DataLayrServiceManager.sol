@@ -34,6 +34,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
     uint16 public quorumThresholdBasisPoints = 9000;
+    /// TODO: Change for prod!
     uint16 public adversaryThresholdBasisPoints = 4500;
 
     DataStoresForDuration public dataStoresForDuration;

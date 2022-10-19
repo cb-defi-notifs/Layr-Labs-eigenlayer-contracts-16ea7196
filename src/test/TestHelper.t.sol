@@ -112,7 +112,6 @@ contract TestHelper is EigenLayrDeployer {
     {
         bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
         
-        uint256 totalBytes = 62;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
@@ -147,7 +146,7 @@ contract TestHelper is EigenLayrDeployer {
         assembly{
             degree := shr(224, mload(add(header, 96)))
         }
-        totalBytes = totalOperators * (degree + 1) * 31;
+        uint256 totalBytes = totalOperators * (degree + 1) * 31;
         
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
 
