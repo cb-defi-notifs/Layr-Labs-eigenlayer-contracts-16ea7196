@@ -388,12 +388,18 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
-    function calculateFee(uint32 totalBytes, uint256 feePerBytePerTime, uint256 duration)
+    function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)
         internal
-        pure
+        
         returns (uint256)
     {
+        
+        //  emit log_named_uint("totalBytes", totalBytes);
+        //     emit log_named_uint("duration", duration);
+        //     emit log_named_uint("DURATION_SCALE", DURATION_SCALE);
+        //     emit log_named_uint("feePerBytePerTime", feePerBytePerTime);
         return uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
+
     }
 
     function testDeploymentSuccessful() public {

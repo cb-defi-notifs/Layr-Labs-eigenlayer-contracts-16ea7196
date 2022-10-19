@@ -26,7 +26,7 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - doing payment challenge
  */
-contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
+contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
     using BytesLib for bytes;
 
     // ERROR MESSAGES
@@ -129,10 +129,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
-                require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
-                require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+                // require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+                // require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
-                require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
+                // require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
+               
             }
 
             require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
@@ -144,6 +145,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             // evaluate the total service fees that msg.sender has to put in escrow for paying out
             // the DataLayr nodes for their service
             uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
+
+            
+            // emit log_named_uint("in init totalBytes", totalBytes);
+            // emit log_named_uint("duration", duration);
+            // emit log_named_uint("DURATION_SCALE", DURATION_SCALE);
+            // emit log_named_uint("feePerBytePerTime", feePerBytePerTime);
+            // emit log("******************************************************");
 
             // require that disperser has sent enough fees to this contract to pay for this datastore.
             // This will revert if the deposits are not high enough due to undeflow.
@@ -161,6 +169,16 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 signatoryRecordHash: bytes32(0)
             });
         }
+
+        // emit log("************************************************************");
+        // emit log_named_bytes32("headerHash", metadata.headerHash);
+        // emit log_named_uint("durationDataStoreId", metadata.durationDataStoreId);
+        // emit log_named_uint("globalDataStoreId", metadata.globalDataStoreId);
+        // emit log_named_uint("blockNumber", metadata.blockNumber);
+        // emit log_named_uint("fee", metadata.fee);
+        // emit log_named_address("confirmer", metadata.confirmer);
+        // emit log_named_bytes32("signatoryRecordHash", metadata.signatoryRecordHash);
+        // emit log_named_bytes32("dsHash",  DataStoreUtils.computeDataStoreHash(metadata));
 
         uint32 index;
 
@@ -299,6 +317,17 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
+        // emit log("************************************************************");
+        // emit log_named_bytes32("headerHash", searchData.metadata.headerHash);
+        // emit log_named_uint("durationDataStoreId", searchData.metadata.durationDataStoreId);
+        // emit log_named_uint("globalDataStoreId", searchData.metadata.globalDataStoreId);
+        // emit log_named_uint("blockNumber", searchData.metadata.blockNumber);
+        // emit log_named_uint("fee", searchData.metadata.fee);
+        // emit log_named_address("confirmer", searchData.metadata.confirmer);
+        // emit log_named_bytes32("signatoryRecordHash", searchData.metadata.signatoryRecordHash);
+
+        // emit log_named_bytes32("dsHash", dsHash);
+
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "DataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
@@ -312,11 +341,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
+
+
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
-            (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
+            (signedTotals.signedStakeFirstQuorum * BIP_MULTIPLIER) / signedTotals.totalStakeFirstQuorum
                 >= quorumThresholdBasisPoints
-                && (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum
+                && (signedTotals.signedStakeSecondQuorum * BIP_MULTIPLIER) / signedTotals.totalStakeSecondQuorum
                     >= quorumThresholdBasisPoints,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );

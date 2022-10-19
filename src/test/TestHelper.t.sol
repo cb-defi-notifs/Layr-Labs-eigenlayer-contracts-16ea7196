@@ -110,10 +110,9 @@ contract TestHelper is EigenLayrDeployer {
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {
-        bytes memory header = abi.encodePacked(
-            hex"010203040506070809101112131415160102030405060708091011121314151601020304050607080910111213141516010203040506070809101112131415160000000400000004"
-        );
-        uint32 totalBytes = 1e6;
+        bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
+        
+        uint256 totalBytes = 62;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
@@ -142,7 +141,22 @@ contract TestHelper is EigenLayrDeployer {
 
         cheats.stopPrank();
 
+
+        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+
+        uint32 degree;
+        assembly{
+            degree := shr(224, mload(add(header, 96)))
+        }
+        totalBytes = totalOperators * (degree + 1) * 31;
+
+        // emit log("****************ConfirmDataStoe*************************");
+        // emit log_named_uint("totalOperators", totalOperators);
+        // emit log_named_uint("degree", degree);
+        
         uint256 fee = calculateFee(totalBytes, 1, durationToInit);
+
+
 
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata({
@@ -486,6 +500,7 @@ contract TestHelper is EigenLayrDeployer {
     {
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
+
         uint32 numberOfNonSigners = 0;
         uint256[4] memory apk;
         {
@@ -507,6 +522,24 @@ contract TestHelper is EigenLayrDeployer {
          * uint256[2] sigma
          * >
          */
+
+        // emit log("***********************************************************************");
+        // emit log_named_uint("globalDataStoreId", searchData.metadata.globalDataStoreId);
+        // emit log_named_bytes32("headerHash",  searchData.metadata.headerHash);
+        // emit log_named_uint("duration", searchData.duration);
+        // emit log_named_uint("initTime", initTime);
+        // emit log_named_uint("index", searchData.index);
+        // bytes memory msgBytes =  abi.encodePacked(
+        //                         searchData.metadata.globalDataStoreId,
+        //                         searchData.metadata.headerHash,
+        //                         searchData.duration,
+        //                         initTime,
+        //                         searchData.index
+        //                     )
+        //                 ;
+        // emit log_named_bytes("msgBytes", msgBytes);
+
+
 
         bytes memory data = abi.encodePacked(
             keccak256(
