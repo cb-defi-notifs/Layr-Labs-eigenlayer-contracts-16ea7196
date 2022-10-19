@@ -1,7 +1,3 @@
----
-title: EigenLayer Technical Specification
-description: Gives an overview of EigenLayer and directs to other relevant resources.
----
 
 # EigenLayer Technical Specification
 
@@ -137,4 +133,3 @@ Any `contractAddress` for which `bondedUntil[operator][contractAddress]` is *str
     * the queued withdrawal mechanism is designed to first stop the withdrawn funds from being placed at risk on new tasks, and then to verify when the funds are indeed no longer at risk
     * the undelegation process enforces similar delays -- at present it is only possible for a staker to undelegate by queuing a withdrawal for all of their assets currently deposited in EigenLayer
 
-###### tags: `docs`

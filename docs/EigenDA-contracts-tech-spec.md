@@ -1,8 +1,3 @@
----
-title: EigenDA Contracts Technical Specification
-description: Use `{%hackmd theme-dark %}` syntax to include this theme.
----
-
 # EigenDA Contracts Technical Specification
 
 ## EigenDA Overview
@@ -14,7 +9,7 @@ We proceed from the same general assumptions as though outlined in the [EigenLay
 
 ## Creating a DataStore
 ### Introduction
-The
+Creating and asserting a datastore into EigenDA is at the center of the data availability workflow of the EigenDA system.  The functionality for creating and confirming datastores is contained in the `DataLayrServiceManager` contract.
 
 ### DataLayrServiceManager
 The DataLayrServiceManager contract serves as the central contract for interacting with DataLayr.  It allows a disperser to assert chunks of data (called DataStores) into DataLayr and verify the asserted data with a quorum of signatures from DataLayr validator nodes.  This is a two step process:
@@ -111,4 +106,3 @@ Note that despite inheriting from `Initializable`, this contract is **not** desi
 1. Anyone
     * all
 
-###### tags: `docs`

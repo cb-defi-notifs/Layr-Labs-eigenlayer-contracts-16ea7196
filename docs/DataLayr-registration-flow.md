@@ -1,11 +1,6 @@
----
-title: DataLayr Registration/Deregistration Flow
-description: Use `{%hackmd theme-dark %}` syntax to include this theme.
----
-
 # DataLayr Registration Flow
 
-//add registering as on operator eventually
+<!--add registering as on operator eventually-->
 
 <A name="Registering-BLS-Public-Keys"></A>
 ## Registering BLS Public Keys
@@ -58,6 +53,3 @@ The first thing that happends in the above call is that the operator is made sur
 Next, the `pkBytes` argument is a parsed into 4 uint256s and hashed and is made sure with the BLSPublicKeyCompendium to be in fact the bytes corresponding to the BLS public key that the operator registered in the previous phase.
 
 If so, their public key is added to the current aggregrate public key stored in the contract, is hashed and linked to the current block number. The registry then makes sure that the operator has opted into slashing by making sure that the bondedUntil time is the max uint32.
-
-
-###### tags: `docs`

@@ -1,8 +1,3 @@
----
-title: EigenPods Overview
-tags: high-level-docs
----
-
 # EigenPods: Handling Beacon Chain ETH
 
 ## Overview
@@ -36,12 +31,4 @@ After a chat with Jeff, a proposal for the design is to have a separate BeaconCh
 ## Withdrawals
 
 Whenever a validator triggers a withdrawal (as of now this is from the validating keys) their EigenPod's balance will eventually increase by the amount withdrawn. At that point, the validator will prove their withdrawal against the beacon chain state root and initiate the withdrawal process on the BeaconChainETH contracts before their EigenPod allows them to withdraw the ETH.  It is important to note that after withdrawal, if a staker chooses to restake into eigenlayer before updating their stakes (to reflect the withdrawal), they will get frozen.  
-
-# Work
-
-## Contracts
-Gautham (third person giga yeet) can do the initial impl of EigenPod+Oracle Stub+Proving Balances. Jeffrey and him can work together on modifying weighting functions. Gautham can also do the initial impl of withdrawals. 
-
-## Off chain
-We will need a CLI to be used for staking via EigenPods. This design can be heavily informed from and perhaps forked from RocketPool's stake CLI. Gautham will lead dev on this and along with help from one of the offchain peeps who is interested in Ethereum beacon chain shit. Just LMK.
 

@@ -1,7 +1,3 @@
----
-title: Withdrawal Flow
-description: Use `{%hackmd theme-dark %}` syntax to include this theme.
----
 
 # Withdrawal Flow
 
@@ -58,4 +54,3 @@ function completeQueuedWithdrawal(
 
 
 
-###### tags: `docs`
