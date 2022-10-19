@@ -10,10 +10,8 @@ contract DataLayrTests is DSTest, TestHelper {
         uint256 numSigners = 15;
 
         //register all the operators
-        for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
-        }
-        
+        _registerNumSigners(numSigners);
+
         //change the current timestamp to be in the future 100 seconds and init
         return _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
     }
@@ -24,9 +22,7 @@ contract DataLayrTests is DSTest, TestHelper {
 
         for (uint256 i = 0; i < 20; i++) {
             if(i==0){
-                for (uint256 i = 0; i < numSigners; ++i) {
-                    _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
-                }
+                _registerNumSigners(numSigners);
             }
             _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
         }
@@ -56,9 +52,7 @@ contract DataLayrTests is DSTest, TestHelper {
 
         uint256 numSigners = 15;
         //register all the operators
-        for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
-        }
+        _registerNumSigners(numSigners);
 
         /// @notice this header has numSys set to 9.  Thus coding ration = 9/15, which is greater than the set adversary threshold in DataLayrServiceManager.
         bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000009000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
@@ -91,8 +85,8 @@ contract DataLayrTests is DSTest, TestHelper {
 
 
     }
-    
 
+    //This function generates the msgBytes that can be used to generate signatures on using the dlutils CLI or the AssortedScripts repo
     function testGenerateMsgBytes() public {
 
         bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
@@ -109,5 +103,11 @@ contract DataLayrTests is DSTest, TestHelper {
                                 index
                             );
         emit log_named_bytes("msgBytes", msgBytes);
+    }
+
+    function _registerNumSigners(uint256 numSigners) internal {
+        for (uint256 i = 0; i < numSigners; ++i) {
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+        }
     }
 }
