@@ -34,7 +34,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
     uint16 public quorumThresholdBasisPoints = 9000;
-    uint16 public adversaryThresholdBasisPoints = 8500;
+    uint16 public adversaryThresholdBasisPoints = 4500;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -129,10 +129,14 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
-                // require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
-                // require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
 
-                // require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
+                emit log_named_uint("totalOperators", totalOperators);
+                emit log_named_uint("totalBytes", totalBytes);
+                require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+                require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+
+                emit log_named_uint("numSys", DataStoreUtils.getCodingRatio(header, totalOperators));
+                require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
                
             }
 
