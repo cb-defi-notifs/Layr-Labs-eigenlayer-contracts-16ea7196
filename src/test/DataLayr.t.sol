@@ -82,8 +82,37 @@ contract DataLayrTests is DSTest, TestHelper {
             totalOperatorsIndex,
             header
         );
+    }
 
+    function testZeroTotalBytes() public {
+        /// @notice this header has numSys set to 9.  Thus coding ration = 9/15, which is greater than the set adversary threshold in DataLayrServiceManager.
+        bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000009000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
+        
+        uint256 initTimestamp = block.timestamp + 100;
 
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
+        cheats.startPrank(storer);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
+
+        uint32 blockNumber = uint32(block.number);
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
+
+        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
+        cheats.warp(initTimestamp);
+        uint256 timestamp = block.timestamp;
+
+        cheats.expectRevert(bytes("DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE"));
+        uint32 index = dlsm.initDataStore(
+            storer,
+            address(this),
+            durationToInit,
+            blockNumber,
+            totalOperatorsIndex,
+            header
+        );
     }
 
     //This function generates the msgBytes that can be used to generate signatures on using the dlutils CLI or the AssortedScripts repo
