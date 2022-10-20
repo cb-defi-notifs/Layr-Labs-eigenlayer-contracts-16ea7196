@@ -99,6 +99,7 @@ contract DataLayrTests is DSTest, TestHelper {
         uint32 blockNumber = uint32(block.number);
         uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
+        emit log_named_uint("totalOperatorsIndex", totalOperatorsIndex);
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
@@ -114,13 +115,8 @@ contract DataLayrTests is DSTest, TestHelper {
         );
     }
 
-    function testTotalOperatorIndexExceedingHistoryLength(uint32 wrongTotalOperatorIndex) public {
-        cheats.assume(wrongTotalOperatorIndex >= uint32(dlReg.getLengthOfTotalOperatorsHistory()));
-        bytes memory revertMsg = bytes("RegistryBase.getTotalOperators: TotalOperator indexHistory index exceeds array length");
-    }
-
-
-    function _testTotalOperatorIndex(uint32 wrongTotalOperatorsIndex, bytes memory revertMsg) internal {
+    function testTotalOperatorIndex(uint32 wrongTotalOperatorsIndex) external {
+        cheats.assume(wrongTotalOperatorsIndex != uint32(dlReg.getLengthOfTotalOperatorsHistory()-1));
         uint256 numSigners = 15;
         //register all the operators
         _registerNumSigners(numSigners);
@@ -142,7 +138,7 @@ contract DataLayrTests is DSTest, TestHelper {
         cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
 
-        cheats.expectRevert(revertMsg);
+        cheats.expectRevert();
         uint32 index = dlsm.initDataStore(
             storer,
             address(this),
