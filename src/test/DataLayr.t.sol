@@ -151,6 +151,51 @@ contract DataLayrTests is DSTest, TestHelper {
 
     }
 
+    function testUnsignedQuorum() public {
+        uint256 index = 0;
+        uint256 initTime = 1000000001;
+        uint256 numSigners = 15;
+        //register all the operators
+        _registerNumSigners(numSigners);
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+
+
+        uint32 numberOfNonSigners = 0;
+        uint256[4] memory apk;
+        {
+            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
+        }
+        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
+
+
+        emit log_named_uint("dlReg.getLengthOfTotalStakeHistory()", dlReg.getLengthOfTotalStakeHistory());
+        bytes memory data = abi.encodePacked(
+            keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            ),
+            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
+            searchData.metadata.blockNumber,
+            searchData.metadata.globalDataStoreId,
+            numberOfNonSigners,
+            // no pubkeys here since zero nonSigners for now
+            uint32(dlReg.getApkUpdatesLength() - 1),
+            apk[0],
+            apk[1],
+            apk[2],
+            apk[3],
+            sigma_0,
+            sigma_1
+        );
+        dlsm.confirmDataStore(data, searchData);
+
+    }
+
     //This function generates the msgBytes that can be used to generate signatures on using the dlutils CLI or the AssortedScripts repo
     // function testGenerateMsgBytes() public {
 
