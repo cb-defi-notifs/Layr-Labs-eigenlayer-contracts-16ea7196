@@ -121,11 +121,10 @@ contract EigenPodManager is IEigenPodManager {
         podInfo.pod.withdrawETH(recipient, amount);
     }
 
-<<<<<<< HEAD
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external {
         beaconChainOracle = newBeaconChainOracle;
         emit BeaconOracleUpdate(address(newBeaconChainOracle));
-=======
+    }
     // INTERNAL FUNCTIONS
 
     function deployPod() internal returns (IEigenPod) {
@@ -143,7 +142,6 @@ contract EigenPodManager is IEigenPodManager {
             );
         pods[msg.sender].pod = pod;
         return pod;
->>>>>>> 779e29f385f59788d7777f9edfb42541185f3541
     }
 
     // VIEW FUNCTIONS
