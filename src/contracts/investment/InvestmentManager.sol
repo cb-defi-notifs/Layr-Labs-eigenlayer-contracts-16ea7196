@@ -62,7 +62,7 @@ contract InvestmentManager is
     }
 
     modifier onlyEigenPod(address podOwner, address pod) {
-        require(address(eigenPodManager.getPod(podOwner).pod) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -100,7 +100,7 @@ contract InvestmentManager is
     {
         //make sure that msg.sender has amount beacon chain ETH to deposit
         eigenPodManager.depositBalanceIntoEigenLayer(msg.sender, uint128(amount));
-        //add shres for the enshrined beacon chain ETH strategy
+        //add shares for the enshrined beacon chain ETH strategy
         _addShares(msg.sender, beaconChainETHStrategy, amount);
         return amount;
     }
@@ -498,13 +498,8 @@ contract InvestmentManager is
         // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
         _removeShares(slashedAddress, beaconChainETHStrategyIndex, beaconChainETHStrategy, shareAmount);
 
-        IInvestmentStrategy[] memory strategies = new IInvestmentStrategy[](1);
-        strategies[0] = beaconChainETHStrategy;
-        uint256[] memory shareAmounts = new uint256[](1);
-        shareAmounts[0] = shareAmount;
-
         // modify delegated shares accordingly, if applicable
-        delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
+        delegation.decreaseDelegatedShares(slashedAddress, beaconChainETHStrategy, shareAmount);
     }
 
     /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)

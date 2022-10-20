@@ -11,7 +11,17 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
-
+/**
+ * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
+ * @author Layr Labs, Inc.
+ * @notice The main functionalities are:
+ * - creating new validators with their withdrawal credentials pointed to this contract
+ * - proving from beacon chain state roots that withdrawal credentials are pointed to this contract
+ * - proving from beacon chain state roots the balances of validators with their withdrawal credentials
+ *   pointed to this contract
+ * - updating aggregate balances in the EigenPodManager
+ * - withdrawing eth when withdrawals are initiated
+ */
 contract EigenPod is IEigenPod, Initializable {
     using BytesLib for bytes;
 
@@ -60,7 +70,7 @@ contract EigenPod is IEigenPod, Initializable {
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
     }
 
-    function proveCorrectWithdrawalCredentials(
+    function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
@@ -72,7 +82,7 @@ contract EigenPod is IEigenPod, Initializable {
 
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.proveCorrectWithdrawalCredentials: Validator not inactive");
+        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
@@ -80,8 +90,8 @@ contract EigenPod is IEigenPod, Initializable {
             validatorFields
         );
         //require that the first field is the merkleized pubkey
-        require(validatorFields[0] == merklizedPubkey, "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for provided pubkey");
-        require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for this EigenPod");
+        require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
+        require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
         //update validator balance
@@ -102,7 +112,7 @@ contract EigenPod is IEigenPod, Initializable {
 
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
-        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE, "EigenPod.proveCorrectWithdrawalCredentials: Validator not active");
+        require(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");
         //verify validator proof
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
@@ -110,7 +120,7 @@ contract EigenPod is IEigenPod, Initializable {
             validatorFields
         );
         //require that the first field is the merkleized pubkey
-        require(validatorFields[0] == merklizedPubkey, "EigenPod.proveCorrectWithdrawalCredentials: Proof is not for provided pubkey");
+        require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
         uint64 prevValidatorBalance = validators[merklizedPubkey].balance;

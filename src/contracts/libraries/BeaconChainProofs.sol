@@ -13,6 +13,7 @@ import "./BytesLib.sol";
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
 library BeaconChainProofs {
     using BytesLib for bytes;
+    //constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
     uint256 public constant BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT = 3;
 
@@ -42,7 +43,7 @@ library BeaconChainProofs {
             paddedHeaderFields[i] = blockHeaderFields[i];
         }
 
-        return Merkle.merkleizeSha256(BEACON_BLOCK_HEADER_FIELD_TREE_HEIGHT, paddedHeaderFields);
+        return Merkle.merkleizeSha256(paddedHeaderFields);
     }
 
     function computePhase0BeaconStateRoot(bytes32[NUM_BEACON_STATE_FIELDS] calldata beaconStateFields) internal pure returns(bytes32) {
@@ -52,7 +53,7 @@ library BeaconChainProofs {
             paddedBeaconStateFields[i] = beaconStateFields[i];
         }
         
-        return Merkle.merkleizeSha256(BEACON_STATE_FIELD_TREE_HEIGHT, paddedBeaconStateFields);
+        return Merkle.merkleizeSha256(paddedBeaconStateFields);
     }
 
     function computePhase0ValidatorRoot(bytes32[NUM_VALIDATOR_FIELDS] calldata validatorFields) internal pure returns(bytes32) {  
@@ -62,7 +63,7 @@ library BeaconChainProofs {
             paddedValidatorFields[i] = validatorFields[i];
         }
 
-        return Merkle.merkleizeSha256(VALIDATOR_FIELD_TREE_HEIGHT, paddedValidatorFields);
+        return Merkle.merkleizeSha256(paddedValidatorFields);
     }
 
     function computePhase0Eth1DataRoot(bytes32[NUM_ETH1_DATA_FIELDS] calldata eth1DataFields) internal pure returns(bytes32) {  
@@ -72,9 +73,15 @@ library BeaconChainProofs {
             paddedEth1DataFields[i] = eth1DataFields[i];
         }
 
-        return Merkle.merkleizeSha256(ETH1_DATA_FIELD_TREE_HEIGHT, paddedEth1DataFields);
+        return Merkle.merkleizeSha256(paddedEth1DataFields);
     }
 
+    /**
+     * @notice This function verifies merkle proofs the fields of a certain validator against a beacon chain state root
+     * @param beaconStateRoot is the beacon chain state root.
+     * @param proofs is the data used in proving the validator's fields
+     * @param validatorFields the claimed fields of the validator
+     */
     function verifyValidatorFields(
         bytes32 beaconStateRoot, 
         bytes calldata proofs, 
@@ -97,7 +104,7 @@ library BeaconChainProofs {
         // verify the proof of the validator metadata root against the merkle root of the entire validator tree
         //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
         bytes32 validatorRoot = proofs.toBytes32(pointer);
-        //offset another 4 bytes for the length of the validatorIndex
+        //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
         //verify that the validatorRoot is within the validator tree
         valid = Merkle.checkMembershipSha256(
@@ -109,7 +116,8 @@ library BeaconChainProofs {
         //offset another 4 bytes for the length of the validatorIndex
         pointer += 4;
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
+        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
         //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
+        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
     }
 }
