@@ -30,7 +30,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // INITIALIZING FUNCTIONS
     constructor() {
-        _disableInitializers();x
+        _disableInitializers();
     }
 
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationReceived` fails, returning `returnData`
