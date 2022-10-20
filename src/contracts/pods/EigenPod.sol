@@ -76,8 +76,7 @@ contract EigenPod is IEigenPod, Initializable {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
-        //TODO: verify the beaconStateRoot is consistent with oracle
-        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "provided beaconStateRoot not consistent with oracle");
+        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "EigenPod.verifyCorrectWithdrawalCredentials: provided beaconStateRoot not consistent with oracle");
 
 
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
@@ -108,7 +107,7 @@ contract EigenPod is IEigenPod, Initializable {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
-        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "provided beaconStateRoot not consistent with oracle");
+        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "EigenPod.verifyBalanceUpdate: provided beaconStateRoot not consistent with oracle");
 
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
@@ -156,7 +155,6 @@ contract EigenPod is IEigenPod, Initializable {
         external
         onlyEigenPodManager
     {
-        //TODO: Reentrancy gurad here?
         //transfer ETH directly from pod to msg.sender 
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }

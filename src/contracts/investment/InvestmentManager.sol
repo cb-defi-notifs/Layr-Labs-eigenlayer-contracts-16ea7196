@@ -359,7 +359,7 @@ contract InvestmentManager is
                 
                 if (strategies[i] == beaconChainETHStrategy) {
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
-                    eigenPodManager.withdraw(depositor, msg.sender, shares[i]);
+                    eigenPodManager.withdrawFromEigenLayer(depositor, msg.sender, shares[i]);
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     strategies[i].withdraw(msg.sender, tokens[i], shares[i]);

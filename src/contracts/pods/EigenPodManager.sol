@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 
 import "../interfaces/IInvestmentManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
@@ -114,19 +115,43 @@ contract EigenPodManager is IEigenPodManager {
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      */
-    function withdraw(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawFromEigenLayer(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
         pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
         podInfo.pod.withdrawETH(recipient, amount);
     }
 
+
+    /**
+     * @notice This function is to allow a staker, who has repointed their credentials to an EigenPod
+     * but has never restaked with EigenLayer, to withdraw their beaconChainETH
+     */
+    function withdrawNonRestakedETH(address podOwner, address recipient, uint256 amount) external {
+
+        //check that the podOwner is not actually delegated in EigenLayer
+        require(!investmentManager.delegation().isDelegated(podOwner), "EigenPodManager.withdrawNonRestakedETH: podOwner is delegated to EigenLayer");
+        
+        //check that depositor isnot delegated delegation.isnotDelefated
+        EigenPodInfo memory podInfo = pods[podOwner];
+
+         //subtract withdrawn amount from stake and balance
+        pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
+        podInfo.pod.withdrawETH(recipient, amount);
+
+    }
+
+    /**
+     * @notice Updates the oracle contract that provides the beacon chain state root
+     * @param newBeaconChainOracle is the new oracle contract being pointed to
+     */
     function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external {
         beaconChainOracle = newBeaconChainOracle;
         emit BeaconOracleUpdate(address(newBeaconChainOracle));
     }
-    // INTERNAL FUNCTIONS
 
+
+    // INTERNAL FUNCTIONS
     function deployPod() internal returns (IEigenPod) {
         IEigenPod pod = 
             IEigenPod(
