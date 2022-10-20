@@ -9,7 +9,7 @@ import "../interfaces/IDataLayrServiceManager.sol";
  * @author Layr Labs, Inc.
  */
 library DataStoreUtils {
-    uint16 public constant MAX_BASIS_POINTS = 10000;
+    uint16 public constant BIP_MULTIPLIER = 10000;
 
     uint256 public constant BYTES_PER_COEFFICIENT = 31;
     uint256 public constant BIT_SHIFT_degree = 224;
@@ -33,8 +33,8 @@ library DataStoreUtils {
         assembly {
             //codingRatio = numSys
             codingRatio := shr(BIT_SHIFT_numSys, calldataload(add(header.offset, HEADER_OFFSET_numSys)))
-            //codingRatio = numSys * MAX_BASIS_POINTS / totalChunks
-            codingRatio := div(mul(codingRatio, MAX_BASIS_POINTS), totalChunks)
+            //codingRatio = numSys * BIP_MULTIPLIER / totalChunks
+            codingRatio := div(mul(codingRatio, BIP_MULTIPLIER), totalChunks)
         }
         return uint16(codingRatio);
     }

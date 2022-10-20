@@ -35,7 +35,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     uint16 public quorumThresholdBasisPoints = 9000;
     /// TODO: Change for prod!
-    uint16 public adversaryThresholdBasisPoints = 4500;
+    uint16 public adversaryThresholdBasisPoints = 4000;
 
     DataStoresForDuration public dataStoresForDuration;
 
