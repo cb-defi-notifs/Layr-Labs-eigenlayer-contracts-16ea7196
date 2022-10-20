@@ -138,6 +138,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @param blockNumber is the block number in Ethereum for which the confirmation will
      * consult total + operator stake amounts.
      * -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
+     * @return index The index in the array `dataStoreHashesForDurationAtTimestamp[duration][block.timestamp]` at which the DataStore's hash was stored.
      */
     function initDataStore(
         address feePayer,
@@ -149,7 +150,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     )
         external
         whenNotPaused
-        returns (uint32)
+        returns (uint32 index)
     {
         bytes32 headerHash = keccak256(header);
 
@@ -181,8 +182,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             confirmer: confirmer,
             signatoryRecordHash: bytes32(0)
         });
-
-        uint32 index;
 
         /**
          * Stores the hash of the datastore's metadata into the `dataStoreHashesForDurationAtTimestamp` mapping. 
