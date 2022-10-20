@@ -10,9 +10,14 @@ contract TestHelper is EigenLayrDeployer {
 
     uint8 durationToInit = 2;
 
-    function _testInitiateDelegation(address operator, uint256 amountEigenToDeposit, uint256 amountEthToDeposit)
-        public
+    function _testInitiateDelegation(
+        uint8 operatorIndex,
+        uint256 amountEigenToDeposit, 
+        uint256 amountEthToDeposit        
+    )
+        public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
+        address operator = signers[operatorIndex];
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);
@@ -39,6 +44,7 @@ contract TestHelper is EigenLayrDeployer {
             uint256 operatorEigenSharesBefore = delegation.operatorShares(operator, eigenStrat);
             uint256 operatorWETHSharesBefore = delegation.operatorShares(operator, wethStrat);
 
+
             //delegate delegator's deposits to operator
             _testDelegateToOperator(delegates[i], operator);
             //testing to see if increaseOperatorShares worked
@@ -46,24 +52,57 @@ contract TestHelper is EigenLayrDeployer {
                 delegation.operatorShares(operator, eigenStrat) - operatorEigenSharesBefore == amountEigenToDeposit
             );
             assertTrue(delegation.operatorShares(operator, wethStrat) - operatorWETHSharesBefore == amountEthToDeposit);
+            
         }
+        amountEthStaked += delegation.operatorShares(operator, wethStrat);
+        amountEigenStaked += delegation.operatorShares(operator, eigenStrat);
+
+        return (amountEthStaked, amountEigenStaked);
+    }
+
+    function _testRegisterBLSPubKey(
+        uint8 operatorIndex
+    ) public {
+        address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        //register operator with vote weigher so they can get payment
-        uint8 operatorType = 3;
-        string memory socket = "255.255.255.255";
-        // function registerOperator(
-        //     uint8 operatorType,
-        //     bytes32 ephemeralKeyHash,
-        //     bytes calldata data,
-        //     string calldata socket
-        // )
         //whitelist the dlsm to slash the operator
         slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[0]);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[0].slice(0, 128), socket);
+        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
     }
+
+
+    /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
+    function _testRegisterOperatorWithDataLayr(
+        uint8 operatorIndex,
+        uint8 operatorType,
+        bytes32 ephemeralKey,
+        string memory socket
+    ) public {
+
+        address operator = signers[operatorIndex];
+
+        cheats.startPrank(operator);
+        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        cheats.stopPrank();
+
+    }
+
+    function _testDeregisterOperatorWithDataLayr(
+        uint8 operatorIndex,
+        uint256[4] memory pubkeyToRemoveAff,
+        uint8 operatorListIndex,
+        bytes32 finalEphemeralKey
+    ) public {
+
+        address operator = signers[operatorIndex];
+
+        cheats.startPrank(operator);
+        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        cheats.stopPrank();
+    }
+
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
@@ -196,7 +235,7 @@ contract TestHelper is EigenLayrDeployer {
         //register all the operators
         //skip i = 0 since we have already registered signers[0] !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
     }
 
@@ -336,6 +375,8 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
+// TODO: reimplement with queued withdrawals
+/*
     //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
@@ -383,8 +424,9 @@ contract TestHelper is EigenLayrDeployer {
         );
         cheats.stopPrank();
     }
+*/
 
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data) internal {
+    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -400,7 +442,7 @@ contract TestHelper is EigenLayrDeployer {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKey, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
@@ -426,7 +468,7 @@ contract TestHelper is EigenLayrDeployer {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i]);
+            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
         }
 
         // hard-coded values
@@ -562,11 +604,11 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         assertTrue(
-            delegation.delegation(sender) == operator,
+            delegation.delegatedTo(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -631,8 +673,83 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
+
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     * into the WETH strategy, and then queues a withdrawal using
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     * response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
+    function _createQueuedWithdrawal(
+        address staker,
+        bool registerAsOperator,
+        uint256 amountToDeposit,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
+    {
+        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+
+        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
+        if (registerAsOperator) {
+            assertTrue(!delegation.isDelegated(staker), "_createQueuedWithdrawal: staker is already delegated");
+            _testRegisterAsOperator(staker, IDelegationTerms(staker));
+            assertTrue(
+                delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be"
+            );
+        }
+
+        queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: staker,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(staker)
+        });
+
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (shareAmounts[0] > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
+
+        //queue the withdrawal
+        cheats.startPrank(staker);
+        // TODO: check with 'undelegateIfPossible' = false, rather than just true
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
+        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+        }
+        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
+        else if (queuedWithdrawal.delegatedAddress == address(0)) {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
+        } else {
+            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
+        }
+        cheats.stopPrank();
+        return (withdrawalRoot, queuedWithdrawal);
+    }
+
     function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
@@ -645,10 +762,33 @@ contract TestHelper is EigenLayrDeployer {
         cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
         cheats.assume(stakeInactiveAfter > block.timestamp);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
                                         withdrawalRoot, 
                                         stakeInactiveAfter
                                     );
         cheats.stopPrank();
     }
+
+    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
+
+        uint256[4] memory pk;
+        // verify sig of public key and get pubkeyHash back, slice out compressed apk
+        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
+
+        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+
+        return pkHash;
+
+    }
+
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
+        uint256[4] memory pubkey; 
+        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
+        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
+        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
+        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        return pubkey;
+    }
+
+
 }
+

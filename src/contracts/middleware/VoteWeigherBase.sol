@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title A simple implementation of the `IVoteWeigher` interface.
@@ -16,24 +16,26 @@ import "./VoteWeigherBaseStorage.sol";
  * - addition and removal of strategies and the associated weighting criteria that are assigned
  * by the middleware for each of the quorum(s)
  */
-contract VoteWeigherBase is VoteWeigherBaseStorage {
+contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
+    /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
+    /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
+    /// @notice Sets the (immutable) `repository`, `delegation`, and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
         IRepository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips
-    )
-        VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
+    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) 
     // solhint-disable-next-line no-empty-blocks
     {}
 
     /**
-     * @notice This function computes the total weight of the @param operator in the quorum
-     * @param quorumNumber.
+     * @notice This function computes the total weight of the @param operator in the quorum @param quorumNumber.
+     * @dev returns zero in the case that `quorumNumber` is greater than or equal to `NUMBER_OF_QUORUMS`
      */
     function weightOfOperator(address operator, uint256 quorumNumber) public virtual returns (uint96) {
         uint96 weight;
@@ -50,7 +52,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
                 // shares of the operator in the investment strategy
                 uint256 sharesAmount = delegation.operatorShares(operator, strategyAndMultiplier.strategy);
 
-                // add the weightage from the shares to the total weight
+                // add the weight from the shares for this strategy to the total weight
                 if (sharesAmount > 0) {
                     weight += uint96(
                         (
@@ -69,16 +71,11 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         return weight;
     }
 
-    /**
-     * @notice Adds new strategies and the associated multipliers to the @param quorumNumber.
-     */
+    /// @notice Adds new strategies and the associated multipliers to the @param quorumNumber.
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
-    )
-        external
-        onlyRepositoryGovernance
-    {
+    ) external onlyRepositoryGovernance {
         _addStrategiesConsideredAndMultipliers(quorumNumber, _newStrategiesConsideredAndMultipliers);
     }
 
@@ -92,19 +89,19 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         uint256 quorumNumber,
         IInvestmentStrategy[] calldata _strategiesToRemove,
         uint256[] calldata indicesToRemove
-    )
-        external
-        onlyRepositoryGovernance
-    {
-        uint256 numStrats = indicesToRemove.length;
+    ) external onlyRepositoryGovernance {
+        uint256 numStrats = _strategiesToRemove.length;
+        // sanity check on input lengths
+        require(indicesToRemove.length == numStrats, "VoteWeigherBase.removeStrategiesConsideredAndWeights: input length mismatch");
 
         for (uint256 i = 0; i < numStrats;) {
+            // check that the provided index is correct
             require(
                 strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]].strategy == _strategiesToRemove[i],
                 "VoteWeigherBase.removeStrategiesConsideredAndWeights: index incorrect"
             );
 
-            // removing strategies and their associated weight
+            // remove strategy and its associated multiplier
             strategiesConsideredAndMultipliers[quorumNumber][indicesToRemove[i]] = strategiesConsideredAndMultipliers[quorumNumber][strategiesConsideredAndMultipliers[quorumNumber]
                 .length - 1];
             strategiesConsideredAndMultipliers[quorumNumber].pop();
@@ -116,7 +113,10 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         }
     }
 
-    /// @notice Returns the length of the dynamic array stored in strategiesConsideredAndMultipliers[quorumNumber].
+    /**
+     * @notice Returns the length of the dynamic array stored in `strategiesConsideredAndMultipliers[quorumNumber]`.
+     * @dev Reverts if `quorumNumber` < `NUMBER_OF_QUORUMS`, i.e. the input is out of bounds.
+     */
     function strategiesConsideredAndMultipliersLength(uint256 quorumNumber) public view returns (uint256) {
         require(
             quorumNumber < NUMBER_OF_QUORUMS,
@@ -125,12 +125,16 @@ contract VoteWeigherBase is VoteWeigherBaseStorage {
         return strategiesConsideredAndMultipliers[quorumNumber].length;
     }
 
+    /** 
+     * @notice Adds `_newStrategiesConsideredAndMultipliers` to the `quorumNumber`-th quorum.
+     * @dev Checks to make sure that the *same* strategy cannot be added multiple times (checks against both against existing and new strategies).
+     * @dev This function has no check to make sure that the strategies for a single quorum have the same underlying asset. This is a concious choice,
+     * since a middleware may want, e.g., a stablecoin quorum that accepts USDC, USDT, DAI, etc. as underlying assets and trades them as "equivalent".
+     */
     function _addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
-    )
-        internal
-    {
+    ) internal {
         uint256 numStratsToAdd = _newStrategiesConsideredAndMultipliers.length;
         uint256 numStratsExisting = strategiesConsideredAndMultipliers[quorumNumber].length;
         require(

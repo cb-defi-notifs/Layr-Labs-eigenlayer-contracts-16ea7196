@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
+import "./IDataLayrPaymentManager.sol";
 
 interface IDataLayrServiceManager is IServiceManager {
     //Relevant metadata for a given datastore
@@ -27,8 +28,8 @@ interface IDataLayrServiceManager is IServiceManager {
 
     struct SignatoryRecordMinusDataStoreId {
         bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
+        uint256 signedStakeFirstQuorum;
+        uint256 signedStakeSecondQuorum;
     }
 
     struct DataStoresForDuration {
@@ -57,9 +58,7 @@ interface IDataLayrServiceManager is IServiceManager {
         uint8 duration,
         uint32 totalBytes,
         uint32 blockNumber
-    )
-        external
-        returns (uint32);
+    ) external returns (uint32);
 
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external;
 
@@ -79,4 +78,9 @@ interface IDataLayrServiceManager is IServiceManager {
     function getNumDataStoresForDuration(uint8 duration) external view returns (uint32);
 
     function collateralToken() external view returns (IERC20);
+
+    function dataLayrPaymentManager() external view returns (IDataLayrPaymentManager);
+
+    function verifyDataStoreMetadata(uint8 duration, uint256 timestamp, uint32 index, DataStoreMetadata memory metadata) external view returns (bool);
+    
 }

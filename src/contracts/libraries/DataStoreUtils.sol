@@ -13,15 +13,11 @@ library DataStoreUtils {
     function computeSignatoryRecordHash(
         uint32 globalDataStoreId,
         bytes32[] memory nonSignerPubkeyHashes,
-        uint256 totalEthStakeSigned,
-        uint256 totalEigenStakeSigned
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
+        uint256 signedStakeFirstQuorum,
+        uint256 signedStakeSecondQuorum
+    ) internal pure returns (bytes32) {
         return keccak256(
-            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, totalEthStakeSigned, totalEigenStakeSigned)
+            abi.encodePacked(globalDataStoreId, nonSignerPubkeyHashes, signedStakeFirstQuorum, signedStakeSecondQuorum)
         );
     }
 

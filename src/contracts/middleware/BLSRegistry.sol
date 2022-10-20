@@ -17,20 +17,21 @@ import "forge-std/Test.sol";
 contract BLSRegistry is RegistryBase, IBLSRegistry {
     using BytesLib for bytes;
 
-    IBLSPublicKeyCompendium public pubkeyCompendium;
+    // Hash of the zero public key
+    bytes32 internal constant ZERO_PK_HASH = hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d";
 
-    /// @notice the task numbers at which the aggregated pubkeys were updated
-    uint32[] public apkUpdates;
+    /// @notice contract used for looking up operators' BLS public keys
+    IBLSPublicKeyCompendium public immutable pubkeyCompendium;
 
     /**
-     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators,
-     * this is updated whenever a new operator registers or deregisters
+     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, and the block numbers at which the aggregate
+     * pubkeys were updated. This occurs whenever a new operator registers or deregisters.
      */
-    bytes32[] public apkHashes;
+    ApkUpdate[] internal _apkUpdates;
 
     /**
      * @notice used for storing current aggregate public key
-     * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+     * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
      * addition in Jacobian coordinate system.
      */
     uint256[4] public apk;
@@ -44,7 +45,14 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param apkHashIndex The index of the latest (i.e. the new) APK update
      * @param apkHash The keccak256 hash of the new Aggregate Public Key
      */
-    event Registration(address indexed operator, bytes32 pkHash, uint256[4] pk, uint32 apkHashIndex, bytes32 apkHash);
+    event Registration(
+        address indexed operator,
+        bytes32 pkHash,
+        uint256[4] pk,
+        uint32 apkHashIndex,
+        bytes32 apkHash,
+        string socket
+    );
 
     constructor(
         Repository _repository,
@@ -69,7 +77,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         )
     {
         /**
-         * @dev Initialized value is the generator of G2 group. It is necessary in order to do
+         * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
          * addition in Jacobian coordinate system.
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
@@ -79,7 +87,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     }
 
     /**
-     * @notice called for registering as a operator
+     * @notice called for registering as an operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
      * @param pkBytes is the abi encoded bn254 G2 public key of the operator
      * @param socket is the socket address of the operator
@@ -97,20 +105,32 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     function _registerOperator(address operator, uint8 operatorType, bytes calldata pkBytes, string calldata socket)
         internal
     {
+        // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
-        /**
-         * @notice evaluate the new aggregated pubkey
-         */
+        /// @notice evaluate the new aggregated pubkey
         uint256[4] memory newApk;
         uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
 
         // getting pubkey hash
-        bytes32 pubkeyHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
+        bytes32 pubkeyHash = BLS.hashPubkey(pk);
 
-        require(pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator, "BLSRegistry._registerOperator: operator does not own pubkey");
+        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
+        require(
+            pubkeyHash != _apkUpdates[_apkUpdates.length - 1].apkHash,
+            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
+        );
 
-        require(pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered");
+        require(pubkeyHash != ZERO_PK_HASH, "BLSRegistry._registerOperator: Cannot register with 0x0 public key");
+
+        require(
+            pubkeyCompendium.pubkeyHashToOperator(pubkeyHash) == operator,
+            "BLSRegistry._registerOperator: operator does not own pubkey"
+        );
+
+        require(
+            pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered"
+        );
 
         {
             // add pubkey to aggregated pukkey in Jacobian coordinates
@@ -121,19 +141,13 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
         }
 
-        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
-        require(
-            pubkeyHash != apkHashes[apkHashes.length - 1],
-            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
-        );
-
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
 
         // add the operator to the list of registrants and do accounting
-        _addRegistrant(operator, pubkeyHash, _operatorStake, socket);
+        _addRegistrant(operator, pubkeyHash, _operatorStake);
 
-        emit Registration(operator, pubkeyHash, pk, uint32(apkHashes.length - 1), newApkHash);
+        emit Registration(operator, pubkeyHash, pk, uint32(_apkUpdates.length - 1), newApkHash, socket);
     }
 
     /**
@@ -152,33 +166,26 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
      * @param index is the sender's location in the dynamic array `operatorList`
      */
-
     function _deregisterOperator(address operator, uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
         // verify that the `operator` is an active operator and that they've provided the correct `index`
         _deregistrationCheck(operator, index);
 
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        bytes32 pubkeyHashFromInput = BLS.hashPubkey(pubkeyToRemoveAff);
-        // verify that it matches the 'pubkeyToRemoveAff' input
+        /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input
         require(
-            pubkeyHash == pubkeyHashFromInput,
+            pubkeyHash == BLS.hashPubkey(pubkeyToRemoveAff),
             "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
         );
 
-        // Perform necessary updates for removing operator, including updating registrant list and index histories
-        _removeRegistrant(pubkeyHash, index);
+        // Perform necessary updates for removing operator, including updating operator list and index histories
+        _removeOperator(pubkeyHash, index);
 
-        /**
-         * @notice update the aggregated public key of all registered operators and record
-         * this update in history
-         */
         // get existing aggregate public key
         uint256[4] memory pk = apk;
         // remove signer's pubkey from aggregate public key
         (pk[0], pk[1], pk[2], pk[3]) = BLS.removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
-
-        // record the APK update
+        // update the aggregate public key of all registered operators and record this update in history
         _processApkUpdate(pk);
     }
 
@@ -220,64 +227,65 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         _recordTotalStakeUpdate(_totalStake);
     }
 
-    // TODO: de-dupe code copied from `updateStakes`, if reasonably possible
+    //TODO: The subgraph doesnt like uint256[4][] argument here. Figure this out laters
+    // // TODO: de-dupe code copied from `updateStakes`, if reasonably possible
+    // /**
+    //  * @notice Used for removing operators that no longer meet the minimum requirements
+    //  * @param operators are the nodes who will potentially be booted
+    //  */
+    // function bootOperators(
+    //     address[] calldata operators,
+    //     uint256[4][] memory pubkeysToRemoveAff,
+    //     uint32[] memory indices
+    // )
+    //     external
+    // {
+    //     // copy total stake to memory
+    //     OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+
+    //     // placeholders reused inside of loop
+    //     OperatorStake memory currentStakes;
+    //     bytes32 pubkeyHash;
+    //     uint256 operatorsLength = operators.length;
+    //     // iterating over all the tuples that are to be updated
+    //     for (uint256 i = 0; i < operatorsLength;) {
+    //         // get operator's pubkeyHash
+    //         pubkeyHash = registry[operators[i]].pubkeyHash;
+    //         // fetch operator's existing stakes
+    //         currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
+    //         // decrease _totalStake by operator's existing stakes
+    //         _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
+    //         _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
+
+    //         // update the stake for the i-th operator
+    //         currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
+
+    //         // remove the operator from the list of operators if they do *not* meet the minimum requirements
+    //         if (
+    //             (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
+    //                 && (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
+    //         ) {
+    //             // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
+    //             _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
+    //         }
+    //         // in the case that the operator *does indeed* meet the minimum requirements
+    //         else {
+    //             // increase _totalStake by operator's updated stakes
+    //             _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
+    //             _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
+    //         }
+
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
+
+    //     // update storage of total stake
+    //     _recordTotalStakeUpdate(_totalStake);
+    // }
+
     /**
-     * @notice Used for removing operators that no longer meet the minimum requirements
-     * @param operators are the nodes who will potentially be booted
-     */
-    function bootOperators(
-        address[] calldata operators,
-        uint256[4][] memory pubkeysToRemoveAff,
-        uint32[] memory indices
-    )
-        external
-    {
-        // copy total stake to memory
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-
-        // placeholders reused inside of loop
-        OperatorStake memory currentStakes;
-        bytes32 pubkeyHash;
-        uint256 operatorsLength = operators.length;
-        // iterating over all the tuples that are to be updated
-        for (uint256 i = 0; i < operatorsLength;) {
-            // get operator's pubkeyHash
-            pubkeyHash = registry[operators[i]].pubkeyHash;
-            // fetch operator's existing stakes
-            currentStakes = pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1];
-            // decrease _totalStake by operator's existing stakes
-            _totalStake.firstQuorumStake -= currentStakes.firstQuorumStake;
-            _totalStake.secondQuorumStake -= currentStakes.secondQuorumStake;
-
-            // update the stake for the i-th operator
-            currentStakes = _updateOperatorStake(operators[i], pubkeyHash, currentStakes);
-
-            // remove the operator from the list of operators if they do *not* meet the minimum requirements
-            if (
-                (currentStakes.firstQuorumStake < minimumStakeFirstQuorum)
-                    && (currentStakes.secondQuorumStake < minimumStakeSecondQuorum)
-            ) {
-                // TODO: optimize better if possible? right now this pushes an APK update for each operator removed.
-                _deregisterOperator(operators[i], pubkeysToRemoveAff[i], indices[i]);
-            }
-            // in the case that the operator *does indeed* meet the minimum requirements
-            else {
-                // increase _totalStake by operator's updated stakes
-                _totalStake.firstQuorumStake += currentStakes.firstQuorumStake;
-                _totalStake.secondQuorumStake += currentStakes.secondQuorumStake;
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        // update storage of total stake
-        _recordTotalStakeUpdate(_totalStake);
-    }
-
-    /**
-     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `apkUpdates` and `apkHashes` arrays
+     * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `_apkUpdates` array
      * @param newApk The updated APK. This will be the `apk` after this function runs!
      */
     function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
@@ -285,17 +293,20 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // slither-disable-next-line costly-loop
         apk = newApk;
 
-        // store the current block number in which the aggregated pubkey is being updated
-        apkUpdates.push(uint32(block.number));
-
-        //store the hash of aggregate pubkey
+        // find the hash of aggregate pubkey
         bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
-        apkHashes.push(newApkHash);
+
+        // store the apk hash and the current block number in which the aggregated pubkey is being updated
+        _apkUpdates.push(ApkUpdate({
+            apkHash: newApkHash,
+            blockNumber: uint32(block.number)
+        }));
+
         return newApkHash;
     }
 
     // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
-    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns(uint256[4] memory) {
+    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns (uint256[4] memory) {
         uint256[4] memory pk;
         assembly {
             mstore(add(pk, 32), calldataload(pkBytes.offset))
@@ -308,24 +319,38 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     /**
      * @notice get hash of a historical aggregated public key corresponding to a given index;
-     * called by checkSignatures in SignatureChecker.sol.
+     * called by checkSignatures in BLSSignatureChecker.sol.
      */
     function getCorrectApkHash(uint256 index, uint32 blockNumber) external view returns (bytes32) {
-        require(blockNumber >= apkUpdates[index], "BLSRegistry.getCorrectApkHash: Index too recent");
+        // check that the `index`-th APK update occurred at or before `blockNumber`
+        require(blockNumber >= _apkUpdates[index].blockNumber, "BLSRegistry.getCorrectApkHash: index too recent");
 
         // if not last update
-        if (index != apkUpdates.length - 1) {
-            require(blockNumber < apkUpdates[index + 1], "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
+        if (index != _apkUpdates.length - 1) {
+            // check that there was not *another APK update* that occurred at or before `blockNumber`
+            require(blockNumber < _apkUpdates[index + 1].blockNumber, "BLSRegistry.getCorrectApkHash: Not latest valid apk update");
         }
 
-        return apkHashes[index];
+        return _apkUpdates[index].apkHash;
     }
 
+    /// @notice returns the total number of APK updates that have ever occurred (including one for initializing the pubkey as the generator)
     function getApkUpdatesLength() external view returns (uint256) {
-        return apkUpdates.length;
+        return _apkUpdates.length;
     }
 
-    function getApkHashesLength() external view returns (uint256) {
-        return apkHashes.length;
+    /// @notice returns the `ApkUpdate` struct at `index` in the list of APK updates
+    function apkUpdates(uint256 index) external view returns (ApkUpdate memory) {
+        return _apkUpdates[index];
+    }
+
+    /// @notice returns the APK hash that resulted from the `index`th APK update
+    function apkHashes(uint256 index) external view returns (bytes32) {
+        return _apkUpdates[index].apkHash;
+    }
+
+    /// @notice returns the block number at which the `index`th APK update occurred
+    function apkUpdateBlockNumbers(uint256 index) external view returns (uint32) {
+        return _apkUpdates[index].blockNumber;
     }
 }

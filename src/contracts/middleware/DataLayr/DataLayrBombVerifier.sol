@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.9.0;
 
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -42,12 +42,12 @@ contract DataLayrBombVerifier {
     }
 
     /**
-     * `operatorIndex` is the index in the operator's list of indexes in the `dlRegsitry` that provides the operator's index at the time of the BOMB datastore
-     * `totalOperatorsIndex` is the index in the list of total operators over time in the `dlRegsitry` that provides the total number of operators at the time
-     * of the BOMB datastore
-     * `detonationNonSignerIndex` is the index within the non-signer list of the DETONATION datastore that proves that the operator signed on the availability
-     * of the DETONATION datastore
-     *
+     * @notice `operatorIndex` is the index in the operator's list of indexes in the `dlRegistry`
+     * that provides the operator's index at the time of the BOMB datastore
+     * `totalOperatorsIndex` is the index in the list of total operators over time in the `dlRegistry`
+     * that provides the total number of operators at the timeof the BOMB datastore
+     * `detonationNonSignerIndex` is the index within the non-signer list of the DETONATION datastore that proves
+     * that the operator signed on the availability of the DETONATION datastore
      */
     struct Indexes {
         uint32 operatorIndex;
@@ -56,6 +56,7 @@ contract DataLayrBombVerifier {
         uint256[] successiveSignerIndexes;
     }
 
+    /// @notice Proof of the data itself -- from the BOMB datastore -- that the operator was responsible for storing
     struct DisclosureProof {
         bytes header;
         bytes poly;
@@ -79,6 +80,10 @@ contract DataLayrBombVerifier {
     DataLayrChallengeUtils public immutable challengeUtils;
     IEphemeralKeyRegistry public immutable dlekRegistry;
 
+    /**
+     * @notice Initializes with the `DataLayrServiceManager`, the BLS registry used by DataLayr, the `DataLayrChallengeUtils` library to help
+     * abstract away some common logic, and, the `IEphemeralKeyRegistry` used by DataLayr.
+     */
     constructor(
         IDataLayrServiceManager _dlsm,
         IQuorumRegistry _dlRegistry,
@@ -136,9 +141,7 @@ contract DataLayrBombVerifier {
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
         DisclosureProof calldata disclosureProof
-    )
-        external
-    {
+    ) external {
         // verify integrity of submitted metadata by checking against its stored hashes
         require(
             verifyMetadataPreImage(dataStoreProofs.operatorFromDataStore),
@@ -150,7 +153,10 @@ contract DataLayrBombVerifier {
         );
 
         {
-            //require that either operator is still actively registered, or they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
+            /**
+             * require that either operator is still actively registered, OR
+             * they were previously active and they deregistered within the last 'BOMB_FRAUDRPOOF_INTERVAL'
+             */
             //get the id of the datastore the operator has been serving since
             uint32 fromDataStoreId = dlRegistry.getFromTaskNumberForOperator(operator);
             //deregisterTime is 0 if the operator is still registered and serving
@@ -226,8 +232,8 @@ contract DataLayrBombVerifier {
                                 == DataStoreUtils.computeSignatoryRecordHash(
                                     bombGlobalDataStoreId,
                                     signatoryRecords[i].nonSignerPubkeyHashes,
-                                    signatoryRecords[i].totalEthStakeSigned,
-                                    signatoryRecords[i].totalEigenStakeSigned
+                                    signatoryRecords[i].signedStakeFirstQuorum,
+                                    signatoryRecords[i].signedStakeSecondQuorum
                                 ),
                         "DataLayrBombVerifier.verifyBomb: Bomb datastore signatory record does not match hash"
                     );
@@ -266,8 +272,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.globalDataStoreId,
                         signatoryRecords[ultimateBombDataStoreIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEthStakeSigned,
-                        signatoryRecords[ultimateBombDataStoreIndex].totalEigenStakeSigned
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeFirstQuorum,
+                        signatoryRecords[ultimateBombDataStoreIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: BOMB datastore sig record does not match hash"
             );
@@ -298,8 +304,8 @@ contract DataLayrBombVerifier {
                     == DataStoreUtils.computeSignatoryRecordHash(
                         dataStoreProofs.detonationDataStore.metadata.globalDataStoreId,
                         signatoryRecords[lastSignatoryRecordIndex].nonSignerPubkeyHashes,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEthStakeSigned,
-                        signatoryRecords[lastSignatoryRecordIndex].totalEigenStakeSigned
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeFirstQuorum,
+                        signatoryRecords[lastSignatoryRecordIndex].signedStakeSecondQuorum
                     ),
                 "DataLayrBombVerifier.verifyBomb: Detonation singatory record does not match hash"
             );
@@ -357,16 +363,12 @@ contract DataLayrBombVerifier {
         dlsm.freezeOperator(operator);
     }
 
-    // returns globalDataStoreId at bomb DataStore
+    /// @notice Returns globalDataStoreId at bomb DataStore
     function verifyBombDataStoreId(
         address operator,
         DataStoreProofs calldata dataStoreProofs,
         DataStoresForDuration[2][2][] calldata sandwichProofs
-    )
-        internal
-        view
-        returns (uint32)
-    {
+    ) internal view returns (uint32) {
         uint256 fromTime;
         {
             // get the dataStoreId at which the operator registered
@@ -491,8 +493,25 @@ contract DataLayrBombVerifier {
         );
 
         nextGlobalDataStoreIdAfterDetonationTimestamp = type(uint32).max;
-
-        //for each duration
+        /**
+         * For each duration,
+         * If both timestamps in `sandwichProofs[i][0][0]` and `sandwichProofs[i][0][1]` are 0, then check that the number of datastore's for the
+         * duration are 0 and go onto the next duration. This is a way of signifying that there have been no existing datastores for a duration.
+         * If the sandwich proofs are nontrivial, set `sandwichTimestamp` equal to the later of 
+             * when the operator started serving 
+             * `detonationDataStoreInitTimestamp - DURATION_SCALE*duration`
+         * since we only care about the datastores that were active at the time that were initialized after the operator registered.
+         * Then, we verify the sandwich proof provided in `sandwichProof[i][0]` of the first datastore at or after `sandwichTimestamp`
+         * and set `firstDataStoreForDuration[i]` equal to its id .
+         * We also verify the sandwich proof provided in `sandwichProof[i][1]` of the first datastore at or after `detonationDataStoreInitTimestamp`
+         * If the id of the datastore referred to by `sandwichProof[i][1][1]` is greater than the variable `nextGlobalDataStoreIdAfterDetonationTimestamp`,
+         * then `nextGlobalDataStoreIdAfterDetonationTimestamp` is sent to `sandwichProof[i][1][1]`'s id.
+         * Overall, `nextGlobalDataStoreIdAfterDetonationTimestamp` will be set to the id of datastore with the highest duration initialized
+         * at `detonationDataStoreInitTimestamp`.
+         * Then, `numberActiveDataStoresForDuration[i]` is set to `sandwichProof[i][1][1]`'s durationDataStoreId minus the `firstDataStoreForDuration[i]`
+         * to get the number of active datastores for that duration at the `detonationDataStoreInitTimestamp`.
+         * Finally, the sum `numberActiveDataStores` is increased by `numberActiveDataStoresForDuration[i]`.
+         */
         for (uint8 i = 0; i < dlsm.MAX_DATASTORE_DURATION(); ++i) {
             // NOTE THAT i is loop index and (i + 1) is duration
             //If there are no datastores for certain duration, the prover should set the timestamps for the first sandwich proofs for that duration
@@ -518,7 +537,7 @@ contract DataLayrBombVerifier {
             uint256 sandwichTimestamp =
                 max(detonationDataStoreInitTimestamp - ((i + 1) * dlsm.DURATION_SCALE()), fromTime);
             /**
-             * @dev Verify the sandwich proof for the given duration. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata.
+             * @dev Verify the sandwich proof for the given duratioxn. `verifyDataStoreIdSandwich` will return the the second datastore in the sandwich's metadata.
              * The second datastore is the first datastore after `sandwichTimestamp`. This is the first active datastore for the duration which was initialized at
              * or after the `sandwichTimestamp`. We store its durationDataStoreId in the `firstDataStoreForDuration` memory array.
              */
@@ -539,25 +558,31 @@ contract DataLayrBombVerifier {
             numberActiveDataStores += numberActiveDataStoresForDuration[i];
         }
 
-        // find the pseudo-randomly determined DataStore containing the bomb
-        // just by taking detonationHeaderHashValue modulo the number of active datastores at the time
+        /**
+         * Find the pseudo-randomly determined DataStore containing the bomb
+         * by taking detonationHeaderHashValue modulo the *total* number of active datastores at the time
+         */
         uint32 selectedDataStoreIndex = uint32(detonationHeaderHashValue % numberActiveDataStores);
-        // find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'
-        // we can think of this as the DataStore location specified by 'selectedDataStoreIndex'
+        /**
+         * Find the durationIndex and offset within the set of DataStores for that specific duration from the 'selectedDataStoreIndex'.
+         * We can think of this as the DataStore 'location' specified by `selectedDataStoreIndex`, inside of a table of dataStores with one row per duration.
+         */
         uint32 offset;
         (durationIndex, offset) = calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
             selectedDataStoreIndex, numberActiveDataStoresForDuration
         );
 
         calculatedDataStoreId = firstDataStoreForDuration[durationIndex] + offset;
-        // return the pseudo-randomized `durationIndex` and `durationDataStoreId`, specified by `selectedDataStoreIndex`, as well as the `nextGlobalDataStoreIdAfterBomb`
+        /**
+         * Return the pseudo-randomized `durationIndex` and `durationDataStoreId`, as specified by `selectedDataStoreIndex`,
+         * as well as the `nextGlobalDataStoreIdAfterBomb`
+         */
         return (durationIndex, calculatedDataStoreId, nextGlobalDataStoreIdAfterDetonationTimestamp);
     }
 
-    // checks that the provided timestamps accurately specify the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
-    // returns the first durationDataStoreId and globalDataStoreId at or after the sandwichTimestamp, for the specified duration
-
     /**
+     * @notice Checks that the provided `sandwich` data accurately specifies the first dataStore, with the specified `duration`,
+     * which was created at or after `sandwichTimestamp`
      * @notice For a certain @param duration, checks that the two datastores provided in @param sandwich
      * are the datastores just before and after (or equal) @param sandwichTimestamp, in that order
      * @notice For the given `duration` and `sandwichTimestamp`, this function returns the metadata of the earliest datastore that was stored
@@ -566,17 +591,14 @@ contract DataLayrBombVerifier {
      * search data for the earliest datastore with the same `duration`, which was created *after* `sandwichTimestamp`.
      * @dev This function hashes the metadata in `sandwich` to verify its correctness and checks that the initialization times of the provided datastores are
      * before and after `sandwichTime`, respectively, and verifies that their ids are consecutive.
-     * @return the metadata for the first dataStore, with the specified duration, which was created at or after 'sandwichTimestamp'
+     * @return the metadata for the first dataStore, with the specified `duration`, which was created at or after `sandwichTimestamp`, i.e. the metadata
+     * contained within `sandwich[1]`.
      */
     function verifyDataStoreIdSandwich(
         uint256 sandwichTimestamp,
         uint8 duration,
         DataStoresForDuration[2] calldata sandwich
-    )
-        internal
-        view
-        returns (IDataLayrServiceManager.DataStoreMetadata memory)
-    {
+    ) internal view returns (IDataLayrServiceManager.DataStoreMetadata memory) {
         // make sure that the first timestamp is strictly before the sandwichTimestamp
         require(
             sandwich[0].timestamp < sandwichTimestamp,
@@ -588,17 +610,24 @@ contract DataLayrBombVerifier {
             "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].timestamp must be at or after sandwich time or 0"
         );
 
-        // If sandwichTimestamp is before the first datastore for the given duration, set sandwich[0].timestamp equal to 0
-        // because there is no datastore before sandwichTimestamp for the duration
+        /**
+         * @dev If sandwichTimestamp is before the first datastore for the given duration, then sandwich[0].timestamp should be set equal to 0,
+         * because there is no datastore before sandwichTimestamp for the duration.
+         */
         if (sandwich[0].timestamp != 0) {
-            // There is a datastore before sandwichTimestamp for the duration
-            // Verify that the provided metadata of the datastore before sandwichTimestamp (sandwich[0])
-            // agrees with the stored hash
+            /**
+             * Since we've entered this code path, there *is* a datastore before sandwichTimestamp for the duration.
+             * Verify that the provided metadata of the datastore before sandwichTimestamp (i.e. sandwich[0]) agrees with the stored hash.
+             */
             require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[0].timestamp, sandwich[0].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[0].metadata),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
+                dlsm.verifyDataStoreMetadata(
+                    duration,
+                    sandwich[0].timestamp,
+                    sandwich[0].index,
+                    sandwich[0].metadata
+                ), "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].metadata preimage is incorrect"
             );
+
         } else {
             //if there is no data stores for the duration, then make sure metadata is consistent with that for future checks
             require(
@@ -606,26 +635,32 @@ contract DataLayrBombVerifier {
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[0].timstamp was 0 but duration datastore id was not"
             );
         }
-        // If sandwichTimestamp is after the last datastore for the given duration, set sandwich[1].timestamp equal to 0
-        // because there is no datastore after sandwichTimestamp for the duration
+        /**
+         * @dev If sandwichTimestamp is after the last datastore for the given duration, then sandwich[1].timestamp should be set equal to 0,
+         * because there is no datastore at or after sandwichTimestamp for the duration.
+         */
         if (sandwich[1].timestamp != 0) {
-            // There is a datastore before sandwichTimestamp for the duration
-            // Verify that the provided metadata of the datastore after sandwichTimestamp (sandwich[1])
-            // agrees with the stored hash
+            /**
+             * Since we've entered this code path, there *is* a datastore at or after sandwichTimestamp for the duration.
+             * Verify that the provided metadata of the datastore before sandwichTimestamp (i.e. sandwich[1]) agrees with the stored hash.
+             */
             require(
-                dlsm.getDataStoreHashesForDurationAtTimestamp(duration, sandwich[1].timestamp, sandwich[1].index)
-                    == DataStoreUtils.computeDataStoreHash(sandwich[1].metadata),
-                "DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
+                dlsm.verifyDataStoreMetadata(
+                    duration,
+                    sandwich[1].timestamp,
+                    sandwich[1].index,
+                    sandwich[1].metadata
+                ),"DataLayrBombVerifier.verifyDataStoreIdSandwich: sandwich[1].metadata preimage is incorrect"
             );
 
-            //make sure that sandwich[0] and sandwich[1] are consecutive datastores for the duration by checking that their
-            //durationDataStoreIds are consecutive
+            // make sure that sandwich[0] and sandwich[1] are consecutive datastores for the duration by checking that their
+            // durationDataStoreIds are consecutive
             require(
                 sandwich[0].metadata.durationDataStoreId + 1 == sandwich[1].metadata.durationDataStoreId,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x and y datastore must be incremental or y datastore is not first in the duration"
             );
         } else {
-            //if sandwich[1].timestamp is 0, the prover is claiming that there is no datastore after sandwichTimestamp for the duration
+            // if sandwich[1].timestamp is 0, the prover is claiming that there is no datastore at or after sandwichTimestamp for the duration
             require(
                 dlsm.getNumDataStoresForDuration(duration) == sandwich[0].metadata.durationDataStoreId,
                 "DataLayrBombVerifier.verifyDataStoreIdSandwich: x datastore is not the last datastore in the duration or no datastores for duration"
@@ -639,16 +674,13 @@ contract DataLayrBombVerifier {
      * the offset points to.
      * @dev Inputs are a pseudo-random 'offset' value and an array of the number of active DataStores, ordered by duration.
      * Given the 'offset' value, this function moves through the 'duration' bins, and returns the bin and offset *within that bin* corresponding to 'offset'.
-     * In other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin' and a value corresponding to the index of a DataStore within that bin
+     * In other words, it finds the position for the 'offset'-th entry, specified by a duration 'bin'
+     * and a value corresponding to the index of a DataStore within that bin.
      */
     function calculateCorrectIndexAndDurationOffsetFromNumberActiveDataStoresForDuration(
         uint32 offset,
         uint32[] memory numberActiveDataStoresForDuration
-    )
-        internal
-        pure
-        returns (uint8 durationIndex, uint32 offsetRemaining)
-    {
+    ) internal pure returns (uint8 durationIndex, uint32 offsetRemaining) {
         offsetRemaining = offset;
         durationIndex = 0;
         for (; durationIndex < numberActiveDataStoresForDuration.length; ++durationIndex) {
@@ -664,36 +696,42 @@ contract DataLayrBombVerifier {
 
     /**
      * @notice Gets the specific coset/chunk number that `operator` was assigned for the datastore specified by `searchData`.
-     * `operatorIndex` and `totalOperatorsIndex` are the indexes in their relative arrays in the `dlRegistry` that are used to prove the total number of operators
-     * and the index of `operator` at `searchData.metadata.blockNumber`. These are used to calculate which cosets were used for the datastore based off of other
-     * information in the header.
+     * @param operatorIndex and @param totalOperatorsIndex are the indexes in their relative arrays in the `dlRegistry` that
+     * are used to prove the total number of operators and the index of `operator` at `searchData.metadata.blockNumber`.
+     * These are used to calculate which cosets were used for the datastore, based off of other information in the header.
      */
     function getChunkNumber(
         address operator,
         uint32 operatorIndex,
         uint32 totalOperatorsIndex,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    )
-        internal
-        view
-        returns (uint32 chunkNumber)
-    {
-        /**
-         * Get information on the dataStore for which disperser is being challenged. This dataStore was
-         * constructed during call to initDataStore in DataLayrServiceManager.sol by the disperser.
-         */
+    ) internal view returns (uint32 chunkNumber) {
+        // Verify that the provided `searchData` is correct
         require(
-            dlsm.getDataStoreHashesForDurationAtTimestamp(searchData.duration, searchData.timestamp, searchData.index)
-                == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "search.metadataclear preimage is incorrect"
+            dlsm.verifyDataStoreMetadata(
+                searchData.duration,
+                searchData.timestamp,
+                searchData.index,
+                searchData.metadata
+            ), "DataLayrBombVerifier.getChunkNumber: search.metadataclear preimage is incorrect"
         );
 
-        // check that disperser acquired quorum for this dataStore
+        // Check that the specified dataStore has been confirmed
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
 
+        /**
+         * Get the index of the given operator at `searchData.metadata.blockNumber` via the `operatorIndex` input,
+         * and checks in the registry to make sure the index is accurate
+         */
         operatorIndex = dlRegistry.getOperatorIndex(operator, searchData.metadata.blockNumber, operatorIndex);
 
+        /**
+         * Gets the totalNumber of operators at `searchData.metadata.blockNumber` via the `totalOperatorsIndex` input,
+         * and checks in the registry to make sure the index is accurate
+         */
         totalOperatorsIndex = dlRegistry.getTotalOperators(searchData.metadata.blockNumber, totalOperatorsIndex);
+
+        // Calculate the coset given to the operator
         return (operatorIndex + searchData.metadata.globalDataStoreId) % totalOperatorsIndex;
     }
 
@@ -710,21 +748,24 @@ contract DataLayrBombVerifier {
         uint32 dataStoreId,
         DisclosureProof calldata disclosureProof,
         IDataLayrServiceManager.DataStoreSearchData calldata searchData
-    )
-        internal
-        view
-        returns (bool)
-    {
+    ) internal view returns (bool) {
+        // Fetch the chunkNumber that `operator` recieved for `dataStoreId`
         uint32 chunkNumber = getChunkNumber(operator, operatorIndex, totalOperatorsIndex, searchData);
+        // Make sure that `dataStoreId` is consistent with the datastore in `searchData`
         require(
             searchData.metadata.globalDataStoreId == dataStoreId,
             "DataLayrBombVerifier.nonInteractivePolynomialProof: searchData does not match provided dataStoreId"
         );
+        // Ensure that the headerhash in `searchData` is consistent with the header that is revealed against in `disclosureProof`
         require(
             searchData.metadata.headerHash == keccak256(disclosureProof.header),
             "DataLayrBombVerifier.nonInteractivePolynomialProof: hash of dislosure proof header does not match provided searchData"
         );
 
+        /**
+         * Verify that `disclosureProof.poly` is the data that is stored at the zero polynomial defined by `chunkNumber` against the overarching
+         * polynomial commitment defined in `disclosureProof.header`
+         */
         return challengeUtils.nonInteractivePolynomialProof(
             disclosureProof.header,
             chunkNumber,

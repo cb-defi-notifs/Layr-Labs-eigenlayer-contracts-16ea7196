@@ -99,7 +99,7 @@ contract PaymentsTests is TestHelper {
     ///@notice tests commiting to reward payouts
     ///@param ethAmount is the amount of delegated eth
     ///@param eigenAmount is the amount of eigen
-    function testRewardPayouts(uint256 ethAmount, uint256 eigenAmount) public {
+    function testRewardPayouts(uint8 index, uint256 ethAmount, uint256 eigenAmount) public fuzzedOperatorIndex(index) {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         //G2 coordinates for aggregate PKs for 15 signers
@@ -117,7 +117,12 @@ contract PaymentsTests is TestHelper {
         uint32 numberOfSigners = 15;
         uint120 amountRewards = 10;
 
-        _testInitiateDelegation(operator, eigenAmount, ethAmount);
+        uint8 operatorType = 3;
+        _testInitiateDelegation(0, eigenAmount, ethAmount);
+
+        _testRegisterBLSPubKey(0);
+        _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
+
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
         _incrementDataStoreID();

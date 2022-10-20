@@ -24,46 +24,28 @@ import "./DataLayrChallengeUtils.sol";
  * @notice This contract is used for:
  * - initializing the data store by the disperser
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
- * - doing payment challenge
+ * - freezing operators as the result of various "challenges"
  */
 contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
+    // sanity checks. should always require *some* signatures, but never *all* signatures
+    uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
+    uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
 
-    // ERROR MESSAGES
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
-
-    // proposed data store size is too small. minimum size is 'minStoreSize' in bytes, but 'proposedSize' is smaller
-    error StoreTooSmall(uint256 minStoreSize, uint256 proposedSize);
-
-    // proposed data store size is too large. maximum size is 'maxStoreSize' in bytes, but 'proposedSize' is larger
-    error StoreTooLarge(uint256 maxStoreSize, uint256 proposedSize);
-
-    // proposed data store length is too large. minimum length is 'minStoreLength' in bytes, but 'proposedLength' is shorter
-    error StoreTooShort(uint256 minStoreLength, uint256 proposedLength);
-
-    // proposed data store length is too large. maximum length is 'maxStoreLength' in bytes, but 'proposedLength' is longer
-    error StoreTooLong(uint256 maxStoreLength, uint256 proposedLength);
-
-    uint128 public firstQuorumSignedThresholdPercentage = 90;
-    uint128 public secondQuorumSignedThresholdPercentage = 90;
+    uint128 public firstQuorumThresholdPercentage = 90;
+    uint128 public secondQuorumThresholdPercentage = 90;
 
     DataStoresForDuration public dataStoresForDuration;
 
     // EVENTS
     event InitDataStore(
-        uint32 dataStoreId,
-        uint32 durationDataStoreId,
-        uint32 index,
-        bytes32 indexed headerHash,
-        bytes header,
-        uint32 totalBytes,
-        uint32 storePeriodLength,
-        uint32 blockNumber,
-        uint256 fee
+        IDataLayrServiceManager.DataStoreSearchData searchData,
+        bytes header
     );
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
+
+    event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -76,7 +58,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
     {
-        feePerBytePerTime = _feePerBytePerTime;
+        _setFeePerBytePerTime(_feePerBytePerTime);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _initializePauser(_pauserRegistry);
@@ -101,10 +83,34 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
+    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
+        );
+        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+    }
+
+    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
+        require(
+            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
+        );
+        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
+    }
+
     /**
      * @notice This function is used for
-     * - notifying in the Ethereum that the disperser has asserted the data blob
-     * into DataLayr and is waiting for obtaining quorum of DataLayr operators to sign,
+     * - notifying via Ethereum that the disperser has asserted the data blob
+     * into DataLayr and is waiting to obtain quorum of DataLayr operators to sign,
      * - asserting the metadata corresponding to the data asserted into DataLayr
      * - escrow the service fees that DataLayr operators will receive from the disperser
      * on account of their service.
@@ -112,10 +118,18 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * This function returns the index of the data blob in dataStoreIdsForDuration[duration][block.timestamp]
      */
     /**
-     * @param feePayer is the address of the balance paying the fees for this datastore. check DataLayrPaymentManager for further details
+     * @param feePayer is the address that will be paying the fees for this datastore. check DataLayrPaymentManager for further details
      * @param confirmer is the address that must confirm the datastore
      * @param header is the summary of the data that is being asserted into DataLayr,
-     * CRITIC -- need to describe header structure
+     *  type DataStoreHeader struct {
+     *   KzgCommit      [64]byte
+     *   Degree         uint32 
+     *   NumSys         uint32
+     *   NumPar         uint32
+     *   OrigDataSize   uint32 
+     *   Disperser      [20]byte
+    *   LowDegreeProof [64]byte
+}
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
@@ -139,16 +153,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     {
         bytes32 headerHash = keccak256(header);
 
-        // sanity check on the parameters of data blob
-        if (totalBytes < MIN_STORE_SIZE) {
-            revert StoreTooSmall(MIN_STORE_SIZE, totalBytes);
-        }
-
-        if (totalBytes > MAX_STORE_SIZE) {
-            revert StoreTooLarge(MAX_STORE_SIZE, totalBytes);
-        }
-
-        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "Invalid duration");
+        // sanity check on the parameters of data store
+        require(totalBytes >= MIN_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE");
+        require(totalBytes <= MAX_STORE_SIZE, "DataLayrServiceManager.initDataStore: totalBytes > MAX_STORE_SIZE");
+        require(duration >= 1 && duration <= MAX_DATASTORE_DURATION, "DataLayrServiceManager.initDataStore: Invalid duration");
 
         // compute time and fees
         // computing the actual period for which data blob needs to be stored
@@ -176,6 +184,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
         uint32 index;
 
+        /**
+         * Stores the hash of the datastore's metadata into the `dataStoreHashesForDurationAtTimestamp` mapping. 
+         * We iterate through the mapping and store the hash in the first available empty storage slot.
+         * This hash is stored to be checked during the quorum signature verification, ensuring that the correct dataStore is signed and confirmed.
+         */
         {
             // uint g = gasleft();
             //iterate the index throughout the loop
@@ -202,23 +215,20 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
 
             require(
-                blockNumber + BLOCK_STALE_MEASURE >= block.number,
-                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
-            );
+                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
+                "specified blockNumber is too far in past"
+            );    
         }
 
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = IDataLayrServiceManager.DataStoreSearchData({
+            duration: duration,
+            timestamp: block.timestamp,
+            index: index,
+            metadata: metadata
+        });
+
         // emit event to represent initialization of data store
-        emit InitDataStore(
-            dataStoresForDuration.dataStoreId,
-            getNumDataStoresForDuration(duration),
-            index,
-            headerHash,
-            header,
-            totalBytes,
-            storePeriodLength,
-            blockNumber,
-            fee
-            );
+        emit InitDataStore(searchData, header);
 
         // Updating dataStoresForDuration
         /**
@@ -228,12 +238,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         // recording the expiry time until which the DataLayr operators, who sign up to
         // part of the quorum, have to store the data
         uint32 _latestTime = uint32(block.timestamp) + storePeriodLength;
-
         if (_latestTime > dataStoresForDuration.latestTime) {
             dataStoresForDuration.latestTime = _latestTime;
         }
 
-        incrementDataStoresForDuration(duration);
+        // increments the number of datastores for the specific duration of the asserted DataStore
+        _incrementDataStoresForDuration(duration);
 
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
@@ -244,11 +254,11 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * @notice This function is used for
      * - disperser to notify that signatures on the message, comprising of hash( headerHash ),
      * from quorum of DataLayr nodes have been obtained,
-     * - check that each of the signatures are valid,
-     * - call the DataLayr contract to check that whether quorum has been achieved or not.
+     * - check that the aggregate signature is valid,
+     * - and check whether quorum has been achieved or not.
      */
     /**
-     * @param data is of the format:
+     * @param data Input to the `checkSignatures` function, which is of the format:
      * <
      * bytes32 msgHash,
      * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
@@ -258,16 +268,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * uint256[4] apk,
      * uint256[2] sigma
      * >
+     * @dev 
      */
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external whenNotPaused {
         /**
-         *
-         * verify the disperser's claim on composition of quorum
-         *
+         * Verify that the signatures provided by the disperser are indeed from DataLayr operators who have agreed to be in the quorum.
+         * Additionally, pull relevant information from the provided `data` param, which we subsequently check the integrity of.
          */
-
-        // verify the signatures that disperser is claiming to be of those DataLayr operators
-        // who have agreed to be in the quorum
         (
             uint32 dataStoreIdToConfirm,
             uint32 blockNumberFromTaskHash,
@@ -276,8 +283,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             bytes32 signatoryRecordHash
         ) = checkSignatures(data);
 
-        //make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs
-        //this keeps bomb and storage conditions stagnant
+        /**
+         * Make sure that the nodes signed the hash of dsid, headerHash, duration, timestamp, and index to avoid malleability in case of reorgs.
+         * This keeps bomb and storage conditions fixed (to a single blockchain fork).
+         */
         require(
             msgHash
                 == keccak256(
@@ -297,14 +306,17 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             msg.sender == searchData.metadata.confirmer,
             "DataLayrServiceManager.confirmDataStore: Sender is not authorized to confirm this datastore"
         );
+        // check that the DataStore has not already been confirmed
         require(
             searchData.metadata.signatoryRecordHash == bytes32(0),
             "DataLayrServiceManager.confirmDataStore: SignatoryRecord must be bytes32(0)"
         );
+        // verify integrity of `dataStoreIdToConfirm` provided as part of `data` input
         require(
             searchData.metadata.globalDataStoreId == dataStoreIdToConfirm,
             "DataLayrServiceManager.confirmDataStore: gloabldatastoreid is does not agree with data"
         );
+        // verify integrity of `blockNumberFromTaskHash` provided as part of `data` input        
         require(
             searchData.metadata.blockNumber == blockNumberFromTaskHash,
             "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data"
@@ -313,26 +325,26 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //Check if provided calldata matches the hash stored in dataStoreIDsForDuration in initDataStore
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
-
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
             "DataLayrServiceManager.confirmDataStore: provided calldata does not match corresponding stored hash from initDataStore"
         );
 
+        // add the computed signatoryRecordHash to the searchData
         searchData.metadata.signatoryRecordHash = signatoryRecordHash;
 
         // computing a new DataStoreIdsForDuration hash that includes the signatory record as well
         bytes32 newDsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
-        //storing new hash
+        //storing new hash that now includes the signatory record
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
-        // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
+        // check that the signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
             (signedTotals.signedStakeFirstQuorum * 100) / signedTotals.totalStakeFirstQuorum
-                >= firstQuorumSignedThresholdPercentage
+                >= firstQuorumThresholdPercentage
                 && (signedTotals.signedStakeSecondQuorum * 100) / signedTotals.totalStakeSecondQuorum
-                    >= secondQuorumSignedThresholdPercentage,
+                    >= secondQuorumThresholdPercentage,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
@@ -352,30 +364,18 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
-        require(
-            msg.sender == address(_registry()),
-            "DataLayrServiceManager.revokeSlashingAbility: Only registry resolvers can revoke slashing ability on operators"
-        );
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
-        feePerBytePerTime = _feePerBytePerTime;
-    }
-
-    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
-        external
-        view
-        returns (bytes32)
-    {
-        return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
+        _setFeePerBytePerTime(_feePerBytePerTime);
     }
 
     /**
      * @notice increments the number of data stores for the @param duration
      */
-    function incrementDataStoresForDuration(uint8 duration) public {
+    function _incrementDataStoresForDuration(uint8 duration) internal {
         if (duration == 1) {
             ++dataStoresForDuration.one_duration;
         }
@@ -397,6 +397,19 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             ++dataStoresForDuration.seven_duration;
         }
+    }
+
+    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
+        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
+        feePerBytePerTime = _feePerBytePerTime;
+    }
+
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
+        public
+        view
+        returns (bytes32)
+    {
+        return dataStoreHashesForDurationAtTimestamp[duration][timestamp][index];
     }
 
     /**
@@ -432,6 +445,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     /**
+     * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
+     * specified `unlockTime`
+     * @dev Function reverts if the verification fails.
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
     function stakeWithdrawalVerification(
@@ -465,5 +481,24 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
+    }
+
+    function verifyDataStoreMetadata(
+        uint8 duration,
+        uint256 timestamp,
+        uint32 index,
+        DataStoreMetadata memory metadata
+    ) 
+        external
+        view
+        returns (bool)
+    {
+        return(
+            getDataStoreHashesForDurationAtTimestamp(
+                duration, 
+                timestamp, 
+                index
+            ) == DataStoreUtils.computeDataStoreHash(metadata)
+        );
     }
 }

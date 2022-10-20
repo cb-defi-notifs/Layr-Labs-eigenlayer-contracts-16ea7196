@@ -14,6 +14,7 @@ import "../../middleware/PaymentManager.sol";
 /**
  * @title This contract is used for doing interactive payment challenges on DataLayr.
  * @author Layr Labs, Inc.
+ * @notice Most functionality is inherited from the `PaymentManager` contract, with `respondToPaymentChallengeFinal` implementing DataLayr-specific functionality.
  */
 contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
     IDataLayrServiceManager public immutable dataLayrServiceManager;
@@ -31,7 +32,11 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         dataLayrServiceManager = _dataLayrServiceManager;
     }
 
-    /// @notice Used to perform the final step in a payment challenge, in which the 'trueAmount' is determined and the winner of the challenge is decided.
+    /**
+     * @notice Used to perform the final step in a payment challenge, in which the 'trueAmount' is determined and the winner of the challenge is decided.
+     * This function is called by a party after the other party has bisected the challenged payments to a difference of one, i.e., further bisection
+     * is not possible. Once the payments can no longer be bisected, the function resolves the challenge by determining who is wrong.
+     */
     function respondToPaymentChallengeFinal(
         address operator,
         uint256 stakeIndex,
@@ -52,30 +57,32 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
 
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(
-            dataLayrServiceManager.getDataStoreHashesForDurationAtTimestamp(
-                searchData.duration, searchData.timestamp, searchData.index
-            ) == DataStoreUtils.computeDataStoreHash(searchData.metadata),
-            "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
+            dataLayrServiceManager.verifyDataStoreMetadata(
+                    searchData.duration,
+                    searchData.timestamp,
+                    searchData.index,
+                    searchData.metadata
+            ), "DataLayrPaymentManager.respondToPaymentChallengeFinal: search.metadata preimage is incorrect"
         );
 
         // recalculate the signatoryRecordHash, to verify integrity of `nonSignerPubkey` and `totalStakesSigned` inputs.
-        bytes32 providedSignatoryRecordHash = keccak256(
-            abi.encodePacked(
-                searchData.metadata.headerHash,
+        bytes32 providedSignatoryRecordHash = DataStoreUtils.computeSignatoryRecordHash(
                 searchData.metadata.globalDataStoreId,
                 nonSignerPubkeyHashes,
                 totalStakesSigned.signedStakeFirstQuorum,
                 totalStakesSigned.signedStakeSecondQuorum
-            )
         );
+        
         //checking that `nonSignerPubKeyHashes` and `totalStakesSigned` are correct, now that we know that searchData is valid
         require(
             providedSignatoryRecordHash == searchData.metadata.signatoryRecordHash,
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakesSigned is incorrect"
         );
 
+        // get the registry address
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
+        // pull the operator's pubkey hash
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 
         // calculate the true amount deserved

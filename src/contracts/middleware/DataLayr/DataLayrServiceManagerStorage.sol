@@ -25,7 +25,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     //TODO: mechanism to change any of these values?
     uint256 public constant DURATION_SCALE = 1 hours;
-    uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 5;
+    uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 20;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 public constant MIN_DATASTORE_DURATION = 1;
     uint8 public constant MAX_DATASTORE_DURATION = 14;
@@ -55,10 +55,9 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     uint256 public feePerBytePerTime;
 
-    uint256 public disclosurePaymentPerByte;
-
-    uint48 public numPowersOfTau; // num of leaves in the root tree
-    uint48 public log2NumPowersOfTau; // num of leaves in the root tree
+    // TODO: set these values correctly
+    uint48 public constant numPowersOfTau = 0; // num of leaves in the root tree
+    uint48 public constant log2NumPowersOfTau = 0; // num of leaves in the root tree
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
@@ -106,7 +105,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     /**
      * @notice contract used for handling payment challenges
      */
-    DataLayrPaymentManager public dataLayrPaymentManager;
+    IDataLayrPaymentManager public dataLayrPaymentManager;
 
     constructor(
         IInvestmentManager _investmentManager,
