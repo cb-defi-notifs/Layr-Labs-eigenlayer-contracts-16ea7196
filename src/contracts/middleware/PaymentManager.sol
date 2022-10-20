@@ -82,7 +82,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     /// @notice Emitted when a bisection step is performed in a challenge, through a call to the `performChallengeBisectionStep` function
     event PaymentBreakdown(
-        address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint120 amount1, uint120 amount2
+        address indexed operator, uint32 fromTaskNumber, uint32 toTaskNumber, uint96 amount1, uint96 amount2
     );
 
     /// @notice Emitted upon successful resolution of a payment challenge, within a call to `resolveChallenge`
@@ -149,7 +149,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
      * for their service since their last payment until `toTaskNumber
      * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
-    function commitPayment(uint32 toTaskNumber, uint120 amount) external {
+    function commitPayment(uint32 toTaskNumber, uint96 amount) external {
         IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         // only active operators can call
@@ -281,7 +281,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
      * @param amount2 is the reward amount the challenger in that round claims is for the second half of tasks
      *
      */
-    function initPaymentChallenge(address operator, uint120 amount1, uint120 amount2) external {
+    function initPaymentChallenge(address operator, uint96 amount1, uint96 amount2) external {
         require(
             block.timestamp < operatorToPayment[operator].confirmAt
                 && operatorToPayment[operator].status == PaymentStatus.COMMITTED,
@@ -320,7 +320,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
      * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
      * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
      */
-    function performChallengeBisectionStep(address operator, bool secondHalf, uint120 amount1, uint120 amount2)
+    function performChallengeBisectionStep(address operator, bool secondHalf, uint96 amount1, uint96 amount2)
         external
     {
         // copy challenge struct to memory
@@ -401,7 +401,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     }
 
     /// @notice Used to update challenge amounts when the operator (or challenger) breaks down the challenged amount (single bisection step)
-    function _updateChallengeAmounts(address operator, DissectionType dissectionType, uint120 amount1, uint120 amount2)
+    function _updateChallengeAmounts(address operator, DissectionType dissectionType, uint96 amount1, uint96 amount2)
         internal
     {
         if (dissectionType == DissectionType.FIRST_HALF) {
@@ -478,11 +478,11 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         return operatorToPaymentChallenge[operator].status;
     }
 
-    function getAmount1(address operator) external view returns (uint120) {
+    function getAmount1(address operator) external view returns (uint96) {
         return operatorToPaymentChallenge[operator].amount1;
     }
 
-    function getAmount2(address operator) external view returns (uint120) {
+    function getAmount2(address operator) external view returns (uint96) {
         return operatorToPaymentChallenge[operator].amount2;
     }
 

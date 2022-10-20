@@ -39,7 +39,7 @@ interface IPaymentManager is IRepositoryAccess {
         uint32 confirmAt;
         // payment for range [fromTaskNumber, toTaskNumber)
         /// @dev max 1.3e36, keep in mind for token decimals
-        uint120 amount;
+        uint96 amount;
         /**
          * @notice The possible statuses are:
          * - 0: REDEEMED,
@@ -65,9 +65,9 @@ interface IPaymentManager is IRepositoryAccess {
         // the TaskNumber until which payment has been computed to
         uint32 toTaskNumber;
         // reward amount the challenger claims is for the first half of tasks
-        uint120 amount1;
+        uint96 amount1;
         // reward amount the challenger claims is for the second half of tasks
-        uint120 amount2;
+        uint96 amount2;
         // used for recording the time when challenge was created
         uint32 settleAt; // when committed, used for fraudproof period
         // indicates the status of the challenge
@@ -95,7 +95,7 @@ interface IPaymentManager is IRepositoryAccess {
 
     function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external;
 
-    function commitPayment(uint32 toTaskNumber, uint120 amount) external;
+    function commitPayment(uint32 toTaskNumber, uint96 amount) external;
 
     function redeemPayment() external;
 
@@ -111,16 +111,16 @@ interface IPaymentManager is IRepositoryAccess {
 
     function getChallengeStatus(address operator) external view returns (ChallengeStatus);
 
-    function initPaymentChallenge(address operator, uint120 amount1, uint120 amount2) external;
+    function initPaymentChallenge(address operator, uint96 amount1, uint96 amount2) external;
 
-    function performChallengeBisectionStep(address operator, bool secondHalf, uint120 amount1, uint120 amount2)
+    function performChallengeBisectionStep(address operator, bool secondHalf, uint96 amount1, uint96 amount2)
         external;
 
     function resolveChallenge(address operator) external;
 
-    function getAmount1(address operator) external view returns (uint120);
+    function getAmount1(address operator) external view returns (uint96);
 
-    function getAmount2(address operator) external view returns (uint120);
+    function getAmount2(address operator) external view returns (uint96);
 
     function getToTaskNumber(address operator) external view returns (uint48);
 
