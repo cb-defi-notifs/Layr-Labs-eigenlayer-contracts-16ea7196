@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./IEigenPodManager.sol";
+import "./IBeaconChainOracle.sol";
 
 /**
  * @title Interface for solo staking pods that have their withdrawal credentials pointed to EigenLayer.
@@ -19,7 +20,7 @@ interface IEigenPod {
         ACTIVE //staked on ethpos and withdrawal credentials are pointed
     }
 
-    function initialize(IEigenPodManager _eigenPodManager, address owner) external;
+    function initialize(IEigenPodManager _eigenPodManager, address _owner) external;
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     function withdrawETH(address recipient, uint256 amount) external;
 }

@@ -23,4 +23,5 @@ interface IEigenPodManager {
     function withdraw(address podOwner, address receipient, uint256 amount) external;
 
     function getPod(address podOwner) external view returns(EigenPodInfo memory);
+    function getBeaconChainStateRoot() external view returns(bytes32);
 }

@@ -4,10 +4,13 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
+import "../interfaces/IBeaconChainOracle.sol";
+
 
 contract EigenPodManager is IEigenPodManager {
     //TODO: change this to constant in prod
@@ -15,9 +18,13 @@ contract EigenPodManager is IEigenPodManager {
     
     IBeacon public immutable eigenPodBeacon;
 
+    IBeaconChainOracle public beaconChainOracle;
+
     IInvestmentManager public investmentManager;
 
     mapping(address => EigenPodInfo) public pods;
+
+    event BeaconOracleUpdate(address newOracleAddress);
 
     modifier onlyEigenPod(address podOwner, address pod) {
         require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: not a pod");
@@ -29,10 +36,11 @@ contract EigenPodManager is IEigenPodManager {
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, IBeaconChainOracle _beaconChainOracle) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
+        beaconChainOracle = _beaconChainOracle;
     }
 
     function createPod(bytes32 salt) external payable {
@@ -99,10 +107,19 @@ contract EigenPodManager is IEigenPodManager {
         podInfo.pod.withdrawETH(recipient, amount);
     }
 
+    function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external {
+        beaconChainOracle = newBeaconChainOracle;
+        emit BeaconOracleUpdate(address(newBeaconChainOracle));
+    }
+
     // VIEW FUNCTIONS
 
     function getPod(address podOwner) external view returns (EigenPodInfo memory) {
         EigenPodInfo memory podInfo = pods[podOwner];
         return podInfo;
+    }
+
+    function getBeaconChainStateRoot() external view returns(bytes32){
+        return beaconChainOracle.getBeaconChainStateRoot();
     }
 }
