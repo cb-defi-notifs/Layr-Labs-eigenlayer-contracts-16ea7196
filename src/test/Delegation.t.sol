@@ -357,7 +357,7 @@ contract DelegationTests is TestHelper {
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
             uint32 numberOfNonSigners = 1;
             uint32 dataStoreId = dlsm.taskNumber() - 1;
 

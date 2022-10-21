@@ -162,7 +162,7 @@ contract PaymentsTests is TestHelper {
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
@@ -215,7 +215,6 @@ contract PaymentsTests is TestHelper {
 
     ///@notice increment the datastoreID by init-ing another datastore
     function _incrementDataStoreID() internal {
-        bytes memory header = hex"0102030405060708091011121314151617181921";
         uint32 blockNumber = uint32(block.number);
         uint8 duration = 2;
         uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);

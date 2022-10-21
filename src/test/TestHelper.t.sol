@@ -106,13 +106,10 @@ contract TestHelper is EigenLayrDeployer {
 
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 initTimestamp, address confirmer)
+   function _testInitDataStore(uint256 initTimestamp, address confirmer, bytes memory header)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
-    {
-        bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
-        
-
+    {        
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
@@ -181,6 +178,41 @@ contract TestHelper is EigenLayrDeployer {
                 index: index
             });
         return searchData;
+    }
+
+    function _testInitDataStoreExpectRevert(
+        uint256 initTimestamp, 
+        address confirmer, 
+        bytes memory header, 
+        bytes memory revertMsg
+    )
+        internal
+        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
+    {        
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
+        cheats.startPrank(storer);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
+
+        uint32 blockNumber = uint32(block.number);
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
+
+        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
+        cheats.warp(initTimestamp);
+        uint256 timestamp = block.timestamp;
+
+        cheats.expectRevert(revertMsg);
+        uint32 index = dlsm.initDataStore(
+            storer,
+            confirmer,
+            durationToInit,
+            blockNumber,
+            totalOperatorsIndex,
+            header
+        );
     }
 
     //commits data store to data layer
@@ -494,7 +526,8 @@ contract TestHelper is EigenLayrDeployer {
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+        //bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
 
 
         uint32 numberOfNonSigners = 0;

@@ -9,11 +9,12 @@ contract DataLayrTests is DSTest, TestHelper {
     function testInitDataStore() public returns (bytes32) {
         uint256 numSigners = 15;
 
+
         //register all the operators
         _registerNumSigners(numSigners);
 
         //change the current timestamp to be in the future 100 seconds and init
-        return _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
+        return _testInitDataStore(block.timestamp + 100, address(this), header).metadata.headerHash;
     }
 
     function testLoopInitDataStore() public {
@@ -24,7 +25,7 @@ contract DataLayrTests is DSTest, TestHelper {
             if(i==0){
                 _registerNumSigners(numSigners);
             }
-            _testInitDataStore(block.timestamp + 100, address(this)).metadata.headerHash;
+            _testInitDataStore(block.timestamp + 100, address(this), header).metadata.headerHash;
         }
         emit log_named_uint("gas", g - gasleft());
     }
@@ -58,70 +59,24 @@ contract DataLayrTests is DSTest, TestHelper {
         bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000009000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
         
         uint256 initTimestamp = block.timestamp + 100;
+        address confirmer  = address(this);
 
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 1e11);
-        cheats.startPrank(storer);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-
-        uint32 blockNumber = uint32(block.number);
-        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
-
-        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
-        cheats.warp(initTimestamp);
-        uint256 timestamp = block.timestamp;
-
-        cheats.expectRevert(bytes("DataLayrServiceManager.initDataStore: Coding ratio is too high"));
-        uint32 index = dlsm.initDataStore(
-            storer,
-            address(this),
-            durationToInit,
-            blockNumber,
-            totalOperatorsIndex,
-            header
-        );
+        _testInitDataStoreExpectRevert(initTimestamp, address(this), header, bytes("DataLayrServiceManager.initDataStore: Coding ratio is too high"));
     }
 
-    function testZeroTotalBytes() public {
-        bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
-        
+    function testZeroTotalBytes() public {        
         uint256 initTimestamp = block.timestamp + 100;
+        address confirmer  = address(this);
 
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 1e11);
-        cheats.startPrank(storer);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+        _testInitDataStoreExpectRevert(initTimestamp, address(this), header, bytes("DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE"));
 
-        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-
-        uint32 blockNumber = uint32(block.number);
-        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
-
-        emit log_named_uint("totalOperatorsIndex", totalOperatorsIndex);
-        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
-        cheats.warp(initTimestamp);
-        uint256 timestamp = block.timestamp;
-
-        cheats.expectRevert(bytes("DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE"));
-        uint32 index = dlsm.initDataStore(
-            storer,
-            address(this),
-            durationToInit,
-            blockNumber,
-            totalOperatorsIndex,
-            header
-        );
     }
 
     function testTotalOperatorIndex(uint32 wrongTotalOperatorsIndex) external {
-        cheats.assume(wrongTotalOperatorsIndex > uint32(dlReg.getLengthOfTotalOperatorsHistory()-1));
+        cheats.assume(wrongTotalOperatorsIndex > uint32(dlReg.getLengthOfTotalOperatorsHistory()) + 1);
         uint256 numSigners = 15;
         //register all the operators
-        _registerNumSigners(numSigners);
-        bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
-        
+        _registerNumSigners(numSigners);        
         uint256 initTimestamp = block.timestamp + 100;
 
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
@@ -132,7 +87,6 @@ contract DataLayrTests is DSTest, TestHelper {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
-        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
@@ -169,6 +123,8 @@ contract DataLayrTests is DSTest, TestHelper {
         RegistrantAPK memory registrantAPK;
         SignerAggSig memory signerAggSig;
 
+        //bytes memory header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
+
 
         nonsignerPK1.xA0 = (uint256(9391974691841703379432258354827183968448857856995465041611595190399280871636));
         nonsignerPK1.xA1 = (uint256(13443635970046784780120024980077142239453332379977521244676409699881477679792));
@@ -196,7 +152,7 @@ contract DataLayrTests is DSTest, TestHelper {
 
         bytes memory data;
         uint256 initTime = 1000000001;
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
 
         // multiple scoped blocks helps fix 'stack too deep' errors
         {
