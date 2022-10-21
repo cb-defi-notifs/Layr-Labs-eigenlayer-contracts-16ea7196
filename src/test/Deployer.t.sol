@@ -71,7 +71,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     bytes32 priv_key_1 = 0x1234567812345678123456781234567812345698123456781234567812348976;
     bytes32 public testEphemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
     bytes32 public testEphemeralKeyHash = keccak256(abi.encode(testEphemeralKey));
-    
+
     string testSocket = "255.255.255.255";
 
     // number of strategies deployed
@@ -93,6 +93,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant eigenTokenId = 0;
     uint256 public constant eigenTotalSupply = 1000e18;
     uint256 nonce = 69;
+    uint256 public gasLimit = 750000;
+
 
     address storer = address(420);
     address pauser = address(69);
@@ -298,7 +300,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             hex"16bb52aa5a1e51cf22ac1926d02e95fdeb411ad48b567337d4c4d5138e84bd5516a6e1e18fb4cd148bd6b7abd46a5d6c54444c11ba5a208b6a8230e86cc8f80828427fd024e29e9a31945cd91433fde23fc9656a44424794a9dfdcafa9275baa06d5b28737bc0a5c21279b3c5309e35287cd72deb204abf6d6c91a0e0b38d0a41ae35db861ea707fc72c6b7756a6139e8cccf15392e59297c21af365de013b4312caa1e05d5aac7c5513fff386248f1955298f11e0e165ed9a20c9beefe2f8a0"
         );
 
-    
         ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
         ephemeralKeyHashes.push(0x1f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
         ephemeralKeyHashes.push(0x3e9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
@@ -314,8 +315,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         ephemeralKeyHashes.push(0xea9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
         ephemeralKeyHashes.push(0x2a9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
         ephemeralKeyHashes.push(0x3f9554986ff07e7ac0ca5d6e2094788cedcbbe5b9398dec9b124b28d0edca976);
-
-
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
@@ -381,7 +380,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);

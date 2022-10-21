@@ -101,16 +101,27 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
     /**
      * @dev This calldata is of the format:
      * <
-     * bytes32 msgHash,
+     * bytes32 msgHash, the taskHash for which disperser is calling checkSignatures
      * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-     * uint32 blockNumber
+     * uint32 blockNumber, the blockNumber at which the task was initated
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
-     * {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner
-     * uint32 apkIndex,
+     * {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
+     * in affine coordinates, arranges as (x_0, x_1), (y_0, y_1)
+     * uint32 apkIndex, the index in the `apkUpdates` array at which we want to load the aggregate public key
      * uint256[4] apk (aggregate public key),
-     * uint256[2] sigma
+     * uint256[2] sigma, the aggregate signature itself
      * >
+     * 
+     * @dev Before signature verification, the function verifies operator stake information.  This includes ensuring that the provided `stakesBlockNumber`
+     * is correct, i.e., ensure that the stake returned from the specified block number is recent enough and that the stake is either the most recent update
+     * for the total stake (or the operator) or latest before the stakesBlockNumber.
+     * The next step involves computing the aggregated pub key of all the operators that are not part of the quorum for this specific taskNumber.
+     * We use a loop to iterate through the `nonSignerPK` array, loading each individual public key from calldata. Before the loop, we isolate the first public key
+     * calldataload - this implementation saves us one `BLS.addJac` operation, which would be performed in the i=0 iteration otherwise.
+     * Within the loop, each non-signer public key is loaded from the calldata into memory.  The most recent staking-related information is retrieved and is subtracted
+     * from the total stake of validators in the quorum.  Then the aggregate public key and the aggregate non-signer public key is subtracted from it.
+     * Finally  the siganture is verified by computing the elliptic curve pairing.
      */
     function checkSignatures(bytes calldata data)
         public
@@ -165,7 +176,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         signedTotals.signedStakeFirstQuorum = localStakeObject.firstQuorumStake;
         signedTotals.totalStakeSecondQuorum = localStakeObject.secondQuorumStake;
         signedTotals.signedStakeSecondQuorum = localStakeObject.secondQuorumStake;
-
 
         assembly {
             //fetch the task number to avoid replay signing on same taskhash for different datastore
@@ -338,8 +348,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                registry.getCorrectApkHash(apkIndex, stakesBlockNumber)
-                    == BLS.hashPubkey(pk),
+                registry.getCorrectApkHash(apkIndex, stakesBlockNumber) == BLS.hashPubkey(pk),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }
@@ -426,7 +435,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
 
         // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
-            // taskHash,
             taskNumberToConfirm,
             pubkeyHashes,
             signedTotals.signedStakeFirstQuorum,

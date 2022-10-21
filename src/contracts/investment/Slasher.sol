@@ -51,10 +51,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         IEigenLayrDelegation _delegation,
         IPauserRegistry _pauserRegistry,
         address _eigenLayrGovernance
-    )
-        external
-        initializer
-    {
+    ) external initializer {
         _initializePauser(_pauserRegistry);
         investmentManager = _investmentManager;
         _addGloballyPermissionedContract(address(investmentManager));
@@ -176,7 +173,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         if (frozenStatus[staker]) {
             return true;
         } else if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegation(staker);
+            address operatorAddress = delegation.delegatedTo(staker);
             return (frozenStatus[operatorAddress]);
         } else {
             return false;

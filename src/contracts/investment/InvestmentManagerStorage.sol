@@ -13,9 +13,11 @@ import "../interfaces/ISlasher.sol";
  */
 abstract contract InvestmentManagerStorage is IInvestmentManager {
     /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
     /// @notice The EIP-712 typehash for the deposit struct used by the contract
-    bytes32 public constant DEPOSIT_TYPEHASH = keccak256("Deposit(address strategy,address token,uint256 amount,uint256 nonce,uint256 expiry)");
+    bytes32 public constant DEPOSIT_TYPEHASH =
+        keccak256("Deposit(address strategy,address token,uint256 amount,uint256 nonce,uint256 expiry)");
     /// @notice EIP-712 Domain separator
     bytes32 public immutable DOMAIN_SEPARATOR;
     // staker => number of signed deposit nonce (used in depositIntoStrategyOnBehalfOf)
@@ -42,16 +44,14 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     mapping(address => mapping(IInvestmentStrategy => uint256)) public investorStratShares;
     // staker => array of strategies in which they have nonzero shares
     mapping(address => IInvestmentStrategy[]) public investorStrats;
-    // staker => hash of withdrawal inputs => timestamps & address related to the withdrawal
-    mapping(address => mapping(bytes32 => WithdrawalStorage)) public queuedWithdrawals;
+    // hash of withdrawal inputs, aka 'withdrawalRoot' => timestamps & address related to the withdrawal
+    mapping(bytes32 => WithdrawalStorage) public queuedWithdrawals;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint256) public numWithdrawalsQueued;
 
     constructor(IEigenLayrDelegation _delegation) {
         //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about met transactions in general
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this))
-        );
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         delegation = _delegation;
     }
 }

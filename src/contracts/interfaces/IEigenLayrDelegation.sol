@@ -22,7 +22,7 @@ interface IEigenLayrDelegation {
 
     function isNotDelegated(address staker) external returns (bool);
 
-    function delegation(address delegator) external view returns (address);
+    function delegatedTo(address delegator) external view returns (address);
 
     function undelegate(address staker) external;
 
@@ -34,8 +34,7 @@ interface IEigenLayrDelegation {
         address operator,
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
-    )
-        external;
+    ) external;
 
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares) external;
 
