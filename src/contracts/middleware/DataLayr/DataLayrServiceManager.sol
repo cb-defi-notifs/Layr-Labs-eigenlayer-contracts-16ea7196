@@ -372,36 +372,25 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         _setFeePerBytePerTime(_feePerBytePerTime);
     }
 
-    /**
-     * @notice increments the number of data stores for the @param duration
-     */
-    function _incrementDataStoresForDuration(uint8 duration) internal {
-        if (duration == 1) {
-            ++dataStoresForDuration.one_duration;
-        }
-        if (duration == 2) {
-            ++dataStoresForDuration.two_duration;
-        }
-        if (duration == 3) {
-            ++dataStoresForDuration.three_duration;
-        }
-        if (duration == 4) {
-            ++dataStoresForDuration.four_duration;
-        }
-        if (duration == 5) {
-            ++dataStoresForDuration.five_duration;
-        }
-        if (duration == 6) {
-            ++dataStoresForDuration.six_duration;
-        }
-        if (duration == 7) {
-            ++dataStoresForDuration.seven_duration;
-        }
-    }
+    // VIEW FUNCTIONS
 
-    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
-        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
-        feePerBytePerTime = _feePerBytePerTime;
+    function verifyDataStoreMetadata(
+        uint8 duration,
+        uint256 timestamp,
+        uint32 index,
+        DataStoreMetadata memory metadata
+    ) 
+        external
+        view
+        returns (bool)
+    {
+        return(
+            getDataStoreHashesForDurationAtTimestamp(
+                duration, 
+                timestamp, 
+                index
+            ) == DataStoreUtils.computeDataStoreHash(metadata)
+        );
     }
 
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
@@ -483,22 +472,38 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         return dataStoresForDuration.latestTime;
     }
 
-    function verifyDataStoreMetadata(
-        uint8 duration,
-        uint256 timestamp,
-        uint32 index,
-        DataStoreMetadata memory metadata
-    ) 
-        external
-        view
-        returns (bool)
-    {
-        return(
-            getDataStoreHashesForDurationAtTimestamp(
-                duration, 
-                timestamp, 
-                index
-            ) == DataStoreUtils.computeDataStoreHash(metadata)
-        );
+    // INTERNAL FUNTIONS
+
+    /**
+     * @notice increments the number of data stores for the @param duration
+     */
+    function _incrementDataStoresForDuration(uint8 duration) internal {
+        if (duration == 1) {
+            ++dataStoresForDuration.one_duration;
+        }
+        if (duration == 2) {
+            ++dataStoresForDuration.two_duration;
+        }
+        if (duration == 3) {
+            ++dataStoresForDuration.three_duration;
+        }
+        if (duration == 4) {
+            ++dataStoresForDuration.four_duration;
+        }
+        if (duration == 5) {
+            ++dataStoresForDuration.five_duration;
+        }
+        if (duration == 6) {
+            ++dataStoresForDuration.six_duration;
+        }
+        if (duration == 7) {
+            ++dataStoresForDuration.seven_duration;
+        }
+    }
+
+
+    function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
+        emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
+        feePerBytePerTime = _feePerBytePerTime;
     }
 }
