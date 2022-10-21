@@ -150,7 +150,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
             "RegistryBase.getTotalOperators: TotalOperator indexHistory index is too high"
         );
+
+    
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
+
         // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,

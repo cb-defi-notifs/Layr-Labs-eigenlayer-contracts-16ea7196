@@ -339,6 +339,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
 
+        emit log_named_uint("signedStakeFirstQuorum", signedTotals.signedStakeFirstQuorum);
+        emit log_named_uint("totalStakeFirstQuorum", signedTotals.totalStakeFirstQuorum);
 
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(
@@ -348,6 +350,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                     >= quorumThresholdBasisPoints,
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
+
+        require(newDsHash==0,"revert idiot");
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
     }
