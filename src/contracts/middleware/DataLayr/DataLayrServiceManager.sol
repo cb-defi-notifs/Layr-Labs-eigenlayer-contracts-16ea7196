@@ -33,11 +33,14 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
-    //quorumThresholdBasisPoints is the minimum percentage of total registered operators that must sign the datastore
+    //quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
     uint16 public quorumThresholdBasisPoints = 9000;
 
-    //adversaryThresholdBasisPoints is the maximum percentage of total registered operators that witholds their chunks
-    /// TODO: Change for prod!
+    /** 
+    * adversaryThresholdBasisPoints is the maximum basis points of total registered 
+    * operators that witholds their chunks before the data can no longer be reconstructed
+    * TODO: Change for prod!
+    */
     uint16 public adversaryThresholdBasisPoints = 4000;
 
     DataStoresForDuration public dataStoresForDuration;
@@ -50,10 +53,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     );
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
+    event QuorumThresholdBasisPointsUpdate(uint16 quorumTHresholdBasisPoints);
+    event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
 
     modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
         require(_quorumThresholdBasisPoints > _adversaryThresholdBasisPoints, 
-            "DataLayrServiceManager.validThresholds: Quorum threshold must be less than adversary");
+            "DataLayrServiceManager.validThresholds: Quorum threshold must be strictly greater than adversary");
         _;
     }
 
@@ -100,6 +105,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         checkValidThresholds(_quorumThresholdBasisPoints, adversaryThresholdBasisPoints) 
     {
         quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
+        emit QuorumThresholdBasisPointsUpdate(quorumThresholdBasisPoints);
     }
 
     function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
@@ -108,6 +114,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         checkValidThresholds(quorumThresholdBasisPoints, _adversaryThresholdBasisPoints) 
     {
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
+        emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
     }
 
     /**
@@ -163,14 +170,18 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
                 /**
                 * @notice coding ratio is numSys/numOperators (where numOperators = numSys + numPar).  This is the minimum 
-                * percentage of all chunks require to reconstruct the data.  
+                *   percentage of all chunks require to reconstruct the data. 
+                *
                 * quorumThresholdBasisPoints is the minimum percentage of total registered operators that must sign the datastore
                 * adversaryThresholdBasisPoints is the maximum percentage of total registered operators that witholds their chunks
-                * adversaryThresholdBasisPoints <  quorumThresholdBasisPoints
+                *    before the data can no longer be reconstructed.
+                *
+                * adversaryThresholdBasisPoints <  quorumThresholdBasisPoints, there cannot be more dishonest signers than actual signers
+                *
                 * quorumThresholdBasisPoints - adversaryThresholdBasisPoints represents the minimum percentage 
-                * of operators that must be honest signers. This value must be greater than or equal to the coding ratio 
-                * in order to ensure the data is available.
-                 */
+                *   of operators that must be honest signers. This value must be greater than or equal to the coding ratio 
+                *   in order to ensure the data is available.
+                */
                 require(quorumThresholdBasisPoints - adversaryThresholdBasisPoints >= DataStoreUtils.getCodingRatio(header, totalOperators), "DataLayrServiceManager.initDataStore: Coding ratio is too high");
                
             }
@@ -183,6 +194,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
             // evaluate the total service fees that msg.sender has to put in escrow for paying out
             // the DataLayr nodes for their service
+
             uint256 fee = calculateFee(totalBytes, feePerBytePerTime, storePeriodLength);
 
 
@@ -494,7 +506,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint32 storePeriodLength)
-        internal
+        public
         view
         returns (uint256)
     {
