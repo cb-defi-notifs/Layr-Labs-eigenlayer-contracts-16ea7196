@@ -73,7 +73,6 @@ contract DataLayrTests is DSTest, TestHelper {
     }
 
     function testTotalOperatorIndex(uint32 wrongTotalOperatorsIndex) external {
-        emit log_named_uint("op index", uint32(dlReg.getLengthOfTotalOperatorsHistory()) + 1);
         uint256 numSigners = 15;
         //register all the operators
         _registerNumSigners(numSigners);        
