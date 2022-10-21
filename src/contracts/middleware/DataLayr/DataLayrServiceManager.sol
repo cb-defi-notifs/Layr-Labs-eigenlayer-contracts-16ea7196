@@ -33,7 +33,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     // only repositoryGovernance can call this, but 'sender' called instead
     error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
 
+    //quorumThresholdBasisPoints is the minimum percentage of total registered operators that must sign the datastore
     uint16 public quorumThresholdBasisPoints = 9000;
+
+    //adversaryThresholdBasisPoints is the maximum percentage of total registered operators that witholds their chunks
     /// TODO: Change for prod!
     uint16 public adversaryThresholdBasisPoints = 4000;
 
@@ -161,8 +164,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 /**
                 * @notice coding ratio is numSys/numOperators (where numOperators = numSys + numPar).  This is the minimum 
                 * percentage of all chunks require to reconstruct the data.  
-                * quorumThresholdBasisPoints is the minimum percentage of total signing set that actually signs the datastore
-                * adversaryThresholdBasisPoints is the maximum percentage of the total signing set that witholds their chunks
+                * quorumThresholdBasisPoints is the minimum percentage of total registered operators that must sign the datastore
+                * adversaryThresholdBasisPoints is the maximum percentage of total registered operators that witholds their chunks
                 * adversaryThresholdBasisPoints <  quorumThresholdBasisPoints
                 * quorumThresholdBasisPoints - adversaryThresholdBasisPoints represents the minimum percentage 
                 * of operators that must be honest signers. This value must be greater than or equal to the coding ratio 
