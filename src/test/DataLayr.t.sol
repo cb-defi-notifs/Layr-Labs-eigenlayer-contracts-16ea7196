@@ -198,7 +198,7 @@ contract DataLayrTests is DSTest, TestHelper {
         uint256 initTime = 1000000001;
         IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
 
-        // scoped block helps fix 'stack too deep' errors
+        // multiple scoped blocks helps fix 'stack too deep' errors
         {
             
             uint32 numberOfNonSigners = 2;
