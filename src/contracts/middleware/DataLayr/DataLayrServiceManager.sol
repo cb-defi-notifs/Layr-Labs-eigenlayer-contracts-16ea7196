@@ -48,6 +48,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
 
+    modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
+        require(_quorumThresholdBasisPoints > _adversaryThresholdBasisPoints, 
+            "DataLayrServiceManager.validThresholds: Quorum threshold must be less than adversary");
+        _;
+    }
+
     constructor(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
@@ -58,6 +64,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     )
         DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
+        checkValidThresholds(quorumThresholdBasisPoints, adversaryThresholdBasisPoints)
     {
         feePerBytePerTime = _feePerBytePerTime;
         dataStoresForDuration.dataStoreId = 1;
@@ -82,6 +89,22 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
+    }
+
+    function setQuorumThresholdBasisPoints(uint16 _quorumThresholdBasisPoints) 
+        external 
+        onlyRepositoryGovernance 
+        checkValidThresholds(_quorumThresholdBasisPoints, adversaryThresholdBasisPoints) 
+    {
+        quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
+    }
+
+    function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
+        external 
+        onlyRepositoryGovernance
+        checkValidThresholds(quorumThresholdBasisPoints, _adversaryThresholdBasisPoints) 
+    {
+        adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
     }
 
     /**

@@ -19,15 +19,17 @@ library DataStoreUtils {
 
 
     function getTotalBytes(bytes calldata header, uint32 totalChunks) internal pure returns(uint256) {
-        uint256 numCoefficients = totalChunks;
+        uint256 numCoefficients;
         assembly {
-            //totalBytes = totalChunks * (degree + 1)
+            //numCoefficients = totalChunks * (degree + 1)
             //NOTE: degree + 1 is the number of coefficients
-            numCoefficients := mul(numCoefficients, add(shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree))), 1))
+            numCoefficients := mul(totalChunks, add(shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree))), 1))
         }
         return numCoefficients * BYTES_PER_COEFFICIENT;
     }
-
+    /// @param header of the datastore that the coding ratio is being retrieved for
+    /// @param totalChunks the total number of chunks expected in this datastore
+    /// @return codingRatio of the datastore in basis points
     function getCodingRatio(bytes calldata header, uint32 totalChunks) internal pure returns(uint16) {
         uint32 codingRatio;
         assembly {
