@@ -351,8 +351,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
-        require(newDsHash==0,"revert idiot");
-
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
     }
 
