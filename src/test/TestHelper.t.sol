@@ -252,8 +252,9 @@ contract TestHelper is EigenLayrDeployer {
     function _getCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        signerInfo memory signers,
-        nonSignerInfo memory nonsigners,
+        RegistrantAPK memory registrantAPK,
+        SignerAggSig memory signerAggSig,
+        NonSignerPK memory nonSignerPK,
         uint32 blockNumber,
         uint32 dataStoreId
     )
@@ -281,22 +282,22 @@ contract TestHelper is EigenLayrDeployer {
             blockNumber,
             dataStoreId,
             numberOfNonSigners,
-            nonsigners.xA0,
-            nonsigners.xA1,
-            nonsigners.yA0,
-            nonsigners.yA1
+            nonSignerPK.xA0,
+            nonSignerPK.xA1,
+            nonSignerPK.yA0,
+            nonSignerPK.yA1
         );
 
         data = abi.encodePacked(
             data,
             uint32(0),
             uint32(dlReg.getApkUpdatesLength() - 1),
-            signers.apk0,
-            signers.apk1,
-            signers.apk2,
-            signers.apk3,
-            signers.sigma0,
-            signers.sigma1
+            registrantAPK.apk0,
+            registrantAPK.apk1,
+            registrantAPK.apk2,
+            registrantAPK.apk3,
+            signerAggSig.sigma0,
+            signerAggSig.sigma1
         );
 
         return data;
