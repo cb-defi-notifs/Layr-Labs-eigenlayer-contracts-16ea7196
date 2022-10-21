@@ -507,7 +507,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint32 storePeriodLength)
         public
-        view
+        pure
         returns (uint256)
     {
         return uint256(totalBytes * feePerBytePerTime * storePeriodLength);

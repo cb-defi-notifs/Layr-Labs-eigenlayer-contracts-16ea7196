@@ -61,14 +61,14 @@ contract DataLayrTests is DSTest, TestHelper {
         uint256 initTimestamp = block.timestamp + 100;
         address confirmer  = address(this);
 
-        _testInitDataStoreExpectRevert(initTimestamp, address(this), header, bytes("DataLayrServiceManager.initDataStore: Coding ratio is too high"));
+        _testInitDataStoreExpectRevert(initTimestamp, confirmer, header, bytes("DataLayrServiceManager.initDataStore: Coding ratio is too high"));
     }
 
     function testZeroTotalBytes() public {        
         uint256 initTimestamp = block.timestamp + 100;
         address confirmer  = address(this);
 
-        _testInitDataStoreExpectRevert(initTimestamp, address(this), header, bytes("DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE"));
+        _testInitDataStoreExpectRevert(initTimestamp, confirmer, header, bytes("DataLayrServiceManager.initDataStore: totalBytes < MIN_STORE_SIZE"));
 
     }
 
@@ -91,10 +91,9 @@ contract DataLayrTests is DSTest, TestHelper {
 
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
-        uint256 timestamp = block.timestamp;
 
         cheats.expectRevert();
-        uint32 index = dlsm.initDataStore(
+        dlsm.initDataStore(
             storer,
             address(this),
             durationToInit,
@@ -102,8 +101,6 @@ contract DataLayrTests is DSTest, TestHelper {
             wrongTotalOperatorsIndex,
             header
         );
-
-
     }
 
      //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.

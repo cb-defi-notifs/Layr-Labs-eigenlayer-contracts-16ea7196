@@ -41,7 +41,7 @@ library DataStoreUtils {
         return uint16(codingRatio);
     }
 
-    function getDegree(bytes calldata header, uint32 totalChunks) internal pure returns (uint32) {
+    function getDegree(bytes calldata header) internal pure returns (uint32) {
         uint32 degree;
         assembly {
             degree := shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree)))

@@ -145,7 +145,7 @@ contract TestHelper is EigenLayrDeployer {
         }
         uint256 totalBytes = totalOperators * (degree + 1) * 31;
         
-        uint256 fee = dlsm.calculateFee(totalBytes, 1, durationToInit);
+        uint256 fee = dlsm.calculateFee(totalBytes, 1, uint32(durationToInit*DURATION_SCALE));
 
 
 
@@ -187,7 +187,6 @@ contract TestHelper is EigenLayrDeployer {
         bytes memory revertMsg
     )
         internal
-        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
     {        
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
@@ -202,10 +201,9 @@ contract TestHelper is EigenLayrDeployer {
 
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
-        uint256 timestamp = block.timestamp;
 
         cheats.expectRevert(revertMsg);
-        uint32 index = dlsm.initDataStore(
+        dlsm.initDataStore(
             storer,
             confirmer,
             durationToInit,
