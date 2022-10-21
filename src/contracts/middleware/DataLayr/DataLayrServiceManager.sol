@@ -183,7 +183,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
             // evaluate the total service fees that msg.sender has to put in escrow for paying out
             // the DataLayr nodes for their service
-            uint256 fee = (totalBytes * feePerBytePerTime) * storePeriodLength;
+            uint256 fee = calculateFee(totalBytes, feePerBytePerTime, storePeriodLength);
 
 
             // require that disperser has sent enough fees to this contract to pay for this datastore.
@@ -491,5 +491,13 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             ++dataStoresForDuration.seven_duration;
         }
+    }
+
+    function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint32 storePeriodLength)
+        internal
+        view
+        returns (uint256)
+    {
+        return uint256(totalBytes * feePerBytePerTime * storePeriodLength);
     }
 }
