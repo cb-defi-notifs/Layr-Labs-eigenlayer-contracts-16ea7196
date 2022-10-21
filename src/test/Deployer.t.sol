@@ -394,7 +394,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)
         internal
-        
+        pure
         returns (uint256)
     {
         return uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
