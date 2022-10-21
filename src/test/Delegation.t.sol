@@ -463,7 +463,6 @@ contract DelegationTests is TestHelper {
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
         ) internal {
         cheats.startPrank(withdrawerAndNonce.withdrawer);
-        emit log_uint(strategyArray.length);
 
         for (uint i = 0; i < strategyArray.length; i++) {
             balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));

@@ -314,16 +314,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //verify consistency of signed data with stored data
         bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
 
-        // emit log("************************************************************");
-        // emit log_named_bytes32("headerHash", searchData.metadata.headerHash);
-        // emit log_named_uint("durationDataStoreId", searchData.metadata.durationDataStoreId);
-        // emit log_named_uint("globalDataStoreId", searchData.metadata.globalDataStoreId);
-        // emit log_named_uint("blockNumber", searchData.metadata.blockNumber);
-        // emit log_named_uint("fee", searchData.metadata.fee);
-        // emit log_named_address("confirmer", searchData.metadata.confirmer);
-        // emit log_named_bytes32("signatoryRecordHash", searchData.metadata.signatoryRecordHash);
-
-        // emit log_named_bytes32("dsHash", dsHash);
 
         require(
             dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
@@ -338,9 +328,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         //storing new hash
         dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] = newDsHash;
 
-
-        emit log_named_uint("signedStakeFirstQuorum", signedTotals.signedStakeFirstQuorum);
-        emit log_named_uint("totalStakeFirstQuorum", signedTotals.totalStakeFirstQuorum);
 
         // check that signatories own at least a threshold percentage of the two stake sets (i.e. eth & eigen) implying quorum has been achieved
         require(

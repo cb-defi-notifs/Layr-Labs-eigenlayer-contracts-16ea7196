@@ -395,13 +395,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         
         returns (uint256)
     {
-        
-        //  emit log_named_uint("totalBytes", totalBytes);
-        //     emit log_named_uint("duration", duration);
-        //     emit log_named_uint("DURATION_SCALE", DURATION_SCALE);
-        //     emit log_named_uint("feePerBytePerTime", feePerBytePerTime);
         return uint256(totalBytes * feePerBytePerTime * duration * DURATION_SCALE);
-
     }
 
     function testDeploymentSuccessful() public {

@@ -271,6 +271,7 @@ contract TestHelper is EigenLayrDeployer {
          * uint32 dataStoreId
          * uint32 numberOfNonSigners,
          * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 stakeIndex
          * uint32 apkIndex,
          * uint256[4] apk,
          * uint256[2] sigma
@@ -517,24 +518,6 @@ contract TestHelper is EigenLayrDeployer {
          * uint256[2] sigma
          * >
          */
-
-        // emit log("***********************************************************************");
-        // emit log_named_uint("globalDataStoreId", searchData.metadata.globalDataStoreId);
-        // emit log_named_bytes32("headerHash",  searchData.metadata.headerHash);
-        // emit log_named_uint("duration", searchData.duration);
-        // emit log_named_uint("initTime", initTime);
-        // emit log_named_uint("index", searchData.index);
-        // bytes memory msgBytes =  abi.encodePacked(
-        //                         searchData.metadata.globalDataStoreId,
-        //                         searchData.metadata.headerHash,
-        //                         searchData.duration,
-        //                         initTime,
-        //                         searchData.index
-        //                     )
-        //                 ;
-        // emit log_named_bytes("msgBytes", msgBytes);
-
-
 
         bytes memory data = abi.encodePacked(
             keccak256(
