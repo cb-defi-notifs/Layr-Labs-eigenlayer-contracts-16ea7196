@@ -334,23 +334,22 @@ contract DelegationTests is TestHelper {
         _testRegisterBLSPubKey(0);
         _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
 
-        nonSignerInfo memory nonsigner;
-        signerInfo memory signer;
+        NonSignerPK memory nonsignerPK;
+        RegistrantAPK memory registrantAPK;
+        SignerAggSig memory signerAggSig;
 
-        nonsigner.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
+        nonsignerPK.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
+        nonsignerPK.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
+        nonsignerPK.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
+        nonsignerPK.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
 
-        nonsigner.xA1 = (uint256(10281853605827367652226404263211738087634374304916354347419537904612128636245));
-
-        nonsigner.yA0 = (uint256(3091447672609454381783218377241231503703729871039021245809464784750860882084));
-
-        nonsigner.yA1 = (uint256(18210007982945446441276599406248966847525243540006051743069767984995839204266));
-
-        signer.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
-        signer.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
-        signer.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
-        signer.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
-        signer.sigma0 = uint256(7232102842299801988888616268506476902050501317623869691846247376690344395462);
-        signer.sigma1 = uint256(14957250584972173579780704932503635695261143933757715744951524340217507753217);
+        registrantAPK.apk0 = uint256(20820493588973199354272631301248587752629863429201347184003644368113679196121);
+        registrantAPK.apk1 = uint256(18507428821816114421698399069438744284866101909563082454551586195885282320634);
+        registrantAPK.apk2 = uint256(1263326262781780932600377484793962587101562728383804037421955407439695092960);
+        registrantAPK.apk3 = uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672);
+        
+        signerAggSig.sigma0 = uint256(20617740300811009543012419127686924884246271121030353570695308863131407887373);
+        signerAggSig.sigma1 = uint256(11071552465919207288683976891087172465162060876240494884992829947249670282179);
 
         uint32 numberOfSigners = 15;
         _testRegisterSigners(numberOfSigners, false);
@@ -358,7 +357,7 @@ contract DelegationTests is TestHelper {
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
             uint32 numberOfNonSigners = 1;
             uint32 dataStoreId = dlsm.taskNumber() - 1;
 
@@ -373,8 +372,9 @@ contract DelegationTests is TestHelper {
                     )
                 ),
                 numberOfNonSigners,
-                signer,
-                nonsigner,
+                registrantAPK,
+                signerAggSig,
+                nonsignerPK,
                 searchData.metadata.blockNumber,
                 dataStoreId
             );
@@ -463,7 +463,6 @@ contract DelegationTests is TestHelper {
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
         ) internal {
         cheats.startPrank(withdrawerAndNonce.withdrawer);
-        emit log_uint(strategyArray.length);
 
         for (uint i = 0; i < strategyArray.length; i++) {
             balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));

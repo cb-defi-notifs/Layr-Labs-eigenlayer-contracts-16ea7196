@@ -55,10 +55,10 @@ interface IDataLayrServiceManager is IServiceManager {
     function initDataStore(
         address feePayer,
         address confirmer,
-        bytes calldata header,
         uint8 duration,
-        uint32 totalBytes,
-        uint32 blockNumber
+        uint32 blockNumber,
+        uint32 totalOperatorsIndex,
+        bytes calldata header
     )
         external
         returns (uint32);

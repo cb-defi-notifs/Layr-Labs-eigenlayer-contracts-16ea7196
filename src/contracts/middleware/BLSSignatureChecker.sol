@@ -107,6 +107,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
      * uint32 taskNumberToConfirm
      * uint32 numberOfNonSigners,
      * {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner
+     * uint32 stakeIndex
      * uint32 apkIndex,
      * uint256[4] apk (aggregate public key),
      * uint256[2] sigma
