@@ -73,13 +73,11 @@ contract EigenPod is IEigenPod, Initializable {
 
     function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
-        bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
-        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "EigenPod.verifyCorrectWithdrawalCredentials: provided beaconStateRoot not consistent with oracle");
-
-
+        //TODO: tailor this to production oracle
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
@@ -104,12 +102,11 @@ contract EigenPod is IEigenPod, Initializable {
 
     function verifyBalanceUpdate(
         bytes calldata pubkey, 
-        bytes32 beaconStateRoot, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
-        require(beaconStateRoot == eigenPodManager.getBeaconChainStateRoot(), "EigenPod.verifyBalanceUpdate: provided beaconStateRoot not consistent with oracle");
-
+        //TODO: tailor this to production oracle
+        bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
         // get merklizedPubkey
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.ACTIVE, "EigenPod.verifyBalanceUpdate: Validator not active");

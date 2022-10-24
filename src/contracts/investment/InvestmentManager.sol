@@ -104,7 +104,7 @@ contract InvestmentManager is
         returns (uint256)
     {
         //make sure that msg.sender has amount beacon chain ETH to deposit
-        eigenPodManager.depositBalanceIntoEigenLayer(msg.sender, uint128(amount));
+        eigenPodManager.depositBeaconChainETH(msg.sender, uint128(amount));
         //add shares for the enshrined beacon chain ETH strategy
         _addShares(msg.sender, beaconChainETHStrategy, amount);
         return amount;
@@ -353,7 +353,7 @@ contract InvestmentManager is
                 
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
-                    eigenPodManager.withdrawFromEigenLayer(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                    eigenPodManager.withdrawRestakedBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     queuedWithdrawal.strategies[i].withdraw(

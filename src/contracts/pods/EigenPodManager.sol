@@ -103,7 +103,7 @@ contract EigenPodManager is IEigenPodManager {
      * @param podOwner The owner of the pod whose balance must be restaked.
      * @param amount The amount of beacon chain ETH to restake.
      */
-    function depositBalanceIntoEigenLayer(address podOwner, uint128 amount) external onlyInvestmentManager {
+    function depositBeaconChainETH(address podOwner, uint128 amount) external onlyInvestmentManager {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
         require(pods[podOwner].balance + amount <= pods[podOwner].stakedBalance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
@@ -115,7 +115,7 @@ contract EigenPodManager is IEigenPodManager {
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      */
-    function withdrawFromEigenLayer(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
         pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
@@ -126,12 +126,11 @@ contract EigenPodManager is IEigenPodManager {
      * @notice This function is to allow a staker, who has repointed their credentials to an EigenPod
      * but has never restaked with EigenLayer, to withdraw their beaconChainETH
      */
-    function withdrawNonRestakedETH(address podOwner, address recipient, uint256 amount) external {
-
+    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external {
         //check that the podOwner is not actually delegated in EigenLayer
         require(!investmentManager.delegation().isDelegated(podOwner), "EigenPodManager.withdrawNonRestakedETH: podOwner is delegated to EigenLayer");
         
-        //check that depositor isnot delegated delegation.isnotDelefated
+        //check that depositor is not delegated delegation.isnotDelefated
         EigenPodInfo memory podInfo = pods[podOwner];
 
          //subtract withdrawn amount from stake and balance
