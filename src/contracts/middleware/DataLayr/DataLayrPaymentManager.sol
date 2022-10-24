@@ -86,7 +86,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
 
         // calculate the true amount deserved
-        uint120 trueAmount;
+        uint96 trueAmount;
 
         //2^32 is an impossible index because it is more than the max number of registrants
         //the challenger marks 2^32 as the index to show that operator has not signed
@@ -133,7 +133,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
              *  share of the stake.  Then we multiply by quorumBips/MAX_BIPS to get
              *  the percentage of the operator's fee for that quorum
             */
-            trueAmount = uint120(
+            trueAmount = uint96(
                 (
                     (
                         (
