@@ -87,11 +87,12 @@ library BeaconChainProofs {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) internal pure {
-        //offset 32 bytes for validatorTreeRoot
         uint256 pointer;
         bool valid;
         //verify that the validatorTreeRoot is within the top level beacon state tree
         bytes32 validatorTreeRoot = proofs.toBytes32(0);
+        //offset 32 bytes for validatorTreeRoot
+        pointer += 32;
         valid = Merkle.checkMembershipSha256(
             validatorTreeRoot,
             BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
