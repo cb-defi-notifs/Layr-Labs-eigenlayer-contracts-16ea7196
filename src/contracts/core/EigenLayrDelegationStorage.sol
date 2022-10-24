@@ -45,5 +45,6 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+        
     }
 }

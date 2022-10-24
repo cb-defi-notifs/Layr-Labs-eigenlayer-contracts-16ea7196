@@ -16,6 +16,14 @@ contract DelegationTests is TestHelper {
     uint256[] priorTotalShares;
     uint256[] strategyTokenBalance;
 
+    uint256 public PRIVATE_KEY = 420;
+
+    bytes32 public constant DELEGATION_TYPEHASH =
+        keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
+    bytes32 public constant DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+    bytes32 public immutable DOMAIN_SEPARATOR = hex"39e64f9d479d92dcc3ebe32cb612c3939dd8c965babe02ef477503a52c1de8cb";
+
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
         IInvestmentStrategy[] delegatorStrategies;
@@ -102,6 +110,58 @@ contract DelegationTests is TestHelper {
                 "ETH operatorShares not updated correctly"
             );
         }
+    }
+
+    function testDelegateToBySignature(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(staker)
+    {
+        cheats.assume(staker != operator);
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+    
+
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+
+       
+
+        //making additional deposits to the investment strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testWethDeposit(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+
+        uint256 nonce = delegation.nonces(staker) + 1;
+        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, 0));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+
+        emit log_named_bytes32("DELEGATION_TYPEHASH",DELEGATION_TYPEHASH);
+        emit log_named_address("staker",staker);
+        emit log_named_address("operator",operator);
+        emit log_named_uint("nonce",nonce);
+        emit log_named_uint("expiry",0);
+        emit log_named_bytes32("DOMAIN_SEPARATOR",DOMAIN_SEPARATOR);
+       emit log_named_bytes32("structHash",structHash);
+
+
+
+        
+
+        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
+
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            s = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+        }
+        
+        bytes32 vs;
+        if(v == 28){
+            vs = bytes32(uint256(s) ^ (1 << 255));
+        }
+
+        delegation.delegateToBySignature(staker, operator, 0, v, r, s);
+
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
