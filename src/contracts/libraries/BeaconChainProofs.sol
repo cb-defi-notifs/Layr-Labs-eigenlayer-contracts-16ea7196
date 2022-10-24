@@ -87,6 +87,7 @@ library BeaconChainProofs {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) internal pure {
+        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
         uint256 pointer;
         bool valid;
         //verify that the validatorTreeRoot is within the top level beacon state tree
@@ -105,6 +106,8 @@ library BeaconChainProofs {
         // verify the proof of the validator metadata root against the merkle root of the entire validator tree
         //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
         bytes32 validatorRoot = proofs.toBytes32(pointer);
+        //make sure that the provided validatorFields are consistent with the proven leaf
+        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
         //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
         //verify that the validatorRoot is within the validator tree
@@ -114,11 +117,6 @@ library BeaconChainProofs {
             validatorTreeRoot,
             proofs.slice(pointer, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
         );
-        //offset another 4 bytes for the length of the validatorIndex
-        pointer += 4;
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
-        require(validatorFields.length == 2**VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
-        //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
     }
 }
