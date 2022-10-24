@@ -3,6 +3,7 @@
 ## Table of Contents  
 * [Introduction](#introduction)
 * [Installation](#installation)
+* [Summary of Using EigenLayer](docs/EigenLayer-flows-intro.md)
 * [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
 * [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
 * [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
