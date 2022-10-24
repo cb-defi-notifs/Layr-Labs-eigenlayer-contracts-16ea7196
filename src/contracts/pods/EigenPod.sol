@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "../libraries/BeaconChainProofs.sol";
 import "../libraries/BytesLib.sol";
+import "../libraries/Endian.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
@@ -92,7 +93,7 @@ contract EigenPod is IEigenPod, Initializable {
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         //update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
@@ -121,7 +122,7 @@ contract EigenPod is IEigenPod, Initializable {
         //require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
-        uint64 validatorBalance = fromLittleEndianUint64(validatorFields[2]);
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         uint64 prevValidatorBalance = validators[merklizedPubkey].balance;
         //update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
@@ -164,20 +165,4 @@ contract EigenPod is IEigenPod, Initializable {
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
-
-    //copied from https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code, thanks
-    function fromLittleEndianUint64(bytes32 num) internal pure returns (uint64) {
-        uint64 v = uint64(uint256(num >> 192));
-        //if we number the bytes (1, 2, 3, 4, 5, 6, 7, 8)
-        v = ((v & 0x00ff00ff00ff00ff) << 8) | ((v & 0xff00ff00ff00ff00) >> 8);
-        // (2, 0, 4, 0, 6, 0, 8, 0) | (0, 1, 0, 3, 0, 5, 0, 7)
-        // = (2, 1, 4, 3, 6, 5, 8, 7)
-        v = ((v & 0x0000ffff0000ffff) << 16) | ((v & 0xffff0000ffff0000) >> 16);
-        // (4, 3, 0, 0, 8, 7, 0, 0) | (0, 0, 2, 1, 0, 0, 6, 5)
-        // = (4, 3, 2, 1, 8, 7, 6, 5)
-        // then
-        // = (8, 7, 6, 5, 4, 3, 2, 1)
-        return (v << 32) | (v >> 32);
-    }
-
 }

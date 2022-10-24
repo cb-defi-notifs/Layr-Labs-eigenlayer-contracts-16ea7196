@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
  * @title Small library for checking Merkle proofs.
  * @author Original authorship of this code is unclear. This implementation is adapted from Polygon's.
  * See https://github.com/maticnetwork/contracts/commits/main/contracts/common/lib/Merkle.sol
- * with additions
+ * with added functions for sha256 support for Ethereum Consensus Layer Merkleization.
  */
 library Merkle {
     /**
