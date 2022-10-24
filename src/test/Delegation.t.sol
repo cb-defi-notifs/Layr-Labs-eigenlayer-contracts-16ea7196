@@ -18,6 +18,10 @@ contract DelegationTests is TestHelper {
 
     uint256 public PRIVATE_KEY = 420;
 
+    uint256 public SECP256K1N_MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+    uint256 public SECP256K1N_MODULUS_HALF = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
+
+
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -112,12 +116,10 @@ contract DelegationTests is TestHelper {
         }
     }
 
-    function testDelegateToBySignature(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+    function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
         public
         fuzzedAddress(operator)
-        fuzzedAddress(staker)
     {
-        cheats.assume(staker != operator);
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
     
@@ -126,6 +128,8 @@ contract DelegationTests is TestHelper {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
 
+        address staker = cheats.addr(PRIVATE_KEY);
+
        
 
         //making additional deposits to the investment strategies
@@ -133,34 +137,26 @@ contract DelegationTests is TestHelper {
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
-        uint256 nonce = delegation.nonces(staker) + 1;
+        emit log_named_address("staker",staker);
+        uint256 nonce = delegation.nonces(staker);
         bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, 0));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
 
-        emit log_named_bytes32("DELEGATION_TYPEHASH",DELEGATION_TYPEHASH);
-        emit log_named_address("staker",staker);
-        emit log_named_address("operator",operator);
-        emit log_named_uint("nonce",nonce);
-        emit log_named_uint("expiry",0);
-        emit log_named_bytes32("DOMAIN_SEPARATOR",DOMAIN_SEPARATOR);
-       emit log_named_bytes32("structHash",structHash);
-
-
-
-        
 
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
 
-        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
-            s = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+
+        if (uint256(s) > SECP256K1N_MODULUS_HALF) {
+            s = bytes32(SECP256K1N_MODULUS - uint256(s));
         }
         
-        bytes32 vs;
+        bytes32 vs = s;
         if(v == 28){
             vs = bytes32(uint256(s) ^ (1 << 255));
         }
 
-        delegation.delegateToBySignature(staker, operator, 0, v, r, s);
+
+        delegation.delegateToBySignature(staker, operator, 0, r, vs);
 
     }
 

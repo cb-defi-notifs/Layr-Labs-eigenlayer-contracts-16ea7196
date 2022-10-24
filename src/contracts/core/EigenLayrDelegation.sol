@@ -84,7 +84,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @notice Delegates from `staker` to `operator`.
      * @dev requires that r, vs are a valid ECSDA signature from `staker` indicating their intention for this action
      */
-    function delegateToBySignature(address staker, address operator, uint256 expiry, uint8 v, bytes32 r, bytes32 s)
+    function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
         external
         whenNotPaused
     {
@@ -93,16 +93,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
         //check validity of signature
-        emit log("***********************************************");
-        emit log_named_bytes32("DELEGATION_TYPEHASH",DELEGATION_TYPEHASH);
-        emit log_named_address("staker",staker);
-        emit log_named_address("operator",operator);
-        emit log_named_uint("nonce",nonces[staker]);
-        emit log_named_uint("expiry",expiry);
-        emit log_named_bytes32("DOMAIN_SEPARATOR",DOMAIN_SEPARATOR);
-       emit log_named_bytes32("structHash",structHash);
 
-        address recoveredAddress = ECDSA.recover(digestHash, v, r, s);
+        address recoveredAddress = ECDSA.recover(digestHash, r, vs);
+
         require(recoveredAddress == staker, "EigenLayrDelegation.delegateToBySignature: sig not from staker");
         _delegate(staker, operator);
     }
