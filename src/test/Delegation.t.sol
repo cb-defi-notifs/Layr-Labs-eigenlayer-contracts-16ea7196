@@ -71,9 +71,6 @@ contract DelegationTests is TestHelper {
         }
 
         uint256[3] memory amountsBefore;
-        // uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
-        // uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
-        // uint256 wethStratSharesBefore = delegation.operatorShares(operator, wethStrat);
         amountsBefore[0] = dlReg.weightOfOperator(operator, 0);
         amountsBefore[1] = dlReg.weightOfOperator(operator, 1);
         amountsBefore[2] = delegation.operatorShares(operator, wethStrat);
@@ -127,17 +124,13 @@ contract DelegationTests is TestHelper {
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
-
         address staker = cheats.addr(PRIVATE_KEY);
-
-       
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
-        emit log_named_address("staker",staker);
         uint256 nonce = delegation.nonces(staker);
         bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, 0));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
@@ -149,15 +142,14 @@ contract DelegationTests is TestHelper {
         if (uint256(s) > SECP256K1N_MODULUS_HALF) {
             s = bytes32(SECP256K1N_MODULUS - uint256(s));
         }
-        
+
         bytes32 vs = s;
         if(v == 28){
             vs = bytes32(uint256(s) ^ (1 << 255));
         }
-
-
+        
         delegation.delegateToBySignature(staker, operator, 0, r, vs);
-
+        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
