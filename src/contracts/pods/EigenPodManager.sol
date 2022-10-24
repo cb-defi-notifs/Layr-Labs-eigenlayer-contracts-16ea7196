@@ -36,8 +36,8 @@ contract EigenPodManager is IEigenPodManager {
 
     event BeaconOracleUpdate(address newOracleAddress);
 
-    modifier onlyEigenPod(address podOwner, address pod) {
-        require(address(pods[podOwner].pod) == pod, "EigenPodManager.onlyEigenPod: not a pod");
+    modifier onlyEigenPod(address podOwner) {
+        require(address(pods[podOwner].pod) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -85,11 +85,11 @@ contract EigenPodManager is IEigenPodManager {
      * @param balanceToRemove The balance to remove before increasing, used when updating a validators balance.
      * @param balanceToAdd The balance to add after decreasing, used when updating a validators balance.
      */
-    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner, msg.sender) {
+    function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner) {
         uint128 newBalance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
         pods[podOwner].balance = newBalance;
         //if the balance updates shows that the pod owner has more deposits into EigenLayer than beacon chain balance, freeze them
-        //we also add the balance of of the eigenPod in case withdrawals have occured to validator balances have been set to 0
+        //we also add the balance of the eigenPod in case withdrawals have occured so validator balances have been set to 0 on the beacon chain
         //the overall law is 
         ///  the balance of all their validators = balance of the withdrawal address + balance given from beacon chain state root
         //TODO: add EigenPodManager as globally permissioned slashing contract
@@ -121,7 +121,6 @@ contract EigenPodManager is IEigenPodManager {
         pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
         podInfo.pod.withdrawETH(recipient, amount);
     }
-
 
     /**
      * @notice This function is to allow a staker, who has repointed their credentials to an EigenPod
