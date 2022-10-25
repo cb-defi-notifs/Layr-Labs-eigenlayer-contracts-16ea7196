@@ -126,10 +126,9 @@ contract EigenPodManager is IEigenPodManager {
      * @param amount The amount of ETH to withdraw.
      */
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
-        EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
-        pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
-        getPod(podOwner).withdrawETH(recipient, amount);
+        pods[podOwner].stakedBalance = pods[podOwner].stakedBalance - uint128(amount);
+        getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
     }
 
     /**

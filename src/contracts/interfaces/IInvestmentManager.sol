@@ -177,6 +177,7 @@ interface IInvestmentManager {
 
     function slashBeaconChainETH(
         address slashedAddress,
+        address recipient,
         uint256 beaconChainETHStrategyIndex,
         uint256 shareAmount
     )

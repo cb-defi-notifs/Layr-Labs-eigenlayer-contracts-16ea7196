@@ -493,13 +493,14 @@ contract InvestmentManager is
     //TODO: standardise whether we use amount or shareAmount acorss the board
     function slashBeaconChainETH(
         address slashedAddress,
+        address recipient,
         uint256 beaconChainETHStrategyIndex,
         uint256 shareAmount
     )
         external
         whenNotPaused
+        onlyOwner
         onlyFrozen(slashedAddress)
-        onlyEigenPod(slashedAddress, msg.sender)
         nonReentrant
     {
         // the internal function will return 'true' in the event the strategy was
@@ -508,6 +509,9 @@ contract InvestmentManager is
 
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, beaconChainETHStrategy, shareAmount);
+
+        //withdraw the beaconChainETH to the recipient
+        eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmount);
     }
     /**
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
