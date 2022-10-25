@@ -356,8 +356,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         
 
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
-        uint endGas = gasleft();
-        emit log_named_uint("gas", startGas - endGas);
+
     }
 
     // called in the event of challenge resolution
