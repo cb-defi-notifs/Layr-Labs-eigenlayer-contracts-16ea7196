@@ -96,11 +96,13 @@ contract EigenPodManager is IEigenPodManager {
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external onlyEigenPod(podOwner) {
         uint128 newBalance = pods[podOwner].balance - balanceToRemove + balanceToAdd;
         pods[podOwner].balance = newBalance;
-        //if the balance updates shows that the pod owner has more deposits into EigenLayer than beacon chain balance, freeze them
-        //we also add the balance of the eigenPod in case withdrawals have occured so validator balances have been set to 0 on the beacon chain
-        //the overall law is 
-        //  the amount InvestmentManager thinks is restaked <= balance of the withdrawal address + balance given from beacon chain state root
-        //if the investment manager ever thinks there is more restaked than there is, a freezing event is triggered
+        /**
+        * if the balance updates shows that the pod owner has more deposits into EigenLayer than beacon chain balance, freeze them
+        * we also add the balance of the eigenPod in case withdrawals have occured so validator balances have been set to 0 
+        * on the beacon chain the overall law is the amount InvestmentManager thinks is restaked <= balance of the withdrawal 
+        * address + balance given from beacon chain state root if the investment manager ever thinks there is more 
+        * restaked than there is, a freezing event is triggered
+        */
         //TODO: add EigenPodManager as globally permissioned slashing contract
         if(pods[podOwner].stakedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
