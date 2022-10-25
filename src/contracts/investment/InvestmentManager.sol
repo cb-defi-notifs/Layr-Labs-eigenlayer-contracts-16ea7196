@@ -97,16 +97,16 @@ contract InvestmentManager is
     /**
      * @notice Restakes all the ETH on msg.sender's EigenPod into EigenLayer
      */
-    function restakeBeaconChainETH(uint256 amount)
+    function restakeBeaconChainETH(address staker, uint256 amount)
         external
-        onlyNotFrozen(msg.sender)
+        onlyNotFrozen(staker)
         nonReentrant
         returns (uint256)
     {
         //make sure that msg.sender has amount beacon chain ETH to deposit
         eigenPodManager.restakeBeaconChainETH(msg.sender, uint128(amount));
         //add shares for the enshrined beacon chain ETH strategy
-        _addShares(msg.sender, beaconChainETHStrategy, amount);
+        _addShares(staker, beaconChainETHStrategy, amount);
         return amount;
     }
 
