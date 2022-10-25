@@ -490,7 +490,6 @@ contract InvestmentManager is
     }
 
     /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
-    //TODO: standardise whether we use amount or shareAmount acorss the board
     function slashBeaconChainETH(
         address slashedAddress,
         address recipient,
