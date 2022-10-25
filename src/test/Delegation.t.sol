@@ -171,7 +171,6 @@ contract DelegationTests is TestHelper {
         uint256 nonceBefore = delegation.nonces(staker);
         bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
-         //(uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
 
         bytes32 vs = getVSfromVandS(v, s);
         
