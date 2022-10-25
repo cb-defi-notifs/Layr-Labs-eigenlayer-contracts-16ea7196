@@ -107,6 +107,8 @@ contract DelegationTests is TestHelper {
         }
     }
 
+    /// @noticetests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
+    /// @param operator is the operator being delegated to.
     function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
         public
         fuzzedAddress(operator)
