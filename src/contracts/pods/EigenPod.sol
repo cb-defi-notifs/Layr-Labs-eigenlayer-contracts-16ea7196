@@ -98,6 +98,7 @@ contract EigenPod is IEigenPod, Initializable {
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
         eigenPodManager.updateBeaconChainBalance(owner, 0, validatorBalance);
+        eigenPodManager.investmentManager().depositBeaconChainETH(validatorBalance);
     }
 
     function verifyBalanceUpdate(
@@ -146,6 +147,7 @@ contract EigenPod is IEigenPod, Initializable {
 
     }
 
+    /// @notice Transfers ether balance of this contract to the specified recipeint address
     function withdrawETH(
         address recipient,
         uint256 amount
