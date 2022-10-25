@@ -54,7 +54,7 @@ interface IInvestmentManager {
     /**
      * @notice Restakes all the ETH on msg.sender's EigenPod into EigenLayer
      */
-    function restakeBeaconChainETH(address staker, uint256 amount) external returns (uint256);
+    function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
 
     /**
      * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
@@ -177,6 +177,7 @@ interface IInvestmentManager {
 
     function slashBeaconChainETH(
         address slashedAddress,
+        address recipient,
         uint256 beaconChainETHStrategyIndex,
         uint256 shareAmount
     )

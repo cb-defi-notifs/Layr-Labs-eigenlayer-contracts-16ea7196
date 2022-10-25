@@ -98,7 +98,7 @@ contract EigenPod is IEigenPod, Initializable {
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
         eigenPodManager.updateBeaconChainBalance(owner, 0, validatorBalance);
-        eigenPodManager.investmentManager().restakeBeaconChainETH(owner, validatorBalance);
+        eigenPodManager.depositBeaconChainETH(owner, validatorBalance);
     }
 
     function verifyBalanceUpdate(
@@ -129,26 +129,8 @@ contract EigenPod is IEigenPod, Initializable {
         eigenPodManager.updateBeaconChainBalance(owner, prevValidatorBalance, validatorBalance);
     }
 
-    /// @notice Slashes the withdrawn ETH of 'frozen' podOwner
-    function slashETH(
-        address recipient,
-        uint256 beaconChainETHStrategyIndex,
-        uint128 amount
-    )
-        external
-        onlyInvestmentManagerOwner
-        onlyFrozen(owner)
-    {
-        //slash their shares in the investment manager
-        eigenPodManager.investmentManager().slashBeaconChainETH(owner, beaconChainETHStrategyIndex, amount);
-        //send slashed ETH to recipient
-        //TODO: Reentrancy gurad here?
-        IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
-
-    }
-
     /// @notice Transfers ether balance of this contract to the specified recipeint address
-    function withdrawETH(
+    function withdrawBeaconChainETH(
         address recipient,
         uint256 amount
     )

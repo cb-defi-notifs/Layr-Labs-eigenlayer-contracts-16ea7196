@@ -40,7 +40,7 @@ contract EigenPodManager is IEigenPodManager {
     event BeaconOracleUpdate(address newOracleAddress);
 
     modifier onlyEigenPod(address podOwner) {
-        require(address(pods[podOwner].pod) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
+        require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -65,7 +65,7 @@ contract EigenPodManager is IEigenPodManager {
      * @notice Creates an EigenPod for the sender.
      */
     function createPod() external {
-        require(address(pods[msg.sender].pod) == address(0), "EigenPodManager.createPod: Sender already has a pod");
+        require(address(getPod(msg.sender)) == address(0), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
         deployPod();
     }
@@ -78,8 +78,8 @@ contract EigenPodManager is IEigenPodManager {
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        IEigenPod pod = pods[msg.sender].pod;
-        if(address(pod) == address(0)) {
+        IEigenPod pod = getPod(msg.sender);
+        if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
@@ -99,7 +99,8 @@ contract EigenPodManager is IEigenPodManager {
         //if the balance updates shows that the pod owner has more deposits into EigenLayer than beacon chain balance, freeze them
         //we also add the balance of the eigenPod in case withdrawals have occured so validator balances have been set to 0 on the beacon chain
         //the overall law is 
-        ///  the balance of all their validators = balance of the withdrawal address + balance given from beacon chain state root
+        //  the amount InvestmentManager thinks is restaked <= balance of the withdrawal address + balance given from beacon chain state root
+        //if the investment manager ever thinks there is more restaked than there is, a freezing event is triggered
         //TODO: add EigenPodManager as globally permissioned slashing contract
         if(pods[podOwner].stakedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
@@ -111,10 +112,12 @@ contract EigenPodManager is IEigenPodManager {
      * @param podOwner The owner of the pod whose balance must be restaked.
      * @param amount The amount of beacon chain ETH to restake.
      */
-    function restakeBeaconChainETH(address podOwner, uint128 amount) external onlyInvestmentManager {
+    function depositBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
         require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance + address(pods[podOwner].pod).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
+        //deposit into InvestmentManager
+        investmentManager.depositBeaconChainETH(podOwner, uint256(amount));
     }
 
     /**
@@ -123,11 +126,10 @@ contract EigenPodManager is IEigenPodManager {
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      */
-    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
-        EigenPodInfo memory podInfo = pods[podOwner];
+    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         //subtract withdrawn amount from stake and balance
-        pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
-        podInfo.pod.withdrawETH(recipient, amount);
+        pods[podOwner].stakedBalance = pods[podOwner].stakedBalance - uint128(amount);
+        getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
     }
 
     /**
@@ -154,14 +156,24 @@ contract EigenPodManager is IEigenPodManager {
                     )
                 )
             );
-        pods[msg.sender].pod = pod;
         return pod;
     }
 
     // VIEW FUNCTIONS
 
-    function getPod(address podOwner) external view returns (IEigenPod) {
-        return pods[podOwner].pod;
+    function getPod(address podOwner) public view returns (IEigenPod) {
+        return IEigenPod(
+                Create2.computeAddress(
+                    bytes32(uint256(uint160(podOwner))), //salt
+                    keccak256(abi.encodePacked(
+                        type(BeaconProxy).creationCode, 
+                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
+                    )) //bytecode
+                ));
+    }
+
+    function hasPod(address podOwner) public view returns (bool) {
+        return address(getPod(podOwner)).code.length > 0;
     }
 
     function getPodInfo(address podOwner) external view returns (EigenPodInfo memory) {
