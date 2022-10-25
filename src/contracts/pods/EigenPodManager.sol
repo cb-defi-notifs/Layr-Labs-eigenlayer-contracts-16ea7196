@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/Create2.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -11,6 +13,7 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
+
 
 
 /**
@@ -43,6 +46,11 @@ contract EigenPodManager is IEigenPodManager {
 
     modifier onlyInvestmentManager {
         require(msg.sender == address(investmentManager), "EigenPodManager.onlyEigenPod: not investmentManager");
+        _;
+    }
+
+    modifier onlyInvestmentManagerOwner {
+        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
         _;
     }
 
@@ -105,7 +113,7 @@ contract EigenPodManager is IEigenPodManager {
      */
     function restakeBeaconChainETH(address podOwner, uint128 amount) external onlyInvestmentManager {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].balance + amount <= pods[podOwner].stakedBalance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
+        require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
     }
 
@@ -123,27 +131,10 @@ contract EigenPodManager is IEigenPodManager {
     }
 
     /**
-     * @notice This function is to allow a staker, who has repointed their credentials to an EigenPod
-     * but has never restaked with EigenLayer, to withdraw their beaconChainETH
-     */
-    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external {
-        //check that the podOwner is not actually delegated in EigenLayer
-        require(!investmentManager.delegation().isDelegated(podOwner), "EigenPodManager.withdrawNonRestakedETH: podOwner is delegated to EigenLayer");
-        
-        //check that depositor is not delegated delegation.isnotDelefated
-        EigenPodInfo memory podInfo = pods[podOwner];
-
-         //subtract withdrawn amount from stake and balance
-        pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
-        podInfo.pod.withdrawETH(recipient, amount);
-
-    }
-
-    /**
      * @notice Updates the oracle contract that provides the beacon chain state root
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      */
-    function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external {
+    function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyInvestmentManagerOwner {
         beaconChainOracle = newBeaconChainOracle;
         emit BeaconOracleUpdate(address(newBeaconChainOracle));
     }
