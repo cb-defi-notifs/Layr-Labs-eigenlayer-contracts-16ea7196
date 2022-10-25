@@ -17,7 +17,7 @@ To handle upgradability for the EigenPods as withdrawal specs get cleared up, we
 
 ## How to Use EigenPods 
 
-### Depositing Beacon Chain ETH
+### Staking Beacon Chain ETH via an EigenPod
 In order to stake in the Beacon Chain with EigenLayer, a staker can call the `stake()` function in the `EigenPodManager`. 
 ```solidity=
     function stake(
@@ -40,10 +40,10 @@ function verifyCorrectWithdrawalCredentials(
     ) external {
 ```
 ### Restaking Beacon Chain ETH
-Once a staker has deployed an EigenPod and initiated a Beacon Chain deposit, they have the option to restake their deposit via EigenLayer by calling the `depositBeaconChainETH` function:
+Once a staker has deployed an EigenPod and initiated a Beacon Chain deposit, they have the option to restake their deposit via EigenLayer by calling the `restakeBeaconChainETH` function:
 
 ```solidity=
-    function depositBeaconChainETH(
+    function restakeBeaconChainETH(
         address podOwner, 
         uint128 amount
     ) external onlyInvestmentManager
