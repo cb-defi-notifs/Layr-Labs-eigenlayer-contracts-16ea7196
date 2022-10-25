@@ -160,7 +160,6 @@ contract EigenPod is IEigenPod, Initializable {
     }
 
     // INTERNAL FUNCTIONS
-
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }

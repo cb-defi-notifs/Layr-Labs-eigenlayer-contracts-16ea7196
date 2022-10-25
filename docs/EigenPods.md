@@ -29,7 +29,7 @@ In order to stake in the Beacon Chain with EigenLayer, a staker can call the `st
 This function deploys an `EigenPod` contract and inititates a Beacon Chain deposit with the provided validator pubkey and signature.  
 
 ## Proving Beacon Chain Balance
-Validators will prove their withdrawal credentials are pointed to their EigenPod against the most recent state root posted by the oracle via a merkle proof. We will also have an oracle that may also submit balance updates via merkle proofs (or perhaps via authority) for any validators that are slashed. These proofs will likely be to an enshrined "beacon chain eth" strategy.  THis verification is done via the `verifyCorrectWithdrawalCredentials` function:
+Validators will prove their withdrawal credentials are pointed to their EigenPod against the most recent state root posted by the oracle via a merkle proof. We will also have an oracle that may also submit balance updates via merkle proofs (or perhaps via authority) for any validators that are slashed. These proofs are in the form of an enshrined "beaconChainETH" strategy.  This verification is done via the `verifyCorrectWithdrawalCredentials` function:
 
 ```solidity=
 function verifyCorrectWithdrawalCredentials(
