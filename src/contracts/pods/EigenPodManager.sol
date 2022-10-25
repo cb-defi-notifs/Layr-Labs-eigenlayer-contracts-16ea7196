@@ -113,7 +113,7 @@ contract EigenPodManager is IEigenPodManager {
      */
     function restakeBeaconChainETH(address podOwner, uint128 amount) external onlyInvestmentManager {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
+        require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance + address(pods[podOwner].pod).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
     }
 
