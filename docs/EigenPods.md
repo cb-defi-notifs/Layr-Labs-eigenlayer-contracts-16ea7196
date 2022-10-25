@@ -62,8 +62,7 @@ function verifyBalanceUpdate(
         bytes32[] calldata validatorFields
     ) external
 ```
-This function will ensure that the staker's `EigenPodManager` balance is updated correctly.  If the validator has restaked their Beacon Chain deposit with EigenLayer, they will follow the queued withdrawal flow housed in the `InvestmentManager`.  If they chose not to restake in EigenLayer, they will be allowed to withdraw their funds directly from the the `EigenPodManager` contract's `withdrawNonRestakedETH` function.
-
+This function will ensure that the staker's `EigenPodManager` balance is updated correctly.  The validator will withdraw via the withdrawal flow housed in the `InvestmentManager`.  
 
 **It is important to note that after withdrawal, if a staker who is staked in EigenLayer chooses to restake into eigenlayer before updating their stakes (to reflect the withdrawal), they will get frozen.**
 
