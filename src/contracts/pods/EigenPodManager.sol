@@ -40,7 +40,7 @@ contract EigenPodManager is IEigenPodManager {
     event BeaconOracleUpdate(address newOracleAddress);
 
     modifier onlyEigenPod(address podOwner) {
-        require(address(pods[podOwner].pod) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
+        require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
         _;
     }
 
@@ -65,7 +65,7 @@ contract EigenPodManager is IEigenPodManager {
      * @notice Creates an EigenPod for the sender.
      */
     function createPod() external {
-        require(address(pods[msg.sender].pod) == address(0), "EigenPodManager.createPod: Sender already has a pod");
+        require(address(getPod(msg.sender)) == address(0), "EigenPodManager.createPod: Sender already has a pod");
         //deploy a pod if the sender doesn't have one already
         deployPod();
     }
@@ -78,8 +78,8 @@ contract EigenPodManager is IEigenPodManager {
      * @param depositDataRoot The root/hash of the deposit data for the validator's deposit.
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
-        IEigenPod pod = pods[msg.sender].pod;
-        if(address(pod) == address(0)) {
+        IEigenPod pod = getPod(msg.sender);
+        if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
@@ -111,10 +111,12 @@ contract EigenPodManager is IEigenPodManager {
      * @param podOwner The owner of the pod whose balance must be restaked.
      * @param amount The amount of beacon chain ETH to restake.
      */
-    function restakeBeaconChainETH(address podOwner, uint128 amount) external onlyInvestmentManager {
+    function depositBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
         require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
         pods[podOwner].stakedBalance += amount;
+        //deposit into InvestmentManager
+        investmentManager.depositBeaconChainETH(podOwner, uint256(amount));
     }
 
     /**
@@ -123,11 +125,11 @@ contract EigenPodManager is IEigenPodManager {
      * @param recipient The recipient of withdrawn ETH.
      * @param amount The amount of ETH to withdraw.
      */
-    function withdrawRestakedBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
+    function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         EigenPodInfo memory podInfo = pods[podOwner];
         //subtract withdrawn amount from stake and balance
         pods[podOwner].stakedBalance = podInfo.stakedBalance - uint128(amount);
-        podInfo.pod.withdrawETH(recipient, amount);
+        getPod(podOwner).withdrawETH(recipient, amount);
     }
 
     /**
@@ -154,14 +156,24 @@ contract EigenPodManager is IEigenPodManager {
                     )
                 )
             );
-        pods[msg.sender].pod = pod;
         return pod;
     }
 
     // VIEW FUNCTIONS
 
-    function getPod(address podOwner) external view returns (IEigenPod) {
-        return pods[podOwner].pod;
+    function getPod(address podOwner) public view returns (IEigenPod) {
+        return IEigenPod(
+                Create2.computeAddress(
+                    bytes32(uint256(uint160(podOwner))), //salt
+                    keccak256(abi.encodePacked(
+                        type(BeaconProxy).creationCode, 
+                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
+                    )) //bytecode
+                ));
+    }
+
+    function hasPod(address podOwner) public view returns (bool) {
+        return address(getPod(podOwner)).code.length > 0;
     }
 
     function getPodInfo(address podOwner) external view returns (EigenPodInfo memory) {
