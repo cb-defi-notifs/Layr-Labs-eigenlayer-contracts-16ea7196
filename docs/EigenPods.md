@@ -40,10 +40,10 @@ function verifyCorrectWithdrawalCredentials(
     ) external {
 ```
 ### Restaking Beacon Chain ETH
-Once a staker has deployed an EigenPod and initiated a Beacon Chain deposit, they have the option to restake their deposit via EigenLayer by calling the `depositBalanceIntoEigenLayer` function:
+Once a staker has deployed an EigenPod and initiated a Beacon Chain deposit, they have the option to restake their deposit via EigenLayer by calling the `depositBeaconChainETH` function:
 
 ```solidity=
-    function depositBalanceIntoEigenLayer(
+    function depositBeaconChainETH(
         address podOwner, 
         uint128 amount
     ) external onlyInvestmentManager
