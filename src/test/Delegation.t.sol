@@ -21,13 +21,6 @@ contract DelegationTests is TestHelper {
     uint256 public SECP256K1N_MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
     uint256 public SECP256K1N_MODULUS_HALF = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
-
-    bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
-    bytes32 public immutable DOMAIN_SEPARATOR = hex"39e64f9d479d92dcc3ebe32cb612c3939dd8c965babe02ef477503a52c1de8cb";
-
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
         IInvestmentStrategy[] delegatorStrategies;
@@ -132,8 +125,8 @@ contract DelegationTests is TestHelper {
         _testDepositEigen(staker, eigenAmount);
 
         uint256 nonce = delegation.nonces(staker);
-        bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonce, 0));
-        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH, staker, operator, nonce, 0));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR, structHash));
 
 
         (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
