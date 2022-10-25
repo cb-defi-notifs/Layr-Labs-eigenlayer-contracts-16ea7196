@@ -118,6 +118,7 @@ contract DelegationTests is TestHelper {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
         }
         address staker = cheats.addr(PRIVATE_KEY);
+        cheat.assume(staker != operator);
 
         //making additional deposits to the investment strategies
         assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
