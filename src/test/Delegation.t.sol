@@ -140,7 +140,7 @@ contract DelegationTests is TestHelper {
         assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
     }
 
-    /// @notice tests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
+    /// @notice tests delegation to EigenLayr via an ECDSA signatures with invalid signature
     /// @param operator is the operator being delegated to.
     function testDelegateToByInvalidSignature(
         address operator, 
