@@ -99,6 +99,7 @@ contract InvestmentManager is
      */
     function restakeBeaconChainETH(address staker, uint256 amount)
         external
+        onlyEigenPod(staker, msg.sender)
         onlyNotFrozen(staker)
         nonReentrant
         returns (uint256)
