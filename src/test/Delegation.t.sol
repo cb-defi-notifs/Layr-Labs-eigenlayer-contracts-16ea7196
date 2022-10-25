@@ -16,6 +16,8 @@ contract DelegationTests is TestHelper {
     uint256[] priorTotalShares;
     uint256[] strategyTokenBalance;
 
+    uint256 public PRIVATE_KEY = 420;
+
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
         IInvestmentStrategy[] delegatorStrategies;
@@ -59,9 +61,6 @@ contract DelegationTests is TestHelper {
         }
 
         uint256[3] memory amountsBefore;
-        // uint256 operatorEthWeightBefore = dlReg.weightOfOperator(operator, 0);
-        // uint256 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
-        // uint256 wethStratSharesBefore = delegation.operatorShares(operator, wethStrat);
         amountsBefore[0] = dlReg.weightOfOperator(operator, 0);
         amountsBefore[1] = dlReg.weightOfOperator(operator, 1);
         amountsBefore[2] = delegation.operatorShares(operator, wethStrat);
@@ -102,6 +101,82 @@ contract DelegationTests is TestHelper {
                 "ETH operatorShares not updated correctly"
             );
         }
+    }
+
+    /// @notice tests delegation to EigenLayr via an ECDSA signatures - meta transactions are the future bby
+    /// @param operator is the operator being delegated to.
+    function testDelegateToBySignature(address operator, uint256 ethAmount, uint256 eigenAmount)
+        public
+        fuzzedAddress(operator)
+    {
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+    
+
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+        address staker = cheats.addr(PRIVATE_KEY);
+        cheats.assume(staker != operator);
+
+        //making additional deposits to the investment strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testWethDeposit(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+
+        uint256 nonceBefore = delegation.nonces(staker);
+
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
+
+
+        (uint8 v, bytes32 r, bytes32 s) = cheats.sign(PRIVATE_KEY, digestHash);
+
+        bytes32 vs = getVSfromVandS(v, s);
+        
+        delegation.delegateToBySignature(staker, operator, 0, r, vs);
+        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
+        assertTrue(nonceBefore + 1 == delegation.nonces(staker), "nonce not incremented correctly");
+        assertTrue(delegation.delegatedTo(staker) == operator, "staker delegated to wrong operator");
+    }
+
+    /// @notice tests delegation to EigenLayr via an ECDSA signatures with invalid signature
+    /// @param operator is the operator being delegated to.
+    function testDelegateToByInvalidSignature(
+        address operator, 
+        uint256 ethAmount, 
+        uint256 eigenAmount, 
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public
+        fuzzedAddress(operator)
+    {
+        cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
+        cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+    
+
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+        address staker = cheats.addr(PRIVATE_KEY);
+        cheats.assume(staker != operator);
+
+        //making additional deposits to the investment strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testWethDeposit(staker, ethAmount);
+        _testDepositEigen(staker, eigenAmount);
+
+        uint256 nonceBefore = delegation.nonces(staker);
+        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
+        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
+
+        bytes32 vs = getVSfromVandS(v, s);
+        
+        cheats.expectRevert();
+        delegation.delegateToBySignature(staker, operator, 0, r, vs);
+        
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
