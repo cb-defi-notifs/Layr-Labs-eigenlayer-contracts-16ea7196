@@ -33,6 +33,7 @@ contract EigenPod is IEigenPod, Initializable {
 
 
     address public owner;
+    /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
 
     modifier onlyEigenPodManager {
