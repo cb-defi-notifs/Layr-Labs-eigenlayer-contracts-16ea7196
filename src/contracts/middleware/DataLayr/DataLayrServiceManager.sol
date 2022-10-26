@@ -246,6 +246,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
         // increment the counter
         ++dataStoresForDuration.dataStoreId;
+
+    
         return index;
     }
 
@@ -347,7 +349,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             "DataLayrServiceManager.confirmDataStore: signatories do not own at least threshold percentage of both quorums"
         );
 
+        
+
         emit ConfirmDataStore(dataStoresForDuration.dataStoreId, searchData.metadata.headerHash);
+
     }
 
     // called in the event of challenge resolution

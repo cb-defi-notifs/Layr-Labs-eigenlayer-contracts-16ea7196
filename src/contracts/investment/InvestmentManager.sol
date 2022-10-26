@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
-// import "forge-std/Test.sol";
+import "../interfaces/IEigenPodManager.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -65,7 +65,16 @@ contract InvestmentManager is
         _;
     }
 
-    /// @notice Sets the (**immutable**) `delegation` address.
+    modifier onlyEigenPodManager {
+        require(address(eigenPodManager) == msg.sender, "InvestmentManager.onlyEigenPodManager: not the eigenPodManager");
+        _;
+    }
+
+    modifier onlyEigenPod(address podOwner, address pod) {
+        require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
     constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
         _disableInitializers();
     }
@@ -76,16 +85,33 @@ contract InvestmentManager is
      * @notice Initializes the investment manager contract. Sets the `slasher` address (currently **not** modifiable), sets the
      * `pauserRegistry` (also **not** modifiable after being set), and transfers contract ownership to the specified `initialOwner`.
      * @param _slasher The primary slashing contract of EigenLayr.
+     * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
-    function initialize(ISlasher _slasher, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(ISlasher _slasher, IEigenPodManager _eigenPodManager, IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
         _transferOwnership(initialOwner);
         slasher = _slasher;
+        eigenPodManager = _eigenPodManager;
         _initializePauser(_pauserRegistry);
+    }
+
+    /**
+     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     */
+    function depositBeaconChainETH(address staker, uint256 amount)
+        external
+        onlyEigenPodManager
+        onlyNotFrozen(staker)
+        nonReentrant
+        returns (uint256)
+    {
+        //add shares for the enshrined beacon chain ETH strategy
+        _addShares(staker, beaconChainETHStrategy, amount);
+        return amount;
     }
 
     /**
@@ -328,10 +354,16 @@ contract InvestmentManager is
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-                // tell the strategy to send the appropriate amount of funds to the depositor
-                queuedWithdrawal.strategies[i].withdraw(
+                
+                if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+                    // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
+                    eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                } else {
+                    // tell the strategy to send the appropriate amount of funds to the depositor
+                    queuedWithdrawal.strategies[i].withdraw(
                     withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]
                 );
+                }
                 unchecked {
                     ++i;
                 }
@@ -444,8 +476,14 @@ contract InvestmentManager is
                 }
             }
 
-            // withdraw the shares and send funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            if(strategies[i] == beaconChainETHStrategy){
+                 //withdraw the beaconChainETH to the recipient
+                eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
+            }
+            else{
+                // withdraw the shares and send funds to the recipient
+                strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            }
 
             // increment the loop
             unchecked {
@@ -456,7 +494,7 @@ contract InvestmentManager is
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
-
+    
     /**
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
      * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.

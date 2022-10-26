@@ -421,8 +421,8 @@ contract DelegationTests is TestHelper {
         _testRegisterBLSPubKey(0);
         _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
 
-        nonSignerInfo memory nonsigner;
-        signerInfo memory signer;
+        NonSignerInfo memory nonsigner;
+        SignerInfo memory signer;
 
         nonsigner.xA0 = (uint256(10245738255635135293623161230197183222740738674756428343303263476182774511624));
 

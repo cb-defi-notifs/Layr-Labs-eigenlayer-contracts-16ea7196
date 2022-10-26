@@ -245,8 +245,8 @@ contract TestHelper is EigenLayrDeployer {
     function _getCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        signerInfo memory signers,
-        nonSignerInfo memory nonsigners,
+        SignerInfo memory signers,
+        NonSignerInfo memory nonsigners,
         uint32 blockNumber,
         uint32 dataStoreId
     )

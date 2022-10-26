@@ -52,6 +52,11 @@ interface IInvestmentManager {
 
 
     /**
+     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     */
+    function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
+
+    /**
      * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
      * who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
@@ -170,10 +175,6 @@ interface IInvestmentManager {
     )
         external;
 
-    /**
-     * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
-     * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
-     */
     function slashQueuedWithdrawal(
         address recipient,
         QueuedWithdrawal calldata queuedWithdrawal

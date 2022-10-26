@@ -4,11 +4,14 @@ pragma solidity ^0.8.9;
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
+import "../contracts/interfaces/IEigenPodManager.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
+
+import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/middleware/Repository.sol";
 import "../contracts/permissions/PauserRegistry.sol";
@@ -104,14 +107,14 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
-    struct nonSignerInfo {
+    struct NonSignerInfo {
         uint256 xA0;
         uint256 xA1;
         uint256 yA0;
         uint256 yA1;
     }
 
-    struct signerInfo {
+    struct SignerInfo {
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
@@ -190,8 +193,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
+
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, pauserReg, initialOwner);
+        //TODO: handle pod manager correctly
+        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
