@@ -6,6 +6,8 @@ import "./mocks/LiquidStakingToken.sol";
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 import "../contracts/interfaces/IEigenPodManager.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
+import "../contracts/interfaces/IETHPOSDeposit.sol";
+import "../contracts/interfaces/IBeaconChainOracle.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
@@ -27,6 +29,8 @@ import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
@@ -64,6 +68,11 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public liquidStakingMockStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
     IBLSPublicKeyCompendium public blsPkCompendium;
+    IEigenPodManager public eigenPodManager;
+    IETHPOSDeposit public ethPOSDeposit;
+    IBeacon public eigenPodBeacon;
+    IBeaconChainOracle public beaconChainOracle;
+
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -252,6 +261,11 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 )
             )
         );
+
+        eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
+        
+
+
 
         //loads hardcoded signer set
         _setSigners();
