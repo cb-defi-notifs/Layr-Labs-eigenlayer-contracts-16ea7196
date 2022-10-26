@@ -32,7 +32,7 @@ contract EigenPod is IEigenPod, Initializable {
     IEigenPodManager public eigenPodManager;
 
 
-    address public owner;
+    address public podOwner;
     /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
 
@@ -47,9 +47,9 @@ contract EigenPod is IEigenPod, Initializable {
         _disableInitializers();
     }
 
-    function initialize(IEigenPodManager _eigenPodManager, address _owner) external initializer {
+    function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
         eigenPodManager = _eigenPodManager;
-        owner = _owner;
+        podOwner = _podOwner;
     }
 
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
@@ -83,8 +83,8 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
-        eigenPodManager.updateBeaconChainBalance(owner, 0, validatorBalance);
-        eigenPodManager.depositBeaconChainETH(owner, validatorBalance);
+        eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
+        eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
     }
 
     function verifyBalanceUpdate(
@@ -112,7 +112,7 @@ contract EigenPod is IEigenPod, Initializable {
         validators[merklizedPubkey].balance = validatorBalance;
         //update manager total balance for this pod
         //need to subtract previous proven balance and add the current proven balance
-        eigenPodManager.updateBeaconChainBalance(owner, prevValidatorBalance, validatorBalance);
+        eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
     }
 
     /// @notice Transfers ether balance of this contract to the specified recipeint address

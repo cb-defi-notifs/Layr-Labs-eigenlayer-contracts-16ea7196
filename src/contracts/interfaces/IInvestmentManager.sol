@@ -175,14 +175,6 @@ interface IInvestmentManager {
     )
         external;
 
-    function slashBeaconChainETH(
-        address slashedAddress,
-        address recipient,
-        uint256 beaconChainETHStrategyIndex,
-        uint256 shareAmount
-    )
-        external;
-
     function slashQueuedWithdrawal(
         address recipient,
         QueuedWithdrawal calldata queuedWithdrawal
