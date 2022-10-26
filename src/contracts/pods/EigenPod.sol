@@ -40,21 +40,6 @@ contract EigenPod is IEigenPod, Initializable {
         _;
     }
 
-    modifier onlyInvestmentManagerOwner {
-        require(msg.sender == Ownable(address(eigenPodManager.investmentManager())).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
-        _;
-    }
-
-    modifier onlyInvestmentManager {
-        require(msg.sender == address(eigenPodManager.investmentManager()), "EigenPod.InvestmentManager: not investment manager");
-        _;
-    }
-
-    //TODO: Should we make this check cleaner? it's only used in case of slashing...
-    modifier onlyFrozen(address staker) {
-        require(eigenPodManager.investmentManager().slasher().isFrozen(owner), "EigenPod.onlyFrozen: staker has not been frozen");
-        _;
-    }
 
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
