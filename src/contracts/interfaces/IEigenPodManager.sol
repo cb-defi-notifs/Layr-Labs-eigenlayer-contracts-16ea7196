@@ -20,7 +20,7 @@ interface IEigenPodManager {
     function createPod() external;
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     function updateBeaconChainBalance(address podOwner, uint64 balanceToRemove, uint64 balanceToAdd) external;
-    function depositBeaconChainETH(address podOwner, uint64 amount) external;
+    function stakeBeaconChainETH(address podOwner, uint64 amount) external;
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external;
     function getPod(address podOwner) external view returns(IEigenPod);
     function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);

@@ -168,10 +168,6 @@ contract DelegationTests is TestHelper {
         _testWethDeposit(staker, ethAmount);
         _testDepositEigen(staker, eigenAmount);
 
-        uint256 nonceBefore = delegation.nonces(staker);
-        bytes32 structHash = keccak256(abi.encode(delegation.DELEGATION_TYPEHASH(), staker, operator, nonceBefore, 0));
-        bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", delegation.DOMAIN_SEPARATOR(), structHash));
-
         bytes32 vs = getVSfromVandS(v, s);
         
         cheats.expectRevert();
