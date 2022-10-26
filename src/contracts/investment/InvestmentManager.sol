@@ -476,8 +476,14 @@ contract InvestmentManager is
                 }
             }
 
-            // withdraw the shares and send funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            if(strategies[i] == beaconChainETHStrategy){
+                 //withdraw the beaconChainETH to the recipient
+                eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
+            }
+            else{
+                // withdraw the shares and send funds to the recipient
+                strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            }
 
             // increment the loop
             unchecked {
@@ -488,30 +494,7 @@ contract InvestmentManager is
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
-
-    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
-    function slashBeaconChainETH(
-        address slashedAddress,
-        address recipient,
-        uint256 beaconChainETHStrategyIndex,
-        uint256 shareAmount
-    )
-        external
-        whenNotPaused
-        onlyOwner
-        onlyFrozen(slashedAddress)
-        nonReentrant
-    {
-        // the internal function will return 'true' in the event the strategy was
-        // removed from the slashedAddress's array of strategies -- i.e. investorStrats[slashedAddress]
-        _removeShares(slashedAddress, beaconChainETHStrategyIndex, beaconChainETHStrategy, shareAmount);
-
-        // modify delegated shares accordingly, if applicable
-        delegation.decreaseDelegatedShares(slashedAddress, beaconChainETHStrategy, shareAmount);
-
-        //withdraw the beaconChainETH to the recipient
-        eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmount);
-    }
+    
     /**
      * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
      * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
