@@ -64,7 +64,9 @@ function verifyBalanceUpdate(
 ```
 This function will ensure that the staker's `EigenPodManager` balance is updated correctly.  The validator will withdraw via the withdrawal flow housed in the `InvestmentManager`.  
 
-**It is important to note that after withdrawal, if a staker who is staked in EigenLayer chooses to restake into eigenlayer before updating their stakes (to reflect the withdrawal), they will get frozen.**
+**It is important to note that after withdrawal, if a staker who is staked in EigenLayer chooses to restake once again into eigenlayer before their stakes are updated (to reflect the initial withdrawal), they will get frozen.**
+
+If an EigenPod user slashed on the Beacon Chain, anyone can optimistically call the `eigenPodManager.verifyBalanceUpdate()` to prove that the user has been slashed. This will trigger a call to the `EigenPodManager.updateBeaconChainBalance()` function which checks that `stakedBalance > newBalance`. Here `stakedBalance` is the amount of beacon chain balance that is accounted for in the InvestmentManager and `newBalance` would is the new, slashed beacon chain balance.  If slashed, then `stakedBalance` is indeed greater than `newBalance`, and the user "under-collateralized". Thus, they will be frozen.  
 
 ## The Oracle
 
