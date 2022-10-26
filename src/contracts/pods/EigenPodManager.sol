@@ -104,7 +104,7 @@ contract EigenPodManager is IEigenPodManager {
         * restaked than there is, a freezing event is triggered
         */
         //TODO: add EigenPodManager as globally permissioned slashing contract
-        if(pods[podOwner].stakedBalance > newBalance + msg.sender.balance) {
+        if(pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
         }
     }
@@ -114,12 +114,12 @@ contract EigenPodManager is IEigenPodManager {
      * @param podOwner The owner of the pod whose balance must be restaked.
      * @param amount The amount of beacon chain ETH to restake.
      */
-    function stakeBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
+    function depositBeaconChainETH(address podOwner, uint64 amount) external onlyEigenPod(podOwner) {
         //make sure that the podOwner hasn't over committed their stake, and deposit on their behalf
-        require(pods[podOwner].stakedBalance + amount <= pods[podOwner].balance + address(getPod(podOwner)).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
-        pods[podOwner].stakedBalance += amount;
+        require(pods[podOwner].depositedBalance + amount <= pods[podOwner].balance + address(getPod(podOwner)).balance, "EigenPodManager.depositBalanceIntoEigenLayer: cannot deposit more than balance");
+        pods[podOwner].depositedBalance += amount;
         //deposit into InvestmentManager
-        investmentManager.stakeBeaconChainETH(podOwner, uint256(amount));
+        investmentManager.depositBeaconChainETH(podOwner, uint256(amount));
     }
 
     /**
@@ -130,7 +130,7 @@ contract EigenPodManager is IEigenPodManager {
      */
     function withdrawBeaconChainETH(address podOwner, address recipient, uint256 amount) external onlyInvestmentManager {
         //subtract withdrawn amount from stake and balance
-        pods[podOwner].stakedBalance = pods[podOwner].stakedBalance - uint128(amount);
+        pods[podOwner].depositedBalance = pods[podOwner].depositedBalance - uint128(amount);
         pods[podOwner].balance = pods[podOwner].balance - uint128(amount);
         getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
     }

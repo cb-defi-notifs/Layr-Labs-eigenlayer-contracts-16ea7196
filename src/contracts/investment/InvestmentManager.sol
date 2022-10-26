@@ -102,7 +102,7 @@ contract InvestmentManager is
     /**
      * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
      */
-    function stakeBeaconChainETH(address staker, uint256 amount)
+    function depositBeaconChainETH(address staker, uint256 amount)
         external
         onlyEigenPodManager
         onlyNotFrozen(staker)
