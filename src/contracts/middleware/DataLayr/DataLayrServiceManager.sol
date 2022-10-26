@@ -32,8 +32,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
     uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
 
-    uint128 public firstQuorumThresholdPercentage = 90;
-    uint128 public secondQuorumThresholdPercentage = 90;
+    uint128 public firstQuorumThresholdPercentage;
+    uint128 public secondQuorumThresholdPercentage;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -46,6 +46,16 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
 
     event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
+
+    event BombVerifierSet(address previousAddress, address newAddress);
+
+    event PaymentManagerSet(address previousAddress, address newAddress);
+
+    event EphemeralKeyRegistrySet(address previousAddress, address newAddress);
+
+    event FirstQuorumThresholdPercentageSet(uint256 previousThreshold, uint256 newThreshold);
+    
+    event SecondQuorumThresholdPercentageSet(uint256 previousThreshold, uint256 newThreshold);
 
     constructor(
         IInvestmentManager _investmentManager,
@@ -62,6 +72,9 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _initializePauser(_pauserRegistry);
+        // set default values
+        _setFirstQuorumThresholdPercentage(90);
+        _setSecondQuorumThresholdPercentage(90);
     }
 
     function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge)
@@ -72,39 +85,26 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) external onlyRepositoryGovernance {
+        emit BombVerifierSet(address(dataLayrBombVerifier), address(_dataLayrBombVerifier));
         dataLayrBombVerifier = _dataLayrBombVerifier;
     }
 
     function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) external onlyRepositoryGovernance {
+        emit PaymentManagerSet(address(dataLayrPaymentManager), address(_dataLayrPaymentManager));
         dataLayrPaymentManager = _dataLayrPaymentManager;
     }
 
     function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
+        emit EphemeralKeyRegistrySet(address(ephemeralKeyRegistry), address(_ephemeralKeyRegistry));
         ephemeralKeyRegistry = _ephemeralKeyRegistry;
     }
 
     function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
-        require(
-            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
-        );
-        require(
-            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
-        );
-        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+        _setFirstQuorumThresholdPercentage(_firstQuorumThresholdPercentage);
     }
 
     function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
-        require(
-            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
-        );
-        require(
-            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
-        );
-        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
+        _setSecondQuorumThresholdPercentage(_secondQuorumThresholdPercentage);
     }
 
     /**
@@ -505,9 +505,35 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         }
     }
 
-
     function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
         emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
         feePerBytePerTime = _feePerBytePerTime;
     }
+
+    function _setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) internal {
+        require(
+            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
+        );
+        emit FirstQuorumThresholdPercentageSet(firstQuorumThresholdPercentage, _firstQuorumThresholdPercentage);
+        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
+    }
+
+    function _setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) internal {
+        require(
+            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
+        );
+        require(
+            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
+            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
+        );
+        emit SecondQuorumThresholdPercentageSet(secondQuorumThresholdPercentage, _secondQuorumThresholdPercentage);
+        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
+    }
+
 }
