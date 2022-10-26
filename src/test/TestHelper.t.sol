@@ -9,6 +9,8 @@ contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
+    uint256 public SECP256K1N_MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+    uint256 public SECP256K1N_MODULUS_HALF = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     function _testInitiateDelegation(
         uint8 operatorIndex,
@@ -243,8 +245,8 @@ contract TestHelper is EigenLayrDeployer {
     function _getCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        signerInfo memory signers,
-        nonSignerInfo memory nonsigners,
+        SignerInfo memory signers,
+        NonSignerInfo memory nonsigners,
         uint32 blockNumber,
         uint32 dataStoreId
     )
@@ -789,6 +791,19 @@ contract TestHelper is EigenLayrDeployer {
         return pubkey;
     }
 
+
+    function getVSfromVandS(uint8 v, bytes32 s) internal view returns(bytes32){
+        if (uint256(s) > SECP256K1N_MODULUS_HALF) {
+            s = bytes32(SECP256K1N_MODULUS - uint256(s));
+        }
+
+        bytes32 vs = s;
+        if(v == 28){
+            vs = bytes32(uint256(s) ^ (1 << 255));
+        }
+
+        return vs;
+    }
 
 }
 

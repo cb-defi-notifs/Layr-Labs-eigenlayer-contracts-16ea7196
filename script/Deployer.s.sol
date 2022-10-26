@@ -2,12 +2,15 @@
 pragma solidity ^0.8.9;
 
 import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../src/contracts/interfaces/IEigenPodManager.sol";
+
 import "../src/contracts/core/EigenLayrDelegation.sol";
 
 import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
+import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
@@ -165,7 +168,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         );
 
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, pauserReg, initialOwner);
+        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
 
         // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
         delegation.initialize(investmentManager, pauserReg, initialOwner);

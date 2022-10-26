@@ -52,7 +52,11 @@ interface IInvestmentManager {
 
 
     /**
+<<<<<<< HEAD
      * @notice Restakes all the ETH on msg.sender's EigenPod into EigenLayer
+=======
+     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+>>>>>>> 25dcabe524d918eef9ae675f1f1e052d2c5c5ead
      */
     function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
 

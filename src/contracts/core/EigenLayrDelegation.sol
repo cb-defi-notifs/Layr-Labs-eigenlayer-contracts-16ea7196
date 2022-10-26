@@ -22,7 +22,7 @@ import "../investment/Slasher.sol";
  * - for a staker to undelegate its assets from EigenLayr
  * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
-contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable {
+contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
         require(msg.sender == address(investmentManager), "onlyInvestmentManager");
@@ -93,7 +93,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         bytes32 structHash = keccak256(abi.encode(DELEGATION_TYPEHASH, staker, operator, nonces[staker]++, expiry));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
         //check validity of signature
+
         address recoveredAddress = ECDSA.recover(digestHash, r, vs);
+
         require(recoveredAddress == staker, "EigenLayrDelegation.delegateToBySignature: sig not from staker");
         _delegate(staker, operator);
     }

@@ -2,7 +2,7 @@
 # EigenLayer Technical Specification
 
 ## Overview
-EigenLayer is a set of smart contracts deployed on Ethereum, that enable restaking of assets to secure new services.
+EigenLayer is a set of smart contracts deployed on Ethereum that enable restaking of assets to secure new services.
 **Restaking** is the process of staking an asset that has already been staked in another protocol into EigenLayer. The canonical example of restaking is ETH restaking, in which an existing Ethereum validator restakes the ETH they have staked to secure Ethereum Proof-of-Stake consensus.
 **Restaked assets** are placed under the control of EigenLayer’s smart contracts, enabling them to act as stake securing additional services, such as rollups, bridges, and Dapps.
 EigenLayer connects stakers who are willing to provide these additional services to consumers – typically protocols or companies – who want secure services with decentralized operator/validator networks. These consumers pay for the services delivered to them, enabling stakers to earn returns on their staked assets, *in addition* to their existing staking rewards. Stakers can thus augment the yield of their stake, increasing their rewards in exchange for the services they opt-in to providing.
