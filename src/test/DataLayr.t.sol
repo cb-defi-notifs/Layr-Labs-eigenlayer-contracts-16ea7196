@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./TestHelper.t.sol";
+import "./DataLayrTestHelper.t.sol";
 import "forge-std/Test.sol";
 
-contract DataLayrTests is DSTest, TestHelper {
+contract DataLayrTests is DSTest, DataLayrTestHelper {
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
         uint256 numSigners = 15;
@@ -102,6 +102,7 @@ contract DataLayrTests is DSTest, TestHelper {
             header
         );
     }
+
 
      //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
     function testInadequateQuorumStake(uint256 ethAmount, uint256 eigenAmount) public {
