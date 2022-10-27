@@ -11,6 +11,7 @@ import "../../libraries/BLS.sol";
  * @author Layr Labs, Inc.
  */
 contract DataLayrChallengeUtils {
+
     struct MultiRevealProof {
         BN254.G1Point interpolationPoly;
         BN254.G1Point revealProof;
@@ -26,6 +27,20 @@ contract DataLayrChallengeUtils {
     }
 
     /**
+    * @notice Check that the DataLayr operator who is getting slashed was
+    * actually part of the quorum for the dataStoreId.
+    *
+    * The burden of responsibility lies with the challenger to show that the DataLayr operator
+    * is not part of the non-signers for the DataStore. Towards that end, challenger provides
+    * @param nonSignerIndex such that if the relationship among nonSignerPubkeyHashes (nspkh) is:
+    * uint256(nspkh[0]) <uint256(nspkh[1]) < ...< uint256(nspkh[index])< uint256(nspkh[index+1]),...
+    * then,
+    * uint256(nspkh[index]) <  uint256(operatorPubkeyHash) < uint256(nspkh[index+1])
+
+    * @dev checkSignatures in DataLayrBLSSignatureChecker.sol enforces the invariant that hash of
+    * non-signers pubkey is recorded in the compressed signatory record in an  ascending
+    * manner.
+    
      * @notice Makes sure that operatorPubkeyHash was *excluded* from set of non-signers
      * @dev Reverts if the operator *is* in the non-signer set.
      */
@@ -37,6 +52,7 @@ contract DataLayrChallengeUtils {
         external
         pure
     {
+        
         if (signatoryRecord.nonSignerPubkeyHashes.length != 0) {
             // check that uint256(nspkh[index]) <  uint256(operatorPubkeyHash)
             require(
@@ -47,15 +63,15 @@ contract DataLayrChallengeUtils {
                 )
                 //or nonSigner index is greater than them
                 || (uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex]) > uint256(operatorPubkeyHash)),
-                "Wrong index"
+                "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Provided nonsigner index is incorrect"
             );
 
-            //  check that uint256(operatorPubkeyHash) > uint256(nspkh[index - 1])
+            //  check that uint256(nspkh[index - 1]) < uint256(operatorPubkeyHash)
             if (nonSignerIndex != 0) {
                 //require that the index+1 is before where operatorpubkey hash would be
                 require(
                     uint256(signatoryRecord.nonSignerPubkeyHashes[nonSignerIndex - 1]) < uint256(operatorPubkeyHash),
-                    "Wrong index"
+                    "DataLayrChallengeUtils.checkExclusionFromNonSignerSet: Provided nonsigner index is incorrect"
                 );
             }
         }
@@ -117,7 +133,7 @@ contract DataLayrChallengeUtils {
     function getNumSysFromHeader(
         // bytes calldata header
         bytes calldata header
-    ) public pure returns (uint32) {
+    ) external pure returns (uint32) {
         uint32 numSys = 0;
         
         assembly {
@@ -361,7 +377,7 @@ contract DataLayrChallengeUtils {
         bytes calldata poly,
         BN254.G1Point calldata interpolationPoly,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //Calculating r, the point at which to evaluate the interpolating polynomial
         uint256 r = uint256(
             keccak256(
@@ -386,7 +402,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         BN254.G1Point[] calldata interpolationPolys,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         bytes32[] memory rs = new bytes32[](polys.length);
         //Calculating r, the point at which to evaluate the interpolating polynomial
         for (uint i = 0; i < polys.length; i++) {
@@ -450,7 +466,7 @@ contract DataLayrChallengeUtils {
         bytes[] calldata polys,
         MultiRevealProof[] calldata multiRevealProofs,
         BN254.G2Point calldata polyEquivalenceProof
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         //randomness from each polynomial
         bytes32[] memory rs = new bytes32[](polys.length);
         DataStoreKZGMetadata

@@ -35,15 +35,16 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     mapping(address => IDelegationTerms) public delegationTerms;
 
     // staker => operator
-    mapping(address => address) public delegation;
+    mapping(address => address) public delegatedTo;
 
     // staker => whether they are delegated or not
-    mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
+    mapping(address => IEigenLayrDelegation.DelegationStatus) public delegationStatus;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) public nonces;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+        
     }
 }

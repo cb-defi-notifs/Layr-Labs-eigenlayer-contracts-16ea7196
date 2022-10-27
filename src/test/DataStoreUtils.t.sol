@@ -31,9 +31,7 @@ contract DataStoreUtilsTests is DSTest {
         uint96 fee,
         address confirmer,
         bytes32 signatoryRecordHash
-    )
-        public
-    {
+    ) public {
         // form struct from arguments
         IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
@@ -94,9 +92,7 @@ contract DataStoreUtilsTests is DSTest {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    )
-        public
-    {
+    ) public {
         // form struct from arguments
         IDataLayrServiceManager.DataStoreSearchData memory searchDataStructBeforePacking = dataStoreSearchDataFromArgs(
             headerHash,
@@ -182,11 +178,7 @@ contract DataStoreUtilsTests is DSTest {
         uint96 fee,
         address confirmer,
         bytes32 signatoryRecordHash
-    )
-        internal
-        pure
-        returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct)
-    {
+    ) internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct) {
         metadataStruct = IDataLayrServiceManager.DataStoreMetadata({
             headerHash: headerHash,
             durationDataStoreId: durationDataStoreId,
@@ -210,11 +202,7 @@ contract DataStoreUtilsTests is DSTest {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    )
-        internal
-        pure
-        returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct)
-    {
+    ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
         );

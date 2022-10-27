@@ -4,20 +4,17 @@ pragma solidity ^0.8.9;
 import "../contracts/libraries/BytesLib.sol";
 import "../test/TestHelper.t.sol";
 
-
 contract RevertTestHelper is TestHelper {
     using BytesLib for bytes;
 
     function _testShouldRevertRegisterOperatorWithDataLayr(
-        uint8 operatorIndex, 
-        uint8 operatorType, 
-        string memory socket, 
-        uint256 amountEigenToDeposit, 
+        uint8 operatorIndex,
+        uint8 operatorType,
+        string memory socket,
+        uint256 amountEigenToDeposit,
         uint256 amountEthToDeposit,
         bytes memory revertMessage
-    )
-        public
-    {
+    ) public {
         address operator = signers[operatorIndex];
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);

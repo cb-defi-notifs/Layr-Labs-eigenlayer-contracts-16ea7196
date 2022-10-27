@@ -6,7 +6,6 @@ import "./IServiceManager.sol";
 import "./IEigenLayrDelegation.sol";
 import "./IDataLayrPaymentManager.sol";
 
-
 interface IDataLayrServiceManager is IServiceManager {
     //Relevant metadata for a given datastore
     struct DataStoreMetadata {
@@ -29,8 +28,8 @@ interface IDataLayrServiceManager is IServiceManager {
 
     struct SignatoryRecordMinusDataStoreId {
         bytes32[] nonSignerPubkeyHashes;
-        uint256 totalEthStakeSigned;
-        uint256 totalEigenStakeSigned;
+        uint256 signedStakeFirstQuorum;
+        uint256 signedStakeSecondQuorum;
     }
 
     struct DataStoresForDuration {
@@ -73,11 +72,17 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function MAX_DATASTORE_DURATION() external view returns (uint8);
 
-    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index) external view returns(bytes32);
+    function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
+        external
+        view
+        returns (bytes32);
+
+    function getNumDataStoresForDuration(uint8 duration) external view returns (uint32);
+
+    function collateralToken() external view returns (IERC20);
+
+    function dataLayrPaymentManager() external view returns (IDataLayrPaymentManager);
+
+    function verifyDataStoreMetadata(uint8 duration, uint256 timestamp, uint32 index, DataStoreMetadata memory metadata) external view returns (bool);
     
-    function getNumDataStoresForDuration(uint8 duration) external view returns(uint32);
-
-    function collateralToken() external view returns(IERC20);
-
-    function dataLayrPaymentManager() external view returns(IDataLayrPaymentManager);
 }

@@ -115,14 +115,14 @@ contract PaymentsTests is TestHelper {
         //hardcoding values
         address operator = signers[0];
         uint32 numberOfSigners = 15;
-        uint120 amountRewards = 10;
+        uint96 amountRewards = 10;
 
         uint8 operatorType = 3;
         _testInitiateDelegation(0, eigenAmount, ethAmount);
-        
+
         _testRegisterBLSPubKey(0);
-        _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey,testSocket);
-        
+        _testRegisterOperatorWithDataLayr(0, operatorType, testEphemeralKey, testSocket);
+
         _testRegisterSigners(numberOfSigners, false);
         _testInitandCommitDataStore();
         _incrementDataStoreID();
@@ -138,7 +138,7 @@ contract PaymentsTests is TestHelper {
     ///@notice Operator submits claim or commit for a payment amount
     ///@param operator is the operator address
     ///@param _amountRewards is the amount of rewards to be paid out
-    function _testCommitPayment(address operator, uint120 _amountRewards) internal {
+    function _testCommitPayment(address operator, uint96 _amountRewards) internal {
         cheats.startPrank(operator);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 
@@ -202,7 +202,7 @@ contract PaymentsTests is TestHelper {
     ///@param operator is the operator address
     ///@param amount1 is the first half of the amount split
     ///@param amount2 is the second half of the amount split
-    function _testInitPaymentChallenge(address operator, uint120 amount1, uint120 amount2) internal {
+    function _testInitPaymentChallenge(address operator, uint96 amount1, uint96 amount2) internal {
         cheats.startPrank(_challenger);
         weth.approve(address(dataLayrPaymentManager), type(uint256).max);
 

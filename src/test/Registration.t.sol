@@ -30,10 +30,7 @@ contract RegistrationTests is TestHelper {
         _testRegisterBLSPubKey(operatorIndex);
 
         uint256[4] memory pk;
-        pk[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
-        pk[1] =uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
-        pk[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
-        pk[3] =uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        pk = getG2PKOfRegistrationData(operatorIndex);
         bytes32 hashofPk = BLS.hashPubkey(pk);
         require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
         require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
@@ -186,7 +183,7 @@ contract RegistrationTests is TestHelper {
     }
 
 
-    /// @notice Test if aggregate PK doesn't change when registered with public key = 0.
+    /// @notice Test if registering with public key = 0 reverts.
     function testRegisterWithZeroPubKey(
         uint8 operatorIndex,
         uint256 ethAmount,
@@ -198,7 +195,7 @@ contract RegistrationTests is TestHelper {
         bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         address operator = signers[operatorIndex];
         uint8 operatorType = 3;
-        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkHashesLength()-1);
+        bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
         emit log_named_bytes32("apkHashBefore", apkHashBefore);
 
         _testInitiateDelegation(
@@ -218,7 +215,7 @@ contract RegistrationTests is TestHelper {
         cheats.stopPrank(); 
     }
 
-    /// @notice Tests for registering without having opeted into slashing.
+    /// @notice Tests for registering without having opted into slashing.
     function testRegisterWithoutSlashingOptIn(
         uint8 operatorIndex,
         uint256 ethAmount,

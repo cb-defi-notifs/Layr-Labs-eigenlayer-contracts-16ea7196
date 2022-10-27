@@ -2,12 +2,15 @@
 pragma solidity ^0.8.9;
 
 import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
+import "../src/contracts/interfaces/IEigenPodManager.sol";
+
 import "../src/contracts/core/EigenLayrDelegation.sol";
 
 import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
+import "../src/contracts/pods/EigenPodManager.sol";
 import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
@@ -42,15 +45,11 @@ import "../src/contracts/libraries/DataStoreUtils.sol";
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
-contract EigenLayrDeployer is
-    Script,
-    DSTest,
-    ERC165_Universal,
-    ERC1155TokenReceiver
+contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenReceiver {
     //,
     // Signers,
     // SignatureUtils
-{
+
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
@@ -107,10 +106,11 @@ contract EigenLayrDeployer is
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
     // address acct_1 = cheats.addr(uint256(priv_key_1));
 
-    bytes32 public ephemeralKey =
-        0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
 
     uint256 public constant eigenTotalSupply = 1000e18;
+
+    uint256 public gasLimit = 750000;
 
     uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
 
@@ -118,7 +118,6 @@ contract EigenLayrDeployer is
 
     //performs basic deployment before each test
     function run() external {
-
         vm.startBroadcast();
         address initialOwner = address(this);
         emit log_address(mainHoncho);
@@ -142,7 +141,7 @@ contract EigenLayrDeployer is
         );
 
         // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `slasher` address        
+        // can't initialize immediately since initializer depends on `slasher` address
         investmentManager = new InvestmentManager(delegation);
         investmentManager = InvestmentManager(
             address(
@@ -156,7 +155,7 @@ contract EigenLayrDeployer is
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
 
-         // deploy slasher as upgradable proxy and initialize it
+        // deploy slasher as upgradable proxy and initialize it
         Slasher slasherImplementation = new Slasher();
         slasher = Slasher(
             address(
@@ -169,7 +168,7 @@ contract EigenLayrDeployer is
         );
 
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, pauserReg, initialOwner);
+        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
 
         // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
         delegation.initialize(investmentManager, pauserReg, initialOwner);
@@ -298,33 +297,31 @@ contract EigenLayrDeployer is
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
-
     function numberFromAscII(bytes1 b) private pure returns (uint8 res) {
-        if (b>="0" && b<="9") {
+        if (b >= "0" && b <= "9") {
             return uint8(b) - uint8(bytes1("0"));
-        } else if (b>="A" && b<="F") {
+        } else if (b >= "A" && b <= "F") {
             return 10 + uint8(b) - uint8(bytes1("A"));
-        } else if (b>="a" && b<="f") {
+        } else if (b >= "a" && b <= "f") {
             return 10 + uint8(b) - uint8(bytes1("a"));
         }
-        return uint8(b); // or return error ... 
+        return uint8(b); // or return error ...
     }
 
     function convertString(string memory str) public pure returns (uint256 value) {
-        
         bytes memory b = bytes(str);
         uint256 number = 0;
-        for(uint i=0;i<b.length;i++){
-            number = number << 4; // or number = number * 16 
+        for (uint256 i = 0; i < b.length; i++) {
+            number = number << 4; // or number = number * 16
             number |= numberFromAscII(b[i]); // or number += numberFromAscII(b[i]);
         }
-        return number; 
+        return number;
     }
 }

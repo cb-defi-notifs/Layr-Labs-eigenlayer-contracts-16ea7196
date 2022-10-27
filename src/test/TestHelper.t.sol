@@ -9,6 +9,8 @@ contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
+    uint256 public SECP256K1N_MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+    uint256 public SECP256K1N_MODULUS_HALF = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     function _testInitiateDelegation(
         uint8 operatorIndex,
@@ -416,6 +418,8 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
+// TODO: reimplement with queued withdrawals
+/*
     //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
@@ -463,6 +467,7 @@ contract TestHelper is EigenLayrDeployer {
         );
         cheats.stopPrank();
     }
+*/
 
     function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
         //register as both ETH and EIGEN operator
@@ -643,11 +648,11 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         assertTrue(
-            delegation.delegation(sender) == operator,
+            delegation.delegatedTo(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -712,8 +717,83 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
+
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     * into the WETH strategy, and then queues a withdrawal using
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     * response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
+    function _createQueuedWithdrawal(
+        address staker,
+        bool registerAsOperator,
+        uint256 amountToDeposit,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
+    {
+        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+
+        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
+        if (registerAsOperator) {
+            assertTrue(!delegation.isDelegated(staker), "_createQueuedWithdrawal: staker is already delegated");
+            _testRegisterAsOperator(staker, IDelegationTerms(staker));
+            assertTrue(
+                delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be"
+            );
+        }
+
+        queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: staker,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(staker)
+        });
+
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (shareAmounts[0] > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
+
+        //queue the withdrawal
+        cheats.startPrank(staker);
+        // TODO: check with 'undelegateIfPossible' = false, rather than just true
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
+        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+        }
+        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
+        else if (queuedWithdrawal.delegatedAddress == address(0)) {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
+        } else {
+            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
+        }
+        cheats.stopPrank();
+        return (withdrawalRoot, queuedWithdrawal);
+    }
+
     function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
@@ -726,7 +806,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
         cheats.assume(stakeInactiveAfter > block.timestamp);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
                                         withdrawalRoot, 
                                         stakeInactiveAfter
                                     );
@@ -744,5 +823,29 @@ contract TestHelper is EigenLayrDeployer {
         return pkHash;
 
     }
+
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
+        uint256[4] memory pubkey; 
+        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
+        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
+        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
+        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        return pubkey;
+    }
+
+
+    function getVSfromVandS(uint8 v, bytes32 s) internal view returns(bytes32){
+        if (uint256(s) > SECP256K1N_MODULUS_HALF) {
+            s = bytes32(SECP256K1N_MODULUS - uint256(s));
+        }
+
+        bytes32 vs = s;
+        if(v == 28){
+            vs = bytes32(uint256(s) ^ (1 << 255));
+        }
+
+        return vs;
+    }
+
 }
 
