@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./TestHelper.t.sol";
+import "./DataLayrTestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
-contract RegistrationTests is TestHelper {
+contract RegistrationTests is DataLayrTestHelper {
     using BytesLib for bytes;
 
     /// @notice This test ensures that the optimistic flow for BLS registration 

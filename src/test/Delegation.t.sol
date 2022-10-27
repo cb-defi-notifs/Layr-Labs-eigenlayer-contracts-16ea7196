@@ -3,11 +3,12 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/TestHelper.t.sol";
+import "../test/DataLayrTestHelper.t.sol";
+
 
 import "../contracts/libraries/BytesLib.sol";
 
-contract DelegationTests is TestHelper {
+contract DelegationTests is DataLayrTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 
