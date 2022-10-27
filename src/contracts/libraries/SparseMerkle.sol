@@ -49,56 +49,56 @@ abstract contract SparseMerkle {
     function checkInclusion(
         bytes32[] calldata proofElements,
         uint256 nodeWrittenBitmap,
-        uint256 index,
+        uint256 nodeIndex,
         bytes32 leafHash,
         bytes32 expectedRoot
     )
         public view 
-        checkIndexValidity(index)
+        checkIndexValidity(nodeIndex)
         checkProofLength(proofElements.length)
         returns (bool)
     {
-        return (expectedRoot == _calculateRoot(proofElements, nodeWrittenBitmap, index, leafHash));
+        return (expectedRoot == _calculateRoot(proofElements, nodeWrittenBitmap, nodeIndex, leafHash));
     }
 
     function _calculateRoot(
         bytes32[] calldata proofElements,
         uint256 nodeWrittenBitmap,
-        uint256 index,
+        uint256 nodeIndex,
         bytes32 leafHash
     )
         internal view returns (bytes32)
     {
         uint256 mask;
         for (uint256 i = 0; i < TREE_DEPTH;) {
-            //take a '1' and move it to the i-th index from right-to-left (little endian, 0-indexed)
+            //take a '1' and move it to the i-th nodeIndex from right-to-left (little endian, 0-nodeIndexed)
             mask = (1 << i);
-            // check if i-th bit of 'index' is 1
-            if ((index & mask) != 0) {
+            // check if i-th bit of 'nodeIndex' is 1
+            if ((nodeIndex & mask) != 0) {
                 /**
                  * check if i-th bit of 'nodeWrittenBitmap' is 1,
-                 * indicating that the node at the i-th index *has* been written to
+                 * indicating that the node at the i-th nodeIndex *has* been written to
                  */
                 if ((nodeWrittenBitmap & mask) != 0) {
                     leafHash = keccak256(abi.encode(proofElements[i], leafHash));
                 /**
                  * otherwise the i-th bit of 'nodeWrittenBitmap' is 0,
-                 * indicating that the node at the i-th index has *not* been written to
+                 * indicating that the node at the i-th nodeIndex has *not* been written to
                  */
                 } else {
                     leafHash = keccak256(abi.encode(ZERO_HASHES[i], leafHash));
                 }
-            // otherwise i-th bit of 'index' is 0
+            // otherwise i-th bit of 'nodeIndex' is 0
             } else {
                 /**
                  * check if i-th bit of 'nodeWrittenBitmap' is 1,
-                 * indicating that the node at the i-th index *has* been written to
+                 * indicating that the node at the i-th nodeIndex *has* been written to
                  */
                 if ((nodeWrittenBitmap & mask) != 0) {
                     leafHash = keccak256(abi.encode(leafHash, proofElements[i]));
                 /**
                  * otherwise the i-th bit of 'nodeWrittenBitmap' is 0,
-                 * indicating that the node at the i-th index has *not* been written to
+                 * indicating that the node at the i-th nodeIndex has *not* been written to
                  */
                 } else {
                     leafHash = keccak256(abi.encode(leafHash, ZERO_HASHES[i]));

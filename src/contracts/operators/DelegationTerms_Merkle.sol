@@ -59,7 +59,53 @@ contract DelegationTerms_Merkle is SparseMerkle, Ownable, IDelegationTerms {
         emit NewMerkleRootPosted(newRoot);
     }
 
-    function proveEarningsAndWithdraw() external {}
+    function proveEarningsAndWithdraw(
+        IERC20[] memory tokens,
+        uint256[] memory amounts,
+        bytes32[] calldata proofElements,
+        uint256 nodeWrittenBitmap,
+        uint256 nodeIndex,
+        uint256 rootIndex
+    ) external {
+        // calculate the leaf that the `msg.sender` is claiming
+        bytes32 leafHash = calculateLeafHash(msg.sender, tokens, amounts);
+
+        // check inclusion of the leafHash in the tree corresponding to `merkleRoots[rootIndex]`
+        require(
+            checkInclusion(
+                proofElements,
+                nodeWrittenBitmap,
+                nodeIndex,
+                leafHash,
+                merkleRoots[rootIndex]
+            ),
+            "proof of inclusion failed"
+        );
+
+        uint256 tokensLength = tokens.length;
+        for (uint256 i; i < tokensLength;) {
+            // read previously claimed amount in storage
+            uint256 alreadyClaimed = cumulativeClaimedByStakerOfToken[msg.sender][tokens[i]];
+
+            // calculate amount to send
+            uint256 amountToSend = amounts[i] - alreadyClaimed;
+
+            if (amountToSend != 0) {
+                // update claimed amount in storage
+                cumulativeClaimedByStakerOfToken[msg.sender][tokens[i]] = amounts[i];
+
+                // actually send the tokens
+                tokens[i].safeTransfer(msg.sender, amounts[i]);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function calculateLeafHash(address staker, IERC20[] memory tokens, uint256[] memory amounts) internal pure returns (bytes32) {
+        return keccak256(abi.encode(staker, tokens, amounts));
+    }
 
     // FUNCTIONS FROM INTERFACE
     function payForService(IERC20, uint256) external payable {
