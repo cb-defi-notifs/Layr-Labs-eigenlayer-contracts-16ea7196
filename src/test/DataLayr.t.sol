@@ -103,6 +103,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
         );
     }
 
+
      //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
     function testInadequateQuorumStake(uint256 ethAmount, uint256 eigenAmount) public {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);

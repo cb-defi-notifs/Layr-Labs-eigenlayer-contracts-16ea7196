@@ -40,15 +40,12 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     }
     //initiates a data store
     //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 initTimestamp, address confirmer)
+   //initiates a data store
+    //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
+   function _testInitDataStore(uint256 initTimestamp, address confirmer, bytes memory header)
         internal
         returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
-    {
-        bytes memory header = abi.encodePacked(
-            hex"0102030405060708091011121314151617181920"
-        );
-        uint32 totalBytes = 1e6;
-
+    {        
         // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
         weth.transfer(storer, 1e11);
         cheats.startPrank(storer);
@@ -57,6 +54,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
         uint32 blockNumber = uint32(block.number);
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
         require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
         cheats.warp(initTimestamp);
@@ -65,17 +63,27 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
-            header,
             durationToInit,
-            totalBytes,
-            blockNumber
+            blockNumber,
+            totalOperatorsIndex,
+            header
         );
 
         bytes32 headerHash = keccak256(header);
 
         cheats.stopPrank();
 
-        uint256 fee = calculateFee(totalBytes, 1, durationToInit);
+
+        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+        uint32 degree;
+        assembly{
+            degree := shr(224, mload(add(header, 96)))
+        }
+        uint256 totalBytes = totalOperators * (degree + 1) * 31;
+        
+        uint256 fee = dlsm.calculateFee(totalBytes, 1, uint32(durationToInit*DURATION_SCALE));
+
+
 
         IDataLayrServiceManager.DataStoreMetadata
             memory metadata = IDataLayrServiceManager.DataStoreMetadata({
@@ -245,7 +253,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         internal
         returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
     {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
 
         uint32 numberOfNonSigners = 0;
         uint256[4] memory apk;
@@ -326,15 +334,14 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         return (data, searchData);
     }
 
-    
 
-
-        //Internal function for assembling calldata - prevents stack too deep errors
+    //Internal function for assembling calldata - prevents stack too deep errors
     function _getCallData(
         bytes32 msgHash,
         uint32 numberOfNonSigners,
-        SignerInfo memory signers,
-        NonSignerInfo memory nonsigners,
+        RegistrantAPK memory registrantAPK,
+        SignerAggSig memory signerAggSig,
+        NonSignerPK memory nonSignerPK,
         uint32 blockNumber,
         uint32 dataStoreId
     )
@@ -351,6 +358,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
          * uint32 dataStoreId
          * uint32 numberOfNonSigners,
          * uint256[numberOfSigners][4] pubkeys of nonsigners,
+         * uint32 stakeIndex
          * uint32 apkIndex,
          * uint256[4] apk,
          * uint256[2] sigma
@@ -362,25 +370,58 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             blockNumber,
             dataStoreId,
             numberOfNonSigners,
-            nonsigners.xA0,
-            nonsigners.xA1,
-            nonsigners.yA0,
-            nonsigners.yA1
+            nonSignerPK.xA0,
+            nonSignerPK.xA1,
+            nonSignerPK.yA0,
+            nonSignerPK.yA1
         );
 
         data = abi.encodePacked(
             data,
             uint32(0),
             uint32(dlReg.getApkUpdatesLength() - 1),
-            signers.apk0,
-            signers.apk1,
-            signers.apk2,
-            signers.apk3,
-            signers.sigma0,
-            signers.sigma1
+            registrantAPK.apk0,
+            registrantAPK.apk1,
+            registrantAPK.apk2,
+            registrantAPK.apk3,
+            signerAggSig.sigma0,
+            signerAggSig.sigma1
         );
 
         return data;
+    }
+
+    function _testInitDataStoreExpectRevert(
+        uint256 initTimestamp, 
+        address confirmer, 
+        bytes memory header, 
+        bytes memory revertMsg
+    )
+        internal
+    {        
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
+        weth.transfer(storer, 1e11);
+        cheats.startPrank(storer);
+        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
+
+        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
+
+        uint32 blockNumber = uint32(block.number);
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
+
+        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
+        cheats.warp(initTimestamp);
+
+        cheats.expectRevert(revertMsg);
+        dlsm.initDataStore(
+            storer,
+            confirmer,
+            durationToInit,
+            blockNumber,
+            totalOperatorsIndex,
+            header
+        );
     }
 
 
