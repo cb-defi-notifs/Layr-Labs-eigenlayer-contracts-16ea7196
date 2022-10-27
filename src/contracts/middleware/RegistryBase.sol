@@ -144,8 +144,12 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
             "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too high"
         );
+
+    
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
-        // Since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
+
+        // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
+
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
             "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too low"
@@ -425,7 +429,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address operator,
         bytes32 pubkeyHash,
         OperatorStake memory _operatorStake
-    ) internal {
+    )
+        internal
+    {
+
         require(
             investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"

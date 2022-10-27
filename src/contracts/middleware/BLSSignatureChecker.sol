@@ -108,6 +108,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
      * uint32 numberOfNonSigners,
      * {uint256[4], apkIndex}[numberOfNonSigners] the public key and the index to query of `pubkeyHashToStakeHistory` for each nonsigner,
      * in affine coordinates, arranges as (x_0, x_1), (y_0, y_1)
+     * uint32 stakeIndex is the index in the stake history from which quorum stake info is retreived.
      * uint32 apkIndex, the index in the `apkUpdates` array at which we want to load the aggregate public key
      * uint256[4] apk (aggregate public key),
      * uint256[2] sigma, the aggregate signature itself
