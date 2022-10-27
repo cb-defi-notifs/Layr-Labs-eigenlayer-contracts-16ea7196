@@ -126,6 +126,7 @@ contract TestHelper is EigenLayrDeployer {
         cheats.warp(initTimestamp);
         uint256 timestamp = block.timestamp;
 
+
         uint32 index = dlsm.initDataStore(
             storer,
             confirmer,
@@ -553,6 +554,33 @@ contract TestHelper is EigenLayrDeployer {
          * uint256[2] sigma
          * >
          */
+
+         bytes32 msgHash = keccak256(
+                abi.encodePacked(
+                    searchData.metadata.globalDataStoreId,
+                    searchData.metadata.headerHash,
+                    searchData.duration,
+                    initTime,
+                    searchData.index
+                )
+            );
+        
+        emit log_named_uint("duration", searchData.duration);
+        emit log_named_uint("timestamp", searchData.timestamp);
+        emit log_named_uint("index", searchData.index);
+        emit log_named_uint("duration", searchData.duration);
+        
+        emit log_named_bytes32("headerHash", searchData.metadata.headerHash);
+        emit log_named_uint("globalDataStoreId", searchData.metadata.globalDataStoreId);
+        emit log_named_uint("durtationDataStoreId", searchData.metadata.durationDataStoreId);
+        emit log_named_uint("blocknumber", searchData.metadata.blockNumber);
+        emit log_named_uint("fee", searchData.metadata.fee);
+        emit log_named_address("confirmer", searchData.metadata.confirmer);
+        emit log_named_bytes32("signatoryRecordHash", searchData.metadata.signatoryRecordHash);
+
+
+
+         
 
         bytes memory data = abi.encodePacked(
             keccak256(

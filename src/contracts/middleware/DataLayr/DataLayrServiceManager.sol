@@ -196,6 +196,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         whenNotPaused
         returns (uint32 index)
     {
+
         bytes32 headerHash = keccak256(header);
         uint32 storePeriodLength;
         IDataLayrServiceManager.DataStoreMetadata memory metadata;
@@ -248,7 +249,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
             // Recording the initialization of datablob store along with auxiliary info
             //store metadata locally to be stored
-            IDataLayrServiceManager.DataStoreMetadata memory metadata = IDataLayrServiceManager.DataStoreMetadata({
+            metadata = IDataLayrServiceManager.DataStoreMetadata({
                 headerHash: headerHash,
                 durationDataStoreId: getNumDataStoresForDuration(duration),
                 globalDataStoreId: dataStoresForDuration.dataStoreId,
