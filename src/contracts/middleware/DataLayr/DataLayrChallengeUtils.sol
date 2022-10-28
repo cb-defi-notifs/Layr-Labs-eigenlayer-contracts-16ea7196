@@ -26,7 +26,7 @@ contract DataLayrChallengeUtils {
         uint32 numPar;
     }
 
-    uint256 internal constant ZERO_POLY_TREE_HEIGHT;
+    uint256 internal ZERO_POLY_TREE_HEIGHT;
 
     /**
     * @notice Check that the DataLayr operator who is getting slashed was

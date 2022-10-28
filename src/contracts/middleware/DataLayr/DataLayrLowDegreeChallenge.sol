@@ -55,6 +55,7 @@ contract DataLayrLowDegreeChallenge {
 
     //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
+    uint256 internal constant POT_TREE_HEIGHT = 28;
 
     modifier onlyRepositoryGovernance() {
         dataLayrServiceManager.repository().owner();
