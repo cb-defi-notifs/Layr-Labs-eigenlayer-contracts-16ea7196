@@ -224,6 +224,38 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external {
+        //restrict to permissioned contracts
+        require(canSlash(operator, msg.sender));
+        //update latest update
+        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
+        //push the middleware to the end of the update list  
+        require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
+            "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
+    }
+
+    function recordStakeUpdate(address operator, uint32 serveUntil) external {
+        //restrict to permissioned contracts
+        require(canSlash(operator, msg.sender));
+        //update latest update
+        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
+        //move the middleware to the end of the update list
+        require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
+            "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
+        require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
+            "Slasher.recordStakeUpdate: Appending middleware unsuccessful");
+    }
+
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external {
+        //restrict to permissioned contracts
+        require(canSlash(operator, msg.sender));
+        //update latest update
+        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
+        //remove the middleware from the list
+        require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
+             "Slasher.recordLastStakeUpdate: Removing middleware unsuccessful");
+    }
+
     function addressToUint(address addr) internal pure returns(uint256) {
         return uint256(uint160(addr));
     }
