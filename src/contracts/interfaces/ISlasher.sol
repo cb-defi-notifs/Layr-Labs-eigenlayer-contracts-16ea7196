@@ -7,6 +7,12 @@ pragma solidity ^0.8.9;
  * @notice See the `Slasher` contract itself for implementation details.
  */
 interface ISlasher {
+    struct MiddlewareTimes {
+        uint32 updateTime; //the time at which this MiddlewareTimes update was appended
+        uint32 leastRecentUpdateTime; //the time of update for the middleware whose latest update was earliest
+        uint32 latestServeUntil; //the latest serve until time from all of the middleware that the operator is serving
+    }
+
     function freezeOperator(address toSlash) external;
 
     function isFrozen(address staker) external view returns (bool);

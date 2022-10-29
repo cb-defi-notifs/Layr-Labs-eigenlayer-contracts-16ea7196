@@ -5,6 +5,7 @@ import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
+import "../libraries/StructuredLinkedList.sol";
 import "../permissions/Pausable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
@@ -20,7 +21,7 @@ import "forge-std/Test.sol";
  * - calling investManager to do actual slashing.
  */
 contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
-    // ,DSTest
+    using StructuredLinkedList for StructuredLinkedList.List;
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
@@ -33,6 +34,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     mapping(address => bool) public frozenStatus;
 
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
+
+    mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
+    mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime;
+    mapping(address => MiddlewareTimes[]) middlewareTimes;
+
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
@@ -189,5 +195,40 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         } else {
             return false;
         }
+    }
+
+    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) internal {
+        //update latest update
+        operatorToWhitelistedContractsToLatestUpdateTime[operator][msg.sender] = uint32(block.timestamp);
+        //load current middleware times tip
+        MiddlewareTimes memory curr = middlewareTimes[operator][middlewareTimes[operator].length - 1];
+        MiddlewareTimes memory next = MiddlewareTimes({
+            updateTime: uint32(block.timestamp),
+            leastRecentUpdateTime: 0,
+            // if the current middleware's serve until is later than the current recorded one, update the latestServeUntil
+            latestServeUntil: serveUntil > curr.latestServeUntil ? serveUntil : curr.latestServeUntil
+        });
+        if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
+            //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
+            (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
+            if(hasNext) {
+                //if there is a next node, then set the lastestRecentUpdateTime to its recorded value
+                next.leastRecentUpdateTime = operatorToWhitelistedContractsToLatestUpdateTime[operator][uintToAddress(nextNode)];
+            } else {
+                //otherwise this is the only middleware so right now is the lastestRecentUpdateTime
+                next.leastRecentUpdateTime = uint32(block.timestamp);
+            }
+        } else {
+            //otherwise keep it the same
+            next.leastRecentUpdateTime = curr.leastRecentUpdateTime;
+        }
+    }
+
+    function addressToUint(address addr) internal pure returns(uint256) {
+        return uint256(uint160(addr));
+    }
+
+    function uintToAddress(uint256 x) internal pure returns(address) {
+        return address(uint160(x));
     }
 }
