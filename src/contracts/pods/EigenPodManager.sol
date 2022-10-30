@@ -83,8 +83,8 @@ contract EigenPodManager is IEigenPodManager {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
-        //stake on the pod
-        pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
+        //TODO: uncomment this: stake on the pod
+        //pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
     /**
@@ -149,15 +149,16 @@ contract EigenPodManager is IEigenPodManager {
     function deployPod() internal returns (IEigenPod) {
         IEigenPod pod = 
             IEigenPod(
-                Create2.deploy(
-                    0, 
-                    bytes32(uint256(uint160(msg.sender))), 
-                    // set the beacon address to the eigenPodBeacon and initialize it
-                    abi.encodePacked(
-                        type(BeaconProxy).creationCode, 
-                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
-                    )
-                )
+                // Create2.deploy(
+                //     0, 
+                //     bytes32(uint256(uint160(msg.sender))), 
+                //     // set the beacon address to the eigenPodBeacon and initialize it
+                //     abi.encodePacked(
+                //         type(BeaconProxy).creationCode, 
+                //         abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
+                //     )
+                // )
+                address(420)
             );
         return pod;
     }

@@ -39,6 +39,8 @@ import "../contracts/libraries/DataStoreUtils.sol";
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
 
+import "./mocks/BeaconChainOracleMock.sol";
+
 import "forge-std/Test.sol";
 
 contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
@@ -262,6 +264,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
+        beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(hex"62a3feccdc48be6edf7aac258b69d3ae210a075dda43d6c9bd4928d67b1b8b5b");
         eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
         
 

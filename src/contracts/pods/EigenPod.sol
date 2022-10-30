@@ -57,6 +57,14 @@ contract EigenPod is IEigenPod, Initializable {
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
     }
 
+    /**
+    * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
+    * this contract.  It verifies the provided proof from the validator against the beacon chain state
+    * root.
+    * @param pubkey is the BLS public key for the validator.
+    * @param proofs is
+    * @param validatorFields are the fields of the "Validator Container
+     */
     function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
         bytes calldata proofs, 

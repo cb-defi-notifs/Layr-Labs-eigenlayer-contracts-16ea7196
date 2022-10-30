@@ -26,4 +26,9 @@ interface IEigenPod {
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
     //called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal. called during withdrawal or slashing
     function withdrawBeaconChainETH(address recipient, uint256 amount) external;
+    function verifyCorrectWithdrawalCredentials(
+        bytes calldata pubkey, 
+        bytes calldata proofs, 
+        bytes32[] calldata validatorFields
+    ) external;
 }
