@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/IServiceManager.sol";
+import "../interfaces/IDelayedService.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IBLSPublicKeyCompendium.sol";
@@ -51,24 +52,6 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /**
-     * @notice Used by an operator to de-register itself from providing service to the middleware.
-     * For detailed comments, see the `deregisterOperator` function in BLSRegistry.sol.
-     * Same as `BLSRegistry.deregisterOperator` except adds an external call to `ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey)`,
-     * passing along the additional argument `finalEphemeralKey`.
-     */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index, bytes32 finalEphemeralKey)
-        external
-        returns (bool)
-    {
-        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
-
-        //post last ephemeral key reveal on chain
-        ephemeralKeyRegistry.postLastEphemeralKeyPreImage(msg.sender, finalEphemeralKey);
-
-        return true;
-    }
-
-    /**
      * @notice called for registering as an operator.
      * For detailed comments, see the `registerOperator` function in BLSRegistry.sol.
      * same as `BLSRegistry.registerOperator` except adds an external call to `ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash)`,
@@ -76,14 +59,79 @@ contract BLSRegistryWithBomb is BLSRegistry {
      */
     function registerOperator(
         uint8 operatorType,
-        bytes32 ephemeralKeyHash,
+        bytes32 ephemeralKeyHash1,
+        bytes32 ephemeralKeyHash2,
         bytes calldata pkBytes,
         string calldata socket
     ) external {
         _registerOperator(msg.sender, operatorType, pkBytes, socket);
 
+        ephemeralKeyRegistry.postFirstEphemeralKeyHashes(msg.sender, ephemeralKeyHash1, ephemeralKeyHash2);
+    }
+
+    /** 
+     * @notice same as RegistryBase._removeOperator except the serveUntil and revokeSlashingAbility updates are moved until later
+     *         this is to account for the BLOCK_STALE_MEASURE serving delay needed for EIGENDA
+     */
+    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal override {
+        //remove the operator's stake
+        uint32 updateBlockNumber = _removeOperatorStake(pubkeyHash);
+
+        // store blockNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber =
+            uint32(block.number);
+
+        // remove the operator at `index` from the `operatorList`
+        address swappedOperator = _popRegistrant(index);
+
+        // Emit `Deregistration` event
+        emit Deregistration(msg.sender, swappedOperator);
+
+        emit StakeUpdate(
+            msg.sender,
+            // new stakes are zero
+            0,
+            0,
+            uint32(block.number),
+            updateBlockNumber
+        );
+    }
+
+    /** 
+     * @notice same as RegistryBase._removeOperator except the serveUntil and revokeSlashingAbility updates are moved until later
+     *         this is to account for the BLOCK_STALE_MEASURE serving delay needed for EIGENDA
+     */
+    function completeDeregistrationAndRevealLastEphemeralKeys(uint256[] memory indexes, bytes32[] memory ephemeralKeys) internal {
+        require(_isAfterDelayedServicePeriod(msg.sender), 
+            "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
+
+        // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
+        uint32 serveUntil = repository.serviceManager().latestTime();
+        registry[msg.sender].serveUntil = serveUntil;
+        // committing to not signing off on any more middleware tasks
+        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
+
+        //revoke the slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
+
         //add ephemeral key to ephemeral key registry
-        ephemeralKeyRegistry.postFirstEphemeralKeyHash(msg.sender, ephemeralKeyHash);
+        ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, indexes, ephemeralKeys);
+    }
+
+    function isActiveOperator(address operator) external view override returns (bool) {
+        //the operator status must be active and they must still be serving or have started their deregistration
+        //but still before their final ephemeral key reveal
+        /// @dev Fetch operator's stored pubkeyHash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        return 
+            (registry[operator].status == IQuorumRegistry.Status.ACTIVE && 
+                (
+                    pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber == 0 ||
+                    pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber 
+                        + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() > uint32(block.number)
+                )
+            );
     }
 
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
@@ -94,5 +142,18 @@ contract BLSRegistryWithBomb is BLSRegistry {
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
     function deregisterOperator(uint256[4] memory, uint32) external pure override returns (bool) {
         revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
+    }
+
+
+    /**
+     * @notice this function makes sure the operator hash started their deregistration and that they have passed their delayed 
+     *         service period after starting the deregistration process
+     */ 
+    function _isAfterDelayedServicePeriod(address operator) internal view returns (bool) {
+        /// @dev Fetch operator's stored pubkeyHash
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
+        return pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber != 0 &&
+                pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber 
+                    + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() < uint32(block.number);
     }
 }

@@ -103,6 +103,7 @@ contract RegistrationTests is DataLayrTestHelper {
         dlReg.registerOperator(
             3,
             bytes32(0),
+            keccak256(abi.encodePacked(uint256(bytes32(0)) | 1234567876543)),
             registrationData[operatorIndex].slice(0, 128),
             testSocket
         );
@@ -211,7 +212,7 @@ contract RegistrationTests is DataLayrTestHelper {
         pubkeyCompendium.registerBLSPublicKey(zeroData);
 
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: Cannot register with 0x0 public key"));
-        dlReg.registerOperator(operatorType, testEphemeralKeyHash, zeroData, testSocket);
+        dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), zeroData, testSocket);
         cheats.stopPrank(); 
     }
 
@@ -277,7 +278,7 @@ contract RegistrationTests is DataLayrTestHelper {
         // pubkeyCompendium.registerBLSPublicKey(packedAPK);
 
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));
-        dlReg.registerOperator(operatorType, testEphemeralKeyHash, packedAPK, testSocket);
+        dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), packedAPK, testSocket);
         cheats.stopPrank();
      }
 }

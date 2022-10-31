@@ -173,7 +173,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
-    function isActiveOperator(address operator) external view returns (bool) {
+    function isActiveOperator(address operator) external view virtual returns (bool) {
         return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
     }
 
@@ -326,13 +326,43 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @notice Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
-    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
+    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal virtual {
+        //remove the operator's stake
+        uint32 updateBlockNumber = _removeOperatorStake(pubkeyHash);
+
+        // store blockNumber at which operator index changed (stopped being applicable)
+        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber =
+            uint32(block.number);
+
+        // remove the operator at `index` from the `operatorList`
+        address swappedOperator = _popRegistrant(index);
+
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
+        //revoke the slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
+
+        // Emit `Deregistration` event
+        emit Deregistration(msg.sender, swappedOperator);
+
+        emit StakeUpdate(
+            msg.sender,
+            // new stakes are zero
+            0,
+            0,
+            uint32(block.number),
+            updateBlockNumber
+        );
+    }
+
+    /**
+     * @notice Removes the stakes of the operator with pubkeyHash `pubkeyHash`
+     */
+    function _removeOperatorStake(bytes32 pubkeyHash) internal returns(uint32) {
         // gas saving by caching length here
         uint256 pubkeyHashToStakeHistoryLengthMinusOne = pubkeyHashToStakeHistory[pubkeyHash].length - 1;
 
@@ -366,27 +396,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // update storage of total stake
         _recordTotalStakeUpdate(_totalStake);
 
-        // store blockNumber at which operator index changed (stopped being applicable)
-        pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber =
-            uint32(block.number);
-
-        // remove the operator at `index` from the `operatorList`
-        address swappedOperator = _popRegistrant(index);
-
-        //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
-
-        // Emit `Deregistration` event
-        emit Deregistration(msg.sender, swappedOperator);
-
-        emit StakeUpdate(
-            msg.sender,
-            // new stakes are zero
-            0,
-            0,
-            uint32(block.number),
-            currentStakes.updateBlockNumber
-            );
+        return currentStakes.updateBlockNumber;
     }
 
     /**

@@ -9,21 +9,15 @@ pragma solidity ^0.8.9;
  */
 
 interface IEphemeralKeyRegistry {
-    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external;
+    function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external;
 
-    function postLastEphemeralKeyPreImage(address operator, bytes32 EK) external;
+    function revealLastEphemeralKeys(address operator, uint256[] memory indexes, bytes32[] memory prevEpheremeralKeys) external;
 
-    function revealAndUpdateEphemeralKey(bytes32 prevEK, bytes32 currEKHash) external;
+    function revealEphemeralKey(uint256 index, bytes32 prevEpheremeralKey) external;
 
-    function getCurrEphemeralKeyHash(address operator) external returns (bytes32);
+    function verifyStaleEphemeralKey(address operator, uint256 index) external;
 
-    function getLatestEphemeralKey(address operator) external returns (bytes32);
-
-    function proveStaleUnrevealedEphemeralKey(address operator) external;
-
-    function proveLeakedEphemeralKey(address operator, bytes32 leakedEphemeralKey) external;
-
-    function getLastEKPostTimestamp(address operator) external returns (uint192);
-
-    function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber) external view returns (bytes32);
+    function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external;
+    
+    function getEphemeralKeyAtTime(address operator, uint256 index, uint32 timestamp) external returns(bytes32);
 }

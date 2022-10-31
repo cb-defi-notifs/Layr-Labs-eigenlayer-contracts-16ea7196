@@ -158,7 +158,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         }
 
         // obtain registry contract for querying information on stake later
-        IBLSRegistry registry = IBLSRegistry(address(_registry()));
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
 
         /**
          * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.
@@ -349,7 +349,7 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                registry.getCorrectApkHash(apkIndex, stakesBlockNumber) == BLS.hashPubkey(pk),
+                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == BLS.hashPubkey(pk),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }

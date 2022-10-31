@@ -3,10 +3,12 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./IServiceManager.sol";
+import "./IDelayedService.sol";
 import "./IEigenLayrDelegation.sol";
 import "./IDataLayrPaymentManager.sol";
 
-interface IDataLayrServiceManager is IServiceManager {
+
+interface IDataLayrServiceManager is IServiceManager, IDelayedService {
     //Relevant metadata for a given datastore
     struct DataStoreMetadata {
         bytes32 headerHash;

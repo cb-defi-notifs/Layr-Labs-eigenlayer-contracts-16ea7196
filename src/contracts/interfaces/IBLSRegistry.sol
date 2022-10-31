@@ -8,7 +8,7 @@ import "./IQuorumRegistry.sol";
  * @author Layr Labs, Inc.
  * @notice Adds BLS-specific functions to the base interface.
  */
-interface IBLSRegistry is IQuorumRegistry {
+interface IBLSRegistry {
     /// @notice Data structure used to track the history of the Aggregate Public Key of all operators
     struct ApkUpdate {
         // keccak256(apk_x0, apk_x1, apk_y0, apk_y1)

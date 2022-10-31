@@ -13,14 +13,14 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint8 operatorType,
-        bytes32 ephemeralKey,
+        bytes32 ephemeralKeyHash,
         string memory socket
     ) public {
 
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
 
     }
@@ -35,7 +35,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        // dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
         cheats.stopPrank();
     }
     //initiates a data store
@@ -209,7 +209,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
 
         cheats.stopPrank();
 

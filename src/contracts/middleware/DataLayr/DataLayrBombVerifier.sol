@@ -54,6 +54,7 @@ contract DataLayrBombVerifier {
         uint32 totalOperatorsIndex;
         uint256 detonationNonSignerIndex;
         uint256[] successiveSignerIndexes;
+        uint256 ephemeralKeyIndex;
     }
 
     /// @notice Proof of the data itself -- from the BOMB datastore -- that the operator was responsible for storing
@@ -340,8 +341,8 @@ contract DataLayrBombVerifier {
         );
 
         // fetch the operator's ephemeral key for the DETONATION datastore
-        bytes32 ek = dlekRegistry.getEphemeralKeyForTaskNumber(
-            operator, dataStoreProofs.detonationDataStore.metadata.globalDataStoreId
+        bytes32 ek = dlekRegistry.getEphemeralKeyAtTime(
+            operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.timestamp)
         );
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
