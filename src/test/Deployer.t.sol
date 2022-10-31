@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "./mocks/LiquidStakingToken.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
-import "../contracts/interfaces/IEigenPodManager.sol";
+
 import "../contracts/core/EigenLayrDelegation.sol";
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
@@ -13,7 +13,11 @@ import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
+import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
+
+
+
 
 import "../contracts/middleware/Repository.sol";
 import "../contracts/permissions/PauserRegistry.sol";
@@ -30,6 +34,8 @@ import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+
 
 
 import "../contracts/libraries/BLS.sol";
@@ -53,6 +59,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
+    EigenPod public pod;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
@@ -205,10 +212,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
 
-        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        //TODO: handle pod manager correctly
-        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
-
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
@@ -265,9 +268,19 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(hex"62a3feccdc48be6edf7aac258b69d3ae210a075dda43d6c9bd4928d67b1b8b5b");
+        beaconChainOracle.setBeaconChainStateRoot(0xde78f6e457c753efcf26e4822f1f52f93a2c62a68cf261b603e6a430b1c5c862);
+
+        pod = new EigenPod(ethPOSDeposit);
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
         eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
         
+
+        
+        pod.initialize(eigenPodManager, address(this));
+
+        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
+        investmentManager.initialize(slasher, eigenPodManager, pauserReg, initialOwner);
+
 
 
 

@@ -10,6 +10,7 @@ import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -28,7 +29,8 @@ contract InvestmentManager is
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
-    Pausable
+    Pausable,
+    DSTest
 {
     using SafeERC20 for IERC20;
 

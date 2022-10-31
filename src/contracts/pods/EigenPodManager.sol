@@ -16,6 +16,7 @@ import "../interfaces/IBeaconChainOracle.sol";
 
 
 
+
 /**
  * @title The contract used for creating and managing EigenPods
  * @author Layr Labs, Inc.
@@ -84,7 +85,7 @@ contract EigenPodManager is IEigenPodManager {
             pod = deployPod();
         }
         //TODO: uncomment this: stake on the pod
-        //pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
+        pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
     /**
@@ -149,31 +150,34 @@ contract EigenPodManager is IEigenPodManager {
     function deployPod() internal returns (IEigenPod) {
         IEigenPod pod = 
             IEigenPod(
-                // Create2.deploy(
-                //     0, 
-                //     bytes32(uint256(uint160(msg.sender))), 
-                //     // set the beacon address to the eigenPodBeacon and initialize it
-                //     abi.encodePacked(
-                //         type(BeaconProxy).creationCode, 
-                //         abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
-                //     )
-                // )
-                address(420)
+                Create2.deploy(
+                    0, 
+                    bytes32(uint256(uint160(msg.sender))), 
+                    // set the beacon address to the eigenPodBeacon and initialize it
+                    abi.encodePacked(
+                        type(BeaconProxy).creationCode, 
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
+                    )
+                )
             );
         return pod;
     }
 
+    //_deployedAddress = Create2.deploy(0, salt, abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, abi.encode(impl, admin, new bytes(0))));
+
     // VIEW FUNCTIONS
 
     function getPod(address podOwner) public view returns (IEigenPod) {
-        return IEigenPod(
-                Create2.computeAddress(
-                    bytes32(uint256(uint160(podOwner))), //salt
-                    keccak256(abi.encodePacked(
-                        type(BeaconProxy).creationCode, 
-                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
-                    )) //bytecode
-                ));
+        address addy = 0xd5D575E71245442009EE208E8DCEBFbcF958b8B6;
+        return IEigenPod(addy);
+        // return IEigenPod(
+        //         Create2.computeAddress(
+        //             bytes32(uint256(uint160(podOwner))), //salt
+        //             keccak256(abi.encodePacked(
+        //                 type(BeaconProxy).creationCode, 
+        //                 abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
+        //             )) //bytecode
+        //         ));
     }
 
     function hasPod(address podOwner) public view returns (bool) {

@@ -20,6 +20,7 @@ interface IEigenPod {
         ACTIVE //staked on ethpos and withdrawal credentials are pointed
     }
 
+    function podOwner() external returns(address);
     //used to initialize the pointers to contracts crucial to the pods functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
     //called by EigenPodManager when the owner wants to create another validator

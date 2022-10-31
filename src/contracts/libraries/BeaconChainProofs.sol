@@ -11,7 +11,7 @@ import "./BytesLib.sol";
 //SSZ Spec: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
 //BeaconBlockHeader Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
 //BeaconState Spec: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconstate
-library BeaconChainProofs {
+library BeaconChainProofs{
     using BytesLib for bytes;
     //constants are the number of fields and the heights of the different merkle trees used in merkleizing beacon chain containers
     uint256 public constant NUM_BEACON_BLOCK_HEADER_FIELDS = 5;
@@ -92,6 +92,7 @@ library BeaconChainProofs {
         bool valid;
         //verify that the validatorTreeRoot is within the top level beacon state tree
         bytes32 validatorTreeRoot = proofs.toBytes32(0);
+
         //offset 32 bytes for validatorTreeRoot
         pointer += 32;
         valid = Merkle.checkMembershipSha256(
@@ -115,7 +116,7 @@ library BeaconChainProofs {
             validatorRoot,
             proofs.toUint32(pointer), //validatorIndex
             validatorTreeRoot,
-            proofs.slice(pointer, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
+            proofs.slice(pointer + 32, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
     }
