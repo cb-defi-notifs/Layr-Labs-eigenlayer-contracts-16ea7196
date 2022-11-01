@@ -90,7 +90,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 headerHash: headerHash,
                 durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
-                blockNumber: blockNumber,
+                stakesFromBlockNumber: blockNumber,
                 fee: uint96(fee),
                 confirmer: confirmer,
                 signatoryRecordHash: bytes32(0)
@@ -288,7 +288,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 )
             ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.blockNumber,
+            searchData.metadata.stakesFromBlockNumber,
             searchData.metadata.globalDataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now

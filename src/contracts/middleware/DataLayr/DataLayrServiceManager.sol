@@ -253,7 +253,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 headerHash: headerHash,
                 durationDataStoreId: getNumDataStoresForDuration(duration),
                 globalDataStoreId: dataStoresForDuration.dataStoreId,
-                blockNumber: blockNumber,
+                stakesFromBlockNumber: blockNumber,
                 fee: uint96(fee),
                 confirmer: confirmer,
                 signatoryRecordHash: bytes32(0)
@@ -397,7 +397,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         );
         // verify integrity of `blockNumberFromTaskHash` provided as part of `data` input        
         require(
-            searchData.metadata.blockNumber == blockNumberFromTaskHash,
+            searchData.metadata.stakesFromBlockNumber == blockNumberFromTaskHash,
             "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data"
         );
 

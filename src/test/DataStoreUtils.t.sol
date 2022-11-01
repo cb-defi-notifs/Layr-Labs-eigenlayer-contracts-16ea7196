@@ -59,7 +59,7 @@ contract DataStoreUtilsTests is DSTest {
         );
         assertEq(
             blockNumber,
-            unpackedStruct.blockNumber,
+            unpackedStruct.stakesFromBlockNumber,
             "testPackUnpackDataStoreMetadata: unpacked blockNumber does not match original one"
         );
         assertEq(fee, unpackedStruct.fee, "testPackUnpackDataStoreMetadata: unpacked fee does not match original one");
@@ -131,7 +131,7 @@ contract DataStoreUtilsTests is DSTest {
         );
         assertEq(
             blockNumber,
-            unpackedStruct.metadata.blockNumber,
+            unpackedStruct.metadata.stakesFromBlockNumber,
             "testPackUnpackDataStoreSearchData: unpacked blockNumber does not match original one"
         );
         assertEq(
@@ -183,7 +183,7 @@ contract DataStoreUtilsTests is DSTest {
             headerHash: headerHash,
             durationDataStoreId: durationDataStoreId,
             globalDataStoreId: globalDataStoreId,
-            blockNumber: blockNumber,
+            stakesFromBlockNumber: blockNumber,
             fee: fee,
             confirmer: confirmer,
             signatoryRecordHash: signatoryRecordHash

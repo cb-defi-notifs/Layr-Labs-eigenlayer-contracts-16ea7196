@@ -460,7 +460,7 @@ contract DelegationTests is DataLayrTestHelper {
                 registrantAPK,
                 signerAggSig,
                 nonsignerPK,
-                searchData.metadata.blockNumber,
+                searchData.metadata.stakesFromBlockNumber,
                 dataStoreId
             );
 

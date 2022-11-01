@@ -72,7 +72,7 @@ library DataStoreUtils {
                 metadata.headerHash,
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
-                metadata.blockNumber,
+                metadata.stakesFromBlockNumber,
                 metadata.fee,
                 metadata.confirmer,
                 metadata.signatoryRecordHash
@@ -92,7 +92,7 @@ library DataStoreUtils {
                 metadata.headerHash,
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
-                metadata.blockNumber,
+                metadata.stakesFromBlockNumber,
                 metadata.fee,
                 metadata.confirmer,
                 metadata.signatoryRecordHash
