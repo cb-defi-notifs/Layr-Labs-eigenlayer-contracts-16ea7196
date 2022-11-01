@@ -82,13 +82,11 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
-        emit log("JHJSHS");
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
             validatorFields
         );
-            emit log_named_bytes32("pod", podWithdrawalCredentials().toBytes32(0));
         //require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
@@ -99,8 +97,6 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
-
-        emit log_named_address("this address", address(this));
 
         eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
         eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
@@ -126,7 +122,6 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
-        emit log_named_uint("validatorBalance", validatorBalance);
         uint64 prevValidatorBalance = validators[merklizedPubkey].balance;
         //update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
