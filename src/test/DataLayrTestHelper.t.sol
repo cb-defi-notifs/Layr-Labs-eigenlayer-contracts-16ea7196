@@ -53,6 +53,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
+        uint32 stakesFromBlockNumber = uint32(block.number);
         uint32 blockNumber = uint32(block.number);
         uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
@@ -64,7 +65,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             storer,
             confirmer,
             durationToInit,
-            blockNumber,
+            stakesFromBlockNumber,
             totalOperatorsIndex,
             header
         );
@@ -74,7 +75,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.stopPrank();
 
 
-        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
         uint32 degree;
         assembly{
             degree := shr(224, mload(add(header, 96)))
@@ -90,7 +91,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 headerHash: headerHash,
                 durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
-                stakesFromBlockNumber: blockNumber,
+                stakesFromBlockNumber: stakesFromBlockNumber,
+                blockNumber: blockNumber,
                 fee: uint96(fee),
                 confirmer: confirmer,
                 signatoryRecordHash: bytes32(0)

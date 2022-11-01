@@ -179,7 +179,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
      * implementation in DataLayrBombVerifier.sol.
-     * @param blockNumber is the block number in Ethereum for which the confirmation will
+     * @param stakesFromBlockNumber is the block number in Ethereum for which the confirmation will
      * consult total + operator stake amounts.
      * -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      * @return index The index in the array `dataStoreHashesForDurationAtTimestamp[duration][block.timestamp]` at which the DataStore's hash was stored.
@@ -188,7 +188,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         address feePayer,
         address confirmer,
         uint8 duration,
-        uint32 blockNumber,
+        uint32 stakesFromBlockNumber,
         uint32 totalOperatorsIndex,
         bytes calldata header
     )
@@ -204,8 +204,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         {
             uint256 totalBytes;
             {
-                //fetch the total number of operators for the blockNumber from which stakes are being read from
-                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+                //fetch the total number of operators for the stakesFromBlockNumber from which stakes are being read from
+                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
@@ -253,7 +253,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 headerHash: headerHash,
                 durationDataStoreId: getNumDataStoresForDuration(duration),
                 globalDataStoreId: dataStoresForDuration.dataStoreId,
-                stakesFromBlockNumber: blockNumber,
+                stakesFromBlockNumber: stakesFromBlockNumber,
+                blockNumber: uint32(block.number),
                 fee: uint96(fee),
                 confirmer: confirmer,
                 signatoryRecordHash: bytes32(0)
@@ -285,15 +286,15 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
         }
 
-        // sanity check on blockNumber
+        // sanity check on stakesFromBlockNumber
         {
             require(
-                blockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified blockNumber is in future"
+                stakesFromBlockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is in future"
             );
 
             require(
-                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
-                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
+                (stakesFromBlockNumber + BLOCK_STALE_MEASURE) >= block.number,
+                "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is too far in past"
             );    
         }
 

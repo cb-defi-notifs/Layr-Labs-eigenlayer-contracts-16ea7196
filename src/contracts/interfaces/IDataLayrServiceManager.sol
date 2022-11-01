@@ -15,6 +15,7 @@ interface IDataLayrServiceManager is IServiceManager, IDelayedService {
         uint32 durationDataStoreId;
         uint32 globalDataStoreId;
         uint32 stakesFromBlockNumber;
+        uint32 blockNumber;
         uint96 fee;
         address confirmer;
         bytes32 signatoryRecordHash;

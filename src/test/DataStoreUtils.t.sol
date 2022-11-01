@@ -15,18 +15,19 @@ contract DataStoreUtilsTests is DSTest {
 
     // unfuzzed version of testPackUnpackDataStoreMetadata
     function testPackUnpackDataStoreMetadataFixedInputs() public {
-        testPackUnpackDataStoreMetadata(bytes32(uint256(1)), 2, 3, 4, 5, address(6), bytes32(uint256(7)));
+        testPackUnpackDataStoreMetadata(bytes32(uint256(1)), 2, 3, 4, 5, 6, address(6), bytes32(uint256(7)));
     }
 
     // unfuzzed version of testPackUnpackDataStoreSearchData
     function testPackUnpackDataStoreSearchDataFixedInputs() public {
-        testPackUnpackDataStoreSearchData(bytes32(uint256(1)), 2, 3, 4, 5, address(6), bytes32(uint256(7)), 8, 9, 10);
+        testPackUnpackDataStoreSearchData(bytes32(uint256(1)), 2, 3, 4, 5, 6, address(6), bytes32(uint256(7)), 8, 9, 10);
     }
 
     function testPackUnpackDataStoreMetadata(
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
+        uint32 stakesFromBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -34,7 +35,7 @@ contract DataStoreUtilsTests is DSTest {
     ) public {
         // form struct from arguments
         IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
-            headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
+            headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
         // pack the struct
         bytes memory packedMetadata = dataStoreUtilsWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
@@ -85,6 +86,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
+        uint32 stakesFromBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -98,6 +100,7 @@ contract DataStoreUtilsTests is DSTest {
             headerHash,
             durationDataStoreId,
             globalDataStoreId,
+            stakesFromBlockNumber,
             blockNumber,
             fee,
             confirmer,
@@ -174,6 +177,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
+        uint32 stakesFromBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -183,7 +187,8 @@ contract DataStoreUtilsTests is DSTest {
             headerHash: headerHash,
             durationDataStoreId: durationDataStoreId,
             globalDataStoreId: globalDataStoreId,
-            stakesFromBlockNumber: blockNumber,
+            stakesFromBlockNumber: stakesFromBlockNumber,
+            blockNumber: blockNumber,
             fee: fee,
             confirmer: confirmer,
             signatoryRecordHash: signatoryRecordHash
@@ -195,6 +200,7 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 headerHash,
         uint32 durationDataStoreId,
         uint32 globalDataStoreId,
+        uint32 stakesFromBlockNumber,
         uint32 blockNumber,
         uint96 fee,
         address confirmer,
@@ -204,7 +210,7 @@ contract DataStoreUtilsTests is DSTest {
         uint32 index
     ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
-            headerHash, durationDataStoreId, globalDataStoreId, blockNumber, fee, confirmer, signatoryRecordHash
+            headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
         searchDataStruct.duration = duration;
         searchDataStruct.timestamp = timestamp;

@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
+import "../../interfaces/IRepositoryAccess.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 
@@ -58,7 +59,7 @@ contract DataLayrLowDegreeChallenge {
     uint256 internal constant POT_TREE_HEIGHT = 28;
 
     modifier onlyRepositoryGovernance() {
-        dataLayrServiceManager.repository().owner();
+        IRepositoryAccess(address(dataLayrServiceManager)).repository().owner();
         _;
     }
 
@@ -66,12 +67,12 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
-        uint256 _gasLimit
+        uint256 _pairingGasLimit
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
-        pairingGasLimit = _gasLimit;
+        pairingGasLimit = _pairingGasLimit;
     }
 
     /**
