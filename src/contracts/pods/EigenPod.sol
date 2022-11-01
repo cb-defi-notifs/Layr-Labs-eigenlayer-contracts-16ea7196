@@ -12,7 +12,7 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
-import "forge-std/Test.sol";
+ import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -25,7 +25,8 @@ import "forge-std/Test.sol";
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPod is IEigenPod, Initializable , DSTest{
+contract EigenPod is IEigenPod, Initializable,DSTest
+{
     using BytesLib for bytes;
 
     //TODO: change this to constant in prod
@@ -52,8 +53,8 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
 
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
         eigenPodManager = _eigenPodManager;
+        emit log_named_address("address eigenpodManafger", address(eigenPodManager));
         podOwner = _podOwner;
-        // emit log("HEHHE");
     }
 
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
@@ -75,20 +76,28 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
+        emit log("hehes");
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+                emit log("hehe");
+
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
+                emit log("hehe");
+
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
             validatorFields
         );
+                emit log("hehe");
+
         //require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
+        emit log_named_bytes32("pod withdrawalc reds", podWithdrawalCredentials().toBytes32(0));
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
@@ -97,7 +106,7 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
-
+        emit log_named_address("podOwner in withdrawverify", podOwner);
         eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
         eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
     }
@@ -143,7 +152,7 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
     }
 
     // INTERNAL FUNCTIONS
-    function podWithdrawalCredentials() internal view returns(bytes memory) {
+    function podWithdrawalCredentials() internal returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 }

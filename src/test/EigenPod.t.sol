@@ -10,13 +10,13 @@ contract EigenPodTests is TestHelper {
     bytes pubkey = hex"88347ed1c492eedc97fc8c506a35d44d81f27a0c7a1c661b35913cfd15256c0cccbd34a83341f505c7de2983292f2cab";
     
     //hash tree root of list of validators
-    bytes32 validatorTreeRoot = 0xe16996ce8f239ecf3d51d980bd40bc0d52877a2b64f2e0b00b31a63281208628;
+    bytes32 validatorTreeRoot = 0x086b7e13ed140edde37881d9c56056dba1d94e0259a4b66cbb380c2d3635236d;
     bytes32[] beaconStateMerkleProof;
     bytes32[] validatorMerkleProof;
     bytes32[] validatorContainerFields;
 
     //hash tree root of individual validator container
-    bytes32 validatorRoot = 0x6676e153ef747e73c622f8de0f04bdaecf8c2d343ec5277398a34b6c85e0f473;
+    bytes32 validatorRoot = 0xa53e7d312448c698f384043a34a267e1f6c72ae6c784fc6e0cc50fa88f65e4c5;
     
 
 
@@ -28,7 +28,7 @@ contract EigenPodTests is TestHelper {
         beaconStateMerkleProof.push(0x1260718cd540a187a9dcff9f4d39116cdc1a0aed8a94fbe7a69fb87eae747be5);
 
         validatorContainerFields.push(0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f);
-        validatorContainerFields.push(0x010000000000000000000000d5d575e71245442009ee208e8dcebfbcf958b8b6);
+        validatorContainerFields.push(0x010000000000000000000000a7ea1a556725fd9bea2455f7470886e30660cfb2);
         validatorContainerFields.push(0x2000000000000000000000000000000000000000000000000000000000000000);
         validatorContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         validatorContainerFields.push(0x0200000000000000000000000000000000000000000000000000000000000000);
@@ -81,15 +81,24 @@ contract EigenPodTests is TestHelper {
 
     function testDeployAndVerifyNewEigenPod(address podOwner, bytes memory signature, bytes32 depositDataRoot) public {
         initialize();
+
+        address podOwner = address(42000094993494);
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        IEigenPod newPod;
+
+        newPod = eigenPodManager.getPod(podOwner);
+
         bytes32 validatorIndex = bytes32(uint256(0));
-
-        //eigenPodManager.stake(pubkey, signature, depositDataRoot);
-
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
-        pod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
+        newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
         
+        // emit log_named_uint("balance", eigenPodManager.getBalance(podOwner));
 
-        
+        // emit log_named_uint("balance", eigenPodManager.getDepositedBalance(podOwner));
+        //require(1==2, "fail");
     }
 
 

@@ -46,6 +46,8 @@ import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
 
 import "./mocks/BeaconChainOracleMock.sol";
+import "./mocks/ETHDepositMock.sol";
+
 
 import "forge-std/Test.sol";
 
@@ -59,7 +61,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EigenPod public pod;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
@@ -78,9 +79,11 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public baseStrategyImplementation;
     IBLSPublicKeyCompendium public blsPkCompendium;
     IEigenPodManager public eigenPodManager;
+    IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
+
 
 
     // strategy index => IInvestmentStrategy
@@ -268,16 +271,17 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0x7ca294a2b35e867f7faa44a599befa6bd3fc031de841af74f30375f30f98e3a6);
+        beaconChainOracle.setBeaconChainStateRoot(0x31c4ed9a072cc282553df11e2135c80d259af2719571a832258d4bab292ebf62);
 
+        ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit);
+        emit log_named_address("beacon impl addy", address(pod));
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
         eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
         
+        emit log_named_address("address eigenpodManafger ACTUAL", address(eigenPodManager));
 
-        
-        pod.initialize(eigenPodManager, address(this));
-
+    
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
         investmentManager.initialize(slasher, eigenPodManager, pauserReg, initialOwner);
 

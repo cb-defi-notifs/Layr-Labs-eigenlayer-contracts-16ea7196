@@ -14,6 +14,7 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
+import "forge-std/Test.sol";
 
 
 
@@ -26,7 +27,8 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is IEigenPodManager {
+contract EigenPodManager is IEigenPodManager, DSTest 
+{
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
     
@@ -80,11 +82,12 @@ contract EigenPodManager is IEigenPodManager {
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         IEigenPod pod = getPod(msg.sender);
+        emit log_named_address("pod", address(pod));
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
-        //TODO: uncomment this: stake on the pod
+        //IEigenPod pod = deployPod();
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
@@ -148,6 +151,7 @@ contract EigenPodManager is IEigenPodManager {
 
     // INTERNAL FUNCTIONS
     function deployPod() internal returns (IEigenPod) {
+        emit log_named_address("deploy pod podOwner", msg.sender);
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(
@@ -168,16 +172,14 @@ contract EigenPodManager is IEigenPodManager {
     // VIEW FUNCTIONS
 
     function getPod(address podOwner) public view returns (IEigenPod) {
-        address addy = 0xd5D575E71245442009EE208E8DCEBFbcF958b8B6;
-        return IEigenPod(addy);
-        // return IEigenPod(
-        //         Create2.computeAddress(
-        //             bytes32(uint256(uint160(podOwner))), //salt
-        //             keccak256(abi.encodePacked(
-        //                 type(BeaconProxy).creationCode, 
-        //                 abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
-        //             )) //bytecode
-        //         ));
+        return IEigenPod(
+                Create2.computeAddress(
+                    bytes32(uint256(uint160(podOwner))), //salt
+                    keccak256(abi.encodePacked(
+                        type(BeaconProxy).creationCode, 
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner))
+                    )) //bytecode
+                ));
     }
 
     function hasPod(address podOwner) public view returns (bool) {
@@ -189,7 +191,16 @@ contract EigenPodManager is IEigenPodManager {
         return podInfo;
     }
 
-    function getBeaconChainStateRoot() external view returns(bytes32){
+    function getBalance(address podOwner) external view returns (uint128) {
+        return pods[podOwner].balance;
+    }
+
+    function getDepositedBalance(address podOwner) external view returns (uint128) {
+        return pods[podOwner].depositedBalance;
+    }
+
+    function getBeaconChainStateRoot() external returns(bytes32){
+        emit log("YOYOOYOY");
         return beaconChainOracle.getBeaconChainStateRoot();
     }
 }
