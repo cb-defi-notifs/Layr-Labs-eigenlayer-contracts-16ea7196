@@ -151,7 +151,6 @@ contract EigenPodManager is IEigenPodManager, DSTest
 
     // INTERNAL FUNCTIONS
     function deployPod() internal returns (IEigenPod) {
-        emit log_named_address("deploy pod podOwner", msg.sender);
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(
@@ -199,8 +198,7 @@ contract EigenPodManager is IEigenPodManager, DSTest
         return pods[podOwner].depositedBalance;
     }
 
-    function getBeaconChainStateRoot() external returns(bytes32){
-        emit log("YOYOOYOY");
+    function getBeaconChainStateRoot() external view returns(bytes32){
         return beaconChainOracle.getBeaconChainStateRoot();
     }
 }

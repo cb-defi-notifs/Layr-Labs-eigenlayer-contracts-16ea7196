@@ -26,6 +26,6 @@ interface IEigenPodManager {
     function getPodInfo(address podOwner) external view returns(EigenPodInfo memory);
     function getBalance(address podOwner) external view returns (uint128);
     function getDepositedBalance(address podOwner) external view returns (uint128);
-    function getBeaconChainStateRoot() external returns(bytes32);
+    function getBeaconChainStateRoot() external view returns(bytes32);
     function hasPod(address podOwner) external view returns (bool);
 }
