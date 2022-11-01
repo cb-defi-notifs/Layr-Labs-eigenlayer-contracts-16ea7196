@@ -107,11 +107,8 @@ contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
 
         uint256 tokensAndAmountsLength = tokensAndAmounts.length;
         for (uint256 i; i < tokensAndAmountsLength;) {
-            // read previously claimed amount in storage
-            uint256 alreadyClaimed = cumulativeClaimedByStakerOfToken[msg.sender][tokensAndAmounts[i].token];
-
             // calculate amount to send
-            uint256 amountToSend = tokensAndAmounts[i].amount - alreadyClaimed;
+            uint256 amountToSend = tokensAndAmounts[i].amount - cumulativeClaimedByStakerOfToken[msg.sender][tokensAndAmounts[i].token];
 
             if (amountToSend != 0) {
                 // update claimed amount in storage
