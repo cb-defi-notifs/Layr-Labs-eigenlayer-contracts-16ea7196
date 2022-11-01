@@ -19,5 +19,5 @@ interface IEphemeralKeyRegistry {
 
     function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external;
     
-    function getEphemeralKeyAtTime(address operator, uint256 index, uint32 timestamp) external returns(bytes32);
+    function getEphemeralKeyAtBlock(address operator, uint256 index, uint32 blockNumber) external returns(bytes32);
 }

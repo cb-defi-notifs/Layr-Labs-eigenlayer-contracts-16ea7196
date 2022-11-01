@@ -341,8 +341,8 @@ contract DataLayrBombVerifier {
         );
 
         // fetch the operator's ephemeral key for the DETONATION datastore
-        bytes32 ek = dlekRegistry.getEphemeralKeyAtTime(
-            operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.timestamp)
+        bytes32 ek = dlekRegistry.getEphemeralKeyAtBlock(
+            operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.metadata.blockNumber)
         );
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD

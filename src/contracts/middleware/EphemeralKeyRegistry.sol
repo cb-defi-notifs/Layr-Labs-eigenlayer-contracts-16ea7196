@@ -23,23 +23,16 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         // the hash of the ephemeral key
         bytes32 ephemeralKeyHash;
         // when the ephemeral key started being used
-        uint32 startTime;
+        uint32 startBlock;
         // when the ephemeral key was revealed
-        uint32 revealTime;
+        uint32 revealBlock;
     }
 
-    struct EphemeralKeyStartTime {
-        uint32 index; 
-        uint32 startTime;
-    }
-
-    // max amount of time that an operator can use an ephemeral key
-    uint32 public constant USAGE_PERIOD = 90 days;
-    // max amout of time operator has to submit and confirm the ephemeral key reveal transaction
-    uint32 public constant REVEAL_PERIOD = 7 days;
-    // operator => index of the ephemeral key to reveal next
-    mapping(address => EphemeralKeyStartTime[]) public ephemeralKeyStartTimes;
-    // operator => log of ephemeral keys hashes, timestamp at which they were posted, and start/end taskNumbers
+    // max amount of blocks that an operator can use an ephemeral key
+    uint32 public constant USAGE_PERIOD = 648000; //90 days at 12s/block
+    // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
+    uint32 public constant REVEAL_PERIOD = 50400; //7 days at 12s/block
+    // operator => log of ephemeral keys hashes, block at which they started being used and were revealed
     mapping(address => EphemeralKeyEntry[]) public ephemeralKeyEntries;
 
     // solhint-disable-next-line no-empty-blocks
@@ -57,16 +50,16 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         ephemeralKeyEntries[operator].push(
             EphemeralKeyEntry({
                 ephemeralKeyHash: ephemeralKeyHash1,
-                startTime: uint32(block.timestamp),
-                revealTime: 0
+                startBlock: uint32(block.number),
+                revealBlock: 0
             })
         );
         // record the next ephemeral key, starting usage after USAGE_PERIOD
         ephemeralKeyEntries[operator].push(
             EphemeralKeyEntry({
                 ephemeralKeyHash: ephemeralKeyHash2,
-                startTime: uint32(block.timestamp) + USAGE_PERIOD,
-                revealTime: 0
+                startBlock: uint32(block.number) + USAGE_PERIOD,
+                revealBlock: 0
             })
         );
     }
@@ -79,28 +72,28 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         // get the number of entries for the operator
         uint256 entriesLength = ephemeralKeyEntries[msg.sender].length;
 
-        if(ephemeralKeyEntries[msg.sender][entriesLength - 1].startTime < uint32(block.timestamp)) {
+        if(ephemeralKeyEntries[msg.sender][entriesLength - 1].startBlock < uint32(block.number)) {
             // if the last ephemeral key is the active one, 
             // add the ephemeral key entry and make it the current active one
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
-                    startTime: uint32(block.timestamp),
-                    revealTime: 0
+                    startBlock: uint32(block.number),
+                    revealBlock: 0
                 })
             );
-        } else if(ephemeralKeyEntries[msg.sender][entriesLength - 2].startTime < uint32(block.timestamp)) {
+        } else if(ephemeralKeyEntries[msg.sender][entriesLength - 2].startBlock < uint32(block.number)) {
             // if the 2nd to last ephemeral key is the active one, 
             // make the last ephemeral key the current active one,
             // and add the ephemeral key entry
 
-            ephemeralKeyEntries[msg.sender][entriesLength - 1].startTime = uint32(block.timestamp);
+            ephemeralKeyEntries[msg.sender][entriesLength - 1].startBlock = uint32(block.number);
 
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
-                    startTime: uint32(block.timestamp) + USAGE_PERIOD,
-                    revealTime: 0
+                    startBlock: uint32(block.number) + USAGE_PERIOD,
+                    revealBlock: 0
                 })
             );
         } else {
@@ -116,7 +109,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      */
     function revealEphemeralKey(uint256 index, bytes32 prevEpheremeralKey) external {
         if(index != 0) {
-            require(ephemeralKeyEntries[msg.sender][index-1].revealTime != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
+            require(ephemeralKeyEntries[msg.sender][index-1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
         }
         _revealEphemeralKey(msg.sender, index, prevEpheremeralKey);
     }
@@ -128,7 +121,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      */
     function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEpheremeralKeys) external onlyRegistry {
         if(startIndex != 0) {
-            require(ephemeralKeyEntries[msg.sender][startIndex-1].revealTime != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
+            require(ephemeralKeyEntries[msg.sender][startIndex-1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
         }
         for(uint i = 0; i < prevEpheremeralKeys.length; i++) {
             _revealEphemeralKey(operator, startIndex+i, prevEpheremeralKeys[i]);
@@ -141,14 +134,14 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      * @param index is the index of the stale entry
      */
     function verifyStaleEphemeralKey(address operator, uint256 index) external {
-        require(ephemeralKeyEntries[operator][index].revealTime == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
+        require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
         if(index == ephemeralKeyEntries[operator].length){
             //if the last ephemeral key is stale, it must be used for more than USAGE_PERIOD
-            require(ephemeralKeyEntries[operator][index].startTime + USAGE_PERIOD < uint32(block.timestamp), 
+            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD < uint32(block.number), 
                 "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD yet");
         } else {
             //otherwise, the next ephemeral key must have been active for more than REVEAL_PERIOD
-            require(ephemeralKeyEntries[operator][index+1].startTime + REVEAL_PERIOD < uint32(block.timestamp), 
+            require(ephemeralKeyEntries[operator][index+1].startBlock + REVEAL_PERIOD < uint32(block.number), 
                 "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD yet");
         }
 
@@ -176,15 +169,15 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.verifyLeakedEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
         );
         
-        require(ephemeralKeyEntries[operator][index].revealTime == 0, "EphemeralKeyRegistry.verifyLeakedEphemeralKey: ephemeral key has been revealed");
+        require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyLeakedEphemeralKey: ephemeral key has been revealed");
         if(index != ephemeralKeyEntries[operator].length){
             //if the last ephemeral key is being leaked, then make sure it's not in its reveal period
 
-            //the time at which the leaked key stopped being active was then the one after it started being active
-            uint256 endTime = ephemeralKeyEntries[msg.sender][index+1].startTime;
+            //the block at which the leaked key stopped being active was then the one after it started being active
+            uint256 endBlock = ephemeralKeyEntries[msg.sender][index+1].startBlock;
             require(
-                block.timestamp < endTime ||
-                block.timestamp > endTime + REVEAL_PERIOD,
+                block.number < endBlock ||
+                block.number > endBlock + REVEAL_PERIOD,
                 "EphemeralKeyRegistry.verifyLeakedEphemeralKey: key cannot be leaked within reveal period"
             );
         }
@@ -194,13 +187,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         serviceManager.freezeOperator(operator);
     }
 
-    function getEphemeralKeyAtTime(address operator, uint256 index, uint32 timestamp) external view returns(bytes32) {
-        require(ephemeralKeyEntries[operator][index].startTime <= timestamp && // the ephemeral key was in use before `timestamp`
+    function getEphemeralKeyAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(bytes32) {
+        require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber && // the ephemeral key was in use before `blockNumber`
                 (
                     ephemeralKeyEntries[operator].length - 1 == index || // it is the last entry 
-                    ephemeralKeyEntries[operator][index+1].startTime > timestamp // or the next entry started after the timestamp
+                    ephemeralKeyEntries[operator][index+1].startBlock > blockNumber // or the next entry started after the blockNumber
                 ),
-                "EphemeralKeyRegistry.getEphemeralKeyAtTime: index is not the correct entry index"
+                "EphemeralKeyRegistry.getEphemeralKeyAtBlock: index is not the correct entry index"
         );
         return ephemeralKeyEntries[operator][index].ephemeralKeyHash;
     }
@@ -218,24 +211,24 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.revealEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
         );
 
-        //the time at which the revealed key stopped being active was then the one after it started being active
-        uint256 endTime = ephemeralKeyEntries[operator][index+1].startTime;
+        //the block at which the revealed key stopped being active was then the one after it started being active
+        uint256 endBlock = ephemeralKeyEntries[operator][index+1].revealBlock;
 
         // checking the validity period of the ephemeral key update
         require(
-            block.timestamp > endTime,
+            block.number > endBlock,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
         );
         require(
-            block.timestamp < endTime + REVEAL_PERIOD,
+            block.number < endBlock + REVEAL_PERIOD,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
         );
         require(
-            ephemeralKeyEntries[operator][index].revealTime == 0,
+            ephemeralKeyEntries[operator][index].revealBlock == 0,
             "EphemeralKeyRegistry.revealEphemeralKey: key has already been revealed"
         );
 
         // updating the previous EK entry
-        ephemeralKeyEntries[operator][index].revealTime = uint32(block.timestamp);
+        ephemeralKeyEntries[operator][index].revealBlock = uint32(block.number);
     }
 }
