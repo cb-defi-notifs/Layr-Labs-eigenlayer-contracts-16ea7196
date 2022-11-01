@@ -101,7 +101,7 @@ contract EigenPodTests is TestHelper {
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, beaconChainETHStrategy);
 
-        require(beaconChainETHShares = validatorBalance, "investmentManager shares not updated correctly");
+        require(beaconChainETHShares == validatorBalance, "investmentManager shares not updated correctly");
 
     }
 
