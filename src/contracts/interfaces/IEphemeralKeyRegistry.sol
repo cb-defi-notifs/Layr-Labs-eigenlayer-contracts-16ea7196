@@ -9,6 +9,16 @@ pragma solidity ^0.8.9;
  */
 
 interface IEphemeralKeyRegistry {
+    // DATA STRUCTURES
+    struct EphemeralKeyEntry {
+        // the hash of the ephemeral key
+        bytes32 ephemeralKeyHash;
+        // when the ephemeral key started being used
+        uint32 startBlock;
+        // when the ephemeral key was revealed
+        uint32 revealBlock;
+    }
+
     function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external;
 
     function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEpheremeralKeys) external;
@@ -19,5 +29,5 @@ interface IEphemeralKeyRegistry {
 
     function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external;
     
-    function getEphemeralKeyAtBlock(address operator, uint256 index, uint32 blockNumber) external returns(bytes32);
+    function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external returns(EphemeralKeyEntry memory);
 }

@@ -454,6 +454,18 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
+    function recordFirstStakeUpdate(address operator, uint32 unbondedAfter) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordFirstStakeUpdate(operator, unbondedAfter);
+    }
+
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordStakeUpdate(operator, updateBlock, serveUntil, prevElement);
+    }
+
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordLastStakeUpdate(operator, serveUntil);
+    }
+
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }

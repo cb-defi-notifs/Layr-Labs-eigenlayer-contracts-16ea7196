@@ -95,7 +95,8 @@ library StructuredLinkedList {
         if (!nodeExists(self, _node)) {
             return (false, 0);
         } else {
-            return (true, self.list[_node][_direction]);
+            uint256 adjacent = self.list[_node][_direction];
+            return (adjacent != _HEAD, adjacent);
         }
     }
 

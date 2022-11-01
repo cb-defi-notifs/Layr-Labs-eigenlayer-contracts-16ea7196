@@ -18,16 +18,6 @@ import "forge-std/Test.sol";
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
-    // DATA STRUCTURES
-    struct EphemeralKeyEntry {
-        // the hash of the ephemeral key
-        bytes32 ephemeralKeyHash;
-        // when the ephemeral key started being used
-        uint32 startBlock;
-        // when the ephemeral key was revealed
-        uint32 revealBlock;
-    }
-
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD = 648000; //90 days at 12s/block
     // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
@@ -124,8 +114,14 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             require(ephemeralKeyEntries[msg.sender][startIndex-1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
         }
         for(uint i = 0; i < prevEpheremeralKeys.length; i++) {
-            _revealEphemeralKey(operator, startIndex+i, prevEpheremeralKeys[i]);
+            require(
+                ephemeralKeyEntries[operator][startIndex+i].ephemeralKeyHash == keccak256(abi.encodePacked(prevEpheremeralKeys[i])),
+                "EphemeralKeyRegistry.revealLastEphemeralKeys: Ephemeral key does not match previous ephemeral key commitment"
+            );
+            ephemeralKeyEntries[operator][startIndex+i].revealBlock = uint32(block.number);
         }
+        require(ephemeralKeyEntries[operator].length == startIndex + prevEpheremeralKeys.length,
+            "EphemeralKeyRegistry.revealLastEphemeralKeys: all ephemeral keys must be revealed");
     }
 
     /**
@@ -187,15 +183,15 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         serviceManager.freezeOperator(operator);
     }
 
-    function getEphemeralKeyAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(bytes32) {
+    function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(EphemeralKeyEntry memory) {
         require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber && // the ephemeral key was in use before `blockNumber`
                 (
                     ephemeralKeyEntries[operator].length - 1 == index || // it is the last entry 
                     ephemeralKeyEntries[operator][index+1].startBlock > blockNumber // or the next entry started after the blockNumber
                 ),
-                "EphemeralKeyRegistry.getEphemeralKeyAtBlock: index is not the correct entry index"
+                "EphemeralKeyRegistry.getEphemeralKeyEntryAtBlock: index is not the correct entry index"
         );
-        return ephemeralKeyEntries[operator][index].ephemeralKeyHash;
+        return ephemeralKeyEntries[operator][index];
     }
 
     function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEpheremeralKey) internal {

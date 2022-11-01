@@ -8,8 +8,7 @@ pragma solidity ^0.8.9;
  */
 interface ISlasher {
     struct MiddlewareTimes {
-        uint32 updateTime; //the time at which this MiddlewareTimes update was appended
-        uint32 leastRecentUpdateTime; //the time of update for the middleware whose latest update was earliest
+        uint32 leastRecentUpdateBlock; //the update block for the middleware whose latest update was earliest
         uint32 latestServeUntil; //the latest serve until time from all of the middleware that the operator is serving
     }
 
@@ -29,7 +28,7 @@ interface ISlasher {
 
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
-    function recordStakeUpdate(address operator, uint32 serveUntil) external;
+    function recordStakeUpdate(address operator, uint32 blockNumber, uint32 serveUntil, uint256 prevElement) external;
     
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
 }

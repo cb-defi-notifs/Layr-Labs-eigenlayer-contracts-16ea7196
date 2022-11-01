@@ -339,22 +339,22 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         uint32 latestTime = repository.serviceManager().latestTime();
-        registry[msg.sender].serveUntil = latestTime;
+        registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
-        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
-        registry[msg.sender].deregisterTime = uint32(block.timestamp);
+        registry[operator].status = IQuorumRegistry.Status.INACTIVE;
+        registry[operator].deregisterTime = uint32(block.timestamp);
 
         //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
+        repository.serviceManager().revokeSlashingAbility(operator, latestTime);
 
         // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        investmentManager.slasher().recordFirstStakeUpdate(operator, latestTime);
+        repository.serviceManager().recordFirstStakeUpdate(operator, latestTime);
 
         // Emit `Deregistration` event
-        emit Deregistration(msg.sender, swappedOperator);
+        emit Deregistration(operator, swappedOperator);
 
         emit StakeUpdate(
-            msg.sender,
+            operator,
             // new stakes are zero
             0,
             0,
@@ -491,7 +491,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         _updateTotalOperatorsHistory();
 
         // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        investmentManager.slasher().recordFirstStakeUpdate(operator, 0);
+        repository.serviceManager().recordFirstStakeUpdate(operator, 0);
 
         emit StakeUpdate(
             operator,
@@ -503,10 +503,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         );
     }
 
-/**
- * TODO: critique: "Currently only `_registrationStakeEvaluation` uses the `uint8 registrantType` input -- we should **EITHER** store this
- * and keep using it in other places as well, **OR** stop using it altogether"
- */
+    /**
+     * TODO: critique: "Currently only `_registrationStakeEvaluation` uses the `uint8 registrantType` input -- we should **EITHER** store this
+     * and keep using it in other places as well, **OR** stop using it altogether"
+     */
     /**
      * @notice Used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`.
      * @dev This function does **not** update the stored state of the operator's stakes -- storage updates are performed elsewhere.
@@ -583,8 +583,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             uint32(block.number),
             currentOperatorStake.updateBlockNumber
             );
-
-        return (updatedOperatorStake);
     }
 
     /// @notice Records that the `totalStake` is now equal to the input param @_totalStake

@@ -105,38 +105,37 @@ contract BLSRegistryWithBomb is BLSRegistry {
             "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        uint32 serveUntil = repository.serviceManager().latestTime();
-        registry[msg.sender].serveUntil = serveUntil;
+        uint32 latestTime = repository.serviceManager().latestTime();
+        registry[msg.sender].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
-        //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
-
         //add ephemeral key to ephemeral key registry
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
+
+        //revoke the slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
+
+        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
+        repository.serviceManager().recordLastStakeUpdate(msg.sender, latestTime);
     }
 
     /** 
      * @notice used to complete deregistration process, revealing the operators final ephemeral keys
      */
-    function propagateStakeUpdate(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
-        require(_isAfterDelayedServicePeriod(msg.sender), 
-            "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
-
-        // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        uint32 serveUntil = repository.serviceManager().latestTime();
-        registry[msg.sender].serveUntil = serveUntil;
-        // committing to not signing off on any more middleware tasks
-        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
-        registry[msg.sender].deregisterTime = uint32(block.timestamp);
-
-        //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
-
-        //add ephemeral key to ephemeral key registry
-        ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
+    function propagateStakeUpdate(address operator, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) internal {
+        IServiceManager serviceManager = repository.serviceManager();
+        //make sure BLOCK_STALE_MEASURE blocks have passed since the block we are updating for
+        require(blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() < uint32(block.number),
+            "BLSRegistryWithBomb.propagateStakeUpdate: blockNumber must be BLOCK_STALE_MEASURE blocks ago");
+        // @notice Registrant must continue to serve until the latest time at which an active task expires.
+        uint32 serveUntil = serviceManager.latestTime();
+        //make sure operator revealed all epehemeral keys before
+        require(ephemeralKeyRegistry.getEphemeralKeyEntryAtBlock(operator, ephemeralKeyIndex, blockNumber).revealBlock != 0,
+            "BLSRegistryWithBomb.propagateStakeUpdate: ephemeral key was not revealed yet");
+        //record the stake update in the slasher
+        serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
     function isActiveOperator(address operator) external view override returns (bool) {

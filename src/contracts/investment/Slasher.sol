@@ -22,6 +22,9 @@ import "forge-std/Test.sol";
  */
 contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     using StructuredLinkedList for StructuredLinkedList.List;
+
+    uint256 private constant HEAD = 0;
+
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
@@ -36,7 +39,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
     mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
-    mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime;
+    mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateBlock;
     mapping(address => MiddlewareTimes[]) middlewareTimes;
 
 
@@ -197,30 +200,40 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
-    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) internal {
-        //update latest update
-        operatorToWhitelistedContractsToLatestUpdateTime[operator][msg.sender] = uint32(block.timestamp);
+    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
+        //update latest update if it is from before the the latest recorded update
+        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
+                "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
+        operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         //load current middleware times tip
         MiddlewareTimes memory curr = middlewareTimes[operator][middlewareTimes[operator].length - 1];
-        MiddlewareTimes memory next = MiddlewareTimes({
-            updateTime: uint32(block.timestamp),
-            leastRecentUpdateTime: 0,
-            // if the current middleware's serve until is later than the current recorded one, update the latestServeUntil
-            latestServeUntil: serveUntil > curr.latestServeUntil ? serveUntil : curr.latestServeUntil
-        });
+        MiddlewareTimes memory next;
+        bool pushToMiddlewareTimes;
+        //if the serve until is later than the latest recorded one, update it
+        if(serveUntil > curr.latestServeUntil) {
+            next.latestServeUntil = serveUntil;
+            //mark that we need push next to middleware times array because it contains new information
+            pushToMiddlewareTimes = true;
+        } else {
+            next.latestServeUntil = curr.latestServeUntil;
+        }
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
             //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
             if(hasNext) {
-                //if there is a next node, then set the lastestRecentUpdateTime to its recorded value
-                next.leastRecentUpdateTime = operatorToWhitelistedContractsToLatestUpdateTime[operator][uintToAddress(nextNode)];
+                //if there is a next node, then set the leastRecentUpdateBlock to its recorded value
+                next.leastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
             } else {
-                //otherwise this is the only middleware so right now is the lastestRecentUpdateTime
-                next.leastRecentUpdateTime = uint32(block.timestamp);
+                //otherwise this is the only middleware so right now is the leastRecentUpdateBlock
+                next.leastRecentUpdateBlock = updateBlock;
             }
-        } else {
-            //otherwise keep it the same
-            next.leastRecentUpdateTime = curr.leastRecentUpdateTime;
+            //mark that we need push next to middleware times array because it contains new information
+            pushToMiddlewareTimes = true;
+        }
+        
+        //if next has new information, push it
+        if(pushToMiddlewareTimes) {
+            middlewareTimes[operator].push(next);
         }
     }
 
@@ -228,20 +241,63 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         //restrict to permissioned contracts
         require(canSlash(operator, msg.sender), "Slasher.recordFirstStakeUpdate: only slashing contracts can record stake updates");
         //update latest update
-        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
+        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //push the middleware to the end of the update list  
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
     }
 
-    function recordStakeUpdate(address operator, uint32 serveUntil) external {
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external {
         //restrict to permissioned contracts
         require(canSlash(operator, msg.sender), "Slasher.recordStakeUpdate: only slashing contracts can record stake updates");
         //update latest update
-        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
-        //move the middleware to the end of the update list
-        require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
-            "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
+        _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
+        //move the middleware to its correct update position via prev and updateBlock
+        //if the the middleware is the only one, then no need to mutate the list
+        if(operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
+            //remove the middlware from the list
+            require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
+                "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
+            if(prevElement != HEAD) {
+                // updateBlock is after prevElement's latest updateBlock
+                // make sure prevElement exists
+                require(
+                    operatorToWhitelistedContractsByUpdate[operator].nodeExists(prevElement),
+                    "Slasher.recordStakeUpdate: prevElement does not exist"
+                );
+                // make sure its most recent updateBlock was before updateBlock
+                require(
+                    operatorToWhitelistedContractsToLatestUpdateBlock[operator][
+                        uintToAddress(prevElement)
+                    ] <= updateBlock,
+                    "Slasher.recordStakeUpdate: prevElement's latest updateBlock is later than the middleware currently updating"
+                );
+                //get prevElement's successor
+                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(prevElement);
+                if(hasNext) {
+                    // make sure the element after prevElement's most recent updateBlock was before updateBlock
+                    require(
+                        operatorToWhitelistedContractsToLatestUpdateBlock[operator][
+                            uintToAddress(nextNode)
+                        ] > updateBlock,
+                        "Slasher.recordStakeUpdate: element after prevElement's latest updateBlock is earlier or equal to middleware currently updating"
+                    );
+                }
+                //insert the middleware after prevElement
+                operatorToWhitelistedContractsByUpdate[operator].insertAfter(prevElement, addressToUint(msg.sender));
+            } else {
+                // updateBlock is before any other middleware's latest updateBlock
+                require(
+                    operatorToWhitelistedContractsToLatestUpdateBlock[operator][
+                        uintToAddress(operatorToWhitelistedContractsByUpdate[operator].getHead())
+                    ] > updateBlock,
+                    "Slasher.recordStakeUpdate: HEAD has an earlier or same updateBlock than middleware currently updating"
+                );
+                //insert the middleware at the start
+                operatorToWhitelistedContractsByUpdate[operator].pushFront(addressToUint(msg.sender));
+            }
+        }
+
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
             "Slasher.recordStakeUpdate: Appending middleware unsuccessful");
     }
@@ -250,7 +306,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         //restrict to permissioned contracts
         require(canSlash(operator, msg.sender), "Slasher.recordLastStakeUpdate: only slashing contracts can record stake updates");
         //update latest update
-        _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil);
+        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
         require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
              "Slasher.recordLastStakeUpdate: Removing middleware unsuccessful");

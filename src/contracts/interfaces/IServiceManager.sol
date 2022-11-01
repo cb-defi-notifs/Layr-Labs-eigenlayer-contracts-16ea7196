@@ -18,13 +18,11 @@ interface IServiceManager  {
 
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external;
 
-    // function paymentFraudproofInterval() external view returns (uint256);
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
-    // function paymentFraudproofCollateral() external view returns (uint256);
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external;
 
-    // function getPaymentCollateral(address) external view returns (uint256);
-
-    // function getTaskNumberSignatureHash(uint32) external view returns (bytes32);
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
 
     function collateralToken() external view returns (IERC20);
 

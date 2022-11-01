@@ -141,7 +141,8 @@ contract DataLayrBombVerifier {
         Indexes calldata indexes,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
-        DisclosureProof calldata disclosureProof
+        DisclosureProof calldata disclosureProof,
+        bytes32 ephemeralKey
     ) external {
         // verify integrity of submitted metadata by checking against its stored hashes
         require(
@@ -341,8 +342,10 @@ contract DataLayrBombVerifier {
         );
 
         // fetch the operator's ephemeral key for the DETONATION datastore
-        bytes32 ek = dlekRegistry.getEphemeralKeyAtBlock(
-            operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.metadata.blockNumber)
+        require(keccak256(abi.encodePacked(ephemeralKey)) ==             
+                dlekRegistry.getEphemeralKeyEntryAtBlock(
+                    operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.metadata.blockNumber)
+                ).ephemeralKeyHash, "DataLayrBombVerifier.verifyBomb: provided ephemeral key is incorrect"
         );
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
@@ -354,7 +357,7 @@ contract DataLayrBombVerifier {
         require(
             uint256(
                 keccak256(
-                    abi.encodePacked(disclosureProof.poly, ek, dataStoreProofs.detonationDataStore.metadata.headerHash)
+                    abi.encodePacked(disclosureProof.poly, ephemeralKey, dataStoreProofs.detonationDataStore.metadata.headerHash)
                 )
             ) < BOMB_THRESHOLD,
             "DataLayrBombVerifier.verifyBomb: No bomb"
