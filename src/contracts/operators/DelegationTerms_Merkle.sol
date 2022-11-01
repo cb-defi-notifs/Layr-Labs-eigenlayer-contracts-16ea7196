@@ -7,10 +7,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../interfaces/IDelegationTerms.sol";
-import "../libraries/SparseMerkle.sol";
+import "../libraries/Merkle.sol";
 
 /**
- * @title A 'Delegation Terms' contract that an operator can use to distribute earnings to stakers by posting Merkle roots
+ * @title A 'Delegation Terms' contract that an operator can use to distribute earnings to stakers by periodically posting Merkle roots
  * @author Layr Labs, Inc.
  * @notice This contract specifies the delegation terms of a given operator. When a staker delegates its stake to an operator,
  * it has to agrees to the terms set in the operator's 'Delegation Terms' contract. Payments to an operator are routed through
@@ -21,32 +21,40 @@ import "../libraries/SparseMerkle.sol";
  * to contain the **cumulative** earnings of a staker. This will reduce the total number of actions that stakers who claim only rarely
  * have to take, while allowing stakers to claim their earnings as often as new Merkle roots are posted.
  */
-contract DelegationTerms_Merkle is SparseMerkle, Ownable, IDelegationTerms {
+contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
     using SafeERC20 for IERC20;
 
-    // spare Merkle tree functionality
+    struct TokenAndAmount {
+        IERC20 token;
+        uint256 amount;
+    }
 
-    // staker => token => cumulative amount *claimed*
+    struct MerkleRootAndTreeHeight {
+        bytes32 root;
+        uint256 height;
+    }
+
+    // sanity-check parameter on Merkle tree height
+    uint256 internal constant MAX_HEIGHT = 256;
+
+    /// @notice staker => token => cumulative amount *claimed*
     mapping(address => mapping(IERC20 => uint256)) public cumulativeClaimedByStakerOfToken;
 
-    // history of Merkle roots
-    bytes32[] public merkleRoots;
+    /// @notice Array of Merkle roots with heights, each posted by the operator (contract owner)
+    MerkleRootAndTreeHeight[] public merkleRoots;
 
-    event NewMerkleRootPosted(bytes32 newRoot);
-
-    constructor(uint256 _TREE_DEPTH)
-        SparseMerkle(_TREE_DEPTH)
-    {}
+    // TODO: more events?
+    event NewMerkleRootPosted(bytes32 newRoot, uint256 height);
 
     /**
      * @notice Used by the operator to withdraw tokens directly from this contract.
-     * @param tokens ERC20 tokens to withdraw.
-     * @param amounts The amount of each respective ERC20 token to withdraw.
+     * @param tokensAndAmounts ERC20 tokens to withdraw and the amount of each respective ERC20 token to withdraw.
      */ 
-    function operatorWithdrawal(IERC20[] calldata tokens, uint256[] calldata amounts) external onlyOwner {
-        uint256 tokensLength = tokens.length;
-        for (uint256 i; i < tokensLength;) {
-            tokens[i].safeTransfer(msg.sender, amounts[i]);
+    function operatorWithdrawal(TokenAndAmount[] calldata tokensAndAmounts) external onlyOwner {
+        uint256 tokensAndAmountsLength = tokensAndAmounts.length;
+        for (uint256 i; i < tokensAndAmountsLength;) {
+            tokensAndAmounts[i].token.safeTransfer(msg.sender, tokensAndAmounts[i].amount);
+            cumulativeClaimedByStakerOfToken[msg.sender][tokensAndAmounts[i].token] += tokensAndAmounts[i].amount;
             unchecked {
                 ++i;
             }
@@ -54,48 +62,63 @@ contract DelegationTerms_Merkle is SparseMerkle, Ownable, IDelegationTerms {
     }
 
     /// @notice Used by the operator to post an updated root of the stakers' all-time earnings
-    function postMerkleRoot(bytes32 newRoot) external onlyOwner {
-        merkleRoots.push(newRoot);
-        emit NewMerkleRootPosted(newRoot);
+    function postMerkleRoot(bytes32 newRoot, uint256 height) external onlyOwner {
+        // sanity check
+        require(height <= MAX_HEIGHT, "height input too large");
+        merkleRoots.push(
+            MerkleRootAndTreeHeight({
+                root: newRoot,
+                height: height
+            })
+        );
+        emit NewMerkleRootPosted(newRoot, height);
     }
 
+    /** 
+     * @notice Called by a staker to prove the inclusion of their earnings in a Merkle root (posted by the operator) and claim them.
+     * @param tokensAndAmounts ERC20 tokens to withdraw and the amount of each respective ERC20 token to withdraw.
+     * @param proof Merkle proof showing that a leaf containing `(msg.sender, tokensAndAmounts)` was included in the `rootIndex`-th
+     * Merkle root posted by the operator.
+     * @param nodeIndex Specifies the node inside the Merkle tree corresponding to the specified root, `merkleRoots[rootIndex].root`.
+     * @param rootIndex Specifies the Merkle root to look up, using `merkleRoots[rootIndex]`
+     */
     function proveEarningsAndWithdraw(
-        IERC20[] memory tokens,
-        uint256[] memory amounts,
-        bytes32[] calldata proofElements,
-        uint256 nodeWrittenBitmap,
+        TokenAndAmount[] calldata tokensAndAmounts,
+        bytes memory proof,
         uint256 nodeIndex,
         uint256 rootIndex
     ) external {
         // calculate the leaf that the `msg.sender` is claiming
-        bytes32 leafHash = calculateLeafHash(msg.sender, tokens, amounts);
+        bytes32 leafHash = calculateLeafHash(msg.sender, tokensAndAmounts);
+
+        // verify that the proof length is appropriate for the chosen root
+        require(proof.length == 32 * merkleRoots[rootIndex].height, "incorrect proof length");
 
         // check inclusion of the leafHash in the tree corresponding to `merkleRoots[rootIndex]`
         require(
-            checkInclusion(
-                proofElements,
-                nodeWrittenBitmap,
-                nodeIndex,
+            Merkle.checkMembership(
                 leafHash,
-                merkleRoots[rootIndex]
+                nodeIndex,
+                merkleRoots[rootIndex].root,
+                proof
             ),
             "proof of inclusion failed"
         );
 
-        uint256 tokensLength = tokens.length;
-        for (uint256 i; i < tokensLength;) {
+        uint256 tokensAndAmountsLength = tokensAndAmounts.length;
+        for (uint256 i; i < tokensAndAmountsLength;) {
             // read previously claimed amount in storage
-            uint256 alreadyClaimed = cumulativeClaimedByStakerOfToken[msg.sender][tokens[i]];
+            uint256 alreadyClaimed = cumulativeClaimedByStakerOfToken[msg.sender][tokensAndAmounts[i].token];
 
             // calculate amount to send
-            uint256 amountToSend = amounts[i] - alreadyClaimed;
+            uint256 amountToSend = tokensAndAmounts[i].amount - alreadyClaimed;
 
             if (amountToSend != 0) {
                 // update claimed amount in storage
-                cumulativeClaimedByStakerOfToken[msg.sender][tokens[i]] = amounts[i];
+                cumulativeClaimedByStakerOfToken[msg.sender][tokensAndAmounts[i].token] = tokensAndAmounts[i].amount;
 
                 // actually send the tokens
-                tokens[i].safeTransfer(msg.sender, amounts[i]);
+                tokensAndAmounts[i].token.safeTransfer(msg.sender, amountToSend);
             }
             unchecked {
                 ++i;
@@ -103,17 +126,16 @@ contract DelegationTerms_Merkle is SparseMerkle, Ownable, IDelegationTerms {
         }
     }
 
-    function calculateLeafHash(address staker, IERC20[] memory tokens, uint256[] memory amounts) internal pure returns (bytes32) {
-        return keccak256(abi.encode(staker, tokens, amounts));
+    /// @notice Helper function for calculating a leaf in a Merkle tree formatted as `(address staker, TokenAndAmount[] calldata tokensAndAmounts)`
+    function calculateLeafHash(address staker, TokenAndAmount[] calldata tokensAndAmounts) public pure returns (bytes32) {
+        return keccak256(abi.encode(staker, tokensAndAmounts));
     }
 
     // FUNCTIONS FROM INTERFACE
     function payForService(IERC20, uint256) external payable {
     }
 
-    /**
-     * @notice Hook for receiving new delegation   
-     */
+    /// @notice Hook for receiving new delegation   
     function onDelegationReceived(
         address,
         IInvestmentStrategy[] memory,
@@ -121,9 +143,7 @@ contract DelegationTerms_Merkle is SparseMerkle, Ownable, IDelegationTerms {
     ) external pure {
     }
 
-    /**
-     * @notice Hook for withdrawing delegation   
-     */
+    /// @notice Hook for withdrawing delegation   
     function onDelegationWithdrawn(
         address,
         IInvestmentStrategy[] memory,
