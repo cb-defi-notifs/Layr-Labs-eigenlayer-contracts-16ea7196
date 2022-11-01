@@ -115,17 +115,23 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      * @param prevEpheremeralKey is the previous ephemeral key
      */
     function revealEphemeralKey(uint256 index, bytes32 prevEpheremeralKey) external {
+        if(index != 0) {
+            require(ephemeralKeyEntries[msg.sender][index-1].revealTime != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
+        }
         _revealEphemeralKey(msg.sender, index, prevEpheremeralKey);
     }
 
     /**
      * @notice Used by the operator to reveal their unrevealed ephemeral keys
-     * @param indexes are the indexes of the ephemeral keys to reveal
+     * @param startIndex is the index of the ephemeral key to reveal
      * @param prevEpheremeralKeys are the previous ephemeral keys
      */
-    function revealLastEphemeralKeys(address operator, uint256[] memory indexes, bytes32[] memory prevEpheremeralKeys) external onlyRegistry {
-        for(uint i = 0; i < indexes.length; i++) {
-            _revealEphemeralKey(operator, indexes[i], prevEpheremeralKeys[i]);
+    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEpheremeralKeys) external onlyRegistry {
+        if(startIndex != 0) {
+            require(ephemeralKeyEntries[msg.sender][startIndex-1].revealTime != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
+        }
+        for(uint i = 0; i < prevEpheremeralKeys.length; i++) {
+            _revealEphemeralKey(operator, startIndex+i, prevEpheremeralKeys[i]);
         }
     }
 
@@ -223,6 +229,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         require(
             block.timestamp < endTime + REVEAL_PERIOD,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
+        );
+        require(
+            ephemeralKeyEntries[operator][index].revealTime == 0,
+            "EphemeralKeyRegistry.revealEphemeralKey: key has already been revealed"
         );
 
         // updating the previous EK entry

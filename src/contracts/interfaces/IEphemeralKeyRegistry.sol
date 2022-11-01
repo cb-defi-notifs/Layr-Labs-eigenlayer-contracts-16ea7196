@@ -11,7 +11,7 @@ pragma solidity ^0.8.9;
 interface IEphemeralKeyRegistry {
     function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external;
 
-    function revealLastEphemeralKeys(address operator, uint256[] memory indexes, bytes32[] memory prevEpheremeralKeys) external;
+    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEpheremeralKeys) external;
 
     function revealEphemeralKey(uint256 index, bytes32 prevEpheremeralKey) external;
 

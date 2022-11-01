@@ -98,10 +98,9 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /** 
-     * @notice same as RegistryBase._removeOperator except the serveUntil and revokeSlashingAbility updates are moved until later
-     *         this is to account for the BLOCK_STALE_MEASURE serving delay needed for EIGENDA
+     * @notice used to complete deregistration process, revealing the operators final ephemeral keys
      */
-    function completeDeregistrationAndRevealLastEphemeralKeys(uint256[] memory indexes, bytes32[] memory ephemeralKeys) internal {
+    function completeDeregistrationAndRevealLastEphemeralKeys(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
         require(_isAfterDelayedServicePeriod(msg.sender), 
             "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
 
@@ -116,8 +115,29 @@ contract BLSRegistryWithBomb is BLSRegistry {
         repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
 
         //add ephemeral key to ephemeral key registry
-        ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, indexes, ephemeralKeys);
+        ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
     }
+
+    // /** 
+    //  * @notice used to complete deregistration process, revealing the operators final ephemeral keys
+    //  */
+    // function propagateStakeUpdate(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
+    //     require(_isAfterDelayedServicePeriod(msg.sender), 
+    //         "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
+
+    //     // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
+    //     uint32 serveUntil = repository.serviceManager().latestTime();
+    //     registry[msg.sender].serveUntil = serveUntil;
+    //     // committing to not signing off on any more middleware tasks
+    //     registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
+    //     registry[msg.sender].deregisterTime = uint32(block.timestamp);
+
+    //     //revoke the slashing ability of the service manager
+    //     repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
+
+    //     //add ephemeral key to ephemeral key registry
+    //     ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
+    // }
 
     function isActiveOperator(address operator) external view override returns (bool) {
         //the operator status must be active and they must still be serving or have started their deregistration
@@ -152,8 +172,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
     function _isAfterDelayedServicePeriod(address operator) internal view returns (bool) {
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
-        return pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber != 0 &&
-                pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber 
-                    + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() < uint32(block.number);
+        uint32 blockNumber = pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber;
+        return blockNumber != 0 && blockNumber + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() < uint32(block.number);
     }
 }

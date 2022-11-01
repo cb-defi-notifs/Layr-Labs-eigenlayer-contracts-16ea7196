@@ -193,7 +193,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @notice Used for updating information on deposits of nodes.
      * @param operators are the nodes whose deposit information is getting updated
      */
-    function updateStakes(address[] calldata operators) external {
+    function updateStakes(address[] calldata operators) public {
         // copy total stake to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
 
