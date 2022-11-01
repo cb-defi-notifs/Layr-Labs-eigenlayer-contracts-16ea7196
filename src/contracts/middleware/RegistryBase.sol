@@ -326,7 +326,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * @notice Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
-    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal virtual {
+    function _removeOperator(address operator, bytes32 pubkeyHash, uint32 index) internal virtual {
         //remove the operator's stake
         uint32 updateBlockNumber = _removeOperatorStake(pubkeyHash);
 
@@ -338,13 +338,17 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address swappedOperator = _popRegistrant(index);
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
+        uint32 latestTime = repository.serviceManager().latestTime();
+        registry[msg.sender].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
+        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
+
+        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
+        investmentManager.slasher().recordFirstStakeUpdate(operator, latestTime);
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
@@ -440,7 +444,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         bytes32 pubkeyHash,
         OperatorStake memory _operatorStake
     )
-        internal
+        internal virtual
     {
 
         require(
@@ -486,6 +490,9 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // Update totalOperatorsHistory array
         _updateTotalOperatorsHistory();
 
+        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
+        investmentManager.slasher().recordFirstStakeUpdate(operator, 0);
+
         emit StakeUpdate(
             operator,
             _operatorStake.firstQuorumStake,
@@ -493,7 +500,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             uint32(block.number),
             // no previous update block number -- use 0 instead
             0
-            );
+        );
     }
 
 /**

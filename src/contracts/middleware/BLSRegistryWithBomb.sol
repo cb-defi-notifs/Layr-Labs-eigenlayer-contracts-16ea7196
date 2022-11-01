@@ -73,7 +73,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
      * @notice same as RegistryBase._removeOperator except the serveUntil and revokeSlashingAbility updates are moved until later
      *         this is to account for the BLOCK_STALE_MEASURE serving delay needed for EIGENDA
      */
-    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal override {
+    function _removeOperator(address, bytes32 pubkeyHash, uint32 index) internal override {
         //remove the operator's stake
         uint32 updateBlockNumber = _removeOperatorStake(pubkeyHash);
 
@@ -118,26 +118,26 @@ contract BLSRegistryWithBomb is BLSRegistry {
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
     }
 
-    // /** 
-    //  * @notice used to complete deregistration process, revealing the operators final ephemeral keys
-    //  */
-    // function propagateStakeUpdate(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
-    //     require(_isAfterDelayedServicePeriod(msg.sender), 
-    //         "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
+    /** 
+     * @notice used to complete deregistration process, revealing the operators final ephemeral keys
+     */
+    function propagateStakeUpdate(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
+        require(_isAfterDelayedServicePeriod(msg.sender), 
+            "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
 
-    //     // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-    //     uint32 serveUntil = repository.serviceManager().latestTime();
-    //     registry[msg.sender].serveUntil = serveUntil;
-    //     // committing to not signing off on any more middleware tasks
-    //     registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
-    //     registry[msg.sender].deregisterTime = uint32(block.timestamp);
+        // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
+        uint32 serveUntil = repository.serviceManager().latestTime();
+        registry[msg.sender].serveUntil = serveUntil;
+        // committing to not signing off on any more middleware tasks
+        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
-    //     //revoke the slashing ability of the service manager
-    //     repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
+        //revoke the slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, serveUntil);
 
-    //     //add ephemeral key to ephemeral key registry
-    //     ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
-    // }
+        //add ephemeral key to ephemeral key registry
+        ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
+    }
 
     function isActiveOperator(address operator) external view override returns (bool) {
         //the operator status must be active and they must still be serving or have started their deregistration

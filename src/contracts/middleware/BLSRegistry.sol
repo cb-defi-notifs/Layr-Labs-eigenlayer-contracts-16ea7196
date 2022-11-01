@@ -179,7 +179,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         );
 
         // Perform necessary updates for removing operator, including updating operator list and index histories
-        _removeOperator(pubkeyHash, index);
+        _removeOperator(operator, pubkeyHash, index);
 
         // get existing aggregate public key
         uint256[4] memory pk = apk;
