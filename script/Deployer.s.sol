@@ -112,16 +112,11 @@ contract EigenLayrDeployer is
 
     uint256 public constant eigenTotalSupply = 1000e18;
 
-    uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
-
-    address mainHoncho = cheats.addr(mainHonchoPrivKey);
-
     //performs basic deployment before each test
     function run() external {
 
         vm.startBroadcast();
         address initialOwner = address(this);
-        emit log_address(mainHoncho);
         emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
