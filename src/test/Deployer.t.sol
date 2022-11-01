@@ -275,13 +275,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit);
-        emit log_named_address("beacon impl addy", address(pod));
+
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
         eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
         
-        emit log_named_address("address eigenpodManafger ACTUAL", address(eigenPodManager));
-
-    
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
         investmentManager.initialize(slasher, eigenPodManager, pauserReg, initialOwner);
 
