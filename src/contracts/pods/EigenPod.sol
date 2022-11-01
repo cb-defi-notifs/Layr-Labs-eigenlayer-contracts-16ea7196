@@ -82,6 +82,7 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
+        emit log("JHJSHS");
         verifyValidatorFields(
             beaconStateRoot,
             proofs,
@@ -163,9 +164,10 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         bytes32 validatorTreeRoot = proofs.toBytes32(0);
 
         emit log_named_bytes32("validatorTreeRoot", validatorTreeRoot);
-        emit log_named_bytes("validator fields",  proofs.slice(pointer+3, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT));
+        emit log_named_bytes32("beaconStateRoot", beaconStateRoot);
         //offset 32 bytes for validatorTreeRoot
         pointer += 32;
+        emit log_named_bytes("beacon proofs",  proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT));
         valid = Merkle.checkMembershipSha256(
             validatorTreeRoot,
             BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
@@ -183,12 +185,15 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         //offset another 32 bytes for the length of the validatorRoot
         pointer += 32;
         //verify that the validatorRoot is within the validator tree
-
+        emit log("YOOOO");
+        emit log_named_bytes32("validatorRoot", validatorRoot);
+        emit log_named_uint("index", proofs.toUint256(pointer));
+        emit log_named_bytes32("validatorTreeRoot", validatorTreeRoot);
         valid = checkMembershipSha256(
             validatorRoot,
             proofs.toUint256(pointer), //validatorIndex
             validatorTreeRoot,
-            proofs.slice(pointer + 32, 32 * 1)
+            proofs.slice(pointer + 32, 32 * 41)
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
     }
