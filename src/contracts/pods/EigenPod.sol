@@ -53,7 +53,6 @@ contract EigenPod is IEigenPod, Initializable,DSTest
 
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
         eigenPodManager = _eigenPodManager;
-        emit log_named_address("address eigenpodManafger", address(eigenPodManager));
         podOwner = _podOwner;
     }
 

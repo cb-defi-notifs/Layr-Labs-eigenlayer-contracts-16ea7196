@@ -82,7 +82,6 @@ contract EigenPodManager is IEigenPodManager, DSTest
      */
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable {
         IEigenPod pod = getPod(msg.sender);
-        emit log_named_address("pod", address(pod));
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();

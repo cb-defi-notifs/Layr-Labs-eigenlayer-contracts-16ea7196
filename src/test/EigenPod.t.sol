@@ -95,10 +95,6 @@ contract EigenPodTests is TestHelper {
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
         
-        // emit log_named_uint("balance", eigenPodManager.getBalance(podOwner));
-
-        // emit log_named_uint("balance", eigenPodManager.getDepositedBalance(podOwner));
-        //require(1==2, "fail");
     }
 
 
