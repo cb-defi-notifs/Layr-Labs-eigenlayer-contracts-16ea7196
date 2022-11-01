@@ -79,7 +79,7 @@ contract EigenPodTests is TestHelper {
         validatorMerkleProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
     }
 
-    function testDeployAndVerifyNewEigenPod(address podOwner, bytes memory signature, bytes32 depositDataRoot) public {
+    function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
         initialize();
 
         address podOwner = address(42000094993494);
@@ -94,7 +94,15 @@ contract EigenPodTests is TestHelper {
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
-        
+
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]);
+        require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
+
+        IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
+        uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, beaconChainETHStrategy);
+
+        require(beaconChainETHShares = validatorBalance, "investmentManager shares not updated correctly");
+
     }
 
 

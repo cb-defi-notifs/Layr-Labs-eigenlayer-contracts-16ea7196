@@ -98,7 +98,6 @@ contract EigenPod is IEigenPod, Initializable,DSTest
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
         //update manager total balance for this pod
         //need to subtract zero and add the proven balance
-
         eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
         eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
     }
