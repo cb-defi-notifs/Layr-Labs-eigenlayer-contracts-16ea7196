@@ -114,9 +114,13 @@ library BeaconChainProofs{
         //verify that the validatorRoot is within the validator tree
         valid = Merkle.checkMembershipSha256(
             validatorRoot,
-            proofs.toUint32(pointer), //validatorIndex
+            proofs.toUint256(pointer), //validatorIndex
             validatorTreeRoot,
-            proofs.slice(pointer + 32, 32 * BeaconChainProofs.VALIDATOR_TREE_HEIGHT)
+            /**
+            * plus 1 here is because the actual validator merkle tree involves hashing 
+            * the final root with the lenght of the list, adding a level to the tree
+            */
+            proofs.slice(pointer + 32, 32 * (BeaconChainProofs.VALIDATOR_TREE_HEIGHT + 1)) 
         );
         require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
     }

@@ -83,7 +83,7 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
         emit log("JHJSHS");
-        verifyValidatorFields(
+        BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
             validatorFields
@@ -150,89 +150,5 @@ contract EigenPod is IEigenPod, Initializable , DSTest{
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
-    }
-
-    function verifyValidatorFields(
-        bytes32 beaconStateRoot, 
-        bytes calldata proofs, 
-        bytes32[] calldata validatorFields
-    ) internal {
-        require(validatorFields.length == 2**BeaconChainProofs.VALIDATOR_FIELD_TREE_HEIGHT, "EigenPod.verifyValidatorFields: Validator fields has incorrect length");
-        uint256 pointer;
-        bool valid;
-        //verify that the validatorTreeRoot is within the top level beacon state tree
-        bytes32 validatorTreeRoot = proofs.toBytes32(0);
-
-        emit log_named_bytes32("validatorTreeRoot", validatorTreeRoot);
-        emit log_named_bytes32("beaconStateRoot", beaconStateRoot);
-        //offset 32 bytes for validatorTreeRoot
-        pointer += 32;
-        emit log_named_bytes("beacon proofs",  proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT));
-        valid = Merkle.checkMembershipSha256(
-            validatorTreeRoot,
-            BeaconChainProofs.VALIDATOR_TREE_ROOT_INDEX,
-            beaconStateRoot,
-            proofs.slice(pointer, 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT)
-        );
-        require(valid, "EigenPod.verifyValidatorFields: Invalid validator tree root from beacon state proof");
-        //offset the length of the beacon state proof
-        pointer += 32 * BeaconChainProofs.BEACON_STATE_FIELD_TREE_HEIGHT;
-        // verify the proof of the validator metadata root against the merkle root of the entire validator tree
-        //https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/validator_root.go#L26
-        bytes32 validatorRoot = proofs.toBytes32(pointer);
-        //make sure that the provided validatorFields are consistent with the proven leaf
-        require(validatorRoot == Merkle.merkleizeSha256(validatorFields), "EigenPod.verifyValidatorFields: Invalid validator fields");
-        //offset another 32 bytes for the length of the validatorRoot
-        pointer += 32;
-        //verify that the validatorRoot is within the validator tree
-        emit log("YOOOO");
-        emit log_named_bytes32("validatorRoot", validatorRoot);
-        emit log_named_uint("index", proofs.toUint256(pointer));
-        emit log_named_bytes32("validatorTreeRoot", validatorTreeRoot);
-        valid = checkMembershipSha256(
-            validatorRoot,
-            proofs.toUint256(pointer), //validatorIndex
-            validatorTreeRoot,
-            proofs.slice(pointer + 32, 32 * 41)
-        );
-        require(valid, "EigenPod.verifyValidatorFields: Invalid validator root from validator tree root proof");
-    }
-
-    function checkMembershipSha256(
-        bytes32 leaf,
-        uint256 index,
-        bytes32 rootHash,
-        bytes memory proof
-    ) internal  returns (bool) {
-        require(proof.length % 32 == 0, "Invalid proof length");
-        uint256 proofHeight = proof.length / 32;
-        // Proof of size n means, height of the tree is n+1.
-        // In a tree of height n+1, max #leafs possible is 2 ^ n
-        require(index < 2 ** proofHeight, "Leaf index is too big");
-
-        bytes32 proofElement;
-        bytes32 computedHash = leaf;
-        for (uint256 i = 32; i <= proof.length; i += 32) {
-            assembly {
-                proofElement := mload(add(proof, i))
-            }
-
-            if (index % 2 == 0) {
-                computedHash = sha256(
-                    abi.encodePacked(computedHash, proofElement)
-                );
-                
-            } else {
-                
-                computedHash = sha256(
-                    abi.encodePacked(proofElement, computedHash)
-                );
-               
-            }
-
-            index = index / 2;
-        }
-emit log_named_bytes32("HASH", computedHash);
-        return computedHash == rootHash;
     }
 }
