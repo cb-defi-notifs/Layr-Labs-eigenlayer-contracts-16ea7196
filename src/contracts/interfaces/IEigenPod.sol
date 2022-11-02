@@ -32,4 +32,9 @@ interface IEigenPod {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
+    function verifyBalanceUpdate(
+        bytes calldata pubkey, 
+        bytes calldata proofs, 
+        bytes32[] calldata validatorFields
+    ) external;
 }
