@@ -30,7 +30,9 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     }
 
     // INITIALIZING FUNCTIONS
-    constructor() {
+    constructor(IInvestmentManager _investmentManager) 
+        EigenLayrDelegationStorage(_investmentManager)
+    {
         _disableInitializers();
     }
 
@@ -40,17 +42,12 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
     /// @dev Emitted when a low-level call to `delegationTerms.onDelegationWithdrawn` fails, returning `returnData`
     event OnDelegationWithdrawnCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
-    /**
-     * @notice Sets the `investMentManager` address (**currently modifiable by contract owner -- see below**),
-     * sets the `undelegationFraudproofInterval` value (**currently modifiable by contract owner -- see below**),
-     * and transfers ownership to `intialOwner`
-     */
-    function initialize(IInvestmentManager _investmentManager, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
         _initializePauser(_pauserRegistry);
-        investmentManager = _investmentManager;
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         _transferOwnership(initialOwner);
     }
 

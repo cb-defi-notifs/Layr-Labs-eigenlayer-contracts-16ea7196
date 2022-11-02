@@ -75,28 +75,33 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
+    /**
+     * @param _delegation The delegation contract of EigenLayr.
+     * @param _slasher The primary slashing contract of EigenLayr.
+     * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
+     */
+    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+        InvestmentManagerStorage(_delegation, _eigenPodManager, _slasher)
+    {
         _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS
 
     /**
-     * @notice Initializes the investment manager contract. Sets the `slasher` address (currently **not** modifiable), sets the
-     * `pauserRegistry` (also **not** modifiable after being set), and transfers contract ownership to the specified `initialOwner`.
-     * @param _slasher The primary slashing contract of EigenLayr.
-     * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
+     * @notice Initializes the investment manager contract. Sets the `pauserRegistry` (currently **not** modifiable after being set),
+     * and transfers contract ownership to the specified `initialOwner`.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
-    function initialize(ISlasher _slasher, IEigenPodManager _eigenPodManager, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
-        _transferOwnership(initialOwner);
-        slasher = _slasher;
-        eigenPodManager = _eigenPodManager;
+        //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about meta transactions in general
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry);
+        _transferOwnership(initialOwner);
     }
 
     /**

@@ -38,6 +38,8 @@ import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreUtils.sol";
 
+import "../src/test/mocks/EmptyContract.sol";
+
 // # To load the variables in the .env file
 // source .env
 
@@ -59,6 +61,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     IERC20 public eigen;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
+    EigenPodManager public eigenPodManager;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     BLSPublicKeyCompendium public pubkeyCompendium;
@@ -127,51 +130,47 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
         pauserReg = new PauserRegistry(msg.sender, msg.sender);
 
-        // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `investmentManager` address
-        delegation = new EigenLayrDelegation();
+        //TODO: handle pod manager correctly
+        eigenPodManager = EigenPodManager(address(0));
+
+        /**
+         * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
+         * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
+         */
+        EmptyContract emptyContract = new EmptyContract();
         delegation = EigenLayrDelegation(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(delegation),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        investmentManager = InvestmentManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        slasher = Slasher(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
 
-        // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `slasher` address
-        investmentManager = new InvestmentManager(delegation);
-        investmentManager = InvestmentManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(investmentManager),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
+        // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+
+        // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(delegation))),
+            address(delegationImplementation),
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(investmentManager))),
+            address(investmentManagerImplementation),
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(slasher))),
+            address(slasherImplementation),
+            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
-
-        // deploy slasher as upgradable proxy and initialize it
-        Slasher slasherImplementation = new Slasher();
-        slasher = Slasher(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(slasherImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
-                )
-            )
-        );
-
-        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, EigenPodManager(address(0)), pauserReg, initialOwner);
-
-        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
-        delegation.initialize(investmentManager, pauserReg, initialOwner);
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
