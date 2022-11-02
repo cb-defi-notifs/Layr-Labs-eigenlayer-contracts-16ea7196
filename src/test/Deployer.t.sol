@@ -182,11 +182,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
 
         address initialOwner = address(this);
-        emit log_named_address("address(this)", address(this));
-        emit log_named_address("address(eigenLayrProxyAdmin)", address(eigenLayrProxyAdmin));
-        emit log_named_address("address(delegation)", address(delegation));
-        emit log_named_address("address(delegationImplementation)", address(delegationImplementation));
-        emit log_named_bytes("abi.encodeWithSignature(initialize(address, address), pauserReg, initialOwner)", abi.encodeWithSignature("initialize(address, address)", pauserReg, initialOwner));
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
@@ -203,21 +198,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
-        // eigenLayrProxyAdmin.upgrade(
-        //     TransparentUpgradeableProxy(payable(address(delegation))),
-        //     address(delegationImplementation)
-        // );
-        // eigenLayrProxyAdmin.upgrade(
-        //     TransparentUpgradeableProxy(payable(address(investmentManager))),
-        //     address(investmentManagerImplementation)
-        // );
-        // eigenLayrProxyAdmin.upgrade(
-        //     TransparentUpgradeableProxy(payable(address(slasher))),
-        //     address(slasherImplementation)
-        // );
-        // delegation.initialize(pauserReg, initialOwner);
-        // investmentManager.initialize(pauserReg, initialOwner);
-        // slasher.initialize(pauserReg, initialOwner);
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
