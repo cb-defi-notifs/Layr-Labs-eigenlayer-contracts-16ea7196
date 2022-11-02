@@ -96,6 +96,25 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
+    function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
+        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+        
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+
+        bytes32 validatorIndex = bytes32(uint256(0));
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
+        newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
+
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive"));
+        newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
+    }
+
 
 }
 
