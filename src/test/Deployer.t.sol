@@ -112,6 +112,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256[] apks;
     uint256[] sigmas;
 
+    address[] public slashingContracts;
+
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudproofInterval = 7 days;
     uint256 public constant eigenTokenId = 0;
@@ -281,6 +283,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         
         // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
         investmentManager.initialize(slasher, eigenPodManager, pauserReg, initialOwner);
+
+        slashingContracts.push(address(eigenPodManager));
+        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        
 
 
 

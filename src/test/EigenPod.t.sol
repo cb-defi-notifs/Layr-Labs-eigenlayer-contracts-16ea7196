@@ -42,24 +42,24 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
         require(beaconChainETHShares == validatorBalance, "investmentManager shares not updated correctly");
     }
 
-    function testUpdateBeaconBalance(bytes memory signature, bytes32 depositDataRoot) public {
+    function testUpdateSlashedBeaconBalance(bytes memory signature, bytes32 depositDataRoot) public {
+        //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
-        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
 
+        //get updated proof, set beaconchain state root
+        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
+        beaconChainOracle.setBeaconChainStateRoot(0xddbf7dfbb5c63a27509fa76e172cc7f556a9a702b5d1db5d7b118fc006ea78e8);
 
         IEigenPod eigenPod;
         eigenPod = eigenPodManager.getPod(podOwner);
-
-        //set beacon root
-        beaconChainOracle.setBeaconChainStateRoot(0xddbf7dfbb5c63a27509fa76e172cc7f556a9a702b5d1db5d7b118fc006ea78e8);
-
         
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
         eigenPod.verifyBalanceUpdate(pubkey, proofs, validatorContainerFields);
-
         
-
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]);
+        require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
+        require(investmentManager.slasher().isFrozen(podOwner), "podOwner not frozen successfully");
 
     }
 
