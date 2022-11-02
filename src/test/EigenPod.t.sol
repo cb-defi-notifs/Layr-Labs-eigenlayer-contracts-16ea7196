@@ -63,6 +63,39 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
 
     }
 
+    function testDeployNewEigenPodWithWrongPubkey(bytes memory wrongPubkey, bytes memory signature, bytes32 depositDataRoot) public {
+        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake(wrongPubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+
+        bytes32 validatorIndex = bytes32(uint256(0));
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey"));
+        newPod.verifyCorrectWithdrawalCredentials(wrongPubkey, proofs, validatorContainerFields);
+    }
+
+    function testDeployNewEigenPodWithWrongWithdrawalCreds(bytes32 wrongWithdrawalCreds, bytes memory signature, bytes32 depositDataRoot) public {
+        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
+
+        cheats.startPrank(podOwner);
+        eigenPodManager.stake(pubkey, signature, depositDataRoot);
+        cheats.stopPrank();
+
+        IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+        validatorContainerFields[1] = wrongWithdrawalCreds;
+
+        bytes32 validatorIndex = bytes32(uint256(0));
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
+        cheats.expectRevert(bytes("EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey"));
+        newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
+    }
+
 
 }
 
