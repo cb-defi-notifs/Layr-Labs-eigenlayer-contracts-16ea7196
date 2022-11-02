@@ -24,7 +24,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public immutable investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
-    IEigenLayrDelegation public delegation;
+    IEigenLayrDelegation public immutable delegation;
     // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
     // user => contract => the time before which the contract is allowed to slash the user

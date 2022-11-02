@@ -176,7 +176,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         slasher = Slasher(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
-
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
@@ -192,7 +191,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSignature("initialize(address, address)", pauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
