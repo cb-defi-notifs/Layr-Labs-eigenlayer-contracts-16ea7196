@@ -28,7 +28,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     event EphemeralKeyRevealed(uint256 index, bytes32 ephemeralKey);
     event EphemeralKeyCommitted(uint256 index);
     event EphemeralKeyLeaked(uint256 index, bytes32 ephemeralKey);
-    event EphereralKeyProvenStale(uint256 index);
+    event EphemeralKeyProvenStale(uint256 index);
 
     // solhint-disable-next-line no-empty-blocks
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
@@ -102,34 +102,34 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     /**
      * @notice Used by the operator to reveal an ephemeral key
      * @param index is the index of the ephemeral key to reveal
-     * @param prevEpheremeralKey is the previous ephemeral key
+     * @param prevEphemeralKey is the previous ephemeral key
      */
-    function revealEphemeralKey(uint256 index, bytes32 prevEpheremeralKey) external {
+    function revealEphemeralKey(uint256 index, bytes32 prevEphemeralKey) external {
         if(index != 0) {
             require(ephemeralKeyEntries[msg.sender][index-1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
         }
-        _revealEphemeralKey(msg.sender, index, prevEpheremeralKey);
+        _revealEphemeralKey(msg.sender, index, prevEphemeralKey);
     }
 
     /**
      * @notice Used by the operator to reveal their unrevealed ephemeral keys
      * @param startIndex is the index of the ephemeral key to reveal
-     * @param prevEpheremeralKeys are the previous ephemeral keys
+     * @param prevEphemeralKeys are the previous ephemeral keys
      */
-    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEpheremeralKeys) external onlyRegistry {
+    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external onlyRegistry {
         if(startIndex != 0) {
             require(ephemeralKeyEntries[msg.sender][startIndex-1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
         }
         //get the final index plus one
-        uint256 finalIndexPlusOne = startIndex + prevEpheremeralKeys.length;
+        uint256 finalIndexPlusOne = startIndex + prevEphemeralKeys.length;
         for(uint i = startIndex; i < finalIndexPlusOne; i++) {
             require(
-                ephemeralKeyEntries[operator][i].ephemeralKeyHash == keccak256(abi.encodePacked(prevEpheremeralKeys[i-startIndex])),
+                ephemeralKeyEntries[operator][i].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKeys[i-startIndex])),
                 "EphemeralKeyRegistry.revealLastEphemeralKeys: Ephemeral key does not match previous ephemeral key commitment"
             );
             ephemeralKeyEntries[operator][i].revealBlock = uint32(block.number);
             //emit event for indexing
-            emit EphemeralKeyRevealed(i, prevEpheremeralKeys[i]);
+            emit EphemeralKeyRevealed(i, prevEphemeralKeys[i]);
         }
         require(ephemeralKeyEntries[operator].length == finalIndexPlusOne,
             "EphemeralKeyRegistry.revealLastEphemeralKeys: all ephemeral keys must be revealed");
@@ -153,7 +153,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         }
 
         //emit event for stale ephemeral key
-        emit EphereralKeyProvenStale(index);
+        emit EphemeralKeyProvenStale(index);
 
         //freeze operator with stale ephemeral key
         IServiceManager serviceManager = repository.serviceManager();
