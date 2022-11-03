@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
@@ -21,7 +22,7 @@ import "../../libraries/DataStoreUtils.sol";
  * @title Used to create and manage low degree challenges related to DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrLowDegreeChallenge {
+contract DataLayrLowDegreeChallenge is Initializable {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
@@ -71,7 +72,11 @@ contract DataLayrLowDegreeChallenge {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
-        pairingGasLimit = _gasLimit;
+        _disableInitializers();
+    }
+
+    function initialize(uint256 _paringGasLimit) public initializer {
+        pairingGasLimit = _paringGasLimit;
     }
 
     /**

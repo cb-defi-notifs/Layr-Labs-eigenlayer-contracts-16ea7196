@@ -336,10 +336,15 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         dlsm = new DataLayrServiceManager(
             investmentManager,
             delegation,
-            dlRepository,
             weth,
-            pauserReg,
-            feePerBytePerTime
+            dlldc,
+            // TODO: fix this
+            DataLayrBombVerifier(address(0)),
+            ephemeralKeyRegistry,
+            dataLayrPaymentManager,
+            dlRepository
+            // pauserReg,
+            // feePerBytePerTime
         );
 
         uint32 unbondingPeriod = uint32(14 days);
@@ -387,10 +392,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
-
-        dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setPaymentManager(dataLayrPaymentManager);
-        dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)

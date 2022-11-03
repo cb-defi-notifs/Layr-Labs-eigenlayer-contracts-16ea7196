@@ -35,21 +35,6 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     uint256 internal constant BLOCK_STALE_MEASURE = 100;
     uint256 public constant BIP_MULTIPLIER = 10000;
 
-    // collateral token used for placing collateral on challenges & payment commits
-    IERC20 public immutable collateralToken;
-
-    /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     * delegators to delegate their stake to operators who would serve as DataLayr
-     * nodes and so on.
-     */
-    /**
-     * @dev For more details, see EigenLayrDelegation.sol.
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
-
-    IInvestmentManager public immutable investmentManager;
-
     /**
      * @notice service fee that will be paid out by the disperser to the DataLayr nodes
      * for storing per byte for per unit time.
@@ -96,25 +81,4 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     //in that block
     mapping(uint8 => mapping(uint256 => bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public
         dataStoreHashesForDurationAtTimestamp;
-
-    DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
-
-    DataLayrBombVerifier public dataLayrBombVerifier;
-
-    EphemeralKeyRegistry public ephemeralKeyRegistry;
-
-    /**
-     * @notice contract used for handling payment challenges
-     */
-    IDataLayrPaymentManager public dataLayrPaymentManager;
-
-    constructor(
-        IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _eigenLayrDelegation,
-        IERC20 _collateralToken
-    ) {
-        investmentManager = _investmentManager;
-        eigenLayrDelegation = _eigenLayrDelegation;
-        collateralToken = _collateralToken;
-    }
 }

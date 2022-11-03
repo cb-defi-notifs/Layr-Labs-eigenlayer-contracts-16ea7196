@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../../interfaces/IRepository.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
@@ -16,7 +13,7 @@ import "../../middleware/PaymentManager.sol";
  * @author Layr Labs, Inc.
  * @notice Most functionality is inherited from the `PaymentManager` contract, with `respondToPaymentChallengeFinal` implementing DataLayr-specific functionality.
  */
-contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
+contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(

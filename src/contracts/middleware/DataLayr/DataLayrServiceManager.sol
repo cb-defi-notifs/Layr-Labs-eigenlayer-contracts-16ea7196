@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
@@ -26,30 +27,45 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - freezing operators as the result of various "challenges"
  */
-contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
+contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
     using BytesLib for bytes;
     // sanity checks. should always require *some* signatures, but never *all* signatures
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
     uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
 
 
-    // ERROR MESSAGES
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
+    // collateral token used for placing collateral on challenges & payment commits
+    IERC20 public immutable collateralToken;
+
+    /**
+     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
+     * delegators to delegate their stake to operators who would serve as DataLayr
+     * nodes and so on.
+     * @dev For more details, see EigenLayrDelegation.sol.
+     */
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
+
+    IInvestmentManager public immutable investmentManager;
+
+    DataLayrLowDegreeChallenge public immutable dataLayrLowDegreeChallenge;
+
+    DataLayrBombVerifier public immutable dataLayrBombVerifier;
+
+    EphemeralKeyRegistry public immutable ephemeralKeyRegistry;
+
+    /**
+     * @notice contract used for handling payment challenges
+     */
+    IDataLayrPaymentManager public immutable dataLayrPaymentManager;
 
     //quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
-    uint16 public quorumThresholdBasisPoints = 9000;
+    uint16 public quorumThresholdBasisPoints;
 
     /** 
     * adversaryThresholdBasisPoints is the maximum basis points of total registered 
     * operators that witholds their chunks before the data can no longer be reconstructed
-    * TODO: Change for prod!
     */
-    uint16 public adversaryThresholdBasisPoints = 4000;
-
-    uint128 public firstQuorumThresholdPercentage;
-    uint128 public secondQuorumThresholdPercentage;
-
+    uint16 public adversaryThresholdBasisPoints;
 
     DataStoresForDuration public dataStoresForDuration;
 
@@ -60,15 +76,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         bytes header
     );
 
+    // TODO: rename to 'DataStoreConfirmed'
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
-    event QuorumThresholdBasisPointsUpdate(uint16 quorumTHresholdBasisPoints);
-    event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
-
-    modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
-        require(_quorumThresholdBasisPoints > _adversaryThresholdBasisPoints, 
-            "DataLayrServiceManager.validThresholds: Quorum threshold must be strictly greater than adversary");
-        _;
-    }
 
     event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
 
@@ -78,51 +87,49 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     event EphemeralKeyRegistrySet(address previousAddress, address newAddress);
 
-    event FirstQuorumThresholdPercentageSet(uint256 previousThreshold, uint256 newThreshold);
-    
-    event SecondQuorumThresholdPercentageSet(uint256 previousThreshold, uint256 newThreshold);
+    event QuorumThresholdBasisPointsUpdated(uint16 quorumTHresholdBasisPoints);
+
+    event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
+
+    modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
+        require(_quorumThresholdBasisPoints > _adversaryThresholdBasisPoints, 
+            "DataLayrServiceManager.validThresholds: Quorum threshold must be strictly greater than adversary");
+        _;
+    }
 
     constructor(
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
-        IRepository _repository,
         IERC20 _collateralToken,
-        IPauserRegistry _pauserRegistry,
-        uint256 _feePerBytePerTime
+        DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge,
+        DataLayrBombVerifier _dataLayrBombVerifier,
+        EphemeralKeyRegistry _ephemeralKeyRegistry,
+        IDataLayrPaymentManager _dataLayrPaymentManager,
+        IRepository _repository
     )
-        DataLayrServiceManagerStorage(_investmentManager, _eigenLayrDelegation, _collateralToken)
         BLSSignatureChecker(_repository)
-        checkValidThresholds(quorumThresholdBasisPoints, adversaryThresholdBasisPoints)
     {
-        _setFeePerBytePerTime(_feePerBytePerTime);
+        investmentManager = _investmentManager;
+        eigenLayrDelegation = _eigenLayrDelegation;
+        collateralToken = _collateralToken;
+        dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
+        dataLayrBombVerifier = _dataLayrBombVerifier;
+        ephemeralKeyRegistry = _ephemeralKeyRegistry;
+        dataLayrPaymentManager = _dataLayrPaymentManager;
+        _disableInitializers();
+    }
+
+    function initialize(IPauserRegistry _pauserRegistry, uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints, uint256 _feePerBytePerTime)
+        public
+        initializer
+        checkValidThresholds(_quorumThresholdBasisPoints, _adversaryThresholdBasisPoints)
+    {
+        _initializePauser(_pauserRegistry);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
-        _initializePauser(_pauserRegistry);
-        // set default values
-        _setFirstQuorumThresholdPercentage(90);
-        _setSecondQuorumThresholdPercentage(90);
-    }
-
-    function setLowDegreeChallenge(DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge)
-        external
-        onlyRepositoryGovernance
-    {
-        dataLayrLowDegreeChallenge = _dataLayrLowDegreeChallenge;
-    }
-
-    function setBombVerifier(DataLayrBombVerifier _dataLayrBombVerifier) external onlyRepositoryGovernance {
-        emit BombVerifierSet(address(dataLayrBombVerifier), address(_dataLayrBombVerifier));
-        dataLayrBombVerifier = _dataLayrBombVerifier;
-    }
-
-    function setPaymentManager(DataLayrPaymentManager _dataLayrPaymentManager) external onlyRepositoryGovernance {
-        emit PaymentManagerSet(address(dataLayrPaymentManager), address(_dataLayrPaymentManager));
-        dataLayrPaymentManager = _dataLayrPaymentManager;
-    }
-
-    function setEphemeralKeyRegistry(EphemeralKeyRegistry _ephemeralKeyRegistry) external onlyRepositoryGovernance {
-        emit EphemeralKeyRegistrySet(address(ephemeralKeyRegistry), address(_ephemeralKeyRegistry));
-        ephemeralKeyRegistry = _ephemeralKeyRegistry;
+        _setFeePerBytePerTime(_feePerBytePerTime);
+        quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
+        adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
     }
 
     function setQuorumThresholdBasisPoints(uint16 _quorumThresholdBasisPoints) 
@@ -131,7 +138,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         checkValidThresholds(_quorumThresholdBasisPoints, adversaryThresholdBasisPoints) 
     {
         quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
-        emit QuorumThresholdBasisPointsUpdate(quorumThresholdBasisPoints);
+        emit QuorumThresholdBasisPointsUpdated(quorumThresholdBasisPoints);
     }
 
     function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
@@ -141,15 +148,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     {
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
         emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
-    }
-    
-    
-    function setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) external onlyRepositoryGovernance {
-        _setFirstQuorumThresholdPercentage(_firstQuorumThresholdPercentage);
-    }
-
-    function setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) external onlyRepositoryGovernance {
-        _setSecondQuorumThresholdPercentage(_secondQuorumThresholdPercentage);
     }
 
     /**
@@ -598,31 +596,4 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         emit FeePerBytePerTimeSet(feePerBytePerTime, _feePerBytePerTime);
         feePerBytePerTime = _feePerBytePerTime;
     }
-
-    function _setFirstQuorumThresholdPercentage(uint128 _firstQuorumThresholdPercentage) internal {
-        require(
-            _firstQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too low"
-        );
-        require(
-            _firstQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setFirstQuorumThresholdPercentage: input too high"
-        );
-        emit FirstQuorumThresholdPercentageSet(firstQuorumThresholdPercentage, _firstQuorumThresholdPercentage);
-        firstQuorumThresholdPercentage = _firstQuorumThresholdPercentage;
-    }
-
-    function _setSecondQuorumThresholdPercentage(uint128 _secondQuorumThresholdPercentage) internal {
-        require(
-            _secondQuorumThresholdPercentage >= MIN_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too low"
-        );
-        require(
-            _secondQuorumThresholdPercentage <= MAX_THRESHOLD_PERCENTAGE,
-            "DataLayrServiceManager.setSecondQuorumThresholdPercentage: input too high"
-        );
-        emit SecondQuorumThresholdPercentageSet(secondQuorumThresholdPercentage, _secondQuorumThresholdPercentage);
-        secondQuorumThresholdPercentage = _secondQuorumThresholdPercentage;
-    }
-
 }

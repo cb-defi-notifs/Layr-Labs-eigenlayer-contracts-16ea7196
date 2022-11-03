@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IRepository.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
@@ -22,7 +23,7 @@ import "../permissions/Pausable.sol";
  * function -- see DataLayrPaymentManager for an example
  */
 //
-abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable {
+abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentManager, Pausable {
     using SafeERC20 for IERC20;
     // DATA STRUCTURES
 

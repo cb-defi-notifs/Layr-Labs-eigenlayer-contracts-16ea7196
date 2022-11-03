@@ -242,10 +242,15 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         dlsm = new DataLayrServiceManager(
             investmentManager,
             delegation,
-            dlRepository,
             weth,
-            pauserReg,
-            feePerBytePerTime
+            dlldc,
+            // TODO: fix this
+            DataLayrBombVerifier(address(0)),
+            ephemeralKeyRegistry,
+            dataLayrPaymentManager,
+            dlRepository
+            // pauserReg,
+            // feePerBytePerTime
         );
 
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
@@ -297,10 +302,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
-
-        dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setPaymentManager(dataLayrPaymentManager);
-        dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
     function numberFromAscII(bytes1 b) private pure returns (uint8 res) {
