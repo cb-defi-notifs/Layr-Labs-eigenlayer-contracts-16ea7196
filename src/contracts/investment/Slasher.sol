@@ -67,6 +67,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _disableInitializers();
     }
 
+    modifier onlyCanSlash(address operator, address middleware) {
+        //make sure the middleware is allowed to slash the operator
+        require(canSlash(operator, middleware), "Slasher.onlyCanSlash: only slashing contracts");
+        _;
+    }
+
     // EXTERNAL FUNCTIONS
     function initialize(
         IInvestmentManager _investmentManager,
@@ -219,6 +225,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @param operator the entity whose stake update is being recorded
      * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
      * @param serveUntil the timestamp until which withdrawals initiated before updateBlock from operator are still slashable
+     * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
      */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
         //reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
@@ -258,9 +265,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
-    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external {
-        //restrict to permissioned contracts
-        require(canSlash(operator, msg.sender), "Slasher.recordFirstStakeUpdate: only slashing contracts can record stake updates");
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //push the middleware to the end of the update list  
@@ -268,9 +273,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
     }
 
-    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external {
-        //restrict to permissioned contracts
-        require(canSlash(operator, msg.sender), "Slasher.recordStakeUpdate: only slashing contracts can record stake updates");
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) 
+        external 
+        onlyCanSlash(operator, msg.sender) 
+    {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
         //move the middleware to its correct update position via prev and updateBlock
@@ -323,9 +329,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             "Slasher.recordStakeUpdate: Appending middleware unsuccessful");
     }
 
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external {
-        //restrict to permissioned contracts
-        require(canSlash(operator, msg.sender), "Slasher.recordLastStakeUpdate: only slashing contracts can record stake updates");
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
