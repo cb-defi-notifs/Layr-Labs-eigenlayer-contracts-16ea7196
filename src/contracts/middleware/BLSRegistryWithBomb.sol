@@ -152,7 +152,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
                 (
                     pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber == 0 ||
                     pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber 
-                        + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() > uint32(block.number)
+                        + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() >= uint32(block.number)
                 )
             );
     }
