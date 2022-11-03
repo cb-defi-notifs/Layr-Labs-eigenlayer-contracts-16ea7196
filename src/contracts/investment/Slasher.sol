@@ -213,8 +213,15 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
+    /**
+     * @notice records the most recent updateBlock for the currently updating middleware and appends an entry to the operator's list of 
+     *         MiddlewareTimes if relavent information has updated
+     * @param operator the entity whose stake update is being recorded
+     * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
+     * @param serveUntil the timestamp until which withdrawals initiated before updateBlock from operator are still slashable
+     */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
-        //update latest update if it is from before the the latest recorded update
+        //reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
         require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
@@ -228,6 +235,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             //mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         } else {
+            //otherwise, copy the current value
             next.latestServeUntil = curr.latestServeUntil;
         }
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
