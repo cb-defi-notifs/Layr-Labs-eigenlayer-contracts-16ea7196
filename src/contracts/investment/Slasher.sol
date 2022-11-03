@@ -224,7 +224,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      *         MiddlewareTimes if relavent information has updated
      * @param operator the entity whose stake update is being recorded
      * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
-     * @param serveUntil the timestamp until which withdrawals initiated before updateBlock from operator are still slashable
+     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
      * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
      */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
@@ -232,18 +232,21 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
-        //load current middleware times tip
-        MiddlewareTimes memory curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
+        //get the current latest recorded time the operator must serve until, if the operator's list of MiddlwareTimes is non empty
+        uint32 currentLastestRecordedServeUntil;
+        if(operatorToMiddlewareTimes[operator].length != 0) {
+            currentLastestRecordedServeUntil = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1].latestServeUntil;
+        }
         MiddlewareTimes memory next;
         bool pushToMiddlewareTimes;
         //if the serve until is later than the latest recorded one, update it
-        if(serveUntil > curr.latestServeUntil) {
+        if(serveUntil > currentLastestRecordedServeUntil) {
             next.latestServeUntil = serveUntil;
             //mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         } else {
             //otherwise, copy the current value
-            next.latestServeUntil = curr.latestServeUntil;
+            next.latestServeUntil = currentLastestRecordedServeUntil;
         }
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
             //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
@@ -265,6 +268,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
+    /**
+     * @notice this function is a called by middlewares during an operator's registration to make sure the operator's stake at registration 
+     *         is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
+     * @dev adds the middleware's slashing contract to the operator's linked list
+     */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
@@ -273,6 +283,16 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
     }
 
+    /**
+     * @notice this function is a called by middlewares during a stake update for an operator (perhaps to free pending withdrawals)
+     *         to make sure the operator's stake at updateBlock is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param updateBlock the block for which the stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
+     * @param prevElement the element of the operators linked list that the currently updating middleware should be inserted after
+     * @dev prevElement should be calculated offchain before making the transaction that calls this. this is subject to race conditions, 
+     *      but it is anticipated to be rare and not detrimental.
+     */
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) 
         external 
         onlyCanSlash(operator, msg.sender) 
@@ -329,6 +349,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             "Slasher.recordStakeUpdate: Appending middleware unsuccessful");
     }
 
+    /**
+     * @notice this function is a called by middlewares during an operator's deregistration to make sure the operator's stake at deregistration 
+     *         is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
+     * @dev removes the middleware's slashing contract to the operator's linked list
+     */
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
