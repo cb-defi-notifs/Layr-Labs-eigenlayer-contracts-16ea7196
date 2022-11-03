@@ -38,10 +38,23 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
 
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
+    /**
+     * operator => a linked list of the addresses of the whitelisted middleware slashing the operator is  
+     * serving sorted by the block for which they were last updated (content of updates below) in ascending order 
+     */
     mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
+    //operator => whitelisted middleware slashing => block it was last updated
     mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateBlock;
-    mapping(address => MiddlewareTimes[]) middlewareTimes;
-
+    /**
+     * operator => 
+     *  [
+     *      (
+     *          the least recent update block of all of the middlewares it's serving/served, 
+     *          latest time the the stake bonded at that update needed to serve until
+     *      )
+     *  ]
+     */
+    mapping(address => MiddlewareTimes[]) operatorToMiddlewareTimes;
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
@@ -206,7 +219,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         //load current middleware times tip
-        MiddlewareTimes memory curr = middlewareTimes[operator][middlewareTimes[operator].length - 1];
+        MiddlewareTimes memory curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
         MiddlewareTimes memory next;
         bool pushToMiddlewareTimes;
         //if the serve until is later than the latest recorded one, update it
@@ -233,7 +246,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         
         //if next has new information, push it
         if(pushToMiddlewareTimes) {
-            middlewareTimes[operator].push(next);
+            operatorToMiddlewareTimes[operator].push(next);
         }
     }
 
