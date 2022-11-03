@@ -98,7 +98,12 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /** 
-     * @notice used to complete deregistration process, revealing the operators final ephemeral keys
+     * @notice used to complete deregistration process, revealing the operators final ephemeral keys.
+     *         this is the operators final interaction with DataLayr. they have already initiated their deregistration,
+     *         no they are revealing their final ephemeral keys to start their bomb period, then slashin ability will be revoked
+     *         and pending withdrawals are free
+     * @param startIndex the index to start revealing epehemeral keys from
+     * @param ephemeralKeys the list of ephemeral keys to be revealed from startIndex to the last one used
      */
     function completeDeregistrationAndRevealLastEphemeralKeys(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
         require(_isAfterDelayedServicePeriod(msg.sender), 
@@ -122,9 +127,11 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /** 
-     * @notice used to propagate a stake update to the Slasher essentially freeing up staked assets for withdrawals have been initiated
+     * @notice used to propagate a stake update to the Slasher essentially freeing up staked assets for withdrawals have been initiated before blockNumber
      * @param operator the entity whose stake update is being propagated
-     * @param ephemeralKeyIndex the index of the ephemeral key that was active at the
+     * @param ephemeralKeyIndex the index of the ephemeral key that was active at the latest serving block of the stake during blockNumber
+     * @param blockNumber the blockNumber which the stake update is being propagated for
+     * @param prevElement a helper parameter needed for correct insertion into the linked list living in the Slasher
      */
     function propagateStakeUpdate(address operator, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) external {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
