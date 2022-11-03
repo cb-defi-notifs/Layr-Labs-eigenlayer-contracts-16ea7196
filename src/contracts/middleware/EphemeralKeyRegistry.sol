@@ -73,25 +73,26 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
 
         if(ephemeralKeyEntries[msg.sender][entriesLength - 1].startBlock < uint32(block.number)) {
             // if the last ephemeral key is the active one, 
-            // add the ephemeral key entry and make it the current active one
+            // add the ephemeral key entry and make it the active
+            // in the next block
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
-                    startBlock: uint32(block.number),
+                    startBlock: uint32(block.number) + 1,
                     revealBlock: 0 //set to 0 because it has not been revealed
                 })
             );
         } else if(ephemeralKeyEntries[msg.sender][entriesLength - 2].startBlock < uint32(block.number)) {
             // if the 2nd to last ephemeral key is the active one, 
-            // make the last ephemeral key the current active one,
+            // make the last ephemeral key active in the next block,
             // and add the ephemeral key entry
 
-            ephemeralKeyEntries[msg.sender][entriesLength - 1].startBlock = uint32(block.number);
+            ephemeralKeyEntries[msg.sender][entriesLength - 1].startBlock = uint32(block.number) + 1;
 
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
-                    startBlock: uint32(block.number) + USAGE_PERIOD_BLOCKS,
+                    startBlock: uint32(block.number) + 1 + USAGE_PERIOD_BLOCKS,
                     revealBlock: 0 //set to 0 because it has not been revealed
                 })
             );
@@ -259,7 +260,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
         );
         require(
-            block.number <=. endBlock + REVEAL_PERIOD_BLOCKS,
+            block.number <= endBlock + REVEAL_PERIOD_BLOCKS,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
         );
 
