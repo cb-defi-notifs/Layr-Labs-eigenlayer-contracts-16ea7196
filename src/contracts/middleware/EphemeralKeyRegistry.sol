@@ -189,7 +189,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         if(index + 1 != ephemeralKeyEntries[operator].length){
             //if an inactive ephemeral key is being leaked, then make sure it's not in its reveal period
 
-            //the block at which the leaked key stopped being active was then the one after it started being active
+            //the block at which the leaked key stopped being active is the
+            //startBlock of the key one entry after the leaked key
             uint256 endBlock = ephemeralKeyEntries[operator][index+1].startBlock;
             require(
                 block.number < endBlock ||
@@ -248,8 +249,9 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.revealEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
         );
 
-        //the block at which the revealed key stopped being active was then the one after it started being active
-        uint256 endBlock = ephemeralKeyEntries[operator][index+1].revealBlock;
+        //the block at which the revealed key stopped being active is the
+        //startBlock of the key one entry after the revealed
+        uint256 endBlock = ephemeralKeyEntries[operator][index+1].startBlock;
 
         // checking the validity period of the ephemeral key update
         require(
@@ -257,7 +259,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
         );
         require(
-            block.number < endBlock + REVEAL_PERIOD_BLOCKS,
+            block.number <=. endBlock + REVEAL_PERIOD_BLOCKS,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
         );
 
