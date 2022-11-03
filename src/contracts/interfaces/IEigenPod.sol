@@ -37,4 +37,6 @@ interface IEigenPod {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
+    function topUpPodBalance() external payable;
+
 }

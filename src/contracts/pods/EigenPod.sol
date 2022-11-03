@@ -142,6 +142,8 @@ contract EigenPod is IEigenPod, Initializable,DSTest
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
 
+    function topUpPodBalance() external payable {}
+
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
