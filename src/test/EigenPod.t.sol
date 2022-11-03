@@ -122,13 +122,9 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
 
         uint128 balance = eigenPodManager.getBalance(podOwner);
 
-        emit log_named_uint("balance", balance);
-
          IEigenPod newPod;
         newPod = eigenPodManager.getPod(podOwner);
         newPod.topUpPodBalance{value : balance*(1**18)}();
-
-
 
         IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
         IERC20[] memory tokensArray = new IERC20[](1);
@@ -143,21 +139,15 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
             strategyIndexes[0] = 0;
         }
 
+        uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        
         cheats.startPrank(podOwner);
         investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
         cheats.stopPrank();
 
+        uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
-        //eigenPodManager.withdrawBeaconChainETH(podOwner, address(this), balance);
-
-    
-
-
-
-        
-
+        require(podOwnerSharesBefore - podOwnerSharesAfter == balance, "delegation shares not updated correctly");
     } 
-
-
 }
 
