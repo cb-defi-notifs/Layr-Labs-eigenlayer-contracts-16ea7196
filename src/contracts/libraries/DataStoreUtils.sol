@@ -73,6 +73,7 @@ library DataStoreUtils {
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
                 metadata.stakesFromBlockNumber,
+                metadata.blockNumber,
                 metadata.fee,
                 metadata.confirmer,
                 metadata.signatoryRecordHash
@@ -93,6 +94,7 @@ library DataStoreUtils {
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
                 metadata.stakesFromBlockNumber,
+                metadata.blockNumber,
                 metadata.fee,
                 metadata.confirmer,
                 metadata.signatoryRecordHash
