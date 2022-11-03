@@ -384,11 +384,12 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         uint256 _paymentFraudproofCollateral = 1e16;
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
+            delegation,
             weth,
             _paymentFraudproofCollateral,
             dlRepository,
-            dlsm,
-            pauserReg
+            pauserReg,
+            dlsm
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);

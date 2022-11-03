@@ -29,10 +29,6 @@ import "./DataLayrChallengeUtils.sol";
  */
 contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
     using BytesLib for bytes;
-    // sanity checks. should always require *some* signatures, but never *all* signatures
-    uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
-    uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
-
 
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
@@ -57,6 +53,10 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
      * @notice contract used for handling payment challenges
      */
     IDataLayrPaymentManager public immutable dataLayrPaymentManager;
+
+    // constants for sanity checks. should always require *some* signatures, but never *all* signatures
+    uint128 internal constant MIN_THRESHOLD_BIPS = 1;
+    uint128 internal constant MAX_THRESHOLD_BIPS = 9999;
 
     //quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
     uint16 public quorumThresholdBasisPoints;
@@ -92,6 +92,11 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
     event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
 
     modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
+        // sanity checks on inputs
+        require(_quorumThresholdBasisPoints >= MIN_THRESHOLD_BIPS && _quorumThresholdBasisPoints <= MAX_THRESHOLD_BIPS,
+            "DataLayrServiceManager.validThresholds: invalid _quorumThresholdBasisPoints");
+        require(_adversaryThresholdBasisPoints >= MIN_THRESHOLD_BIPS && _adversaryThresholdBasisPoints <= MAX_THRESHOLD_BIPS,
+            "DataLayrServiceManager.validThresholds: invalid _adversaryThresholdBasisPoints");
         require(_quorumThresholdBasisPoints > _adversaryThresholdBasisPoints, 
             "DataLayrServiceManager.validThresholds: Quorum threshold must be strictly greater than adversary");
         _;

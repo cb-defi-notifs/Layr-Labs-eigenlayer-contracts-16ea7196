@@ -17,16 +17,17 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
     IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     constructor(
+        IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
         IRepository _repository,
-        IDataLayrServiceManager _dataLayrServiceManager,
-        IPauserRegistry _pauserReg
+        IPauserRegistry _pauserReg,
+        IDataLayrServiceManager _dataLayrServiceManager
     )
-        PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
-        initializer
+        PaymentManager(_eigenLayrDelegation, _paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
     {
         dataLayrServiceManager = _dataLayrServiceManager;
+        _disableInitializers();
     }
 
     /**

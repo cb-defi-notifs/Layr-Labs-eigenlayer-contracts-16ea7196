@@ -37,6 +37,13 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
     /// @notice Gas budget provided in calls to DelegationTerms contracts
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
+    /**
+     * @notice The global EigenLayr Delegation contract, which is primarily used by
+     * stakers to delegate their stake to operators who serve as middleware nodes.
+     * @dev For more details, see EigenLayrDelegation.sol.
+     */
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
+
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
 
@@ -48,13 +55,6 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
      * during payment challenges
      */
     uint256 public paymentFraudproofCollateral;
-
-    /**
-     * @notice The global EigenLayr Delegation contract, which is primarily used by
-     * stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayrDelegation.sol.
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /// @notice mapping between the operator and its current committed payment or last redeemed payment
     mapping(address => Payment) public operatorToPayment;
@@ -93,6 +93,7 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
     event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
     constructor(
+        IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
         IRepository _repository,
@@ -101,14 +102,18 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
         // set repository address equal to that of serviceManager
         RepositoryAccess(_repository)
     {
+        eigenLayrDelegation = _eigenLayrDelegation;
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-
         IServiceManager serviceManager_ = _repository.serviceManager();
         collateralToken = serviceManager_.collateralToken();
-        eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
-
         _initializePauser(_pauserReg);
+        _disableInitializers();
+    }
+
+    function initialize(IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public initializer {
+        _initializePauser(_pauserReg);
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 
     /**
