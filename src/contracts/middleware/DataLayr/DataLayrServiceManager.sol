@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
-import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
 import "../../interfaces/IDelegationTerms.sol";
 
@@ -17,7 +16,6 @@ import "../../libraries/Merkle.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../permissions/Pausable.sol";
 
-import "../Repository.sol";
 import "./DataLayrChallengeUtils.sol";
 
 /**
@@ -117,8 +115,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         DataLayrLowDegreeChallenge _dataLayrLowDegreeChallenge,
         DataLayrBombVerifier _dataLayrBombVerifier,
         EphemeralKeyRegistry _ephemeralKeyRegistry,
-        IDataLayrPaymentManager _dataLayrPaymentManager,
-        IRepository _repository
+        IDataLayrPaymentManager _dataLayrPaymentManager
     )
         BLSSignatureChecker(_registry)
     {

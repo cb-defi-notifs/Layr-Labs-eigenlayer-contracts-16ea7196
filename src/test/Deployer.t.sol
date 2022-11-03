@@ -342,8 +342,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             // TODO: fix this
             DataLayrBombVerifier(address(0)),
             ephemeralKeyRegistry,
-            dataLayrPaymentManager,
-            dlRepository
+            dataLayrPaymentManager
             // pauserReg,
             // feePerBytePerTime
         );
