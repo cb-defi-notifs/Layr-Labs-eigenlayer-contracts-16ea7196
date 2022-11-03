@@ -122,21 +122,24 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     /** 
-     * @notice used to complete deregistration process, revealing the operators final ephemeral keys
+     * @notice used to propagate a stake update to the Slasher essentially freeing up staked assets for withdrawals have been initiated
+     * @param operator the entity whose stake update is being propagated
+     * @param ephemeralKeyIndex the index of the ephemeral key that was active at the
      */
-    function propagateStakeUpdate(address operator, uint32 stakeIndex, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) external {
-        bytes pubkeyHash = registry[operator].pubkeyHash;
+    function propagateStakeUpdate(address operator, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) external {
+        bytes32 pubkeyHash = registry[operator].pubkeyHash;
         require(pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].updateBlockNumber > blockNumber, 
             "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
 
         IServiceManager serviceManager = repository.serviceManager();
         //make sure BLOCK_STALE_MEASURE blocks have passed since the block we are updating for
-        require(blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() < uint32(block.number),
+        uint32 latestServingBlockNumber = blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE();
+        require(latestServingBlockNumber < uint32(block.number),
             "BLSRegistryWithBomb.propagateStakeUpdate: blockNumber must be BLOCK_STALE_MEASURE blocks ago");
         // @notice Registrant must continue to serve until the latest time at which an active task expires.
         uint32 serveUntil = serviceManager.latestTime();
-        //make sure operator revealed all epehemeral keys before
-        require(ephemeralKeyRegistry.getEphemeralKeyEntryAtBlock(operator, ephemeralKeyIndex, blockNumber).revealBlock != 0,
+        //make sure operator revealed all epehemeral keys used when signing blocks that were being served by the specified stake
+        require(ephemeralKeyRegistry.getEphemeralKeyEntryAtBlock(operator, ephemeralKeyIndex, latestServingBlockNumber).revealBlock != 0,
             "BLSRegistryWithBomb.propagateStakeUpdate: ephemeral key was not revealed yet");
         //record the stake update in the slasher
         serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);

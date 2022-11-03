@@ -32,7 +32,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint256 public constant BLOCK_STALE_MEASURE = 150;
+    uint32 public constant BLOCK_STALE_MEASURE = 150;
     uint256 public constant BIP_MULTIPLIER = 10000;
 
     // collateral token used for placing collateral on challenges & payment commits

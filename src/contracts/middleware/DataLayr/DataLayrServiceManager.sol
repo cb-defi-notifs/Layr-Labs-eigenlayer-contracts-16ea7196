@@ -293,7 +293,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
 
             require(
-                (stakesFromBlockNumber + BLOCK_STALE_MEASURE) >= block.number,
+                (stakesFromBlockNumber + BLOCK_STALE_MEASURE) >= uint32(block.number),
                 "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is too far in past"
             );    
         }
