@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
-// import "forge-std/Test.sol";
+import "../interfaces/IEigenPodManager.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -38,15 +38,19 @@ contract InvestmentManager is
      */
     uint32 internal constant QUEUED_WITHDRAWAL_INITIALIZED_VALUE = type(uint32).max;
 
-    /// @notice Emitted when a new withdrawal is queued by `depositor`
-    event WithdrawalQueued(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
+    /**
+     * @notice Emitted when a new withdrawal is queued by `depositor`.
+     * @param depositor Is the staker who is withdrawing funds from EigenLayer.
+     * @param withdrawer Is the party specified by `staker` who will be able to complete the queued withdrawal and receive the withdrawn funds.
+     * @param delegatedAddress Is the party who the `staker` was delegated to at the time of creating the queued withdrawal
+     * @param withdrawalRoot Is a hash of the input data for the withdrawal.
+     */
+    event WithdrawalQueued(
+        address indexed depositor, address indexed withdrawer, address indexed delegatedAddress, bytes32 withdrawalRoot
+    );
+
     /// @notice Emitted when a queued withdrawal is completed
     event WithdrawalCompleted(address indexed depositor, address indexed withdrawer, bytes32 withdrawalRoot);
-
-    modifier onlyNotDelegated(address user) {
-        require(delegation.isNotDelegated(user), "InvestmentManager.onlyNotDelegated: user is actively delegated");
-        _;
-    }
 
     modifier onlyNotFrozen(address staker) {
         require(
@@ -61,33 +65,68 @@ contract InvestmentManager is
         _;
     }
 
-    constructor(IEigenLayrDelegation _delegation) InvestmentManagerStorage(_delegation) {
+    modifier onlyEigenPodManager {
+        require(address(eigenPodManager) == msg.sender, "InvestmentManager.onlyEigenPodManager: not the eigenPodManager");
+        _;
+    }
+
+    modifier onlyEigenPod(address podOwner, address pod) {
+        require(address(eigenPodManager.getPod(podOwner)) == pod, "InvestmentManager.onlyEigenPod: not a pod");
+        _;
+    }
+
+    /**
+     * @param _delegation The delegation contract of EigenLayr.
+     * @param _slasher The primary slashing contract of EigenLayr.
+     * @param _eigenPodManager The contract that keeps track of EigenPod stakes for restaking beacon chain ether.
+     */
+    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher)
+        InvestmentManagerStorage(_delegation, _eigenPodManager, _slasher)
+    {
         _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS
 
     /**
-     * @notice Initializes the investment manager contract.
-     * @param _slasher The primary slashing contract of EigenLayr.
+     * @notice Initializes the investment manager contract. Sets the `pauserRegistry` (currently **not** modifiable after being set),
+     * and transfers contract ownership to the specified `initialOwner`.
      * @param _pauserRegistry Used for access control of pausing.
      * @param initialOwner Ownership of this contract is transferred to this address.
      */
-    function initialize(ISlasher _slasher, IPauserRegistry _pauserRegistry, address initialOwner)
+    function initialize(IPauserRegistry _pauserRegistry, address initialOwner)
         external
         initializer
     {
-        _transferOwnership(initialOwner);
-        slasher = _slasher;
+        //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about meta transactions in general
+        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         _initializePauser(_pauserRegistry);
+        _transferOwnership(initialOwner);
     }
+
+    /**
+     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     */
+    function depositBeaconChainETH(address staker, uint256 amount)
+        external
+        onlyEigenPodManager
+        onlyNotFrozen(staker)
+        nonReentrant
+        returns (uint256)
+    {
+        //add shares for the enshrined beacon chain ETH strategy
+        _addShares(staker, beaconChainETHStrategy, amount);
+        return amount;
+    }
+
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
+     * @dev Cannot be called by an address that is 'frozen' (this function will revert if the `msg.sender` is frozen).
      */
-
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
         onlyNotFrozen(msg.sender)
@@ -98,15 +137,18 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice used for investing an asset into the specified strategy on behalf of a staker who must sign off on the action
-     */
-    /**
+     * @notice Used for investing an asset into the specified strategy with the resultant shared created to `staker`,
+     * who must sign off on the action
      * @param strategy is the specified strategy where investment is to be made,
      * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
      * @param staker the staker that the assets will be deposited on behalf of
      * @param expiry the timestamp at which the signature expires
      * @param r and @param vs are the elements of the ECDSA signature
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
+     * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
+     * targetting stakers who may be attempting to undelegate.
+     * @dev Cannot be called on behalf of a staker that is 'frozen' (this function will revert if the `staker` is frozen).
      */
     function depositIntoStrategyOnBehalfOf(
         IInvestmentStrategy strategy,
@@ -118,15 +160,10 @@ contract InvestmentManager is
         bytes32 vs
     )
         external
+        onlyNotFrozen(staker)
         nonReentrant
         returns (uint256 shares)
     {
-        //make not frozen check here instead of modifier
-        require(
-            !slasher.isFrozen(staker),
-            "InvestmentManager.depositIntoStrategyOnBehalfOf: staker has been frozen and may be subject to slashing"
-        );
-
         require(
             expiry == 0 || expiry >= block.timestamp,
             "InvestmentManager.depositIntoStrategyOnBehalfOf: delegation signature expired"
@@ -134,7 +171,7 @@ contract InvestmentManager is
         // calculate struct hash, then increment `staker`'s nonce
         bytes32 structHash = keccak256(abi.encode(DEPOSIT_TYPEHASH, strategy, token, amount, nonces[staker]++, expiry));
         bytes32 digestHash = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-        //check validity of signature
+        // check validity of signature
         address recoveredAddress = ECDSA.recover(digestHash, r, vs);
         require(recoveredAddress == staker, "InvestmentManager.depositIntoStrategyOnBehalfOf: sig not from staker");
 
@@ -142,45 +179,35 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Used to withdraw the given token and shareAmount from the given strategy.
-     * @dev Only those stakers who have notified the system that they want to undelegate
-     * from the system, via calling commitUndelegation in EigenLayrDelegation.sol, can
-     * call this function.
+     * @notice Called by a staker to undelegate entirely from EigenLayer. The staker must first withdraw all of their existing deposits
+     * (through use of the `queueWithdrawal` function), or else otherwise have never deposited in EigenLayer prior to delegating.
      */
-    function withdrawFromStrategy(
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    )
-        external
-        whenNotPaused
-        onlyNotFrozen(msg.sender)
-        onlyNotDelegated(msg.sender)
-        nonReentrant
-    {
-        _withdrawFromStrategy(msg.sender, strategyIndex, strategy, token, shareAmount);
-        //decrease corresponding operator's shares, if applicable
-        delegation.decreaseDelegatedShares(msg.sender, strategy, shareAmount);
+    function undelegate() external {
+        _undelegate(msg.sender);
     }
 
     /**
      * @notice Called by a staker to queue a withdraw in the given token and shareAmount from each of the respective given strategies.
-     */
-    /**
      * @dev Stakers will complete their withdrawal by calling the 'completeQueuedWithdrawal' function.
      * User shares are decreased in this function, but the total number of shares in each strategy remains the same.
      * The total number of shares is decremented in the 'completeQueuedWithdrawal' function instead, which is where
      * the funds are actually sent to the user through use of the strategies' 'withdrawal' function. This ensures
      * that the value per share reported by each strategy will remain consistent, and that the shares will continue
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
         IInvestmentStrategy[] calldata strategies,
         IERC20[] calldata tokens,
         uint256[] calldata shares,
-        WithdrawerAndNonce calldata withdrawerAndNonce
+        WithdrawerAndNonce calldata withdrawerAndNonce,
+        bool undelegateIfPossible
     )
         external
         whenNotPaused
@@ -202,8 +229,7 @@ contract InvestmentManager is
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
 
-        uint256 strategiesLength = strategies.length;
-        for (uint256 i = 0; i < strategiesLength;) {
+        for (uint256 i = 0; i < strategies.length;) {
             // the internal function will return 'true' in the event the strategy was
             // removed from the depositor's array of strategies -- i.e. investorStrats[depositor]
             if (_removeShares(msg.sender, strategyIndexes[strategyIndexIndex], strategies[i], shares[i])) {
@@ -218,10 +244,24 @@ contract InvestmentManager is
             }
         }
 
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        // fetch the address that the `msg.sender` is delegated to
+        address delegatedAddress = delegation.delegatedTo(msg.sender);
+
+        // copy arguments into struct and pull delegation info
+        QueuedWithdrawal memory queuedWithdrawal = QueuedWithdrawal({
+            strategies: strategies,
+            tokens: tokens,
+            shares: shares,
+            depositor: msg.sender,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegatedAddress
+        });
+
+        // calculate the withdrawal root
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         //update storage in mapping of queued withdrawals
-        queuedWithdrawals[msg.sender][withdrawalRoot] = WithdrawalStorage({
+        queuedWithdrawals[withdrawalRoot] = WithdrawalStorage({
             /**
              * @dev We add `REASONABLE_STAKES_UPDATE_PERIOD` to the current time here to account for the fact that it may take some time for
              * the operator's stake to be updated on all the middlewares. New tasks created between now at this 'initTimestamp' may still
@@ -232,72 +272,65 @@ contract InvestmentManager is
             unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
         });
 
-        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, withdrawalRoot);
+        // If the `msg.sender` has withdrawn all of their funds from EigenLayer in this transaction, then they can choose to also undelegate
+        /**
+         * Checking that `investorStrats[msg.sender].length == 0` is not strictly necessary here, but prevents reverting very late in logic,
+         * in the case that 'undelegate' is set to true but the `msg.sender` still has active deposits in EigenLayer.
+         */
+        if (undelegateIfPossible && investorStrats[msg.sender].length == 0) {
+            _undelegate(msg.sender);
+        }
+
+        emit WithdrawalQueued(msg.sender, withdrawerAndNonce.withdrawer, delegatedAddress, withdrawalRoot);
 
         return withdrawalRoot;
     }
+
     /*
     * 
-    * The withdrawal flow is:
-    * - Depositer starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
+    * @notice The withdrawal flow is:
+    * - Depositor starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
     * - Withdrawer then waits for the queued withdrawal tx to be included in the chain, and then sets the stakeInactiveAfter. This cannot
     *   be set when starting the queued withdrawal, as it is there may be transactions the increase the tasks upon which the stake is active 
     *   that get mined before the withdrawal.
     * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
     *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
     */
-
-    function startQueuedWithdrawalWaitingPeriod(address depositor, bytes32 withdrawalRoot, uint32 stakeInactiveAfter)
-        external
-    {
+    function startQueuedWithdrawalWaitingPeriod(bytes32 withdrawalRoot, uint32 stakeInactiveAfter) external {
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
-            "InvestmentManager.setStakeInactiveAfterClaim: Withdrawal stake inactive claim has already been made"
+            queuedWithdrawals[withdrawalRoot].unlockTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
+            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Withdrawal stake inactive claim has already been made"
         );
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == msg.sender,
-            "InvestmentManager.setStakeInactiveAfterClaim: Sender is not the withdrawer"
+            queuedWithdrawals[withdrawalRoot].withdrawer == msg.sender,
+            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Sender is not the withdrawer"
         );
         require(
-            block.timestamp > queuedWithdrawals[depositor][withdrawalRoot].initTimestamp,
-            "InvestmentManager.setStakeInactiveAfterClaim: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
+            block.timestamp > queuedWithdrawals[withdrawalRoot].initTimestamp,
+            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
         );
         //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
-        queuedWithdrawals[depositor][withdrawalRoot] = WithdrawalStorage({
-            // do not modify the initTimestamp
-            initTimestamp: queuedWithdrawals[depositor][withdrawalRoot].initTimestamp,
-            // withdrawer remains `msg.sender`
-            withdrawer: msg.sender,
-            // set the unlockTimestamp appropriately
-            unlockTimestamp: max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter)
-        });
-    }
-
-    function max(uint32 x, uint32 y) internal pure returns (uint32) {
-        return x > y ? x : y;
+        queuedWithdrawals[withdrawalRoot].unlockTimestamp = max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter);
     }
 
     /**
-     * @notice Used to complete a queued withdraw in the given token and shareAmount from each of the respective given strategies,
-     * that was initiated by 'depositor'. The 'withdrawer' address is looked up in storage.
+     * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
+     * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
+     * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
+     * will simply be transferred to the caller directly.
      */
-    function completeQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
-        bool receiveAsTokens
-    )
+    function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, bool receiveAsTokens)
         external
         whenNotPaused
-        onlyNotFrozen(depositor)
+        // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
+        onlyNotFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
         // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
 
         // verify that the queued withdrawal actually exists
         require(
@@ -306,76 +339,75 @@ contract InvestmentManager is
         );
 
         require(
-            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp || delegation.isNotDelegated(depositor),
-            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor is still delegated"
+            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp
+                || (queuedWithdrawal.delegatedAddress == address(0)),
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor was delegated when withdrawal initiated"
         );
 
         // TODO: add testing coverage for this
         require(
-            msg.sender == withdrawerAndNonce.withdrawer,
+            msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
 
-        //reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[depositor][withdrawalRoot];
+        // reset the storage slot in mapping of queued withdrawals
+        delete queuedWithdrawals[withdrawalRoot];
 
-        /**
-         * if the depositor has no existing shares and they are delegated, undelegate
-         * this allows people a "hard reset" in their relationship with EigenLayer after
-         * withdrawing all of their stake
-         */
-        if (investorStrats[depositor].length == 0 && delegation.isDelegated(depositor)) {
-            delegation.undelegate(depositor);
-        }
         // store length for gas savings
-        uint256 strategiesLength = strategies.length;
-        //if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
+        uint256 strategiesLength = queuedWithdrawal.strategies.length;
+        // if the withdrawer has flagged to receive the funds as tokens, withdraw from strategies
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-                // tell the strategy to send the appropriate amount of funds to the depositor
-                strategies[i].withdraw(withdrawalStorageCopy.withdrawer, tokens[i], shares[i]);
+                
+                if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
+                    // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
+                    eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
+                } else {
+                    // tell the strategy to send the appropriate amount of funds to the depositor
+                    queuedWithdrawal.strategies[i].withdraw(
+                    withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]
+                );
+                }
                 unchecked {
                     ++i;
                 }
             }
         } else {
-            //else increase their shares
+            // else increase their shares
             for (uint256 i = 0; i < strategiesLength;) {
-                _addShares(withdrawalStorageCopy.withdrawer, strategies[i], shares[i]);
+                _addShares(withdrawalStorageCopy.withdrawer, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
                 unchecked {
                     ++i;
                 }
             }
         }
 
-        emit WithdrawalCompleted(depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
+        emit WithdrawalCompleted(queuedWithdrawal.depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
     }
 
     /**
      * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
-     * The result is resetting the WITHDRAWAL_WAITING_PERIOD for the queued withdrawal.
-     * @dev The fraudproof requires providing a repository contract and queryHash, corresponding to a query that was
-     * created at or before the time when the queued withdrawal was initiated, and expires prior to the time at
-     * which the withdrawal can currently be completed. A successful fraudproof sets the queued withdrawal's
-     * 'unlockTimestamp' to the current UTC time plus the WITHDRAWAL_WAITING_PERIOD, pushing back the unlock time for the funds to be withdrawn.
+     * The result is setting the 'withdrawer' of the queued withdrawal to the zero address, signalling that the queued withdrawal
+     * can now be slashed through a call to `slashQueuedWithdrawal`.
+     * @param queuedWithdrawal the queued withdrawal to be proven against
+     * @param data Provided as an input to `slashingContract.stakeWithdrawalVerification`, used to check the proof
+     * @param slashingContract Is a contract that the 'delegated address' of the queued withdrawal -- i.e. `queuedWithdrawal.delegatedAddress`,
+     * the operator whom the originator of the queued withdrawal was delegated to at the time of its creation -- signed up to serve. The contract
+     * must still have slashing rights, as checked in `slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract))`
+     * @dev The format of the `data` input may vary significantly depending upon the service.
      */
     function challengeQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce,
+        QueuedWithdrawal calldata queuedWithdrawal,
         bytes calldata data,
         IServiceManager slashingContract
     )
         external
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
         // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[depositor][withdrawalRoot];
-
+        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
 
         // verify that the queued withdrawal actually exists
         require(
@@ -394,26 +426,36 @@ contract InvestmentManager is
             "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
         );
 
-        address operator = delegation.delegation(depositor);
-
         require(
-            slasher.canSlash(operator, address(slashingContract)),
+            slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract)),
             "InvestmentManager.fraudproofQueuedWithdrawal: Contract does not have rights to slash operator"
         );
 
         {
-            // ongoing task is still active at time when staker was finalizing undelegation
-            // and, therefore, hasn't served its obligation.
+            /**
+             * Verify that there is an ongoing task, created at or before the `initTimestamp` and that expires
+             * strictly after the `unlockTimestamp` for this queued withdrawal
+             */
             slashingContract.stakeWithdrawalVerification(
                 data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
             );
         }
 
         // set the withdrawer equal to address(0), allowing the slasher custody of the funds
-        queuedWithdrawals[depositor][withdrawalRoot].withdrawer = address(0);
+        queuedWithdrawals[withdrawalRoot].withdrawer = address(0);
     }
 
-    /// @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
+    /**
+     * @notice Slashes the shares of a 'frozen' operator (or a staker delegated to one)
+     * @param slashedAddress is the frozen address that is having its shares slashed
+     * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
+     * for which `msg.sender` is withdrawing 100% of their shares
+     * @param recipient The slashed funds are withdrawn as tokens to this address.
+     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
+     * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
+     * `investorStrats` to lowest index
+     */
     function slashShares(
         address slashedAddress,
         address recipient,
@@ -439,8 +481,14 @@ contract InvestmentManager is
                 }
             }
 
-            // withdraw the shares and send funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            if(strategies[i] == beaconChainETHStrategy){
+                 //withdraw the beaconChainETH to the recipient
+                eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
+            }
+            else{
+                // withdraw the shares and send funds to the recipient
+                strategies[i].withdraw(recipient, tokens[i], shareAmounts[i]);
+            }
 
             // increment the loop
             unchecked {
@@ -451,43 +499,39 @@ contract InvestmentManager is
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(slashedAddress, strategies, shareAmounts);
     }
-
-    /// @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
-    function slashQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shares,
-        address depositor,
-        address recipient,
-        WithdrawerAndNonce calldata withdrawerAndNonce
-    )
+    
+    /**
+     * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+     * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
+     */
+    function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal)
         external
         whenNotPaused
         onlyOwner
         nonReentrant
     {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shares, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp != 0,
+            queuedWithdrawals[withdrawalRoot].unlockTimestamp != 0,
             "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
         );
 
-        // verify that the queued withdrawal has been successfully challenged
+        // verify that *either* the queued withdrawal has been successfully challenged, *or* the `depositor` has been frozen
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(depositor),
+            queuedWithdrawals[withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(queuedWithdrawal.depositor),
             "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[depositor][withdrawalRoot];
+        delete queuedWithdrawals[withdrawalRoot];
 
-        uint256 strategiesLength = strategies.length;
+        uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
             // tell the strategy to send the appropriate amount of funds to the recipient
-            strategies[i].withdraw(recipient, tokens[i], shares[i]);
+            queuedWithdrawal.strategies[i].withdraw(recipient, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
             unchecked {
                 ++i;
             }
@@ -496,7 +540,12 @@ contract InvestmentManager is
 
     // INTERNAL FUNCTIONS
 
-    /// @notice This function adds shares for a given strategy to a depositor and runs through the necessary update logic
+    /**
+     * @notice This function adds `shares` for a given `strategy` to the `depositor` and runs through the necessary update logic.
+     * @dev In particular, this function calls `delegation.increaseDelegatedShares(depositor, strategy, shares)` to ensure that all
+     * delegated shares are tracked, increases the stored share amount in `investorStratShares[depositor][strategy]`, and adds `strategy`
+     * to the `depositor`'s list of strategies, if it is not in the list already.
+     */
     function _addShares(address depositor, IInvestmentStrategy strategy, uint256 shares) internal {
         // sanity check on `shares` input
         require(shares != 0, "InvestmentManager._addShares: shares should not be zero!");
@@ -517,6 +566,11 @@ contract InvestmentManager is
         delegation.increaseDelegatedShares(depositor, strategy, shares);
     }
 
+    /**
+     * @notice Internal function in which `amount` of ERC20 `token` is transferred from `msg.sender` to the InvestmentStrategy-type contract
+     * `strategy`, with the resulting shares credited to `depositor`.
+     * @return shares The amount of *new* shares in `strategy` that have been credited to the `depositor`.
+     */
     function _depositIntoStrategy(address depositor, IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         internal
         returns (uint256 shares)
@@ -534,29 +588,9 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice Withdraws `shareAmount` shares that `depositor` holds in `strategy`, to their address
-     * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
-     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
-     */
-    function _withdrawFromStrategy(
-        address depositor,
-        uint256 strategyIndex,
-        IInvestmentStrategy strategy,
-        IERC20 token,
-        uint256 shareAmount
-    )
-        internal
-        returns (bool strategyRemovedFromArray)
-    {
-        strategyRemovedFromArray = _removeShares(depositor, strategyIndex, strategy, shareAmount);
-        // tell the strategy to send the appropriate amount of funds to the depositor
-        strategy.withdraw(depositor, token, shareAmount);
-    }
-
-    /**
      * @notice Decreases the shares that `depositor` holds in `strategy` by `shareAmount`.
      * @dev If the amount of shares represents all of the depositor`s shares in said strategy,
-     * then the strategy is removed from investorStrats[depositor] and `true` is returned. Otherwise `false` is returned.
+     * then the strategy is removed from investorStrats[depositor] and 'true' is returned. Otherwise 'false' is returned.
      */
     function _removeShares(address depositor, uint256 strategyIndex, IInvestmentStrategy strategy, uint256 shareAmount)
         internal
@@ -579,29 +613,8 @@ contract InvestmentManager is
         // if no existing shares, remove is from this investors strats
 
         if (userShares == 0) {
-            // if the strategy matches with the strategy index provided
-            if (investorStrats[depositor][strategyIndex] == strategy) {
-                // replace the strategy with the last strategy in the list
-                investorStrats[depositor][strategyIndex] =
-                    investorStrats[depositor][investorStrats[depositor].length - 1];
-            } else {
-                //loop through all of the strategies, find the right one, then replace
-                uint256 stratsLength = investorStrats[depositor].length;
-
-                for (uint256 j = 0; j < stratsLength;) {
-                    if (investorStrats[depositor][j] == strategy) {
-                        //replace the strategy with the last strategy in the list
-                        investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
-                        break;
-                    }
-                    unchecked {
-                        ++j;
-                    }
-                }
-            }
-
-            // pop off the last entry in the list of strategies
-            investorStrats[depositor].pop();
+            // remove the strategy from the depositor's dynamic array of strategies
+            _removeStrategyFromInvestorStrats(depositor, strategyIndex, strategy);
 
             // return true in the event that the strategy was removed from investorStrats[depositor]
             return true;
@@ -610,33 +623,74 @@ contract InvestmentManager is
         return false;
     }
 
+    /**
+     * @notice Removes `strategy` from `depositor`'s dynamic array of strategies, i.e. from `investorStrats[depositor]`
+     * @dev the provided `strategyIndex` input is optimistically used to find the strategy quickly in the list. If the specified
+     * index is incorrect, then we revert to a brute-force search.
+     */
+    function _removeStrategyFromInvestorStrats(address depositor, uint256 strategyIndex, IInvestmentStrategy strategy) internal {
+        // if the strategy matches with the strategy index provided
+        if (investorStrats[depositor][strategyIndex] == strategy) {
+            // replace the strategy with the last strategy in the list
+            investorStrats[depositor][strategyIndex] =
+                investorStrats[depositor][investorStrats[depositor].length - 1];
+        } else {
+            //loop through all of the strategies, find the right one, then replace
+            uint256 stratsLength = investorStrats[depositor].length;
+
+            for (uint256 j = 0; j < stratsLength;) {
+                if (investorStrats[depositor][j] == strategy) {
+                    //replace the strategy with the last strategy in the list
+                    investorStrats[depositor][j] = investorStrats[depositor][investorStrats[depositor].length - 1];
+                    break;
+                }
+                unchecked {
+                    ++j;
+                }
+            }
+        }
+
+        // pop off the last entry in the list of strategies
+        investorStrats[depositor].pop();
+    }
+
+    /**
+     * @notice If the `depositor` has no existing shares, then they can `undelegate` themselves.
+     * This allows people a "hard reset" in their relationship with EigenLayer after withdrawing all of their stake.
+     */
+    function _undelegate(address depositor) internal {
+        require(investorStrats[depositor].length == 0, "InvestmentManager._undelegate: depositor has active deposits");
+        delegation.undelegate(depositor);
+    }
+
+    function max(uint32 x, uint32 y) internal pure returns (uint32) {
+        return x > y ? x : y;
+    }
+
     // VIEW FUNCTIONS
 
     /**
-     * @notice Used to check if a queued withdrawal can be completed
+     * @notice Used to check if a queued withdrawal can be completed. Returns 'true' if the withdrawal can be immediately
+     * completed, and 'false' otherwise.
+     * @dev This function will revert if the specified `queuedWithdrawal` does not exist
      */
-    function canCompleteQueuedWithdrawal(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        address depositor,
-        WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        external
-        returns (bool)
-    {
+    function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external view returns (bool) {
         // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(strategies, tokens, shareAmounts, withdrawerAndNonce);
+        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         // verify that the queued withdrawal actually exists
         require(
-            queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp != 0,
+            queuedWithdrawals[withdrawalRoot].unlockTimestamp != 0,
             "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
         );
 
+        if (slasher.isFrozen(queuedWithdrawal.delegatedAddress)) {
+            return false;
+        }
+
         return (
-            uint32(block.timestamp) >= queuedWithdrawals[depositor][withdrawalRoot].unlockTimestamp
-                || delegation.isNotDelegated(depositor)
+            uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
+                || (queuedWithdrawal.delegatedAddress == address(0))
         );
     }
 
@@ -657,20 +711,24 @@ contract InvestmentManager is
         return (investorStrats[depositor], shares);
     }
 
-    function investorStratsLength(address investor) external view returns (uint256) {
-        return investorStrats[investor].length;
+    /// @notice Simple getter function that returns `investorStrats[staker].length`.
+    function investorStratsLength(address staker) external view returns (uint256) {
+        return investorStrats[staker].length;
     }
 
-    function calculateWithdrawalRoot(
-        IInvestmentStrategy[] calldata strategies,
-        IERC20[] calldata tokens,
-        uint256[] calldata shareAmounts,
-        WithdrawerAndNonce calldata withdrawerAndNonce
-    )
-        public
-        pure
-        returns (bytes32)
-    {
-        return (keccak256(abi.encode(strategies, tokens, shareAmounts, withdrawerAndNonce)));
+    /// @notice Returns the keccak256 hash of `queuedWithdrawal`.
+    function calculateWithdrawalRoot(QueuedWithdrawal memory queuedWithdrawal) public pure returns (bytes32) {
+        return (
+            keccak256(
+                abi.encode(
+                    queuedWithdrawal.strategies,
+                    queuedWithdrawal.tokens,
+                    queuedWithdrawal.shares,
+                    queuedWithdrawal.depositor,
+                    queuedWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawal.delegatedAddress
+                )
+            )
+        );
     }
 }

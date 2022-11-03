@@ -23,10 +23,10 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
         keccak256("Delegation(address delegator,address operator,uint256 nonce,uint256 expiry)");
 
     /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
+    bytes32 public DOMAIN_SEPARATOR;
 
     /// @notice The InvestmentManager contract for EigenLayr
-    IInvestmentManager public investmentManager;
+    IInvestmentManager public immutable investmentManager;
 
     // operator => investment strategy => num shares delegated
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
@@ -35,15 +35,15 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     mapping(address => IDelegationTerms) public delegationTerms;
 
     // staker => operator
-    mapping(address => address) public delegation;
+    mapping(address => address) public delegatedTo;
 
     // staker => whether they are delegated or not
-    mapping(address => IEigenLayrDelegation.DelegationStatus) public delegated;
+    mapping(address => IEigenLayrDelegation.DelegationStatus) public delegationStatus;
 
     // delegator => number of signed delegation nonce (used in delegateToBySignature)
     mapping(address => uint256) public nonces;
 
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+    constructor(IInvestmentManager _investmentManager) {
+        investmentManager = _investmentManager;
     }
 }

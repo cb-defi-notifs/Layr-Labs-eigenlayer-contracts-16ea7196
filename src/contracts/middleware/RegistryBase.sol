@@ -9,7 +9,7 @@ import "./Repository.sol";
 import "./VoteWeigherBase.sol";
 import "../libraries/BLS.sol";
 
- import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title An abstract Registry-type contract that is signature scheme agnostic.
@@ -21,7 +21,6 @@ import "../libraries/BLS.sol";
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
 abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
-
     using BytesLib for bytes;
 
     uint32 public immutable UNBONDING_PERIOD;
@@ -50,17 +49,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     mapping(bytes32 => OperatorIndex[]) public pubkeyHashToIndexHistory;
 
     // EVENTS
+    /// @notice emitted when `operator` updates their socket address to `socket`
     event SocketUpdate(address operator, string socket);
 
-    event StakeAdded(
-        address operator,
-        uint96 firstQuorumStake,
-        uint96 secondQuorumStake,
-        uint256 updateNumber,
-        uint32 updateBlockNumber,
-        uint32 prevUpdateBlockNumber
-    );
-
+    /// @notice emitted whenever the stake of `operator` is updated
     event StakeUpdate(
         address operator,
         uint96 firstQuorumStake,
@@ -69,13 +61,19 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint32 prevUpdateBlockNumber
     );
 
+    /**
+     * @notice Emitted whenever an operator deregisters.
+     * The `swapped` address is the address returned by an internal call to the `_popRegistrant` function.
+     */
     event Deregistration(address operator, address swapped);
 
-    // enum OperatorType {
-    //     QUORUM_1_VALIDATOR,
-    //     QUORUM_2_VALIDATOR
-    // }
-
+    /**
+     * Irrevocably sets the (immutable) `repository`, `delegation`, & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
+     * Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,
+     * to record an initial condition of zero operators with zero total stake.
+     * Adds `_firstQuorumStrategiesConsideredAndMultipliers` and `_secondQuorumStrategiesConsideredAndMultipliers` to the dynamic arrays
+     * `strategiesConsideredAndMultipliers[0]` and `strategiesConsideredAndMultipliers[1]` (i.e. to the weighing functions of the quorums)
+     */
     constructor(
         Repository _repository,
         IEigenLayrDelegation _delegation,
@@ -85,9 +83,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
-    )
-        VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips)
-    {
+    ) VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) {
         //set unbonding period
         UNBONDING_PERIOD = unbondingPeriod;
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
@@ -102,31 +98,30 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         _addStrategiesConsideredAndMultipliers(1, _secondQuorumStrategiesConsideredAndMultipliers);
     }
 
-    /*
-     looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
-     The `index` input is used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]`
-     to read data from, where `pubkeyHash` is looked up from `operator`'s registration info
+    /**
+     * @notice Looks up the `operator`'s index in the dynamic array `operatorList` at the specified `blockNumber`.
+     * @param index Used to specify the entry within the dynamic array `pubkeyHashToIndexHistory[pubkeyHash]` to 
+     * read data from, where `pubkeyHash` is looked up from `operator`'s registration info
+     * @param blockNumber Is the desired block number at which we wish to query the operator's position in the `operatorList` array
+     * @dev Function will revert in the event that the specified `index` input does not identify the appropriate entry in the
+     * array `pubkeyHashToIndexHistory[pubkeyHash]` to pull the info from.
     */
     function getOperatorIndex(address operator, uint32 blockNumber, uint32 index) external view returns (uint32) {
         // look up the operator's stored pubkeyHash
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
 
-        require(
-            index < uint32(pubkeyHashToIndexHistory[pubkeyHash].length),
-            "RegistryBase.getOperatorIndex: Operator indexHistory index exceeds array length"
-        );
-        /*
-         // since the 'to' field represents the taskNumber at which a new index started
-         // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
-        */
+        /**
+         * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
+         * previous array entry has 'to' == blockNumber, so we check not strict inequality here
+         */
         require(
             index == 0 || pubkeyHashToIndexHistory[pubkeyHash][index - 1].toBlockNumber <= blockNumber,
             "RegistryBase.getOperatorIndex: Operator indexHistory index is too high"
         );
         OperatorIndex memory operatorIndex = pubkeyHashToIndexHistory[pubkeyHash][index];
-        /*
-         // when deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number
-         // since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here
+        /**
+         * When deregistering, the operator does *not* serve the current block number -- 'to' gets set (from zero) to the current block number.
+         * Since the 'to' field represents the blocknumber at which a new index started, we want to check strict inequality here.
         */
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
@@ -135,55 +130,65 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return operatorIndex.index;
     }
 
-    /*
-     looks up the number of total operators at the specified `blockNumber`.
-     The `index` input is used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from
+    /**
+     * @notice Looks up the number of total operators at the specified `blockNumber`.
+     * @param index Input used to specify the entry within the dynamic array `totalOperatorsHistory` to read data from.
+     * @dev This function will revert if the provided `index` is out of bounds.
     */
     function getTotalOperators(uint32 blockNumber, uint32 index) external view returns (uint32) {
-        require(
-            index < uint32(totalOperatorsHistory.length),
-            "RegistryBase.getTotalOperators: TotalOperator indexHistory index exceeds array length"
-        );
-        // since the 'to' field represents the blockNumber at which a new index started
-        // it is OK if the previous array entry has 'to' == blockNumber, so we check not strict inequality here
+        /**
+         * Since the 'to' field represents the blockNumber at which a new index started, it is OK if the 
+         * previous array entry has 'to' == blockNumber, so we check not strict inequality here
+         */
         require(
             index == 0 || totalOperatorsHistory[index - 1].toBlockNumber <= blockNumber,
-            "RegistryBase.getTotalOperators: TotalOperator indexHistory index is too high"
+            "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too high"
         );
 
     
         OperatorIndex memory operatorIndex = totalOperatorsHistory[index];
 
         // since the 'to' field represents the blockNumber at which a new index started, we want to check strict inequality here
+
         require(
             operatorIndex.toBlockNumber == 0 || blockNumber < operatorIndex.toBlockNumber,
-            "RegistryBase.getTotalOperators: indexHistory index is too low"
+            "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too low"
         );
         return operatorIndex.index;
     }
 
-    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
-        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
-    }
-
+    /// @notice Adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
     function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
         minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
     }
 
-    /// @notice returns the unique ID of the specified operator
+    /// @notice Adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
+    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
+        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
+    }
+
+    /// @notice Returns the unique ID of the specified `operator`.
     function getOperatorId(address operator) external view returns (uint32) {
         return registry[operator].id;
     }
 
-    /// @notice returns the active status for the specified operator
-    function getOperatorStatus(address operator) external view returns (IQuorumRegistry.Active) {
-        return registry[operator].active;
+    /// @notice Returns whether or not the `operator` is currently an active operator, i.e. is "registered".
+    function isActiveOperator(address operator) external view returns (bool) {
+        return (registry[operator].status == IQuorumRegistry.Status.ACTIVE);
     }
 
+    /// @notice Returns the stored pubkeyHash for the specified `operator`.
     function getOperatorPubkeyHash(address operator) public view returns (bytes32) {
         return registry[operator].pubkeyHash;
     }
 
+    /**
+     * @notice Returns the stake weight corresponding to `pubkeyHash`, at the
+     * `index`-th entry in the `pubkeyHashToStakeHistory[pubkeyHash]` array.
+     * @param pubkeyHash Hash of the public key of the operator of interest.
+     * @param index Array index for lookup, within the dynamic array `pubkeyHashToStakeHistory[pubkeyHash]`.
+     * @dev Function will revert if `index` is out-of-bounds.
+     */
     function getStakeFromPubkeyHashAndIndex(bytes32 pubkeyHash, uint256 index)
         external
         view
@@ -192,6 +197,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return pubkeyHashToStakeHistory[pubkeyHash][index];
     }
 
+    /**
+     * @notice Returns the most recent stake weight for the `operator`
+     * @dev Function returns an OperatorStake struct with **every entry equal to 0** in the event that the operator has no stake history
+     */
     function getMostRecentStakeByOperator(address operator) public view returns (OperatorStake memory) {
         bytes32 pubkeyHash = getOperatorPubkeyHash(operator);
         uint256 historyLength = pubkeyHashToStakeHistory[pubkeyHash].length;
@@ -204,6 +213,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         }
     }
 
+    function getStakeHistoryLength(bytes32 pubkeyHash) external view returns (uint256) {
+        return pubkeyHashToStakeHistory[pubkeyHash].length;
+    }
+
     function firstQuorumStakedByOperator(address operator) external view returns (uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return opStake.firstQuorumStake;
@@ -214,27 +227,18 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return opStake.secondQuorumStake;
     }
 
+    /**
+     * @notice Returns the most recent stake weights for the `operator`
+     * @dev Function returns weights of **0** in the event that the operator has no stake history
+     */
     function operatorStakes(address operator) public view returns (uint96, uint96) {
         OperatorStake memory opStake = getMostRecentStakeByOperator(operator);
         return (opStake.firstQuorumStake, opStake.secondQuorumStake);
     }
 
-    function isRegistered(address operator) external view returns (bool) {
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = operatorStakes(operator);
-        return (firstQuorumStake > 0 || secondQuorumStake > 0);
-    }
-
-    function totalFirstQuorumStake() external view returns (uint96) {
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.firstQuorumStake;
-    }
-
-    function totalSecondQuorumStake() external view returns (uint96) {
-        OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
-        return _totalStake.secondQuorumStake;
-    }
-
+    /// @notice Returns the stake amounts from the latest entry in `totalStakeHistory`.
     function totalStake() external view returns (uint96, uint96) {
+        // no chance of underflow / error in next line, since an empty entry is pushed in the constructor
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
         return (_totalStake.firstQuorumStake, _totalStake.secondQuorumStake);
     }
@@ -255,47 +259,60 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return totalOperatorsHistory.length;
     }
 
+    /**
+     * @notice Returns the `index`-th entry in the dynamic array of total stake, `totalStakeHistory`.
+     * @dev Function will revert in the event that `index` is out-of-bounds.
+     */
     function getTotalStakeFromIndex(uint256 index) external view returns (OperatorStake memory) {
         return totalStakeHistory[index];
     }
 
-    /**
-     * @notice returns task number from when operator has been registered.
-     */
+    /// @notice Returns task number from when `operator` has been registered.
     function getFromTaskNumberForOperator(address operator) external view returns (uint32) {
         return registry[operator].fromTaskNumber;
     }
 
-    /**
-     * @notice returns block number from when operator has been registered.
-     */
+    /// @notice Returns block number from when `operator` has been registered.
     function getFromBlockNumberForOperator(address operator) external view returns (uint32) {
         return registry[operator].fromBlockNumber;
     }
 
+    /**
+     * @notice Returns the time at which the `operator` deregistered.
+     * @dev Function will return **0** in the event that the operator is actively registered.
+     */
     function getOperatorDeregisterTime(address operator) external view returns (uint256) {
         return registry[operator].deregisterTime;
     }
 
-    // number of operators of this service
+    /// @notice Returns the current number of operators of this service.
     function numOperators() public view returns (uint32) {
         return uint32(operatorList.length);
     }
 
-    //return when the operator is unbonded from the middleware, if they deregister now
-    function bondedUntil(address operator) public view virtual returns (uint32) {
+    /// @notice Returns when the operator is unbonded from the middleware, if they deregister now.
+    function bondedUntilAtLeast(address operator) public view virtual returns (uint32) {
         return uint32(Math.max(block.timestamp + UNBONDING_PERIOD, registry[operator].serveUntil));
     }
 
     // MUTATING FUNCTIONS
 
     function updateSocket(string calldata newSocket) external {
-        require(registry[msg.sender].active == IQuorumRegistry.Active.ACTIVE, "RegistryBase.updateSocket: Can only update socket if active on the service");
+        require(
+            registry[msg.sender].status == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase.updateSocket: Can only update socket if active on the service"
+        );
         emit SocketUpdate(msg.sender, newSocket);
     }
 
     // INTERNAL FUNCTIONS
-
+    /**
+     * @notice Called when the total number of operators has changed.
+     * Sets the `toBlockNumber` field on the last entry *so far* in thedynamic array `totalOperatorsHistory` to the current `block.number`,
+     * recording that the previous entry is *no longer the latest* and the block number at which the next was added.
+     * Pushes a new entry to `totalOperatorsHistory`, with `index` field set equal to the new amount of operators, recording the new number
+     * of total operators (and leaving the `toBlockNumber` field at zero, signaling that this is the latest entry in the array)
+     */
     function _updateTotalOperatorsHistory() internal {
         // set the 'toBlockNumber' field on the last entry *so far* in 'totalOperatorsHistory' to the current block number
         totalOperatorsHistory[totalOperatorsHistory.length - 1].toBlockNumber = uint32(block.number);
@@ -306,14 +323,14 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     }
 
     /**
-     * Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
+     * @notice Remove the operator from active status. Removes the operator with the given `pubkeyHash` from the `index` in `operatorList`,
      * updates operatorList and index histories, and performs other necessary updates for removing operator
      */
-    function _removeRegistrant(bytes32 pubkeyHash, uint32 index) internal {
+    function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
         registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
         // committing to not signing off on any more middleware tasks
-        registry[msg.sender].active = IQuorumRegistry.Active.INACTIVE;
+        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
         // gas saving by caching length here
@@ -356,14 +373,27 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
-        //revoke that slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntil(msg.sender));
+        //revoke the slashing ability of the service manager
+        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
+
+        emit StakeUpdate(
+            msg.sender,
+            // new stakes are zero
+            0,
+            0,
+            uint32(block.number),
+            currentStakes.updateBlockNumber
+            );
     }
 
-    // Removes the registrant at the given `index` from the `operatorList`
+    /**
+     * @notice Removes the registrant at the given `index` from the `operatorList`
+     * @return swappedOperator is the operator who was swapped with the removed operator in the operatorList,
+     * or the *zero address* in the case that the removed operator was already the list operator in the operatorList.
+     */
     function _popRegistrant(uint32 index) internal returns (address swappedOperator) {
         // gas saving by caching length here
         uint256 operatorListLengthMinusOne = operatorList.length - 1;
@@ -394,7 +424,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return swappedOperator;
     }
 
-    // Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList`
+    /// @notice Adds the Operator `operator` with the given `pubkeyHash` to the `operatorList` and performs necessary related updates.
     function _addRegistrant(
         address operator,
         bytes32 pubkeyHash,
@@ -402,6 +432,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     )
         internal
     {
+
         require(
             investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
@@ -411,11 +442,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             pubkeyHash: pubkeyHash,
             id: nextOperatorId,
             index: numOperators(),
-            active: IQuorumRegistry.Active.ACTIVE,
+            status: IQuorumRegistry.Status.ACTIVE,
             fromTaskNumber: repository.serviceManager().taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
-            // extract the socket address
             deregisterTime: 0
         });
 
@@ -437,6 +467,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // copy latest totalStakes to memory
         OperatorStake memory _totalStake = totalStakeHistory[totalStakeHistory.length - 1];
+        // add operator stakes to total stake (in memory)
         _totalStake.firstQuorumStake += _operatorStake.firstQuorumStake;
         _totalStake.secondQuorumStake += _operatorStake.secondQuorumStake;
         // update storage of total stake
@@ -444,15 +475,33 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // Update totalOperatorsHistory array
         _updateTotalOperatorsHistory();
+
+        emit StakeUpdate(
+            operator,
+            _operatorStake.firstQuorumStake,
+            _operatorStake.secondQuorumStake,
+            uint32(block.number),
+            // no previous update block number -- use 0 instead
+            0
+            );
     }
 
-    // used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`
+/**
+ * TODO: critique: "Currently only `_registrationStakeEvaluation` uses the `uint8 registrantType` input -- we should **EITHER** store this
+ * and keep using it in other places as well, **OR** stop using it altogether"
+ */
+    /**
+     * @notice Used inside of inheriting contracts to validate the registration of `operator` and find their `OperatorStake`.
+     * @dev This function does **not** update the stored state of the operator's stakes -- storage updates are performed elsewhere.
+     * @return The newly calculated `OperatorStake` for `operator`, stored in memory but not yet committed to storage.
+     */
     function _registrationStakeEvaluation(address operator, uint8 operatorType)
         internal
         returns (OperatorStake memory)
     {
+        // verify that the `operator` is not already registered
         require(
-            registry[operator].active == IQuorumRegistry.Active.INACTIVE,
+            registry[operator].status == IQuorumRegistry.Status.INACTIVE,
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
 
@@ -484,7 +533,10 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return _operatorStake;
     }
 
-    // Finds the updated stake for `operator`, stores it and records the update. **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere
+    /**
+     * @notice Finds the updated stake for `operator`, stores it and records the update.
+     * @dev **DOES NOT UPDATE `totalStake` IN ANY WAY** -- `totalStake` updates must be done elsewhere.
+     */
     function _updateOperatorStake(address operator, bytes32 pubkeyHash, OperatorStake memory currentOperatorStake)
         internal
         returns (OperatorStake memory updatedOperatorStake)
@@ -518,18 +570,18 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         return (updatedOperatorStake);
     }
 
-    // records that the `totalStake` is now equal to the input param @_totalStake
+    /// @notice Records that the `totalStake` is now equal to the input param @_totalStake
     function _recordTotalStakeUpdate(OperatorStake memory _totalStake) internal {
         _totalStake.updateBlockNumber = uint32(block.number);
         totalStakeHistory[totalStakeHistory.length - 1].nextUpdateBlockNumber = uint32(block.number);
         totalStakeHistory.push(_totalStake);
     }
 
-    // verify that the `operator` is an active operator and that they've provided the correct `index`
+    /// @notice Verify that the `operator` is an active operator and that they've provided the correct `index`
     function _deregistrationCheck(address operator, uint32 index) internal view {
         require(
-            registry[operator].active != IQuorumRegistry.Active.INACTIVE,
-            "RegistryBase._deregistrationCheck: Operator is already registered"
+            registry[operator].status == IQuorumRegistry.Status.ACTIVE,
+            "RegistryBase._deregistrationCheck: Operator is not registered"
         );
 
         require(operator == operatorList[index], "RegistryBase._deregistrationCheck: Incorrect index supplied");

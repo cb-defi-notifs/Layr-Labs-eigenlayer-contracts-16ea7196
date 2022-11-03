@@ -37,12 +37,12 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
 
     /**
      * @notice mapping from quorum number to the list of strategies considered and their
-     * corresponding weights for that specific quorum
+     * corresponding multipliers for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
     /**
      * @notice This defines the earnings split between different quorums. Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
-     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS]) should *always* be 10,000!
+     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS - 1]) should *always* be 10,000!
      */
     mapping(uint256 => uint256) public quorumBips;
 
@@ -52,9 +52,7 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
         IInvestmentManager _investmentManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips
-    )
-        RepositoryAccess(_repository)
-    {
+    ) RepositoryAccess(_repository) {
         // sanity check that the VoteWeigher is being initialized with at least 1 quorum
         require(_NUMBER_OF_QUORUMS != 0, "VoteWeigherBaseStorage.constructor: _NUMBER_OF_QUORUMS == 0");
         // verify that the provided `_quorumBips` is of the correct length

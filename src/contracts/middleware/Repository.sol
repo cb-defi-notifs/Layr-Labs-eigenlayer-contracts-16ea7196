@@ -49,10 +49,7 @@ contract Repository is Ownable, Initializable, IRepository {
         IServiceManager _serviceManager,
         IRegistry _registry,
         address initialOwner
-    )
-        external
-        initializer
-    {
+    ) external initializer {
         _setVoteWeigher(_voteWeigher);
         _setServiceManager(_serviceManager);
         _setRegistry(_registry);

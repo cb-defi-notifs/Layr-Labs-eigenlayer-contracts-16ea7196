@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./IRepositoryAccess.sol";
 import "./IEigenLayrDelegation.sol";
 
 /**
@@ -9,7 +10,7 @@ import "./IEigenLayrDelegation.sol";
  * @author Layr Labs, Inc.
  */
 // TODO: provide more functions for this spec
-interface IServiceManager {
+interface IServiceManager is IRepositoryAccess {
     function taskNumber() external view returns (uint32);
 
     function freezeOperator(address operator) external;
