@@ -161,7 +161,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     }
 
     /**
-     * @notice Used by watchers to prove that an operator has shared their epheemeral key with other entities
+     * @notice Used by watchers to prove that an operator has shared their ephemeral key with other entities
      * @param operator is the entity that shared their ephemeral key
      * @param index is the index of the ephemeral key they shared
      * @param ephemeralKey is the preimage of the stored ephemeral key hash
