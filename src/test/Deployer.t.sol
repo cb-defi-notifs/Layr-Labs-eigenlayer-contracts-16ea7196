@@ -334,6 +334,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
+            dlReg,
             investmentManager,
             delegation,
             weth,
@@ -414,7 +415,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
         assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
         assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
-        assertTrue(dlsm.repository() == dlRepository, "repository set incorrectly in dlsm");
     }
 
     function testSig() public view {

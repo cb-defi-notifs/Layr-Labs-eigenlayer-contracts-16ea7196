@@ -83,6 +83,7 @@ interface IDataLayrServiceManager is IServiceManager {
 
     function dataLayrPaymentManager() external view returns (IDataLayrPaymentManager);
 
-    function verifyDataStoreMetadata(uint8 duration, uint256 timestamp, uint32 index, DataStoreMetadata memory metadata) external view returns (bool);
-    
+    function verifyDataStoreMetadata(uint8 duration, uint256 timestamp, uint32 index, DataStoreMetadata memory metadata) external view returns (bool); 
+
+    function owner() external view returns (address);  
 }

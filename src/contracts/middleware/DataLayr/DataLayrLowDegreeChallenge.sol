@@ -58,8 +58,8 @@ contract DataLayrLowDegreeChallenge is Initializable {
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
     uint256 internal constant POT_TREE_HEIGHT = 28;
 
-    modifier onlyRepositoryGovernance() {
-        dataLayrServiceManager.repository().owner();
+    modifier onlyDataLayrServiceManagerOwner() {
+        require(msg.sender == dataLayrServiceManager.owner(), "onlyDataLayrServiceManagerOwner");
         _;
     }
 
@@ -220,7 +220,7 @@ contract DataLayrLowDegreeChallenge is Initializable {
     }
 
     //update pairing gas limit
-    function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
+    function setPairingGasLimit(uint256 newGasLimit) external onlyDataLayrServiceManagerOwner {
         pairingGasLimit = newGasLimit;
     }
 }

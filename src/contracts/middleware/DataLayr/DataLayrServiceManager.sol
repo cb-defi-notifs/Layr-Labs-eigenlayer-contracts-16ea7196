@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
 import "../../interfaces/IRepository.sol";
 import "../../interfaces/IEigenLayrDelegation.sol";
@@ -27,7 +28,7 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - freezing operators as the result of various "challenges"
  */
-contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
+contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
     using BytesLib for bytes;
 
     // collateral token used for placing collateral on challenges & payment commits
@@ -102,7 +103,14 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
         _;
     }
 
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`.
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
     constructor(
+        IQuorumRegistry _registry,
         IInvestmentManager _investmentManager,
         IEigenLayrDelegation _eigenLayrDelegation,
         IERC20 _collateralToken,
@@ -112,7 +120,7 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
         IDataLayrPaymentManager _dataLayrPaymentManager,
         IRepository _repository
     )
-        BLSSignatureChecker(_repository)
+        BLSSignatureChecker(_registry)
     {
         investmentManager = _investmentManager;
         eigenLayrDelegation = _eigenLayrDelegation;
@@ -124,12 +132,19 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
         _disableInitializers();
     }
 
-    function initialize(IPauserRegistry _pauserRegistry, uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints, uint256 _feePerBytePerTime)
+    function initialize(
+        IPauserRegistry _pauserRegistry,
+        address initialOwner,
+        uint16 _quorumThresholdBasisPoints,
+        uint16 _adversaryThresholdBasisPoints,
+        uint256 _feePerBytePerTime
+    )
         public
         initializer
         checkValidThresholds(_quorumThresholdBasisPoints, _adversaryThresholdBasisPoints)
     {
         _initializePauser(_pauserRegistry);
+        _transferOwnership(initialOwner);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
         _setFeePerBytePerTime(_feePerBytePerTime);
@@ -139,7 +154,7 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
 
     function setQuorumThresholdBasisPoints(uint16 _quorumThresholdBasisPoints) 
         external 
-        onlyRepositoryGovernance 
+        onlyOwner 
         checkValidThresholds(_quorumThresholdBasisPoints, adversaryThresholdBasisPoints) 
     {
         quorumThresholdBasisPoints = _quorumThresholdBasisPoints;
@@ -148,11 +163,20 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
 
     function setAdversaryThresholdBasisPoints(uint16 _adversaryThresholdBasisPoints) 
         external 
-        onlyRepositoryGovernance
+        onlyOwner
         checkValidThresholds(quorumThresholdBasisPoints, _adversaryThresholdBasisPoints) 
     {
         adversaryThresholdBasisPoints = _adversaryThresholdBasisPoints;
         emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
+    }
+
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyOwner {
+        _setFeePerBytePerTime(_feePerBytePerTime);
+    }
+
+    // called in the event of deregistration
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
     /**
@@ -208,7 +232,7 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
             uint256 totalBytes;
             {
                 //fetch the total number of operators for the blockNumber from which stakes are being read from
-                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+                uint32 totalOperators = registry.getTotalOperators(blockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
@@ -451,15 +475,6 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
-    // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
-        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
-    }
-
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
-        _setFeePerBytePerTime(_feePerBytePerTime);
-    }
-
     // VIEW FUNCTIONS
 
     function verifyDataStoreMetadata(
@@ -558,6 +573,11 @@ contract DataLayrServiceManager is Initializable, DataLayrServiceManagerStorage,
 
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
+    }
+
+    /// @dev need to override function here since its defined in both these contracts
+    function owner() public view override(OwnableUpgradeable, IDataLayrServiceManager) returns (address) {
+        return OwnableUpgradeable.owner();
     }
 
     // INTERNAL FUNTIONS

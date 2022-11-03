@@ -10,35 +10,28 @@ import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrBombVerifier.sol";
 import "../EphemeralKeyRegistry.sol";
-import "../../permissions/RepositoryAccess.sol";
 
 /**
  * @title Storage variables for the `DataLayrServiceManager` contract.
  * @author Layr Labs, Inc.
  * @notice This storage contract is separate from the logic to simplify the upgrade process.
  */
-abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
-    /**
-     *
-     * CONSTANTS
-     *
-     */
-    //TODO: mechanism to change any of these values?
+abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager {
+    // CONSTANTS
+    uint256 public constant BIP_MULTIPLIER = 10000;
+
     uint256 public constant DURATION_SCALE = 1 hours;
     uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 20;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 public constant MIN_DATASTORE_DURATION = 1;
     uint8 public constant MAX_DATASTORE_DURATION = 14;
 
+    //TODO: mechanism to change any of these values?
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
     uint256 internal constant BLOCK_STALE_MEASURE = 100;
-    uint256 public constant BIP_MULTIPLIER = 10000;
 
-    /**
-     * @notice service fee that will be paid out by the disperser to the DataLayr nodes
-     * for storing per byte for per unit time.
-     */
+    /// @notice service fee that will be paid out by the disperser to the DataLayr nodes for storing data, per byte stored per unit time (second).
     uint256 public feePerBytePerTime;
 
     // TODO: set these values correctly
@@ -76,9 +69,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
 
-    //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
-    //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
-    //in that block
+    /** 
+     * @notice Mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
+     * The third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be in that block
+     */
     mapping(uint8 => mapping(uint256 => bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public
         dataStoreHashesForDurationAtTimestamp;
 }

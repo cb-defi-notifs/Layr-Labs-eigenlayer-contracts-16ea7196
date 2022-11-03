@@ -240,6 +240,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
+            dlReg,
             investmentManager,
             delegation,
             weth,
