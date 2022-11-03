@@ -124,7 +124,11 @@ contract BLSRegistryWithBomb is BLSRegistry {
     /** 
      * @notice used to complete deregistration process, revealing the operators final ephemeral keys
      */
-    function propagateStakeUpdate(address operator, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) internal {
+    function propagateStakeUpdate(address operator, uint32 stakeIndex, uint32 ephemeralKeyIndex, uint32 blockNumber, uint256 prevElement) internal {
+        bytes pubkeyHash = registry[operator].pubkeyHash;
+        require(pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].updateBlockNumber > blockNumber, 
+            "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
+
         IServiceManager serviceManager = repository.serviceManager();
         //make sure BLOCK_STALE_MEASURE blocks have passed since the block we are updating for
         require(blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() < uint32(block.number),
