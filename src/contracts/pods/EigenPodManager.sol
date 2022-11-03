@@ -86,7 +86,6 @@ contract EigenPodManager is IEigenPodManager, DSTest
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
-        //IEigenPod pod = deployPod();
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
@@ -164,8 +163,6 @@ contract EigenPodManager is IEigenPodManager, DSTest
             );
         return pod;
     }
-
-    //_deployedAddress = Create2.deploy(0, salt, abi.encodePacked(type(TransparentUpgradeableProxy).creationCode, abi.encode(impl, admin, new bytes(0))));
 
     // VIEW FUNCTIONS
 
