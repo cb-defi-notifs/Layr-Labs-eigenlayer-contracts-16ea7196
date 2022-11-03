@@ -183,6 +183,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         serviceManager.freezeOperator(operator);
     }
 
+    /**
+     * @notice Returns the ephemeral key entry of the specified operator at the given blockNumber
+     * @param operator is the entity whose ephemeral key entry is being retrieved
+     * @param index is the index of the ephemeral key entry that was active during blockNumber
+     * @param blockNumber the block number at which the returned entry's ephemeral key was active
+     * @dev Reverts if index points to the incorrect public key
+     */
     function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(EphemeralKeyEntry memory) {
         require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber && // the ephemeral key was in use before `blockNumber`
                 (
@@ -194,7 +201,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         return ephemeralKeyEntries[operator][index];
     }
 
-    function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEpheremeralKey) internal {
+    /**
+     * @notice Internal function for doing the proper checks and accounting when revealing ephemeral keys
+     * @param operator is the entity revealing their ephemeral key
+     * @param index is the index of the ephemeral key operator is revealing
+     * @param prevEphemeralKey the ephemeral key
+     */
+    function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEphemeralKey) internal {
         // verify that the operator is active
         IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
@@ -203,7 +216,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         );
 
         require(
-            ephemeralKeyEntries[operator][index].ephemeralKeyHash == keccak256(abi.encodePacked(prevEpheremeralKey)),
+            ephemeralKeyEntries[operator][index].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKey)),
             "EphemeralKeyRegistry.revealEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
         );
 
