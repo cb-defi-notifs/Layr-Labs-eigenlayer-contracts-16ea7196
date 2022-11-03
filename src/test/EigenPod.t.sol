@@ -116,16 +116,36 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-    function testWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
+    function testWithdrawalEigenPods(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
         uint128 balance = eigenPodManager.getBalance(podOwner);
 
+        emit log_named_uint("balance", balance);
+
          IEigenPod newPod;
         newPod = eigenPodManager.getPod(podOwner);
         newPod.topUpPodBalance{value : balance*(1**18)}();
 
+
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
+        bool undelegateIfPossible = false;
+        {
+            strategyArray[0] = investmentManager.beaconChainETHStrategy();
+            shareAmounts[0] = balance;
+            strategyIndexes[0] = 0;
+        }
+
+        cheats.startPrank(podOwner);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        cheats.stopPrank();
 
 
         //eigenPodManager.withdrawBeaconChainETH(podOwner, address(this), balance);

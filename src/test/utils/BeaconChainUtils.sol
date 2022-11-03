@@ -138,7 +138,6 @@ contract BeaconChainProofUtils {
         validatorMerkleProof[40] = 0x0100000000000000000000000000000000000000000000000000000000000000;
 
 
-
         //hash tree root of list of validators
         bytes32 validatorTreeRoot = 0x9414da1a60c853deeacbde35d5886230d16399b46b4a37c58fa9dc24d62d6ff2;
 

@@ -113,6 +113,7 @@ contract InvestmentManager is
     {
         //add shares for the enshrined beacon chain ETH strategy
         _addShares(staker, beaconChainETHStrategy, amount);
+        emit log_named_address("depositor", staker);
         return amount;
     }
 
@@ -558,6 +559,7 @@ contract InvestmentManager is
 
         // add the returned shares to their existing shares for this strategy
         investorStratShares[depositor][strategy] += shares;
+        emit log_named_uint("balance added", investorStratShares[depositor][strategy]);
 
         // if applicable, increase delegated shares accordingly
         delegation.increaseDelegatedShares(depositor, strategy, shares);
@@ -596,8 +598,12 @@ contract InvestmentManager is
         // sanity check on `shareAmount` input
         require(shareAmount != 0, "InvestmentManager._removeShares: shareAmount should not be zero!");
 
+        emit log_named_address("depositor", depositor);        
+        emit log_named_uint("balance upon removal", investorStratShares[depositor][beaconChainETHStrategy]);
+
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
+
 
         require(shareAmount <= userShares, "InvestmentManager._removeShares: shareAmount too high");
         //unchecked arithmetic since we just checked this above

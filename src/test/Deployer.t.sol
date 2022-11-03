@@ -288,9 +288,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
         
 
-
-
-
         //loads hardcoded signer set
         _setSigners();
 
