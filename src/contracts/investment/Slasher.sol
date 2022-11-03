@@ -146,128 +146,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
-    // INTERNAL FUNCTIONS
-    function _optIntoSlashing(address operator, address contractAddress) internal {
-        //allow the contract to slash anytime before a time VERY far in the future
-        bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL;
-        emit OptedIntoSlashing(operator, contractAddress);
-    }
-
-    function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
-        if (bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL) {
-            //contractAddress can now only slash operator before unbondedAfter
-            bondedUntil[operator][contractAddress] = unbondedAfter;
-            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);
-        }
-    }
-
-    function _addGloballyPermissionedContract(address contractToAdd) internal {
-        if (!globallyPermissionedContracts[contractToAdd]) {
-            globallyPermissionedContracts[contractToAdd] = true;
-            emit GloballyPermissionedContractAdded(contractToAdd);
-        }
-    }
-
-    function _removeGloballyPermissionedContract(address contractToRemove) internal {
-        if (globallyPermissionedContracts[contractToRemove]) {
-            globallyPermissionedContracts[contractToRemove] = false;
-            emit GloballyPermissionedContractRemoved(contractToRemove);
-        }
-    }
-
-    function _freezeOperator(address toBeFrozen, address slashingContract) internal {
-        if (!frozenStatus[toBeFrozen]) {
-            frozenStatus[toBeFrozen] = true;
-            emit OperatorSlashed(toBeFrozen, slashingContract);
-        }
-    }
-
-    function _resetFrozenStatus(address previouslySlashedAddress) internal {
-        if (frozenStatus[previouslySlashedAddress]) {
-            frozenStatus[previouslySlashedAddress] = false;
-            emit FrozenStatusReset(previouslySlashedAddress);
-        }
-    }
-
-    // VIEW FUNCTIONS
-    /**
-     * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
-     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
-     * and the staker's status is reset (to 'unfrozen').
-     * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
-     * to an operator who has their status set to frozen. Otherwise returns 'false'.
-     */
-    function isFrozen(address staker) external view returns (bool) {
-        if (frozenStatus[staker]) {
-            return true;
-        } else if (delegation.isDelegated(staker)) {
-            address operatorAddress = delegation.delegatedTo(staker);
-            return (frozenStatus[operatorAddress]);
-        } else {
-            return false;
-        }
-    }
-
-    /// @notice Checks if `slashingContract` is allowed to slash `toBeSlashed`.
-    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
-        if (globallyPermissionedContracts[slashingContract]) {
-            return true;
-        } else if (block.timestamp < bondedUntil[toBeSlashed][slashingContract]) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * @notice records the most recent updateBlock for the currently updating middleware and appends an entry to the operator's list of 
-     *         MiddlewareTimes if relavent information has updated
-     * @param operator the entity whose stake update is being recorded
-     * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
-     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
-     * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
-     */
-    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
-        //reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
-        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
-                "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
-        operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
-        //get the current latest recorded time the operator must serve until, if the operator's list of MiddlwareTimes is non empty
-        uint32 currentLastestRecordedServeUntil;
-        if(operatorToMiddlewareTimes[operator].length != 0) {
-            currentLastestRecordedServeUntil = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1].latestServeUntil;
-        }
-        MiddlewareTimes memory next;
-        bool pushToMiddlewareTimes;
-        //if the serve until is later than the latest recorded one, update it
-        if(serveUntil > currentLastestRecordedServeUntil) {
-            next.latestServeUntil = serveUntil;
-            //mark that we need push next to middleware times array because it contains new information
-            pushToMiddlewareTimes = true;
-        } else {
-            //otherwise, copy the current value
-            next.latestServeUntil = currentLastestRecordedServeUntil;
-        }
-        if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
-            //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
-            (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
-            if(hasNext) {
-                //if there is a next node, then set the leastRecentUpdateBlock to its recorded value
-                next.leastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
-            } else {
-                //otherwise this is the only middleware so right now is the leastRecentUpdateBlock
-                next.leastRecentUpdateBlock = updateBlock;
-            }
-            //mark that we need push next to middleware times array because it contains new information
-            pushToMiddlewareTimes = true;
-        }
-        
-        //if next has new information, push it
-        if(pushToMiddlewareTimes) {
-            operatorToMiddlewareTimes[operator].push(next);
-        }
-    }
-
     /**
      * @notice this function is a called by middlewares during an operator's registration to make sure the operator's stake at registration 
      *         is slashable until serveUntil
@@ -361,6 +239,130 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         //remove the middleware from the list
         require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
              "Slasher.recordLastStakeUpdate: Removing middleware unsuccessful");
+    }
+
+    // VIEW FUNCTIONS
+
+    /**
+     * @notice Used to determine whether `staker` is actively 'frozen'. If a staker is frozen, then they are potentially subject to
+     * slashing of their funds, and cannot cannot deposit or withdraw from the investmentManager until the slashing process is completed
+     * and the staker's status is reset (to 'unfrozen').
+     * @return Returns 'true' if `staker` themselves has their status set to frozen, OR if the staker is delegated
+     * to an operator who has their status set to frozen. Otherwise returns 'false'.
+     */
+    function isFrozen(address staker) external view returns (bool) {
+        if (frozenStatus[staker]) {
+            return true;
+        } else if (delegation.isDelegated(staker)) {
+            address operatorAddress = delegation.delegatedTo(staker);
+            return (frozenStatus[operatorAddress]);
+        } else {
+            return false;
+        }
+    }
+
+    /// @notice Checks if `slashingContract` is allowed to slash `toBeSlashed`.
+    function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
+        if (globallyPermissionedContracts[slashingContract]) {
+            return true;
+        } else if (block.timestamp < bondedUntil[toBeSlashed][slashingContract]) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // INTERNAL FUNCTIONS
+
+    function _optIntoSlashing(address operator, address contractAddress) internal {
+        //allow the contract to slash anytime before a time VERY far in the future
+        bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL;
+        emit OptedIntoSlashing(operator, contractAddress);
+    }
+
+    function _revokeSlashingAbility(address operator, address contractAddress, uint32 unbondedAfter) internal {
+        if (bondedUntil[operator][contractAddress] == MAX_BONDED_UNTIL) {
+            //contractAddress can now only slash operator before unbondedAfter
+            bondedUntil[operator][contractAddress] = unbondedAfter;
+            emit SlashingAbilityRevoked(operator, contractAddress, unbondedAfter);
+        }
+    }
+
+    function _addGloballyPermissionedContract(address contractToAdd) internal {
+        if (!globallyPermissionedContracts[contractToAdd]) {
+            globallyPermissionedContracts[contractToAdd] = true;
+            emit GloballyPermissionedContractAdded(contractToAdd);
+        }
+    }
+
+    function _removeGloballyPermissionedContract(address contractToRemove) internal {
+        if (globallyPermissionedContracts[contractToRemove]) {
+            globallyPermissionedContracts[contractToRemove] = false;
+            emit GloballyPermissionedContractRemoved(contractToRemove);
+        }
+    }
+
+    function _freezeOperator(address toBeFrozen, address slashingContract) internal {
+        if (!frozenStatus[toBeFrozen]) {
+            frozenStatus[toBeFrozen] = true;
+            emit OperatorSlashed(toBeFrozen, slashingContract);
+        }
+    }
+
+    function _resetFrozenStatus(address previouslySlashedAddress) internal {
+        if (frozenStatus[previouslySlashedAddress]) {
+            frozenStatus[previouslySlashedAddress] = false;
+            emit FrozenStatusReset(previouslySlashedAddress);
+        }
+    }
+
+    /**
+     * @notice records the most recent updateBlock for the currently updating middleware and appends an entry to the operator's list of 
+     *         MiddlewareTimes if relavent information has updated
+     * @param operator the entity whose stake update is being recorded
+     * @param updateBlock the block number for which the currently updating middleware is updating the serveUntil for
+     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
+     * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
+     */
+    function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
+        //reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
+        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
+                "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
+        operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
+        //get the current latest recorded time the operator must serve until, if the operator's list of MiddlwareTimes is non empty
+        uint32 currentLastestRecordedServeUntil;
+        if(operatorToMiddlewareTimes[operator].length != 0) {
+            currentLastestRecordedServeUntil = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1].latestServeUntil;
+        }
+        MiddlewareTimes memory next;
+        bool pushToMiddlewareTimes;
+        //if the serve until is later than the latest recorded one, update it
+        if(serveUntil > currentLastestRecordedServeUntil) {
+            next.latestServeUntil = serveUntil;
+            //mark that we need push next to middleware times array because it contains new information
+            pushToMiddlewareTimes = true;
+        } else {
+            //otherwise, copy the current value
+            next.latestServeUntil = currentLastestRecordedServeUntil;
+        }
+        if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
+            //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
+            (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
+            if(hasNext) {
+                //if there is a next node, then set the leastRecentUpdateBlock to its recorded value
+                next.leastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
+            } else {
+                //otherwise this is the only middleware so right now is the leastRecentUpdateBlock
+                next.leastRecentUpdateBlock = updateBlock;
+            }
+            //mark that we need push next to middleware times array because it contains new information
+            pushToMiddlewareTimes = true;
+        }
+        
+        //if next has new information, push it
+        if(pushToMiddlewareTimes) {
+            operatorToMiddlewareTimes[operator].push(next);
+        }
     }
 
     function addressToUint(address addr) internal pure returns(uint256) {
