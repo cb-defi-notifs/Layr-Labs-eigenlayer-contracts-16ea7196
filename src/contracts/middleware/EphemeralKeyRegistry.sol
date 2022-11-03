@@ -124,7 +124,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      */
     function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external onlyRegistry {
         if(startIndex != 0) {
-            require(ephemeralKeyEntries[msg.sender][startIndex-1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
+            require(ephemeralKeyEntries[operator][startIndex-1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
         }
         //get the final index plus one
         uint256 finalIndexPlusOne = startIndex + prevEphemeralKeys.length;
@@ -148,7 +148,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      */
     function verifyStaleEphemeralKey(address operator, uint256 index) external {
         require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
-        if(index == ephemeralKeyEntries[operator].length){
+        if(index + 1 == ephemeralKeyEntries[operator].length){
             //if the last ephemeral key is stale, it must be used for more than USAGE_PERIOD_BLOCKS
             require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_BLOCKS < uint32(block.number), 
                 "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_BLOCKS yet");
@@ -186,11 +186,11 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         );
         
         require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyLeakedEphemeralKey: ephemeral key has been revealed");
-        if(index != ephemeralKeyEntries[operator].length){
-            //if the last ephemeral key is being leaked, then make sure it's not in its reveal period
+        if(index + 1 != ephemeralKeyEntries[operator].length){
+            //if an inactive ephemeral key is being leaked, then make sure it's not in its reveal period
 
             //the block at which the leaked key stopped being active was then the one after it started being active
-            uint256 endBlock = ephemeralKeyEntries[msg.sender][index+1].startBlock;
+            uint256 endBlock = ephemeralKeyEntries[operator][index+1].startBlock;
             require(
                 block.number < endBlock ||
                 block.number > endBlock + REVEAL_PERIOD_BLOCKS,
@@ -211,10 +211,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      * @param operator is the entity whose ephemeral key entry is being retrieved
      * @param index is the index of the ephemeral key entry that was active during blockNumber
      * @param blockNumber the block number at which the returned entry's ephemeral key was active
-     * @dev Reverts if index points to the incorrect public key
+     * @dev Reverts if index points to the incorrect public key. index should be calculated off chain before
+     *      calling this method via looping through the array and finding the last entry that has a 
+     *      startBlock <= blockNumber
      */
     function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(EphemeralKeyEntry memory) {
-        require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber && // the ephemeral key was in use before `blockNumber`
+        require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber && // the ephemeral key was in use at or before `blockNumber`
                 (
                     ephemeralKeyEntries[operator].length - 1 == index || // it is the last entry 
                     ephemeralKeyEntries[operator][index+1].startBlock > blockNumber // or the next entry started after the blockNumber
