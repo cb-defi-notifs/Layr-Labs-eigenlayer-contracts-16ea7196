@@ -11,14 +11,14 @@ import "./IDataLayrPaymentManager.sol";
 interface IDataLayrServiceManager is IServiceManager, IDelayedService {
     //Relevant metadata for a given datastore
     struct DataStoreMetadata {
-        bytes32 headerHash;
-        uint32 durationDataStoreId;
-        uint32 globalDataStoreId;
-        uint32 stakesFromBlockNumber;
-        uint32 blockNumber;
-        uint96 fee;
-        address confirmer;
-        bytes32 signatoryRecordHash;
+        bytes32 headerHash; // the hash of the header as defined in the contract
+        uint32 durationDataStoreId; // the id of the datastore relative to all other datastores of the same duration
+        uint32 globalDataStoreId; // the id of the datastore relative to all other datastores
+        uint32 stakesFromBlockNumber; // the block number from which the stakes were taken for the datastore
+        uint32 blockNumber; // the block number at the time of initialization
+        uint96 fee; // the amount of paymentToken paid for the datastore
+        address confirmer; // the address that is allowed to confirm the datastore
+        bytes32 signatoryRecordHash; // the hash of relavent signatory information for payments and fraud proofs
     }
 
     //Stores the data required to index a given datastore's metadata
