@@ -13,9 +13,9 @@ interface IEphemeralKeyRegistry {
     struct EphemeralKeyEntry {
         // the hash of the ephemeral key
         bytes32 ephemeralKeyHash;
-        // when the ephemeral key started being used
+        // when the ephemeral key started being used/will start being used
         uint32 startBlock;
-        // when the ephemeral key was revealed
+        // when the ephemeral key was revealed. this is 0 if the ephemeral key for this entry has not been revealed yet.
         uint32 revealBlock;
     }
 

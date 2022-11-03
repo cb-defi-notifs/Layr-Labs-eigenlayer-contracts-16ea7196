@@ -19,10 +19,10 @@ import "forge-std/Test.sol";
  */
 contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
     // max amount of blocks that an operator can use an ephemeral key
-    uint32 public constant USAGE_PERIOD = 648000; //90 days at 12s/block
+    uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
     // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
-    uint32 public constant REVEAL_PERIOD = 50400; //7 days at 12s/block
-    // operator => log of ephemeral keys hashes, block at which they started being used and were revealed
+    uint32 public constant REVEAL_PERIOD_BLOCKS = 50400; //7 days at 12s/block
+    // operator => list of ephemeral key hashes, block at which they started being used and were revealed
     mapping(address => EphemeralKeyEntry[]) public ephemeralKeyEntries;
 
     event EphemeralKeyRevealed(uint256 index, bytes32 ephemeralKey);
@@ -34,8 +34,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     /**
-     * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration).
-     * This effectively serves as a commitment to the ephemeral key - when it is revealed during the disclosure period, it can be verified against the hash.
+     * @notice Used by operator to post their first ephemeral key hashes via BLSRegistry (on registration).
+     *         During revealing, the posted ephemeral keys will be checked against the ones committed on chain.
      * @param operator for signing on bomb-based queries
      * @param ephemeralKeyHash1 is the hash of the first ephemeral key to be used by `operator`
      * @param ephemeralKeyHash2 is the hash of the second ephemeral key to be used by `operator`
@@ -46,21 +46,25 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             EphemeralKeyEntry({
                 ephemeralKeyHash: ephemeralKeyHash1,
                 startBlock: uint32(block.number),
-                revealBlock: 0
+                revealBlock: 0 //not revealed yet
             })
         );
-        // record the next ephemeral key, starting usage after USAGE_PERIOD
+        // record the next ephemeral key, starting usage after USAGE_PERIOD_BLOCKS
         ephemeralKeyEntries[operator].push(
             EphemeralKeyEntry({
                 ephemeralKeyHash: ephemeralKeyHash2,
-                startBlock: uint32(block.number) + USAGE_PERIOD,
-                revealBlock: 0
+                startBlock: uint32(block.number) + USAGE_PERIOD_BLOCKS,
+                revealBlock: 0 //not revealed yet
             })
         );
     }
                                
     /**
-     * @notice Used by the operator to commit to a new ephemeral key and invalidate the current one
+     * @notice Used by the operator to commit to a new ephemeral key and invalidate the current one.
+     *         This would be called whenever 
+     *              (1) an operator is going to run out of ephemeral keys and needs to put more on chain
+     *              (2) an operator wants to reveal all ephemeral keys used before a certain block number
+     *                  to propagate stake updates
      * @param ephemeralKeyHash is being committed
      */
     function commitNewEphemeralKeyHash(bytes32 ephemeralKeyHash) external {
@@ -74,7 +78,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
                     startBlock: uint32(block.number),
-                    revealBlock: 0
+                    revealBlock: 0 //set to 0 because it has not been revealed
                 })
             );
         } else if(ephemeralKeyEntries[msg.sender][entriesLength - 2].startBlock < uint32(block.number)) {
@@ -87,8 +91,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHash,
-                    startBlock: uint32(block.number) + USAGE_PERIOD,
-                    revealBlock: 0
+                    startBlock: uint32(block.number) + USAGE_PERIOD_BLOCKS,
+                    revealBlock: 0 //set to 0 because it has not been revealed
                 })
             );
         } else {
@@ -143,13 +147,13 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     function verifyStaleEphemeralKey(address operator, uint256 index) external {
         require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
         if(index == ephemeralKeyEntries[operator].length){
-            //if the last ephemeral key is stale, it must be used for more than USAGE_PERIOD
-            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD < uint32(block.number), 
-                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD yet");
+            //if the last ephemeral key is stale, it must be used for more than USAGE_PERIOD_BLOCKS
+            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_BLOCKS yet");
         } else {
-            //otherwise, the next ephemeral key must have been active for more than REVEAL_PERIOD
-            require(ephemeralKeyEntries[operator][index+1].startBlock + REVEAL_PERIOD < uint32(block.number), 
-                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD yet");
+            //otherwise, the next ephemeral key must have been active for more than REVEAL_PERIOD_BLOCKS
+            require(ephemeralKeyEntries[operator][index+1].startBlock + REVEAL_PERIOD_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_BLOCKS yet");
         }
 
         //emit event for stale ephemeral key
@@ -187,7 +191,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             uint256 endBlock = ephemeralKeyEntries[msg.sender][index+1].startBlock;
             require(
                 block.number < endBlock ||
-                block.number > endBlock + REVEAL_PERIOD,
+                block.number > endBlock + REVEAL_PERIOD_BLOCKS,
                 "EphemeralKeyRegistry.verifyLeakedEphemeralKey: key cannot be leaked within reveal period"
             );
         }
@@ -231,7 +235,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             registry.isActiveOperator(operator),
             "EphemeralKeyRegistry.revealEphemeralKey: operator is not active"
         );
-
+        require(
+            ephemeralKeyEntries[operator][index].revealBlock == 0, 
+            "EphemeralKeyRegistry.revealEphemeralKey: key has already been revealed"
+        );
         require(
             ephemeralKeyEntries[operator][index].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKey)),
             "EphemeralKeyRegistry.revealEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
@@ -246,12 +253,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
         );
         require(
-            block.number < endBlock + REVEAL_PERIOD,
+            block.number < endBlock + REVEAL_PERIOD_BLOCKS,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
-        );
-        require(
-            ephemeralKeyEntries[operator][index].revealBlock == 0,
-            "EphemeralKeyRegistry.revealEphemeralKey: key has already been revealed"
         );
 
         // updating the previous EK entry
