@@ -112,6 +112,8 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         if(index != 0) {
             require(ephemeralKeyEntries[msg.sender][index-1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
         }
+        require(index + 1 < ephemeralKeyEntries[msg.sender].length, 
+            "EphemeralKeyRegistry.revealEphemeralKey: cannot reveal all keys outside of revealLastEphemeralKeys");
         _revealEphemeralKey(msg.sender, index, prevEphemeralKey);
     }
 
@@ -140,7 +142,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     }
 
     /**
-     * @notice Used by watchers to prove that an operator hasn't reveald an ephemeral key
+     * @notice Used by watchers to prove that an operator hasn't revealed an ephemeral key
      * @param operator is the entity with the stale unrevealed ephemeral key
      * @param index is the index of the stale entry
      */
