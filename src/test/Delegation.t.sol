@@ -285,7 +285,7 @@ contract DelegationTests is DataLayrTestHelper {
             dataForTestWithdrawal.withdrawerAndNonce
         );
 
-        _testStartQueuedWithdrawalWaitingPeriod(withdrawer, withdrawalRoot, stakeInactiveAfter);
+        // _testStartQueuedWithdrawalWaitingPeriod(withdrawer, withdrawalRoot, stakeInactiveAfter);
 
         cheats.warp(stakeInactiveAfter + 1 days);
 
@@ -296,7 +296,8 @@ contract DelegationTests is DataLayrTestHelper {
                 tokensArray,
                 dataForTestWithdrawal.delegatorShares,
                 delegatedTo,
-                dataForTestWithdrawal.withdrawerAndNonce
+                dataForTestWithdrawal.withdrawerAndNonce,
+                uint32(block.number)
             );
         } else {
             _testCompleteQueuedWithdrawalShares(
@@ -305,7 +306,8 @@ contract DelegationTests is DataLayrTestHelper {
                 tokensArray,
                 dataForTestWithdrawal.delegatorShares,
                 delegatedTo,
-                dataForTestWithdrawal.withdrawerAndNonce
+                dataForTestWithdrawal.withdrawerAndNonce,
+                uint32(block.number)
             );
         }
     }
@@ -505,7 +507,8 @@ contract DelegationTests is DataLayrTestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock
     )
         internal
     {
@@ -521,11 +524,12 @@ contract DelegationTests is DataLayrTestHelper {
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
             delegatedAddress: delegatedTo
         });
 
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, false);
+        // investmentManager.completeQueuedWithdrawal(queuedWithdrawal, false);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             require(
@@ -543,7 +547,8 @@ contract DelegationTests is DataLayrTestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock
     )
         internal
     {
@@ -561,10 +566,11 @@ contract DelegationTests is DataLayrTestHelper {
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
             delegatedAddress: delegatedTo
         });
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
+        // investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));

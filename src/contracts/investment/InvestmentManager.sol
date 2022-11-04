@@ -249,23 +249,15 @@ contract InvestmentManager is
             shares: shares,
             depositor: msg.sender,
             withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: uint32(block.number),
             delegatedAddress: delegatedAddress
         });
 
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
-        //update storage in mapping of queued withdrawals
-        queuedWithdrawals[withdrawalRoot] = WithdrawalStorage({
-            /**
-             * @dev We add `REASONABLE_STAKES_UPDATE_PERIOD` to the current time here to account for the fact that it may take some time for
-             * the operator's stake to be updated on all the middlewares. New tasks created between now at this 'initTimestamp' may still
-             * subject the `msg.sender` to slashing!
-             */
-            initTimestamp: uint32(block.timestamp + REASONABLE_STAKES_UPDATE_PERIOD),
-            withdrawer: withdrawerAndNonce.withdrawer,
-            unlockTimestamp: QUEUED_WITHDRAWAL_INITIALIZED_VALUE
-        });
+        //mark withdrawal as pending
+        queuedWithdrawals[withdrawalRoot] = true;
 
         // If the `msg.sender` has withdrawn all of their funds from EigenLayer in this transaction, then they can choose to also undelegate
         /**
@@ -281,41 +273,16 @@ contract InvestmentManager is
         return withdrawalRoot;
     }
 
-    /*
-    * 
-    * @notice The withdrawal flow is:
-    * - Depositor starts a queued withdrawal, setting the receiver of the withdrawn funds as withdrawer
-    * - Withdrawer then waits for the queued withdrawal tx to be included in the chain, and then sets the stakeInactiveAfter. This cannot
-    *   be set when starting the queued withdrawal, as it is there may be transactions the increase the tasks upon which the stake is active 
-    *   that get mined before the withdrawal.
-    * - The withdrawer completes the queued withdrawal after the stake is inactive or a withdrawal fraud proof period has passed,
-    *   whichever is longer. They specify whether they would like the withdrawal in shares or in tokens.
-    */
-    function startQueuedWithdrawalWaitingPeriod(bytes32 withdrawalRoot, uint32 stakeInactiveAfter) external {
-        require(
-            queuedWithdrawals[withdrawalRoot].unlockTimestamp == QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
-            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Withdrawal stake inactive claim has already been made"
-        );
-        require(
-            queuedWithdrawals[withdrawalRoot].withdrawer == msg.sender,
-            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Sender is not the withdrawer"
-        );
-        require(
-            block.timestamp > queuedWithdrawals[withdrawalRoot].initTimestamp,
-            "InvestmentManager.startQueuedWithdrawalWaitingPeriod: Stake may still be subject to slashing based on new tasks. Wait to set stakeInactiveAfter."
-        );
-        //they can only unlock after a withdrawal waiting period or after they are claiming their stake is inactive
-        queuedWithdrawals[withdrawalRoot].unlockTimestamp = max((uint32(block.timestamp) + WITHDRAWAL_WAITING_PERIOD), stakeInactiveAfter);
-    }
-
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param middlewareTimesIndex is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array
      * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
      * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
      * will simply be transferred to the caller directly.
+     * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
      */
-    function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, bool receiveAsTokens)
+    function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, uint256 middlewareTimesIndex, bool receiveAsTokens)
         external
         whenNotPaused
         // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
@@ -324,19 +291,16 @@ contract InvestmentManager is
     {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
-        // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
 
-        // verify that the queued withdrawal actually exists
+        // verify that the queued withdrawal is pending
         require(
-            withdrawalStorageCopy.unlockTimestamp != 0,
-            "InvestmentManager.completeQueuedWithdrawal: withdrawal does not exist"
+            queuedWithdrawals[withdrawalRoot],
+            "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
         require(
-            uint32(block.timestamp) >= withdrawalStorageCopy.unlockTimestamp
-                || (queuedWithdrawal.delegatedAddress == address(0)),
-            "InvestmentManager.completeQueuedWithdrawal: withdrawal waiting period has not yet passed and depositor was delegated when withdrawal initiated"
+            slasher.canWithdaw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
+            "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
         // TODO: add testing coverage for this
@@ -346,7 +310,7 @@ contract InvestmentManager is
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[withdrawalRoot];
+        queuedWithdrawals[withdrawalRoot] = false;
 
         // store length for gas savings
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
@@ -361,8 +325,8 @@ contract InvestmentManager is
                 } else {
                     // tell the strategy to send the appropriate amount of funds to the depositor
                     queuedWithdrawal.strategies[i].withdraw(
-                    withdrawalStorageCopy.withdrawer, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]
-                );
+                        msg.sender, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]
+                    );
                 }
                 unchecked {
                     ++i;
@@ -371,73 +335,14 @@ contract InvestmentManager is
         } else {
             // else increase their shares
             for (uint256 i = 0; i < strategiesLength;) {
-                _addShares(withdrawalStorageCopy.withdrawer, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
+                _addShares(msg.sender, queuedWithdrawal.strategies[i], queuedWithdrawal.shares[i]);
                 unchecked {
                     ++i;
                 }
             }
         }
 
-        emit WithdrawalCompleted(queuedWithdrawal.depositor, withdrawalStorageCopy.withdrawer, withdrawalRoot);
-    }
-
-    /**
-     * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
-     * The result is setting the 'withdrawer' of the queued withdrawal to the zero address, signalling that the queued withdrawal
-     * can now be slashed through a call to `slashQueuedWithdrawal`.
-     * @param queuedWithdrawal the queued withdrawal to be proven against
-     * @param data Provided as an input to `slashingContract.stakeWithdrawalVerification`, used to check the proof
-     * @param slashingContract Is a contract that the 'delegated address' of the queued withdrawal -- i.e. `queuedWithdrawal.delegatedAddress`,
-     * the operator whom the originator of the queued withdrawal was delegated to at the time of its creation -- signed up to serve. The contract
-     * must still have slashing rights, as checked in `slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract))`
-     * @dev The format of the `data` input may vary significantly depending upon the service.
-     */
-    function challengeQueuedWithdrawal(
-        QueuedWithdrawal calldata queuedWithdrawal,
-        bytes calldata data,
-        IServiceManager slashingContract
-    )
-        external
-    {
-        // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
-        // copy storage to memory
-        WithdrawalStorage memory withdrawalStorageCopy = queuedWithdrawals[withdrawalRoot];
-
-        // verify that the queued withdrawal actually exists
-        require(
-            withdrawalStorageCopy.unlockTimestamp != 0,
-            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal does not exist"
-        );
-
-        //verify the withdrawer has already initiated the withdrawal waiting period 
-        require(
-            withdrawalStorageCopy.unlockTimestamp != QUEUED_WITHDRAWAL_INITIALIZED_VALUE,
-            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal was been initialized, but waiting period hasn't begun"
-        );
-        // check that it is not too late to provide a fraudproof
-        require(
-            uint32(block.timestamp) < withdrawalStorageCopy.unlockTimestamp,
-            "InvestmentManager.fraudproofQueuedWithdrawal: withdrawal waiting period has already passed"
-        );
-
-        require(
-            slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract)),
-            "InvestmentManager.fraudproofQueuedWithdrawal: Contract does not have rights to slash operator"
-        );
-
-        {
-            /**
-             * Verify that there is an ongoing task, created at or before the `initTimestamp` and that expires
-             * strictly after the `unlockTimestamp` for this queued withdrawal
-             */
-            slashingContract.stakeWithdrawalVerification(
-                data, withdrawalStorageCopy.initTimestamp, withdrawalStorageCopy.unlockTimestamp
-            );
-        }
-
-        // set the withdrawer equal to address(0), allowing the slasher custody of the funds
-        queuedWithdrawals[withdrawalRoot].withdrawer = address(0);
+        emit WithdrawalCompleted(queuedWithdrawal.depositor, msg.sender, withdrawalRoot);
     }
 
     /**
@@ -503,25 +408,20 @@ contract InvestmentManager is
         external
         whenNotPaused
         onlyOwner
+        onlyFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant
     {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
-        // verify that the queued withdrawal actually exists
+        // verify that the queued withdrawal is pending
         require(
-            queuedWithdrawals[withdrawalRoot].unlockTimestamp != 0,
-            "InvestmentManager.slashQueuedWithdrawal: withdrawal does not exist"
-        );
-
-        // verify that *either* the queued withdrawal has been successfully challenged, *or* the `depositor` has been frozen
-        require(
-            queuedWithdrawals[withdrawalRoot].withdrawer == address(0) || slasher.isFrozen(queuedWithdrawal.depositor),
-            "InvestmentManager.slashQueuedWithdrawal: withdrawal has not been successfully challenged or depositor is not frozen"
+            queuedWithdrawals[withdrawalRoot],
+            "InvestmentManager.slashQueuedWithdrawal: withdrawal is not pending"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        delete queuedWithdrawals[withdrawalRoot];
+        queuedWithdrawals[withdrawalRoot] = false;
 
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
@@ -665,31 +565,6 @@ contract InvestmentManager is
     // VIEW FUNCTIONS
 
     /**
-     * @notice Used to check if a queued withdrawal can be completed. Returns 'true' if the withdrawal can be immediately
-     * completed, and 'false' otherwise.
-     * @dev This function will revert if the specified `queuedWithdrawal` does not exist
-     */
-    function canCompleteQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal) external view returns (bool) {
-        // find the withdrawalRoot
-        bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
-
-        // verify that the queued withdrawal actually exists
-        require(
-            queuedWithdrawals[withdrawalRoot].unlockTimestamp != 0,
-            "InvestmentManager.canCompleteQueuedWithdrawal: withdrawal does not exist"
-        );
-
-        if (slasher.isFrozen(queuedWithdrawal.delegatedAddress)) {
-            return false;
-        }
-
-        return (
-            uint32(block.timestamp) >= queuedWithdrawals[withdrawalRoot].unlockTimestamp
-                || (queuedWithdrawal.delegatedAddress == address(0))
-        );
-    }
-
-    /**
      * @notice Get all details on the depositor's investments and corresponding shares
      * @return (depositor's strategies, shares in these strategies)
      */
@@ -721,6 +596,7 @@ contract InvestmentManager is
                     queuedWithdrawal.shares,
                     queuedWithdrawal.depositor,
                     queuedWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawal.withdrawalStartBlock,
                     queuedWithdrawal.delegatedAddress
                 )
             )

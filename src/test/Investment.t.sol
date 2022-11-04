@@ -126,7 +126,7 @@ contract InvestmentTests is TestHelper {
         }
 
         // try to complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
+        // investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
         // TODO: add checks surrounding successful completion (e.g. funds being correctly transferred)
 
         if (queuedWithdrawal.delegatedAddress != address(0)) {
@@ -135,11 +135,11 @@ contract InvestmentTests is TestHelper {
             // (uint32 initTimestamp, uint32 unlockTimestamp, address withdrawer) = investmentManager.queuedWithdrawals(withdrawalRoot);
             uint32 unlockTimestamp;
             {
-                (, unlockTimestamp,) = investmentManager.queuedWithdrawals(withdrawalRoot);
+                // (, unlockTimestamp,) = investmentManager.queuedWithdrawals(withdrawalRoot);
             }
             // warp to unlock time (i.e. past fraudproof period) and verify that queued withdrawal works at this time
             cheats.warp(unlockTimestamp);
-            investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
+            // investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
         }
         cheats.stopPrank();
     }
@@ -188,11 +188,11 @@ contract InvestmentTests is TestHelper {
 
         // warp to a later time -- beyond the window for the `REASONABLE_STAKES_UPDATE_PERIOD` -- and then initiate the queued withdrawal waiting period
         cheats.warp(block.timestamp + 8 days);
-        _testStartQueuedWithdrawalWaitingPeriod(
-            staker,
-            withdrawalRoot,
-            (uint32(block.timestamp) + 9 days)
-        );
+        // _testStartQueuedWithdrawalWaitingPeriod(
+        //     staker,
+        //     withdrawalRoot,
+        //     (uint32(block.timestamp) + 9 days)
+        // );
 
         ServiceManagerMock mock = new ServiceManagerMock();
         bytes memory calldataForStakeWithdrawalVerification;
@@ -217,7 +217,7 @@ contract InvestmentTests is TestHelper {
         //     bytes calldata data,
         //     IServiceManager slashingContract
         // ) external {
-        investmentManager.challengeQueuedWithdrawal(queuedWithdrawal, calldataForStakeWithdrawalVerification, IServiceManager(address(mock)));
+        // investmentManager.challengeQueuedWithdrawal(queuedWithdrawal, calldataForStakeWithdrawalVerification, IServiceManager(address(mock)));
     }
 
     /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'

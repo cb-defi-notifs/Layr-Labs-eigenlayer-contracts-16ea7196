@@ -272,6 +272,23 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
+    function canWithdaw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
+        if (operatorToMiddlewareTimes[operator].length == 0) {
+            return true;
+        }
+        //make sure earliest update block at the time is after withdrawalStartBlock
+        //make sure the current time is after the latestServeUntil at the time
+        //this assures us that this that
+        //all middlewares were updated after the withdrawal and
+        //the stake is no longer slashable
+        MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+        return(
+            withdrawalStartBlock < update.leastRecentUpdateBlock 
+            &&
+            uint32(block.timestamp) > update.latestServeUntil
+        );
+    }
+
     // INTERNAL FUNCTIONS
 
     function _optIntoSlashing(address operator, address contractAddress) internal {

@@ -25,6 +25,8 @@ interface ISlasher {
     function bondedUntil(address operator, address slashingContract) external view returns (uint32);
 
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
+    
+    function canWithdaw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool);
 
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
