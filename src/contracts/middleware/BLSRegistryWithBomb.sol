@@ -99,13 +99,13 @@ contract BLSRegistryWithBomb is BLSRegistry {
 
     /** 
      * @notice used to complete deregistration process, revealing the operators final ephemeral keys.
-     *         this is the operators final interaction with DataLayr. they have already initiated their deregistration,
-     *         no they are revealing their final ephemeral keys to start their bomb period, then slashin ability will be revoked
-     *         and pending withdrawals are free
+     *         This is the operator's final interaction with the middleware. The operator has already initiated their deregistration,
+     *         and now they are revealing their final ephemeral keys to start their bomb period, after which slashing ability will be revoked
+     *         and pending withdrawals will be unencumbered by this middleware.
      * @param startIndex the index to start revealing epehemeral keys from
      * @param ephemeralKeys the list of ephemeral keys to be revealed from startIndex to the last one used
      */
-    function completeDeregistrationAndRevealLastEphemeralKeys(uint256 startIndex, bytes32[] memory ephemeralKeys) internal {
+    function completeDeregistrationAndRevealLastEphemeralKeys(uint256 startIndex, bytes32[] memory ephemeralKeys) external {
         require(_isAfterDelayedServicePeriod(msg.sender), 
             "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
 
