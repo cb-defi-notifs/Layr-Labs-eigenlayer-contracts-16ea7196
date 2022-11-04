@@ -10,7 +10,6 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
 import "./Repository.sol";
-import "../permissions/RepositoryAccess.sol";
 import "../permissions/Pausable.sol";
 
 // import "forge-std/Test.sol";
@@ -23,7 +22,7 @@ import "../permissions/Pausable.sol";
  * function -- see DataLayrPaymentManager for an example
  */
 //
-abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentManager, Pausable {
+abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     using SafeERC20 for IERC20;
     // DATA STRUCTURES
 
@@ -43,6 +42,12 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
      * @dev For more details, see EigenLayrDelegation.sol.
      */
     IEigenLayrDelegation public immutable eigenLayrDelegation;
+
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
+    IServiceManager public immutable serviceManager;
+
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
+    IQuorumRegistry public immutable registry;
 
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
@@ -92,21 +97,32 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
     /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
     event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
+    /// @notice when applied to a function, ensures that the function is only callable by the `serviceManager`
+    modifier onlyServiceManager() {
+        require(msg.sender == address(serviceManager), "onlyServiceManager");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
+        IServiceManager _serviceManager,
+        IQuorumRegistry _registry,
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
-        IRepository _repository,
         IPauserRegistry _pauserReg
-    )
-        // set repository address equal to that of serviceManager
-        RepositoryAccess(_repository)
-    {
+    ) {
         eigenLayrDelegation = _eigenLayrDelegation;
+        serviceManager = _serviceManager;
+        registry = _registry;
         paymentToken = _paymentToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-        IServiceManager serviceManager_ = _repository.serviceManager();
-        collateralToken = serviceManager_.collateralToken();
+        collateralToken = _serviceManager.collateralToken();
         _initializePauser(_pauserReg);
         _disableInitializers();
     }
@@ -143,21 +159,11 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
     }
 
     /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
-     */
-    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external onlyRepositoryGovernance {
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-    }
-
-    /**
      * @notice This is used by an operator to make claim on the  amount that they deserve
      * for their service since their last payment until `toTaskNumber
      * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
     function commitPayment(uint32 toTaskNumber, uint96 amount) external {
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-
         // only active operators can call
         require(
             registry.isActiveOperator(msg.sender),
@@ -298,7 +304,7 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
         operatorToPaymentChallenge[operator] = PaymentChallenge(
             operator,
             msg.sender,
-            address(repository.serviceManager()),
+            address(serviceManager),
             operatorToPayment[operator].fromTaskNumber,
             operatorToPayment[operator].toTaskNumber,
             amount1,
@@ -510,7 +516,7 @@ abstract contract PaymentManager is Initializable, RepositoryAccess, IPaymentMan
 
     /// @notice Convenience function for fetching the current taskNumber from the `serviceManager`
     function _taskNumber() internal view returns (uint32) {
-        return repository.serviceManager().taskNumber();
+        return serviceManager.taskNumber();
     }
 
     /**

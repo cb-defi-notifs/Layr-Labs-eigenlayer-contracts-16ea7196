@@ -385,11 +385,12 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
             delegation,
+            dlsm,
+            dlReg,
             weth,
             _paymentFraudproofCollateral,
-            dlRepository,
             pauserReg,
-            dlsm
+            dlReg
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);

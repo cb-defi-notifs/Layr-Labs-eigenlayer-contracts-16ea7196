@@ -295,11 +295,12 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
             delegation,
+            dlsm,
+            dlReg,
             weth,
             _paymentFraudproofCollateral,
-            dlRepository,
             pauserReg,
-            dlsm
+            dlReg
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);

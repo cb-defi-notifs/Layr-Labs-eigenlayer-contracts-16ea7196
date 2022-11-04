@@ -18,25 +18,25 @@ abstract contract RepositoryAccess is IRepositoryAccess {
     }
 
     // MODIFIERS -- access controls based on stored addresses
-    /// @notice when applied to a function, ensures that it is only callable by `repository` itself
+    /// @notice when applied to a function, ensures that the function is only callable by `repository` itself
     modifier onlyRepository() {
         require(msg.sender == address(repository), "onlyRepository");
         _;
     }
 
-    /// @notice when applied to a function, ensures that it is only callable by the current `owner` of `repository`
+    /// @notice when applied to a function, ensures that the function is only callable by the current `owner` of `repository`
     modifier onlyRepositoryGovernance() {
         require(msg.sender == address(_repositoryGovernance()), "onlyRepositoryGovernance");
         _;
     }
 
-    /// @notice when applied to a function, ensures that it is only callable by the current `serviceManager` of `repository`
+    /// @notice when applied to a function, ensures that the function is only callable by the current `serviceManager` of `repository`
     modifier onlyServiceManager() {
         require(msg.sender == address(_serviceManager()), "onlyServiceManager");
         _;
     }
 
-    /// @notice when applied to a function, ensures that it is only callable by the current `registry` of `repository`
+    /// @notice when applied to a function, ensures that the function is only callable by the current `registry` of `repository`
     modifier onlyRegistry() {
         require(msg.sender == address(_registry()), "onlyRegistry");
         _;

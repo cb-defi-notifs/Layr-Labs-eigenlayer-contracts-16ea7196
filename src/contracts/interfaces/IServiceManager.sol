@@ -26,8 +26,6 @@ interface IServiceManager {
 
     function collateralToken() external view returns (IERC20);
 
-    function eigenLayrDelegation() external view returns (IEigenLayrDelegation);
-
     function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime)
         external
         view;

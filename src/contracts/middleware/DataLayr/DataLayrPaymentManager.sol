@@ -14,19 +14,20 @@ import "../../middleware/PaymentManager.sol";
  * @notice Most functionality is inherited from the `PaymentManager` contract, with `respondToPaymentChallengeFinal` implementing DataLayr-specific functionality.
  */
 contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
+    IVoteWeigher public immutable voteWeigher;
 
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
+        IServiceManager _serviceManager,
+        IQuorumRegistry _registry,
         IERC20 _paymentToken,
         uint256 _paymentFraudproofCollateral,
-        IRepository _repository,
         IPauserRegistry _pauserReg,
-        IDataLayrServiceManager _dataLayrServiceManager
+        IVoteWeigher _voteWeigher
     )
-        PaymentManager(_eigenLayrDelegation, _paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
+        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _paymentFraudproofCollateral, _pauserReg)
     {
-        dataLayrServiceManager = _dataLayrServiceManager;
+        voteWeigher = _voteWeigher;
         _disableInitializers();
     }
 
@@ -55,7 +56,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
 
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(
-            dataLayrServiceManager.verifyDataStoreMetadata(
+            IDataLayrServiceManager(address(serviceManager)).verifyDataStoreMetadata(
                     searchData.duration,
                     searchData.timestamp,
                     searchData.index,
@@ -76,9 +77,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
             providedSignatoryRecordHash == searchData.metadata.signatoryRecordHash,
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakesSigned is incorrect"
         );
-
-        // get the registry address
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         // pull the operator's pubkey hash
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
@@ -120,9 +118,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
                 searchData.metadata.globalDataStoreId == challenge.fromTaskNumber,
                 "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged"
             );
-
-            // look up the voteWeigher address
-            IVoteWeigher voteWeigher = repository.voteWeigher();
 
             /*
              *  searchData.metadata.fee is the total fee for a datastore
@@ -181,5 +176,14 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
+    }
+
+    /**
+     * @notice Modifies the `paymentFraudproofCollateral` amount.
+     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     */
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external {
+        require(msg.sender == IDataLayrServiceManager(address(serviceManager)).owner(), "setPaymentFraudproofCollateral: only DLSM owner");
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 }
