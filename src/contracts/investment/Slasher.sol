@@ -342,41 +342,46 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
      */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
-        //reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
+        // reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
         require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
-        //get the current latest recorded time the operator must serve until, if the operator's list of MiddlwareTimes is non empty
-        uint32 currentLastestRecordedServeUntil;
+        // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
+        MiddlewareTimes memory curr;
         if(operatorToMiddlewareTimes[operator].length != 0) {
-            currentLastestRecordedServeUntil = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1].latestServeUntil;
+            curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
         }
-        MiddlewareTimes memory next;
+        MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
-        //if the serve until is later than the latest recorded one, update it
-        if(serveUntil > currentLastestRecordedServeUntil) {
+        // if the serve until is later than the latest recorded one, update it
+        if(serveUntil > curr.latestServeUntil) {
             next.latestServeUntil = serveUntil;
-            //mark that we need push next to middleware times array because it contains new information
+            // mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
-        } else {
-            //otherwise, copy the current value
-            next.latestServeUntil = currentLastestRecordedServeUntil;
-        }
+        } 
+
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
-            //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
+            // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
             if(hasNext) {
-                //if there is a next node, then set the leastRecentUpdateBlock to its recorded value
-                next.leastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
+                // get the next middleware's most latest update block
+                uint32 nextMiddlewaresLeastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
+                if(nextMiddlewaresLeastRecentUpdateBlock < updateBlock) {
+                    // if there is a next node, then set the leastRecentUpdateBlock to its recorded value
+                    next.leastRecentUpdateBlock = nextMiddlewaresLeastRecentUpdateBlock;
+                } else {
+                    //otherwise updateBlock is the least recent update as well
+                    next.leastRecentUpdateBlock = updateBlock;
+                }
             } else {
-                //otherwise this is the only middleware so right now is the leastRecentUpdateBlock
+                // otherwise this is the only middleware so right now is the leastRecentUpdateBlock
                 next.leastRecentUpdateBlock = updateBlock;
             }
-            //mark that we need push next to middleware times array because it contains new information
+            // mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         }
         
-        //if next has new information, push it
+        // if next has new information, push it
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
