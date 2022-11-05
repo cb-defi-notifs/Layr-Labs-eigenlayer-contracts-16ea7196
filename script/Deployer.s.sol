@@ -276,16 +276,16 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         pubkeyCompendium = new BLSPublicKeyCompendium();
 
         dlReg = new BLSRegistryWithBomb(
-            Repository(address(dlRepository)),
             delegation,
             investmentManager,
-            ephemeralKeyRegistry,
+            dlsm,
             unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers,
-            pubkeyCompendium
+            pubkeyCompendium,
+            ephemeralKeyRegistry
         );
 
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));

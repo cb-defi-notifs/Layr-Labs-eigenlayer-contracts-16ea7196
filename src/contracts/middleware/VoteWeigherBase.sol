@@ -15,6 +15,7 @@ import "forge-std/Test.sol";
  * by the middleware
  * - addition and removal of strategies and the associated weighting criteria that are assigned
  * by the middleware for each of the quorum(s)
+ * @dev
  */
 contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
@@ -22,14 +23,20 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyRemovedFromQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
 
-    /// @notice Sets the (immutable) `repository`, `delegation`, and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
+    /// @notice when applied to a function, ensures that the function is only callable by the current `owner` of the `serviceManager`
+    modifier onlyServiceManagerOwner() {
+        require(msg.sender == serviceManager.owner(), "onlyServiceManagerOwner");
+        _;
+    }
+
+    /// @notice Sets the (immutable) `delegation` and `investmentManager` addresses, as well as the (immutable) `NUMBER_OF_QUORUMS` variable
     constructor(
-        IRepository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips
-    ) VoteWeigherBaseStorage(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) 
+    ) VoteWeigherBaseStorage(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS, _quorumBips) 
     // solhint-disable-next-line no-empty-blocks
     {}
 
@@ -75,7 +82,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
     function addStrategiesConsideredAndMultipliers(
         uint256 quorumNumber,
         StrategyAndWeightingMultiplier[] memory _newStrategiesConsideredAndMultipliers
-    ) external onlyRepositoryGovernance {
+    ) external virtual onlyServiceManagerOwner {
         _addStrategiesConsideredAndMultipliers(quorumNumber, _newStrategiesConsideredAndMultipliers);
     }
 
@@ -89,7 +96,7 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         uint256 quorumNumber,
         IInvestmentStrategy[] calldata _strategiesToRemove,
         uint256[] calldata indicesToRemove
-    ) external onlyRepositoryGovernance {
+    ) external virtual onlyServiceManagerOwner {
         uint256 numStrats = _strategiesToRemove.length;
         // sanity check on input lengths
         require(indicesToRemove.length == numStrats, "VoteWeigherBase.removeStrategiesConsideredAndWeights: input length mismatch");

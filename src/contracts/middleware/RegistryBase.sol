@@ -75,15 +75,15 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      * `strategiesConsideredAndMultipliers[0]` and `strategiesConsideredAndMultipliers[1]` (i.e. to the weighing functions of the quorums)
      */
     constructor(
-        Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        IServiceManager _serviceManager,
         uint32 unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
-    ) VoteWeigherBase(_repository, _delegation, _investmentManager, _NUMBER_OF_QUORUMS, _quorumBips) {
+    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS, _quorumBips) {
         //set unbonding period
         UNBONDING_PERIOD = unbondingPeriod;
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
@@ -155,16 +155,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             "RegistryBase.getTotalOperators: TotalOperatorsHistory index is too low"
         );
         return operatorIndex.index;
-    }
-
-    /// @notice Adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
-    function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyRepositoryGovernance {
-        minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
-    }
-
-    /// @notice Adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
-    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyRepositoryGovernance {
-        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
     }
 
     /// @notice Returns the unique ID of the specified `operator`.
@@ -297,6 +287,16 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
     // MUTATING FUNCTIONS
 
+    /// @notice Adjusts the `minimumStakeFirstQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 1st quorum.
+    function setMinimumStakeFirstQuorum(uint128 _minimumStakeFirstQuorum) external onlyServiceManagerOwner {
+        minimumStakeFirstQuorum = _minimumStakeFirstQuorum;
+    }
+
+    /// @notice Adjusts the `minimumStakeSecondQuorum` -- i.e. the node stake (weight) requirement for inclusion in the 2nd quorum.
+    function setMinimumStakeSecondQuorum(uint128 _minimumStakeSecondQuorum) external onlyServiceManagerOwner {
+        minimumStakeSecondQuorum = _minimumStakeSecondQuorum;
+    }
+
     function updateSocket(string calldata newSocket) external {
         require(
             registry[msg.sender].status == IQuorumRegistry.Status.ACTIVE,
@@ -304,6 +304,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         );
         emit SocketUpdate(msg.sender, newSocket);
     }
+
 
     // INTERNAL FUNCTIONS
     /**
@@ -328,7 +329,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
      */
     function _removeOperator(bytes32 pubkeyHash, uint32 index) internal {
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        registry[msg.sender].serveUntil = repository.serviceManager().latestTime();
+        registry[msg.sender].serveUntil = serviceManager.latestTime();
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
@@ -374,7 +375,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         address swappedOperator = _popRegistrant(index);
 
         //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
+        serviceManager.revokeSlashingAbility(msg.sender, bondedUntilAtLeast(msg.sender));
 
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
@@ -434,7 +435,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     {
 
         require(
-            investmentManager.slasher().bondedUntil(operator, address(repository.serviceManager())) == type(uint32).max,
+            investmentManager.slasher().bondedUntil(operator, address(serviceManager)) == type(uint32).max,
             "RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"
         );
         // store the Operator's info in mapping
@@ -443,7 +444,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
             id: nextOperatorId,
             index: numOperators(),
             status: IQuorumRegistry.Status.ACTIVE,
-            fromTaskNumber: repository.serviceManager().taskNumber(),
+            fromTaskNumber: serviceManager.taskNumber(),
             fromBlockNumber: uint32(block.number),
             serveUntil: 0,
             deregisterTime: 0

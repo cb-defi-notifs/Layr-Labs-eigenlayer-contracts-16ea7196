@@ -55,9 +55,9 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     );
 
     constructor(
-        Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
+        IServiceManager _serviceManager,
         uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
@@ -66,9 +66,9 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
-            _repository,
             _delegation,
             _investmentManager,
+            _serviceManager,
             _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,

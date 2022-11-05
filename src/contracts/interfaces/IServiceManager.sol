@@ -31,4 +31,6 @@ interface IServiceManager {
         view;
 
     function latestTime() external view returns (uint32);
+
+    function owner() external view returns (address);
 }

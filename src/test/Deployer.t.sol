@@ -368,16 +368,16 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         pubkeyCompendium = new BLSPublicKeyCompendium();
 
         dlReg = new BLSRegistryWithBomb(
-            Repository(address(dlRepository)),
             delegation,
             investmentManager,
-            ephemeralKeyRegistry,
+            dlsm,
             unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
             ethStratsAndMultipliers,
             eigenStratsAndMultipliers,
-            pubkeyCompendium
+            pubkeyCompendium,
+            ephemeralKeyRegistry
         );
 
         Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));

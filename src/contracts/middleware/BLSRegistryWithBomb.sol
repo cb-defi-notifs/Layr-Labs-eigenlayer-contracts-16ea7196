@@ -24,21 +24,21 @@ contract BLSRegistryWithBomb is BLSRegistry {
     IEphemeralKeyRegistry public ephemeralKeyRegistry;
 
     constructor(
-        Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        IEphemeralKeyRegistry _ephemeralKeyRegistry,
+        IServiceManager _serviceManager,
         uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
-        IBLSPublicKeyCompendium _pubkeyCompendium
+        IBLSPublicKeyCompendium _pubkeyCompendium,
+        IEphemeralKeyRegistry _ephemeralKeyRegistry
     )
         BLSRegistry(
-            _repository,
             _delegation,
             _investmentManager,
+            _serviceManager,
             _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
             _quorumBips,
