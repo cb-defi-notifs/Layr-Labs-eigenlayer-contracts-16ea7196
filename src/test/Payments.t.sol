@@ -71,10 +71,10 @@ contract PaymentsTests is DataLayrTestHelper {
     }
 
     ///@notice tests setting payment collateral from the valid address
-    ///@param fraudProofCollateral is the amount of payment fraudproof collateral being put up byt the repository owner
+    ///@param fraudProofCollateral is the new value for the amount of fraudproof collateral being put up in the case of payment claims
     function testSetPaymentCollateral(uint256 fraudProofCollateral) public {
-        address repositoryOwner = dlRepository.owner();
-        cheats.startPrank(repositoryOwner);
+        address serviceManagerOwner = dlsm.owner();
+        cheats.startPrank(serviceManagerOwner);
         dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
         assertTrue(
             dataLayrPaymentManager.paymentFraudproofCollateral() == fraudProofCollateral,
@@ -91,7 +91,7 @@ contract PaymentsTests is DataLayrTestHelper {
         fuzzedAddress(unauthorizedRepositorOwner)
     {
         cheats.startPrank(unauthorizedRepositorOwner);
-        cheats.expectRevert(bytes("onlyRepositoryGovernance"));
+        cheats.expectRevert(bytes("setPaymentFraudproofCollateral: only DLSM owner"));
         dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
         cheats.stopPrank();
     }

@@ -26,9 +26,9 @@ contract DataLayrLowDegreeChallenge is Initializable {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
     IQuorumRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     //Fixed gas limit to ensure pairing precompile doesn't use entire gas limit upon reversion
     uint256 public pairingGasLimit;
@@ -66,8 +66,7 @@ contract DataLayrLowDegreeChallenge is Initializable {
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils,
-        uint256 _gasLimit
+        DataLayrChallengeUtils _challengeUtils
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;

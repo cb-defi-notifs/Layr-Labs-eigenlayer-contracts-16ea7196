@@ -21,11 +21,12 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
+        IERC20 _collateralToken,
         uint256 _paymentFraudproofCollateral,
         IPauserRegistry _pauserReg,
         IVoteWeigher _voteWeigher
     )
-        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _paymentFraudproofCollateral, _pauserReg)
+        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _collateralToken, _paymentFraudproofCollateral, _pauserReg)
     {
         voteWeigher = _voteWeigher;
         _disableInitializers();

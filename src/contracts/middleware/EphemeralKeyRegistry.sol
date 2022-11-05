@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IServiceManager.sol";
-
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "forge-std/Test.sol";
 
 /**
@@ -17,7 +17,7 @@ import "forge-std/Test.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, DSTest {
+contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
     // DATA STRUCTURES
     struct EKEntry {
         // hash of the ephemeral key, to be revealed after usage

@@ -12,19 +12,18 @@ contract RepositoryTests is TestHelper {
     function testCannotInitMultipleTimesRepository() public {
         //repository has already been initialized in the Deployer test contract
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
-        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
+        Repository(address(testRepository)).initialize(dlReg, dlsm, dlReg, address(this));
     }
 
     /**
-     * @notice this function tests ensures that the set owner
-     * of the repository can set all of its attributes.
+     * @notice this function ensures that the owner of the repository can set all of its attributes.
      */
     function testOwnerPermissionsRepository() public {
-        address repositoryOwner = Repository(address(dlRepository)).owner();
+        address repositoryOwner = Repository(address(testRepository)).owner();
         cheats.startPrank(repositoryOwner);
-        Repository(address(dlRepository)).setRegistry(dlReg);
-        Repository(address(dlRepository)).setServiceManager(dlsm);
-        Repository(address(dlRepository)).setVoteWeigher(dlReg);
+        Repository(address(testRepository)).setRegistry(dlReg);
+        Repository(address(testRepository)).setServiceManager(dlsm);
+        Repository(address(testRepository)).setVoteWeigher(dlReg);
         cheats.stopPrank();
     }
 }

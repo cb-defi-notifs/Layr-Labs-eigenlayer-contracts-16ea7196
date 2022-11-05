@@ -74,7 +74,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.stopPrank();
 
 
-        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+        uint32 totalOperators = dlReg.getTotalOperators(blockNumber, totalOperatorsIndex);
         uint32 degree;
         assembly{
             degree := shr(224, mload(add(header, 96)))

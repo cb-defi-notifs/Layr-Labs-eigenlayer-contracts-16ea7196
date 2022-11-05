@@ -114,6 +114,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
+        IERC20 _collateralToken,
         uint256 _paymentFraudproofCollateral,
         IPauserRegistry _pauserReg
     ) {
@@ -121,8 +122,8 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         serviceManager = _serviceManager;
         registry = _registry;
         paymentToken = _paymentToken;
+        collateralToken = _collateralToken;
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-        collateralToken = _serviceManager.collateralToken();
         _initializePauser(_pauserReg);
         _disableInitializers();
     }
