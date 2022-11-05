@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../permissions/RepositoryAccess.sol";
+import "../interfaces/IServiceManager.sol";
 
 import "forge-std/Test.sol";
 
@@ -17,7 +17,7 @@ import "forge-std/Test.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
+contract EphemeralKeyRegistry is IEphemeralKeyRegistry, DSTest {
     // DATA STRUCTURES
     struct EKEntry {
         // hash of the ephemeral key, to be revealed after usage
@@ -38,11 +38,25 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
     // max amout of time operator has to submit and confirm the ephemeral key reveal transaction
     uint256 public constant REVEAL_PERIOD = 3 days;
 
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
+    IQuorumRegistry public immutable registry;
+
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
+    IServiceManager public immutable serviceManager;
+
     // operator => history of ephemeral keys, hashes of them, timestamp at which they were posted, and start/end taskNumbers
     mapping(address => EKEntry[]) public EKHistory;
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(IRepository _repository) RepositoryAccess(_repository) {}
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
+    constructor(IQuorumRegistry _registry, IServiceManager _serviceManager) {
+        registry = _registry;
+        serviceManager = _serviceManager;
+    }
 
     /**
      * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration).
@@ -57,7 +71,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
                 keyHash: EKHash,
                 ephemeralKey: bytes32(0),
                 timestamp: uint192(block.timestamp),
-                startTaskNumber: repository.serviceManager().taskNumber(),
+                startTaskNumber: serviceManager.taskNumber(),
                 endTaskNumber: 0
             })
         );
@@ -70,8 +84,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      * @param prevEK is the preimage.
      */
     function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external {
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
-
         require(
             // check if call is coming from the 'Registry'
             msg.sender == address(registry)
@@ -94,7 +106,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"
         );
 
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
+        uint32 currentTaskNumber = serviceManager.taskNumber();
 
         // update the EK entry
         existingEKEntry.ephemeralKey = prevEK;
@@ -117,7 +129,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength - 1];
 
         // verify that the operator is active
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
             registry.isActiveOperator(msg.sender),
             "EphemeralKeyRegistry.updateEphemeralKeyPreImage: operator is not active"
@@ -138,7 +149,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
             "EphemeralKeyRegistry.updateEphemeralKeyPreImage: key update cannot be completed as update window has expired"
         );
 
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
+        uint32 currentTaskNumber = serviceManager.taskNumber();
 
         // updating the previous EK entry
         existingEKEntry.ephemeralKey = prevEK;
@@ -226,7 +237,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
         );
 
         //trigger slashing of operator who hasn't updated their EK
-        IServiceManager serviceManager = repository.serviceManager();
         serviceManager.freezeOperator(operator);
     }
 
@@ -247,7 +257,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
              */
             if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
                 //trigger slashing function of the operator
-                IServiceManager serviceManager = repository.serviceManager();
                 serviceManager.freezeOperator(operator);
             }
         }

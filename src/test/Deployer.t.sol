@@ -348,7 +348,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         uint32 unbondingPeriod = uint32(14 days);
-        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlReg, dlsm);
 
         // hard-coded inputs
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
@@ -390,6 +390,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             weth,
             _paymentFraudproofCollateral,
             pauserReg,
+            // TODO: given that this address is the same as above in what we're deploying, we may want to eliminate the corresponding storage slot form the contract
             dlReg
         );
 

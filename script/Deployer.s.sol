@@ -256,7 +256,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
 
         uint32 unbondingPeriod = uint32(14 days);
-        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlReg, dlsm);
 
         // hard-coded inputs
         VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
