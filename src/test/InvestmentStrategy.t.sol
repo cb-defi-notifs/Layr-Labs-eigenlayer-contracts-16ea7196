@@ -49,7 +49,7 @@ contract InvestmentStrategyTests is TestHelper {
         cheats.startPrank(address(investmentManager));
 
         cheats.expectRevert(
-            bytes("InvestmentStrategyBase.withdraw: shareAmount must be less than or equal to totalShares")
+            bytes("InvestmentStrategyBase.withdraw: amountShares must be less than or equal to totalShares")
         );
         wethStrat.withdraw(depositor, underlyingToken, shares);
 
