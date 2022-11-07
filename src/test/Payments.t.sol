@@ -4,9 +4,9 @@ pragma solidity ^0.8.9;
 import "../contracts/libraries/BytesLib.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "../test/TestHelper.t.sol";
+import "../test/DataLayrTestHelper.t.sol";
 
-contract PaymentsTests is TestHelper {
+contract PaymentsTests is DataLayrTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
 
@@ -109,8 +109,8 @@ contract PaymentsTests is TestHelper {
         apks.push(uint256(3512517006108887301063578607317108977425754510174956792003926207778790018672));
 
         //15 signers' associated sigma
-        sigmas.push(uint256(17495938995352312074042671866638379644300283276197341589218393173802359623203));
-        sigmas.push(uint256(9126369385140686627953696969589239917670210184443620227590862230088267251657));
+        sigmas.push(uint256(14005151012295943468571466503624729738556853309637562160124030086927491834214));
+        sigmas.push(uint256(12566674592166568848678401197324110475246083043677109258952934644133571450621));
 
         //hardcoding values
         address operator = signers[0];
@@ -162,7 +162,7 @@ contract PaymentsTests is TestHelper {
         // scoped block helps fix 'stack too deep' errors
         {
             uint256 initTime = 1000000001;
-            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this));
+            IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
             uint32 numberOfNonSigners = 0;
 
             blockNumber = uint32(block.number);
@@ -215,13 +215,12 @@ contract PaymentsTests is TestHelper {
 
     ///@notice increment the datastoreID by init-ing another datastore
     function _incrementDataStoreID() internal {
-        bytes memory header = hex"0102030405060708091011121314151617181921";
         uint32 blockNumber = uint32(block.number);
         uint8 duration = 2;
-
+        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
         cheats.startPrank(storer);
         //increments fromDataStoreID so that you can commit a payment
-        dlsm.initDataStore(storer, address(this), header, duration, 1e6, blockNumber);
+        dlsm.initDataStore(storer, address(this), duration, blockNumber, totalOperatorsIndex, header);
         cheats.stopPrank();
     }
 }

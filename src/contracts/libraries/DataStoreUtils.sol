@@ -9,6 +9,46 @@ import "../interfaces/IDataLayrServiceManager.sol";
  * @author Layr Labs, Inc.
  */
 library DataStoreUtils {
+    uint16 public constant BIP_MULTIPLIER = 10000;
+
+    uint256 public constant BYTES_PER_COEFFICIENT = 31;
+    uint256 public constant BIT_SHIFT_degree = 224;
+    uint256 public constant BIT_SHIFT_numSys = 224;
+    uint256 public constant HEADER_OFFSET_degree = 64;
+    uint256 public constant HEADER_OFFSET_numSys = 68;
+
+
+    function getTotalBytes(bytes calldata header, uint32 totalChunks) internal pure returns(uint256) {
+        uint256 numCoefficients;
+        assembly {
+            //numCoefficients = totalChunks * (degree + 1)
+            //NOTE: degree + 1 is the number of coefficients
+            numCoefficients := mul(totalChunks, add(shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree))), 1))
+        }
+        return numCoefficients * BYTES_PER_COEFFICIENT;
+    }
+    /// @param header of the datastore that the coding ratio is being retrieved for
+    /// @param totalChunks the total number of chunks expected in this datastore
+    /// @return codingRatio of the datastore in basis points
+    function getCodingRatio(bytes calldata header, uint32 totalChunks) internal pure returns(uint16) {
+        uint32 codingRatio;
+        assembly {
+            //codingRatio = numSys
+            codingRatio := shr(BIT_SHIFT_numSys, calldataload(add(header.offset, HEADER_OFFSET_numSys)))
+            //codingRatio = numSys * BIP_MULTIPLIER / totalChunks
+            codingRatio := div(mul(codingRatio, BIP_MULTIPLIER), totalChunks)
+        }
+        return uint16(codingRatio);
+    }
+
+    function getDegree(bytes calldata header) internal pure returns (uint32) {
+        uint32 degree;
+        assembly {
+            degree := shr(BIT_SHIFT_degree, calldataload(add(header.offset, HEADER_OFFSET_degree)))
+        }
+        return degree;
+    }
+
     /// @notice Finds the `signatoryRecordHash`, used for fraudproofs.
     function computeSignatoryRecordHash(
         uint32 globalDataStoreId,

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "./mocks/LiquidStakingToken.sol";
+import "./mocks/EmptyContract.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
 
@@ -61,6 +62,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
+    EigenPodManager public eigenPodManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
@@ -130,18 +132,24 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     address acct_1 = cheats.addr(uint256(priv_key_1));
     address _challenger = address(0x6966904396bF2f8b173350bCcec5007A52669873);
 
-    struct NonSignerInfo {
+    bytes header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
+
+    struct NonSignerPK {
+
         uint256 xA0;
         uint256 xA1;
         uint256 yA0;
         uint256 yA1;
     }
 
-    struct SignerInfo {
+    struct RegistrantAPK {
+
         uint256 apk0;
         uint256 apk1;
         uint256 apk2;
         uint256 apk3;
+    }
+    struct SignerAggSig{
         uint256 sigma0;
         uint256 sigma1;
     }
@@ -174,46 +182,45 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         pauserReg = new PauserRegistry(pauser, unpauser);
         blsPkCompendium = new BLSPublicKeyCompendium();
 
-        // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `investmentManager` address
-        delegation = new EigenLayrDelegation();
-        delegation = EigenLayrDelegation(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(delegation),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
-        );
+        //TODO: handle pod manager correctly
+        eigenPodManager = EigenPodManager(address(0));
 
-        // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `slasher` address
-        investmentManager = new InvestmentManager(delegation);
-        investmentManager = InvestmentManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(investmentManager),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
+        /**
+         * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
+         * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
+         */
+        EmptyContract emptyContract = new EmptyContract();
+        delegation = EigenLayrDelegation(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
+        investmentManager = InvestmentManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        slasher = Slasher(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+
 
         address initialOwner = address(this);
-        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
-        delegation.initialize(investmentManager, pauserReg, initialOwner);
-
-        // deploy slasher as upgradable proxy and initialize it
-        Slasher slasherImplementation = new Slasher();
-        slasher = Slasher(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(slasherImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
-                )
-            )
+        // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(delegation))),
+            address(delegationImplementation),
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(investmentManager))),
+            address(investmentManagerImplementation),
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(slasher))),
+            address(slasherImplementation),
+            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
 
 
@@ -427,7 +434,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
-    function calculateFee(uint32 totalBytes, uint256 feePerBytePerTime, uint256 duration)
+    function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)
         internal
         pure
         returns (uint256)

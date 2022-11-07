@@ -26,6 +26,8 @@ contract DataLayrChallengeUtils {
         uint32 numPar;
     }
 
+    uint256 internal ZERO_POLY_TREE_HEIGHT;
+
     /**
     * @notice Check that the DataLayr operator who is getting slashed was
     * actually part of the quorum for the dataStoreId.
@@ -284,9 +286,10 @@ contract DataLayrChallengeUtils {
         view
         returns (bool)
     {
+        require(zeroPolyProof.length/32 == ZERO_POLY_TREE_HEIGHT, "DataLayrChallengeUtils.validateDisclosureResponse: incorrect merkle proof length");
+
         // check that [zeroPoly.x0, zeroPoly.x1, zeroPoly.y0, zeroPoly.y1] is actually the "chunkNumber" leaf
         // of the zero polynomial Merkle tree
-
         {
             //deterministic assignment of "y" here
             // @todo

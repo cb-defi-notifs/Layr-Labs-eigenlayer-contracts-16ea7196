@@ -22,9 +22,9 @@ import "forge-std/Test.sol";
 contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     // ,DSTest
     /// @notice The central InvestmentManager contract of EigenLayr
-    IInvestmentManager public investmentManager;
+    IInvestmentManager public immutable investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
-    IEigenLayrDelegation public delegation;
+    IEigenLayrDelegation public immutable delegation;
     // contract address => whether or not the contract is allowed to slash any staker (or operator) in EigenLayr
     mapping(address => bool) public globallyPermissionedContracts;
     // user => contract => the time before which the contract is allowed to slash the user
@@ -41,24 +41,22 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
-    constructor() {
+    constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
+        investmentManager = _investmentManager;
+        delegation = _delegation;
         _disableInitializers();
     }
 
     // EXTERNAL FUNCTIONS
     function initialize(
-        IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _delegation,
         IPauserRegistry _pauserRegistry,
-        address _eigenLayrGovernance
+        address initialOwner
     ) external initializer {
         _initializePauser(_pauserRegistry);
-        investmentManager = _investmentManager;
+        _transferOwnership(initialOwner);
+        // add InvestmentManager & EigenLayrDelegation to list of permissioned contracts
         _addGloballyPermissionedContract(address(investmentManager));
-        delegation = _delegation;
-        _transferOwnership(_eigenLayrGovernance);
-        // add EigenLayrDelegation to list of permissioned contracts
-        _addGloballyPermissionedContract(address(_delegation));
+        _addGloballyPermissionedContract(address(delegation));
     }
 
     /// @notice Used to give global slashing permission to specific contracts.

@@ -55,6 +55,7 @@ contract DataLayrLowDegreeChallenge {
 
     //POT refers to Powers of Tau
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
+    uint256 internal constant POT_TREE_HEIGHT = 28;
 
     modifier onlyRepositoryGovernance() {
         dataLayrServiceManager.repository().owner();
@@ -189,6 +190,8 @@ contract DataLayrLowDegreeChallenge {
         bytes memory potMerkleProof,
         BN254.G1Point memory lowDegreenessProof
     ) public view returns (bool) {
+        require(potMerkleProof.length/32 ==  POT_TREE_HEIGHT, "DataLayrLowDegreeChallenge.verifyLowDegreenessProof: incorrect proof length");
+
         //retreiving the kzg commitment to the data in the form of a polynomial
         DataLayrChallengeUtils.DataStoreKZGMetadata memory dskzgMetadata =
             challengeUtils.getDataCommitmentAndMultirevealDegreeAndSymbolBreakdownFromHeader(header);
