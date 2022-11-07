@@ -12,6 +12,7 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
+
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
  * @author Layr Labs, Inc.
@@ -23,7 +24,8 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPod is IEigenPod, Initializable {
+contract EigenPod is IEigenPod, Initializable
+{
     using BytesLib for bytes;
 
     //TODO: change this to constant in prod
@@ -44,6 +46,7 @@ contract EigenPod is IEigenPod, Initializable {
 
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
+        //TODO: uncomment for prod
         _disableInitializers();
     }
 
@@ -57,6 +60,15 @@ contract EigenPod is IEigenPod, Initializable {
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
     }
 
+    /**
+    * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
+    * this contract.  It verifies the provided proof from the validator against the beacon chain state
+    * root.
+    * @param pubkey is the BLS public key for the validator.
+    * @param proofs is
+    * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+    * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
+     */
     function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
         bytes calldata proofs, 
@@ -64,8 +76,10 @@ contract EigenPod is IEigenPod, Initializable {
     ) external {
         //TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
+
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
         bytes32 merklizedPubkey = sha256(abi.encodePacked(pubkey, bytes16(0)));
+
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
         BeaconChainProofs.verifyValidatorFields(
@@ -113,6 +127,10 @@ contract EigenPod is IEigenPod, Initializable {
         //update manager total balance for this pod
         //need to subtract previous proven balance and add the current proven balance
         eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
+        if(prevValidatorBalance < validatorBalance){
+            eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance - prevValidatorBalance);
+        }
+        
     }
 
     /// @notice Transfers ether balance of this contract to the specified recipeint address
@@ -126,6 +144,8 @@ contract EigenPod is IEigenPod, Initializable {
         //transfer ETH directly from pod to msg.sender 
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
+    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
+    function topUpPodBalance() external payable {}
 
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal view returns(bytes memory) {

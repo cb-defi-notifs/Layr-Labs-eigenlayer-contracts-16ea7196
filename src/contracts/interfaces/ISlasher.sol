@@ -20,4 +20,7 @@ interface ISlasher {
     function bondedUntil(address operator, address slashingContract) external view returns (uint32);
 
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
+    
+    function addGloballyPermissionedContracts(address[] calldata contracts) external;
+
 }
