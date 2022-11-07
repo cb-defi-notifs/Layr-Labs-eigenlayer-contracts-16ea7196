@@ -20,6 +20,8 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
     address podOwner = address(42000094993494);
 
     function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         cheats.startPrank(podOwner);

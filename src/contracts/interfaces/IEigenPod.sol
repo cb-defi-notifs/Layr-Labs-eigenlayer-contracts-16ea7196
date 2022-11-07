@@ -20,7 +20,7 @@ interface IEigenPod {
         ACTIVE //staked on ethpos and withdrawal credentials are pointed
     }
 
-    function podOwner() external returns(address);
+    function podOwner() external view returns(address);
     //used to initialize the pointers to contracts crucial to the pods functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
     //called by EigenPodManager when the owner wants to create another validator
@@ -37,6 +37,7 @@ interface IEigenPod {
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
+    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable;
 
 }

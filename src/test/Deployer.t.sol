@@ -62,7 +62,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EigenPodManager public eigenPodManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
@@ -182,8 +181,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         pauserReg = new PauserRegistry(pauser, unpauser);
         blsPkCompendium = new BLSPublicKeyCompendium();
 
-        //TODO: handle pod manager correctly
-        eigenPodManager = EigenPodManager(address(0));
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -199,6 +196,15 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         slasher = Slasher(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
+
+        beaconChainOracle = new BeaconChainOracleMock();
+
+        ethPOSDeposit = new ETHPOSDepositMock();
+        pod = new EigenPod(ethPOSDeposit);
+
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
+        eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
+
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
@@ -279,17 +285,16 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
-        beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0x31c4ed9a072cc282553df11e2135c80d259af2719571a832258d4bab292ebf62);
+        // beaconChainOracle = new BeaconChainOracleMock();
+        // beaconChainOracle.setBeaconChainStateRoot(0x31c4ed9a072cc282553df11e2135c80d259af2719571a832258d4bab292ebf62);
 
-        ethPOSDeposit = new ETHPOSDepositMock();
-        pod = new EigenPod(ethPOSDeposit);
+        // ethPOSDeposit = new ETHPOSDepositMock();
+        // pod = new EigenPod(ethPOSDeposit);
 
-        eigenPodBeacon = new UpgradeableBeacon(address(pod));
-        eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
+        // eigenPodBeacon = new UpgradeableBeacon(address(pod));
+        // eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
         
-        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, eigenPodManager, pauserReg, initialOwner);
+
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);

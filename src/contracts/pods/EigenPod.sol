@@ -48,7 +48,7 @@ contract EigenPod is IEigenPod, Initializable,DSTest
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
         //TODO: uncomment for prod
-        //_disableInitializers();
+        _disableInitializers();
     }
 
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
@@ -83,6 +83,9 @@ contract EigenPod is IEigenPod, Initializable,DSTest
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
+        emit log_named_bytes32("beaconStateRoot", beaconStateRoot);
+        emit log_named_bytes32("pod withdrawal", podWithdrawalCredentials().toBytes32(0));
+
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
@@ -128,6 +131,10 @@ contract EigenPod is IEigenPod, Initializable,DSTest
         //update manager total balance for this pod
         //need to subtract previous proven balance and add the current proven balance
         eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
+        if(prevValidatorBalance < validatorBalance){
+            eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance - prevValidatorBalance);
+        }
+        
     }
 
     /// @notice Transfers ether balance of this contract to the specified recipeint address
@@ -141,11 +148,11 @@ contract EigenPod is IEigenPod, Initializable,DSTest
         //transfer ETH directly from pod to msg.sender 
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
-
+    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable {}
 
     // INTERNAL FUNCTIONS
-    function podWithdrawalCredentials() internal returns(bytes memory) {
+    function podWithdrawalCredentials() internal view returns(bytes memory) {
         return abi.encodePacked(bytes1(uint8(1)), bytes11(0), address(this));
     }
 }
