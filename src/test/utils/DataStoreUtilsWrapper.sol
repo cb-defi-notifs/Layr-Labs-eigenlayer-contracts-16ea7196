@@ -2,10 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "../../contracts/libraries/DataStoreUtils.sol";
-import "forge-std/Test.sol";
 
 // wrapper around the DataStoreUtils library, so that we can call the library's functions that take inputs with 'calldata' location specified
-contract DataStoreUtilsWrapper is DSTest {
+contract DataStoreUtilsWrapper {
     function computeDataStoreHashExternal(IDataLayrServiceManager.DataStoreMetadata memory metadata)
         internal
         pure

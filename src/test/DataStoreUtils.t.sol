@@ -34,17 +34,6 @@ contract DataStoreUtilsTests is DSTest {
         bytes32 signatoryRecordHash
     ) public {
 
-        emit log("**************");
-        emit log_named_bytes32("headerHash", headerHash);
-        emit log_named_uint("durationDataStoreId", durationDataStoreId);
-        emit log_named_uint("globalDataStoreId", globalDataStoreId);
-        emit log_named_uint("stakesFromBlockNumber", stakesFromBlockNumber);
-        emit log_named_uint("blockNumber", blockNumber);
-        emit log_named_uint("fee", fee);
-        emit log_named_address("confirmer", confirmer);
-        emit log_named_bytes32("signatoryRecordHash", signatoryRecordHash);
-
-
         // form struct from arguments
         IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
@@ -56,9 +45,6 @@ contract DataStoreUtilsTests is DSTest {
         IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct =
             dataStoreUtilsWrapper.unpackDataStoreMetadataExternal(packedMetadata);
         // check the struct entries
-        emit log_bytes(packedMetadata);
-        emit log_named_uint("headerHash", metadataStructBeforePacking.durationDataStoreId);
-        emit log_named_uint("headerHash", unpackedStruct.durationDataStoreId);
         assertEq(
             headerHash,
             unpackedStruct.headerHash,
