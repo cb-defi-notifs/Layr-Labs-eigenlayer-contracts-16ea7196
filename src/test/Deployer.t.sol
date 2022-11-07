@@ -198,6 +198,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit);
