@@ -19,7 +19,7 @@ import "forge-std/Test.sol";
  * - updating the stakes of the operator
  * @dev This contract is missing key functions. See `BLSRegistry` or `ECDSARegistry` for examples that inherit from this contract.
  */
-abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
+abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
     using BytesLib for bytes;
 
     uint32 public immutable UNBONDING_PERIOD;
@@ -67,24 +67,32 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
     event Deregistration(address operator, address swapped);
 
     /**
-     * Irrevocably sets the (immutable) `repository`, `delegation`, & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` variable.
-     * Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,
-     * to record an initial condition of zero operators with zero total stake.
-     * Adds `_firstQuorumStrategiesConsideredAndMultipliers` and `_secondQuorumStrategiesConsideredAndMultipliers` to the dynamic arrays
-     * `strategiesConsideredAndMultipliers[0]` and `strategiesConsideredAndMultipliers[1]` (i.e. to the weighing functions of the quorums)
+     * @notice Irrevocably sets the (immutable) `delegation` & `investmentManager` addresses, and `NUMBER_OF_QUORUMS` & UNBONDING_PERIOD variables.
      */
     constructor(
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
-        uint32 unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
+        uint32 _UNBONDING_PERIOD
+    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) {
+        //set unbonding period
+        UNBONDING_PERIOD = _UNBONDING_PERIOD;
+    }
+
+    /**
+     * @notice Adds empty first entries to the dynamic arrays `totalStakeHistory` and `totalOperatorsHistory`,
+     * to record an initial condition of zero operators with zero total stake.
+     * Adds `_firstQuorumStrategiesConsideredAndMultipliers` and `_secondQuorumStrategiesConsideredAndMultipliers` to the dynamic arrays
+     * `strategiesConsideredAndMultipliers[0]` and `strategiesConsideredAndMultipliers[1]` (i.e. to the weighing functions of the quorums)
+     */
+    function _initialize(
         uint256[] memory _quorumBips,
         StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
         StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
-    ) VoteWeigherBase(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS, _quorumBips) {
-        //set unbonding period
-        UNBONDING_PERIOD = unbondingPeriod;
+    ) internal virtual onlyInitializing {
+        VoteWeigherBase._initialize(_quorumBips);
+
         // push an empty OperatorStake struct to the total stake history to record starting with zero stake
         OperatorStake memory _totalStake;
         totalStakeHistory.push(_totalStake);

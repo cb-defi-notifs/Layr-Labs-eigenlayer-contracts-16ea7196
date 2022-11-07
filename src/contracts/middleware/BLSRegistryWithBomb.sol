@@ -20,18 +20,14 @@ import "./BLSRegistry.sol";
 contract BLSRegistryWithBomb is BLSRegistry {
     using BytesLib for bytes;
 
-    // TODO: either make this immutable *or* add a method to change it
-    IEphemeralKeyRegistry public ephemeralKeyRegistry;
+    IEphemeralKeyRegistry public immutable ephemeralKeyRegistry;
 
     constructor(
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
-        uint32 _unbondingPeriod,
         uint8 _NUMBER_OF_QUORUMS,
-        uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        uint32 _UNBONDING_PERIOD,
         IBLSPublicKeyCompendium _pubkeyCompendium,
         IEphemeralKeyRegistry _ephemeralKeyRegistry
     )
@@ -39,11 +35,8 @@ contract BLSRegistryWithBomb is BLSRegistry {
             _delegation,
             _investmentManager,
             _serviceManager,
-            _unbondingPeriod,
             _NUMBER_OF_QUORUMS,
-            _quorumBips,
-            _firstQuorumStrategiesConsideredAndMultipliers,
-            _secondQuorumStrategiesConsideredAndMultipliers,
+            _UNBONDING_PERIOD,
             _pubkeyCompendium
         )
     {

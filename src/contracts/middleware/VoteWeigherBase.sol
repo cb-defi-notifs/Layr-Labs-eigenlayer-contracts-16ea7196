@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interfaces/IInvestmentManager.sol";
 import "./VoteWeigherBaseStorage.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title A simple implementation of the `IVoteWeigher` interface.
@@ -17,7 +17,7 @@ import "forge-std/Test.sol";
  * by the middleware for each of the quorum(s)
  * @dev
  */
-contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
+abstract contract VoteWeigherBase is VoteWeigherBaseStorage {
     /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
     /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`
@@ -34,11 +34,26 @@ contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
         IServiceManager _serviceManager,
-        uint8 _NUMBER_OF_QUORUMS,
-        uint256[] memory _quorumBips
-    ) VoteWeigherBaseStorage(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS, _quorumBips) 
+        uint8 _NUMBER_OF_QUORUMS
+    ) VoteWeigherBaseStorage(_delegation, _investmentManager, _serviceManager, _NUMBER_OF_QUORUMS) 
     // solhint-disable-next-line no-empty-blocks
     {}
+
+    /// @notice Set the split in earnings between the different quorums.
+    function _initialize(uint256[] memory _quorumBips) internal virtual onlyInitializing {
+        // verify that the provided `_quorumBips` is of the correct length
+        require(
+            _quorumBips.length == NUMBER_OF_QUORUMS,
+            "VoteWeigherBase._initialize: _quorumBips.length != NUMBER_OF_QUORUMS"
+        );
+        uint256 totalQuorumBips;
+        for (uint256 i; i < NUMBER_OF_QUORUMS; ++i) {
+            totalQuorumBips += _quorumBips[i];
+            quorumBips[i] = _quorumBips[i];
+        }
+        // verify that the provided `_quorumBips` do indeed sum to 10,000!
+        require(totalQuorumBips == MAX_BIPS, "VoteWeigherBase._initialize: totalQuorumBips != MAX_BIPS");
+    }
 
     /**
      * @notice This function computes the total weight of the @param operator in the quorum @param quorumNumber.

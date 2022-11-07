@@ -86,6 +86,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     BLSPublicKeyCompendium public pubkeyCompendiumImplementation;
     DataLayrPaymentManager public dataLayrPaymentManagerImplementation;
     DataLayrLowDegreeChallenge public dlldcImplementation;
+    BLSRegistryWithBomb public dlRegImplementation;
 
     EmptyContract public emptyContract;
 
@@ -265,37 +266,9 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         dlldc = DataLayrLowDegreeChallenge(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
-
-        // TODO: make this contract upgradeable as well?
-        {
-            uint96 multiplier = 1e18;
-            uint32 unbondingPeriod = uint32(14 days);
-            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
-                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
-            ethStratsAndMultipliers[0].strategy = wethStrat;
-            ethStratsAndMultipliers[0].multiplier = multiplier;
-            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
-                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
-            eigenStratsAndMultipliers[0].strategy = eigenStrat;
-            eigenStratsAndMultipliers[0].multiplier = multiplier;
-            uint8 _NUMBER_OF_QUORUMS = 2;
-            uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
-            // split 60% ETH quorum, 40% EIGEN quorum
-            _quorumBips[0] = 6000;
-            _quorumBips[1] = 4000;
-            dlReg = new BLSRegistryWithBomb(
-                delegation,
-                investmentManager,
-                dlsm,
-                unbondingPeriod,
-                _NUMBER_OF_QUORUMS,
-                _quorumBips,
-                ethStratsAndMultipliers,
-                eigenStratsAndMultipliers,
-                pubkeyCompendium,
-                ephemeralKeyRegistry
-            );
-        }
+        dlReg = BLSRegistryWithBomb(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         challengeUtilsImplementation = new DataLayrChallengeUtils();
@@ -326,6 +299,19 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             dlReg
         );
         dlldcImplementation = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        {
+            uint32 _UNBONDING_PERIOD = uint32(14 days);
+            uint8 _NUMBER_OF_QUORUMS = 2;
+            dlRegImplementation = new BLSRegistryWithBomb(
+                delegation,
+                investmentManager,
+                dlsm,
+                _NUMBER_OF_QUORUMS,
+                _UNBONDING_PERIOD,
+                pubkeyCompendium,
+                ephemeralKeyRegistry
+            );
+        }
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgrade(
@@ -366,6 +352,28 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             address(dlldcImplementation),
             abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
         );
+        {
+            uint96 multiplier = 1e18;
+            uint8 _NUMBER_OF_QUORUMS = 2;
+            uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+            // split 60% ETH quorum, 40% EIGEN quorum
+            _quorumBips[0] = 6000;
+            _quorumBips[1] = 4000;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            ethStratsAndMultipliers[0].strategy = wethStrat;
+            ethStratsAndMultipliers[0].multiplier = multiplier;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            eigenStratsAndMultipliers[0].strategy = eigenStrat;
+            eigenStratsAndMultipliers[0].multiplier = multiplier;
+
+            eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(dlReg))),
+                address(dlRegImplementation),
+                abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+            );
+        }
 
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
