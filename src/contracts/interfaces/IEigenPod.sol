@@ -20,10 +20,22 @@ interface IEigenPod {
         ACTIVE //staked on ethpos and withdrawal credentials are pointed
     }
 
-    //used to initialize the pointers to contracts crucial to the pods functionality, in beacon proxy construction from EigenPodManager
+    /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address owner) external;
-    //called by EigenPodManager when the owner wants to create another validator
+
+    /// @notice Called by EigenPodManager when the owner wants to create another validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable;
-    //called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal. called during withdrawal or slashing
+
+    /**
+     * @notice Transfers ether balance of this contract to the specified recipient address
+     * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
+     * @dev Called during withdrawal or slashing.
+     */
     function withdrawBeaconChainETH(address recipient, uint256 amount) external;
+
+    /// @notice The single EigenPodManager for EigenLayer
+    function eigenPodManager() external view returns (IEigenPodManager);
+
+    /// @notice The owner of this EigenPod
+    function podOwner() external view returns (address);
 }

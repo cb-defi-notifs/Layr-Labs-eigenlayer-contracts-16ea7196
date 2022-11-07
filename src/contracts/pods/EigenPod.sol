@@ -29,10 +29,12 @@ contract EigenPod is IEigenPod, Initializable {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
 
+    /// @notice The single EigenPodManager for EigenLayer
     IEigenPodManager public eigenPodManager;
 
-
+    /// @notice The owner of this EigenPod
     address public podOwner;
+
     /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
 
@@ -47,11 +49,13 @@ contract EigenPod is IEigenPod, Initializable {
         _disableInitializers();
     }
 
+    /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
     function initialize(IEigenPodManager _eigenPodManager, address _podOwner) external initializer {
         eigenPodManager = _eigenPodManager;
         podOwner = _podOwner;
     }
 
+    /// @notice Called by EigenPodManager when the owner wants to create another validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable onlyEigenPodManager {
         // stake on ethpos
         ethPOS.deposit{value : msg.value}(pubkey, podWithdrawalCredentials(), signature, depositDataRoot);
@@ -115,7 +119,11 @@ contract EigenPod is IEigenPod, Initializable {
         eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
     }
 
-    /// @notice Transfers ether balance of this contract to the specified recipeint address
+    /**
+     * @notice Transfers ether balance of this contract to the specified recipient address
+     * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to its balance due to a withdrawal from the beacon chain.
+     * @dev Called during withdrawal or slashing.
+     */
     function withdrawBeaconChainETH(
         address recipient,
         uint256 amount
