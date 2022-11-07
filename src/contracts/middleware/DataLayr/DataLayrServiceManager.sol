@@ -32,11 +32,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
     uint128 internal constant MAX_THRESHOLD_PERCENTAGE = 99;
 
-
-    // ERROR MESSAGES
-    // only repositoryGovernance can call this, but 'sender' called instead
-    error OnlyRepositoryGovernance(address repositoryGovernance, address sender);
-
     //quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
     uint16 public quorumThresholdBasisPoints = 9000;
 
@@ -50,7 +45,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     uint128 public firstQuorumThresholdPercentage;
     uint128 public secondQuorumThresholdPercentage;
 
-
+    /// @notice Keeps track of the number of DataStores for each duration, the total number of DataStores, and the `latestTime` until which operators must serve.
     DataStoresForDuration public dataStoresForDuration;
 
     // EVENTS
@@ -60,8 +55,14 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         bytes header
     );
 
+    /**
+     * @notice Emitted when a DataStore is confirmed.
+     * @param dataStoreId The ID for the DataStore inside of the specified duration (i.e. *not* the globalDataStoreId)
+     * @param headerHash The headerHash of the DataStore.
+     */
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
-    event QuorumThresholdBasisPointsUpdate(uint16 quorumTHresholdBasisPoints);
+
+    event QuorumThresholdBasisPointsUpdate(uint16 quorumThresholdBasisPoints);
     event AdversaryThresholdBasisPointsUpdated(uint16 adversaryThresholdBasisPoints);
 
     modifier checkValidThresholds(uint16 _quorumThresholdBasisPoints, uint16 _adversaryThresholdBasisPoints) {
@@ -173,8 +174,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      *   NumPar         uint32
      *   OrigDataSize   uint32 
      *   Disperser      [20]byte
-    *   LowDegreeProof [64]byte
-}
+     *   LowDegreeProof [64]byte 
+     *  }
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
@@ -347,7 +348,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * uint256[4] apk,
      * uint256[2] sigma
      * >
-     * @dev 
      */
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external whenNotPaused {
         /**
@@ -458,7 +458,10 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     }
 
     // VIEW FUNCTIONS
-
+    /**
+     * @notice Checks that the hash of the `index`th DataStore with the specified `duration` at the specified UTC `timestamp` matches the supplied `metadata`.
+     * Returns 'true' if the metadata matches the hash, and 'false' otherwise.
+     */
     function verifyDataStoreMetadata(
         uint8 duration,
         uint256 timestamp,
@@ -478,6 +481,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         );
     }
 
+    /// @notice Returns the hash of the `index`th DataStore with the specified `duration` at the specified UTC `timestamp`.
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
         public
         view
@@ -511,7 +515,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         if (duration == 7) {
             return dataStoresForDuration.seven_duration;
         }
-        return 0;
+        revert("DataLayrServiceManager.getNumDataStoresForDuration: invalid duration");
     }
 
     function taskNumber() external view returns (uint32) {
