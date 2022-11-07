@@ -12,7 +12,6 @@ import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
- import "forge-std/Test.sol";
 
 /**
  * @title The implementation contract used for restaking beacon chain ETH on EigenLayer 
@@ -25,7 +24,7 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPod is IEigenPod, Initializable,DSTest
+contract EigenPod is IEigenPod, Initializable
 {
     using BytesLib for bytes;
 
