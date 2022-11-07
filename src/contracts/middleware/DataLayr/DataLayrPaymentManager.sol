@@ -2,9 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "../../interfaces/IQuorumRegistry.sol";
+import "../../interfaces/IVoteWeigher.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../interfaces/IDataLayrPaymentManager.sol";
-import "../Repository.sol";
 import "../../libraries/DataStoreUtils.sol";
 import "../../middleware/PaymentManager.sol";
 

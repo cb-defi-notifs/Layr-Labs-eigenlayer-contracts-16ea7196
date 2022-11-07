@@ -11,7 +11,6 @@ import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
 import "../src/contracts/pods/EigenPodManager.sol";
-import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
@@ -368,7 +367,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
         );
 
-        // vm.writeFile("data/dlRepository.addr", vm.toString(address(dlRepository)));
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
     }

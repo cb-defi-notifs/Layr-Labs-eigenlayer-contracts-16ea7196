@@ -14,7 +14,6 @@ import "../contracts/investment/Slasher.sol";
 
 import "../contracts/pods/EigenPodManager.sol";
 
-import "../contracts/middleware/Repository.sol";
 import "../contracts/permissions/PauserRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
@@ -121,8 +120,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     bytes header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
 
     address initialOwner = address(this);
-
-    Repository public testRepository;
 
     struct NonSignerPK {
 
@@ -463,9 +460,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             address(dlldcImplementation),
             abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
         );
-
-        testRepository = new Repository(delegation, investmentManager);
-        testRepository.initialize(dlReg, dlsm, dlReg, address(this));
     }
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)
