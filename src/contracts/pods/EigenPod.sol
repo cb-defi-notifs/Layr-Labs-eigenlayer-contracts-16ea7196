@@ -82,9 +82,6 @@ contract EigenPod is IEigenPod, Initializable
 
         require(validators[merklizedPubkey].status == VALIDATOR_STATUS.INACTIVE, "EigenPod.verifyCorrectWithdrawalCredentials: Validator not inactive");
         //verify validator proof
-        emit log_named_bytes32("beaconStateRoot", beaconStateRoot);
-        emit log_named_bytes32("pod withdrawal", podWithdrawalCredentials().toBytes32(0));
-
         BeaconChainProofs.verifyValidatorFields(
             beaconStateRoot,
             proofs,
