@@ -33,16 +33,32 @@ contract DataStoreUtilsTests is DSTest {
         address confirmer,
         bytes32 signatoryRecordHash
     ) public {
+
+        emit log("**************");
+        emit log_named_bytes32("headerHash", headerHash);
+        emit log_named_uint("durationDataStoreId", durationDataStoreId);
+        emit log_named_uint("globalDataStoreId", globalDataStoreId);
+        emit log_named_uint("stakesFromBlockNumber", stakesFromBlockNumber);
+        emit log_named_uint("blockNumber", blockNumber);
+        emit log_named_uint("fee", fee);
+        emit log_named_address("confirmer", confirmer);
+        emit log_named_bytes32("signatoryRecordHash", signatoryRecordHash);
+
+
         // form struct from arguments
         IDataLayrServiceManager.DataStoreMetadata memory metadataStructBeforePacking = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
         // pack the struct
         bytes memory packedMetadata = dataStoreUtilsWrapper.packDataStoreMetadataExternal(metadataStructBeforePacking);
+
         // unpack the struct
         IDataLayrServiceManager.DataStoreMetadata memory unpackedStruct =
             dataStoreUtilsWrapper.unpackDataStoreMetadataExternal(packedMetadata);
         // check the struct entries
+        emit log_bytes(packedMetadata);
+        emit log_named_uint("headerHash", metadataStructBeforePacking.durationDataStoreId);
+        emit log_named_uint("headerHash", unpackedStruct.durationDataStoreId);
         assertEq(
             headerHash,
             unpackedStruct.headerHash,
@@ -59,11 +75,20 @@ contract DataStoreUtilsTests is DSTest {
             "testPackUnpackDataStoreMetadata: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            blockNumber,
+            stakesFromBlockNumber,
             unpackedStruct.stakesFromBlockNumber,
             "testPackUnpackDataStoreMetadata: unpacked blockNumber does not match original one"
         );
-        assertEq(fee, unpackedStruct.fee, "testPackUnpackDataStoreMetadata: unpacked fee does not match original one");
+        assertEq(
+            blockNumber,
+            unpackedStruct.blockNumber,
+            "testPackUnpackDataStoreMetadata: unpacked blockNumber does not match original one"
+        );
+        assertEq(
+            fee, 
+            unpackedStruct.fee, 
+            "testPackUnpackDataStoreMetadata: unpacked fee does not match original one"
+            );
         assertEq(
             confirmer,
             unpackedStruct.confirmer,
@@ -110,6 +135,8 @@ contract DataStoreUtilsTests is DSTest {
             index
         );
 
+
+
         // pack the struct
         bytes memory packedSearchData =
             dataStoreUtilsWrapper.packDataStoreSearchDataExternal(searchDataStructBeforePacking);
@@ -133,8 +160,13 @@ contract DataStoreUtilsTests is DSTest {
             "testPackUnpackDataStoreSearchData: unpacked globalDataStoreId does not match original one"
         );
         assertEq(
-            blockNumber,
+            stakesFromBlockNumber,
             unpackedStruct.metadata.stakesFromBlockNumber,
+            "testPackUnpackDataStoreSearchData: unpacked blockNumber does not match original one"
+        );
+        assertEq(
+            blockNumber,
+            unpackedStruct.metadata.blockNumber,
             "testPackUnpackDataStoreSearchData: unpacked blockNumber does not match original one"
         );
         assertEq(
@@ -182,7 +214,8 @@ contract DataStoreUtilsTests is DSTest {
         uint96 fee,
         address confirmer,
         bytes32 signatoryRecordHash
-    ) internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct) {
+    ) internal returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct) {
+
         metadataStruct = IDataLayrServiceManager.DataStoreMetadata({
             headerHash: headerHash,
             durationDataStoreId: durationDataStoreId,
@@ -208,7 +241,7 @@ contract DataStoreUtilsTests is DSTest {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
+    ) internal returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );

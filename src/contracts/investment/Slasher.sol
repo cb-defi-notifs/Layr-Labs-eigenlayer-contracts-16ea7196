@@ -167,11 +167,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @param operator the operator whose stake update is being recorded
      * @param updateBlock the block for which the stake update is being recorded
      * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
-     * @param prevElement the element of the operators linked list that the currently updating middleware should be inserted after
-     * @dev prevElement should be calculated offchain before making the transaction that calls this. this is subject to race conditions, 
+     * @param insertAfter the element of the operators linked list that the currently updating middleware should be inserted after
+     * @dev insertAfter should be calculated offchain before making the transaction that calls this. this is subject to race conditions, 
      *      but it is anticipated to be rare and not detrimental.
      */
-    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) 
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
         external 
         onlyCanSlash(operator, msg.sender) 
     {
@@ -183,33 +183,33 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             //remove the middlware from the list
             require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
                 "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
-            if(prevElement != HEAD) {
-                // updateBlock is after prevElement's latest updateBlock
-                // make sure prevElement exists
+            if(insertAfter != HEAD) {
+                // updateBlock is after insertAfter's latest updateBlock
+                // make sure insertAfter exists
                 require(
-                    operatorToWhitelistedContractsByUpdate[operator].nodeExists(prevElement),
-                    "Slasher.recordStakeUpdate: prevElement does not exist"
+                    operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter),
+                    "Slasher.recordStakeUpdate: insertAfter does not exist"
                 );
                 // make sure its most recent updateBlock was before updateBlock
                 require(
                     operatorToWhitelistedContractsToLatestUpdateBlock[operator][
-                        uintToAddress(prevElement)
+                        uintToAddress(insertAfter)
                     ] <= updateBlock,
-                    "Slasher.recordStakeUpdate: prevElement's latest updateBlock is later than the middleware currently updating"
+                    "Slasher.recordStakeUpdate: insertAfter's latest updateBlock is later than the middleware currently updating"
                 );
-                //get prevElement's successor, hasNext will be false if prevElement is the last node in the list
-                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(prevElement);
+                //get insertAfter's successor, hasNext will be false if insertAfter is the last node in the list
+                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
                 if(hasNext) {
-                    // make sure the element after prevElement's most recent updateBlock was strictly after updateBlock
+                    // make sure the element after insertAfter's most recent updateBlock was strictly after updateBlock
                     require(
                         operatorToWhitelistedContractsToLatestUpdateBlock[operator][
                             uintToAddress(nextNode)
                         ] > updateBlock,
-                        "Slasher.recordStakeUpdate: element after prevElement's latest updateBlock is earlier or equal to middleware currently updating"
+                        "Slasher.recordStakeUpdate: element after insertAfter's latest updateBlock is earlier or equal to middleware currently updating"
                     );
                 }
-                // insert the middleware after prevElement, will fail if msg.sender is already in list
-                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(prevElement, addressToUint(msg.sender)),
+                // insert the middleware after insertAfter, will fail if msg.sender is already in list
+                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, addressToUint(msg.sender)),
                     "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
             } else {
                 // updateBlock is before any other middleware's latest updateBlock
@@ -360,6 +360,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             pushToMiddlewareTimes = true;
         } 
 
+        // if the middleware is the first in the list, we will update the `leastRecentUpdateBlock` field in MiddlwareTimes
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
             // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
