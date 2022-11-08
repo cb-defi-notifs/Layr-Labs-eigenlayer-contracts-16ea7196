@@ -116,14 +116,18 @@ contract BLSRegistryWithBomb is BLSRegistry {
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
-        //add ephemeral key to ephemeral key registry
+        // Add ephemeral key(s) to ephemeral key registry
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
 
-        //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
-
-        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
+        // Record a stake update unbonding the operator at `latestTime`
         repository.serviceManager().recordLastStakeUpdate(msg.sender, latestTime);
+
+        /**
+         * Revoke the slashing ability of the service manager after `latestTime`.
+         * This is done after recording the last stake update since `latestTime` *could* be in the past, and `recordLastStakeUpdate` is permissioned so that
+         * only contracts who can actively slash the operator are allowed to call it.
+         */
+        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
     }
 
     /** 
