@@ -48,7 +48,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => array of strategies in which they have nonzero shares
     mapping(address => IInvestmentStrategy[]) public investorStrats;
     // hash of withdrawal inputs, aka 'withdrawalRoot' => whether the withdrawal is pending
-    mapping(bytes32 => bool) public queuedWithdrawals;
+    mapping(bytes32 => bool) public withdrawalRootPending;
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint256) public numWithdrawalsQueued;
 
