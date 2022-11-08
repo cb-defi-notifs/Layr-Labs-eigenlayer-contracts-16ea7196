@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IRepository.sol";
 import "../interfaces/IRepositoryAccess.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title Defines access controls based around a single `Repository` contract.
  * @author Layr Labs, Inc.
  */
-abstract contract RepositoryAccess is IRepositoryAccess {
+abstract contract RepositoryAccess is IRepositoryAccess, DSTest {
     /// @notice The unique, immutable Repository contract associated with this contract.
     IRepository public immutable repository;
 
@@ -51,7 +52,7 @@ abstract contract RepositoryAccess is IRepositoryAccess {
         return repository.serviceManager();
     }
 
-    function _registry() internal view returns (IRegistry) {
+    function _registry() internal returns (IRegistry) {
         return repository.registry();
     }
 }

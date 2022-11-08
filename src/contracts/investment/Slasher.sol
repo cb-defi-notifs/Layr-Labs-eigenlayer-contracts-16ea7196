@@ -20,7 +20,7 @@ import "forge-std/Test.sol";
  * - revoking permission for slashing from specified contracts,
  * - calling investManager to do actual slashing.
  */
-contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
+contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTest {
     using StructuredLinkedList for StructuredLinkedList.List;
 
     uint256 private constant HEAD = 0;
@@ -152,8 +152,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
+        
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
+
+
         //push the middleware to the end of the update list  
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
@@ -270,7 +273,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
-    function canWithdaw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool) {
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
@@ -280,6 +283,14 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         //all middlewares were updated after the withdrawal and
         //the stake is no longer slashable
         MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+
+        emit log_named_uint("update length", operatorToMiddlewareTimes[operator].length );
+
+        emit log_named_uint("update.leastRecentUpdateBlock >", update.leastRecentUpdateBlock );
+        emit log_named_uint("withdrawalStartBlock ",withdrawalStartBlock );
+        emit log("*******************************************************");
+         emit log_named_uint("uint32(block.timestamp) > ", uint32(block.timestamp) );
+         emit log_named_uint("update.latestServeUntil) ", update.latestServeUntil );
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
@@ -357,11 +368,17 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             // mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         } 
-
+        
+        //If this is the first middleware, we add an entry to operatorToMiddlewareTimes
+        if (operatorToWhitelistedContractsByUpdate[operator].size == 0){
+            pushToMiddlewareTimes = true;
+            next.leastRecentUpdateBlock = updateBlock;
+        }
         // if the middleware is the first in the list, we will update the `leastRecentUpdateBlock` field in MiddlwareTimes
         if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
             // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
+
             if(hasNext) {
                 // get the next middleware's most latest update block
                 uint32 nextMiddlewaresLeastRecentUpdateBlock = operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)];
@@ -384,6 +401,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
+        emit log("____________________________________________");
+        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
+        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
+        emit log_named_uint("updateBlock", updateBlock);
+        emit log("____________________________________________");
+
     }
 
     function addressToUint(address addr) internal pure returns(uint256) {
@@ -393,4 +416,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     function uintToAddress(uint256 x) internal pure returns(address) {
         return address(uint160(x));
     }
+
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external returns(uint32){
+        return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
+    }
+
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external returns(uint32) {
+        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
+    }
+    
 }

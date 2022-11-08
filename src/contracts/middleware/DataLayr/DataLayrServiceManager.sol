@@ -26,7 +26,7 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - freezing operators as the result of various "challenges"
  */
-contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
+contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
     // sanity checks. should always require *some* signatures, but never *all* signatures
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
@@ -465,7 +465,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyRegistry {
         ISlasher(investmentManager.slasher()).recordLastStakeUpdate(operator, serveUntil);
     }
-
+    
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }

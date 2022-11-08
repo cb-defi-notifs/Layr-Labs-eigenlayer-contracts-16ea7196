@@ -5,7 +5,7 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
@@ -17,7 +17,7 @@ import "forge-std/Test.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
+contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
     // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
