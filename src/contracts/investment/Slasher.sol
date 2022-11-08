@@ -342,8 +342,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
      */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
-        // reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
-        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
+        // reject any stale update, i.e. one from before that of the most recent recorded update for the currently updating middleware
+        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] <= updateBlock, 
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
