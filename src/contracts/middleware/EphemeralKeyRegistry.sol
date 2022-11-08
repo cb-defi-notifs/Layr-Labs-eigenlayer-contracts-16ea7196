@@ -114,7 +114,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest
      */
     function revealEphemeralKey(uint256 index, bytes32 prevEphemeralKey) external {
         if(index != 0) {
-            require(ephemeralKeyEntries[msg.sender][index-1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
+            require(ephemeralKeyEntries[msg.sender][index - 1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
         }
         require(index + 1 < ephemeralKeyEntries[msg.sender].length, 
             "EphemeralKeyRegistry.revealEphemeralKey: cannot reveal all keys outside of revealLastEphemeralKeys");

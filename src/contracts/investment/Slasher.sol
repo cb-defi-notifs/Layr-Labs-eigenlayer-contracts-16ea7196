@@ -173,10 +173,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         external 
         onlyCanSlash(operator) 
     {
-        //update latest update
+        // sanity check on input
+        require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
+        // update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
-        //move the middleware to its correct update position via prev and updateBlock
-        //if the the middleware is the only one, then no need to mutate the list
+        // move the middleware to its correct update position via prev and updateBlock
+        // if the the middleware is the only one, then no need to mutate the list
         if(operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
             //remove the middlware from the list
             require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
@@ -195,7 +197,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
                     ] <= updateBlock,
                     "Slasher.recordStakeUpdate: insertAfter's latest updateBlock is later than the middleware currently updating"
                 );
-                //get insertAfter's successor, hasNext will be false if insertAfter is the last node in the list
+                // get insertAfter's successor, hasNext will be false if insertAfter is the last node in the list
                 (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
                 if(hasNext) {
                     // make sure the element after insertAfter's most recent updateBlock was strictly after updateBlock
