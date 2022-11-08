@@ -21,7 +21,7 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     bytes32 public constant DEPOSIT_TYPEHASH =
         keccak256("Deposit(address strategy,address token,uint256 amount,uint256 nonce,uint256 expiry)");
     /// @notice EIP-712 Domain separator
-    bytes32 public immutable DOMAIN_SEPARATOR;
+    bytes32 public DOMAIN_SEPARATOR;
     // staker => number of signed deposit nonce (used in depositIntoStrategyOnBehalfOf)
     mapping(address => uint256) public nonces;
     /**
@@ -40,7 +40,8 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
 
     // system contracts
     IEigenLayrDelegation public immutable delegation;
-    ISlasher public slasher;
+    IEigenPodManager public immutable eigenPodManager;
+    ISlasher public immutable slasher;
 
     // staker => InvestmentStrategy => number of shares which they currently hold
     mapping(address => mapping(IInvestmentStrategy => uint256)) public investorStratShares;
@@ -51,13 +52,12 @@ abstract contract InvestmentManagerStorage is IInvestmentManager {
     // staker => cumulative number of queued withdrawals they have ever initiated. only increments (doesn't decrement)
     mapping(address => uint256) public numWithdrawalsQueued;
 
-    IEigenPodManager public eigenPodManager;
     IInvestmentStrategy public constant beaconChainETHStrategy = IInvestmentStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
 
 
-    constructor(IEigenLayrDelegation _delegation) {
-        //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about met transactions in general
-        DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
+    constructor(IEigenLayrDelegation _delegation, IEigenPodManager _eigenPodManager, ISlasher _slasher) {
         delegation = _delegation;
+        eigenPodManager = _eigenPodManager;
+        slasher = _slasher;
     }
 }

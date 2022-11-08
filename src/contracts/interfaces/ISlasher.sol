@@ -33,4 +33,6 @@ interface ISlasher {
     function recordStakeUpdate(address operator, uint32 blockNumber, uint32 serveUntil, uint256 prevElement) external;
     
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
+    function addGloballyPermissionedContracts(address[] calldata contracts) external;
+
 }

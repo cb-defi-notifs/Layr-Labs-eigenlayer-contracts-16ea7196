@@ -14,6 +14,8 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
+import "forge-std/Test.sol";
+
 
 
 /**
@@ -25,7 +27,8 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is IEigenPodManager {
+contract EigenPodManager is IEigenPodManager 
+{
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
     
@@ -83,7 +86,6 @@ contract EigenPodManager is IEigenPodManager {
             //deploy a pod if the sender doesn't have one already
             pod = deployPod();
         }
-        //stake on the pod
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
 
@@ -155,7 +157,7 @@ contract EigenPodManager is IEigenPodManager {
                     // set the beacon address to the eigenPodBeacon and initialize it
                     abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender)
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), msg.sender))
                     )
                 )
             );
@@ -170,7 +172,7 @@ contract EigenPodManager is IEigenPodManager {
                     bytes32(uint256(uint160(podOwner))), //salt
                     keccak256(abi.encodePacked(
                         type(BeaconProxy).creationCode, 
-                        abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner)
+                        abi.encode(eigenPodBeacon, abi.encodeWithSelector(IEigenPod.initialize.selector, IEigenPodManager(address(this)), podOwner))
                     )) //bytecode
                 ));
     }
@@ -182,6 +184,14 @@ contract EigenPodManager is IEigenPodManager {
     function getPodInfo(address podOwner) external view returns (EigenPodInfo memory) {
         EigenPodInfo memory podInfo = pods[podOwner];
         return podInfo;
+    }
+
+    function getBalance(address podOwner) external view returns (uint128) {
+        return pods[podOwner].balance;
+    }
+
+    function getDepositedBalance(address podOwner) external view returns (uint128) {
+        return pods[podOwner].depositedBalance;
     }
 
     function getBeaconChainStateRoot() external view returns(bytes32){
