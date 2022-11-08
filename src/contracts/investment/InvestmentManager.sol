@@ -273,7 +273,7 @@ contract InvestmentManager is
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
         //mark withdrawal as pending
-        queuedWithdrawals[withdrawalRoot] = true;
+        withdrawalRootPending[withdrawalRoot] = true;
 
         // If the `msg.sender` has withdrawn all of their funds from EigenLayer in this transaction, then they can choose to also undelegate
         /**
@@ -310,7 +310,7 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal is pending
         require(
-            queuedWithdrawals[withdrawalRoot],
+            withdrawalRootPending[withdrawalRoot],
             "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
@@ -326,7 +326,7 @@ contract InvestmentManager is
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        queuedWithdrawals[withdrawalRoot] = false;
+        withdrawalRootPending[withdrawalRoot] = false;
 
         // store length for gas savings
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
@@ -432,12 +432,12 @@ contract InvestmentManager is
 
         // verify that the queued withdrawal is pending
         require(
-            queuedWithdrawals[withdrawalRoot],
+            withdrawalRootPending[withdrawalRoot],
             "InvestmentManager.slashQueuedWithdrawal: withdrawal is not pending"
         );
 
         // reset the storage slot in mapping of queued withdrawals
-        queuedWithdrawals[withdrawalRoot] = false;
+        withdrawalRootPending[withdrawalRoot] = false;
 
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {

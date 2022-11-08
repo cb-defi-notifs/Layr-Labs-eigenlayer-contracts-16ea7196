@@ -116,14 +116,18 @@ contract BLSRegistryWithBomb is BLSRegistry {
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
         registry[msg.sender].deregisterTime = uint32(block.timestamp);
 
-        //add ephemeral key to ephemeral key registry
+        // Add ephemeral key(s) to ephemeral key registry
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
 
-        //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
-
-        // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
+        // Record a stake update unbonding the operator at `latestTime`
         repository.serviceManager().recordLastStakeUpdate(msg.sender, latestTime);
+
+        /**
+         * Revoke the slashing ability of the service manager after `latestTime`.
+         * This is done after recording the last stake update since `latestTime` *could* be in the past, and `recordLastStakeUpdate` is permissioned so that
+         * only contracts who can actively slash the operator are allowed to call it.
+         */
+        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
     }
 
     /** 
@@ -139,20 +143,25 @@ contract BLSRegistryWithBomb is BLSRegistry {
             "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
 
         IServiceManager serviceManager = repository.serviceManager();
-        //make sure BLOCK_STALE_MEASURE blocks have passed since the block we are updating for
+        /**
+         * Ensure that *strictly more than* BLOCK_STALE_MEASURE blocks have passed since the block we are updating for.
+         * This is because the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. [block.number - BLOCK_STALE_MEASURE, block.number]
+         * (i.e. inclusive of the end of the interval), which means that the operator must serve tasks beginning in [block.number, block.number + BLOCK_STALE_MEASURE]
+         * (again, inclusive of the interval ends).
+         */
         uint32 latestServingBlockNumber = blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE();
         require(latestServingBlockNumber < uint32(block.number),
             "BLSRegistryWithBomb.propagateStakeUpdate: blockNumber must be BLOCK_STALE_MEASURE blocks ago");
         // @notice Registrant must continue to serve until the latest time at which an active task expires.
         uint32 serveUntil = serviceManager.latestTime();
-        //make sure operator revealed all epehemeral keys used when signing blocks that were being served by the specified stake
+        // make sure operator revealed all epehemeral keys used when signing blocks that were being served by the specified stake
         require(ephemeralKeyRegistry.getEphemeralKeyEntryAtBlock(operator, ephemeralKeyIndex, latestServingBlockNumber).revealBlock != 0,
             "BLSRegistryWithBomb.propagateStakeUpdate: ephemeral key was not revealed yet");
         //record the stake update in the slasher
         serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
-    function isActiveOperator(address operator) external view override returns (bool) {
+    function isActiveOperator(address operator) external view override(IRegistry, RegistryBase) returns (bool) {
         //the operator status must be active and they must still be serving or have started their deregistration
         //but still before their final ephemeral key reveal
         /// @dev Fetch operator's stored pubkeyHash

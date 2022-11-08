@@ -39,6 +39,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      * @param operator for signing on bomb-based queries
      * @param ephemeralKeyHash1 is the hash of the first ephemeral key to be used by `operator`
      * @param ephemeralKeyHash2 is the hash of the second ephemeral key to be used by `operator`
+     * @dev This function can only be called by the registry itself.
      */
     function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external onlyRegistry {
         // record the new ephemeral key entry
@@ -108,10 +109,12 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      * @notice Used by the operator to reveal an ephemeral key
      * @param index is the index of the ephemeral key to reveal
      * @param prevEphemeralKey is the previous ephemeral key
+     * @dev This function should only be called when the key is already inactive and during the key's reveal period. Otherwise, the operator
+     * can be slashed through a call to `verifyLeakedEphemeralKey`.
      */
     function revealEphemeralKey(uint256 index, bytes32 prevEphemeralKey) external {
         if(index != 0) {
-            require(ephemeralKeyEntries[msg.sender][index-1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
+            require(ephemeralKeyEntries[msg.sender][index - 1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
         }
         require(index + 1 < ephemeralKeyEntries[msg.sender].length, 
             "EphemeralKeyRegistry.revealEphemeralKey: cannot reveal all keys outside of revealLastEphemeralKeys");
@@ -119,9 +122,10 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     /**
-     * @notice Used by the operator to reveal their unrevealed ephemeral keys
+     * @notice Used by the operator to reveal their unrevealed ephemeral keys via BLSRegistry (on deregistration).
      * @param startIndex is the index of the ephemeral key to reveal
      * @param prevEphemeralKeys are the previous ephemeral keys
+     * @dev This function can only be called by the registry itself.
      */
     function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external onlyRegistry {
         if(startIndex != 0) {
@@ -143,7 +147,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     /**
-     * @notice Used by watchers to prove that an operator hasn't revealed an ephemeral key
+     * @notice Used by watchers to prove that an operator hasn't revealed an ephemeral key when they should have.
      * @param operator is the entity with the stale unrevealed ephemeral key
      * @param index is the index of the stale entry
      */
@@ -168,7 +172,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     }
 
     /**
-     * @notice Used by watchers to prove that an operator has shared their ephemeral key with other entities
+     * @notice Used by watchers to prove that an operator has inappropriately shared their ephemeral key with other entities.
      * @param operator is the entity that shared their ephemeral key
      * @param index is the index of the ephemeral key they shared
      * @param ephemeralKey is the preimage of the stored ephemeral key hash

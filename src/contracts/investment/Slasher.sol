@@ -69,9 +69,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         _disableInitializers();
     }
 
-    modifier onlyCanSlash(address operator, address middleware) {
-        //make sure the middleware is allowed to slash the operator
-        require(canSlash(operator, middleware), "Slasher.onlyCanSlash: only slashing contracts");
+    /// @notice Ensures that the caller is allowed to slash the operator.
+    modifier onlyCanSlash(address operator) {
+        require(canSlash(operator, msg.sender), "Slasher.onlyCanSlash: only slashing contracts");
         _;
     }
 
@@ -151,8 +151,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
+<<<<<<< HEAD
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
         
+=======
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+>>>>>>> a79e18cbc4431e4aa154e65eb9ab50ec31fb2ebc
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
@@ -174,12 +178,14 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      */
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
         external 
-        onlyCanSlash(operator, msg.sender) 
+        onlyCanSlash(operator) 
     {
-        //update latest update
+        // sanity check on input
+        require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
+        // update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
-        //move the middleware to its correct update position via prev and updateBlock
-        //if the the middleware is the only one, then no need to mutate the list
+        // move the middleware to its correct update position via prev and updateBlock
+        // if the the middleware is the only one, then no need to mutate the list
         if(operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
             //remove the middlware from the list
             require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
@@ -198,7 +204,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
                     ] <= updateBlock,
                     "Slasher.recordStakeUpdate: insertAfter's latest updateBlock is later than the middleware currently updating"
                 );
-                //get insertAfter's successor, hasNext will be false if insertAfter is the last node in the list
+                // get insertAfter's successor, hasNext will be false if insertAfter is the last node in the list
                 (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
                 if(hasNext) {
                     // make sure the element after insertAfter's most recent updateBlock was strictly after updateBlock
@@ -234,7 +240,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev removes the middleware's slashing contract to the operator's linked list
      */
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
@@ -351,8 +357,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev this function is only called during externally called stake updates by middleware contracts that can slash operator
      */
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
-        // reject any stale update, i.e. one from a block at or before that of the most recent recorded update for the currently updating middleware
-        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] < updateBlock, 
+        // reject any stale update, i.e. one from before that of the most recent recorded update for the currently updating middleware
+        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] <= updateBlock, 
                 "Slasher._recordUpdateAndAddToMiddlewareTimes: can't push a previous update");
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
