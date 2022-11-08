@@ -152,7 +152,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
         serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
-    function isActiveOperator(address operator) external view override returns (bool) {
+    function isActiveOperator(address operator) external view override(IRegistry, RegistryBase) returns (bool) {
         //the operator status must be active and they must still be serving or have started their deregistration
         //but still before their final ephemeral key reveal
         /// @dev Fetch operator's stored pubkeyHash
