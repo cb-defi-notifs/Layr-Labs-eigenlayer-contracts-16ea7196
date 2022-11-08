@@ -32,6 +32,11 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
 
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
+    /**
+     * @notice The maximum amount of blocks in the past that the service will consider stake amounts to still be 'valid'.
+     * @dev To clarify edge cases, the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. it may trust stakes from the interval
+     * [block.number - BLOCK_STALE_MEASURE, block.number] (specifically, *inclusive* of the block that is `BLOCK_STALE_MEASURE` before the current one)
+     */
     uint32 public constant BLOCK_STALE_MEASURE = 150;
     uint256 public constant BIP_MULTIPLIER = 10000;
 

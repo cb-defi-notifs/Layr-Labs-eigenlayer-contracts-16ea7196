@@ -143,13 +143,18 @@ contract BLSRegistryWithBomb is BLSRegistry {
             "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
 
         IServiceManager serviceManager = repository.serviceManager();
-        //make sure BLOCK_STALE_MEASURE blocks have passed since the block we are updating for
+        /**
+         * Ensure that *strictly more than* BLOCK_STALE_MEASURE blocks have passed since the block we are updating for.
+         * This is because the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. [block.number - BLOCK_STALE_MEASURE, block.number]
+         * (i.e. inclusive of the end of the interval), which means that the operator must serve tasks beginning in [block.number, block.number + BLOCK_STALE_MEASURE]
+         * (again, inclusive of the interval ends).
+         */
         uint32 latestServingBlockNumber = blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE();
         require(latestServingBlockNumber < uint32(block.number),
             "BLSRegistryWithBomb.propagateStakeUpdate: blockNumber must be BLOCK_STALE_MEASURE blocks ago");
         // @notice Registrant must continue to serve until the latest time at which an active task expires.
         uint32 serveUntil = serviceManager.latestTime();
-        //make sure operator revealed all epehemeral keys used when signing blocks that were being served by the specified stake
+        // make sure operator revealed all epehemeral keys used when signing blocks that were being served by the specified stake
         require(ephemeralKeyRegistry.getEphemeralKeyEntryAtBlock(operator, ephemeralKeyIndex, latestServingBlockNumber).revealBlock != 0,
             "BLSRegistryWithBomb.propagateStakeUpdate: ephemeral key was not revealed yet");
         //record the stake update in the slasher
