@@ -69,9 +69,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _disableInitializers();
     }
 
-    modifier onlyCanSlash(address operator, address middleware) {
-        //make sure the middleware is allowed to slash the operator
-        require(canSlash(operator, middleware), "Slasher.onlyCanSlash: only slashing contracts");
+    /// @notice Ensures that the caller is allowed to slash the operator.
+    modifier onlyCanSlash(address operator) {
+        require(canSlash(operator, msg.sender), "Slasher.onlyCanSlash: only slashing contracts");
         _;
     }
 
@@ -151,7 +151,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
-    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //push the middleware to the end of the update list  
@@ -171,7 +171,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      */
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
         external 
-        onlyCanSlash(operator, msg.sender) 
+        onlyCanSlash(operator) 
     {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
@@ -231,7 +231,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev removes the middleware's slashing contract to the operator's linked list
      */
-    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
