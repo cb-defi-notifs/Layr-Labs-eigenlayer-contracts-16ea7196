@@ -84,6 +84,9 @@ contract BLSRegistryWithBomb is BLSRegistry {
         // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
+        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
+
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
 
@@ -180,12 +183,6 @@ contract BLSRegistryWithBomb is BLSRegistry {
     function registerOperator(uint8, bytes calldata, string calldata) external pure override {
         revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
-
-    // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
-    function deregisterOperator(uint256[4] memory, uint32) external pure override returns (bool) {
-        revert("BLSRegistryWithBomb.deregisterOperator: must deregister with ephemeral key");
-    }
-
 
     /**
      * @notice this function makes sure the operator hash started their deregistration and that they have passed their delayed 
