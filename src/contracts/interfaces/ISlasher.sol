@@ -37,6 +37,4 @@ interface ISlasher {
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external returns(uint32);
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external returns(uint32);
 
-
-
 }

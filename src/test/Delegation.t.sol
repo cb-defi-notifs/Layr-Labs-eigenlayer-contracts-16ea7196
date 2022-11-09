@@ -293,7 +293,7 @@ contract DelegationTests is DataLayrTestHelper {
             // THIS is NOT a good test but patches things up for the time being to work.
             generalReg.registerOperator(operator, 10);
 
-
+            uint256 middlewareTimeIndex = 0;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
                     depositor,
@@ -303,7 +303,7 @@ contract DelegationTests is DataLayrTestHelper {
                     delegatedTo,
                     dataForTestWithdrawal.withdrawerAndNonce,
                     queuedWithdrawalBlock,
-                    0
+                    middlewareTimeIndex
                 );
             } else {
                 _testCompleteQueuedWithdrawalShares(
@@ -314,7 +314,7 @@ contract DelegationTests is DataLayrTestHelper {
                     delegatedTo,
                     dataForTestWithdrawal.withdrawerAndNonce,
                     queuedWithdrawalBlock,
-                    0
+                    middlewareTimeIndex
                 );
             }
         }
@@ -496,9 +496,6 @@ contract DelegationTests is DataLayrTestHelper {
     {
         cheats.startPrank(depositor);
 
-
-
-
         bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
             strategyIndexes,
             strategyArray,
@@ -583,7 +580,6 @@ contract DelegationTests is DataLayrTestHelper {
         }
 
         
-
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
             tokens: tokensArray,

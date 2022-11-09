@@ -358,22 +358,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
         withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
-        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
-        if (queuedWithdrawal.delegatedAddress != address(0)) {
-            assertTrue(
-                false, //!investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
-            );
-        }
-        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
-        else if (queuedWithdrawal.delegatedAddress == address(0)) {
-            assertTrue(
-                false, //investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
-            );
-        } else {
-            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
-        }
         cheats.stopPrank();
         return (withdrawalRoot, queuedWithdrawal);
     }

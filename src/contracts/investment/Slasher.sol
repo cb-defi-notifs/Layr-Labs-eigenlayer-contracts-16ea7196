@@ -54,7 +54,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      *      )
      *  ]
      */
-    mapping(address => MiddlewareTimes[]) operatorToMiddlewareTimes;
+    mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
 
     event GloballyPermissionedContractAdded(address indexed contractAdded);
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
@@ -151,12 +151,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
-<<<<<<< HEAD
-    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator, msg.sender) {
-        
-=======
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
->>>>>>> a79e18cbc4431e4aa154e65eb9ab50ec31fb2ebc
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
