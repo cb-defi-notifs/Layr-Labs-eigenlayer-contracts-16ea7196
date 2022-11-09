@@ -157,8 +157,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         // update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
-
-        // push the middleware to the end of the update list  
+        // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
     }
@@ -243,7 +242,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         }
     }
 
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
@@ -332,13 +331,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
             pushToMiddlewareTimes = true;
         } 
         
-        //If this is the first middleware, we add an entry to operatorToMiddlewareTimes
-        if (operatorToWhitelistedContractsByUpdate[operator].size == 0){
+        // If this is the very first middleware added to the operator's list of middlewware, then we add an entry to operatorToMiddlewareTimes
+        if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
             pushToMiddlewareTimes = true;
             next.leastRecentUpdateBlock = updateBlock;
         }
-        // if the middleware is the first in the list, we will update the `leastRecentUpdateBlock` field in MiddlwareTimes
-        if(operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
+        // If the middleware is the first in the list, we will update the `leastRecentUpdateBlock` field in MiddlwareTimes
+        else if (operatorToWhitelistedContractsByUpdate[operator].getHead() == addressToUint(msg.sender)) {
             // if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
             (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(addressToUint(msg.sender));
 
@@ -454,7 +453,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice A search routine for finding the correct input value of `insertAfter` to `_updateMiddlewareList`.
      * @dev Used only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
      */
-    function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal returns (uint256) {
+    function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal view returns (uint256) {
         uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
         // special case in which the correct node is actually the HEAD of the list
         if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
@@ -496,11 +495,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         return address(uint160(x));
     }
 
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external returns(uint32){
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
         return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
     }
 
-    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external returns(uint32) {
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
         return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
     
