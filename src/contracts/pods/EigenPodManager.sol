@@ -67,6 +67,7 @@ contract EigenPodManager is Initializable, IEigenPodManager
 
     function initialize(IBeaconChainOracle _beaconChainOracle) public initializer {
         beaconChainOracle = _beaconChainOracle;
+        emit BeaconOracleUpdate(address(_beaconChainOracle));
     }
 
     /**
