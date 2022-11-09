@@ -224,14 +224,14 @@ contract DelegationTests is DataLayrTestHelper {
             cheats.assume(eigenAmount <= 1e18); 
             cheats.assume(ethAmount > 0); 
             cheats.assume(eigenAmount > 0); 
-            testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+            _testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
 
         }
 
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function testWithdrawal(
+    function _testWithdrawal(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -239,7 +239,7 @@ contract DelegationTests is DataLayrTestHelper {
             uint256 eigenAmount,
             bool withdrawAsTokens
         ) 
-            public 
+            internal 
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
