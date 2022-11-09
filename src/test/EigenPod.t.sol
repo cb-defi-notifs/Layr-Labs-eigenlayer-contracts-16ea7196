@@ -1,12 +1,63 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./TestHelper.t.sol";
 import "../contracts/interfaces/IEigenPod.sol";
 import "./utils/BeaconChainUtils.sol";
 
+import "./mocks/LiquidStakingToken.sol";
+import "./mocks/EmptyContract.sol";
 
-contract EigenPodTests is TestHelper, BeaconChainProofUtils {
+import "../contracts/interfaces/IEigenLayrDelegation.sol";
+
+import "../contracts/core/EigenLayrDelegation.sol";
+import "../contracts/interfaces/IETHPOSDeposit.sol";
+import "../contracts/interfaces/IBeaconChainOracle.sol";
+
+import "../contracts/investment/InvestmentManager.sol";
+import "../contracts/investment/InvestmentStrategyBase.sol";
+import "../contracts/investment/Slasher.sol";
+
+import "../contracts/pods/EigenPod.sol";
+import "../contracts/pods/EigenPodManager.sol";
+
+
+
+
+import "../contracts/middleware/Repository.sol";
+import "../contracts/permissions/PauserRegistry.sol";
+import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
+import "../contracts/middleware/BLSRegistryWithBomb.sol";
+import "../contracts/middleware/BLSPublicKeyCompendium.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
+import "../contracts/middleware/EphemeralKeyRegistry.sol";
+import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
+import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
+
+import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+
+
+
+import "../contracts/libraries/BLS.sol";
+import "../contracts/libraries/BytesLib.sol";
+import "../contracts/libraries/DataStoreUtils.sol";
+
+import "./utils/Signers.sol";
+import "./utils/SignatureUtils.sol";
+
+import "./mocks/BeaconChainOracleMock.sol";
+import "./mocks/ETHDepositMock.sol";
+
+
+import "forge-std/Test.sol";
+
+
+
+contract EigenPodTests is BeaconChainProofUtils, DSTest {
     using BytesLib for bytes;
 
     bytes pubkey = hex"88347ed1c492eedc97fc8c506a35d44d81f27a0c7a1c661b35913cfd15256c0cccbd34a83341f505c7de2983292f2cab";
@@ -19,6 +70,104 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
 
     address podOwner = address(42000094993494);
 
+
+    Vm cheats = Vm(HEVM_ADDRESS);
+    IERC20 public eigenToken;
+    InvestmentStrategyBase public eigenStrat;
+    EigenLayrDelegation public delegation;
+    InvestmentManager public investmentManager;
+    EphemeralKeyRegistry public ephemeralKeyRegistry;
+    Slasher public slasher;
+    PauserRegistry public pauserReg;
+    BLSPublicKeyCompendium public pubkeyCompendium;
+    BLSRegistryWithBomb public dlReg;
+    DataLayrServiceManager public dlsm;
+    DataLayrLowDegreeChallenge public dlldc;
+    IERC20 public weth;
+    WETH public liquidStakingMockToken;
+
+    InvestmentStrategyBase public wethStrat;
+    IRepository public dlRepository;
+    ProxyAdmin public eigenLayrProxyAdmin;
+
+    InvestmentStrategyBase public baseStrategyImplementation;
+    IBLSPublicKeyCompendium public blsPkCompendium;
+    IEigenPodManager public eigenPodManager;
+    IEigenPod public pod;
+    IETHPOSDeposit public ethPOSDeposit;
+    IBeacon public eigenPodBeacon;
+    IBeaconChainOracle public beaconChainOracle;
+
+    address[] public slashingContracts;
+    address pauser = address(69);
+    address unpauser = address(489);
+
+
+    //performs basic deployment before each test
+    function setUp() public {
+        // deploy proxy admin for ability to upgrade proxy contracts
+        eigenLayrProxyAdmin = new ProxyAdmin();
+
+        //deploy pauser registry
+        pauserReg = new PauserRegistry(pauser, unpauser);
+        blsPkCompendium = new BLSPublicKeyCompendium();
+
+
+        /**
+         * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
+         * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
+         */
+        EmptyContract emptyContract = new EmptyContract();
+        delegation = EigenLayrDelegation(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        investmentManager = InvestmentManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        slasher = Slasher(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+
+        beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+
+        ethPOSDeposit = new ETHPOSDepositMock();
+        pod = new EigenPod(ethPOSDeposit);
+
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
+        eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
+
+        // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+
+
+        address initialOwner = address(this);
+        // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(delegation))),
+            address(delegationImplementation),
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(investmentManager))),
+            address(investmentManagerImplementation),
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(slasher))),
+            address(slasherImplementation),
+            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+        );
+
+
+        slashingContracts.push(address(eigenPodManager));
+        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        
+    }
+
+    
     function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
         beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
 
