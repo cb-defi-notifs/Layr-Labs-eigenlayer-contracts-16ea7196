@@ -341,6 +341,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint32 latestTime = repository.serviceManager().latestTime();
         registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
+        emit log("status set to Active");
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
         registry[operator].deregisterTime = uint32(block.timestamp);
 
@@ -432,6 +433,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // slither-disable-next-line costly-loop
         operatorList.pop();
+        emit log_named_uint("operatorList", operatorList.length);
+
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
 
@@ -465,6 +468,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // record the operator being registered and update the counter for operator ID
         operatorList.push(operator);
+        emit log_named_uint("operatorList", operatorList.length);
         unchecked {
             ++nextOperatorId;
         }

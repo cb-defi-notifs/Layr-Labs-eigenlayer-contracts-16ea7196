@@ -84,6 +84,9 @@ contract BLSRegistryWithBomb is BLSRegistry {
         // remove the operator at `index` from the `operatorList`
         address swappedOperator = _popRegistrant(index);
 
+        registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
+        registry[msg.sender].deregisterTime = uint32(block.timestamp);
+
         // Emit `Deregistration` event
         emit Deregistration(msg.sender, swappedOperator);
 
