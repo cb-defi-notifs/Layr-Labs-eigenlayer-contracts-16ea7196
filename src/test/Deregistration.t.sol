@@ -32,10 +32,9 @@ contract DeregistrationTests is DataLayrTestHelper {
 
         bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);    
 
-        emit log("yoooooo");                      
 
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1), testEphemeralKey);
-        emit log("yoooooo");                      
+
 
         (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
         require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
@@ -87,7 +86,7 @@ contract DeregistrationTests is DataLayrTestHelper {
 
         uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
-        cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
+        //cheats.expectRevert(bytes("EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"));
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, badEphemeralKey);
     }
     /**

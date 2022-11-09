@@ -341,7 +341,6 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         uint32 latestTime = repository.serviceManager().latestTime();
         registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
-        emit log("status set to Active");
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
         registry[operator].deregisterTime = uint32(block.timestamp);
 
