@@ -1,60 +1,58 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../contracts/interfaces/IEigenPod.sol";
-import "./utils/BeaconChainUtils.sol";
+ import "../contracts/interfaces/IEigenPod.sol";
+ import "./utils/BeaconChainUtils.sol";
 
-import "./mocks/LiquidStakingToken.sol";
-import "./mocks/EmptyContract.sol";
+// import "./mocks/LiquidStakingToken.sol";
+// import "./mocks/EmptyContract.sol";
 
-import "../contracts/interfaces/IEigenLayrDelegation.sol";
+// import "../contracts/interfaces/IEigenLayrDelegation.sol";
 
-import "../contracts/core/EigenLayrDelegation.sol";
-import "../contracts/interfaces/IETHPOSDeposit.sol";
-import "../contracts/interfaces/IBeaconChainOracle.sol";
+// import "../contracts/core/EigenLayrDelegation.sol";
+// import "../contracts/interfaces/IETHPOSDeposit.sol";
+// import "../contracts/interfaces/IBeaconChainOracle.sol";
 
-import "../contracts/investment/InvestmentManager.sol";
-import "../contracts/investment/InvestmentStrategyBase.sol";
-import "../contracts/investment/Slasher.sol";
+// import "../contracts/investment/InvestmentManager.sol";
+// import "../contracts/investment/InvestmentStrategyBase.sol";
+// import "../contracts/investment/Slasher.sol";
 
-import "../contracts/pods/EigenPod.sol";
-import "../contracts/pods/EigenPodManager.sol";
-
-
-
-
-import "../contracts/middleware/Repository.sol";
-import "../contracts/permissions/PauserRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/middleware/BLSRegistryWithBomb.sol";
-import "../contracts/middleware/BLSPublicKeyCompendium.sol";
-import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/middleware/EphemeralKeyRegistry.sol";
-import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
-import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-
-import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
-import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+// import "../contracts/pods/EigenPod.sol";
+// import "../contracts/pods/EigenPodManager.sol";
 
 
 
-import "../contracts/libraries/BLS.sol";
-import "../contracts/libraries/BytesLib.sol";
-import "../contracts/libraries/DataStoreUtils.sol";
 
-import "./utils/Signers.sol";
-import "./utils/SignatureUtils.sol";
+// import "../contracts/middleware/Repository.sol";
+// import "../contracts/permissions/PauserRegistry.sol";
+// import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
+// import "../contracts/middleware/BLSRegistryWithBomb.sol";
+// import "../contracts/middleware/BLSPublicKeyCompendium.sol";
+// import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
+// import "../contracts/middleware/EphemeralKeyRegistry.sol";
+// import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
+// import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
-import "./mocks/BeaconChainOracleMock.sol";
-import "./mocks/ETHDepositMock.sol";
+// import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+// import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+// import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+// import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+// import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+// import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 
-import "forge-std/Test.sol";
 
+// import "../contracts/libraries/BLS.sol";
+// import "../contracts/libraries/BytesLib.sol";
+// import "../contracts/libraries/DataStoreUtils.sol";
+
+// import "./utils/Signers.sol";
+// import "./utils/SignatureUtils.sol";
+
+// import "./mocks/BeaconChainOracleMock.sol";
+// import "./mocks/ETHDepositMock.sol";
+
+import "./Deployer.t.sol";
 
 
 contract EigenPodTests is BeaconChainProofUtils, DSTest {
@@ -72,25 +70,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
 
     Vm cheats = Vm(HEVM_ADDRESS);
-    IERC20 public eigenToken;
-    InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EphemeralKeyRegistry public ephemeralKeyRegistry;
     Slasher public slasher;
     PauserRegistry public pauserReg;
-    BLSPublicKeyCompendium public pubkeyCompendium;
-    BLSRegistryWithBomb public dlReg;
-    DataLayrServiceManager public dlsm;
-    DataLayrLowDegreeChallenge public dlldc;
-    IERC20 public weth;
-    WETH public liquidStakingMockToken;
 
-    InvestmentStrategyBase public wethStrat;
-    IRepository public dlRepository;
     ProxyAdmin public eigenLayrProxyAdmin;
-
-    InvestmentStrategyBase public baseStrategyImplementation;
     IBLSPublicKeyCompendium public blsPkCompendium;
     IEigenPodManager public eigenPodManager;
     IEigenPod public pod;
