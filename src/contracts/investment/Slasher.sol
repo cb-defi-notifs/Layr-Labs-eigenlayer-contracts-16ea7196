@@ -177,118 +177,22 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         external 
         onlyCanSlash(operator) 
     {
-        emit log("hew 1");
         // sanity check on input
         require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
         // update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
+
         /**
          * Move the middleware to its correct update position, determined by `updateBlock` and indicated via `insertAfter`.
          * If the the middleware is the only one in the list, then no need to mutate the list
          */
         if (operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
-            // remove the caller (middleware) from the list
+            // Remove the caller (middleware) from the list. This will fail if the caller is *not* already in the list.
             require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
                 "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
-
-            // If this condition is met, then the `updateBlock` input is after `insertAfter`'s latest updateBlock
-            if (insertAfter != HEAD) {
-                // Check that `insertAfter` exists. If not, use the fallback routine to find the correct value for `insertAfter`.
-                if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
-                    // we start the search at the HEAD of the linked list in this case
-                    insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
-                    // special logic for breaking out of the 'if' code block in the event that HEAD is the correct value for `insertAfter`
-                    if (insertAfter == HEAD) {
-                        break;
-                    }
-                }
-
-                /**
-                 * Make sure `insertAfter` specifies a node for which the most recent updateBlock was *at or before* updateBlock.
-                 * Again, if not, use the fallback routine to find the correct value for `insertAfter`.
-                 */
-                if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(insertAfter)] > updateBlock) {
-                    insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
-                    // special logic for breaking out of the 'if' code block in the event that HEAD is the correct value for `insertAfter`
-                    if (insertAfter == HEAD) {
-                        break;
-                    }
-                }
-
-                // Get `insertAfter`'s successor. `hasNext` will be false if `insertAfter` is the last node in the list
-                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
-                if (hasNext) {
-                    // make sure the element after `insertAfter`'s most recent updateBlock was *strictly after* `updateBlock`
-                    require(
-                        operatorToWhitelistedContractsToLatestUpdateBlock[operator][
-                            uintToAddress(nextNode)
-                        ] > updateBlock,
-                        "Slasher.recordStakeUpdate: element after insertAfter's latest updateBlock is earlier or equal to middleware currently updating"
-                    );
-                }
-                /** 
-                 * Insert the caller (middleware) after `insertAfter`.
-                 * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
-                 */
-                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, addressToUint(msg.sender)),
-                    "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
-
-            }
-
-            /**
-             * This is effectively the 'else' path of the above 'if' block, but needs to be reachable in case the fallback routine returns HEAD
-             * as the correct `insertAfter` value.
-             * In this case (insertAfter == HEAD), the `updateBlock` input must be before every other middleware's latest updateBlock.
-            /**
-             * Check that `updateBlock` is before any other middleware's latest updateBlock.
-             * If not, use the fallback routine to find the correct value for `insertAfter`.
-             */
-            require(
-                operatorToWhitelistedContractsToLatestUpdateBlock[operator][
-                    uintToAddress(operatorToWhitelistedContractsByUpdate[operator].getHead())
-                ] > updateBlock,
-                "Slasher.recordStakeUpdate: HEAD has an earlier or same updateBlock than middleware currently updating"
-            );
-            /**
-             * Insert the middleware at the start (i.e. HEAD) of the list.
-             * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
-             */
-            require(operatorToWhitelistedContractsByUpdate[operator].pushFront(addressToUint(msg.sender)), 
-                "Slasher.recordStakeUpdate: Preppending middleware unsuccessful");
+            // Run routine for updating the `operator`'s linked list of middlewares
+            _updateMiddlewareList(operator, updateBlock, insertAfter);
         }
-    }
-
-    function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal returns (uint256) {
-        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
-        // special case in which the correct node is actually the HEAD of the list
-        if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
-            return HEAD;
-        }
-        /**
-         * `node` being zero indicates an empty/non-existent node, i.e. reaching the end of the linked list.
-         * Since the linked list is ordered in ascending order of update blocks, we simply start from the HEAD and step through until
-         * we find a `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] >= updateBlock`
-         */
-        while ((node != 0) && (updateBlock < operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)])) {
-            (, node) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-        }
-        // We must also select the *latest* node with the exact given updateBlock, since there may be multiple.
-        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-        while ((node != 0)
-            &&
-                (
-                    operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)]
-                    == operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)]
-                )
-            )
-        {
-            node = nextNode;
-            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-
-        }
-        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock,
-            "Slasher._getCorrectValueForInsertAfter: error in fallback routine. Incorrect node returned");
-        return node;
     }
 
     /**
@@ -466,6 +370,122 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         emit log_named_uint("updateBlock", updateBlock);
         emit log("____________________________________________");
 
+    }
+
+    /// @notice A routine for updating the `operator`'s linked list of middlewares, inside `recordStakeUpdate`.
+    function _updateMiddlewareList(address operator, uint32 updateBlock, uint256 insertAfter) internal {
+        /**
+         * boolean used to track if the `insertAfter input to this function is incorrect. If it is, then `runFallbackRoutine` will
+         * be flipped to 'true', and we will use `_getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
+         * a race condition where the proper value of `insertAfter` changes while a transaction is pending.
+         */
+        bool runFallbackRoutine = false;
+        // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
+        if (insertAfter != HEAD) {
+            // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
+            if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
+                runFallbackRoutine = true;
+            }
+
+            /**
+             * Make sure `insertAfter` specifies a node for which the most recent updateBlock was *at or before* updateBlock.
+             * Again, if not,  we will use the fallback routine to find the correct value for `insertAfter`.
+             */
+            if ((!runFallbackRoutine) && (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(insertAfter)] > updateBlock)) {
+                runFallbackRoutine = true;
+            }
+
+            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct so far
+            if (!runFallbackRoutine) {
+                // Get `insertAfter`'s successor. `hasNext` will be false if `insertAfter` is the last node in the list
+                (bool hasNext, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(insertAfter);
+                if (hasNext) {
+                    /**
+                     * Make sure the element after `insertAfter`'s most recent updateBlock was *strictly after* `updateBlock`.
+                     * Again, if not,  we will use the fallback routine to find the correct value for `insertAfter`.
+                     */
+                    if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)] <= updateBlock) {
+                        runFallbackRoutine = true;
+                    }
+                }
+            }
+
+            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct on all counts
+            if (!runFallbackRoutine) {
+                /** 
+                 * Insert the caller (middleware) after `insertAfter`.
+                 * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
+                 */
+                require(operatorToWhitelistedContractsByUpdate[operator].insertAfter(insertAfter, addressToUint(msg.sender)),
+                    "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
+            // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
+            } else {
+                insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
+                _updateMiddlewareList(operator, updateBlock, insertAfter);
+            }
+        // In this case (insertAfter == HEAD), the `updateBlock` input should be before every other middleware's latest updateBlock.
+        } else {
+            /**
+             * Check that `updateBlock` is before any other middleware's latest updateBlock.
+             * If not, use the fallback routine to find the correct value for `insertAfter`.
+             */
+            if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][
+                uintToAddress(operatorToWhitelistedContractsByUpdate[operator].getHead()) ] <= updateBlock)
+            {
+                runFallbackRoutine = true;
+            }
+        }
+            // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct on all counts
+            if (!runFallbackRoutine) {
+                /**
+                 * Insert the middleware at the start (i.e. HEAD) of the list.
+                 * This will fail if `msg.sender` is already in the list, which they shouldn't be because they were removed from the list above.
+                 */
+                require(operatorToWhitelistedContractsByUpdate[operator].pushFront(addressToUint(msg.sender)), 
+                    "Slasher.recordStakeUpdate: Preppending middleware unsuccessful");
+            // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
+            } else {
+                insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
+                _updateMiddlewareList(operator, updateBlock, insertAfter);
+            }
+    }
+
+    /**
+     * @notice A search routine for finding the correct input value of `insertAfter` to `_updateMiddlewareList`.
+     * @dev Used only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
+     */
+    function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal returns (uint256) {
+        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
+        // special case in which the correct node is actually the HEAD of the list
+        if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
+            return HEAD;
+        }
+        /**
+         * `node` being zero indicates an empty/non-existent node, i.e. reaching the end of the linked list.
+         * Since the linked list is ordered in ascending order of update blocks, we simply start from the HEAD and step through until
+         * we find a `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] >= updateBlock`
+         */
+        while ((node != 0) && (updateBlock < operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)])) {
+            (, node) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+        }
+        // We must also select the *latest* node with the exact given updateBlock, since there may be multiple.
+        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+        while (
+                (node != 0)
+                &&
+                (
+                    operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)]
+                    == operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)]
+                )
+            )
+        {
+            node = nextNode;
+            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+
+        }
+        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock,
+            "Slasher._getCorrectValueForInsertAfter: error in fallback routine. Incorrect node returned");
+        return node;
     }
 
     function addressToUint(address addr) internal pure returns(uint256) {
