@@ -25,14 +25,17 @@ contract DeregistrationTests is DataLayrTestHelper {
         prevAPK[3] = dlReg.apk(3);
         bytes32 prevAPKHash = BLS.hashPubkey(prevAPK);
 
-        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
+        _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
 
         uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
 
-        bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);                          
+        bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);    
+
+        emit log("yoooooo");                      
 
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1), testEphemeralKey);
+        emit log("yoooooo");                      
 
         (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
         require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
@@ -59,7 +62,7 @@ contract DeregistrationTests is DataLayrTestHelper {
         cheats.assume(BLS.hashPubkey(pubkeyToRemoveAff) != BLS.hashPubkey(getG2PKOfRegistrationData(operatorIndex)));
 
     
-        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
+        _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
         cheats.expectRevert(bytes("BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"));
         _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, operatorListIndex, testEphemeralKey);
@@ -80,7 +83,7 @@ contract DeregistrationTests is DataLayrTestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
         cheats.assume(badEphemeralKey != testEphemeralKey);
 
-        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
+        _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
         uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
         uint8 operatorListIndex = uint8(dlReg.numOperators()-1);
@@ -97,7 +100,7 @@ contract DeregistrationTests is DataLayrTestHelper {
         uint256 eigenAmount
     ) public fuzzedOperatorIndex(operatorIndex) {
 
-        BLSRegistration(operatorIndex, ethAmount, eigenAmount);
+        _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
         uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);      
 
@@ -111,7 +114,7 @@ contract DeregistrationTests is DataLayrTestHelper {
 
 
     /// @notice Helper function that performs registration 
-    function BLSRegistration(
+    function _BLSRegistration(
         uint8 operatorIndex,
         uint256 ethAmount, 
         uint256 eigenAmount

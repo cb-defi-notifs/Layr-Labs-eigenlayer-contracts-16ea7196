@@ -152,6 +152,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+                emit log("hew 2");
+
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
@@ -175,6 +177,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         external 
         onlyCanSlash(operator) 
     {
+        emit log("hew 1");
         // sanity check on input
         require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
         // update latest update
@@ -236,6 +239,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev removes the middleware's slashing contract to the operator's linked list
      */
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+                emit log("hew 3");
+
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
@@ -285,13 +290,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         //the stake is no longer slashable
         MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
 
-        emit log_named_uint("update length", operatorToMiddlewareTimes[operator].length );
-
-        emit log_named_uint("update.leastRecentUpdateBlock >", update.leastRecentUpdateBlock );
-        emit log_named_uint("withdrawalStartBlock ",withdrawalStartBlock );
-        emit log("*******************************************************");
-         emit log_named_uint("uint32(block.timestamp) > ", uint32(block.timestamp) );
-         emit log_named_uint("update.latestServeUntil) ", update.latestServeUntil );
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&

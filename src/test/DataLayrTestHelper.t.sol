@@ -35,7 +35,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        // dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
         cheats.stopPrank();
     }
     //initiates a data store
