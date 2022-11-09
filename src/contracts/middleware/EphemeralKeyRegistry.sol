@@ -73,7 +73,11 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         // verify that the specified key -- indicated by the `activeKeyIndex` input -- is active
         require(
             ephemeralKeyEntries[msg.sender][activeKeyIndex].startBlock < uint32(block.number)
-            && ephemeralKeyEntries[msg.sender][activeKeyIndex].startBlock != 0,
+            && 
+                (
+                    activeKeyIndex == ephemeralKeyEntries[msg.sender].length - 1 ||
+                    ephemeralKeyEntries[msg.sender][activeKeyIndex+1].startBlock >= uint32(block.number)
+                ),
             "EphemeralKeyRegistry.commitNewEphemeralKeyHashesAndInvalidateActiveKey: activeKeyIndex does not specify active ephemeral key"
         );
 
