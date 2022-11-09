@@ -205,7 +205,7 @@ contract DelegationTests is DataLayrTestHelper {
         );
     }
 
-//THis function helps with stack too deep issues with "testWithdrawal" test
+    //This function helps with stack too deep issues with "testWithdrawal" test
     function testWithdrawalWrapper(
             address operator, 
             address depositor,
@@ -243,6 +243,7 @@ contract DelegationTests is DataLayrTestHelper {
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
+        generalReg.registerOperator(operator, 3 days);
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues
@@ -276,6 +277,9 @@ contract DelegationTests is DataLayrTestHelper {
             tokensArray[1] = eigenToken;
         }
 
+        cheats.warp(1 days);
+        cheats.roll(1 days);
+
         bytes32 withdrawalRoot = _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
@@ -284,16 +288,19 @@ contract DelegationTests is DataLayrTestHelper {
             strategyIndexes,
             dataForTestWithdrawal.withdrawerAndNonce
         );
+        uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+        //now withdrawal block time is before deregistration
+        cheats.warp(2 days);
+        cheats.roll(2 days);
+        
+        generalReg.deregisterOperator(operator);
         {
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            cheats.warp(4 days);
+            cheats.roll(4 days);
             
-            uint32 queuedWithdrawalBlock = uint32(block.number);
-            cheats.warp(1 days);
-            cheats.roll(1 days);
-            //TODO: CURRENTLY this function queues withdrawal and then registers the operator to get leastRecentUpdateBlock > block at which qithdrawal was queued
-            // THIS is NOT a good test but patches things up for the time being to work.
-            generalReg.registerOperator(operator, 10);
-
-            uint256 middlewareTimeIndex = 0;
+            uint256 middlewareTimeIndex =  1;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
                     depositor,
