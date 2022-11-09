@@ -314,10 +314,12 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
+
         require(
             slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
+
 
         // TODO: add testing coverage for this
         require(

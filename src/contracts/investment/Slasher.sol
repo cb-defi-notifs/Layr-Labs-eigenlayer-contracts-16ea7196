@@ -277,6 +277,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     }
 
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool) {
+
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
@@ -286,7 +287,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         //all middlewares were updated after the withdrawal and
         //the stake is no longer slashable
         MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
-
+        
         // emit log("withdrawalStartBlock < update.leastRecentUpdateBlock");
         // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
         // emit log_named_uint("update.leastRecentUpdateBlock ", update.leastRecentUpdateBlock );

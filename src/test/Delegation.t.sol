@@ -299,7 +299,7 @@ contract DelegationTests is DataLayrTestHelper {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
             cheats.warp(4 days);
             cheats.roll(4 days);
-            
+
             uint256 middlewareTimeIndex =  1;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
