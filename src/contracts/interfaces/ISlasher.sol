@@ -26,7 +26,7 @@ interface ISlasher {
 
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
     
-    function canWithdaw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool);
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool);
 
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
@@ -34,5 +34,7 @@ interface ISlasher {
     
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
     function addGloballyPermissionedContracts(address[] calldata contracts) external;
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external returns(uint32);
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external returns(uint32);
 
 }

@@ -121,7 +121,7 @@ contract EigenPodTests is TestHelper, BeaconChainProofUtils {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-    function testWithdrawalEigenPods(bytes memory signature, bytes32 depositDataRoot) public {
+    function testEigenPodsWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 

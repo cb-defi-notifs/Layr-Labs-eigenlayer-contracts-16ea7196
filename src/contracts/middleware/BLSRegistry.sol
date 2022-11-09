@@ -170,6 +170,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // verify that the `operator` is an active operator and that they've provided the correct `index`
         _deregistrationCheck(operator, index);
 
+
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input

@@ -348,7 +348,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
         repository.serviceManager().revokeSlashingAbility(operator, latestTime);
 
         // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        repository.serviceManager().recordFirstStakeUpdate(operator, latestTime);
+        repository.serviceManager().recordLastStakeUpdate(operator, latestTime);
 
         // Emit `Deregistration` event
         emit Deregistration(operator, swappedOperator);
@@ -432,6 +432,8 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // slither-disable-next-line costly-loop
         operatorList.pop();
+        emit log_named_uint("operatorList", operatorList.length);
+
         // Update totalOperatorsHistory
         _updateTotalOperatorsHistory();
 
@@ -465,6 +467,7 @@ abstract contract RegistryBase is IQuorumRegistry, VoteWeigherBase {
 
         // record the operator being registered and update the counter for operator ID
         operatorList.push(operator);
+        emit log_named_uint("operatorList", operatorList.length);
         unchecked {
             ++nextOperatorId;
         }

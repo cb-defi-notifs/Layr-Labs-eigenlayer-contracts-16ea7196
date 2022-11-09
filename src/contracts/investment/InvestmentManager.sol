@@ -249,6 +249,15 @@ contract InvestmentManager is
         // fetch the address that the `msg.sender` is delegated to
         address delegatedAddress = delegation.delegatedTo(msg.sender);
 
+        // emit log("************************************************************************************************");
+        // emit log_named_uint("strategies", strategies.length);
+        // emit log_named_uint("tokens", tokens.length);
+        // emit log_named_uint("shares", shares.length);
+        // emit log_named_address("depositor", msg.sender);
+        // emit log_named_uint("withdrawalStartBlock", uint32(block.number));
+        // emit log_named_address("delegatedAddress", delegatedAddress);
+        // emit log("************************************************************************************************");
+
         // copy arguments into struct and pull delegation info
         QueuedWithdrawal memory queuedWithdrawal = QueuedWithdrawal({
             strategies: strategies,
@@ -306,7 +315,7 @@ contract InvestmentManager is
         );
 
         require(
-            slasher.canWithdaw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
+            slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 

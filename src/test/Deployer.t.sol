@@ -48,6 +48,7 @@ import "./utils/SignatureUtils.sol";
 
 import "./mocks/BeaconChainOracleMock.sol";
 import "./mocks/ETHDepositMock.sol";
+import "./mocks/MiddlewareRegistryMock.sol";
 
 
 import "forge-std/Test.sol";
@@ -84,6 +85,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
+    MiddlewareRegistry public generalReg;
+    IRepository public generalRepository;
+    IVoteWeigher public generalVoteWeigher;
+    DataLayrServiceManager public generalServiceManager;
 
 
 
@@ -286,18 +291,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             )
         );
 
-        // beaconChainOracle = new BeaconChainOracleMock();
-        // beaconChainOracle.setBeaconChainStateRoot(0x31c4ed9a072cc282553df11e2135c80d259af2719571a832258d4bab292ebf62);
-
-        // ethPOSDeposit = new ETHPOSDepositMock();
-        // pod = new EigenPod(ethPOSDeposit);
-
-        // eigenPodBeacon = new UpgradeableBeacon(address(pod));
-        // eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
-        
-
-
         slashingContracts.push(address(eigenPodManager));
+        slashingContracts.push(address(generalServiceManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
         
 
@@ -378,12 +373,23 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
+        generalRepository = new Repository(delegation, investmentManager);
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             investmentManager,
             delegation,
             dlRepository,
+            weth,
+            pauserReg,
+            feePerBytePerTime
+        );
+
+
+        generalServiceManager = new DataLayrServiceManager(
+            investmentManager,
+            delegation,
+            generalRepository,
             weth,
             pauserReg,
             feePerBytePerTime
@@ -421,8 +427,17 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             eigenStratsAndMultipliers,
             pubkeyCompendium
         );
-
+       
         Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
+
+        
+
+         generalReg = new MiddlewareRegistry(
+             Repository(address(generalRepository))
+        );
+        
+        Repository(address(generalRepository)).initialize(dlReg, generalServiceManager, generalReg, address(this));
+
         uint256 _paymentFraudproofCollateral = 1e16;
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
