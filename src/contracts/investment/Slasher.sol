@@ -512,7 +512,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      */
     function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal view returns (uint256) {
         uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
-        // special case in which the correct node is actually the HEAD of the list
+        /**
+         * Special case:
+         * If the node being inserted in the linked list has an updateBlock that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
+         * In _updateMiddlewareList(), the new node will be pushed to the front of the list.
+         */
         if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
             return HEAD;
         }
