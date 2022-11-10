@@ -280,7 +280,7 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.warp(1 days);
         cheats.roll(1 days);
 
-        bytes32 withdrawalRoot = _testQueueWithdrawal(
+        _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
@@ -407,7 +407,6 @@ contract DelegationTests is DataLayrTestHelper {
             address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
             public

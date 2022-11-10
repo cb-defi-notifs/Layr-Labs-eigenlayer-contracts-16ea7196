@@ -276,7 +276,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         }
     }
 
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
 
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
@@ -406,11 +406,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        emit log("____________________________________________");
-        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        emit log_named_uint("updateBlock", updateBlock);
-        emit log("____________________________________________");
+        // emit log("____________________________________________");
+        // emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
+        // emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
+        // emit log_named_uint("updateBlock", updateBlock);
+        // emit log("____________________________________________");
 
     }
 
@@ -422,11 +422,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         return address(uint160(x));
     }
 
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external returns(uint32){
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
         return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
     }
 
-    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external returns(uint32) {
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
         return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
     

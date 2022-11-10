@@ -38,7 +38,9 @@ contract MiddlewareRegistry is IRegistry, DSTest{
     }
 
      function isActiveOperator(address operator) external pure returns (bool){
-        return true;
+        if(operator != address(0)){
+            return true;
+        }
      }
 
 }
