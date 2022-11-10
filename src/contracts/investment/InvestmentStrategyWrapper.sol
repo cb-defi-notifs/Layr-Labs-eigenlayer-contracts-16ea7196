@@ -15,8 +15,13 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract InvestmentStrategyWrapper is IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
+    /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
+
+    /// @notice The underyling token for shares in this InvestmentStrategy
     IERC20 public immutable underlyingToken;
+
+    /// @notice The total number of extant shares in thie InvestmentStrategy
     uint256 public totalShares;
 
     modifier onlyInvestmentManager() {
@@ -34,7 +39,7 @@ contract InvestmentStrategyWrapper is IInvestmentStrategy {
      * @param token is the ERC20 token being deposited
      * @param amount is the amount of token being deposited
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
-     * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well
+     * `depositIntoStrategy` function, and individual share balances are recorded in the investmentManager as well.
      * @return newShares is the number of new shares issued at the current exchange ratio.
      */
     function deposit(IERC20 token, uint256 amount) external virtual override onlyInvestmentManager returns (uint256) {
@@ -46,11 +51,11 @@ contract InvestmentStrategyWrapper is IInvestmentStrategy {
     /**
      * @notice Used to withdraw tokens from this InvestmentStrategy, to the `depositor`'s address
      * @param token is the ERC20 token being transferred out
-     * @param shareAmount is the amount of shares being withdrawn
+     * @param amountShares is the amount of shares being withdrawn
      * @dev This function is only callable by the investmentManager contract. It is invoked inside of the investmentManager's
-     * other functions, and individual share balances are recorded in the investmentManager as well
+     * other functions, and individual share balances are recorded in the investmentManager as well.
      */
-    function withdraw(address depositor, IERC20 token, uint256 shareAmount)
+    function withdraw(address depositor, IERC20 token, uint256 amountShares)
         external
         virtual
         override
@@ -58,14 +63,14 @@ contract InvestmentStrategyWrapper is IInvestmentStrategy {
     {
         require(token == underlyingToken, "InvestmentStrategyWrapper.withdraw: Can only withdraw the strategy token");
         require(
-            shareAmount <= totalShares,
-            "InvestmentStrategyWrapper.withdraw: shareAmount must be less than or equal to totalShares"
+            amountShares <= totalShares,
+            "InvestmentStrategyWrapper.withdraw: amountShares must be less than or equal to totalShares"
         );
         // Decrease `totalShares` to reflect withdrawal. Unchecked arithmetic since we just checked this above.
         unchecked {
-            totalShares -= shareAmount;
+            totalShares -= amountShares;
         }
-        underlyingToken.safeTransfer(depositor, shareAmount);
+        underlyingToken.safeTransfer(depositor, amountShares);
     }
 
     /**

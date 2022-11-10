@@ -500,7 +500,7 @@ contract Governor is RepositoryAccess {
     }
 
     // TODO: reintroduce a way to update stakes before simply fetching them?
-    function _getVoterStakes(address user) internal returns (uint96, uint96) {
+    function _getVoterStakes(address user) internal view returns (uint96, uint96) {
         (uint96 firstQuorumStake, uint96 secondQuorumStake) = IQuorumRegistry(address(_registry())).operatorStakes(user);
         return (firstQuorumStake, secondQuorumStake);
     }

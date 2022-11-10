@@ -8,7 +8,10 @@ import "../interfaces/IPauserRegistry.sol";
  * @author Layr Labs, Inc.
  */
 contract PauserRegistry is IPauserRegistry {
+    /// @notice Unique address that holds the pauser role.
     address public pauser;
+
+    /// @notice Unique address that holds the unpauser role. Capable of changing *both* the pauser and unpauser addresses.
     address public unpauser;
 
     event PauserChanged(address previousPauser, address newPauser);

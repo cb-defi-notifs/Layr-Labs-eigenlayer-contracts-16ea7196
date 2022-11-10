@@ -37,8 +37,12 @@ contract MiddlewareRegistry is IRegistry, DSTest{
         repository.serviceManager().recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
-     function isActiveOperator(address operator) external pure returns (bool){
-        return true;
+     function isActiveOperator(address operator) external pure returns (bool) {
+        if (operator != address(0)){
+            return true;
+        } else {
+            return false;
+        }
      }
 
 }

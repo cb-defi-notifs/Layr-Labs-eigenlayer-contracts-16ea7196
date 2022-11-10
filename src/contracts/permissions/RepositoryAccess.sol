@@ -52,7 +52,7 @@ abstract contract RepositoryAccess is IRepositoryAccess, DSTest {
         return repository.serviceManager();
     }
 
-    function _registry() internal returns (IRegistry) {
+    function _registry() internal view returns (IRegistry) {
         return repository.registry();
     }
 }

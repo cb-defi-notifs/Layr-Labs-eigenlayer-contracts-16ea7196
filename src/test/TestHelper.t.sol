@@ -362,24 +362,7 @@ contract TestHelper is EigenLayrDeployer {
         return (withdrawalRoot, queuedWithdrawal);
     }
 
-    // function _testStartQueuedWithdrawalWaitingPeriod(
-    //     address withdrawer,
-    //     bytes32 withdrawalRoot,
-    //     uint32 stakeInactiveAfter
-    // ) internal {
-    //     cheats.startPrank(withdrawer);
-    //     // TODO: un-hardcode the '8 days' and '30 days' here
-    //     // '8 days' accounts for the `REASONABLE_STAKES_UPDATE_PERIOD`
-    //     cheats.warp(block.timestamp + 8 days);
-    //     // '30 days' is used to prevent overflow in timestamps when stored as uint32 values (2^32 is in the year 2106 in UTC time)
-    //     cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
-    //     cheats.assume(stakeInactiveAfter > block.timestamp);
-    //     investmentManager.startQueuedWithdrawalWaitingPeriod(
-    //                                     withdrawalRoot, 
-    //                                     stakeInactiveAfter
-    //                                 );
-    //     cheats.stopPrank();
-    // }
+
 
     function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
 

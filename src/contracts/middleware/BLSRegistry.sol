@@ -180,7 +180,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         );
 
         // Perform necessary updates for removing operator, including updating operator list and index histories
-        emit log("_removeOperator called here");
         _removeOperator(operator, pubkeyHash, index);
 
         // get existing aggregate public key

@@ -200,7 +200,7 @@ contract DataStoreUtilsTests is DSTest {
         uint96 fee,
         address confirmer,
         bytes32 signatoryRecordHash
-    ) internal returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct) {
+    ) internal pure returns (IDataLayrServiceManager.DataStoreMetadata memory metadataStruct) {
 
         metadataStruct = IDataLayrServiceManager.DataStoreMetadata({
             headerHash: headerHash,
@@ -227,7 +227,7 @@ contract DataStoreUtilsTests is DSTest {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    ) internal returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
+    ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );

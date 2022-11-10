@@ -8,6 +8,7 @@ import "../test/DataLayrTestHelper.t.sol";
 
 import "../contracts/libraries/BytesLib.sol";
 
+
 contract DelegationTests is DataLayrTestHelper {
     using BytesLib for bytes;
     using Math for uint256;
@@ -205,7 +206,7 @@ contract DelegationTests is DataLayrTestHelper {
         );
     }
 
-//THis function helps with stack too deep issues with "testWithdrawal" test
+    //This function helps with stack too deep issues with "testWithdrawal" test
     function testWithdrawalWrapper(
             address operator, 
             address depositor,
@@ -224,14 +225,14 @@ contract DelegationTests is DataLayrTestHelper {
             cheats.assume(eigenAmount <= 1e18); 
             cheats.assume(ethAmount > 0); 
             cheats.assume(eigenAmount > 0); 
-            testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+            _testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
 
         }
 
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function testWithdrawal(
+    function _testWithdrawal(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -239,10 +240,11 @@ contract DelegationTests is DataLayrTestHelper {
             uint256 eigenAmount,
             bool withdrawAsTokens
         ) 
-            public 
+            internal 
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
+        generalReg.registerOperator(operator, 3 days);
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues
@@ -276,7 +278,10 @@ contract DelegationTests is DataLayrTestHelper {
             tokensArray[1] = eigenToken;
         }
 
-        bytes32 withdrawalRoot = _testQueueWithdrawal(
+        cheats.warp(1 days);
+        cheats.roll(1 days);
+
+        _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
@@ -284,16 +289,19 @@ contract DelegationTests is DataLayrTestHelper {
             strategyIndexes,
             dataForTestWithdrawal.withdrawerAndNonce
         );
+        uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+        //now withdrawal block time is before deregistration
+        cheats.warp(2 days);
+        cheats.roll(2 days);
+        
+        generalReg.deregisterOperator(operator);
         {
-            
-            uint32 queuedWithdrawalBlock = uint32(block.number);
-            cheats.warp(1 days);
-            cheats.roll(1 days);
-            //TODO: CURRENTLY this function queues withdrawal and then registers the operator to get leastRecentUpdateBlock > block at which qithdrawal was queued
-            // THIS is NOT a good test but patches things up for the time being to work.
-            generalReg.registerOperator(operator, 10);
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            cheats.warp(4 days);
+            cheats.roll(4 days);
 
-            uint256 middlewareTimeIndex = 0;
+            uint256 middlewareTimeIndex =  1;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
                     depositor,
@@ -400,7 +408,6 @@ contract DelegationTests is DataLayrTestHelper {
             address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
             public

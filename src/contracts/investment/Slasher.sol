@@ -34,7 +34,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     // user => contract => the time before which the contract is allowed to slash the user
     mapping(address => mapping(address => uint32)) public bondedUntil;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
-    mapping(address => bool) public frozenStatus;
+    mapping(address => bool) internal frozenStatus;
 
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
@@ -87,44 +87,28 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         _addGloballyPermissionedContract(address(delegation));
     }
 
-    /// @notice Used to give global slashing permission to specific contracts.
-    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _addGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @notice Used to revoke global slashing permission from contracts.
-    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _removeGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @notice Gives the `contractAddress` permission to slash your funds.
+    /**
+     * @notice Gives the `contractAddress` permission to slash the funds of the caller.
+     * @dev Typically, this function must be called prior to registering for a middleware.
+     */
     function allowToSlash(address contractAddress) external {
         _optIntoSlashing(msg.sender, contractAddress);
     }
+
     /*
      TODO: we still need to figure out how/when to appropriately call this function
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
     /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
-
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
         _revokeSlashingAbility(operator, msg.sender, unbondedAfter);
     }
 
     /**
      * @notice Used for 'slashing' a certain operator.
-     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing.
      * @param toBeFrozen The operator to be frozen.
+     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
+     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
      */
     function freezeOperator(address toBeFrozen) external whenNotPaused {
         require(
@@ -134,7 +118,36 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         _freezeOperator(toBeFrozen, msg.sender);
     }
 
-    /// @notice Removes the 'frozen' status from all the `frozenAddresses`
+    /**
+     * @notice Used to give global slashing permission to `contracts`.
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
+    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
+        for (uint256 i = 0; i < contracts.length;) {
+            _addGloballyPermissionedContract(contracts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Used to revoke global slashing permission from `contracts`.
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
+    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
+        for (uint256 i = 0; i < contracts.length;) {
+            _removeGloballyPermissionedContract(contracts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Removes the 'frozen' status from each of the `frozenAddresses`
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
     function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
         for (uint256 i = 0; i < frozenAddresses.length;) {
             _resetFrozenStatus(frozenAddresses[i]);
@@ -152,7 +165,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
-                emit log("hew 2");
 
         // update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
@@ -202,7 +214,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev removes the middleware's slashing contract to the operator's linked list
      */
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
-                emit log("hew 3");
 
         //update latest update
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
@@ -231,7 +242,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         }
     }
 
-    /// @notice Checks if `slashingContract` is allowed to slash `toBeSlashed`.
+    /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
         if (globallyPermissionedContracts[slashingContract]) {
             return true;
@@ -252,12 +263,28 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         //all middlewares were updated after the withdrawal and
         //the stake is no longer slashable
         MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+        
+        // emit log("withdrawalStartBlock < update.leastRecentUpdateBlock");
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_uint("update.leastRecentUpdateBlock ", update.leastRecentUpdateBlock );
+
+        // emit log("uint32(block.timestamp) > update.latestServeUntil");
+        // emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
+        // emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
 
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
             uint32(block.timestamp) > update.latestServeUntil
         );
+    }
+
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
+        return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
+    }
+
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
+        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
 
     // INTERNAL FUNCTIONS
@@ -363,11 +390,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        emit log("____________________________________________");
-        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        emit log_named_uint("updateBlock", updateBlock);
-        emit log("____________________________________________");
+        // emit log("____________________________________________");
+        // emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
+        // emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
+        // emit log_named_uint("updateBlock", updateBlock);
+        // emit log("____________________________________________");
 
     }
 
@@ -493,14 +520,5 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
 
     function uintToAddress(uint256 x) internal pure returns(address) {
         return address(uint160(x));
-    }
-
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
-        return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
-    }
-
-    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
-        return operatorToMiddlewareTimes[operator][index].latestServeUntil;
-    }
-    
+    }    
 }

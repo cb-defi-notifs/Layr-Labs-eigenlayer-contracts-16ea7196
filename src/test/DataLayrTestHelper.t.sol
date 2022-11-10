@@ -28,8 +28,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _testDeregisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint256[4] memory pubkeyToRemoveAff,
-        uint8 operatorListIndex,
-        bytes32 finalEphemeralKey
+        uint8 operatorListIndex
     ) public {
 
         address operator = signers[operatorIndex];
