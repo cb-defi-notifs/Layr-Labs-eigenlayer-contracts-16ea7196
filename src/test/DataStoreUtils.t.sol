@@ -227,7 +227,7 @@ contract DataStoreUtilsTests is DSTest {
         uint8 duration,
         uint256 timestamp,
         uint32 index
-    ) internal returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
+    ) internal pure returns (IDataLayrServiceManager.DataStoreSearchData memory searchDataStruct) {
         searchDataStruct.metadata = dataStoreMetadataFromArgs(
             headerHash, durationDataStoreId, globalDataStoreId, stakesFromBlockNumber, blockNumber, fee, confirmer, signatoryRecordHash
         );
