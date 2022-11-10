@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -27,7 +28,7 @@ import "forge-std/Test.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is IEigenPodManager 
+contract EigenPodManager is Initializable, IEigenPodManager 
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
@@ -35,11 +36,11 @@ contract EigenPodManager is IEigenPodManager
     /// @notice Beacon proxy to which the EigenPods point
     IBeacon public immutable eigenPodBeacon;
 
+    /// @notice EigenLayer's InvestmentManager contract
+    IInvestmentManager public immutable investmentManager;
+
     /// @notice Oracle contract that provides updates to the beacon chain's state
     IBeaconChainOracle public beaconChainOracle;
-
-    /// @notice EigenLayer's InvestmentManager contract
-    IInvestmentManager public investmentManager;
 
     mapping(address => EigenPodInfo) public pods;
 
@@ -60,11 +61,16 @@ contract EigenPodManager is IEigenPodManager
         _;
     }
 
-    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager, IBeaconChainOracle _beaconChainOracle) {
+    constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
         investmentManager = _investmentManager;
+        _disableInitializers();
+    }
+
+    function initialize(IBeaconChainOracle _beaconChainOracle) public initializer {
         beaconChainOracle = _beaconChainOracle;
+        emit BeaconOracleUpdate(address(_beaconChainOracle));
     }
 
     /**
