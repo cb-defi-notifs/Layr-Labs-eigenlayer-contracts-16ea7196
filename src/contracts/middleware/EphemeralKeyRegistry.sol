@@ -82,7 +82,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
             && 
                 (
                     // either the `activeKeyIndex`th key is the last one in the list, or the next key in the list hasn't started being active yet
-                    activeKeyIndex == ephemeralKeyEntriesLength - 1 ||
+                    activeKeyIndex + 1 == ephemeralKeyEntriesLength ||
                     ephemeralKeyEntries[msg.sender][activeKeyIndex + 1].startBlock >= uint32(block.number)
                 ),
             "EphemeralKeyRegistry.commitNewEphemeralKeyHashesAndInvalidateActiveKey: activeKeyIndex does not specify active ephemeral key"
