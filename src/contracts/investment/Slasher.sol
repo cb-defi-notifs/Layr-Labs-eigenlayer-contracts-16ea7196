@@ -281,25 +281,20 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
      * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
      */
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
+        // if the operator has never registered for a middleware, just return 'true'
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
         }
-        //make sure earliest update block at the time is after withdrawalStartBlock
-        //make sure the current time is after the latestServeUntil at the time
-        //this assures us that this that
-        //all middlewares were updated after the withdrawal and
-        //the stake is no longer slashable
+
+        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `operatorToMiddlewareTimes[operator]`
         MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
         
-        // emit log("withdrawalStartBlock < update.leastRecentUpdateBlock");
-        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        // emit log_named_uint("update.leastRecentUpdateBlock ", update.leastRecentUpdateBlock );
-
-        // emit log("uint32(block.timestamp) > update.latestServeUntil");
-        // emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
-        // emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
-
+        /**
+         * Make sure the stalest update block at the time of the update is strictly after `withdrawalStartBlock` and ensure that the current time
+         * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
+         * that the stake is no longer slashable.
+         */
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
@@ -308,12 +303,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     }
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock`.
-    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
+    function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns (uint32){
         return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
     }
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
-    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
+    function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns (uint32) {
         return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
 
