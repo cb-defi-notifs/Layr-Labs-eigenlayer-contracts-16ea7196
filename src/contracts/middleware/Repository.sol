@@ -17,7 +17,7 @@ import "forge-std/Test.sol";
  * @dev Other contracts can refer to the Repository in order to determine the "official" contracts for the middleware, making it the central point
  * for upgrades-by-changing-contract-addresses.
  */
-contract Repository is Ownable, Initializable, IRepository, DSTest {
+contract Repository is Ownable, Initializable, IRepository {
     /// @notice Address of the Delegation contract of EigenLayr.
     IEigenLayrDelegation public immutable delegation;
     /// @notice Address of the InvestmentManager contract of EigenLayr.
@@ -86,6 +86,7 @@ contract Repository is Ownable, Initializable, IRepository, DSTest {
 
     function _setRegistry(IRegistry _registry) internal {
         require(address(_registry) != address(0), "Repository._setRegistry: zero address bad!");
+        emit RegistrySet(registry, _registry);
         registry = _registry;
     }
 }

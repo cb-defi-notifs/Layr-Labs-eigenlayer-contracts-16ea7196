@@ -9,7 +9,7 @@ import "forge-std/Test.sol";
  * @title Defines access controls based around a single `Repository` contract.
  * @author Layr Labs, Inc.
  */
-abstract contract RepositoryAccess is IRepositoryAccess, DSTest {
+abstract contract RepositoryAccess is IRepositoryAccess {
     /// @notice The unique, immutable Repository contract associated with this contract.
     IRepository public immutable repository;
 
