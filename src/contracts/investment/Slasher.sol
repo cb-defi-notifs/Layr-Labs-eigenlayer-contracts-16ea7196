@@ -508,43 +508,33 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
 
     /**
      * @notice A search routine for finding the correct input value of `insertAfter` to `_updateMiddlewareList`.
-     * @dev Used only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
+     * @dev Used within this contract only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
+     * @dev The return value should *either* be 'HEAD' (i.e. zero) in the event that the node being inserted in the linked list has an `updateBlock`
+     * that is less than the HEAD of the list, *or* the return value should specify the last `node` in the linked list for which
+     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, i.e. the node such that the *next* node either doesn't exist, or
+     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][nextNode] > updateBlock`.
      */
     function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal view returns (uint256) {
         uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
         /**
          * Special case:
-         * If the node being inserted in the linked list has an updateBlock that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
-         * In _updateMiddlewareList(), the new node will be pushed to the front of the list.
+         * If the node being inserted in the linked list has an `updateBlock` that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
+         * In _updateMiddlewareList(), the new node will be pushed to the front (HEAD) of the list.
          */
         if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
             return HEAD;
         }
         /**
-         * `node` being zero indicates an empty/non-existent node, i.e. reaching the end of the linked list.
-         * Since the linked list is ordered in ascending order of update blocks, we simply start from the HEAD and step through until
-         * we find a `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] >= updateBlock`
+         * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
+         * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
+         * we find a the *last* `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, or
+         * otherwise reach the end of the list.
          */
-        while ((node != HEAD) && (updateBlock < operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)])) {
-            (, node) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-        }
-        // We must also select the *latest* node with the exact given updateBlock, since there may be multiple.
         (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-        while (
-                (node != HEAD)
-                &&
-                (
-                    operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)]
-                    == operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(nextNode)]
-                )
-            )
-        {
-            node = nextNode;
+        while ((nextNode != HEAD) && (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock)) {
             (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-
+            node = nextNode;
         }
-        require(operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock,
-            "Slasher._getCorrectValueForInsertAfter: error in fallback routine. Incorrect node returned");
         return node;
     }
 
