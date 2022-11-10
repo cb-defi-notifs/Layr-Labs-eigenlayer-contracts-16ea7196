@@ -317,6 +317,38 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
 
+    /**
+     * @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
+     * @dev Used within this contract only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
+     * @dev The return value should *either* be 'HEAD' (i.e. zero) in the event that the node being inserted in the linked list has an `updateBlock`
+     * that is less than the HEAD of the list, *or* the return value should specify the last `node` in the linked list for which
+     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, i.e. the node such that the *next* node either doesn't exist, or
+     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][nextNode] > updateBlock`.
+     */
+    function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) public view returns (uint256) {
+        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
+        /**
+         * Special case:
+         * If the node being inserted in the linked list has an `updateBlock` that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
+         * In _updateMiddlewareList(), the new node will be pushed to the front (HEAD) of the list.
+         */
+        if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
+            return HEAD;
+        }
+        /**
+         * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
+         * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
+         * we find a the *last* `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, or
+         * otherwise reach the end of the list.
+         */
+        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+        while ((nextNode != HEAD) && (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock)) {
+            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
+            node = nextNode;
+        }
+        return node;
+    }
+
     // INTERNAL FUNCTIONS
 
     function _optIntoSlashing(address operator, address contractAddress) internal {
@@ -432,7 +464,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     function _updateMiddlewareList(address operator, uint32 updateBlock, uint256 insertAfter) internal {
         /**
          * boolean used to track if the `insertAfter input to this function is incorrect. If it is, then `runFallbackRoutine` will
-         * be flipped to 'true', and we will use `_getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
+         * be flipped to 'true', and we will use `getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
          * a race condition where the proper value of `insertAfter` changes while a transaction is pending.
          */
         bool runFallbackRoutine = false;
@@ -476,7 +508,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
                     "Slasher.recordStakeUpdate: Inserting middleware unsuccessful");
             // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
             } else {
-                insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
+                insertAfter = getCorrectValueForInsertAfter(operator, updateBlock);
                 _updateMiddlewareList(operator, updateBlock, insertAfter);
             }
         // In this case (insertAfter == HEAD), the `updateBlock` input should be before every other middleware's latest updateBlock.
@@ -500,42 +532,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
                     "Slasher.recordStakeUpdate: Preppending middleware unsuccessful");
             // in this case (runFallbackRoutine == true), we run a search routine to find the correct input value of `insertAfter` and then rerun this function
             } else {
-                insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
+                insertAfter = getCorrectValueForInsertAfter(operator, updateBlock);
                 _updateMiddlewareList(operator, updateBlock, insertAfter);
             }
         }
-    }
-
-    /**
-     * @notice A search routine for finding the correct input value of `insertAfter` to `_updateMiddlewareList`.
-     * @dev Used within this contract only as a fallback in the case when an incorrect value of `insertAfter` is supplied as an input to `_updateMiddlewareList`.
-     * @dev The return value should *either* be 'HEAD' (i.e. zero) in the event that the node being inserted in the linked list has an `updateBlock`
-     * that is less than the HEAD of the list, *or* the return value should specify the last `node` in the linked list for which
-     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, i.e. the node such that the *next* node either doesn't exist, or
-     * `operatorToWhitelistedContractsToLatestUpdateBlock[operator][nextNode] > updateBlock`.
-     */
-    function _getCorrectValueForInsertAfter(address operator, uint32 updateBlock) internal view returns (uint256) {
-        uint256 node = operatorToWhitelistedContractsByUpdate[operator].getHead();
-        /**
-         * Special case:
-         * If the node being inserted in the linked list has an `updateBlock` that is less than the HEAD of the list, then we set `insertAfter = HEAD`.
-         * In _updateMiddlewareList(), the new node will be pushed to the front (HEAD) of the list.
-         */
-        if (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] > updateBlock) {
-            return HEAD;
-        }
-        /**
-         * `node` being zero (i.e. equal to 'HEAD') indicates an empty/non-existent node, i.e. reaching the end of the linked list.
-         * Since the linked list is ordered in ascending order of update blocks, we simply start from the head of the list and step through until
-         * we find a the *last* `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] <= updateBlock`, or
-         * otherwise reach the end of the list.
-         */
-        (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-        while ((nextNode != HEAD) && (operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)] <= updateBlock)) {
-            (, nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
-            node = nextNode;
-        }
-        return node;
     }
 
     function addressToUint(address addr) internal pure returns(uint256) {
