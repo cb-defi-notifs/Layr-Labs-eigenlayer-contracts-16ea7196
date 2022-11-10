@@ -1,6 +1,6 @@
 # Guaranteed Stake Updates on Withdrawal
 
-These are proposed updates to the slasher
+Withdrawals are one of the critical flows in the EigenLayer system.  
 
 ## Storage Model
 
