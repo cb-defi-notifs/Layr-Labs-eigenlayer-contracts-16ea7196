@@ -490,7 +490,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
             {
                 runFallbackRoutine = true;
             }
-        }
             // if we have not marked `runFallbackRoutine` as 'true' yet, then that means the `insertAfter` input was correct on all counts
             if (!runFallbackRoutine) {
                 /**
@@ -504,6 +503,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
                 insertAfter = _getCorrectValueForInsertAfter(operator, updateBlock);
                 _updateMiddlewareList(operator, updateBlock, insertAfter);
             }
+        }
     }
 
     /**
