@@ -30,7 +30,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     // user => contract => the time before which the contract is allowed to slash the user
     mapping(address => mapping(address => uint32)) public bondedUntil;
     // staker => if their funds are 'frozen' and potentially subject to slashing or not
-    mapping(address => bool) public frozenStatus;
+    mapping(address => bool) internal frozenStatus;
 
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
@@ -59,44 +59,28 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _addGloballyPermissionedContract(address(delegation));
     }
 
-    /// @notice Used to give global slashing permission to specific contracts.
-    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _addGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @notice Used to revoke global slashing permission from contracts.
-    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
-        for (uint256 i = 0; i < contracts.length;) {
-            _removeGloballyPermissionedContract(contracts[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @notice Gives the `contractAddress` permission to slash your funds.
+    /**
+     * @notice Gives the `contractAddress` permission to slash the funds of the caller.
+     * @dev Typically, this function must be called prior to registering for a middleware.
+     */
     function allowToSlash(address contractAddress) external {
         _optIntoSlashing(msg.sender, contractAddress);
     }
+
     /*
      TODO: we still need to figure out how/when to appropriately call this function
      perhaps a registry can safely call this function after an operator has been deregistered for a very safe amount of time (like a month)
     */
     /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
-
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external {
         _revokeSlashingAbility(operator, msg.sender, unbondedAfter);
     }
 
     /**
      * @notice Used for 'slashing' a certain operator.
-     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing.
      * @param toBeFrozen The operator to be frozen.
+     * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
+     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
      */
     function freezeOperator(address toBeFrozen) external whenNotPaused {
         require(
@@ -106,7 +90,36 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _freezeOperator(toBeFrozen, msg.sender);
     }
 
-    /// @notice Removes the 'frozen' status from all the `frozenAddresses`
+    /**
+     * @notice Used to give global slashing permission to `contracts`.
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
+    function addGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
+        for (uint256 i = 0; i < contracts.length;) {
+            _addGloballyPermissionedContract(contracts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Used to revoke global slashing permission from `contracts`.
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
+    function removeGloballyPermissionedContracts(address[] calldata contracts) external onlyOwner {
+        for (uint256 i = 0; i < contracts.length;) {
+            _removeGloballyPermissionedContract(contracts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Removes the 'frozen' status from each of the `frozenAddresses`
+     * @dev Callable only by the contract owner (i.e. governance).
+     */
     function resetFrozenStatus(address[] calldata frozenAddresses) external onlyOwner {
         for (uint256 i = 0; i < frozenAddresses.length;) {
             _resetFrozenStatus(frozenAddresses[i]);
@@ -178,7 +191,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         }
     }
 
-    /// @notice Checks if `slashingContract` is allowed to slash `toBeSlashed`.
+    /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) public view returns (bool) {
         if (globallyPermissionedContracts[slashingContract]) {
             return true;

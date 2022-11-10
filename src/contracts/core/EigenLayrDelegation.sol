@@ -53,7 +53,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // EXTERNAL FUNCTIONS
     /**
-     * @notice This will be called by an operator to register itself as a delegate that stakers can choose to delegate to.
+     * @notice This will be called by an operator to register itself as an operator that stakers can choose to delegate to.
      * @param dt is the `DelegationTerms` contract that the operator has for those who delegate to them.
      * @dev An operator can set `dt` equal to their own address (or another EOA address), in the event that they want to split payments
      * in a more 'trustful' manner.
@@ -107,7 +107,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         delegatedTo[staker] = address(0);
     }
 
-    //increases a stakers delegated shares to a certain strategy, usually whenever they have further deposits into EigenLayr
+    /**
+     * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayr
+     * @dev Callable only by the InvestmentManager
+     */
     function increaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
         external
         onlyInvestmentManager
@@ -131,7 +134,10 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
     }
 
-    //decreases a stakers delegated shares to a certain strategy, usually whenever they withdraw from EigenLayr
+    /**
+     * @notice Decreases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker withdraws from EigenLayr
+     * @dev Callable only by the InvestmentManager
+     */
     function decreaseDelegatedShares(address staker, IInvestmentStrategy strategy, uint256 shares)
         external
         onlyInvestmentManager
@@ -155,6 +161,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         }
     }
 
+    /// @notice Version of `decreaseDelegatedShares` that accepts an array of inputs.
     function decreaseDelegatedShares(
         address staker,
         IInvestmentStrategy[] calldata strategies,
@@ -295,7 +302,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         require(isNotDelegated(staker), "EigenLayrDelegation._delegate: staker has existing delegation");
         // checks that operator has not been frozen
         ISlasher slasher = investmentManager.slasher();
-        require(!slasher.frozenStatus(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
+        require(!slasher.isFrozen(operator), "EigenLayrDelegation._delegate: cannot delegate to a frozen operator");
 
         // record delegation relation between the staker and operator
         delegatedTo[staker] = operator;
@@ -322,14 +329,14 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
 
     // VIEW FUNCTIONS
 
-    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
-    function isNotDelegated(address staker) public view returns (bool) {
-        return (delegationStatus[staker] == DelegationStatus.UNDELEGATED);
-    }
-
     /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
     function isDelegated(address staker) public view returns (bool) {
         return (delegationStatus[staker] == DelegationStatus.DELEGATED);
+    }
+
+    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
+    function isNotDelegated(address staker) public view returns (bool) {
+        return (delegationStatus[staker] == DelegationStatus.UNDELEGATED);
     }
 
     /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.

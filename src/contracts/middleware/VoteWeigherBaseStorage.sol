@@ -30,8 +30,10 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
 
     /// @notice The address of the Delegation contract for EigenLayr.
     IEigenLayrDelegation public immutable delegation;
+    
     /// @notice The address of the InvestmentManager contract for EigenLayr.
     IInvestmentManager public immutable investmentManager;
+
     /// @notice Number of quorums that are being used by the middleware.
     uint256 public immutable NUMBER_OF_QUORUMS;
 
@@ -40,9 +42,10 @@ abstract contract VoteWeigherBaseStorage is RepositoryAccess, IVoteWeigher {
      * corresponding multipliers for that specific quorum
      */
     mapping(uint256 => StrategyAndWeightingMultiplier[]) public strategiesConsideredAndMultipliers;
+
     /**
      * @notice This defines the earnings split between different quorums. Mapping is quorumNumber => BIPS which the quorum earns, out of the total earnings.
-     * @notice The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS - 1]) should *always* be 10,000!
+     * @dev The sum of all entries, i.e. sum(quorumBips[0] through quorumBips[NUMBER_OF_QUORUMS - 1]) should *always* be 10,000!
      */
     mapping(uint256 => uint256) public quorumBips;
 

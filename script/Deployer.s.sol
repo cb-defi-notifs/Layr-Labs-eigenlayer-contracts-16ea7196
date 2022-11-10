@@ -137,14 +137,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     uint256 public gasLimit = 750000;
 
-    uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
-
-    address mainHoncho = cheats.addr(mainHonchoPrivKey);
-
-    //performs basic deployment before each test
     function run() external {
         vm.startBroadcast();
-        emit log_address(mainHoncho);
         emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
