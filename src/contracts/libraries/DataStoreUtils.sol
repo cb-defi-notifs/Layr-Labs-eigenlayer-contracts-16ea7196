@@ -169,13 +169,13 @@ library DataStoreUtils {
     uint256 internal constant CALLDATA_OFFSET_durationDataStoreId = 32;
     uint256 internal constant CALLDATA_OFFSET_globalDataStoreId = 36;
     uint256 internal constant CALLDATA_OFFSET_stakesFromBlockNumber = 40;
-    uint256 internal constant CALLDATA_OFFSET_blockNumber = 44; //40;
-    uint256 internal constant CALLDATA_OFFSET_fee = 48; // 44;
-    uint256 internal constant CALLDATA_OFFSET_confirmer = 60; //56;
-    uint256 internal constant CALLDATA_OFFSET_signatoryRecordHash = 80; //76;
-    uint256 internal constant CALLDATA_OFFSET_duration = 112; //108;
-    uint256 internal constant CALLDATA_OFFSET_timestamp = 113; //109;
-    uint256 internal constant CALLDATA_OFFSET_index = 145; //141;
+    uint256 internal constant CALLDATA_OFFSET_blockNumber = 44;
+    uint256 internal constant CALLDATA_OFFSET_fee = 48;
+    uint256 internal constant CALLDATA_OFFSET_confirmer = 60;
+    uint256 internal constant CALLDATA_OFFSET_signatoryRecordHash = 80;
+    uint256 internal constant CALLDATA_OFFSET_duration = 112;
+    uint256 internal constant CALLDATA_OFFSET_timestamp = 113;
+    uint256 internal constant CALLDATA_OFFSET_index = 145;
 
     // MEMORY OFFSETS IN BYTES
     uint256 internal constant MEMORY_OFFSET_headerHash = 0;

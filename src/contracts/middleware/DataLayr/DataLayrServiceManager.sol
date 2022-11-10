@@ -437,7 +437,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     }
 
-    // called in the event of challenge resolution
+    /// @notice Called in the event of challenge resolution, in order to forward a call to the Slasher, which 'freezes' the `operator`.
     function freezeOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge)
@@ -449,23 +449,27 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
-    // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
-        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
-    }
-
+    /// @notice Called by the Registry in the event of a new registration, to forward a call to the Slasher
     function recordFirstStakeUpdate(address operator, uint32 unbondedAfter) external onlyRegistry {
         ISlasher(investmentManager.slasher()).recordFirstStakeUpdate(operator, unbondedAfter);
     }
 
+    /// @notice Called by the Registry, in order to forward a call to the Slasher, informing it of a stake update
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external onlyRegistry {
         ISlasher(investmentManager.slasher()).recordStakeUpdate(operator, updateBlock, serveUntil, prevElement);
     }
 
+    /// @notice Called by the Registry in the event of deregistration, to forward a call to the Slasher
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyRegistry {
         ISlasher(investmentManager.slasher()).recordLastStakeUpdate(operator, serveUntil);
     }
-    
+
+    /// @notice Called by the Registry in the event of deregistration, to forward a call to the Slasher
+    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
+    }
+
+    /// @notice Used by DataLayr governance to adjust the value of the `feePerBytePerTime` variable.
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }
@@ -604,12 +608,12 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         }
     }
 
-    function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint32 storePeriodLength)
+    function calculateFee(uint256 totalBytes, uint256 _feePerBytePerTime, uint32 storePeriodLength)
         public
         pure
         returns (uint256)
     {
-        return uint256(totalBytes * feePerBytePerTime * storePeriodLength);
+        return uint256(totalBytes * _feePerBytePerTime * storePeriodLength);
     }
 
     function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {
