@@ -224,14 +224,14 @@ contract DelegationTests is DataLayrTestHelper {
             cheats.assume(eigenAmount <= 1e18); 
             cheats.assume(ethAmount > 0); 
             cheats.assume(eigenAmount > 0); 
-            testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+            _testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
 
         }
 
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function testWithdrawal(
+    function _testWithdrawal(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -239,7 +239,7 @@ contract DelegationTests is DataLayrTestHelper {
             uint256 eigenAmount,
             bool withdrawAsTokens
         ) 
-            public 
+            internal 
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
@@ -280,7 +280,7 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.warp(1 days);
         cheats.roll(1 days);
 
-        bytes32 withdrawalRoot = _testQueueWithdrawal(
+        _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
@@ -299,7 +299,7 @@ contract DelegationTests is DataLayrTestHelper {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
             cheats.warp(4 days);
             cheats.roll(4 days);
-            
+
             uint256 middlewareTimeIndex =  1;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
@@ -407,7 +407,6 @@ contract DelegationTests is DataLayrTestHelper {
             address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
             public
