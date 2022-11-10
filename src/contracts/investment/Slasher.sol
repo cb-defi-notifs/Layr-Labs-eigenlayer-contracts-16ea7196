@@ -521,13 +521,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * Since the linked list is ordered in ascending order of update blocks, we simply start from the HEAD and step through until
          * we find a `node` for which `operatorToWhitelistedContractsToLatestUpdateBlock[operator][node] >= updateBlock`
          */
-        while ((node != 0) && (updateBlock < operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)])) {
+        while ((node != HEAD) && (updateBlock < operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)])) {
             (, node) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         }
         // We must also select the *latest* node with the exact given updateBlock, since there may be multiple.
         (, uint256 nextNode) = operatorToWhitelistedContractsByUpdate[operator].getNextNode(node);
         while (
-                (node != 0)
+                (node != HEAD)
                 &&
                 (
                     operatorToWhitelistedContractsToLatestUpdateBlock[operator][uintToAddress(node)]
