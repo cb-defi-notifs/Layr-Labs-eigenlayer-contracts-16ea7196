@@ -59,7 +59,7 @@ contract DataLayrLowDegreeChallenge {
     uint256 internal constant POT_TREE_HEIGHT = 28;
 
     modifier onlyRepositoryGovernance() {
-        IRepositoryAccess(address(dataLayrServiceManager)).repository().owner();
+        require(msg.sender == IRepositoryAccess(address(dataLayrServiceManager)).repository().owner(), "onlyRepositoryGovernance");
         _;
     }
 
