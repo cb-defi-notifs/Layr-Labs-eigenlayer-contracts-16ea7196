@@ -9,7 +9,6 @@ import "./IEigenLayrDelegation.sol";
  * @title Interface for a `ServiceManager`-type contract.
  * @author Layr Labs, Inc.
  */
-// TODO: provide more functions for this spec
 interface IServiceManager  {
     /// @notice Returns the current 'taskNumber' for the middleware
     function taskNumber() external view returns (uint32);
@@ -20,10 +19,13 @@ interface IServiceManager  {
     /// @notice Permissioned function that causes the ServiceManager to revoke its ability to slash the operator on EigenLayer, through a call to the Slasher contreact
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external;
 
+    /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording an initial stake update (on operator registration)
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
+    /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording a stake update
     function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external;
 
+    /// @notice Permissioned function to have the ServiceManager forward a call to the slasher, recording a final stake update (on operator deregistration)
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
 
     /// @notice Collateral token used for placing collateral on challenges & payment commits
