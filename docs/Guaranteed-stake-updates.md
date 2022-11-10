@@ -1,6 +1,5 @@
 # Guaranteed Stake Updates on Withdrawal
-
-Withdrawals are one of the critical flows in the EigenLayer system.  
+Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensures that all middlewares that an operator has opted into (i.e. delegated for slashing) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, all of the operator's obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of the `latestServerUntil` time, which is the timestamp after which their stake has served its obligations.
 
 ## Storage Model
 
