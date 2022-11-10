@@ -399,7 +399,7 @@ contract InvestmentManager is
                 }
             }
 
-            if(strategies[i] == beaconChainETHStrategy){
+            if (strategies[i] == beaconChainETHStrategy){
                  //withdraw the beaconChainETH to the recipient
                 eigenPodManager.withdrawBeaconChainETH(slashedAddress, recipient, shareAmounts[i]);
             }
@@ -443,8 +443,14 @@ contract InvestmentManager is
 
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
         for (uint256 i = 0; i < strategiesLength;) {
-            // tell the strategy to send the appropriate amount of funds to the recipient
-            queuedWithdrawal.strategies[i].withdraw(recipient, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
+
+            if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy){
+                 //withdraw the beaconChainETH to the recipient
+                eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, recipient, queuedWithdrawal.shares[i]);
+            } else {
+                // tell the strategy to send the appropriate amount of funds to the recipient
+                queuedWithdrawal.strategies[i].withdraw(recipient, queuedWithdrawal.tokens[i], queuedWithdrawal.shares[i]);
+            }
             unchecked {
                 ++i;
             }
