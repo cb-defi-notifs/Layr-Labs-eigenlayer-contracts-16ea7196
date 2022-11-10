@@ -78,4 +78,10 @@ interface IEigenPodManager {
 
     /// @notice EigenLayer's InvestmentManager contract
     function investmentManager() external view returns(IInvestmentManager);
+
+    function getBalance(address podOwner) external view returns (uint128);
+
+    function getDepositedBalance(address podOwner) external view returns (uint128);
+
+    function hasPod(address podOwner) external view returns (bool);
 }

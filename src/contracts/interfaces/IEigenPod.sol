@@ -38,4 +38,17 @@ interface IEigenPod {
 
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);
+
+    function verifyCorrectWithdrawalCredentials(
+        bytes calldata pubkey, 
+        bytes calldata proofs, 
+        bytes32[] calldata validatorFields
+    ) external;
+    function verifyBalanceUpdate(
+        bytes calldata pubkey, 
+        bytes calldata proofs, 
+        bytes32[] calldata validatorFields
+    ) external;
+    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
+    function topUpPodBalance() external payable;
 }
