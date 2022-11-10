@@ -8,8 +8,10 @@ pragma solidity ^0.8.9;
  */
 interface ISlasher {
     struct MiddlewareTimes {
-        uint32 leastRecentUpdateBlock; //the update block for the middleware whose latest update was earliest
-        uint32 latestServeUntil; //the latest serve until time from all of the middleware that the operator is serving
+        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update
+        uint32 leastRecentUpdateBlock;
+        // The latest 'serve until' time from all of the middleware that the operator is serving
+        uint32 latestServeUntil;
     }
 
     /**
@@ -43,13 +45,49 @@ interface ISlasher {
 
     /// @notice Returns the UTC timestamp until which `slashingContract` is allowed to slash the `operator`.
     function bondedUntil(address operator, address slashingContract) external view returns (uint32);
-    
+
+    /**
+     * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
+     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
+     * struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
+     * This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
+     * that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
+     * @param operator Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator,
+     * this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`.
+     * @param withdrawalStartBlock The block number at which the withdrawal was initiated.
+     * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
+     * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
+     */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool);
 
+    /**
+     * @notice this function is a called by middlewares during an operator's registration to make sure the operator's stake at registration 
+     *         is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
+     * @dev adds the middleware's slashing contract to the operator's linked list
+     */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external;
 
-    function recordStakeUpdate(address operator, uint32 blockNumber, uint32 serveUntil, uint256 prevElement) external;
-    
+    /**
+     * @notice this function is a called by middlewares during a stake update for an operator (perhaps to free pending withdrawals)
+     *         to make sure the operator's stake at updateBlock is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param updateBlock the block for which the stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at updateBlock is slashable
+     * @param insertAfter the element of the operators linked list that the currently updating middleware should be inserted after
+     * @dev insertAfter should be calculated offchain before making the transaction that calls this. this is subject to race conditions, 
+     *      but it is anticipated to be rare and not detrimental.
+     */
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) external;
+
+    /**
+     * @notice this function is a called by middlewares during an operator's deregistration to make sure the operator's stake at deregistration 
+     *         is slashable until serveUntil
+     * @param operator the operator whose stake update is being recorded
+     * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
+     * @dev removes the middleware's slashing contract to the operator's linked list
+     */
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external;
 
     /**
@@ -70,7 +108,9 @@ interface ISlasher {
      */
     function removeGloballyPermissionedContracts(address[] calldata contracts) external;
 
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32);
 
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32);
 }

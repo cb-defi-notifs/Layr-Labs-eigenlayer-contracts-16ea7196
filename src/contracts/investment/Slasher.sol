@@ -18,7 +18,8 @@ import "forge-std/Test.sol";
  * @notice This contract specifies details on slashing. The functionalities are:
  * - adding contracts who have permission to perform slashing,
  * - revoking permission for slashing from specified contracts,
- * - calling investManager to do actual slashing.
+ * - tracking historic stake updates to ensure that withdrawals can only be completed once no middlewares have slashing rights
+ * over the funds being withdrawn
  */
 contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTest {
     using StructuredLinkedList for StructuredLinkedList.List;
@@ -39,8 +40,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     uint32 internal constant MAX_BONDED_UNTIL = type(uint32).max;
 
     /**
-     * operator => a linked list of the addresses of the whitelisted middleware slashing the operator is  
-     * serving sorted by the block for which they were last updated (content of updates below) in ascending order 
+     * operator => a linked list of the addresses of the whitelisted middleware with permission to slash the operator, i.e. which  
+     * the operator is serving. Sorted by the block at which they were last updated (content of updates below) in ascending order.
+     * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
      */
     mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
     //operator => whitelisted middleware slashing => block it was last updated
@@ -56,11 +58,25 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      */
     mapping(address => MiddlewareTimes[]) public operatorToMiddlewareTimes;
 
+    /// @notice Emitted when `contractAdded` is added to the list of globallyPermissionedContracts.
     event GloballyPermissionedContractAdded(address indexed contractAdded);
+
+    /// @notice Emitted when `contractRemoved` is removed from the list of globallyPermissionedContracts.
     event GloballyPermissionedContractRemoved(address indexed contractRemoved);
+
+    /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
+
+    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `unbondedAfter.
     event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 unbondedAfter);
+
+    /**
+     * @notice Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
+     * @dev The `slashingContract` must have permission to slash the `slashedOperator`, i.e. `canSlash(slasherOperator, slashingContract)` must return 'true'.
+     */
     event OperatorSlashed(address indexed slashedOperator, address indexed slashingContract);
+
+    /// @notice Emitted when `previouslySlashedAddress` is 'unfrozen', allowing them to again move deposited funds within EigenLayer.
     event FrozenStatusReset(address indexed previouslySlashedAddress);
 
     constructor(IInvestmentManager _investmentManager, IEigenLayrDelegation _delegation) {
@@ -165,8 +181,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
-
-        //update latest update
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
 
@@ -191,7 +206,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     {
         // sanity check on input
         require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
-        // update latest update
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
         // move the middleware to its correct update position via prev and updateBlock
         // if the the middleware is the only one, then no need to mutate the list
@@ -250,8 +265,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev removes the middleware's slashing contract to the operator's linked list
      */
     function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
-
-        //update latest update
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
         //remove the middleware from the list
         require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
@@ -289,6 +303,18 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         }
     }
 
+    /**
+     * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
+     * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
+     * struct is consulted as proof of the `operator`'s ability (or lack thereof) to complete the withdrawal.
+     * This function will return 'false' if the operator cannot currently complete a withdrawal started at the `withdrawalStartBlock`, *or* in the event
+     * that an incorrect `middlewareTimesIndex` is supplied, even if one or more correct inputs exist.
+     * @param operator Either the operator who queued the withdrawal themselves, or if the withdrawing party is a staker who delegated to an operator,
+     * this address is the operator *who the staker was delegated to* at the time of the `withdrawalStartBlock`.
+     * @param withdrawalStartBlock The block number at which the withdrawal was initiated.
+     * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
+     * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
+     */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns(bool) {
 
         if (operatorToMiddlewareTimes[operator].length == 0) {
@@ -316,10 +342,12 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         );
     }
 
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32){
         return operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock;
     }
 
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.
     function getMiddlewareTimesIndexServeUntil(address operator, uint32 index) external view returns(uint32) {
         return operatorToMiddlewareTimes[operator][index].latestServeUntil;
     }
