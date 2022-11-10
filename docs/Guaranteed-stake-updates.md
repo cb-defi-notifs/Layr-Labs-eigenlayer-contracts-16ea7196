@@ -1,0 +1,134 @@
+# Guaranteed Stake Updates on Withdrawal
+
+These are proposed updates to the slasher
+
+## Storage Model
+
+For each operator, we need to store:
+
+1. A list of the contracts that are whitelisted to slash the operator
+2. A [linked list](https://github.com/vittominacori/solidity-linked-list/blob/master/contracts/StructuredLinkedList.sol) of `address`es of all whitelisted contracts (these will always be in order of when their stakes were last updated earliest to latest)
+`mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`
+3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
+4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
+```solidity
+struct MiddlewareTimes {
+    uint32 updateTime; //the time at which this MiddlewareTimes update was appended
+    uint32 earliestLastUpdateTime; //the time of update for the middleware whose latest update was earliest
+    uint32 latestServeUntil; //the latest serve until time from all of the middleware that the operator is serving
+}
+```
+
+Note:
+
+`remove`, `nodeExists`,`getHead`, `getNextNode`, and `pushBack` are all constant time operations on linked lists. This is gained at the sacrifice of getting any elements at their *indexes* in the list. We should not need that typically integral functionality of lists as shown below.
+
+## Helper Functions
+
+### `_recordUpdateAndAddToMiddlewareTimes`
+
+This function is called by a whitelisted slashing contract and records that the middleware has had a stake update and updates the storage as follows
+
+```solidity
+_recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
+    //update latest update
+    operatorToWhitelistedContractsToLatestUpdateTime[operator][msg.sender] = uint32(block.timestamp)
+    //load current middleware times tip
+    MiddlewareTimes curr = middlewareTimes[operator][middlewareTimes[operator].length - 1];
+    MiddlewareTimes next = MiddlewareTimes({
+        updateTime: uint32(block.timestamp),
+        //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
+        earliestLastUpdateTime: 
+        operatorToWhitelistedContractsByUpdate[operator].getHead() == msg.sender
+        ?  operatorToWhitelistedContractsToLatestUpdateTime[
+                operatorToWhitelistedContractsByUpdate[operator].getNextNode(msg.sender)
+        ] 
+        //otherwise keep it the same
+        : curr.earliestLastUpdateTime
+        // if the current middleware's serve until is later than the current recorded one, update the latestServeUntil
+        latestServeUntil: serveUntil > curr.latestServeUntil ? serveUntil : curr.latestServeUntil
+    })
+}
+```
+
+## Public Functions
+
+### `recordFirstStakeUpdate`
+
+This function is called by a whitelisted slashing contract during registration stake updates passing in the time until which the operator's stake is bonded `serveUntil` and updates the storage as follows
+
+```solidity
+recordFirstStakeUpdate(address operator, uint32 serveUntil) {
+    //restrict to permissioned contracts
+    require(canSlash(operator, msg.sender));
+    //update latest update
+    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
+    //push the middleware to the end of the update list  
+    require(operatorToWhitelistedContractsByUpdate[operator].pushBack(msg.sender))
+}
+```
+
+### `recordStakeUpdate`
+
+This function is called by a whitelisted slashing contract passing in the time until which the operator's stake is bonded `serveUntil` and records that the middleware has had a stake update and updates the storage as follows
+
+```solidity
+recordStakeUpdate(address operator, uint32 serveUntil) {
+    //restrict to permissioned contracts
+    require(canSlash(operator, msg.sender));
+    //update latest update
+    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
+    //move the middleware to the end of the update list
+    require(operatorToWhitelistedContractsByUpdate[operator].remove(msg.sender))
+    require(operatorToWhitelistedContractsByUpdate[operator].pushBack(msg.sender))
+}
+```
+
+### `recordLastStakeUpdate`
+
+This function is called by a whitelisted slashing contract on deregistration passing in the time until which the operator's stake is bonded `serveUntil` and records that the middleware has had a stake update and updates the storage as follows
+
+```solidity
+recordLastStakeUpdate(address operator, uint32 serveUntil) {
+    //restrict to permissioned contracts
+    require(canSlash(operator, msg.sender));
+    //update latest update
+    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
+    //remove the middleware from the list
+    require(operatorToWhitelistedContractsByUpdate[operator].remove(msg.sender))
+}
+```
+
+### `canWithdraw`
+
+The biggest thing this upgrade does is it makes sure that withdrawals only happen once the stake being withdrawn is no longer slashable in a non optimistic way. This is done by calling the `canWithdraw` function on the slasher.
+
+```solidity
+canWithdaw(address operator, uint32 withdrawalStartTime, uint256 middlewareTimesIndex) (bool) {
+    if (middlewareUpdates[operator].length == 0) {
+        return true
+    }
+    //make the update time is after the withdrawalStartTime
+    //make sure earliest update at the time is after withdrawalStartTime
+    //make sure the current time is after the latestServeUntil at the time
+    //this assures us that this update happened after the withdrawal and 
+    //all middlewares were updated after the withdrawal and
+    //the stake is no longer slashable
+    MiddlewareUpdate update = middlewareUpdates[operator][middlewareTimesIndex];
+    require(
+            withdrawalStartTime < update.updateTime 
+            &&
+            withdrawalStartTime < update.earliestLastUpdateTime 
+            &&
+            uint32(block.timestamp) > update.latestServeUntil
+    )   
+}
+```
+
+
+
+
+
+
+
+
