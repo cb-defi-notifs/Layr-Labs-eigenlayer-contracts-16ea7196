@@ -46,6 +46,9 @@ interface ISlasher {
     /// @notice Returns the UTC timestamp until which `slashingContract` is allowed to slash the `operator`.
     function bondedUntil(address operator, address slashingContract) external view returns (uint32);
 
+    /// @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
+    function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) external view returns (uint256);
+
     /**
      * @notice Returns 'true' if `operator` can currently complete a withdrawal started at the `withdrawalStartBlock`, with `middlewareTimesIndex` used
      * to specify the index of a `MiddlewareTimes` struct in the operator's list (i.e. an index in `operatorToMiddlewareTimes[operator]`). The specified
