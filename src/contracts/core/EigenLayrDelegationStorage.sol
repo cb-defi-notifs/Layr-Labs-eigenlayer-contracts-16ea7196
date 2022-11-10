@@ -28,7 +28,7 @@ abstract contract EigenLayrDelegationStorage is IEigenLayrDelegation {
     /// @notice The InvestmentManager contract for EigenLayr
     IInvestmentManager public immutable investmentManager;
 
-    // operator => investment strategy => num shares delegated
+    // operator => investment strategy => total number of shares delegated to them
     mapping(address => mapping(IInvestmentStrategy => uint256)) public operatorShares;
 
     // operator => delegation terms contract

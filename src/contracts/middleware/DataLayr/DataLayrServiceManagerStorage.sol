@@ -24,11 +24,13 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      *
      */
     //TODO: mechanism to change any of these values?
+    /// @notice Unit of measure (in time) for the duration of DataStores
     uint256 public constant DURATION_SCALE = 1 hours;
     uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 20;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 public constant MIN_DATASTORE_DURATION = 1;
-    uint8 public constant MAX_DATASTORE_DURATION = 14;
+    /// @notice The longest allowed duation of a DataStore, measured in `DURATION_SCALE`
+    uint8 public constant MAX_DATASTORE_DURATION = 7;
 
     uint32 internal constant MIN_STORE_SIZE = 32;
     uint32 internal constant MAX_STORE_SIZE = 4e9;
@@ -40,7 +42,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     uint32 public constant BLOCK_STALE_MEASURE = 150;
     uint256 public constant BIP_MULTIPLIER = 10000;
 
-    // collateral token used for placing collateral on challenges & payment commits
+    /// @notice Collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
     /**
@@ -62,8 +64,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
     uint256 public feePerBytePerTime;
 
     // TODO: set these values correctly
-    uint48 public constant numPowersOfTau = 0; // num of leaves in the root tree
-    uint48 public constant log2NumPowersOfTau = 0; // num of leaves in the root tree
+    /// @notice number of leaves in the root tree
+    uint48 public constant numPowersOfTau = 0;
+    /// @notice number of layers in the root tree
+    uint48 public constant log2NumPowersOfTau = 0;
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...
