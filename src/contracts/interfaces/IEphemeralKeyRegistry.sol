@@ -38,14 +38,15 @@ interface IEphemeralKeyRegistry {
     function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external;
 
     /**
-     * @notice Used by the operator to commit to a new ephemeral key and invalidate the current one.
+     * @notice Used by the operator to commit to a new ephemeral key(s) and invalidate the current one.
      *         This would be called whenever 
      *              (1) an operator is going to run out of ephemeral keys and needs to put more on chain
      *              (2) an operator wants to reveal all ephemeral keys used before a certain block number
      *                  to propagate stake updates
-     * @param ephemeralKeyHash is being committed
+     * @param ephemeralKeyHashes are the new ephemeralKeyHash(es) being committed
+     * @param activeKeyIndex is the index of the caller's active ephemeral key
      */
-    function commitNewEphemeralKeyHash(bytes32 ephemeralKeyHash) external;
+    function commitNewEphemeralKeyHashesAndInvalidateActiveKey(bytes32[] calldata ephemeralKeyHashes, uint256 activeKeyIndex) external;
 
     /**
      * @notice Used by the operator to reveal an ephemeral key
