@@ -27,8 +27,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     // DATA STRUCTURES
 
     /**
-     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment
-     * claim by a registered operator.
+     * @notice Challenge window for submitting fraudproof in the case of an incorrect payment claim by a registered operator.
      */
     uint256 public constant paymentFraudproofInterval = 7 days;
     /// @notice Constant used as a divisor in dealing with BIPS amounts
@@ -43,8 +42,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     IERC20 public immutable collateralToken;
 
     /**
-     * @notice Specifies the payment that has to be made as a collateral for fraudproof
-     * during payment challenges
+     * @notice Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
      */
     uint256 public paymentFraudproofCollateral;
 
@@ -112,7 +110,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     /**
      * @notice deposit one-time fees by the `msg.sender` with this contract to pay for future tasks of this middleware
-     * @param onBehalfOf could be the msg.sender or a different address for whom `msg.sender` is depositing these future fees
+     * @param onBehalfOf could be the `msg.sender` themselves, or a different address for whom `msg.sender` is depositing these future fees
      * @param amount is amount of futures fees being deposited
      */
     function depositFutureFees(address onBehalfOf, uint256 amount) external {
@@ -120,6 +118,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         depositsOf[onBehalfOf] += amount;
     }
 
+    /// @notice Allows the `allowed` address to spend up to `amount` of the `msg.sender`'s funds that have been deposited in this contract
     function setAllowance(address allowed, uint256 amount) external {
         allowances[msg.sender][allowed] = amount;
     }
@@ -145,8 +144,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     }
 
     /**
-     * @notice This is used by an operator to make claim on the  amount that they deserve
-     * for their service since their last payment until `toTaskNumber
+     * @notice This is used by an operator to make a claim on the amount that they deserve for their service from their last payment until `toTaskNumber`
      * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
     function commitPayment(uint32 toTaskNumber, uint96 amount) external {
@@ -204,7 +202,10 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         emit PaymentCommit(msg.sender, fromTaskNumber, toTaskNumber, amount);
     }
 
-    /// @notice This function can only be called after the challenge window for the payment claim has completed.
+    /**
+     * @notice Called by an operator to redeem a payment that they previously 'committed' to by calling `commitPayment`.
+     * @dev This function can only be called after the challenge window for the payment claim has completed.
+     */
     function redeemPayment() external whenNotPaused {
         // verify that the `msg.sender` has a committed payment
         require(
@@ -317,8 +318,8 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
      * @param operator The middleware operator who was challenged (used to look up challenge details)
      * @param secondHalf If true, then the caller wishes to challenge the amount claimed as payment in the *second half* of the
      * previous bisection step. If false then the *first half* is indicated instead.
-     * amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
-     * amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
+     * @param amount1 The amount that the caller asserts the operator is entitled to, for the first half *of the challenged half* of the previous bisection.
+     * @param amount2 The amount that the caller asserts the operator is entitled to, for the second half *of the challenged half* of the previous bisection.
      */
     function performChallengeBisectionStep(address operator, bool secondHalf, uint96 amount1, uint96 amount2)
         external
@@ -474,30 +475,37 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         }
     }
 
+    /// @notice Returns the ChallengeStatus for the `operator`'s payment claim.
     function getChallengeStatus(address operator) external view returns (ChallengeStatus) {
         return operatorToPaymentChallenge[operator].status;
     }
 
+    /// @notice Returns the 'amount1' for the `operator`'s payment claim.
     function getAmount1(address operator) external view returns (uint96) {
         return operatorToPaymentChallenge[operator].amount1;
     }
 
+    /// @notice Returns the 'amount2' for the `operator`'s payment claim.
     function getAmount2(address operator) external view returns (uint96) {
         return operatorToPaymentChallenge[operator].amount2;
     }
 
+    /// @notice Returns the 'toTaskNumber' for the `operator`'s payment claim.
     function getToTaskNumber(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toTaskNumber;
     }
 
+    /// @notice Returns the 'fromTaskNumber' for the `operator`'s payment claim.
     function getFromTaskNumber(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
+    /// @notice Returns the task number difference for the `operator`'s payment claim.
     function getDiff(address operator) external view returns (uint48) {
         return operatorToPaymentChallenge[operator].toTaskNumber - operatorToPaymentChallenge[operator].fromTaskNumber;
     }
 
+    /// @notice Returns the active collateral of the `operator` placed on their payment claim.
     function getPaymentCollateral(address operator) external view returns (uint256) {
         return operatorToPayment[operator].collateral;
     }
