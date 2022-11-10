@@ -215,7 +215,7 @@ contract DataLayrLowDegreeChallenge {
         return (precompileWorks && pairingSuccessful);
     }
 
-    //update pairing gas limit
+    /// @notice Called by DataLayr governance to update the pairing gas limit
     function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
         pairingGasLimit = newGasLimit;
     }

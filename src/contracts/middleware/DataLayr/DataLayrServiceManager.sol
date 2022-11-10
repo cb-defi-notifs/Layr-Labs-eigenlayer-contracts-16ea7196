@@ -539,41 +539,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         return dataStoresForDuration.dataStoreId;
     }
 
-    /**
-     * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
-     * specified `unlockTime`.
-     * @dev Function reverts if the verification fails.
-     * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
-     */
-    function stakeWithdrawalVerification(
-        bytes calldata packedDataStoreSearchData,
-        uint256 initTimestamp,
-        uint256 unlockTime
-    )
-        external
-        view
-    {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData =
-            DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
-        bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
-        require(
-            dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
-            "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)"
-        );
-
-        /**
-         * Now we check that the specified DataStore was created *at or before*  the `initTimestamp`, i.e. when the user undelegated, deregistered, etc. *AND*
-         * that the user's funds are set to unlock *prior* to the expiration of the DataStore.
-         * In other words, we are checking that a user was active when the specified DataStore was created, and is trying to unstake/undelegate/etc. funds prior
-         * to them fully serving out their commitment to storing their share of the data.
-         */
-        require(
-            (initTimestamp >= searchData.timestamp)
-                && (unlockTime < searchData.timestamp + (searchData.duration * DURATION_SCALE)),
-            "DataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
-        );
-    }
-
     /// @notice Returns the `latestTime` until which operators must serve.
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
