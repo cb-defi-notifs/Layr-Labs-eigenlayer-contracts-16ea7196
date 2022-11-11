@@ -6,8 +6,8 @@ Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed 
 For each operator, we need to store:
 
 1. A list of the contracts that are whitelisted to slash the operator
-2. A [linked list](https://github.com/vittominacori/solidity-linked-list/blob/master/contracts/StructuredLinkedList.sol) of `address`es of all whitelisted contracts (these will always be in order of when their stakes were last updated earliest to latest)
-`mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`
+2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`
+, from operator address to a [linked list](https://github.com/vittominacori/solidity-linked-list/blob/master/contracts/StructuredLinkedList.sol) of addresses of all whitelisted contracts (these will always be in order of when their stakes were last updated earliest to latest)
 3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
