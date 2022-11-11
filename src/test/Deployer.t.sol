@@ -381,7 +381,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
-        generalRepository1 = new Repository(delegation, investmentManager);
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(

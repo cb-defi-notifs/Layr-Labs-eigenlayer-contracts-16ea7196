@@ -269,11 +269,12 @@ contract DelegationTests is DataLayrTestHelper {
 
             initializeMiddlewares();
 
+            randao==false;
             if(randao){
                 _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
             else{
-                _testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+                testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
 
         }
@@ -387,7 +388,7 @@ contract DelegationTests is DataLayrTestHelper {
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function _testWithdrawalWithStakeUpdate(
+    function testWithdrawalWithStakeUpdate(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -395,15 +396,27 @@ contract DelegationTests is DataLayrTestHelper {
             uint256 eigenAmount,
             bool withdrawAsTokens
         ) 
-            internal 
+            public 
         {
-
+        
         testDelegation(operator, depositor, ethAmount, eigenAmount);
+
         cheats.startPrank(operator);
         investmentManager.slasher().allowToSlash(address(generalServiceManager1));
+        investmentManager.slasher().allowToSlash(address(generalServiceManager2));
         cheats.stopPrank();
 
-        generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
+        emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
+        emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
+        emit log("________________________________________________________________");
+        generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
+        emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
+
+
+       //generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
+        emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
+
+
 
         address delegatedTo = delegation.delegatedTo(depositor);
 
@@ -439,7 +452,9 @@ contract DelegationTests is DataLayrTestHelper {
         }
 
         cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
+
+        
 
         _testQueueWithdrawal(
             depositor,
@@ -453,15 +468,23 @@ contract DelegationTests is DataLayrTestHelper {
         
         //now withdrawal block time is before deregistration
         cheats.warp(uint32(block.timestamp) + 2 days);
-        cheats.roll(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.number) + 2);
+
+        generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
+
+        cheats.warp(uint32(block.timestamp) + 5 days);
+        cheats.roll(uint32(block.number) + 5);
         
-        generalReg1.deregisterOperator(operator);
+        uint256 prevElement = uint256(uint160(address(generalServiceManager2)));
+        generalReg1.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+
+        
         {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
             cheats.warp(uint32(block.timestamp) + 4 days);
-            cheats.roll(uint32(block.timestamp) + 4 days);
+            cheats.roll(uint32(block.number) + 4);
 
-            uint256 middlewareTimeIndex =  1;
+            uint256 middlewareTimeIndex =  2;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
                     depositor,

@@ -26,8 +26,7 @@ contract MiddlewareRegistry is IRegistry, DSTest{
 
     }
 
-    function registerOperator(address operator, uint32 serveUntil) public {
-        
+    function registerOperator(address operator, uint32 serveUntil) public {        
         require(investmentManager.slasher().canSlash(operator, address(repository.serviceManager())), "Not opted into slashing");
         repository.serviceManager().recordFirstStakeUpdate(operator, serveUntil);
 

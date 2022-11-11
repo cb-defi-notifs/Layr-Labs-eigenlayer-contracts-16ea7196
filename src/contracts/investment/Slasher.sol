@@ -186,6 +186,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
 
         _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
 
+
         // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
         require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
             "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
@@ -281,7 +282,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
      * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
      */
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns (bool) {
         // if the operator has never registered for a middleware, just return 'true'
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
@@ -295,6 +296,15 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
          * that the stake is no longer slashable.
          */
+
+        emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
+        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
+
+        emit log("uint32(block.timestamp) > update.latestServeUntil");
+        emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
+        emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
+
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
@@ -447,11 +457,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        // emit log("____________________________________________");
-        // emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        // emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        // emit log_named_uint("updateBlock", updateBlock);
-        // emit log("____________________________________________");
+        emit log("____________________________________________");
+        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
+        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
+        emit log_named_uint("updateBlock", updateBlock);
+        emit log("____________________________________________");
 
     }
 
@@ -462,9 +472,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * be flipped to 'true', and we will use `getCorrectValueForInsertAfter` to find the correct input. This routine helps solve
          * a race condition where the proper value of `insertAfter` changes while a transaction is pending.
          */
+       
         bool runFallbackRoutine = false;
         // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
         if (insertAfter != HEAD) {
+             emit log_named_uint("insertAfter", insertAfter);
             // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
             if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
                 runFallbackRoutine = true;
