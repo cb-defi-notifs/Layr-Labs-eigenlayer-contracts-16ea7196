@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../interfaces/IRepository.sol";
+import "../../interfaces/IRepositoryAccess.sol";
 import "../../interfaces/IQuorumRegistry.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 
@@ -58,7 +59,7 @@ contract DataLayrLowDegreeChallenge {
     uint256 internal constant POT_TREE_HEIGHT = 28;
 
     modifier onlyRepositoryGovernance() {
-        require(msg.sender == dataLayrServiceManager.repository().owner(), "onlyRepositoryGovernance");
+        require(msg.sender == IRepositoryAccess(address(dataLayrServiceManager)).repository().owner(), "onlyRepositoryGovernance");
         _;
     }
 
