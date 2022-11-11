@@ -13,14 +13,14 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _testRegisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint8 operatorType,
-        bytes32 ephemeralKey,
+        bytes32 ephemeralKeyHash,
         string memory socket
     ) public {
 
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
 
     }
@@ -28,14 +28,13 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _testDeregisterOperatorWithDataLayr(
         uint8 operatorIndex,
         uint256[4] memory pubkeyToRemoveAff,
-        uint8 operatorListIndex,
-        bytes32 finalEphemeralKey
+        uint8 operatorListIndex
     ) public {
 
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
+        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
         cheats.stopPrank();
     }
     //initiates a data store
@@ -53,6 +52,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         dataLayrPaymentManager.depositFutureFees(storer, 1e11);
 
+        uint32 stakesFromBlockNumber = uint32(block.number);
         uint32 blockNumber = uint32(block.number);
         uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
 
@@ -64,7 +64,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
             storer,
             confirmer,
             durationToInit,
-            blockNumber,
+            stakesFromBlockNumber,
             totalOperatorsIndex,
             header
         );
@@ -74,7 +74,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.stopPrank();
 
 
-        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
         uint32 degree;
         assembly{
             degree := shr(224, mload(add(header, 96)))
@@ -90,6 +90,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 headerHash: headerHash,
                 durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
                 globalDataStoreId: dlsm.taskNumber() - 1,
+                stakesFromBlockNumber: stakesFromBlockNumber,
                 blockNumber: blockNumber,
                 fee: uint96(fee),
                 confirmer: confirmer,
@@ -209,7 +210,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         slasher.allowToSlash(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
 
         cheats.stopPrank();
 
@@ -288,7 +289,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
                 )
             ),
             uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.blockNumber,
+            searchData.metadata.stakesFromBlockNumber,
             searchData.metadata.globalDataStoreId,
             numberOfNonSigners,
             // no pubkeys here since zero nonSigners for now

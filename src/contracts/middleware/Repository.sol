@@ -7,6 +7,7 @@ import "../interfaces/IRegistry.sol";
 import "../interfaces/IRepository.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title A central hub contract for a single middleware on EigenLayr.

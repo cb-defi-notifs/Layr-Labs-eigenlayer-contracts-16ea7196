@@ -44,10 +44,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        //deploy pauser registry
+        // deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
-        blsPkCompendium = new BLSPublicKeyCompendium();
 
+        blsPkCompendium = new BLSPublicKeyCompendium();
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -71,12 +71,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         pod = new EigenPod(ethPOSDeposit);
 
         eigenPodBeacon = new UpgradeableBeacon(address(pod));
-        eigenPodManager = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager, beaconChainOracle);
+
+        // this contract is deployed later to keep its address the same (for these tests)
+        eigenPodManager = EigenPodManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
 
 
         address initialOwner = address(this);
@@ -96,7 +101,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
-
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(eigenPodManager))),
+            address(eigenPodManagerImplementation),
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+        );
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
@@ -170,6 +179,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
+        // make sure the fuzzed 'incorrect' input is not actually the correct one!
+        cheats.assume(wrongWithdrawalAddress != podOwner);
+        
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         cheats.startPrank(podOwner);
@@ -206,7 +218,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-    function testWithdrawalEigenPods(bytes memory signature, bytes32 depositDataRoot) public {
+    function testEigenPodsWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 

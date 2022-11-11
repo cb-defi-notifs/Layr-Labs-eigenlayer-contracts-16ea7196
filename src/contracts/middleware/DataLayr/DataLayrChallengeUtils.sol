@@ -26,6 +26,7 @@ contract DataLayrChallengeUtils {
         uint32 numPar;
     }
 
+    // TODO: set this value
     uint256 internal ZERO_POLY_TREE_HEIGHT;
 
     /**

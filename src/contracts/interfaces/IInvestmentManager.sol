@@ -14,8 +14,7 @@ import "./IServiceManager.sol";
 interface IInvestmentManager {
     // used for storing details of queued withdrawals
     struct WithdrawalStorage {
-        uint32 initTimestamp;
-        uint32 unlockTimestamp;
+        uint32 withdrawalStartBlock;
         address withdrawer;
     }
 
@@ -37,6 +36,7 @@ interface IInvestmentManager {
         uint256[] shares;
         address depositor;
         WithdrawerAndNonce withdrawerAndNonce;
+        uint32 withdrawalStartBlock;
         address delegatedAddress;
     }
 
@@ -118,10 +118,6 @@ interface IInvestmentManager {
     )
         external returns(bytes32);
 
-    function startQueuedWithdrawalWaitingPeriod(
-        bytes32 withdrawalRoot,
-        uint32 stakeInactiveAfter
-    ) external;
 
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
@@ -132,25 +128,8 @@ interface IInvestmentManager {
      */
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
+        uint256 middlewareTimesIndex,
         bool receiveAsTokens
-    )
-        external;
-
-    /**
-     * @notice Used prove that the funds to be withdrawn in a queued withdrawal are still at stake in an active query.
-     * The result is setting the 'withdrawer' of the queued withdrawal to the zero address, signalling that the queued withdrawal
-     * can now be slashed through a call to `slashQueuedWithdrawal`.
-     * @param queuedWithdrawal the queued withdrawal to be proven against
-     * @param data Provided as an input to `slashingContract.stakeWithdrawalVerification`, used to check the proof
-     * @param slashingContract Is a contract that the 'delegated address' of the queued withdrawal -- i.e. `queuedWithdrawal.delegatedAddress`,
-     * the operator whom the originator of the queued withdrawal was delegated to at the time of its creation -- signed up to serve. The contract
-     * must still have slashing rights, as checked in `slasher.canSlash(queuedWithdrawal.delegatedAddress, address(slashingContract))`
-     * @dev The format of the `data` input may vary significantly depending upon the service.
-     */
-    function challengeQueuedWithdrawal(
-        QueuedWithdrawal calldata queuedWithdrawal,
-        bytes calldata data,
-        IServiceManager slashingContract
     )
         external;
 
@@ -180,17 +159,6 @@ interface IInvestmentManager {
         QueuedWithdrawal calldata queuedWithdrawal
     )
         external;
-
-    /**
-     * @notice Used to check if a queued withdrawal can be completed. Returns 'true' if the withdrawal can be immediately
-     * completed, and 'false' otherwise.
-     * @dev This function will revert if the specified `queuedWithdrawal` does not exist
-     */
-    function canCompleteQueuedWithdrawal(
-        QueuedWithdrawal calldata queuedWithdrawal
-    )
-        external
-        returns (bool);
 
     /// @notice Returns the keccak256 hash of `queuedWithdrawal`.
     function calculateWithdrawalRoot(

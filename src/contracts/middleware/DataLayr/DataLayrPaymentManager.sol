@@ -107,13 +107,13 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
             // scoped block helps fix stack too deep
             {
                 require(
-                    operatorStake.updateBlockNumber <= searchData.metadata.blockNumber,
+                    operatorStake.updateBlockNumber <= searchData.metadata.stakesFromBlockNumber,
                     "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too late"
                 );
 
                 require(
                     operatorStake.nextUpdateBlockNumber == 0
-                        || operatorStake.nextUpdateBlockNumber > searchData.metadata.blockNumber,
+                        || operatorStake.nextUpdateBlockNumber > searchData.metadata.stakesFromBlockNumber,
                     "DataLayrPaymentManager.respondToPaymentChallengeFinal: Operator stake index is too early"
                 );
             }
@@ -153,7 +153,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
             //either the operator must have been a non signer or the task was based off of stakes before the operator registered
             require(
                 nonSignerPubkeyHashes[nonSignerIndex] == operatorPubkeyHash
-                    || searchData.metadata.blockNumber < registry.getFromBlockNumberForOperator(operator),
+                    || searchData.metadata.stakesFromBlockNumber < registry.getFromBlockNumberForOperator(operator),
                 "DataLayrPaymentManager.respondToPaymentChallengeFinal: Signer index is incorrect"
             );
         }
