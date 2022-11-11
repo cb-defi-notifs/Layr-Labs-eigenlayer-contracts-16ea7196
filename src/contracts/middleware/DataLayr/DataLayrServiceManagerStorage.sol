@@ -20,11 +20,14 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager {
     // CONSTANTS
     uint256 public constant BIP_MULTIPLIER = 10000;
 
+    //TODO: mechanism to change any of these values?
+    /// @notice Unit of measure (in time) for the duration of DataStores
     uint256 public constant DURATION_SCALE = 1 hours;
     uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 20;
     // NOTE: these values are measured in *DURATION_SCALE*
     uint8 public constant MIN_DATASTORE_DURATION = 1;
-    uint8 public constant MAX_DATASTORE_DURATION = 14;
+    /// @notice The longest allowed duation of a DataStore, measured in `DURATION_SCALE`
+    uint8 public constant MAX_DATASTORE_DURATION = 7;
 
     //TODO: mechanism to change any of these values?
     uint32 internal constant MIN_STORE_SIZE = 32;
@@ -35,8 +38,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager {
     uint256 public feePerBytePerTime;
 
     // TODO: set these values correctly
-    uint48 public constant numPowersOfTau = 0; // num of leaves in the root tree
-    uint48 public constant log2NumPowersOfTau = 0; // num of leaves in the root tree
+    /// @notice number of leaves in the root tree
+    uint48 public constant numPowersOfTau = 0;
+    /// @notice number of layers in the root tree
+    uint48 public constant log2NumPowersOfTau = 0;
 
     //TODO: store these upon construction
     // Commitment(0), Commitment(x - w), Commitment((x-w)(x-w^2)), ...

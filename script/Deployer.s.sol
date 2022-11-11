@@ -1,43 +1,59 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
-import "../src/contracts/interfaces/IEigenPodManager.sol";
+import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
+import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
 import "../src/contracts/core/EigenLayrDelegation.sol";
+
+import "../src/contracts/interfaces/IETHPOSDeposit.sol";
+import "../src/contracts/interfaces/IBeaconChainOracle.sol";
 
 import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
+import "../src/contracts/pods/EigenPod.sol";
 import "../src/contracts/pods/EigenPodManager.sol";
+
+import "../src/contracts/permissions/PauserRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
+import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../src/contracts/middleware/EphemeralKeyRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../src/contracts/permissions/PauserRegistry.sol";
+import "../src/contracts/libraries/BLS.sol";
+import "../src/contracts/libraries/BytesLib.sol";
+import "../src/contracts/libraries/DataStoreUtils.sol";
 
-import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../src/test/utils/Signers.sol";
+import "../src/test/utils/SignatureUtils.sol";
+
+import "../src/test/mocks/EmptyContract.sol";
+import "../src/test/mocks/BeaconChainOracleMock.sol";
+import "../src/test/mocks/ETHDepositMock.sol";
+
+import "forge-std/Test.sol";
+
+
+
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 import "../src/contracts/utils/ERC165_Universal.sol";
 import "../src/contracts/utils/ERC1155TokenReceiver.sol";
-
 import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreUtils.sol";
-
-import "../src/test/mocks/EmptyContract.sol";
 
 // # To load the variables in the .env file
 // source .env
@@ -92,6 +108,11 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     address initialOwner = address(this);
 
+    IEigenPod public pod;
+    IETHPOSDeposit public ethPOSDeposit;
+    IBeacon public eigenPodBeacon;
+    IBeaconChainOracle public beaconChainOracle;
+
     // ERC20PresetFixedSupply public liquidStakingMockToken;
     // InvestmentStrategyBase public liquidStakingMockStrat;
 
@@ -127,14 +148,9 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     uint256 public gasLimit = 750000;
 
-    uint256 mainHonchoPrivKey = vm.envUint("PRIVATE_KEY_UINT");
-
-    address mainHoncho = cheats.addr(mainHonchoPrivKey);
-
-    //performs basic deployment before each test
     function run() external {
         vm.startBroadcast();
-        emit log_address(mainHoncho);
+
         emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
@@ -158,11 +174,23 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         slasher = Slasher(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
+        eigenPodManager = EigenPodManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+
+        beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+
+        ethPOSDeposit = new ETHPOSDepositMock();
+        pod = new EigenPod(ethPOSDeposit);
+
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
@@ -179,6 +207,11 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(eigenPodManager))),
+            address(eigenPodManagerImplementation),
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
         );
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));

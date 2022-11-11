@@ -57,7 +57,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     uint128 internal constant MIN_THRESHOLD_BIPS = 1;
     uint128 internal constant MAX_THRESHOLD_BIPS = 9999;
 
-    //quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
+    // quorumThresholdBasisPoints is the minimum basis points of total registered operators that must sign the datastore
     uint16 public quorumThresholdBasisPoints;
 
     /** 
@@ -66,6 +66,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     */
     uint16 public adversaryThresholdBasisPoints;
 
+    /// @notice Keeps track of the number of DataStores for each duration, the total number of DataStores, and the `latestTime` until which operators must serve.
     DataStoresForDuration public dataStoresForDuration;
 
     // EVENTS
@@ -76,6 +77,11 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     );
 
     // TODO: rename to 'DataStoreConfirmed'
+    /**
+     * @notice Emitted when a DataStore is confirmed.
+     * @param dataStoreId The ID for the DataStore inside of the specified duration (i.e. *not* the globalDataStoreId)
+     * @param headerHash The headerHash of the DataStore.
+     */
     event ConfirmDataStore(uint32 dataStoreId, bytes32 headerHash);
 
     event FeePerBytePerTimeSet(uint256 previousValue, uint256 newValue);
@@ -197,8 +203,8 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
      *   NumPar         uint32
      *   OrigDataSize   uint32 
      *   Disperser      [20]byte
-    *   LowDegreeProof [64]byte
-}
+     *   LowDegreeProof [64]byte 
+     *  }
      * @param duration for which the data has to be stored by the DataLayr operators.
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
@@ -371,7 +377,6 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
      * uint256[4] apk,
      * uint256[2] sigma
      * >
-     * @dev 
      */
     function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external whenNotPaused {
         /**
@@ -473,7 +478,10 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     }
 
     // VIEW FUNCTIONS
-
+    /**
+     * @notice Checks that the hash of the `index`th DataStore with the specified `duration` at the specified UTC `timestamp` matches the supplied `metadata`.
+     * Returns 'true' if the metadata matches the hash, and 'false' otherwise.
+     */
     function verifyDataStoreMetadata(
         uint8 duration,
         uint256 timestamp,
@@ -493,6 +501,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         );
     }
 
+    /// @notice Returns the hash of the `index`th DataStore with the specified `duration` at the specified UTC `timestamp`.
     function getDataStoreHashesForDurationAtTimestamp(uint8 duration, uint256 timestamp, uint32 index)
         public
         view
@@ -526,7 +535,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         if (duration == 7) {
             return dataStoresForDuration.seven_duration;
         }
-        return 0;
+        revert("DataLayrServiceManager.getNumDataStoresForDuration: invalid duration");
     }
 
     function taskNumber() external view returns (uint32) {
@@ -535,7 +544,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
 
     /**
      * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
-     * specified `unlockTime`
+     * specified `unlockTime`.
      * @dev Function reverts if the verification fails.
      * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
      */
@@ -568,12 +577,13 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         );
     }
 
+    /// @notice Returns the `latestTime` until which operators must serve.
     function latestTime() external view returns (uint32) {
         return dataStoresForDuration.latestTime;
     }
 
     /// @dev need to override function here since its defined in both these contracts
-    function owner() public view override(OwnableUpgradeable, IDataLayrServiceManager) returns (address) {
+    function owner() public view override(OwnableUpgradeable, IServiceManager) returns (address) {
         return OwnableUpgradeable.owner();
     }
 
@@ -606,12 +616,12 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         }
     }
 
-    function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint32 storePeriodLength)
+    function calculateFee(uint256 totalBytes, uint256 _feePerBytePerTime, uint32 storePeriodLength)
         public
         pure
         returns (uint256)
     {
-        return uint256(totalBytes * feePerBytePerTime * storePeriodLength);
+        return uint256(totalBytes * _feePerBytePerTime * storePeriodLength);
     }
 
     function _setFeePerBytePerTime(uint256 _feePerBytePerTime) internal {

@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./mocks/LiquidStakingToken.sol";
-import "./mocks/EmptyContract.sol";
+import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 import "../contracts/interfaces/IEigenLayrDelegation.sol";
-import "../contracts/interfaces/IEigenPodManager.sol";
 import "../contracts/core/EigenLayrDelegation.sol";
+
+import "../contracts/interfaces/IETHPOSDeposit.sol";
+import "../contracts/interfaces/IBeaconChainOracle.sol";
 
 import "../contracts/investment/InvestmentManager.sol";
 import "../contracts/investment/InvestmentStrategyBase.sol";
 import "../contracts/investment/Slasher.sol";
 
+import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
+
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
@@ -23,17 +31,17 @@ import "../contracts/middleware/EphemeralKeyRegistry.sol";
 import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
-import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";
 import "../contracts/libraries/DataStoreUtils.sol";
 
 import "./utils/Signers.sol";
 import "./utils/SignatureUtils.sol";
+
+import "./mocks/LiquidStakingToken.sol";
+import "./mocks/EmptyContract.sol";
+import "./mocks/BeaconChainOracleMock.sol";
+import "./mocks/ETHDepositMock.sol";
 
 import "forge-std/Test.sol";
 
@@ -47,7 +55,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EigenPodManager public eigenPodManager;
     Slasher public slasher;
     PauserRegistry public pauserReg;
     IERC20 public weth;
@@ -75,6 +82,12 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     BLSRegistryWithBomb public dlRegImplementation;
 
     EmptyContract public emptyContract;
+    IBLSPublicKeyCompendium public blsPkCompendium;
+    IEigenPodManager public eigenPodManager;
+    IEigenPod public pod;
+    IETHPOSDeposit public ethPOSDeposit;
+    IBeacon public eigenPodBeacon;
+    IBeaconChainOracle public beaconChainOracle;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -101,6 +114,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     uint256[] apks;
     uint256[] sigmas;
+
+    address[] public slashingContracts;
 
     uint256 wethInitialSupply = 10e50;
     uint256 undelegationFraudproofInterval = 7 days;
@@ -169,9 +184,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         //deploy pauser registry
         pauserReg = new PauserRegistry(pauser, unpauser);
 
-        //TODO: handle pod manager correctly
-        eigenPodManager = EigenPodManager(address(0));
-
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
@@ -186,10 +198,24 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         slasher = Slasher(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
+        eigenPodManager = EigenPodManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+
+        beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+
+        ethPOSDeposit = new ETHPOSDepositMock();
+        pod = new EigenPod(ethPOSDeposit);
+
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
+
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
         EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
         InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
         Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
@@ -207,6 +233,12 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             address(slasherImplementation),
             abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
         );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(eigenPodManager))),
+            address(eigenPodManagerImplementation),
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+        );
+
 
         //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
@@ -262,6 +294,10 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 )
             )
         );
+
+        slashingContracts.push(address(eigenPodManager));
+        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        
 
         //loads hardcoded signer set
         _setSigners();

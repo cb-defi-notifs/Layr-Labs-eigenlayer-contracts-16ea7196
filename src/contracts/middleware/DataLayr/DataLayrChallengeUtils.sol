@@ -27,6 +27,7 @@ contract DataLayrChallengeUtils is Initializable {
         uint32 numPar;
     }
 
+    // TODO: set this value
     uint256 internal ZERO_POLY_TREE_HEIGHT;
 
     constructor() {
