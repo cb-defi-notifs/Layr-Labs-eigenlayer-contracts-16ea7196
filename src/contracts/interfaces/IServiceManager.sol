@@ -29,4 +29,13 @@ interface IServiceManager {
     function latestTime() external view returns (uint32);
 
     function owner() external view returns (address);
+
+    /**
+     * @notice Verifies that a task for this middleware exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
+     * specified `unlockTime`.
+     * @dev Function reverts if the verification fails.
+     */
+    function stakeWithdrawalVerification(bytes calldata data, uint256 initTimestamp, uint256 unlockTime)
+        external
+        view;
 }
