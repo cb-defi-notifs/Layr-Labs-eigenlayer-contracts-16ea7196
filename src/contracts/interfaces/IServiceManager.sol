@@ -2,14 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IRepositoryAccess.sol";
 import "./IEigenLayrDelegation.sol";
 
 /**
  * @title Interface for a `ServiceManager`-type contract.
  * @author Layr Labs, Inc.
  */
-interface IServiceManager  {
+// TODO: provide more functions for this spec
+interface IServiceManager {
     /// @notice Returns the current 'taskNumber' for the middleware
     function taskNumber() external view returns (uint32);
 
