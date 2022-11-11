@@ -81,10 +81,16 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
-    MiddlewareRegistry public generalReg;
-    IRepository public generalRepository;
+    
     IVoteWeigher public generalVoteWeigher;
-    DataLayrServiceManager public generalServiceManager;
+
+    IRepository public generalRepository1;
+    MiddlewareRegistry public generalReg1;
+    DataLayrServiceManager public generalServiceManager1;
+
+    IRepository public generalRepository2;
+    MiddlewareRegistry public generalReg2;
+    DataLayrServiceManager public generalServiceManager2;
 
 
 
@@ -375,23 +381,13 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
 
         dlRepository = new Repository(delegation, investmentManager);
-        generalRepository = new Repository(delegation, investmentManager);
+        generalRepository1 = new Repository(delegation, investmentManager);
 
         uint256 feePerBytePerTime = 1;
         dlsm = new DataLayrServiceManager(
             investmentManager,
             delegation,
             dlRepository,
-            weth,
-            pauserReg,
-            feePerBytePerTime
-        );
-
-
-        generalServiceManager = new DataLayrServiceManager(
-            investmentManager,
-            delegation,
-            generalRepository,
             weth,
             pauserReg,
             feePerBytePerTime
@@ -432,14 +428,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
        
         Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
 
-        
-
-         generalReg = new MiddlewareRegistry(
-             Repository(address(generalRepository)),
-             investmentManager
-        );
-        
-        Repository(address(generalRepository)).initialize(dlReg, generalServiceManager, generalReg, address(this));
+    
 
         uint256 _paymentFraudproofCollateral = 1e16;
 
