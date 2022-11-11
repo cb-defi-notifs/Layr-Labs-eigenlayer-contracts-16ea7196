@@ -244,13 +244,13 @@ contract DelegationTests is DataLayrTestHelper {
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
-         //_testOptInRegistration(operator);
+        _testOptInRegistration(operator);
 
-        cheats.startPrank(operator);
-        investmentManager.slasher().allowToSlash(address(generalServiceManager));
-        cheats.stopPrank();
+        // cheats.startPrank(operator);
+        // investmentManager.slasher().allowToSlash(address(generalServiceManager));
+        // cheats.stopPrank();
 
-        generalReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
+        // generalReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues

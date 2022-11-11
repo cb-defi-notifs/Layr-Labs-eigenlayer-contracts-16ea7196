@@ -108,7 +108,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
     function allowToSlash(address contractAddress) external {
-        emit log_named_address("msg.sender being recorded", msg.sender);
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
