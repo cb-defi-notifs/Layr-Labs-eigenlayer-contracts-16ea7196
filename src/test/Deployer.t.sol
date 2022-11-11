@@ -435,7 +435,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         
 
          generalReg = new MiddlewareRegistry(
-             Repository(address(generalRepository))
+             Repository(address(generalRepository)),
+             investmentManager
         );
         
         Repository(address(generalRepository)).initialize(dlReg, generalServiceManager, generalReg, address(this));

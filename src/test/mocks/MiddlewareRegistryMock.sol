@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IRegistry.sol";
+import "../../contracts/interfaces/IInvestmentManager.sol";
 
 import "../../contracts/middleware/Repository.sol";
 
@@ -13,20 +14,21 @@ import "forge-std/Test.sol";
 
 contract MiddlewareRegistry is IRegistry, DSTest{
     IRepository public immutable repository;
+    IInvestmentManager public investmentManager;
 
 
     constructor(
-        Repository _repository
+        Repository _repository,
+        IInvestmentManager _investmentManager
     ){
         repository = _repository;
+        investmentManager = _investmentManager;
 
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {
         
-        emit log_named_address("INTENDED sender",operator );
-
-        //investmentManager.slasher().allowToSlash(middleware);
+        require(investmentManager.slasher().canSlash(operator, address(repository.serviceManager())), "Not opted into slashing");
         repository.serviceManager().recordFirstStakeUpdate(operator, serveUntil);
 
     }
