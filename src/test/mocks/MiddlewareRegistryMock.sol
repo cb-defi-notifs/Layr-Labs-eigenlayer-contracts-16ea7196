@@ -23,8 +23,12 @@ contract MiddlewareRegistry is IRegistry, DSTest{
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {
+        
+        emit log_named_address("INTENDED sender",operator );
 
+        //investmentManager.slasher().allowToSlash(middleware);
         repository.serviceManager().recordFirstStakeUpdate(operator, serveUntil);
+
     }
 
     function deregisterOperator(address operator) public {

@@ -295,7 +295,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         );
 
         slashingContracts.push(address(eigenPodManager));
-        slashingContracts.push(address(generalServiceManager));
+        //slashingContracts.push(address(generalServiceManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
         
 

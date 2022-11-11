@@ -244,7 +244,13 @@ contract DelegationTests is DataLayrTestHelper {
         {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
-        generalReg.registerOperator(operator, 3 days);
+         //_testOptInRegistration(operator);
+
+        cheats.startPrank(operator);
+        investmentManager.slasher().allowToSlash(address(generalServiceManager));
+        cheats.stopPrank();
+
+        generalReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues
@@ -278,8 +284,8 @@ contract DelegationTests is DataLayrTestHelper {
             tokensArray[1] = eigenToken;
         }
 
-        cheats.warp(1 days);
-        cheats.roll(1 days);
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.timestamp) + 1 days);
 
         _testQueueWithdrawal(
             depositor,
@@ -292,14 +298,14 @@ contract DelegationTests is DataLayrTestHelper {
         uint32 queuedWithdrawalBlock = uint32(block.number);
         
         //now withdrawal block time is before deregistration
-        cheats.warp(2 days);
-        cheats.roll(2 days);
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.timestamp) + 2 days);
         
         generalReg.deregisterOperator(operator);
         {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-            cheats.warp(4 days);
-            cheats.roll(4 days);
+            cheats.warp(uint32(block.timestamp) + 4 days);
+            cheats.roll(uint32(block.timestamp) + 4 days);
 
             uint256 middlewareTimeIndex =  1;
             if (withdrawAsTokens) {
@@ -610,5 +616,14 @@ contract DelegationTests is DataLayrTestHelper {
             );
         }
         cheats.stopPrank();
+    }
+
+    //helper to opt the operator into slashing and register the operator in the registry
+    function _testOptInRegistration(address operator) internal {
+        cheats.startPrank(operator);
+        investmentManager.slasher().allowToSlash(address(generalServiceManager));
+        cheats.stopPrank();
+
+        generalReg.registerOperator(operator, uint32(block.timestamp) + 3 days);
     }
 }
