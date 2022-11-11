@@ -254,7 +254,7 @@ contract DelegationTests is DataLayrTestHelper {
             uint256 ethAmount,
             uint256 eigenAmount,
             bool withdrawAsTokens,
-            bool randao
+            bool RANDAO
         ) 
             public 
             fuzzedAddress(operator) 
@@ -269,7 +269,7 @@ contract DelegationTests is DataLayrTestHelper {
 
             initializeMiddlewares();
 
-            if(randao){
+            if(RANDAO){
                 _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
             else{
