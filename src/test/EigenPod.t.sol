@@ -179,6 +179,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
+        // make sure the fuzzed 'incorrect' input is not actually the correct one!
+        cheats.assume(wrongWithdrawalAddress != podOwner);
+        
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         cheats.startPrank(podOwner);
@@ -215,7 +218,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-    function testWithdrawalEigenPods(bytes memory signature, bytes32 depositDataRoot) public {
+    function testEigenPodsWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 

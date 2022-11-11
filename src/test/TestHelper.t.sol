@@ -341,7 +341,8 @@ contract TestHelper is EigenLayrDeployer {
             shares: shareAmounts,
             depositor: staker,
             withdrawerAndNonce: withdrawerAndNonce,
-            delegatedAddress: delegation.delegatedTo(staker)
+            delegatedAddress: delegation.delegatedTo(staker),
+            withdrawalStartBlock: uint32(block.number)
         });
 
         {
@@ -357,44 +358,11 @@ contract TestHelper is EigenLayrDeployer {
         cheats.startPrank(staker);
         // TODO: check with 'undelegateIfPossible' = false, rather than just true
         withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
-        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
-        if (queuedWithdrawal.delegatedAddress != address(0)) {
-            assertTrue(
-                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
-            );
-        }
-        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
-        else if (queuedWithdrawal.delegatedAddress == address(0)) {
-            assertTrue(
-                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
-                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
-            );
-        } else {
-            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
-        }
         cheats.stopPrank();
         return (withdrawalRoot, queuedWithdrawal);
     }
 
-    function _testStartQueuedWithdrawalWaitingPeriod(
-        address withdrawer,
-        bytes32 withdrawalRoot,
-        uint32 stakeInactiveAfter
-    ) internal {
-        cheats.startPrank(withdrawer);
-        // TODO: un-hardcode the '8 days' and '30 days' here
-        // '8 days' accounts for the `REASONABLE_STAKES_UPDATE_PERIOD`
-        cheats.warp(block.timestamp + 8 days);
-        // '30 days' is used to prevent overflow in timestamps when stored as uint32 values (2^32 is in the year 2106 in UTC time)
-        cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
-        cheats.assume(stakeInactiveAfter > block.timestamp);
-        investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        withdrawalRoot, 
-                                        stakeInactiveAfter
-                                    );
-        cheats.stopPrank();
-    }
+
 
     function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
 

@@ -26,7 +26,7 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - freezing operators as the result of various "challenges"
  */
-contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
+contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
     // sanity checks. should always require *some* signatures, but never *all* signatures
     uint128 internal constant MIN_THRESHOLD_PERCENTAGE = 1;
@@ -180,7 +180,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
      * This is a quantized parameter that describes how many factors of DURATION_SCALE
      * does this data blob needs to be stored. The quantization process comes from ease of
      * implementation in DataLayrBombVerifier.sol.
-     * @param blockNumber is the block number in Ethereum for which the confirmation will
+     * @param stakesFromBlockNumber is the block number in Ethereum for which the confirmation will
      * consult total + operator stake amounts.
      * -- must not be more than 'BLOCK_STALE_MEASURE' (defined in DataLayr) blocks in past
      * @return index The index in the array `dataStoreHashesForDurationAtTimestamp[duration][block.timestamp]` at which the DataStore's hash was stored.
@@ -189,7 +189,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         address feePayer,
         address confirmer,
         uint8 duration,
-        uint32 blockNumber,
+        uint32 stakesFromBlockNumber,
         uint32 totalOperatorsIndex,
         bytes calldata header
     )
@@ -205,8 +205,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         {
             uint256 totalBytes;
             {
-                //fetch the total number of operators for the blockNumber from which stakes are being read from
-                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
+                //fetch the total number of operators for the stakesFromBlockNumber from which stakes are being read from
+                uint32 totalOperators = IQuorumRegistry(address(_registry())).getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
@@ -254,7 +254,8 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
                 headerHash: headerHash,
                 durationDataStoreId: getNumDataStoresForDuration(duration),
                 globalDataStoreId: dataStoresForDuration.dataStoreId,
-                blockNumber: blockNumber,
+                stakesFromBlockNumber: stakesFromBlockNumber,
+                blockNumber: uint32(block.number),
                 fee: uint96(fee),
                 confirmer: confirmer,
                 signatoryRecordHash: bytes32(0)
@@ -286,15 +287,15 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
             );
         }
 
-        // sanity check on blockNumber
+        // sanity check on stakesFromBlockNumber
         {
             require(
-                blockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified blockNumber is in future"
+                stakesFromBlockNumber <= block.number, "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is in future"
             );
 
             require(
-                (blockNumber + BLOCK_STALE_MEASURE) >= block.number,
-                "DataLayrServiceManager.initDataStore: specified blockNumber is too far in past"
+                (stakesFromBlockNumber + BLOCK_STALE_MEASURE) >= uint32(block.number),
+                "DataLayrServiceManager.initDataStore: specified stakesFromBlockNumber is too far in past"
             );    
         }
 
@@ -397,7 +398,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         );
         // verify integrity of `blockNumberFromTaskHash` provided as part of `data` input        
         require(
-            searchData.metadata.blockNumber == blockNumberFromTaskHash,
+            searchData.metadata.stakesFromBlockNumber == blockNumberFromTaskHash,
             "DataLayrServiceManager.confirmDataStore: blocknumber does not agree with data"
         );
 
@@ -436,7 +437,7 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     }
 
-    // called in the event of challenge resolution
+    /// @notice Called in the event of challenge resolution, in order to forward a call to the Slasher, which 'freezes' the `operator`.
     function freezeOperator(address operator) external {
         require(
             msg.sender == address(dataLayrLowDegreeChallenge)
@@ -448,11 +449,27 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
         ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 
-    // called in the event of deregistration
+    /// @notice Called by the Registry in the event of a new registration, to forward a call to the Slasher
+    function recordFirstStakeUpdate(address operator, uint32 unbondedAfter) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordFirstStakeUpdate(operator, unbondedAfter);
+    }
+
+    /// @notice Called by the Registry, in order to forward a call to the Slasher, informing it of a stake update
+    function recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 prevElement) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordStakeUpdate(operator, updateBlock, serveUntil, prevElement);
+    }
+
+    /// @notice Called by the Registry in the event of deregistration, to forward a call to the Slasher
+    function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyRegistry {
+        ISlasher(investmentManager.slasher()).recordLastStakeUpdate(operator, serveUntil);
+    }
+
+    /// @notice Called by the Registry in the event of deregistration, to forward a call to the Slasher
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
         ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
     }
 
+    /// @notice Used by DataLayr governance to adjust the value of the `feePerBytePerTime` variable.
     function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }
@@ -520,41 +537,6 @@ contract DataLayrServiceManager is DataLayrServiceManagerStorage, BLSSignatureCh
 
     function taskNumber() external view returns (uint32) {
         return dataStoresForDuration.dataStoreId;
-    }
-
-    /**
-     * @notice Verifies that a DataStore exists which was created *at or before* `initTimestamp` *AND* that expires *strictly prior to* the
-     * specified `unlockTime`.
-     * @dev Function reverts if the verification fails.
-     * @param packedDataStoreSearchData should be the same format as the output of `DataStoreUtils.packDataStoreSearchData(dataStoreSearchData)`
-     */
-    function stakeWithdrawalVerification(
-        bytes calldata packedDataStoreSearchData,
-        uint256 initTimestamp,
-        uint256 unlockTime
-    )
-        external
-        view
-    {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData =
-            DataStoreUtils.unpackDataStoreSearchData(packedDataStoreSearchData);
-        bytes32 dsHash = DataStoreUtils.computeDataStoreHash(searchData.metadata);
-        require(
-            dataStoreHashesForDurationAtTimestamp[searchData.duration][searchData.timestamp][searchData.index] == dsHash,
-            "DataLayrServiceManager.stakeWithdrawalVerification: provided calldata does not match corresponding stored hash from (initDataStore)"
-        );
-
-        /**
-         * Now we check that the specified DataStore was created *at or before*  the `initTimestamp`, i.e. when the user undelegated, deregistered, etc. *AND*
-         * that the user's funds are set to unlock *prior* to the expiration of the DataStore.
-         * In other words, we are checking that a user was active when the specified DataStore was created, and is trying to unstake/undelegate/etc. funds prior
-         * to them fully serving out their commitment to storing their share of the data.
-         */
-        require(
-            (initTimestamp >= searchData.timestamp)
-                && (unlockTime < searchData.timestamp + (searchData.duration * DURATION_SCALE)),
-            "DataLayrServiceManager.stakeWithdrawalVerification: task does not meet requirements"
-        );
     }
 
     /// @notice Returns the `latestTime` until which operators must serve.

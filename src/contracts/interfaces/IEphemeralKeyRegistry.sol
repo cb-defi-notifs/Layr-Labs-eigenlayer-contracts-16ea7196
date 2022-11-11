@@ -9,59 +9,77 @@ pragma solidity ^0.8.9;
  */
 
 interface IEphemeralKeyRegistry {
-    /**
-     * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration).
-     * This effectively serves as a commitment to the ephemeral key - when it is revealed during the disclosure period, it can be verified against the hash.
-     * @param EKHash is the hash of the Ephemeral key that is being currently used by the
-     * @param operator for signing on bomb-based queries.
-     */
-    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external;
+    // DATA STRUCTURES
+    struct EphemeralKeyEntry {
+        // the hash of the ephemeral key
+        bytes32 ephemeralKeyHash;
+        // when the ephemeral key started being used/will start being used
+        uint32 startBlock;
+        // when the ephemeral key was revealed. this is 0 if the ephemeral key for this entry has not been revealed yet.
+        uint32 revealBlock;
+    }
 
     /**
-     * @notice Used by the operator to post their ephemeral key preimage via BLSRegistry (on degregistration) after the expiry of its usage.
-     * This function is called only when operator is going to de-register from the middleware.
-     * Check its usage in the `deregisterOperator` function of the BLSRegistryWithBomb contract.
-     * @param prevEK is the preimage.
+     * @notice Used by operator to post their first ephemeral key hashes via BLSRegistry (on registration).
+     *         During revealing, the posted ephemeral keys will be checked against the ones committed on chain.
+     * @param operator for signing on bomb-based queries
+     * @param ephemeralKeyHash1 is the hash of the first ephemeral key to be used by `operator`
+     * @param ephemeralKeyHash2 is the hash of the second ephemeral key to be used by `operator`
+     * @dev This function can only be called by the registry itself.
      */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external;
+    function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external;
 
     /**
-     * @notice Used by the operator to update their ephemeral key hash and post their previous ephemeral key after the expiry of its usage.
-     * Revealing of current ephemeral key and describing the hash of the new ephemeral key done together.
-     * @param prevEK is the previous ephemeral key, checked against the `msg.sender`'s existing keyHash.
-     * @param newEKHash is the hash of the new ephemeral key.
-     * @dev The function must be called within the `REVEAL_PERIOD` which is the time window within which an operator can reveal their EK preimage
-     * without the risk of being frontrun and slashed (outside of the reveal period, if an attacker sees the preimage in the mempool, they can frontrun
-     * that reveal transaction and cause slashing of the operator).  
+     * @notice Used by the operator to reveal their unrevealed ephemeral keys via BLSRegistry (on deregistration).
+     * @param startIndex is the index of the ephemeral key to reveal
+     * @param prevEphemeralKeys are the previous ephemeral keys
+     * @dev This function can only be called by the registry itself.
      */
-    function revealAndUpdateEphemeralKey(bytes32 prevEK, bytes32 newEKHash) external;
-
-    /// @notice retrieve the operator's current ephemeral key hash
-    function getCurrEphemeralKeyHash(address operator) external returns (bytes32);
-
-    /// @notice retrieve the operator's current ephemeral key itself
-    function getLatestEphemeralKey(address operator) external returns (bytes32);
+    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external;
 
     /**
-     * @notice Used for proving that an operator hasn't reveal their ephemeral key within the reveal window, triggering slashing of the operator.
-     * @param operator The operator with a stale ephemeral key
+     * @notice Used by the operator to commit to a new ephemeral key(s) and invalidate the current one.
+     *         This would be called whenever 
+     *              (1) an operator is going to run out of ephemeral keys and needs to put more on chain
+     *              (2) an operator wants to reveal all ephemeral keys used before a certain block number
+     *                  to propagate stake updates
+     * @param ephemeralKeyHashes are the new ephemeralKeyHash(es) being committed
+     * @param activeKeyIndex is the index of the caller's active ephemeral key
      */
-    function proveStaleUnrevealedEphemeralKey(address operator) external;
+    function commitNewEphemeralKeyHashesAndInvalidateActiveKey(bytes32[] calldata ephemeralKeyHashes, uint256 activeKeyIndex) external;
 
     /**
-     * @notice Used for proving that an operator leaked an ephemeral key that was not supposed to be revealed, triggering slashing of the operator.
-     * @param operator The operator who leaked their ephemeral key.
-     * @param leakedEphemeralKey The ephemeral key for the operator, which they were not supposed to reveal.
+     * @notice Used by the operator to reveal an ephemeral key
+     * @param index is the index of the ephemeral key to reveal
+     * @param prevEphemeralKey is the previous ephemeral key
+     * @dev This function should only be called when the key is already inactive and during the key's reveal period. Otherwise, the operator
+     * can be slashed through a call to `verifyLeakedEphemeralKey`.
      */
-    function proveLeakedEphemeralKey(address operator, bytes32 leakedEphemeralKey) external;
-
-    /// @notice Returns the UTC timestamp at which the operator last renewed their ephemeral key
-    function getLastEKPostTimestamp(address operator) external returns (uint192);
+    function revealEphemeralKey(uint256 index, bytes32 prevEphemeralKey) external;
 
     /**
-     * @notice This function is used for getting the ephemeral key pertaining to a particular taskNumber, for an operator
-     * @param operator The operator whose ephemeral key we are interested in.
-     * @param taskNumber The taskNumber for which we want to retrieve the operator's ephemeral key
+     * @notice Used by watchers to prove that an operator hasn't revealed an ephemeral key when they should have.
+     * @param operator is the entity with the stale unrevealed ephemeral key
+     * @param index is the index of the stale entry
      */
-    function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber) external view returns (bytes32);
+    function verifyStaleEphemeralKey(address operator, uint256 index) external;
+
+    /**
+     * @notice Used by watchers to prove that an operator has inappropriately shared their ephemeral key with other entities.
+     * @param operator is the entity that shared their ephemeral key
+     * @param index is the index of the ephemeral key they shared
+     * @param ephemeralKey is the preimage of the stored ephemeral key hash
+     */
+    function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external;
+    
+    /**
+     * @notice Returns the ephemeral key entry of the specified operator at the given blockNumber
+     * @param operator is the entity whose ephemeral key entry is being retrieved
+     * @param index is the index of the ephemeral key entry that was active during blockNumber
+     * @param blockNumber the block number at which the returned entry's ephemeral key was active
+     * @dev Reverts if index points to the incorrect public key. index should be calculated off chain before
+     *      calling this method via looping through the array and finding the last entry that has a 
+     *      startBlock <= blockNumber
+     */
+    function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external returns(EphemeralKeyEntry memory);
 }

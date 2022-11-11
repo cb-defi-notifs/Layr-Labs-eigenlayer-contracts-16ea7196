@@ -67,12 +67,12 @@ contract DataLayrLowDegreeChallenge {
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
         DataLayrChallengeUtils _challengeUtils,
-        uint256 _gasLimit
+        uint256 _pairingGasLimit
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
-        pairingGasLimit = _gasLimit;
+        pairingGasLimit = _pairingGasLimit;
     }
 
     /**
@@ -156,11 +156,11 @@ contract DataLayrLowDegreeChallenge {
                 dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
             require(
                 // operator must have become active/registered before (or at) the block number
-                (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
+                (operatorStake.updateBlockNumber <= searchData.metadata.stakesFromBlockNumber)
                 // operator must have still been active after (or until) the block number
                 // either there is a later update, past the specified blockNumber, or they are still active
                 && (
-                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
+                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.stakesFromBlockNumber
                         || operatorStake.nextUpdateBlockNumber == 0
                 ),
                 "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
@@ -215,7 +215,7 @@ contract DataLayrLowDegreeChallenge {
         return (precompileWorks && pairingSuccessful);
     }
 
-    //update pairing gas limit
+    /// @notice Called by DataLayr governance to update the pairing gas limit
     function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
         pairingGasLimit = newGasLimit;
     }

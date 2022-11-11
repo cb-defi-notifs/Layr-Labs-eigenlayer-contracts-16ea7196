@@ -16,7 +16,7 @@ import "forge-std/Test.sol";
  * - addition and removal of strategies and the associated weighting criteria that are assigned
  * by the middleware for each of the quorum(s)
  */
-contract VoteWeigherBase is VoteWeigherBaseStorage, DSTest {
+contract VoteWeigherBase is VoteWeigherBaseStorage {
     /// @notice emitted when `strategy` has been added to the array at `strategiesConsideredAndMultipliers[quorumNumber]`
     event StrategyAddedToQuorum(uint256 indexed quorumNumber, IInvestmentStrategy strategy);
     /// @notice emitted when `strategy` has removed from the array at `strategiesConsideredAndMultipliers[quorumNumber]`

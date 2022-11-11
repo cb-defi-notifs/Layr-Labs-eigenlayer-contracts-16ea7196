@@ -5,7 +5,7 @@ import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../permissions/RepositoryAccess.sol";
 
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
 
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
@@ -17,254 +17,310 @@ import "forge-std/Test.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess, DSTest {
-    // DATA STRUCTURES
-    struct EKEntry {
-        // hash of the ephemeral key, to be revealed after usage
-        bytes32 keyHash;
-        // the ephemeral key itself, i.e. the preimage of `keyHash`
-        bytes32 ephemeralKey;
-        // timestamp when the keyhash is first recorded
-        uint192 timestamp;
-        // task number of the middleware from which ephemeral key is being used
-        uint32 startTaskNumber;
-        // task number of the middleware  until which ephemeral key is being used
-        uint32 endTaskNumber;
-    }
+contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
+    // max amount of blocks that an operator can use an ephemeral key
+    uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
+    // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
+    uint32 public constant REVEAL_PERIOD_BLOCKS = 50400; //7 days at 12s/block
+    // operator => list of ephemeral key hashes, block at which they started being used and were revealed
+    mapping(address => EphemeralKeyEntry[]) public ephemeralKeyEntries;
 
-    // max amount of time that an operator can take to update their ephemeral key
-    uint256 public constant UPDATE_PERIOD = 18 days;
-
-    // max amout of time operator has to submit and confirm the ephemeral key reveal transaction
-    uint256 public constant REVEAL_PERIOD = 3 days;
-
-    // operator => history of ephemeral keys, hashes of them, timestamp at which they were posted, and start/end taskNumbers
-    mapping(address => EKEntry[]) public EKHistory;
+    event EphemeralKeyRevealed(uint256 index, bytes32 ephemeralKey);
+    event EphemeralKeyCommitted(uint256 index);
+    event EphemeralKeyLeaked(uint256 index, bytes32 ephemeralKey);
+    event EphemeralKeyProvenStale(uint256 index);
 
     // solhint-disable-next-line no-empty-blocks
     constructor(IRepository _repository) RepositoryAccess(_repository) {}
 
     /**
-     * @notice Used by operator to post their first ephemeral key hash via BLSRegistry (on registration).
-     * This effectively serves as a commitment to the ephemeral key - when it is revealed during the disclosure period, it can be verified against the hash.
-     * @param EKHash is the hash of the Ephemeral key that is being currently used by the
-     * @param operator for signing on bomb-based queries.
+     * @notice Used by operator to post their first ephemeral key hashes via BLSRegistry (on registration).
+     *         During revealing, the posted ephemeral keys will be checked against the ones committed on chain.
+     * @param operator for signing on bomb-based queries
+     * @param ephemeralKeyHash1 is the hash of the first ephemeral key to be used by `operator`
+     * @param ephemeralKeyHash2 is the hash of the second ephemeral key to be used by `operator`
+     * @dev This function can only be called by the registry itself.
      */
-    function postFirstEphemeralKeyHash(address operator, bytes32 EKHash) external onlyRegistry {
-        // record the new EK entry
-        EKHistory[operator].push(
-            EKEntry({
-                keyHash: EKHash,
-                ephemeralKey: bytes32(0),
-                timestamp: uint192(block.timestamp),
-                startTaskNumber: repository.serviceManager().taskNumber(),
-                endTaskNumber: 0
+    function postFirstEphemeralKeyHashes(address operator, bytes32 ephemeralKeyHash1, bytes32 ephemeralKeyHash2) external onlyRegistry {
+        // record the new ephemeral key entry
+        ephemeralKeyEntries[operator].push(
+            EphemeralKeyEntry({
+                ephemeralKeyHash: ephemeralKeyHash1,
+                startBlock: uint32(block.number),
+                // set the revealBLock to 0 because it has not been revealed
+                revealBlock: 0
+            })
+        );
+        // record the next ephemeral key, starting usage after USAGE_PERIOD_BLOCKS
+        ephemeralKeyEntries[operator].push(
+            EphemeralKeyEntry({
+                ephemeralKeyHash: ephemeralKeyHash2,
+                startBlock: uint32(block.number) + USAGE_PERIOD_BLOCKS,
+                // set the revealBLock to 0 because it has not been revealed
+                revealBlock: 0
             })
         );
     }
-
+                               
     /**
-     * @notice Used by the operator to post their ephemeral key preimage via BLSRegistry (on degregistration) after the expiry of its usage.
-     * This function is called only when operator is going to de-register from the middleware.
-     * Check its usage in the `deregisterOperator` function of the BLSRegistryWithBomb contract.
-     * @param prevEK is the preimage.
+     * @notice Used by the operator to commit to a new ephemeral key(s) and invalidate the current one.
+     *         This would be called whenever 
+     *              (1) an operator is going to run out of ephemeral keys and needs to put more on chain
+     *              (2) an operator wants to reveal all ephemeral keys used before a certain block number
+     *                  to propagate stake updates
+     * @param ephemeralKeyHashes are the new ephemeralKeyHash(es) being committed
+     * @param activeKeyIndex is the index of the caller's active ephemeral key
      */
-    function postLastEphemeralKeyPreImage(address operator, bytes32 prevEK) external {
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+    function commitNewEphemeralKeyHashesAndInvalidateActiveKey(bytes32[] calldata ephemeralKeyHashes, uint256 activeKeyIndex) external {
+        // get the number of entries for the operator
+        uint256 ephemeralKeyEntriesLength = ephemeralKeyEntries[msg.sender].length;
 
+        // verify that the specified key -- indicated by the `activeKeyIndex` input -- is active
         require(
-            // check if call is coming from the 'Registry'
-            msg.sender == address(registry)
-            // otherwise, check if operator recently de-registered
-            // specifically, check if the operator de-registered within (UPDATE_PERIOD + REVEAL_PERIOD) of the current time
-            || (
-                (operator == msg.sender)
-                    && (block.timestamp <= registry.getOperatorDeregisterTime(operator) + UPDATE_PERIOD + REVEAL_PERIOD)
-            ),
-            "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: onlyRegistry OR must have recently de-registered"
+            // check that the `activeKeyIndex`th key became active before the present
+            ephemeralKeyEntries[msg.sender][activeKeyIndex].startBlock < uint32(block.number)
+            && 
+                (
+                    // either the `activeKeyIndex`th key is the last one in the list, or the next key in the list hasn't started being active yet
+                    activeKeyIndex + 1 == ephemeralKeyEntriesLength ||
+                    ephemeralKeyEntries[msg.sender][activeKeyIndex + 1].startBlock >= uint32(block.number)
+                ),
+            "EphemeralKeyRegistry.commitNewEphemeralKeyHashesAndInvalidateActiveKey: activeKeyIndex does not specify active ephemeral key"
         );
 
-        // retrieve the most recent EK entry for the operator
-        uint256 historyLength = _getEKHistoryLength(operator);
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
+        /**
+         * Next we add the ephemeral key entry(s) and make the key after `activeKeyIndex` active, starting in the next block.
+         * There are several different cases for this step, outlined below in the if-else logic.
+         */
 
-        // check that the preimage matches with the hash
-        require(
-            existingEKEntry.keyHash == keccak256(abi.encode(prevEK)),
-            "EphemeralKeyRegistry.postLastEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"
-        );
-
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
-
-        // update the EK entry
-        existingEKEntry.ephemeralKey = prevEK;
-        existingEKEntry.endTaskNumber = currentTaskNumber - 1;
-        EKHistory[operator][historyLength - 1] = existingEKEntry;
-    }
-
-    /**
-     * @notice Used by the operator to update their ephemeral key hash and post their previous ephemeral key after the expiry of its usage.
-     * Revealing of current ephemeral key and describing the hash of the new ephemeral key done together.
-     * @param prevEK is the previous ephemeral key, checked against the `msg.sender`'s existing keyHash.
-     * @param newEKHash is the hash of the new ephemeral key.
-     * @dev The function must be called within the `REVEAL_PERIOD` which is the time window within which an operator can reveal their EK preimage
-     * without the risk of being frontrun and slashed (outside of the reveal period, if an attacker sees the preimage in the mempool, they can frontrun
-     * that reveal transaction and cause slashing of the operator).  
-     */
-    function revealAndUpdateEphemeralKey(bytes32 prevEK, bytes32 newEKHash) external {
-        // retrieve the most recent EK entry for the operator
-        uint256 historyLength = _getEKHistoryLength(msg.sender);
-        EKEntry memory existingEKEntry = EKHistory[msg.sender][historyLength - 1];
-
-        // verify that the operator is active
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
-        require(
-            registry.isActiveOperator(msg.sender),
-            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: operator is not active"
-        );
-
-        require(
-            existingEKEntry.keyHash == keccak256(abi.encode(prevEK)),
-            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: Ephemeral key does not match previous ephemeral key commitment"
-        );
-
-        // checking the validity period of the ephemeral key update
-        require(
-            block.timestamp >= existingEKEntry.timestamp + UPDATE_PERIOD,
-            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: key update cannot be completed too early"
-        );
-        require(
-            block.timestamp <= existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD,
-            "EphemeralKeyRegistry.updateEphemeralKeyPreImage: key update cannot be completed as update window has expired"
-        );
-
-        uint32 currentTaskNumber = repository.serviceManager().taskNumber();
-
-        // updating the previous EK entry
-        existingEKEntry.ephemeralKey = prevEK;
-        existingEKEntry.endTaskNumber = currentTaskNumber - 1;
-        EKHistory[msg.sender][historyLength - 1] = existingEKEntry;
-
-        // new EK entry
-        EKEntry memory newEKEntry;
-        newEKEntry.keyHash = newEKHash;
-        newEKEntry.timestamp = uint192(block.timestamp);
-        newEKEntry.startTaskNumber = currentTaskNumber;
-        EKHistory[msg.sender].push(newEKEntry);
-    }
-
-//TODO: `getLatestEphemeralKey` seems to be a better implementation than `getCurrEphemeralKey`.  Perhaps remove the latter?
-
-    /// @notice retrieve the operator's current ephemeral key hash
-    function getCurrEphemeralKeyHash(address operator) external view returns (bytes32) {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        return EKHistory[operator][historyLength - 1].keyHash;
-    }
-
-    /// @notice retrieve the operator's current ephemeral key itself
-    function getLatestEphemeralKey(address operator) external view returns (bytes32) {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        if (EKHistory[operator][historyLength - 1].ephemeralKey != bytes32(0)) {
-            return EKHistory[operator][historyLength - 1].ephemeralKey;
-            // recent EKEntry is still within UPDATE_PERIOD
+        // 1) if the last ephemeral key is the active one
+        if (activeKeyIndex + 1 == ephemeralKeyEntriesLength) {
+            // we need to push a new entry to the operator's list of ephemeral keys and make it active in the next block
+            ephemeralKeyEntries[msg.sender].push(
+                EphemeralKeyEntry({
+                    ephemeralKeyHash: ephemeralKeyHashes[0],
+                    // new key will become active in the next block
+                    startBlock: uint32(block.number) + 1,
+                    // set the revealBLock to 0 because it has not been revealed
+                    revealBlock: 0
+                })
+            );      
+        // 2) if there is already at least one other ephemeral key 'waiting to become active' in the operator's list of ephemeral keys
         } else {
-            if (historyLength == 1) {
-                revert("EphemeralKeyRegistry.getLatestEphemeralKey: no ephemeralKey posted yet");
-            } else {
-                return EKHistory[operator][historyLength - 2].ephemeralKey;
-            }
-        }
-    }
+            // make the key after the active one become active in the next block
+            ephemeralKeyEntries[msg.sender][activeKeyIndex + 1].startBlock = uint32(block.number) + 1;
 
-    /**
-     * @notice This function is used for getting the ephemeral key pertaining to a particular taskNumber, for an operator
-     * @param operator The operator whose ephemeral key we are interested in.
-     * @param taskNumber The taskNumber for which we want to retrieve the operator's ephemeral key
-     */
-    function getEphemeralKeyForTaskNumber(address operator, uint32 taskNumber) external view returns (bytes32) {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        unchecked {
-            historyLength -= 1;
-        }
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength];
-
-        if (existingEKEntry.startTaskNumber >= taskNumber) {
-            revert(
-                "EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: taskNumber corresponds to latest EK which is still unrevealed"
-            );
-        } else {
-            for (; historyLength > 0; --historyLength) {
-                if (
-                    (taskNumber >= EKHistory[msg.sender][historyLength].startTaskNumber)
-                        && (taskNumber <= EKHistory[msg.sender][historyLength].endTaskNumber)
-                ) {
-                    return EKHistory[msg.sender][historyLength].ephemeralKey;
+            // iterate through any intermediate entries in the operator's list of ephemeral keys and update their startBlock values appropriately
+            for (uint256 i = activeKeyIndex + 2; i < ephemeralKeyEntriesLength;) {
+                ephemeralKeyEntries[msg.sender][i].startBlock = ephemeralKeyEntries[msg.sender][i - 1].startBlock + USAGE_PERIOD_BLOCKS;
+                unchecked {
+                    ++i;
                 }
             }
+
+            // push a new entry to the operator's list of ephemeral keys and give it the appropriate startBlock
+            ephemeralKeyEntries[msg.sender].push(
+                EphemeralKeyEntry({
+                    ephemeralKeyHash: ephemeralKeyHashes[0],
+                    // set the startBlock to be `USAGE_PERIOD_BLOCKS` after the previous key's startBlock
+                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntriesLength - 1].startBlock + USAGE_PERIOD_BLOCKS,
+                    // set the revealBLock to 0 because it has not been revealed
+                    revealBlock: 0
+                })
+            );
         }
-        revert("EphemeralKeyRegistry.getEphemeralKeyForTaskNumber: did not find EK");
+
+        // push any additional new ephemeral key hashes. `i` starts at 1 here since since we've already pushed one new ephemeral key hash.
+        uint256 ephemeralKeyHashesLength = ephemeralKeyHashes.length;
+        for (uint256 i = 1; i < ephemeralKeyHashesLength; ++i) {
+            // push a new entry to the operator's list of ephemeral keys and give it the appropriate startBlock
+            ephemeralKeyEntries[msg.sender].push(
+                EphemeralKeyEntry({
+                    ephemeralKeyHash: ephemeralKeyHashes[i],
+                    // set the startBlock to be `USAGE_PERIOD_BLOCKS` after the previous key's startBlock
+                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntries[msg.sender].length - 1].startBlock + USAGE_PERIOD_BLOCKS,
+                    // set the revealBLock to 0 because it has not been revealed
+                    revealBlock: 0
+                })
+            );
+        }
+
+        // emit event for new committed ephemeral key
+        emit EphemeralKeyCommitted(ephemeralKeyEntries[msg.sender].length);
     }
 
     /**
-     * @notice Used for proving that an operator hasn't reveal their ephemeral key within the reveal window, triggering slashing of the operator.
-     * @param operator The operator with a stale ephemeral key
+     * @notice Used by the operator to reveal an ephemeral key
+     * @param index is the index of the ephemeral key to reveal
+     * @param prevEphemeralKey is the previous ephemeral key
+     * @dev This function should only be called when the key is already inactive and during the key's reveal period. Otherwise, the operator
+     * can be slashed through a call to `verifyLeakedEphemeralKey`.
      */
-    function proveStaleUnrevealedEphemeralKey(address operator) external {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
+    function revealEphemeralKey(uint256 index, bytes32 prevEphemeralKey) external {
+        if (index != 0) {
+            require(ephemeralKeyEntries[msg.sender][index - 1].revealBlock != 0, "EphemeralKeyRegistry.revealEphemeralKey: must reveal keys in order");
+        }
+        require(index + 1 < ephemeralKeyEntries[msg.sender].length, 
+            "EphemeralKeyRegistry.revealEphemeralKey: cannot reveal last key outside of calling revealLastEphemeralKeys");
+        _revealEphemeralKey(msg.sender, index, prevEphemeralKey);
+    }
 
-        // check that the ephemeral key is not yet revealed
-        require(
-            existingEKEntry.ephemeralKey == bytes32(0),
-            "EphemeralKeyRegistry.proveStaleEphemeralKey: ephemeralKey is already revealed"
-        );
+    /**
+     * @notice Used by the operator to reveal their unrevealed ephemeral keys via BLSRegistry (on deregistration).
+     * @param startIndex is the index of the ephemeral key to reveal
+     * @param prevEphemeralKeys are the previous ephemeral keys
+     * @dev This function can only be called by the registry itself.
+     */
+    function revealLastEphemeralKeys(address operator, uint256 startIndex, bytes32[] memory prevEphemeralKeys) external onlyRegistry {
+        if (startIndex != 0) {
+            require(ephemeralKeyEntries[operator][startIndex - 1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
+        }
+        // get the final index plus one
+        uint256 finalIndexPlusOne = startIndex + prevEphemeralKeys.length;
+        for (uint256 i = startIndex; i < finalIndexPlusOne;) {
+            require(
+                ephemeralKeyEntries[operator][i].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKeys[i-startIndex])),
+                "EphemeralKeyRegistry.revealLastEphemeralKeys: Ephemeral key does not match previous ephemeral key commitment"
+            );
+            ephemeralKeyEntries[operator][i].revealBlock = uint32(block.number);
+            //emit event for indexing
+            emit EphemeralKeyRevealed(i, prevEphemeralKeys[i]);
+            unchecked {
+                ++i;
+            }
+        }
+        require(ephemeralKeyEntries[operator].length == finalIndexPlusOne,
+            "EphemeralKeyRegistry.revealLastEphemeralKeys: all ephemeral keys must be revealed");
+    }
 
-        // check that the ephemeral key is actually stale
-        require(
-            block.timestamp > existingEKEntry.timestamp + UPDATE_PERIOD + REVEAL_PERIOD,
-            "EphemeralKeyRegistry.proveStaleEphemeralKey: ephemeralKey is not stale"
-        );
+    /**
+     * @notice Used by watchers to prove that an operator hasn't revealed an ephemeral key when they should have.
+     * @param operator is the entity with the stale unrevealed ephemeral key
+     * @param index is the index of the stale entry
+     */
+    function verifyStaleEphemeralKey(address operator, uint256 index) external {
+        require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
+        if (index + 1 == ephemeralKeyEntries[operator].length){
+            // for the last ephemeral key to be stale, it must have been used for strictly more than USAGE_PERIOD_BLOCKS
+            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_BLOCKS yet");
+        } else {
+            // otherwise, for an ephemeral key to be stale, the next ephemeral key must have been active for strictly more than REVEAL_PERIOD_BLOCKS
+            require(ephemeralKeyEntries[operator][index + 1].startBlock + REVEAL_PERIOD_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_BLOCKS yet");
+        }
 
-        //trigger slashing of operator who hasn't updated their EK
+        // emit event for stale ephemeral key
+        emit EphemeralKeyProvenStale(index);
+
+        // freeze operator with stale ephemeral key
         IServiceManager serviceManager = repository.serviceManager();
         serviceManager.freezeOperator(operator);
     }
 
     /**
-     * @notice Used for proving that an operator leaked an ephemeral key that was not supposed to be revealed, triggering slashing of the operator.
-     * @param operator The operator who leaked their ephemeral key.
-     * @param leakedEphemeralKey The ephemeral key for the operator, which they were not supposed to reveal.
+     * @notice Used by watchers to prove that an operator has inappropriately shared their ephemeral key with other entities.
+     * @param operator is the entity that shared their ephemeral key
+     * @param index is the index of the ephemeral key they shared
+     * @param ephemeralKey is the preimage of the stored ephemeral key hash
      */
-    function proveLeakedEphemeralKey(address operator, bytes32 leakedEphemeralKey) external {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
+    function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external {
+         // verify that the operator is active
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+        require(
+            registry.isActiveOperator(operator),
+            "EphemeralKeyRegistry.verifyLeakedEphemeralKey: operator is not active"
+        );
 
-        // First we check if we are still within the `UPDATE_PERIOD`, meaning that the operator still shouldn't have revealed the ephemeral key.
-        if (block.timestamp < existingEKEntry.timestamp + UPDATE_PERIOD) {
-            /**
-             * Verify that the hash of the provided "leaked" preimage of the ephemeral key matches the stored hash. 
-             * If it is a match, we call on the `serviceManager` contract to slash the operator.
-             */
-            if (existingEKEntry.keyHash == keccak256(abi.encode(leakedEphemeralKey))) {
-                //trigger slashing function of the operator
-                IServiceManager serviceManager = repository.serviceManager();
-                serviceManager.freezeOperator(operator);
-            }
+        require(
+            ephemeralKeyEntries[operator][index].ephemeralKeyHash == keccak256(abi.encodePacked(ephemeralKey)),
+            "EphemeralKeyRegistry.verifyLeakedEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
+        );
+        
+        require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyLeakedEphemeralKey: ephemeral key has been revealed");
+        if(index + 1 != ephemeralKeyEntries[operator].length) {
+            // if an inactive ephemeral key is being leaked, then make sure it's not in its reveal period
+
+            // the block at which the leaked key stopped being active is the
+            // startBlock of the key one entry after the leaked key
+            uint256 endBlock = ephemeralKeyEntries[operator][index+1].startBlock;
+            require(
+                block.number < endBlock ||
+                block.number > endBlock + REVEAL_PERIOD_BLOCKS,
+                "EphemeralKeyRegistry.verifyLeakedEphemeralKey: key cannot be leaked within reveal period"
+            );
         }
+
+        //emit event for leaked ephemeral key
+        emit EphemeralKeyLeaked(index, ephemeralKey);
+
+        //freeze operator with stale ephemeral key
+        IServiceManager serviceManager = repository.serviceManager();
+        serviceManager.freezeOperator(operator);
     }
 
-    /// @notice Returns the UTC timestamp at which the operator last renewed their ephemeral key
-    function getLastEKPostTimestamp(address operator) external view returns (uint192) {
-        uint256 historyLength = _getEKHistoryLength(operator);
-        EKEntry memory existingEKEntry = EKHistory[operator][historyLength - 1];
-        return existingEKEntry.timestamp;
+    /**
+     * @notice Returns the ephemeral key entry of the specified operator at the given blockNumber
+     * @param operator is the entity whose ephemeral key entry is being retrieved
+     * @param index is the index of the ephemeral key entry that was active during blockNumber
+     * @param blockNumber the block number at which the returned entry's ephemeral key was active
+     * @dev Reverts if index points to the incorrect public key. index should be calculated off chain before
+     *      calling this method via looping through the array and finding the last entry that has a 
+     *      startBlock <= blockNumber
+     */
+    function getEphemeralKeyEntryAtBlock(address operator, uint256 index, uint32 blockNumber) external view returns(EphemeralKeyEntry memory) {
+        // verify that the ephemeral key became active at or before `blockNumber` and...
+        require(ephemeralKeyEntries[operator][index].startBlock <= blockNumber &&
+                (
+                    // either the ephemeral key is the last entry or...
+                    ephemeralKeyEntries[operator].length - 1 == index ||
+                    // or the next ephemeral key entry became active strictly after the blockNumber
+                    ephemeralKeyEntries[operator][index + 1].startBlock > blockNumber
+                ),
+                "EphemeralKeyRegistry.getEphemeralKeyEntryAtBlock: index is not the correct entry index"
+        );
+        return ephemeralKeyEntries[operator][index];
     }
 
-    function _getEKHistoryLength(address operator) internal view returns (uint256) {
-        uint256 historyLength = EKHistory[operator].length;
-        if (historyLength == 0) {
-            revert("EphemeralKeyRegistry._getEKHistoryLength: historyLength == 0");
-        }
-        return historyLength;
+    /**
+     * @notice Internal function for doing the proper checks and accounting when revealing ephemeral keys
+     * @param operator is the entity revealing their ephemeral key
+     * @param index is the index of the ephemeral key operator is revealing
+     * @param prevEphemeralKey the ephemeral key
+     */
+    function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEphemeralKey) internal {
+        // verify that the operator is active
+        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
+        require(
+            registry.isActiveOperator(operator),
+            "EphemeralKeyRegistry.revealEphemeralKey: operator is not active"
+        );
+        require(
+            ephemeralKeyEntries[operator][index].revealBlock == 0, 
+            "EphemeralKeyRegistry.revealEphemeralKey: key has already been revealed"
+        );
+        require(
+            ephemeralKeyEntries[operator][index].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKey)),
+            "EphemeralKeyRegistry.revealEphemeralKey: Ephemeral key does not match previous ephemeral key commitment"
+        );
+
+        // the block at which the revealed key stopped being active is the startBlock of the key one entry after the revealed one
+        uint256 endBlock = ephemeralKeyEntries[operator][index + 1].startBlock;
+
+        // checking the validity period of the ephemeral key update
+        require(
+            block.number > endBlock,
+            "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
+        );
+        require(
+            block.number <= endBlock + REVEAL_PERIOD_BLOCKS,
+            "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
+        );
+
+        // updating the previous EK entry
+        ephemeralKeyEntries[operator][index].revealBlock = uint32(block.number);
+
+        //emit event for indexing
+        emit EphemeralKeyRevealed(index, prevEphemeralKey);
     }
 }

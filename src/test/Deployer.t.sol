@@ -45,6 +45,7 @@ import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
 import "./mocks/BeaconChainOracleMock.sol";
 import "./mocks/ETHDepositMock.sol";
+import "./mocks/MiddlewareRegistryMock.sol";
 
 import "forge-std/Test.sol";
 
@@ -80,6 +81,16 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
+    
+    IVoteWeigher public generalVoteWeigher;
+
+    IRepository public generalRepository1;
+    MiddlewareRegistry public generalReg1;
+    DataLayrServiceManager public generalServiceManager1;
+
+    IRepository public generalRepository2;
+    MiddlewareRegistry public generalReg2;
+    DataLayrServiceManager public generalServiceManager2;
 
 
 
@@ -413,8 +424,11 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             eigenStratsAndMultipliers,
             pubkeyCompendium
         );
-
+       
         Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
+
+    
+
         uint256 _paymentFraudproofCollateral = 1e16;
 
         dataLayrPaymentManager = new DataLayrPaymentManager(
@@ -499,7 +513,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         //         abi.encodePacked(searchData.metadata.globalDataStoreId, searchData.metadata.headerHash, searchData.duration, initTime, searchData.index)
         //     ),
         //     uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-        //     searchData.metadata.blockNumber,
+        //     searchData.metadata.stakesFromBlockNumber,
         //     searchData.metadata.globalDataStoreId,
         //     numberOfNonSigners,
         //     // no pubkeys here since zero nonSigners for now

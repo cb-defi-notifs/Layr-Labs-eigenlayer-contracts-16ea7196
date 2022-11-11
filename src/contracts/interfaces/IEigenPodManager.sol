@@ -3,6 +3,8 @@ pragma solidity ^0.8.9;
 
 import "./IInvestmentManager.sol";
 import "./IEigenPod.sol";
+import "./IBeaconChainOracle.sol";
+
 
 /**
  * @title Interface for factory that creates and manages solo staking pods that have their withdrawal credentials pointed to EigenLayer.
