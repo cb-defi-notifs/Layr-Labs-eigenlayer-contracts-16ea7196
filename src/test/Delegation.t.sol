@@ -274,7 +274,7 @@ contract DelegationTests is DataLayrTestHelper {
                 _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
             else{
-                testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+                _testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
 
         }
@@ -388,7 +388,7 @@ contract DelegationTests is DataLayrTestHelper {
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function testWithdrawalWithStakeUpdate(
+    function _testWithdrawalWithStakeUpdate(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -406,18 +406,18 @@ contract DelegationTests is DataLayrTestHelper {
         investmentManager.slasher().allowToSlash(address(generalServiceManager2));
         cheats.stopPrank();
 
-        emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
-        emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
-        emit log("________________________________________________________________");
+        // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
+        // emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
+        // emit log("________________________________________________________________");
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
-        emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
+        // emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
 
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.number) + 1);
 
 
         generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
-        emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
+        // emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
 
 
 
