@@ -269,7 +269,6 @@ contract DelegationTests is DataLayrTestHelper {
 
             initializeMiddlewares();
 
-            randao==false;
             if(randao){
                 _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
             }
