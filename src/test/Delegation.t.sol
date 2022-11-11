@@ -412,8 +412,11 @@ contract DelegationTests is DataLayrTestHelper {
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
         emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
 
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
 
-       //generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
+
+        generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
         emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
 
 
@@ -470,13 +473,15 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.warp(uint32(block.timestamp) + 2 days);
         cheats.roll(uint32(block.number) + 2);
 
-        generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
-
-        cheats.warp(uint32(block.timestamp) + 5 days);
-        cheats.roll(uint32(block.number) + 5);
         
         uint256 prevElement = uint256(uint160(address(generalServiceManager2)));
         generalReg1.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
+
+        prevElement = uint256(uint160(address(generalServiceManager1)));
+        generalReg2.propagateStakeUpdate(operator, uint32(block.number), prevElement);
 
         
         {
@@ -484,7 +489,7 @@ contract DelegationTests is DataLayrTestHelper {
             cheats.warp(uint32(block.timestamp) + 4 days);
             cheats.roll(uint32(block.number) + 4);
 
-            uint256 middlewareTimeIndex =  2;
+            uint256 middlewareTimeIndex =  3;
             if (withdrawAsTokens) {
                 _testCompleteQueuedWithdrawalTokens(
                     depositor,
