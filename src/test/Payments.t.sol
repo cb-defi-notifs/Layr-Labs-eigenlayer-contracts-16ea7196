@@ -180,7 +180,7 @@ contract PaymentsTests is DataLayrTestHelper {
                 numberOfNonSigners,
                 apks,
                 sigmas,
-                searchData.metadata.blockNumber,
+                searchData.metadata.stakesFromBlockNumber,
                 dataStoreId,
                 searchData
             );

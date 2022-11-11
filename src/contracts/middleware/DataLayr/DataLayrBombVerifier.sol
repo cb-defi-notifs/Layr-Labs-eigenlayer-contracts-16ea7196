@@ -58,6 +58,7 @@ contract DataLayrBombVerifier is Initializable {
         uint32 totalOperatorsIndex;
         uint256 detonationNonSignerIndex;
         uint256[] successiveSignerIndexes;
+        uint256 ephemeralKeyIndex;
     }
 
     /// @notice Proof of the data itself -- from the BOMB datastore -- that the operator was responsible for storing
@@ -145,7 +146,8 @@ contract DataLayrBombVerifier is Initializable {
         Indexes calldata indexes,
         IDataLayrServiceManager.SignatoryRecordMinusDataStoreId[] calldata signatoryRecords,
         DataStoresForDuration[2][2][] calldata sandwichProofs,
-        DisclosureProof calldata disclosureProof
+        DisclosureProof calldata disclosureProof,
+        bytes32 ephemeralKey
     ) external {
         // verify integrity of submitted metadata by checking against its stored hashes
         require(
@@ -226,7 +228,7 @@ contract DataLayrBombVerifier is Initializable {
                 //1. The BOMB datastore is based off of stakes before the operator joined
                 //2. The BOMB datastore included the stake of the operator, but the operator did not sign it
                 //This conditional statement checks (1)
-                if (dataStoreProofs.bombDataStores[i].metadata.blockNumber >= operatorActiveFromBlockNumber) {
+                if (dataStoreProofs.bombDataStores[i].metadata.stakesFromBlockNumber >= operatorActiveFromBlockNumber) {
                     //If we make it inside of this loop, then the BOMB datastore included the operator's stake
                     //So we check the proof that the operator did not sign for this datastore
                     // Verify that the signatoryRecord supplied as input related to the i'th potential BOMB datastore is correct
@@ -285,7 +287,7 @@ contract DataLayrBombVerifier is Initializable {
 
             //require that the detonation is happening for a datastore using the operators stake
             require(
-                dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.blockNumber
+                dataStoreProofs.bombDataStores[ultimateBombDataStoreIndex].metadata.stakesFromBlockNumber
                     >= operatorActiveFromBlockNumber,
                 "DataLayrBombVerifier.verfiyBomb: BOMB datastore was not using the operator's stake"
             );
@@ -316,7 +318,7 @@ contract DataLayrBombVerifier is Initializable {
             );
             // require that the detonation is happening for a datastore using the operators stake
             require(
-                dataStoreProofs.detonationDataStore.metadata.blockNumber >= operatorActiveFromBlockNumber,
+                dataStoreProofs.detonationDataStore.metadata.stakesFromBlockNumber >= operatorActiveFromBlockNumber,
                 "DataLayrBombVerifier.verfiyBomb: Detonation datastore was not using the operator's stake"
             );
 
@@ -345,8 +347,10 @@ contract DataLayrBombVerifier is Initializable {
         );
 
         // fetch the operator's ephemeral key for the DETONATION datastore
-        bytes32 ek = dlekRegistry.getEphemeralKeyForTaskNumber(
-            operator, dataStoreProofs.detonationDataStore.metadata.globalDataStoreId
+        require(keccak256(abi.encodePacked(ephemeralKey)) ==             
+                dlekRegistry.getEphemeralKeyEntryAtBlock(
+                    operator, indexes.ephemeralKeyIndex, uint32(dataStoreProofs.detonationDataStore.metadata.blockNumber)
+                ).ephemeralKeyHash, "DataLayrBombVerifier.verifyBomb: provided ephemeral key is incorrect"
         );
 
         // The bomb "condition" is that keccak(data, ek, headerHash) < BOMB_THRESHOLD
@@ -358,7 +362,7 @@ contract DataLayrBombVerifier is Initializable {
         require(
             uint256(
                 keccak256(
-                    abi.encodePacked(disclosureProof.poly, ek, dataStoreProofs.detonationDataStore.metadata.headerHash)
+                    abi.encodePacked(disclosureProof.poly, ephemeralKey, dataStoreProofs.detonationDataStore.metadata.headerHash)
                 )
             ) < BOMB_THRESHOLD,
             "DataLayrBombVerifier.verifyBomb: No bomb"
@@ -702,7 +706,7 @@ contract DataLayrBombVerifier is Initializable {
     /**
      * @notice Gets the specific coset/chunk number that `operator` was assigned for the datastore specified by `searchData`.
      * @param operatorIndex and @param totalOperatorsIndex are the indexes in their relative arrays in the `dlRegistry` that
-     * are used to prove the total number of operators and the index of `operator` at `searchData.metadata.blockNumber`.
+     * are used to prove the total number of operators and the index of `operator` at `searchData.metadata.stakesFromBlockNumber`.
      * These are used to calculate which cosets were used for the datastore, based off of other information in the header.
      */
     function getChunkNumber(
@@ -725,16 +729,16 @@ contract DataLayrBombVerifier is Initializable {
         require(searchData.metadata.signatoryRecordHash != bytes32(0), "Datastore is not committed yet");
 
         /**
-         * Get the index of the given operator at `searchData.metadata.blockNumber` via the `operatorIndex` input,
+         * Get the index of the given operator at `searchData.metadata.stakesFromBlockNumber` via the `operatorIndex` input,
          * and checks in the registry to make sure the index is accurate
          */
-        operatorIndex = dlRegistry.getOperatorIndex(operator, searchData.metadata.blockNumber, operatorIndex);
+        operatorIndex = dlRegistry.getOperatorIndex(operator, searchData.metadata.stakesFromBlockNumber, operatorIndex);
 
         /**
-         * Gets the totalNumber of operators at `searchData.metadata.blockNumber` via the `totalOperatorsIndex` input,
+         * Gets the totalNumber of operators at `searchData.metadata.stakesFromBlockNumber` via the `totalOperatorsIndex` input,
          * and checks in the registry to make sure the index is accurate
          */
-        totalOperatorsIndex = dlRegistry.getTotalOperators(searchData.metadata.blockNumber, totalOperatorsIndex);
+        totalOperatorsIndex = dlRegistry.getTotalOperators(searchData.metadata.stakesFromBlockNumber, totalOperatorsIndex);
 
         // Calculate the coset given to the operator
         return (operatorIndex + searchData.metadata.globalDataStoreId) % totalOperatorsIndex;

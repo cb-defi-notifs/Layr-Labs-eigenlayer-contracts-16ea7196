@@ -23,17 +23,24 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager {
     //TODO: mechanism to change any of these values?
     /// @notice Unit of measure (in time) for the duration of DataStores
     uint256 public constant DURATION_SCALE = 1 hours;
+    /// @notice The maximum number of DataStores of a single duration that can be stored in a single block
     uint256 public constant NUM_DS_PER_BLOCK_PER_DURATION = 20;
-    // NOTE: these values are measured in *DURATION_SCALE*
+    /// @notice The shortest allowed duration of a DataStore, measured in `DURATION_SCALE`
     uint8 public constant MIN_DATASTORE_DURATION = 1;
-    /// @notice The longest allowed duation of a DataStore, measured in `DURATION_SCALE`
+    /// @notice The longest allowed duration of a DataStore, measured in `DURATION_SCALE`
     uint8 public constant MAX_DATASTORE_DURATION = 7;
 
-    //TODO: mechanism to change any of these values?
+    /// @notice Minimum DataStore size, in bytes.
     uint32 internal constant MIN_STORE_SIZE = 32;
+    /// @notice Maximum DataStore size, in bytes.
     uint32 internal constant MAX_STORE_SIZE = 4e9;
-    uint256 internal constant BLOCK_STALE_MEASURE = 100;
-
+    /**
+     * @notice The maximum amount of blocks in the past that the service will consider stake amounts to still be 'valid'.
+     * @dev To clarify edge cases, the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. it may trust stakes from the interval
+     * [block.number - BLOCK_STALE_MEASURE, block.number] (specifically, *inclusive* of the block that is `BLOCK_STALE_MEASURE` before the current one)
+     */
+    uint32 public constant BLOCK_STALE_MEASURE = 150;
+    
     /// @notice service fee that will be paid out by the disperser to the DataLayr nodes for storing data, per byte stored per unit time (second).
     uint256 public feePerBytePerTime;
 

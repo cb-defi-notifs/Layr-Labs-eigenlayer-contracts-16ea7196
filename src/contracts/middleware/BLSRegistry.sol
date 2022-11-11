@@ -177,6 +177,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         // verify that the `operator` is an active operator and that they've provided the correct `index`
         _deregistrationCheck(operator, index);
 
+
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input
@@ -186,7 +187,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         );
 
         // Perform necessary updates for removing operator, including updating operator list and index histories
-        _removeOperator(pubkeyHash, index);
+        _removeOperator(operator, pubkeyHash, index);
 
         // get existing aggregate public key
         uint256[4] memory pk = apk;

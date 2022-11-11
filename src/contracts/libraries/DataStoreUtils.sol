@@ -72,6 +72,7 @@ library DataStoreUtils {
                 metadata.headerHash,
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
+                metadata.stakesFromBlockNumber,
                 metadata.blockNumber,
                 metadata.fee,
                 metadata.confirmer,
@@ -92,6 +93,7 @@ library DataStoreUtils {
                 metadata.headerHash,
                 metadata.durationDataStoreId,
                 metadata.globalDataStoreId,
+                metadata.stakesFromBlockNumber,
                 metadata.blockNumber,
                 metadata.fee,
                 metadata.confirmer,
@@ -118,6 +120,7 @@ library DataStoreUtils {
     uint256 internal constant BIT_LENGTH_headerHash = 256;
     uint256 internal constant BIT_LENGTH_durationDataStoreId = 32;
     uint256 internal constant BIT_LENGTH_globalDataStoreId = 32;
+    uint256 internal constant BIT_LENGTH_stakesFromBlockNumber = 32;
     uint256 internal constant BIT_LENGTH_blockNumber = 32;
     uint256 internal constant BIT_LENGTH_fee = 96;
     uint256 internal constant BIT_LENGTH_confirmer = 160;
@@ -130,6 +133,7 @@ library DataStoreUtils {
     // uint256 internal constant BIT_SHIFT_headerHash = 256 - BIT_LENGTH_headerHash;
     // uint256 internal constant BIT_SHIFT_durationDataStoreId = 256 - BIT_LENGTH_durationDataStoreId;
     // uint256 internal constant BIT_SHIFT_globalDataStoreId = 256 - BIT_LENGTH_globalDataStoreId;
+    // uint256 internal constant BIT_SHIFT_stakesFromBlockNumber = 256 - BIT_LENGTH_stakesFromBlockNumber;
     // uint256 internal constant BIT_SHIFT_blockNumber = 256 - BIT_LENGTH_blockNumber;
     // uint256 internal constant BIT_SHIFT_fee = 256 - BIT_LENGTH_fee;
     // uint256 internal constant BIT_SHIFT_confirmer = 256 - BIT_LENGTH_confirmer;
@@ -140,6 +144,7 @@ library DataStoreUtils {
     uint256 internal constant BIT_SHIFT_headerHash = 0;
     uint256 internal constant BIT_SHIFT_durationDataStoreId = 224;
     uint256 internal constant BIT_SHIFT_globalDataStoreId = 224;
+    uint256 internal constant BIT_SHIFT_stakesFromBlockNumber = 224;
     uint256 internal constant BIT_SHIFT_blockNumber = 224;
     uint256 internal constant BIT_SHIFT_fee = 160;
     uint256 internal constant BIT_SHIFT_confirmer = 96;
@@ -152,7 +157,8 @@ library DataStoreUtils {
     // uint256 internal constant CALLDATA_OFFSET_headerHash = 0;
     // uint256 internal constant CALLDATA_OFFSET_durationDataStoreId = ((BIT_LENGTH_headerHash + 7) / 8);
     // uint256 internal constant CALLDATA_OFFSET_globalDataStoreId = CALLDATA_OFFSET_durationDataStoreId + ((BIT_LENGTH_durationDataStoreId + 7) / 8);
-    // uint256 internal constant CALLDATA_OFFSET_blockNumber = CALLDATA_OFFSET_globalDataStoreId + ((BIT_LENGTH_globalDataStoreId + 7) / 8);
+    // uint256 internal constant CALLDATA_OFFSET_stakesFromBlockNumber = CALLDATA_OFFSET_globalDataStoreId + ((BIT_LENGTH_globalDataStoreId + 7) / 8);
+    // uint256 internal constant CALLDATA_OFFSET_blockNumber = CALLDATA_OFFSET_stakesFromBlockNumber + ((BIT_LENGTH_stakesFromBlockNumber + 7) / 8);
     // uint256 internal constant CALLDATA_OFFSET_fee = CALLDATA_OFFSET_blockNumber + ((BIT_LENGTH_blockNumber + 7) / 8);
     // uint256 internal constant CALLDATA_OFFSET_confirmer = CALLDATA_OFFSET_fee + ((BIT_LENGTH_fee + 7) / 8);
     // uint256 internal constant CALLDATA_OFFSET_signatoryRecordHash = CALLDATA_OFFSET_confirmer + ((BIT_LENGTH_confirmer + 7) / 8);
@@ -162,23 +168,28 @@ library DataStoreUtils {
     uint256 internal constant CALLDATA_OFFSET_headerHash = 0;
     uint256 internal constant CALLDATA_OFFSET_durationDataStoreId = 32;
     uint256 internal constant CALLDATA_OFFSET_globalDataStoreId = 36;
-    uint256 internal constant CALLDATA_OFFSET_blockNumber = 40;
-    uint256 internal constant CALLDATA_OFFSET_fee = 44;
-    uint256 internal constant CALLDATA_OFFSET_confirmer = 56;
-    uint256 internal constant CALLDATA_OFFSET_signatoryRecordHash = 76;
-    uint256 internal constant CALLDATA_OFFSET_duration = 108;
-    uint256 internal constant CALLDATA_OFFSET_timestamp = 109;
-    uint256 internal constant CALLDATA_OFFSET_index = 141;
+    uint256 internal constant CALLDATA_OFFSET_stakesFromBlockNumber = 40;
+    uint256 internal constant CALLDATA_OFFSET_blockNumber = 44;
+    uint256 internal constant CALLDATA_OFFSET_fee = 48;
+    uint256 internal constant CALLDATA_OFFSET_confirmer = 60;
+    uint256 internal constant CALLDATA_OFFSET_signatoryRecordHash = 80;
+    uint256 internal constant CALLDATA_OFFSET_duration = 112;
+    uint256 internal constant CALLDATA_OFFSET_timestamp = 113;
+    uint256 internal constant CALLDATA_OFFSET_index = 145;
 
     // MEMORY OFFSETS IN BYTES
     uint256 internal constant MEMORY_OFFSET_headerHash = 0;
     uint256 internal constant MEMORY_OFFSET_durationDataStoreId = 32;
     uint256 internal constant MEMORY_OFFSET_globalDataStoreId = 64;
-    uint256 internal constant MEMORY_OFFSET_blockNumber = 96;
-    uint256 internal constant MEMORY_OFFSET_fee = 128;
-    uint256 internal constant MEMORY_OFFSET_confirmer = 160;
-    uint256 internal constant MEMORY_OFFSET_signatoryRecordHash = 192;
-    // I'm unsure why the memory-offsets work this way, but they do. See usage below.
+    uint256 internal constant MEMORY_OFFSET_stakesFromBlockNumber = 96;
+    uint256 internal constant MEMORY_OFFSET_blockNumber = 128;
+    uint256 internal constant MEMORY_OFFSET_fee = 160;
+    uint256 internal constant MEMORY_OFFSET_confirmer = 192;
+    uint256 internal constant MEMORY_OFFSET_signatoryRecordHash = 224;
+    /**
+    *  Here MEMORY_OFFSET_duration is only 32 despite metadata struct being much longer
+    *  than 32 bytes.  I'm unsure why the memory-offsets work this way, but they do. See usage below.
+    */
     uint256 internal constant MEMORY_OFFSET_duration = 32;
     uint256 internal constant MEMORY_OFFSET_timestamp = 64;
     uint256 internal constant MEMORY_OFFSET_index = 96;
@@ -213,6 +224,12 @@ library DataStoreUtils {
                 add(metadata, MEMORY_OFFSET_globalDataStoreId),
                 // read the globalDataStoreId from its calldata position in `packedMetadata`
                 shr(BIT_SHIFT_globalDataStoreId, calldataload(add(pointer, CALLDATA_OFFSET_globalDataStoreId)))
+            )
+            mstore(
+                // store in the blockNumber memory location in `metadata`
+                add(metadata, MEMORY_OFFSET_stakesFromBlockNumber),
+                // read the blockNumber from its calldata position in `packedMetadata`
+                shr(BIT_SHIFT_blockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesFromBlockNumber)))
             )
             mstore(
                 // store in the blockNumber memory location in `metadata`

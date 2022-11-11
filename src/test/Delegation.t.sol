@@ -20,6 +20,46 @@ contract DelegationTests is DataLayrTestHelper {
 
     uint256 public PRIVATE_KEY = 420;
 
+    function initializeMiddlewares() public {
+
+        uint256 feePerBytePerTime = 1;
+
+        generalRepository1 = new Repository(delegation, investmentManager);
+        generalServiceManager1 = new DataLayrServiceManager(
+            investmentManager,
+            delegation,
+            generalRepository1,
+            weth,
+            pauserReg,
+            feePerBytePerTime
+        );
+
+        generalReg1 = new MiddlewareRegistry(
+             Repository(address(generalRepository1)),
+             investmentManager
+        );
+        Repository(address(generalRepository1)).initialize(dlReg, generalServiceManager1, generalReg1, address(this));
+
+        
+        generalRepository2 = new Repository(delegation, investmentManager);
+        generalServiceManager2 = new DataLayrServiceManager(
+            investmentManager,
+            delegation,
+            generalRepository2,
+            weth,
+            pauserReg,
+            feePerBytePerTime
+        );
+
+        generalReg2 = new MiddlewareRegistry(
+             Repository(address(generalRepository2)),
+             investmentManager
+        );
+        Repository(address(generalRepository2)).initialize(dlReg, generalServiceManager2, generalReg2, address(this));
+
+
+    }
+
     // packed info used to help handle stack-too-deep errors
     struct DataForTestWithdrawal {
         IInvestmentStrategy[] delegatorStrategies;
@@ -57,6 +97,7 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.assume(staker != operator);
         cheats.assume(ethAmount >= 0 && ethAmount <= 1e18);
         cheats.assume(eigenAmount >= 0 && eigenAmount <= 1e18);
+        
 
         if (!delegation.isOperator(operator)) {
             _testRegisterAsOperator(operator, IDelegationTerms(operator));
@@ -205,31 +246,59 @@ contract DelegationTests is DataLayrTestHelper {
         );
     }
 
-    /// @notice test staker's ability to undelegate/withdraw from an operator.
-    /// @param operator is the operator being delegated to.
-    /// @param depositor is the staker delegating stake to the operator.
-    function testWithdrawal(
+    //This function helps with stack too deep issues with "testWithdrawal" test
+    function testWithdrawalWrapper(
             address operator, 
             address depositor,
             address withdrawer, 
             uint256 ethAmount,
             uint256 eigenAmount,
-            uint32 stakeInactiveAfter,
-            bool withdrawAsTokens
+            bool withdrawAsTokens,
+            bool RANDAO
         ) 
             public 
             fuzzedAddress(operator) 
             fuzzedAddress(depositor) 
             fuzzedAddress(withdrawer) 
         {
+            cheats.assume(depositor != operator);
+            cheats.assume(ethAmount <= 1e18); 
+            cheats.assume(eigenAmount <= 1e18); 
+            cheats.assume(ethAmount > 0); 
+            cheats.assume(eigenAmount > 0); 
 
-        cheats.assume(depositor != operator);
-        cheats.assume(ethAmount <= 1e18); 
-        cheats.assume(eigenAmount <= 1e18); 
-        cheats.assume(ethAmount > 0); 
-        cheats.assume(eigenAmount > 0); 
+            initializeMiddlewares();
+
+            if(RANDAO){
+                _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+            }
+            else{
+                _testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+            }
+
+        }
+
+    /// @notice test staker's ability to undelegate/withdraw from an operator.
+    /// @param operator is the operator being delegated to.
+    /// @param depositor is the staker delegating stake to the operator.
+    function _testWithdrawalAndDeregistration(
+            address operator, 
+            address depositor,
+            address withdrawer, 
+            uint256 ethAmount,
+            uint256 eigenAmount,
+            bool withdrawAsTokens
+        ) 
+            internal 
+        {
 
         testDelegation(operator, depositor, ethAmount, eigenAmount);
+
+        cheats.startPrank(operator);
+        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
+        cheats.stopPrank();
+
+        generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
 
         address delegatedTo = delegation.delegatedTo(depositor);
 
@@ -264,20 +333,10 @@ contract DelegationTests is DataLayrTestHelper {
             tokensArray[1] = eigenToken;
         }
 
-        //initiating queued withdrawal
-// TODO: resolve the presence of duplicate-ish functions for creating queued withdrawals
-        // (bytes32 withdrawalRoot, ) = _createQueuedWithdrawal(
-        //     depositor,
-        //     // hardcoded inputs for use with this function
-        //     false,
-        //     0,
-        //     dataForTestWithdrawal.delegatorStrategies,
-        //     tokensArray,
-        //     dataForTestWithdrawal.delegatorShares,
-        //     strategyIndexes,
-        //     dataForTestWithdrawal.withdrawerAndNonce
-        // );
-        bytes32 withdrawalRoot = _testQueueWithdrawal(
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.timestamp) + 1 days);
+
+        _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
             tokensArray,
@@ -285,31 +344,177 @@ contract DelegationTests is DataLayrTestHelper {
             strategyIndexes,
             dataForTestWithdrawal.withdrawerAndNonce
         );
+        uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+        //now withdrawal block time is before deregistration
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.timestamp) + 2 days);
+        
+        generalReg1.deregisterOperator(operator);
+        {
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            cheats.warp(uint32(block.timestamp) + 4 days);
+            cheats.roll(uint32(block.timestamp) + 4 days);
 
-        _testStartQueuedWithdrawalWaitingPeriod(withdrawer, withdrawalRoot, stakeInactiveAfter);
-
-        cheats.warp(stakeInactiveAfter + 1 days);
-
-        if (withdrawAsTokens) {
-            _testCompleteQueuedWithdrawalTokens(
-                depositor,
-                dataForTestWithdrawal.delegatorStrategies,
-                tokensArray,
-                dataForTestWithdrawal.delegatorShares,
-                delegatedTo,
-                dataForTestWithdrawal.withdrawerAndNonce
-            );
-        } else {
-            _testCompleteQueuedWithdrawalShares(
-                depositor,
-                dataForTestWithdrawal.delegatorStrategies,
-                tokensArray,
-                dataForTestWithdrawal.delegatorShares,
-                delegatedTo,
-                dataForTestWithdrawal.withdrawerAndNonce
-            );
+            uint256 middlewareTimeIndex =  1;
+            if (withdrawAsTokens) {
+                _testCompleteQueuedWithdrawalTokens(
+                    depositor,
+                    dataForTestWithdrawal.delegatorStrategies,
+                    tokensArray,
+                    dataForTestWithdrawal.delegatorShares,
+                    delegatedTo,
+                    dataForTestWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawalBlock,
+                    middlewareTimeIndex
+                );
+            } else {
+                _testCompleteQueuedWithdrawalShares(
+                    depositor,
+                    dataForTestWithdrawal.delegatorStrategies,
+                    tokensArray,
+                    dataForTestWithdrawal.delegatorShares,
+                    delegatedTo,
+                    dataForTestWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawalBlock,
+                    middlewareTimeIndex
+                );
+            }
         }
     }
+
+
+    /// @notice test staker's ability to undelegate/withdraw from an operator.
+    /// @param operator is the operator being delegated to.
+    /// @param depositor is the staker delegating stake to the operator.
+    function _testWithdrawalWithStakeUpdate(
+            address operator, 
+            address depositor,
+            address withdrawer, 
+            uint256 ethAmount,
+            uint256 eigenAmount,
+            bool withdrawAsTokens
+        ) 
+            public 
+        {
+        
+        testDelegation(operator, depositor, ethAmount, eigenAmount);
+
+        cheats.startPrank(operator);
+        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
+        investmentManager.slasher().allowToSlash(address(generalServiceManager2));
+        cheats.stopPrank();
+
+        // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
+        // emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
+        // emit log("________________________________________________________________");
+        generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
+        // emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
+
+
+        generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
+        // emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
+
+
+
+        address delegatedTo = delegation.delegatedTo(depositor);
+
+        // packed data structure to deal with stack-too-deep issues
+        DataForTestWithdrawal memory dataForTestWithdrawal;
+
+        // scoped block to deal with stack-too-deep issues
+        {
+            //delegator-specific information
+            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+                investmentManager.getDeposits(depositor);
+            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+            dataForTestWithdrawal.delegatorShares = delegatorShares;
+
+            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+                IInvestmentManager.WithdrawerAndNonce({
+                    withdrawer: withdrawer,
+                    // harcoded nonce value
+                    nonce: 0
+                }
+            );
+            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+        }
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        IERC20[] memory tokensArray = new IERC20[](2);
+        {
+            // hardcoded values
+            strategyIndexes[0] = 0;
+            strategyIndexes[1] = 0;
+            tokensArray[0] = weth;
+            tokensArray[1] = eigenToken;
+        }
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
+
+        
+
+        _testQueueWithdrawal(
+            depositor,
+            dataForTestWithdrawal.delegatorStrategies,
+            tokensArray,
+            dataForTestWithdrawal.delegatorShares,
+            strategyIndexes,
+            dataForTestWithdrawal.withdrawerAndNonce
+        );
+        uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+        //now withdrawal block time is before deregistration
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.number) + 2);
+
+        
+        uint256 prevElement = uint256(uint160(address(generalServiceManager2)));
+        generalReg1.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.number) + 1);
+
+        prevElement = uint256(uint160(address(generalServiceManager1)));
+        generalReg2.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+
+        
+        {
+            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+            cheats.warp(uint32(block.timestamp) + 4 days);
+            cheats.roll(uint32(block.number) + 4);
+
+            uint256 middlewareTimeIndex =  3;
+            if (withdrawAsTokens) {
+                _testCompleteQueuedWithdrawalTokens(
+                    depositor,
+                    dataForTestWithdrawal.delegatorStrategies,
+                    tokensArray,
+                    dataForTestWithdrawal.delegatorShares,
+                    delegatedTo,
+                    dataForTestWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawalBlock,
+                    middlewareTimeIndex
+                );
+            } else {
+                _testCompleteQueuedWithdrawalShares(
+                    depositor,
+                    dataForTestWithdrawal.delegatorStrategies,
+                    tokensArray,
+                    dataForTestWithdrawal.delegatorShares,
+                    delegatedTo,
+                    dataForTestWithdrawal.withdrawerAndNonce,
+                    queuedWithdrawalBlock,
+                    middlewareTimeIndex
+                );
+            }
+        }
+    }
+
 
     /// @notice test to see if an operator who is slashed/frozen
     ///         cannot be undelegated from by their stakers.
@@ -391,7 +596,6 @@ contract DelegationTests is DataLayrTestHelper {
             address withdrawer, 
             uint256 ethAmount, 
             uint256 eigenAmount,
-            uint32 stakeInactiveAfter,
             bool withdrawAsShares
         ) 
             public
@@ -401,7 +605,7 @@ contract DelegationTests is DataLayrTestHelper {
         {
         cheats.assume(depositor != operator);
         //this function performs delegation and subsequent withdrawal
-        testWithdrawal(operator, depositor, withdrawer, ethAmount, eigenAmount, stakeInactiveAfter, withdrawAsShares);
+        testWithdrawalWrapper(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsShares, true);
 
         //warps past fraudproof time interval
         cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
@@ -461,7 +665,7 @@ contract DelegationTests is DataLayrTestHelper {
                 registrantAPK,
                 signerAggSig,
                 nonsignerPK,
-                searchData.metadata.blockNumber,
+                searchData.metadata.stakesFromBlockNumber,
                 dataStoreId
             );
 
@@ -506,7 +710,9 @@ contract DelegationTests is DataLayrTestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
     )
         internal
     {
@@ -514,7 +720,16 @@ contract DelegationTests is DataLayrTestHelper {
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
+
         }
+
+        // emit log_named_uint("strategies", strategyArray.length);
+        // emit log_named_uint("tokens", tokensArray.length);
+        // emit log_named_uint("shares", shareAmounts.length);
+        // emit log_named_address("depositor", depositor);
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_address("delegatedAddress", delegatedTo);
+        // emit log("************************************************************************************************");
 
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
@@ -522,11 +737,12 @@ contract DelegationTests is DataLayrTestHelper {
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
             delegatedAddress: delegatedTo
         });
 
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, false);
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             require(
@@ -544,7 +760,9 @@ contract DelegationTests is DataLayrTestHelper {
         IERC20[] memory tokensArray,
         uint256[] memory shareAmounts,
         address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
     )
         internal
     {
@@ -556,16 +774,18 @@ contract DelegationTests is DataLayrTestHelper {
             strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
         }
 
+        
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
             tokens: tokensArray,
             shares: shareAmounts,
             depositor: depositor,
             withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
             delegatedAddress: delegatedTo
         });
         // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, true);
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, true);
 
         for (uint256 i = 0; i < strategyArray.length; i++) {
             //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));

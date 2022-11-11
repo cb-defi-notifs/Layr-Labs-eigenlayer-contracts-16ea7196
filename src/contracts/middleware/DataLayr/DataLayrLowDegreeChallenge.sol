@@ -156,11 +156,11 @@ contract DataLayrLowDegreeChallenge is Initializable {
                 dlRegistry.getStakeFromPubkeyHashAndIndex(operatorPubkeyHash, operatorHistoryIndex);
             require(
                 // operator must have become active/registered before (or at) the block number
-                (operatorStake.updateBlockNumber <= searchData.metadata.blockNumber)
+                (operatorStake.updateBlockNumber <= searchData.metadata.stakesFromBlockNumber)
                 // operator must have still been active after (or until) the block number
                 // either there is a later update, past the specified blockNumber, or they are still active
                 && (
-                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.blockNumber
+                    operatorStake.nextUpdateBlockNumber >= searchData.metadata.stakesFromBlockNumber
                         || operatorStake.nextUpdateBlockNumber == 0
                 ),
                 "DataLayrChallengeBase.slashOperator: operator was not active during blockNumber specified by dataStoreId / headerHash"
@@ -184,7 +184,6 @@ contract DataLayrLowDegreeChallenge is Initializable {
      * @param lowDegreenessProof is the provided G1 point which is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
      *        This function computes the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
      */
-
     function verifyLowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
@@ -215,7 +214,7 @@ contract DataLayrLowDegreeChallenge is Initializable {
         return (precompileWorks && pairingSuccessful);
     }
 
-    //update pairing gas limit
+    /// @notice Called by DataLayr governance to update the pairing gas limit
     function setPairingGasLimit(uint256 newGasLimit) external onlyDataLayrServiceManagerOwner {
         pairingGasLimit = newGasLimit;
     }
