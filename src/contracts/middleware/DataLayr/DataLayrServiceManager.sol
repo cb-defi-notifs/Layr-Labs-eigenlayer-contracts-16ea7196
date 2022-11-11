@@ -26,7 +26,7 @@ import "./DataLayrChallengeUtils.sol";
  * - confirming the data store by the disperser with inferred aggregated signatures of the quorum
  * - freezing operators as the result of various "challenges"
  */
-contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable, DSTest {
+contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
 
     // collateral token used for placing collateral on challenges & payment commits
@@ -173,15 +173,6 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         emit AdversaryThresholdBasisPointsUpdated(adversaryThresholdBasisPoints);
     }
 
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyOwner {
-        _setFeePerBytePerTime(_feePerBytePerTime);
-    }
-
-    // called in the event of deregistration
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external onlyRegistry {
-        ISlasher(investmentManager.slasher()).revokeSlashingAbility(operator, unbondedAfter);
-    }
-
     /**
      * @notice This function is used for
      * - notifying via Ethereum that the disperser has asserted the data blob
@@ -235,7 +226,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
             uint256 totalBytes;
             {
                 // fetch the total number of operators for the stakesFromBlockNumber from which stakes are being read from
-                uint32 totalOperators = registry.getTotalOperators(blockNumber, totalOperatorsIndex);
+                uint32 totalOperators = registry.getTotalOperators(stakesFromBlockNumber, totalOperatorsIndex);
 
                 totalBytes = DataStoreUtils.getTotalBytes(header, totalOperators);
 
@@ -499,7 +490,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
     }
 
     /// @notice Used by DataLayr governance to adjust the value of the `feePerBytePerTime` variable.
-    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyRepositoryGovernance {
+    function setFeePerBytePerTime(uint256 _feePerBytePerTime) external onlyOwner {
         _setFeePerBytePerTime(_feePerBytePerTime);
     }
 

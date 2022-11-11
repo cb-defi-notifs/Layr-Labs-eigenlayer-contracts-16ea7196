@@ -106,7 +106,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
             "BLSRegistryWithBomb.completeDeregistrationAndRevealLastEphemeralKeys: delayed service must pass before completing deregistration");
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        uint32 latestTime = repository.serviceManager().latestTime();
+        uint32 latestTime = serviceManager.latestTime();
         registry[msg.sender].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[msg.sender].status = IQuorumRegistry.Status.INACTIVE;
@@ -116,14 +116,14 @@ contract BLSRegistryWithBomb is BLSRegistry {
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
 
         // Record a stake update unbonding the operator at `latestTime`
-        repository.serviceManager().recordLastStakeUpdate(msg.sender, latestTime);
+        serviceManager.recordLastStakeUpdate(msg.sender, latestTime);
 
         /**
          * Revoke the slashing ability of the service manager after `latestTime`.
          * This is done after recording the last stake update since `latestTime` *could* be in the past, and `recordLastStakeUpdate` is permissioned so that
          * only contracts who can actively slash the operator are allowed to call it.
          */
-        repository.serviceManager().revokeSlashingAbility(msg.sender, latestTime);
+        serviceManager.revokeSlashingAbility(msg.sender, latestTime);
     }
 
     /** 
@@ -138,7 +138,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
         require(pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].updateBlockNumber > blockNumber, 
             "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
 
-        IServiceManager serviceManager = repository.serviceManager();
+        IServiceManager serviceManager = serviceManager;
         /**
          * Ensure that *strictly more than* BLOCK_STALE_MEASURE blocks have passed since the block we are updating for.
          * This is because the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. [block.number - BLOCK_STALE_MEASURE, block.number]
@@ -167,7 +167,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
                 (
                     pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber == 0 ||
                     pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber 
-                        + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() >= uint32(block.number)
+                        + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() >= uint32(block.number)
                 )
             );
     }
@@ -185,6 +185,6 @@ contract BLSRegistryWithBomb is BLSRegistry {
         /// @dev Fetch operator's stored pubkeyHash
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         uint32 blockNumber = pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber;
-        return blockNumber != 0 && blockNumber + IDelayedService(address(repository.serviceManager())).BLOCK_STALE_MEASURE() < uint32(block.number);
+        return blockNumber != 0 && blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() < uint32(block.number);
     }
 }

@@ -346,17 +346,17 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         address swappedOperator = _popRegistrant(index);
 
         // @notice Registrant must continue to serve until the latest time at which an active task expires. this info is used in challenges
-        uint32 latestTime = repository.serviceManager().latestTime();
+        uint32 latestTime = serviceManager.latestTime();
         registry[operator].serveUntil = latestTime;
         // committing to not signing off on any more middleware tasks
         registry[operator].status = IQuorumRegistry.Status.INACTIVE;
         registry[operator].deregisterTime = uint32(block.timestamp);
 
         //revoke the slashing ability of the service manager
-        repository.serviceManager().revokeSlashingAbility(operator, latestTime);
+        serviceManager.revokeSlashingAbility(operator, latestTime);
 
         // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        repository.serviceManager().recordLastStakeUpdate(operator, latestTime);
+        serviceManager.recordLastStakeUpdate(operator, latestTime);
 
         // Emit `Deregistration` event
         emit Deregistration(operator, swappedOperator);
@@ -508,7 +508,7 @@ abstract contract RegistryBase is VoteWeigherBase, IQuorumRegistry {
         _updateTotalOperatorsHistory();
 
         // record a stake update not bonding the operator at all (unbonded at 0), because they haven't served anything yet
-        repository.serviceManager().recordFirstStakeUpdate(operator, 0);
+        serviceManager.recordFirstStakeUpdate(operator, 0);
 
         emit StakeUpdate(
             operator,

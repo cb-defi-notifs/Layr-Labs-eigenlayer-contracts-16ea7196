@@ -19,10 +19,19 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
 contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
+
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
+ 
     // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
     uint32 public constant REVEAL_PERIOD_BLOCKS = 50400; //7 days at 12s/block
+
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
+    IQuorumRegistry public immutable registry;
+
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
+    IServiceManager public immutable serviceManager;
+
     // operator => list of ephemeral key hashes, block at which they started being used and were revealed
     mapping(address => EphemeralKeyEntry[]) public ephemeralKeyEntries;
 
@@ -295,7 +304,6 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
      */
     function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEphemeralKey) internal {
         // verify that the operator is active
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
             registry.isActiveOperator(operator),
             "EphemeralKeyRegistry.revealEphemeralKey: operator is not active"

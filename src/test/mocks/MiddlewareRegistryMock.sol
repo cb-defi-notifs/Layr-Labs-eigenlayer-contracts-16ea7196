@@ -5,41 +5,39 @@ import "../../contracts/interfaces/IServiceManager.sol";
 import "../../contracts/interfaces/IRegistry.sol";
 import "../../contracts/interfaces/IInvestmentManager.sol";
 
-import "../../contracts/middleware/Repository.sol";
-
 import "forge-std/Test.sol";
 
 
 
 
-contract MiddlewareRegistry is IRegistry, DSTest{
-    IRepository public immutable repository;
+contract MiddlewareRegistryMock is IRegistry, DSTest{
+    IServiceManager public serviceManager;
     IInvestmentManager public investmentManager;
 
 
     constructor(
-        Repository _repository,
+        IServiceManager _serviceManager,
         IInvestmentManager _investmentManager
     ){
-        repository = _repository;
+        serviceManager = _serviceManager;
         investmentManager = _investmentManager;
 
     }
 
     function registerOperator(address operator, uint32 serveUntil) public {        
-        require(investmentManager.slasher().canSlash(operator, address(repository.serviceManager())), "Not opted into slashing");
-        repository.serviceManager().recordFirstStakeUpdate(operator, serveUntil);
+        require(investmentManager.slasher().canSlash(operator, address(serviceManager)), "Not opted into slashing");
+        serviceManager.recordFirstStakeUpdate(operator, serveUntil);
 
     }
 
     function deregisterOperator(address operator) public {
-        uint32 latestTime = repository.serviceManager().latestTime();
-        repository.serviceManager().recordLastStakeUpdate(operator, latestTime);
+        uint32 latestTime = serviceManager.latestTime();
+        serviceManager.recordLastStakeUpdate(operator, latestTime);
     }
 
     function propagateStakeUpdate(address operator, uint32 blockNumber, uint256 prevElement) external {
-        uint32 serveUntil = repository.serviceManager().latestTime();
-        repository.serviceManager().recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
+        uint32 serveUntil = serviceManager.latestTime();
+        serviceManager.recordStakeUpdate(operator, blockNumber, serveUntil, prevElement);
     }
 
      function isActiveOperator(address operator) external pure returns (bool) {

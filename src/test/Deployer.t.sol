@@ -42,7 +42,6 @@ import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
 import "./mocks/BeaconChainOracleMock.sol";
 import "./mocks/ETHDepositMock.sol";
-import "./mocks/MiddlewareRegistryMock.sol";
 
 import "forge-std/Test.sol";
 
@@ -91,14 +90,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     IBeaconChainOracle public beaconChainOracle;
     
     IVoteWeigher public generalVoteWeigher;
-
-    IRepository public generalRepository1;
-    MiddlewareRegistry public generalReg1;
-    DataLayrServiceManager public generalServiceManager1;
-
-    IRepository public generalRepository2;
-    MiddlewareRegistry public generalReg2;
-    DataLayrServiceManager public generalServiceManager2;
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
