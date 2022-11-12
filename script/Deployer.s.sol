@@ -87,15 +87,23 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
-    IBLSPublicKeyCompendium public blsPkCompendium;
+    PauserRegistry public dataLayrPauserReg;
+
+    DataLayrChallengeUtils public challengeUtils;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     BLSPublicKeyCompendium public pubkeyCompendium;
     BLSRegistryWithBomb public dlReg;
     DataLayrServiceManager public dlsm;
     DataLayrLowDegreeChallenge public dlldc;
     DataLayrPaymentManager public dataLayrPaymentManager;
-    PauserRegistry public dataLayrPauserReg;
-    IRepository public dlRepository;
+
+    DataLayrChallengeUtils public challengeUtilsImplementation;
+    EphemeralKeyRegistry public ephemeralKeyRegistryImplementation;
+    BLSPublicKeyCompendium public pubkeyCompendiumImplementation;
+    BLSRegistryWithBomb public dlRegImplementation;
+    DataLayrServiceManager public dlsmImplementation;
+    DataLayrLowDegreeChallenge public dlldcImplementation;
+    DataLayrPaymentManager public dataLayrPaymentManagerImplementation;
 
     // testing/mock contracts
     IERC20 public eigenToken;
@@ -103,6 +111,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     InvestmentStrategyBase public wethStrat;
     InvestmentStrategyBase public eigenStrat;
     InvestmentStrategyBase public baseStrategyImplementation;
+    EmptyContract public emptyContract;
 
     uint256 nonce = 69;
 
@@ -144,6 +153,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         emit log_address(address(this));
         address pauser = msg.sender;
         address unpauser = msg.sender;
+        address initialOwner = msg.sender;
 
 
 
@@ -268,6 +278,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     function _deployDataLayrContracts() internal {
         address pauser = msg.sender;
         address unpauser = msg.sender;
+        address initialOwner = msg.sender;
 
 
 
@@ -278,12 +289,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         // deploy pauser registry
         dataLayrPauserReg = new PauserRegistry(pauser, unpauser);
 
-        // hard-coded input
-        uint96 multiplier = 1e18;
-
-        uint32 unbondingPeriod = uint32(14 days);
-        ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
-
         // hard-coded inputs
         uint256 feePerBytePerTime = 1;
         uint256 _paymentFraudproofCollateral = 1e16;
@@ -293,25 +298,25 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         challengeUtils = DataLayrChallengeUtils(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlsm = DataLayrServiceManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         ephemeralKeyRegistry = EphemeralKeyRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         pubkeyCompendium = BLSPublicKeyCompendium(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dataLayrPaymentManager = DataLayrPaymentManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlldc = DataLayrLowDegreeChallenge(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlReg = BLSRegistryWithBomb(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
@@ -326,8 +331,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             DataLayrBombVerifier(address(0)),
             ephemeralKeyRegistry,
             dataLayrPaymentManager
-            // pauserReg,
-            // feePerBytePerTime
         );
         ephemeralKeyRegistryImplementation = new EphemeralKeyRegistry(dlReg, dlsm);
         pubkeyCompendiumImplementation = new BLSPublicKeyCompendium();
@@ -356,19 +359,19 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         }
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(challengeUtils))),
             address(challengeUtilsImplementation)
         );
         {
             uint16 quorumThresholdBasisPoints = 9000;
             uint16 adversaryThresholdBasisPoints = 4000;
-            eigenLayrProxyAdmin.upgradeAndCall(
+            dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlsm))),
                 address(dlsmImplementation),
                 abi.encodeWithSelector(
                     DataLayrServiceManager.initialize.selector,
-                    pauserReg,
+                    dataLayrPauserReg,
                     initialOwner,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
@@ -376,20 +379,20 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
                 )
             );
         }
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(ephemeralKeyRegistry))),
             address(ephemeralKeyRegistryImplementation)
         );
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(pubkeyCompendium))),
             address(pubkeyCompendiumImplementation)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        dataLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(dataLayrPaymentManager))),
             address(dataLayrPaymentManagerImplementation),
-            abi.encodeWithSelector(PaymentManager.initialize.selector, pauserReg, _paymentFraudproofCollateral)
+            abi.encodeWithSelector(PaymentManager.initialize.selector, dataLayrPauserReg, _paymentFraudproofCollateral)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        dataLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(dlldc))),
             address(dlldcImplementation),
             abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
@@ -410,7 +413,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             eigenStratsAndMultipliers[0].strategy = eigenStrat;
             eigenStratsAndMultipliers[0].multiplier = multiplier;
 
-            eigenLayrProxyAdmin.upgradeAndCall(
+            dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlReg))),
                 address(dlRegImplementation),
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
