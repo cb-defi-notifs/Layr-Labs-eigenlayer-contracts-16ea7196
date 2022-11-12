@@ -19,7 +19,6 @@ struct MiddlewareTimes {
 ```
 
 Note:
-
 `remove`, `nodeExists`,`getHead`, `getNextNode`, and `pushBack` are all constant time operations on linked lists. This is gained at the sacrifice of getting any elements at their *indexes* in the list. We should not need that typically integral functionality of lists as shown below.
 
 ## Helper Functions
@@ -57,9 +56,7 @@ _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
 This function is called by a whitelisted slashing contract during registration stake updates passing in the time until which the operator's stake is bonded `serveUntil` and updates the storage as follows
 
 ```solidity
-recordFirstStakeUpdate(address operator, uint32 serveUntil) {
-    //restrict to permissioned contracts
-    require(canSlash(operator, msg.sender));
+function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
     //update latest update
     _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
     //push the middleware to the end of the update list  
@@ -123,6 +120,13 @@ canWithdaw(address operator, uint32 withdrawalStartTime, uint256 middlewareTimes
     )   
 }
 ```
+
+
+## A More Intuitive Explanation
+
+Let us say an operator has opted into a middleware, `Middleware A`.  He would call `recordFirstStakeUpdate`, adding  `Middleware A` to the linked list and recording the `updateBlock` and the `serveUntil` time in `operatorMiddlewareTimes`.  Then the operator registers with a second middleware, `Middleware B`.  At this point, the timeline is as follows:
+
+![alt text](images/two_middleware.png?raw=true "Title")
 
 
 
