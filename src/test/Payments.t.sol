@@ -91,7 +91,7 @@ contract PaymentsTests is DataLayrTestHelper {
         fuzzedAddress(unauthorizedRepositorOwner)
     {
         cheats.startPrank(unauthorizedRepositorOwner);
-        cheats.expectRevert(bytes("setPaymentFraudproofCollateral: only DLSM owner"));
+        cheats.expectRevert(bytes("onlyServiceManagerOwner"));
         dataLayrPaymentManager.setPaymentFraudproofCollateral(fraudProofCollateral);
         cheats.stopPrank();
     }

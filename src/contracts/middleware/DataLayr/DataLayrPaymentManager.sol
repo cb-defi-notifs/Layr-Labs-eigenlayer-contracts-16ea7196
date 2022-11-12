@@ -22,11 +22,9 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
         IERC20 _collateralToken,
-        uint256 _paymentFraudproofCollateral,
-        IPauserRegistry _pauserReg,
         IVoteWeigher _voteWeigher
     )
-        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _collateralToken, _paymentFraudproofCollateral, _pauserReg)
+        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _collateralToken)
     {
         voteWeigher = _voteWeigher;
         _disableInitializers();
@@ -177,14 +175,5 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
 
         // update challenge struct in storage
         operatorToPaymentChallenge[operator] = challenge;
-    }
-
-    /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
-     */
-    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external {
-        require(msg.sender == IDataLayrServiceManager(address(serviceManager)).owner(), "setPaymentFraudproofCollateral: only DLSM owner");
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 }

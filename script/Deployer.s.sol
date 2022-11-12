@@ -326,8 +326,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             dlReg,
             weth,
             weth,
-            _paymentFraudproofCollateral,
-            pauserReg,
             // TODO: given that this address is the same as above in what we're deploying, we may want to eliminate the corresponding storage slot form the contract
             dlReg
         );

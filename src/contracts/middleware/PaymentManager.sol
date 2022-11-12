@@ -105,22 +105,24 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         _;
     }
 
+    /// @notice when applied to a function, ensures that the function is only callable by the owner of the `serviceManager`
+    modifier onlyServiceManagerOwner() {
+        require(msg.sender == serviceManager.owner(), "onlyServiceManagerOwner");
+        _;
+    }
+
     constructor(
         IEigenLayrDelegation _eigenLayrDelegation,
         IServiceManager _serviceManager,
         IQuorumRegistry _registry,
         IERC20 _paymentToken,
-        IERC20 _collateralToken,
-        uint256 _paymentFraudproofCollateral,
-        IPauserRegistry _pauserReg
+        IERC20 _collateralToken
     ) {
         eigenLayrDelegation = _eigenLayrDelegation;
         serviceManager = _serviceManager;
         registry = _registry;
         paymentToken = _paymentToken;
         collateralToken = _collateralToken;
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-        _initializePauser(_pauserReg);
         _disableInitializers();
     }
 
@@ -144,8 +146,16 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
         allowances[msg.sender][allowed] = amount;
     }
 
+    /**
+     * @notice Modifies the `paymentFraudproofCollateral` amount.
+     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     */
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external virtual onlyServiceManagerOwner {
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+    }
+
     /// @notice Used for deducting the fees from the payer to the middleware
-    function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
+    function payFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
         if (initiator != payer) {
             if (allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;

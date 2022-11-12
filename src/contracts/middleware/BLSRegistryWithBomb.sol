@@ -138,7 +138,6 @@ contract BLSRegistryWithBomb is BLSRegistry {
         require(pubkeyHashToStakeHistory[pubkeyHash][pubkeyHashToStakeHistory[pubkeyHash].length - 1].updateBlockNumber > blockNumber, 
             "BLSRegistryWithBomb.propagateStakeUpdate: stake updates must have occured since blockNumber");
 
-        IServiceManager serviceManager = serviceManager;
         /**
          * Ensure that *strictly more than* BLOCK_STALE_MEASURE blocks have passed since the block we are updating for.
          * This is because the middleware can look `BLOCK_STALE_MEASURE` blocks into the past, i.e. [block.number - BLOCK_STALE_MEASURE, block.number]
