@@ -2,13 +2,12 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IRepositoryAccess.sol";
 
 /**
  * @title Interface for a `PaymentManager` contract.
  * @author Layr Labs, Inc.
  */
-interface IPaymentManager is IRepositoryAccess {
+interface IPaymentManager {
     enum DissectionType {
         INVALID,
         FIRST_HALF,

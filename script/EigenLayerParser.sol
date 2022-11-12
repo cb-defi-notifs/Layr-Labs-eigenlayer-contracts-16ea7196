@@ -8,7 +8,6 @@ import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
-import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";

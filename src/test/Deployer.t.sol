@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-
-
 import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
 import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -25,7 +23,6 @@ import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
 
-import "../contracts/middleware/Repository.sol";
 import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
@@ -45,7 +42,6 @@ import "./mocks/LiquidStakingToken.sol";
 import "./mocks/EmptyContract.sol";
 import "./mocks/BeaconChainOracleMock.sol";
 import "./mocks/ETHDepositMock.sol";
-import "./mocks/MiddlewareRegistryMock.sol";
 
 import "forge-std/Test.sol";
 
@@ -55,6 +51,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant DURATION_SCALE = 1 hours;
     uint32 public constant MAX_WITHDRAWAL_PERIOD = 7 days;
     Vm cheats = Vm(HEVM_ADDRESS);
+
 
     // EigenLayer contracts
     ProxyAdmin public eigenLayrProxyAdmin;
@@ -70,7 +67,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     // DataLayr contracts
     ProxyAdmin public dataLayrProxyAdmin;
-    IBLSPublicKeyCompendium public blsPkCompendium;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     BLSPublicKeyCompendium public pubkeyCompendium;
     BLSRegistryWithBomb public dlReg;
@@ -91,15 +87,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     IVoteWeigher public generalVoteWeigher;
 
-    IRepository public generalRepository1;
-    MiddlewareRegistry public generalReg1;
-    DataLayrServiceManager public generalServiceManager1;
-
-    IRepository public generalRepository2;
-    MiddlewareRegistry public generalReg2;
-    DataLayrServiceManager public generalServiceManager2;
-
-    // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
     mapping(IInvestmentStrategy => uint256) public initialOperatorShares;
 
@@ -145,6 +132,8 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     bytes header = hex"0e75f28b7a90f89995e522d0cd3a340345e60e249099d4cd96daef320a3abfc31df7f4c8f6f8bc5dc1de03f56202933ec2cc40acad1199f40c7b42aefd45bfb10000000800000002000000020000014000000000000000000000000000000000000000002b4982b07d4e522c2a94b3e7c5ab68bfeecc33c5fa355bc968491c62c12cf93f0cd04099c3d9742620bf0898cf3843116efc02e6f7d408ba443aa472f950e4f3";
 
+    address initialOwner = address(this);
+
     struct NonSignerPK {
 
         uint256 xA0;
@@ -174,7 +163,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
-        cheats.assume(addr != dlRepository.owner());
+        cheats.assume(addr != dlsm.owner());
         _;
     }
 
@@ -196,7 +185,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
-        EmptyContract emptyContract = new EmptyContract();
+        emptyContract = new EmptyContract();
         delegation = EigenLayrDelegation(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
@@ -225,7 +214,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
 
 
-        address initialOwner = address(this);
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
@@ -385,78 +373,144 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         // deploy pauser registry
         dataLayrPauserReg = new PauserRegistry(pauser, unpauser);
 
-        // deploy public key compendium
-        blsPkCompendium = new BLSPublicKeyCompendium();
-
         // hard-coded input
         uint96 multiplier = 1e18;
-
-        DataLayrChallengeUtils challengeUtils = new DataLayrChallengeUtils();
-
-        dlRepository = new Repository(delegation, investmentManager);
-
-        uint256 feePerBytePerTime = 1;
-        dlsm = new DataLayrServiceManager(
-            investmentManager,
-            delegation,
-            dlRepository,
-            weth,
-            dataLayrPauserReg,
-            feePerBytePerTime
-        );
 
         uint32 unbondingPeriod = uint32(14 days);
         ephemeralKeyRegistry = new EphemeralKeyRegistry(dlRepository);
 
         // hard-coded inputs
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
-            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
-        ethStratsAndMultipliers[0].strategy = wethStrat;
-        ethStratsAndMultipliers[0].multiplier = multiplier;
-        VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
-            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
-        eigenStratsAndMultipliers[0].strategy = eigenStrat;
-        eigenStratsAndMultipliers[0].multiplier = multiplier;
-        uint8 _NUMBER_OF_QUORUMS = 2;
-        uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
-        // split 60% ETH quorum, 40% EIGEN quorum
-        _quorumBips[0] = 6000;
-        _quorumBips[1] = 4000;
-
-        pubkeyCompendium = new BLSPublicKeyCompendium();
-
-        dlReg = new BLSRegistryWithBomb(
-            Repository(address(dlRepository)),
-            delegation,
-            investmentManager,
-            ephemeralKeyRegistry,
-            unbondingPeriod,
-            _NUMBER_OF_QUORUMS,
-            _quorumBips,
-            ethStratsAndMultipliers,
-            eigenStratsAndMultipliers,
-            pubkeyCompendium
-        );
-       
-        Repository(address(dlRepository)).initialize(dlReg, dlsm, dlReg, address(this));
-
-    
-
+        uint256 feePerBytePerTime = 1;
         uint256 _paymentFraudproofCollateral = 1e16;
 
-        dataLayrPaymentManager = new DataLayrPaymentManager(
-            weth,
-            _paymentFraudproofCollateral,
-            dlRepository,
-            dlsm,
-            dataLayrPauserReg
+        /**
+         * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
+         * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
+         */
+        challengeUtils = DataLayrChallengeUtils(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        dlsm = DataLayrServiceManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        ephemeralKeyRegistry = EphemeralKeyRegistry(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        pubkeyCompendium = BLSPublicKeyCompendium(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        dataLayrPaymentManager = DataLayrPaymentManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        dlldc = DataLayrLowDegreeChallenge(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        dlReg = BLSRegistryWithBomb(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
+        // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
+        challengeUtilsImplementation = new DataLayrChallengeUtils();
+        dlsmImplementation = new DataLayrServiceManager(
+            dlReg,
+            investmentManager,
+            delegation,
+            weth,
+            dlldc,
+            // TODO: fix this
+            DataLayrBombVerifier(address(0)),
+            ephemeralKeyRegistry,
+            dataLayrPaymentManager
+            // pauserReg,
+            // feePerBytePerTime
+        );
+        ephemeralKeyRegistryImplementation = new EphemeralKeyRegistry(dlReg, dlsm);
+        pubkeyCompendiumImplementation = new BLSPublicKeyCompendium();
+        dataLayrPaymentManagerImplementation = new DataLayrPaymentManager(
+            delegation,
+            dlsm,
+            dlReg,
+            weth,
+            weth,
+            // TODO: given that this address is the same as above in what we're deploying, we may want to eliminate the corresponding storage slot form the contract
+            dlReg
+        );
+        dlldcImplementation = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        {
+            uint32 _UNBONDING_PERIOD = uint32(14 days);
+            uint8 _NUMBER_OF_QUORUMS = 2;
+            dlRegImplementation = new BLSRegistryWithBomb(
+                delegation,
+                investmentManager,
+                dlsm,
+                _NUMBER_OF_QUORUMS,
+                _UNBONDING_PERIOD,
+                pubkeyCompendium,
+                ephemeralKeyRegistry
+            );
+        }
 
-        dlsm.setLowDegreeChallenge(dlldc);
-        dlsm.setPaymentManager(dataLayrPaymentManager);
-        dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
+        // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
+        eigenLayrProxyAdmin.upgrade(
+            TransparentUpgradeableProxy(payable(address(challengeUtils))),
+            address(challengeUtilsImplementation)
+        );
+        {
+            uint16 quorumThresholdBasisPoints = 9000;
+            uint16 adversaryThresholdBasisPoints = 4000;
+            eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(dlsm))),
+                address(dlsmImplementation),
+                abi.encodeWithSelector(
+                    DataLayrServiceManager.initialize.selector,
+                    pauserReg,
+                    initialOwner,
+                    quorumThresholdBasisPoints,
+                    adversaryThresholdBasisPoints,
+                    feePerBytePerTime
+                )
+            );
+        }
+        eigenLayrProxyAdmin.upgrade(
+            TransparentUpgradeableProxy(payable(address(ephemeralKeyRegistry))),
+            address(ephemeralKeyRegistryImplementation)
+        );
+        eigenLayrProxyAdmin.upgrade(
+            TransparentUpgradeableProxy(payable(address(pubkeyCompendium))),
+            address(pubkeyCompendiumImplementation)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(dataLayrPaymentManager))),
+            address(dataLayrPaymentManagerImplementation),
+            abi.encodeWithSelector(PaymentManager.initialize.selector, pauserReg, _paymentFraudproofCollateral)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(dlldc))),
+            address(dlldcImplementation),
+            abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
+        );
+        {
+            uint96 multiplier = 1e18;
+            uint8 _NUMBER_OF_QUORUMS = 2;
+            uint256[] memory _quorumBips = new uint256[](_NUMBER_OF_QUORUMS);
+            // split 60% ETH quorum, 40% EIGEN quorum
+            _quorumBips[0] = 6000;
+            _quorumBips[1] = 4000;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            ethStratsAndMultipliers[0].strategy = wethStrat;
+            ethStratsAndMultipliers[0].multiplier = multiplier;
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory eigenStratsAndMultipliers =
+                new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](1);
+            eigenStratsAndMultipliers[0].strategy = eigenStrat;
+            eigenStratsAndMultipliers[0].multiplier = multiplier;
+
+            eigenLayrProxyAdmin.upgradeAndCall(
+                TransparentUpgradeableProxy(payable(address(dlReg))),
+                address(dlRegImplementation),
+                abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
+            );
+        }
     }
 
     function calculateFee(uint256 totalBytes, uint256 feePerBytePerTime, uint256 duration)
@@ -476,9 +530,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         assertTrue(address(weth) != address(0), "weth failed to deploy");
         assertTrue(address(dlsm) != address(0), "dlsm failed to deploy");
         assertTrue(address(dlReg) != address(0), "dlReg failed to deploy");
-        assertTrue(address(dlRepository) != address(0), "dlRepository failed to deploy");
-        assertTrue(dlRepository.serviceManager() == dlsm, "ServiceManager set incorrectly");
-        assertTrue(dlsm.repository() == dlRepository, "repository set incorrectly in dlsm");
     }
 
     function testSig() public view {

@@ -3,7 +3,8 @@ pragma solidity ^0.8.9;
 
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
-import "../permissions/RepositoryAccess.sol";
+import "../interfaces/IServiceManager.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 // import "forge-std/Test.sol";
 
@@ -17,11 +18,20 @@ import "../permissions/RepositoryAccess.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
+contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
+
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
+ 
     // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
     uint32 public constant REVEAL_PERIOD_BLOCKS = 50400; //7 days at 12s/block
+
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
+    IQuorumRegistry public immutable registry;
+
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
+    IServiceManager public immutable serviceManager;
+
     // operator => list of ephemeral key hashes, block at which they started being used and were revealed
     mapping(address => EphemeralKeyEntry[]) public ephemeralKeyEntries;
 
@@ -30,8 +40,17 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
     event EphemeralKeyLeaked(uint256 index, bytes32 ephemeralKey);
     event EphemeralKeyProvenStale(uint256 index);
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(IRepository _repository) RepositoryAccess(_repository) {}
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
+    constructor(IQuorumRegistry _registry, IServiceManager _serviceManager) {
+        registry = _registry;
+        serviceManager = _serviceManager;
+        _disableInitializers();
+    }
 
     /**
      * @notice Used by operator to post their first ephemeral key hashes via BLSRegistry (on registration).
@@ -92,7 +111,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
          * Next we add the ephemeral key entry(s) and make the key after `activeKeyIndex` active, starting in the next block.
          * There are several different cases for this step, outlined below in the if-else logic.
          */
-
         // 1) if the last ephemeral key is the active one
         if (activeKeyIndex + 1 == ephemeralKeyEntriesLength) {
             // we need to push a new entry to the operator's list of ephemeral keys and make it active in the next block
@@ -214,7 +232,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         emit EphemeralKeyProvenStale(index);
 
         // freeze operator with stale ephemeral key
-        IServiceManager serviceManager = repository.serviceManager();
         serviceManager.freezeOperator(operator);
     }
 
@@ -226,7 +243,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      */
     function verifyLeakedEphemeralKey(address operator, uint256 index, bytes32 ephemeralKey) external {
          // verify that the operator is active
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
             registry.isActiveOperator(operator),
             "EphemeralKeyRegistry.verifyLeakedEphemeralKey: operator is not active"
@@ -238,7 +254,7 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         );
         
         require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyLeakedEphemeralKey: ephemeral key has been revealed");
-        if(index + 1 != ephemeralKeyEntries[operator].length) {
+        if (index + 1 != ephemeralKeyEntries[operator].length) {
             // if an inactive ephemeral key is being leaked, then make sure it's not in its reveal period
 
             // the block at which the leaked key stopped being active is the
@@ -255,7 +271,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
         emit EphemeralKeyLeaked(index, ephemeralKey);
 
         //freeze operator with stale ephemeral key
-        IServiceManager serviceManager = repository.serviceManager();
         serviceManager.freezeOperator(operator);
     }
 
@@ -290,7 +305,6 @@ contract EphemeralKeyRegistry is IEphemeralKeyRegistry, RepositoryAccess {
      */
     function _revealEphemeralKey(address operator, uint256 index, bytes32 prevEphemeralKey) internal {
         // verify that the operator is active
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
         require(
             registry.isActiveOperator(operator),
             "EphemeralKeyRegistry.revealEphemeralKey: operator is not active"

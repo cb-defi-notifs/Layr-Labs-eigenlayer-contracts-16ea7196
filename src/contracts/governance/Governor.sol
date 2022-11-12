@@ -33,10 +33,9 @@ import "../interfaces/IVoteWeigher.sol";
 import "../interfaces/IRegistry.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "./Timelock.sol";
-import "../permissions/RepositoryAccess.sol";
 
 //TODO: better solutions for 'quorumVotes' and 'proposalThreshold'
-contract Governor is RepositoryAccess {
+contract Governor {
     struct Proposal {
         /// @notice Unique id for looking up a proposal
         uint256 id;
@@ -108,6 +107,7 @@ contract Governor is RepositoryAccess {
     bytes32 public constant BALLOT_TYPEHASH = keccak256("Ballot(uint256 proposalId,bool support)");
 
     IVoteWeigher public immutable VOTE_WEIGHTER;
+    IQuorumRegistry public immutable REGISTRY;
 
     /// @notice The percentage of eth needed in support of a proposal required in order for a quorum
     /// to be reached for the eth and for a vote to succeed, if an eigen quorum is also reached
@@ -180,16 +180,17 @@ contract Governor is RepositoryAccess {
     }
 
     constructor(
-        IRepository _repository,
         IVoteWeigher _VOTE_WEIGHTER,
+        IQuorumRegistry _REGISTRY,
         Timelock _timelock,
         address _multisig,
         uint16 _firstQuorumPercentage,
         uint16 _secondQuorumPercentage,
         uint16 _proposalThresholdFirstQuorumPercentage,
         uint16 _proposalThresholdSecondQuorumPercentage
-    ) RepositoryAccess(_repository) {
+    ) {
         VOTE_WEIGHTER = _VOTE_WEIGHTER;
+        REGISTRY = _REGISTRY;
         _setTimelock(_timelock);
         _setMultisig(_multisig);
         _setQuorumsAndThresholds(
@@ -210,8 +211,7 @@ contract Governor is RepositoryAccess {
         (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(msg.sender);
         {
             // check percentage
-            IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
+            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = REGISTRY.totalStake();
             require(
                 (uint256(firstQuorumStake) * 100) / firstQuorumTotalStake
                     >= proposalThresholdFirstQuorumPercentage
@@ -328,8 +328,7 @@ contract Governor is RepositoryAccess {
         (uint96 firstQuorumStake, uint96 secondQuorumStake) = _getVoterStakes(proposal.proposer);
         {
             // check percentage
-            IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
-            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
+            (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = REGISTRY.totalStake();
             require(
                 (uint256(firstQuorumStake) * 100) / firstQuorumTotalStake
                     >= proposalThresholdFirstQuorumPercentage
@@ -369,8 +368,7 @@ contract Governor is RepositoryAccess {
     function state(uint256 proposalId) public view returns (ProposalState) {
         require(proposalCount >= proposalId && proposalId > 0, "RepositoryGovernance::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-        (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = registry.totalStake();
+        (uint256 firstQuorumTotalStake, uint256 secondQuorumTotalStake) = REGISTRY.totalStake();
         if (proposal.canceled) {
             return ProposalState.Canceled;
         } else if (block.timestamp <= proposal.startTime) {
@@ -501,7 +499,7 @@ contract Governor is RepositoryAccess {
 
     // TODO: reintroduce a way to update stakes before simply fetching them?
     function _getVoterStakes(address user) internal view returns (uint96, uint96) {
-        (uint96 firstQuorumStake, uint96 secondQuorumStake) = IQuorumRegistry(address(_registry())).operatorStakes(user);
+        (uint96 firstQuorumStake, uint96 secondQuorumStake) = REGISTRY.operatorStakes(user);
         return (firstQuorumStake, secondQuorumStake);
     }
 }
