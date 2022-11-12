@@ -55,33 +55,40 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     uint256 public constant DURATION_SCALE = 1 hours;
     uint32 public constant MAX_WITHDRAWAL_PERIOD = 7 days;
     Vm cheats = Vm(HEVM_ADDRESS);
-    IERC20 public eigenToken;
-    InvestmentStrategyBase public eigenStrat;
+
+    // EigenLayer contracts
+    ProxyAdmin public eigenLayrProxyAdmin;
+    PauserRegistry public eigenLayrPauserReg;
+    Slasher public slasher;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EphemeralKeyRegistry public ephemeralKeyRegistry;
-    Slasher public slasher;
-    PauserRegistry public pauserReg;
-    BLSPublicKeyCompendium public pubkeyCompendium;
-    BLSRegistryWithBomb public dlReg;
-    DataLayrServiceManager public dlsm;
-    DataLayrLowDegreeChallenge public dlldc;
-    IERC20 public weth;
-    WETH public liquidStakingMockToken;
-
-    InvestmentStrategyBase public wethStrat;
-    IRepository public dlRepository;
-    ProxyAdmin public eigenLayrProxyAdmin;
-    DataLayrPaymentManager public dataLayrPaymentManager;
-    InvestmentStrategyBase public liquidStakingMockStrat;
-    InvestmentStrategyBase public baseStrategyImplementation;
-    IBLSPublicKeyCompendium public blsPkCompendium;
     IEigenPodManager public eigenPodManager;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
-    
+
+    // DataLayr contracts
+    ProxyAdmin public dataLayrProxyAdmin;
+    IBLSPublicKeyCompendium public blsPkCompendium;
+    EphemeralKeyRegistry public ephemeralKeyRegistry;
+    BLSPublicKeyCompendium public pubkeyCompendium;
+    BLSRegistryWithBomb public dlReg;
+    DataLayrServiceManager public dlsm;
+    DataLayrLowDegreeChallenge public dlldc;
+    DataLayrPaymentManager public dataLayrPaymentManager;
+    PauserRegistry public dataLayrPauserReg;
+    IRepository public dlRepository;
+
+    // testing/mock contracts
+    IERC20 public eigenToken;
+    IERC20 public weth;
+    WETH public liquidStakingMockToken;
+    InvestmentStrategyBase public wethStrat;
+    InvestmentStrategyBase public eigenStrat;
+    InvestmentStrategyBase public liquidStakingMockStrat;
+    InvestmentStrategyBase public baseStrategyImplementation;
+
     IVoteWeigher public generalVoteWeigher;
 
     IRepository public generalRepository1;
@@ -91,8 +98,6 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     IRepository public generalRepository2;
     MiddlewareRegistry public generalReg2;
     DataLayrServiceManager public generalServiceManager2;
-
-
 
     // strategy index => IInvestmentStrategy
     mapping(uint256 => IInvestmentStrategy) public strategies;
@@ -185,8 +190,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         //deploy pauser registry
-        pauserReg = new PauserRegistry(pauser, unpauser);
-        blsPkCompendium = new BLSPublicKeyCompendium();
+        eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -226,17 +230,17 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
@@ -260,7 +264,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
                 )
             )
         );
@@ -278,7 +282,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, pauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
                 )
             )
         );
@@ -295,7 +299,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, pauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, liquidStakingMockToken, eigenLayrPauserReg)
                 )
             )
         );
@@ -375,6 +379,15 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
+        // deploy proxy admin for ability to upgrade proxy contracts
+        dataLayrProxyAdmin = new ProxyAdmin();
+
+        // deploy pauser registry
+        dataLayrPauserReg = new PauserRegistry(pauser, unpauser);
+
+        // deploy public key compendium
+        blsPkCompendium = new BLSPublicKeyCompendium();
+
         // hard-coded input
         uint96 multiplier = 1e18;
 
@@ -388,7 +401,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             delegation,
             dlRepository,
             weth,
-            pauserReg,
+            dataLayrPauserReg,
             feePerBytePerTime
         );
 
@@ -436,7 +449,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
             _paymentFraudproofCollateral,
             dlRepository,
             dlsm,
-            pauserReg
+            dataLayrPauserReg
         );
 
         dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
