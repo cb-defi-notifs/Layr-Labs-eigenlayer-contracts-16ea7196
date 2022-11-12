@@ -49,6 +49,7 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
     constructor(IQuorumRegistry _registry, IServiceManager _serviceManager) {
         registry = _registry;
         serviceManager = _serviceManager;
+        _disableInitializers();
     }
 
     /**

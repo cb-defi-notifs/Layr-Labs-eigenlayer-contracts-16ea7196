@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "./aave/ILendingPool.sol";
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title InvestmentStrategy that lends tokens out on AAVE.
@@ -12,7 +11,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
  * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
  */
-abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
+abstract contract AaveInvestmentStrategy is InvestmentStrategyBase {
     using SafeERC20 for IERC20;
 
     ILendingPool public lendingPool;

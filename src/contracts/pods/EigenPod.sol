@@ -48,7 +48,6 @@ contract EigenPod is IEigenPod, Initializable
 
     constructor(IETHPOSDeposit _ethPOS) {
         ethPOS = _ethPOS;
-        //TODO: uncomment for prod
         _disableInitializers();
     }
 
