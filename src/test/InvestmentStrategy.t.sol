@@ -8,7 +8,7 @@ contract InvestmentStrategyTests is TestHelper {
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
-        wethStrat.initialize(weth, pauserReg);
+        wethStrat.initialize(weth, eigenLayrPauserReg);
     }
 
     ///@notice This function tests to ensure that only the investmentManager

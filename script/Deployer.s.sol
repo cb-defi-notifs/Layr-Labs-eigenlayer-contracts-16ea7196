@@ -69,52 +69,49 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     using BytesLib for bytes;
 
-    // Eigen public eigen;
-    IERC20 public eigen;
+    Vm cheats = Vm(HEVM_ADDRESS);
 
     uint256 public constant DURATION_SCALE = 1 hours;
-    Vm cheats = Vm(HEVM_ADDRESS);
-    IERC20 public eigenToken;
-    InvestmentStrategyBase public eigenStrat;
+
+    // EigenLayer contracts
+    ProxyAdmin public eigenLayrProxyAdmin;
+    PauserRegistry public eigenLayrPauserReg;
+    Slasher public slasher;
     EigenLayrDelegation public delegation;
     InvestmentManager public investmentManager;
-    EigenPodManager public eigenPodManager;
-    Slasher public slasher;
-    PauserRegistry public pauserReg;
-    IERC20 public weth;
-
-    InvestmentStrategyBase public wethStrat;
-    ProxyAdmin public eigenLayrProxyAdmin;
-    DataLayrPaymentManager public dataLayrPaymentManager;
-    InvestmentStrategyBase public liquidStakingMockStrat;
-    InvestmentStrategyBase public baseStrategyImplementation;
-
-    DataLayrServiceManager public dlsm;
-    DataLayrLowDegreeChallenge public dlldc;
-    DataLayrChallengeUtils public challengeUtils;
-    BLSRegistryWithBomb public dlReg;
-    BLSPublicKeyCompendium public pubkeyCompendium;
-    EphemeralKeyRegistry public ephemeralKeyRegistry;
-
-    DataLayrChallengeUtils public challengeUtilsImplementation;
-    DataLayrServiceManager public dlsmImplementation;
-    EphemeralKeyRegistry public ephemeralKeyRegistryImplementation;
-    BLSPublicKeyCompendium public pubkeyCompendiumImplementation;
-    DataLayrPaymentManager public dataLayrPaymentManagerImplementation;
-    DataLayrLowDegreeChallenge public dlldcImplementation;
-    BLSRegistryWithBomb public dlRegImplementation;
-
-    EmptyContract public emptyContract;
-
-    address initialOwner = address(this);
-
+    IEigenPodManager public eigenPodManager;
     IEigenPod public pod;
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
 
-    // ERC20PresetFixedSupply public liquidStakingMockToken;
-    // InvestmentStrategyBase public liquidStakingMockStrat;
+    // DataLayr contracts
+    ProxyAdmin public dataLayrProxyAdmin;
+    PauserRegistry public dataLayrPauserReg;
+
+    DataLayrChallengeUtils public challengeUtils;
+    EphemeralKeyRegistry public ephemeralKeyRegistry;
+    BLSPublicKeyCompendium public pubkeyCompendium;
+    BLSRegistryWithBomb public dlReg;
+    DataLayrServiceManager public dlsm;
+    DataLayrLowDegreeChallenge public dlldc;
+    DataLayrPaymentManager public dataLayrPaymentManager;
+
+    DataLayrChallengeUtils public challengeUtilsImplementation;
+    EphemeralKeyRegistry public ephemeralKeyRegistryImplementation;
+    BLSPublicKeyCompendium public pubkeyCompendiumImplementation;
+    BLSRegistryWithBomb public dlRegImplementation;
+    DataLayrServiceManager public dlsmImplementation;
+    DataLayrLowDegreeChallenge public dlldcImplementation;
+    DataLayrPaymentManager public dataLayrPaymentManagerImplementation;
+
+    // testing/mock contracts
+    IERC20 public eigenToken;
+    IERC20 public weth;
+    InvestmentStrategyBase public wethStrat;
+    InvestmentStrategyBase public eigenStrat;
+    InvestmentStrategyBase public baseStrategyImplementation;
+    EmptyContract public emptyContract;
 
     uint256 nonce = 69;
 
@@ -148,17 +145,24 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
 
     uint256 public gasLimit = 750000;
 
+    address[] public slashingContracts;
+
     function run() external {
         vm.startBroadcast();
 
         emit log_address(address(this));
+        address pauser = msg.sender;
+        address unpauser = msg.sender;
+        address initialOwner = msg.sender;
+
+
+
+
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
-        pauserReg = new PauserRegistry(msg.sender, msg.sender);
-
-        //TODO: handle pod manager correctly
-        eigenPodManager = EigenPodManager(address(0));
+        //deploy pauser registry
+        eigenLayrPauserReg = new PauserRegistry(pauser, unpauser);
 
         /**
          * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
@@ -196,17 +200,17 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, initialOwner)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
@@ -214,10 +218,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
         );
 
-        vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
-        vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
 
-        //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
+        //simple ERC20 (**NOT** WETH-like!), used in a test investment strategy
         weth = new ERC20PresetFixedSupply(
             "weth",
             "WETH",
@@ -225,54 +227,68 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             msg.sender
         );
 
-        vm.writeFile("data/weth.addr", vm.toString(address(weth)));
-
+        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation and initialize it
         baseStrategyImplementation = new InvestmentStrategyBase(investmentManager);
-
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        // initialize InvestmentStrategyBase proxy
         wethStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, pauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, weth, eigenLayrPauserReg)
                 )
             )
         );
-        vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
 
-        eigen = new ERC20PresetFixedSupply(
+        eigenToken = new ERC20PresetFixedSupply(
             "eigen",
             "EIGEN",
             wethInitialSupply,
             msg.sender
         );
 
-        vm.writeFile("data/eigen.addr", vm.toString(address(eigen)));
-
-        // deploy InvestmentStrategyBase contract implementation, then create upgradeable proxy that points to implementation
-        // initialize InvestmentStrategyBase proxy
+        // deploy upgradeable proxy that points to InvestmentStrategyBase implementation and initialize it
         eigenStrat = InvestmentStrategyBase(
             address(
                 new TransparentUpgradeableProxy(
                     address(baseStrategyImplementation),
                     address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigen, pauserReg)
+                    abi.encodeWithSelector(InvestmentStrategyBase.initialize.selector, eigenToken, eigenLayrPauserReg)
                 )
             )
         );
 
-        vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
-
         // deploy all the DataLayr contracts
         _deployDataLayrContracts();
+
+        slashingContracts.push(address(eigenPodManager));
+        investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        
+
+        vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
+        vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
+        vm.writeFile("data/weth.addr", vm.toString(address(weth)));
+        vm.writeFile("data/wethStrat.addr", vm.toString(address(wethStrat)));
+        vm.writeFile("data/eigen.addr", vm.toString(address(eigenToken)));
+        vm.writeFile("data/eigenStrat.addr", vm.toString(address(eigenStrat)));
 
         vm.stopBroadcast();
     }
 
     // deploy all the DataLayr contracts. Relies on many EL contracts having already been deployed.
     function _deployDataLayrContracts() internal {
+        address pauser = msg.sender;
+        address unpauser = msg.sender;
+        address initialOwner = msg.sender;
+
+
+
+
+        // deploy proxy admin for ability to upgrade proxy contracts
+        dataLayrProxyAdmin = new ProxyAdmin();
+
+        // deploy pauser registry
+        dataLayrPauserReg = new PauserRegistry(pauser, unpauser);
+
         // hard-coded inputs
         uint256 feePerBytePerTime = 1;
         uint256 _paymentFraudproofCollateral = 1e16;
@@ -282,25 +298,25 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
          * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
          */
         challengeUtils = DataLayrChallengeUtils(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlsm = DataLayrServiceManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         ephemeralKeyRegistry = EphemeralKeyRegistry(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         pubkeyCompendium = BLSPublicKeyCompendium(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dataLayrPaymentManager = DataLayrPaymentManager(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlldc = DataLayrLowDegreeChallenge(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
         dlReg = BLSRegistryWithBomb(
-            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(dataLayrProxyAdmin), ""))
         );
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
@@ -315,8 +331,6 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             DataLayrBombVerifier(address(0)),
             ephemeralKeyRegistry,
             dataLayrPaymentManager
-            // pauserReg,
-            // feePerBytePerTime
         );
         ephemeralKeyRegistryImplementation = new EphemeralKeyRegistry(dlReg, dlsm);
         pubkeyCompendiumImplementation = new BLSPublicKeyCompendium();
@@ -345,19 +359,19 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         }
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(challengeUtils))),
             address(challengeUtilsImplementation)
         );
         {
             uint16 quorumThresholdBasisPoints = 9000;
             uint16 adversaryThresholdBasisPoints = 4000;
-            eigenLayrProxyAdmin.upgradeAndCall(
+            dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlsm))),
                 address(dlsmImplementation),
                 abi.encodeWithSelector(
                     DataLayrServiceManager.initialize.selector,
-                    pauserReg,
+                    dataLayrPauserReg,
                     initialOwner,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
@@ -365,20 +379,20 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
                 )
             );
         }
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(ephemeralKeyRegistry))),
             address(ephemeralKeyRegistryImplementation)
         );
-        eigenLayrProxyAdmin.upgrade(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(pubkeyCompendium))),
             address(pubkeyCompendiumImplementation)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        dataLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(dataLayrPaymentManager))),
             address(dataLayrPaymentManagerImplementation),
-            abi.encodeWithSelector(PaymentManager.initialize.selector, pauserReg, _paymentFraudproofCollateral)
+            abi.encodeWithSelector(PaymentManager.initialize.selector, dataLayrPauserReg, _paymentFraudproofCollateral)
         );
-        eigenLayrProxyAdmin.upgradeAndCall(
+        dataLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(dlldc))),
             address(dlldcImplementation),
             abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
@@ -399,13 +413,14 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             eigenStratsAndMultipliers[0].strategy = eigenStrat;
             eigenStratsAndMultipliers[0].multiplier = multiplier;
 
-            eigenLayrProxyAdmin.upgradeAndCall(
+            dataLayrProxyAdmin.upgradeAndCall(
                 TransparentUpgradeableProxy(payable(address(dlReg))),
                 address(dlRegImplementation),
                 abi.encodeWithSelector(BLSRegistry.initialize.selector, _quorumBips, ethStratsAndMultipliers, eigenStratsAndMultipliers)
             );
         }
 
+        // vm.writeFile("data/dlRepository.addr", vm.toString(address(dlRepository)));
         vm.writeFile("data/dlsm.addr", vm.toString(address(dlsm)));
         vm.writeFile("data/dlReg.addr", vm.toString(address(dlReg)));
     }
