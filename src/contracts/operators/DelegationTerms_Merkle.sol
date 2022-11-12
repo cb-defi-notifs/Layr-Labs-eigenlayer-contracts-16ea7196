@@ -21,7 +21,7 @@ import "../libraries/Merkle.sol";
  * to contain the **cumulative** earnings of a staker. This will reduce the total number of actions that stakers who claim only rarely
  * have to take, while allowing stakers to claim their earnings as often as new Merkle roots are posted.
  */
-contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
+contract MerkleDelegationTerms is Ownable, IDelegationTerms {
     using SafeERC20 for IERC20;
 
     struct TokenAndAmount {
@@ -64,7 +64,7 @@ contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
     /// @notice Used by the operator to post an updated root of the stakers' all-time earnings
     function postMerkleRoot(bytes32 newRoot, uint256 height) external onlyOwner {
         // sanity check
-        require(height <= MAX_HEIGHT, "height input too large");
+        require(height <= MAX_HEIGHT, "MerkleDelegationTerms.postMerkleRoot: height input too large");
         merkleRoots.push(
             MerkleRootAndTreeHeight({
                 root: newRoot,
@@ -92,7 +92,7 @@ contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
         bytes32 leafHash = calculateLeafHash(msg.sender, tokensAndAmounts);
 
         // verify that the proof length is appropriate for the chosen root
-        require(proof.length == 32 * merkleRoots[rootIndex].height, "incorrect proof length");
+        require(proof.length == 32 * merkleRoots[rootIndex].height, "MerkleDelegationTerms.proveEarningsAndWithdraw: incorrect proof length");
 
         // check inclusion of the leafHash in the tree corresponding to `merkleRoots[rootIndex]`
         require(
@@ -102,7 +102,7 @@ contract DelegationTerms_Merkle is Ownable, IDelegationTerms {
                 merkleRoots[rootIndex].root,
                 proof
             ),
-            "proof of inclusion failed"
+            "MerkleDelegationTerms.proveEarningsAndWithdraw: proof of inclusion failed"
         );
 
         uint256 tokensAndAmountsLength = tokensAndAmounts.length;
