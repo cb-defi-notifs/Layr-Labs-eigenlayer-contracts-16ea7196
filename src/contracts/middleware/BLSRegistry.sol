@@ -55,35 +55,42 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     );
 
     constructor(
-        Repository _repository,
         IEigenLayrDelegation _delegation,
         IInvestmentManager _investmentManager,
-        uint32 _unbondingPeriod,
+        IServiceManager _serviceManager,
         uint8 _NUMBER_OF_QUORUMS,
-        uint256[] memory _quorumBips,
-        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
-        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers,
+        uint32 _UNBONDING_PERIOD,
         IBLSPublicKeyCompendium _pubkeyCompendium
     )
         RegistryBase(
-            _repository,
             _delegation,
             _investmentManager,
-            _unbondingPeriod,
+            _serviceManager,
             _NUMBER_OF_QUORUMS,
+            _UNBONDING_PERIOD
+        )
+    {
+        //set compendium
+        pubkeyCompendium = _pubkeyCompendium;
+    }
+
+    /// @notice Initialize the APK, the payment split between quorums, and the quorum strategies + multipliers.
+    function initialize(
+        uint256[] memory _quorumBips,
+        StrategyAndWeightingMultiplier[] memory _firstQuorumStrategiesConsideredAndMultipliers,
+        StrategyAndWeightingMultiplier[] memory _secondQuorumStrategiesConsideredAndMultipliers
+    ) public virtual initializer {
+        RegistryBase._initialize(
             _quorumBips,
             _firstQuorumStrategiesConsideredAndMultipliers,
             _secondQuorumStrategiesConsideredAndMultipliers
-        )
-    {
+        );
         /**
          * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
          * addition in Jacobian coordinate system.
          */
         uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
         _processApkUpdate(initApk);
-        //set compendium
-        pubkeyCompendium = _pubkeyCompendium;
     }
 
     /**

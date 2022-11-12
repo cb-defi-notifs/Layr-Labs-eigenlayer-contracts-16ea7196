@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../../interfaces/IDataLayrServiceManager.sol";
 import "../../libraries/Merkle.sol";
 import "../../libraries/BN254.sol";
@@ -10,7 +11,7 @@ import "../../libraries/BLS.sol";
  * @title Stand-alone utility contract that implements reuseable 'challenge'-related functionality for DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrChallengeUtils {
+contract DataLayrChallengeUtils is Initializable {
 
     struct MultiRevealProof {
         BN254.G1Point interpolationPoly;
@@ -28,6 +29,10 @@ contract DataLayrChallengeUtils {
 
     // TODO: set this value
     uint256 internal ZERO_POLY_TREE_HEIGHT;
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
     * @notice Check that the DataLayr operator who is getting slashed was

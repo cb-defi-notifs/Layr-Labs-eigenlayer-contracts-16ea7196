@@ -3,13 +3,11 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../interfaces/IRepository.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IPaymentManager.sol";
-import "./Repository.sol";
-import "../permissions/RepositoryAccess.sol";
 import "../permissions/Pausable.sol";
 
 // import "forge-std/Test.sol";
@@ -22,7 +20,7 @@ import "../permissions/Pausable.sol";
  * function -- see DataLayrPaymentManager for an example
  */
 //
-abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable {
+abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     using SafeERC20 for IERC20;
     // DATA STRUCTURES
 
@@ -35,6 +33,19 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     /// @notice Gas budget provided in calls to DelegationTerms contracts
     uint256 internal constant LOW_LEVEL_GAS_BUDGET = 1e5;
 
+    /**
+     * @notice The global EigenLayr Delegation contract, which is primarily used by
+     * stakers to delegate their stake to operators who serve as middleware nodes.
+     * @dev For more details, see EigenLayrDelegation.sol.
+     */
+    IEigenLayrDelegation public immutable eigenLayrDelegation;
+
+    /// @notice The ServiceManager contract for this middleware, where tasks are created / initiated.
+    IServiceManager public immutable serviceManager;
+
+    /// @notice The Registry contract for this middleware, where operators register and deregister.
+    IQuorumRegistry public immutable registry;
+
     /// @notice the ERC20 token that will be used by the disperser to pay the service fees to middleware nodes.
     IERC20 public immutable paymentToken;
 
@@ -45,13 +56,6 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
      * @notice Specifies the payment that has to be made as a collateral for fraudproof during payment challenges.
      */
     uint256 public paymentFraudproofCollateral;
-
-    /**
-     * @notice The global EigenLayr Delegation contract, which is primarily used by
-     * stakers to delegate their stake to operators who serve as middleware nodes.
-     * @dev For more details, see EigenLayrDelegation.sol.
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
 
     /// @notice mapping between the operator and its current committed payment or last redeemed payment
     mapping(address => Payment) public operatorToPayment;
@@ -89,23 +93,42 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     /// @dev Emitted when a low-level call to `delegationTerms.payForService` fails, returning `returnData`
     event OnPayForServiceCallFailure(IDelegationTerms indexed delegationTerms, bytes32 returnData);
 
+    /// @notice when applied to a function, ensures that the function is only callable by the `serviceManager`
+    modifier onlyServiceManager() {
+        require(msg.sender == address(serviceManager), "onlyServiceManager");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the `registry`
+    modifier onlyRegistry() {
+        require(msg.sender == address(registry), "onlyRegistry");
+        _;
+    }
+
+    /// @notice when applied to a function, ensures that the function is only callable by the owner of the `serviceManager`
+    modifier onlyServiceManagerOwner() {
+        require(msg.sender == serviceManager.owner(), "onlyServiceManagerOwner");
+        _;
+    }
+
     constructor(
+        IEigenLayrDelegation _eigenLayrDelegation,
+        IServiceManager _serviceManager,
+        IQuorumRegistry _registry,
         IERC20 _paymentToken,
-        uint256 _paymentFraudproofCollateral,
-        IRepository _repository,
-        IPauserRegistry _pauserReg
-    )
-        // set repository address equal to that of serviceManager
-        RepositoryAccess(_repository)
-    {
+        IERC20 _collateralToken
+    ) {
+        eigenLayrDelegation = _eigenLayrDelegation;
+        serviceManager = _serviceManager;
+        registry = _registry;
         paymentToken = _paymentToken;
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+        collateralToken = _collateralToken;
+        _disableInitializers();
+    }
 
-        IServiceManager serviceManager_ = _repository.serviceManager();
-        collateralToken = serviceManager_.collateralToken();
-        eigenLayrDelegation = serviceManager_.eigenLayrDelegation();
-
+    function initialize(IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public initializer {
         _initializePauser(_pauserReg);
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 
     /**
@@ -123,8 +146,16 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         allowances[msg.sender][allowed] = amount;
     }
 
+    /**
+     * @notice Modifies the `paymentFraudproofCollateral` amount.
+     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
+     */
+    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external virtual onlyServiceManagerOwner {
+        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
+    }
+
     /// @notice Used for deducting the fees from the payer to the middleware
-    function payFee(address initiator, address payer, uint256 feeAmount) external onlyServiceManager {
+    function payFee(address initiator, address payer, uint256 feeAmount) external virtual onlyServiceManager {
         if (initiator != payer) {
             if (allowances[payer][initiator] != type(uint256).max) {
                 allowances[payer][initiator] -= feeAmount;
@@ -136,20 +167,10 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
     }
 
     /**
-     * @notice Modifies the `paymentFraudproofCollateral` amount.
-     * @param _paymentFraudproofCollateral The new value for `paymentFraudproofCollateral` to take.
-     */
-    function setPaymentFraudproofCollateral(uint256 _paymentFraudproofCollateral) external onlyRepositoryGovernance {
-        _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
-    }
-
-    /**
      * @notice This is used by an operator to make a claim on the amount that they deserve for their service from their last payment until `toTaskNumber`
      * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
     function commitPayment(uint32 toTaskNumber, uint96 amount) external {
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
-
         // only active operators can call
         require(
             registry.isActiveOperator(msg.sender),
@@ -293,7 +314,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
         operatorToPaymentChallenge[operator] = PaymentChallenge(
             operator,
             msg.sender,
-            address(repository.serviceManager()),
+            address(serviceManager),
             operatorToPayment[operator].fromTaskNumber,
             operatorToPayment[operator].toTaskNumber,
             amount1,
@@ -512,7 +533,7 @@ abstract contract PaymentManager is RepositoryAccess, IPaymentManager, Pausable 
 
     /// @notice Convenience function for fetching the current taskNumber from the `serviceManager`
     function _taskNumber() internal view returns (uint32) {
-        return repository.serviceManager().taskNumber();
+        return serviceManager.taskNumber();
     }
 
     /**

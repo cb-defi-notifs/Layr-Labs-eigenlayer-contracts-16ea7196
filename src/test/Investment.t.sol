@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "./TestHelper.t.sol";
 import "../contracts/investment/InvestmentManagerStorage.sol";
 import "./utils/DataStoreUtilsWrapper.sol";
-import "./mocks/ServiceManagerMock.sol";
 
 contract InvestmentTests is TestHelper {
     /**
