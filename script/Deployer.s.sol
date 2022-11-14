@@ -1,36 +1,58 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
+import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+
 import "../src/contracts/interfaces/IEigenLayrDelegation.sol";
 import "../src/contracts/core/EigenLayrDelegation.sol";
+
+import "../src/contracts/interfaces/IETHPOSDeposit.sol";
+import "../src/contracts/interfaces/IBeaconChainOracle.sol";
 
 import "../src/contracts/investment/InvestmentManager.sol";
 import "../src/contracts/investment/InvestmentStrategyBase.sol";
 import "../src/contracts/investment/Slasher.sol";
 
+import "../src/contracts/pods/EigenPod.sol";
+import "../src/contracts/pods/EigenPodManager.sol";
+
+import "../src/contracts/permissions/PauserRegistry.sol";
+
 import "../src/contracts/middleware/Repository.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrServiceManager.sol";
 import "../src/contracts/middleware/BLSRegistryWithBomb.sol";
+import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
 import "../src/contracts/middleware/EphemeralKeyRegistry.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
 import "../src/contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
-import "../src/contracts/middleware/BLSPublicKeyCompendium.sol";
 
-import "../src/contracts/permissions/PauserRegistry.sol";
+import "../src/contracts/libraries/BLS.sol";
+import "../src/contracts/libraries/BytesLib.sol";
+import "../src/contracts/libraries/DataStoreUtils.sol";
 
-import "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetFixedSupply.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../src/test/utils/Signers.sol";
+import "../src/test/utils/SignatureUtils.sol";
+
+import "../src/test/mocks/EmptyContract.sol";
+import "../src/test/mocks/BeaconChainOracleMock.sol";
+import "../src/test/mocks/ETHDepositMock.sol";
+
+import "forge-std/Test.sol";
+
+
+
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
 
 import "../src/contracts/utils/ERC165_Universal.sol";
 import "../src/contracts/utils/ERC1155TokenReceiver.sol";
-
 import "../src/contracts/libraries/BLS.sol";
 import "../src/contracts/libraries/BytesLib.sol";
 import "../src/contracts/libraries/DataStoreUtils.sol";
@@ -42,15 +64,11 @@ import "../src/contracts/libraries/DataStoreUtils.sol";
 // forge script script/Deployer.s.sol:EigenLayrDeployer --rpc-url $RPC_URL  --private-key $PRIVATE_KEY --broadcast -vvvv
 
 //TODO: encode data properly so that we initialize TransparentUpgradeableProxy contracts in their constructor rather than a separate call (if possible)
-contract EigenLayrDeployer is
-    Script,
-    DSTest,
-    ERC165_Universal,
-    ERC1155TokenReceiver
+contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenReceiver {
     //,
     // Signers,
     // SignatureUtils
-{
+
     using BytesLib for bytes;
 
     Vm cheats = Vm(HEVM_ADDRESS);
@@ -60,6 +78,7 @@ contract EigenLayrDeployer is
     IERC20 public eigen;
     InvestmentStrategyBase public eigenStrat;
     EigenLayrDelegation public delegation;
+    EigenPodManager public eigenPodManager;
     InvestmentManager public investmentManager;
     EphemeralKeyRegistry public ephemeralKeyRegistry;
     BLSPublicKeyCompendium public pubkeyCompendium;
@@ -77,6 +96,11 @@ contract EigenLayrDeployer is
     ProxyAdmin public eigenLayrProxyAdmin;
 
     DataLayrPaymentManager public dataLayrPaymentManager;
+
+    IEigenPod public pod;
+    IETHPOSDeposit public ethPOSDeposit;
+    IBeacon public eigenPodBeacon;
+    IBeaconChainOracle public beaconChainOracle;
 
     // ERC20PresetFixedSupply public liquidStakingMockToken;
     // InvestmentStrategyBase public liquidStakingMockStrat;
@@ -107,67 +131,80 @@ contract EigenLayrDeployer is
     //     0x1234567812345678123456781234567812345698123456781234567812348976;
     // address acct_1 = cheats.addr(uint256(priv_key_1));
 
-    bytes32 public ephemeralKey =
-        0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public ephemeralKey = 0x3290567812345678123456781234577812345698123456781234567812344389;
 
     uint256 public constant eigenTotalSupply = 1000e18;
 
-    //performs basic deployment before each test
-    function run() external {
+    uint256 public gasLimit = 750000;
 
+    function run() external {
         vm.startBroadcast();
-        address initialOwner = address(this);
         emit log_address(address(this));
         // deploy proxy admin for ability to upgrade proxy contracts
         eigenLayrProxyAdmin = new ProxyAdmin();
 
         pauserReg = new PauserRegistry(msg.sender, msg.sender);
 
-        // deploy delegation contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `investmentManager` address
-        delegation = new EigenLayrDelegation();
+        //TODO: handle pod manager correctly
+        eigenPodManager = EigenPodManager(address(0));
+
+        /**
+         * First, deploy upgradeable proxy contracts that **will point** to the implementations. Since the implementation contracts are
+         * not yet deployed, we give these proxies an empty contract as the initial implementation, to act as if they have no code.
+         */
+        EmptyContract emptyContract = new EmptyContract();
         delegation = EigenLayrDelegation(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(delegation),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        investmentManager = InvestmentManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        slasher = Slasher(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+        eigenPodManager = EigenPodManager(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
 
-        // deploy InvestmentManager contract implementation, then create upgradeable proxy that points to implementation
-        // can't initialize immediately since initializer depends on `slasher` address        
-        investmentManager = new InvestmentManager(delegation);
-        investmentManager = InvestmentManager(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(investmentManager),
-                    address(eigenLayrProxyAdmin),
-                    ""
-                )
-            )
+        beaconChainOracle = new BeaconChainOracleMock();
+        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+
+        ethPOSDeposit = new ETHPOSDepositMock();
+        pod = new EigenPod(ethPOSDeposit);
+
+        eigenPodBeacon = new UpgradeableBeacon(address(pod));
+
+        // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
+        EigenLayrDelegation delegationImplementation = new EigenLayrDelegation(investmentManager);
+        InvestmentManager investmentManagerImplementation = new InvestmentManager(delegation, eigenPodManager, slasher);
+        Slasher slasherImplementation = new Slasher(investmentManager, delegation);
+        EigenPodManager eigenPodManagerImplementation = new EigenPodManager(ethPOSDeposit, eigenPodBeacon, investmentManager);
+
+
+        address initialOwner = address(this);
+        // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(delegation))),
+            address(delegationImplementation),
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(investmentManager))),
+            address(investmentManagerImplementation),
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(slasher))),
+            address(slasherImplementation),
+            abi.encodeWithSelector(Slasher.initialize.selector, pauserReg, initialOwner)
+        );
+        eigenLayrProxyAdmin.upgradeAndCall(
+            TransparentUpgradeableProxy(payable(address(eigenPodManager))),
+            address(eigenPodManagerImplementation),
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
         );
 
         vm.writeFile("data/investmentManager.addr", vm.toString(address(investmentManager)));
-
-         // deploy slasher as upgradable proxy and initialize it
-        Slasher slasherImplementation = new Slasher();
-        slasher = Slasher(
-            address(
-                new TransparentUpgradeableProxy(
-                    address(slasherImplementation),
-                    address(eigenLayrProxyAdmin),
-                    abi.encodeWithSelector(Slasher.initialize.selector, investmentManager, delegation, pauserReg, initialOwner)
-                )
-            )
-        );
-
-        // initialize the investmentManager (proxy) contract. This is possible now that `slasher` is deployed
-        investmentManager.initialize(slasher, pauserReg, initialOwner);
-
-        // initialize the delegation (proxy) contract. This is possible now that `investmentManager` is deployed
-        delegation.initialize(investmentManager, pauserReg, initialOwner);
         vm.writeFile("data/delegation.addr", vm.toString(address(delegation)));
 
         //simple ERC20 (*NOT WETH-like!), used in a test investment strategy
@@ -293,33 +330,31 @@ contract EigenLayrDeployer is
             pauserReg
         );
 
-        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils);
+        dlldc = new DataLayrLowDegreeChallenge(dlsm, dlReg, challengeUtils, gasLimit);
 
         dlsm.setLowDegreeChallenge(dlldc);
         dlsm.setPaymentManager(dataLayrPaymentManager);
         dlsm.setEphemeralKeyRegistry(ephemeralKeyRegistry);
     }
 
-
     function numberFromAscII(bytes1 b) private pure returns (uint8 res) {
-        if (b>="0" && b<="9") {
+        if (b >= "0" && b <= "9") {
             return uint8(b) - uint8(bytes1("0"));
-        } else if (b>="A" && b<="F") {
+        } else if (b >= "A" && b <= "F") {
             return 10 + uint8(b) - uint8(bytes1("A"));
-        } else if (b>="a" && b<="f") {
+        } else if (b >= "a" && b <= "f") {
             return 10 + uint8(b) - uint8(bytes1("a"));
         }
-        return uint8(b); // or return error ... 
+        return uint8(b); // or return error ...
     }
 
     function convertString(string memory str) public pure returns (uint256 value) {
-        
         bytes memory b = bytes(str);
         uint256 number = 0;
-        for(uint i=0;i<b.length;i++){
-            number = number << 4; // or number = number * 16 
+        for (uint256 i = 0; i < b.length; i++) {
+            number = number << 4; // or number = number * 16
             number |= numberFromAscII(b[i]); // or number += numberFromAscII(b[i]);
         }
-        return number; 
+        return number;
     }
 }
