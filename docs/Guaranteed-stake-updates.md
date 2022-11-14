@@ -131,7 +131,10 @@ Let us say an operator has opted into a middleware, `Middleware A`.  He would ca
 Based on this, the latest servUntil time is `serveUntil_B`.  So the most recent entry in the `operatorMiddlewareTimes` array for that operator will have `serveUntil = serveUntil_B` and `leastRecentUpdateBlock = updateBlock_A`.
 
 
-In the mean time, let us say the operator had also queued a withdrawal between the leastRecentUpdateBlock of `Middleware A` and `Middleware B`.
+In the mean time, let us say the operator had also queued a withdrawal between the leastRecentUpdateBlock of `Middleware A` and `Middleware B`:
+
+![alt text](images/![alt text](images/three_middlewares.png?raw=true "Title").png?raw=true "Title")
+
 
 
 
