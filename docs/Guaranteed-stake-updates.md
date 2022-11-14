@@ -60,12 +60,17 @@ _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
 This function is called by a whitelisted slashing contract during registration stake updates passing in the time until which the operator's stake is bonded `serveUntil` and updates the storage as follows
 
 ```solidity
-function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
-    //update latest update
-    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
-    //push the middleware to the end of the update list  
-    require(operatorToWhitelistedContractsByUpdate[operator].pushBack(msg.sender))
-}
+recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+
+        // update latest update
+
+        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
+
+
+        // Push the middleware to the end of the update list. This will fail if the caller *is* already in the list.
+        require(operatorToWhitelistedContractsByUpdate[operator].pushBack(addressToUint(msg.sender)), 
+            "Slasher.recordFirstStakeUpdate: Appending middleware unsuccessful");
+    }
 ```
 
 ### `recordStakeUpdate`
@@ -73,15 +78,27 @@ function recordFirstStakeUpdate(address operator, uint32 serveUntil) external on
 This function is called by a whitelisted slashing contract passing in the time until which the operator's stake is bonded `serveUntil` and records that the middleware has had a stake update and updates the storage as follows
 
 ```solidity
-recordStakeUpdate(address operator, uint32 serveUntil) {
-    //restrict to permissioned contracts
-    require(canSlash(operator, msg.sender));
-    //update latest update
-    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
-    //move the middleware to the end of the update list
-    require(operatorToWhitelistedContractsByUpdate[operator].remove(msg.sender))
-    require(operatorToWhitelistedContractsByUpdate[operator].pushBack(msg.sender))
-}
+recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
+        external 
+        onlyCanSlash(operator) 
+    {
+        // sanity check on input
+        require(updateBlock <= block.number, "Slasher.recordStakeUpdate: cannot provide update for future block");
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
+        _recordUpdateAndAddToMiddlewareTimes(operator, updateBlock, serveUntil);
+
+        /**
+         * Move the middleware to its correct update position, determined by `updateBlock` and indicated via `insertAfter`.
+         * If the the middleware is the only one in the list, then no need to mutate the list
+         */
+        if (operatorToWhitelistedContractsByUpdate[operator].sizeOf() != 1) {
+            // Remove the caller (middleware) from the list. This will fail if the caller is *not* already in the list.
+            require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0, 
+                "Slasher.recordStakeUpdate: Removing middleware unsuccessful");
+            // Run routine for updating the `operator`'s linked list of middlewares
+            _updateMiddlewareList(operator, updateBlock, insertAfter);
+        }
+    }
 ```
 
 ### `recordLastStakeUpdate`
@@ -89,14 +106,13 @@ recordStakeUpdate(address operator, uint32 serveUntil) {
 This function is called by a whitelisted slashing contract on deregistration passing in the time until which the operator's stake is bonded `serveUntil` and records that the middleware has had a stake update and updates the storage as follows
 
 ```solidity
-recordLastStakeUpdate(address operator, uint32 serveUntil) {
-    //restrict to permissioned contracts
-    require(canSlash(operator, msg.sender));
-    //update latest update
-    _recordUpdateAndAddToMiddlewareTimes(operator, serveUntil)
-    //remove the middleware from the list
-    require(operatorToWhitelistedContractsByUpdate[operator].remove(msg.sender))
-}
+function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+        // update the 'stalest' stakes update time + latest 'serveUntil' time of the `operator`
+        _recordUpdateAndAddToMiddlewareTimes(operator, uint32(block.number), serveUntil);
+        //remove the middleware from the list
+        require(operatorToWhitelistedContractsByUpdate[operator].remove(addressToUint(msg.sender)) != 0,
+             "Slasher.recordLastStakeUpdate: Removing middleware unsuccessful");
+    }
 ```
 
 ### `canWithdraw`
@@ -104,25 +120,28 @@ recordLastStakeUpdate(address operator, uint32 serveUntil) {
 The biggest thing this upgrade does is it makes sure that withdrawals only happen once the stake being withdrawn is no longer slashable in a non optimistic way. This is done by calling the `canWithdraw` function on the slasher.
 
 ```solidity
-canWithdaw(address operator, uint32 withdrawalStartTime, uint256 middlewareTimesIndex) (bool) {
-    if (middlewareUpdates[operator].length == 0) {
-        return true
-    }
-    //make the update time is after the withdrawalStartTime
-    //make sure earliest update at the time is after withdrawalStartTime
-    //make sure the current time is after the latestServeUntil at the time
-    //this assures us that this update happened after the withdrawal and 
-    //all middlewares were updated after the withdrawal and
-    //the stake is no longer slashable
-    MiddlewareUpdate update = middlewareUpdates[operator][middlewareTimesIndex];
-    require(
-            withdrawalStartTime < update.updateTime 
-            &&
-            withdrawalStartTime < update.earliestLastUpdateTime 
+canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns (bool) {
+        // if the operator has never registered for a middleware, just return 'true'
+        if (operatorToMiddlewareTimes[operator].length == 0) {
+            return true;
+        }
+
+        // pull the MiddlewareTimes struct at the `middlewareTimesIndex`th position in `operatorToMiddlewareTimes[operator]`
+        MiddlewareTimes memory update = operatorToMiddlewareTimes[operator][middlewareTimesIndex];
+        
+        /**
+         * Make sure the stalest update block at the time of the update is strictly after `withdrawalStartBlock` and ensure that the current time
+         * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
+         * that the stake is no longer slashable.
+         */
+
+
+        return(
+            withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
             uint32(block.timestamp) > update.latestServeUntil
-    )   
-}
+        );
+    }
 ```
 
 
@@ -160,6 +179,7 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
 The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.  If these criteria are met, the withdrawal can be completed.  In order to complete a withdrawal in this example, the operator would have to record a stake update in `Middleware A`, signalling readiness for withdrawal.  The timeline would now look like this:
 
 ![alt text](images/withdrawal.png?raw=true "Title")
+
 
 
 
