@@ -48,17 +48,8 @@ _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
         else{
             leastRecentUpdateBlock = updateBlock;
         }
+    }
 
-        
-        operatorToWhitelistedContractsByUpdate[operator].getHead() == msg.sender
-        ?  operatorToWhitelistedContractsToLatestUpdateTime[
-                operatorToWhitelistedContractsByUpdate[operator].getNextNode(msg.sender)
-        ] 
-        //otherwise keep it the same
-        : curr.earliestLastUpdateTime
-        // if the current middleware's serve until is later than the current recorded one, update the latestServeUntil
-        latestServeUntil: serveUntil > curr.latestServeUntil ? serveUntil : curr.latestServeUntil
-    })
 }
 ```
 
@@ -166,7 +157,14 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
     }
 }
 ```
-The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.  If these criteria are met, the withdrawal can be completed.
+The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.  If these criteria are met, the withdrawal can be completed.  In order to complete a withdrawal in this example, the operator would have to record a stake update in `Middleware A`, signalling readiness for withdrawal.  The timeline would now look like this:
+
+![alt text](images/withdrawal.png?raw=true "Title")
+
+
+
+
+
 
 
 
