@@ -127,7 +127,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     function initialize(IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public initializer {
-        _initializePauser(_pauserReg, 0);
+        _initializePauser(_pauserReg, UNPAUSE_ALL);
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 

@@ -146,7 +146,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         initializer
         checkValidThresholds(_quorumThresholdBasisPoints, _adversaryThresholdBasisPoints)
     {
-        _initializePauser(_pauserRegistry, 0);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;

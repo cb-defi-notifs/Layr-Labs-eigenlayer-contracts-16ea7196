@@ -45,7 +45,7 @@ abstract contract AaveInvestmentStrategy is InvestmentStrategyBase {
     function deposit(IERC20 token, uint256 amount)
         external
         override
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -94,7 +94,12 @@ abstract contract AaveInvestmentStrategy is InvestmentStrategyBase {
      * other functions, and individual share balances are recorded in the investmentManager as well
      * @notice This strategy distributes withdrawals either in the form of `underlyingToken` OR `aToken`
      */
-    function withdraw(address depositor, IERC20 token, uint256 shareAmount) external override onlyInvestmentManager {
+    function withdraw(address depositor, IERC20 token, uint256 shareAmount)
+        external
+        override
+        onlyInvestmentManager
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
+    {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
 
         if (token == underlyingToken) {

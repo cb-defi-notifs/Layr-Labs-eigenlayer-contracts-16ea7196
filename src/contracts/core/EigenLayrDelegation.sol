@@ -23,6 +23,8 @@ import "../investment/Slasher.sol";
  * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
+    uint8 internal constant PAUSED_NEW_DELEGATION = 1;
+
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
         require(msg.sender == address(investmentManager), "onlyInvestmentManager");
@@ -46,7 +48,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         external
         initializer
     {
-        _initializePauser(_pauserRegistry, 0);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         _transferOwnership(initialOwner);
     }
@@ -73,7 +75,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      *  @notice This will be called by a staker to delegate its assets to some operator.
      *  @param operator is the operator to whom staker (msg.sender) is delegating its assets
      */
-    function delegateTo(address operator) external whenNotPaused {
+    function delegateTo(address operator) external onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
         _delegate(msg.sender, operator);
     }
 
@@ -83,7 +85,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      */
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
         external
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_NEW_DELEGATION)
     {
         require(expiry == 0 || expiry >= block.timestamp, "delegation signature expired");
         // calculate struct hash, then increment `staker`'s nonce

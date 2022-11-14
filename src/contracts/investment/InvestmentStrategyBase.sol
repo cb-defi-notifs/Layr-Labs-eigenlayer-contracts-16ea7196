@@ -17,6 +17,9 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
+    uint8 internal constant PAUSED_DEPOSITS = 1;
+    uint8 internal constant PAUSED_WITHDRAWALS = 2;
+
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;
 
@@ -41,7 +44,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
     /// @notice Sets the `underlyingToken` and `pauserRegistry` for the strategy.
     function initialize(IERC20 _underlyingToken, IPauserRegistry _pauserRegistry) public initializer {
         underlyingToken = _underlyingToken;
-        _initializePauser(_pauserRegistry, 0);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
     }
 
     /**
@@ -56,7 +59,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         external
         virtual
         override
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -88,7 +91,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
         external
         virtual
         override
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         onlyInvestmentManager
     {
         require(token == underlyingToken, "InvestmentStrategyBase.withdraw: Can only withdraw the strategy token");

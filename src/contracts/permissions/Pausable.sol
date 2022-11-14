@@ -21,6 +21,9 @@ contract Pausable {
     /// @dev whether or not the contract is currently paused
     uint256 private _paused;
 
+    uint256 constant internal UNPAUSE_ALL = 0;
+    uint256 constant internal PAUSE_ALL = type(uint256).max;
+
     /// @notice Emitted when the pause is triggered by `account`, and changed to `newPausedStatus`.
     event Paused(address indexed account, uint256 newPausedStatus);
 

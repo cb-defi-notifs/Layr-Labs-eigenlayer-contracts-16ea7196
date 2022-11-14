@@ -25,6 +25,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
 
     uint256 private constant HEAD = 0;
 
+    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 1;
+    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 2;
+    uint8 internal constant PAUSED_NEW_FREEZING = 3;
+
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public immutable investmentManager;
     /// @notice The EigenLayrDelegation contract of EigenLayr
@@ -95,7 +99,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         IPauserRegistry _pauserRegistry,
         address initialOwner
     ) external initializer {
-        _initializePauser(_pauserRegistry, 0);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
         // add InvestmentManager & EigenLayrDelegation to list of permissioned contracts
         _addGloballyPermissionedContract(address(investmentManager));
@@ -106,7 +110,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Gives the `contractAddress` permission to slash the funds of the caller.
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
-    function allowToSlash(address contractAddress) external {
+    function allowToSlash(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
@@ -125,7 +129,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
      * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
      */
-    function freezeOperator(address toBeFrozen) external whenNotPaused {
+    function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
         require(
             canSlash(toBeFrozen, msg.sender),
             "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
