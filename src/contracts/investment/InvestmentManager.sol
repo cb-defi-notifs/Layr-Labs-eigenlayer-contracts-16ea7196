@@ -218,12 +218,13 @@ contract InvestmentManager is
         bool undelegateIfPossible
     )
         external
-        whenNotPaused
+        // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
         // onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns (bytes32)
     {
+        require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "InvestmentManager.queueWithdrawal: provided nonce incorrect"
@@ -270,7 +271,7 @@ contract InvestmentManager is
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
-        //mark withdrawal as pending
+        // mark withdrawal as pending
         withdrawalRootPending[withdrawalRoot] = true;
 
         // If the `msg.sender` has withdrawn all of their funds from EigenLayer in this transaction, then they can choose to also undelegate

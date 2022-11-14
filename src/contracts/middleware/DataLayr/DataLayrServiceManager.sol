@@ -217,10 +217,11 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         bytes calldata header
     )
         external
-        whenNotPaused
+        // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
         // onlyWhenNotPaused(PAUSED_INIT_DATASTORE)
         returns (uint32 index)
     {
+        require(!paused(PAUSED_INIT_DATASTORE), "Pausable: index is paused");
 
         bytes32 headerHash = keccak256(header);
         uint32 storePeriodLength;
