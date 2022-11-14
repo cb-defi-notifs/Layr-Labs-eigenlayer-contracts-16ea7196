@@ -297,13 +297,13 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * that the stake is no longer slashable.
          */
 
-        emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
-        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
+        // emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
 
-        emit log("uint32(block.timestamp) > update.latestServeUntil");
-        emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
-        emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
+        // emit log("uint32(block.timestamp) > update.latestServeUntil");
+        // emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
+        // emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
 
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 

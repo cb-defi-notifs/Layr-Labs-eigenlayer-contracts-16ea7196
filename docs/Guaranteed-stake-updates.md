@@ -125,9 +125,14 @@ canWithdaw(address operator, uint32 withdrawalStartTime, uint256 middlewareTimes
 ## A More Intuitive Explanation
 
 Let us say an operator has opted into a middleware, `Middleware A`.  He would call `recordFirstStakeUpdate`, adding  `Middleware A` to the linked list and recording the `updateBlock` and the `serveUntil` time in `operatorMiddlewareTimes`.  Then the operator registers with a second and third middleware, `Middleware B` and `Middleware C`.  At this point, the timeline is as follows:
+
 ![alt text](images/three_middlewares.png?raw=true "Title")
 
-The `operatorMiddlewareTimes`
+Based on this, the latest servUntil time is `serveUntil_B`.  So the most recent entry in the `operatorMiddlewareTimes` array for that operator will have `serveUntil = serveUntil_B` and `leastRecentUpdateBlock = updateBlock_A`.
+
+
+In the mean time, let us say the operator had also queued a withdrawal between the leastRecentUpdateBlock of `Middleware A` and `Middleware B`.
+
 
 
 
