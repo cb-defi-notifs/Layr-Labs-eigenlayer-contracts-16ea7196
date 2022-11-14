@@ -133,7 +133,7 @@ Based on this, the latest servUntil time is `serveUntil_B`.  So the most recent 
 
 In the mean time, let us say the operator had also queued a withdrawal between the leastRecentUpdateBlock of `Middleware A` and `Middleware B`:
 
-![alt text](images/![alt text](images/three_middlewares.png?raw=true "Title").png?raw=true "Title")
+![alt text](images/three_middlewares.png?raw=true "Title")
 
 
 
