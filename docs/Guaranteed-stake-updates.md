@@ -135,10 +135,9 @@ In the mean time, let us say the operator had also queued a withdrawal between t
 
 ![alt text](images/three_middlewares_withdrwawl_queued.png?raw=true "Title")
 
-Now that a withdrawal has been queued, the operator must wait till thwir obligations have been met before they can withdraw their stake.  This is checked by `slasher.canWithdraw()`.  At this point, in our example, the `operatorMiddlewareTimes` array looks like this:
+Now that a withdrawal has been queued, the operator must wait till their obligations have been met before they can withdraw their stake. .  At this point, in our example, the `operatorMiddlewareTimes` array looks like this:
 
 ```solidity
-
 {
     {
         leastRecentUpdateBlock: updateBlock_A
@@ -152,10 +151,9 @@ Now that a withdrawal has been queued, the operator must wait till thwir obligat
         leastRecentUpdateBlock: updateBlock_A
         latestServeUntil: serveUntil_B
     }
-
 }
-
 ```
+The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.
 
 
 
