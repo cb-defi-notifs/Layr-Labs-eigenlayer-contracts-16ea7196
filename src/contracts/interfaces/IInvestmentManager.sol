@@ -12,12 +12,6 @@ import "./IServiceManager.sol";
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
 interface IInvestmentManager {
-    // used for storing details of queued withdrawals
-    struct WithdrawalStorage {
-        uint32 withdrawalStartBlock;
-        address withdrawer;
-    }
-
     // packed struct for queued withdrawals
     struct WithdrawerAndNonce {
         address withdrawer;
