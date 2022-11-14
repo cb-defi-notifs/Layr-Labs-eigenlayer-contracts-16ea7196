@@ -29,14 +29,27 @@ This function is called by a whitelisted slashing contract and records that the 
 
 ```solidity
 _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
-    //update latest update
-    operatorToWhitelistedContractsToLatestUpdateTime[operator][msg.sender] = uint32(block.timestamp)
+    //update latest update block
+    operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
+
     //load current middleware times tip
-    MiddlewareTimes curr = middlewareTimes[operator][middlewareTimes[operator].length - 1];
+    MiddlewareTimes curr = peratorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
+
+    //create next entry in middleware times
     MiddlewareTimes next = MiddlewareTimes({
-        updateTime: uint32(block.timestamp),
-        //if the updated middleware was the earliest update, set it to the 2nd earliest update's update time
-        earliestLastUpdateTime: 
+        //if new serveUntil is later than curr.latestServeUntil, we reset the latestServeUntil
+        latestServeUntil = serveUntil or curr.latestServeUntil
+            
+        //
+        leastRecentUpdateBlock = curr.leastRecentUpdateBlock
+        if middleware is the head of the linked list aka first middleware in the list, we update it. Then we query the next middleware in the list for the new updateBlock
+        if(nextMiddlewaresLeastRecentUpdateBlock < updateBlock):
+            leastRecentUpdateBlock = nextMiddlewaresLeastRecentUpdateBlock
+        else{
+            leastRecentUpdateBlock = updateBlock;
+        }
+
+        
         operatorToWhitelistedContractsByUpdate[operator].getHead() == msg.sender
         ?  operatorToWhitelistedContractsToLatestUpdateTime[
                 operatorToWhitelistedContractsByUpdate[operator].getNextNode(msg.sender)
@@ -153,7 +166,7 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
     }
 }
 ```
-The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.
+The operator provides an entry from the `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that the block at which the withdrawal is queued, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's leastRecentUpdateBlock.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's latestServeUntil.  If these criteria are met, the withdrawal can be completed.
 
 
 
