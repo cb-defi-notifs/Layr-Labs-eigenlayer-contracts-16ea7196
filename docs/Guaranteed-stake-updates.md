@@ -135,6 +135,31 @@ In the mean time, let us say the operator had also queued a withdrawal between t
 
 ![alt text](images/three_middlewares_withdrwawl_queued.png?raw=true "Title")
 
+Now that a withdrawal has been queued, the operator must wait till thwir obligations have been met before they can withdraw their stake.  This is checked by `slasher.canWithdraw()`.  At this point, in our example, the `operatorMiddlewareTimes` array looks like this:
+
+```solidity
+
+{
+    {
+        leastRecentUpdateBlock: updateBlock_A
+        latestServeUntil: serveUntil_A
+    },
+    {
+        leastRecentUpdateBlock: updateBlock_A
+        latestServeUntil: serveUntil_B
+    },
+    {
+        leastRecentUpdateBlock: updateBlock_A
+        latestServeUntil: serveUntil_B
+    }
+
+}
+
+```
+
+
+
+
 
 
 
