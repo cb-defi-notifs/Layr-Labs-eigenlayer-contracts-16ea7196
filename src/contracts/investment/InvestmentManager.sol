@@ -102,7 +102,7 @@ contract InvestmentManager is
     {
         //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about meta transactions in general
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, 0);
         _transferOwnership(initialOwner);
     }
 

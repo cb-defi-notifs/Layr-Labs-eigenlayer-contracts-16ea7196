@@ -46,7 +46,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
         external
         initializer
     {
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, 0);
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
         _transferOwnership(initialOwner);
     }

@@ -11,7 +11,7 @@ contract PausableTests is TestHelper {
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
         cheats.startPrank(pauser);
-        investmentManager.pause();
+        investmentManager.pause(type(uint256).max);
         cheats.stopPrank();
 
         address sender = signers[0];
@@ -33,7 +33,7 @@ contract PausableTests is TestHelper {
         cheats.assume(unauthorizedPauser != eigenLayrPauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
-        investmentManager.pause();
+        investmentManager.pause(type(uint256).max);
         cheats.stopPrank();
     }
 

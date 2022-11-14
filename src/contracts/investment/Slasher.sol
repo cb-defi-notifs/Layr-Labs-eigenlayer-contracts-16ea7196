@@ -95,7 +95,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         IPauserRegistry _pauserRegistry,
         address initialOwner
     ) external initializer {
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, 0);
         _transferOwnership(initialOwner);
         // add InvestmentManager & EigenLayrDelegation to list of permissioned contracts
         _addGloballyPermissionedContract(address(investmentManager));

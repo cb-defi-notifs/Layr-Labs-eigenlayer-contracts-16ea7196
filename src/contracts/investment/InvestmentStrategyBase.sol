@@ -41,7 +41,7 @@ contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy 
     /// @notice Sets the `underlyingToken` and `pauserRegistry` for the strategy.
     function initialize(IERC20 _underlyingToken, IPauserRegistry _pauserRegistry) public initializer {
         underlyingToken = _underlyingToken;
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, 0);
     }
 
     /**
