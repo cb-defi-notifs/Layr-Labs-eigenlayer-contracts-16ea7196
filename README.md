@@ -1,4 +1,10 @@
+<a name="introduction"/></a>
 # EigenLayer
+EigenLayer (formerly 'EigenLayr') is a set of smart contracts deployed on Ethereum that enable restaking of assets to secure new services.
+EigenDA (formerly 'DataLayr') is a Data Availability network built on top of EigenLayer.
+At present, this repository contains *both* the contracts for EigenLayer *and* the contracts for EigenDA; additionally, the EigenDA contracts are built on top of general "middleware" contracts, designed to be reuseable across different applications built on top of EigenLayer.
+
+Click the links in the Table of Contents below to access more specific documentation. We recommend starting with the [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md).
 
 ## Table of Contents  
 * [Introduction](#introduction)
@@ -9,14 +15,6 @@
 * [Low Degree Challenge Deep Dive](docs/LowDegreenessChallenge-overview.md)
 * [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
 * [EigenDA Registration Flow](docs/DataLayr-registration-flow.md)
-
-<a name="introduction"/></a>
-## Introduction
-EigenLayer (formerly 'EigenLayr') is a set of smart contracts deployed on Ethereum that enable restaking of assets to secure new services.
-EigenDA (formerly 'DataLayr') is a Data Availability network built on top of EigenLayer.
-At present, this repository contains *both* the contracts for EigenLayer *and* the contracts for EigenDA; additionally, the EigenDA contracts are built on top of general "middleware" contracts, designed to be reuseable across different applications built on top of EigenLayer.
-
-Click the links in the Table of Contents above to access more specific documentation!
 
 <a name="installation"/></a>
 ## Installation and Running Tests / Analyzers
