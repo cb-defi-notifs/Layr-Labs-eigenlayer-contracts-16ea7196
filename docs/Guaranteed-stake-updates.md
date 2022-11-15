@@ -1,13 +1,12 @@
 # Guaranteed Stake Updates on Withdrawal
-Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensures that all middlewares that an operator has opted into (i.e. delegated for slashing) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, all of the operator's obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of the `latestServerUntil` time, which is the timestamp after which their stake has served its obligations.
+Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensure that all middlewares that an operator has opted into (i.e. allowed to slash them) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, all of the operator must first serve all obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of the `latestServeUntil` time, which is the timestamp after which their stake will have served its obligations.
 
 ## Storage Model
 
 For each operator, we need to store:
 
 1. A list of the contracts that are whitelisted to slash the operator
-2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`
-, from operator address to a [linked list](https://github.com/vittominacori/solidity-linked-list/blob/master/contracts/StructuredLinkedList.sol) of addresses of all whitelisted contracts (these will always be in order of when their stakes were last updated earliest to latest)
+2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contract, ordered by when their stakes were last updated, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
 3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
@@ -25,7 +24,7 @@ Note:
 
 ### `_recordUpdateAndAddToMiddlewareTimes`
 
-This function is called by a whitelisted slashing contract and records that the middleware has had a stake update and updates the storage as follows
+This function is called by a whitelisted slashing contract. It records that the middleware has had a stake update and updates the storage as follows:
 
 ```solidity
 _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 serveUntil) {
@@ -147,11 +146,11 @@ canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTim
 
 ## A More Intuitive Explanation
 
-Let us say an operator has opted into a middleware, `Middleware A`.  He would call `recordFirstStakeUpdate`, adding  `Middleware A` to the linked list and recording the `updateBlock` and the `serveUntil` time in `operatorMiddlewareTimes`.  Then the operator registers with a second and third middleware, `Middleware B` and `Middleware C`.  At this point, the timeline is as follows:
+Let us say an operator has opted into a middleware, `Middleware A`.  The operator would call `recordFirstStakeUpdate`, adding  `Middleware A` to the linked list and recording the `updateBlock` and the `serveUntil` time in `operatorMiddlewareTimes`.  Then the operator registers with a second and third middleware, `Middleware B` and `Middleware C`.  At this point, the timeline is as follows:
 
 ![alt text](images/three_middlewares.png?raw=true "Title")
 
-Based on this, the latest servUntil time is `serveUntil_B`.  So the most recent entry in the `operatorMiddlewareTimes` array for that operator will have `serveUntil = serveUntil_B` and `leastRecentUpdateBlock = updateBlock_A`.
+Based on this, the latest serveUntil time is `serveUntil_B`.  So the most recent entry in the `operatorMiddlewareTimes` array for that operator will have `serveUntil = serveUntil_B` and `leastRecentUpdateBlock = updateBlock_A`.
 
 
 In the mean time, let us say the operator had also queued a withdrawal between the leastRecentUpdateBlock of `Middleware A` and `Middleware B`:
