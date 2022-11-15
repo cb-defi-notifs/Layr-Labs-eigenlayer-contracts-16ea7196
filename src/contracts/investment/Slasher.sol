@@ -419,7 +419,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
         // if the serve until is later than the latest recorded one, update it
-        if(serveUntil > curr.latestServeUntil) {
+        if (serveUntil > curr.latestServeUntil) {
             next.latestServeUntil = serveUntil;
             // mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
