@@ -28,8 +28,15 @@ Note:
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
 ```
 
-This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `middlewareTimes[operator]`, if *either* the `operator`'s 
-leastRecentUpdateBlock' has increased, *or* their latestServeUntil' has increased.
+This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s 
+leastRecentUpdateBlock' has decreased, *or* their latestServeUntil' has increased.  We only push updates to `operatorToMiddlewareTimes[operator]` if the `serveUntilTime` is greater, if there are no entries or if the middleware being updated is at the head of the whitelisted contract linked list. 
+
+### `_updateMiddlewareList`
+```solidity
+    function _updateMiddlewareList(address operator, uint32 updateBlock, uint256 insertAfter) internal {
+
+```
+
 
 ## Public Functions
 
@@ -48,7 +55,7 @@ recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint2
 
 ```
 
-This function is called by a whitelisted slashing contract, passing in the time until which the operator's stake is bonded -- `serveUntil`, the block for which the stake update to the middleware is being recorded (which may be the current block or a past block) -- `updateBlock`, and an index specifying the element of the `operator`'s linked list that the currently updating middleware should be inserted after -- `insertAfter`.
+This function is called by a whitelisted slashing contract, passing in the time until which the operator's stake is bonded -- `serveUntil`, the block for which the stake update to the middleware is being recorded (which may be the current block or a past block) -- `updateBlock`, and an index specifying the element of the `operator`'s linked list that the currently updating middleware should be inserted after -- `insertAfter`. It makes a call to `_updateMiddlewareList` to actually update the linked list.
 
 ### `recordLastStakeUpdate`
 ```solidity
