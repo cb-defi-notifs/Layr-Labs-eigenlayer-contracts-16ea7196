@@ -172,6 +172,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
     modifier fuzzedAddress(address addr) {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(dataLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
         cheats.assume(addr != dlsm.owner());
         _;
@@ -243,7 +244,7 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
 
 
