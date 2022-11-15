@@ -392,10 +392,9 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
             address(dataLayrPaymentManagerImplementation),
             abi.encodeWithSelector(PaymentManager.initialize.selector, dataLayrPauserReg, _paymentFraudproofCollateral)
         );
-        dataLayrProxyAdmin.upgradeAndCall(
+        dataLayrProxyAdmin.upgrade(
             TransparentUpgradeableProxy(payable(address(dlldc))),
-            address(dlldcImplementation),
-            abi.encodeWithSelector(DataLayrLowDegreeChallenge.initialize.selector, gasLimit)
+            address(dlldcImplementation)
         );
         {
             uint96 multiplier = 1e18;
