@@ -4,11 +4,7 @@ pragma solidity ^0.8.9;
 import "./utils/Allocator.sol";
 import "./EigenLayerParser.sol";
 
-contract Allocate is
-    Script,
-    DSTest,
-    EigenLayerParser
-{
+contract Allocate is Script, DSTest, EigenLayerParser {
     //performs basic deployment before each test
     function run() external {
         // read meta data from json
@@ -44,13 +40,10 @@ contract Allocate is
     }
 }
 
-contract ProvisionWeth is
-    Script,
-    DSTest,
-    EigenLayerParser
-{
+contract ProvisionWeth is Script, DSTest, EigenLayerParser {
     uint256 wethAmount = 100000000000000000000;
     //performs basic deployment before each test
+
     function run() external {
         vm.startBroadcast();
         // read meta data from json
@@ -60,7 +53,7 @@ contract ProvisionWeth is
         // deployer allocate weth, eigen to disperser
         uint256 recipientPrivKey = cheats.parseUint(cheats.readLine("data/recipient"));
         emit log_uint(recipientPrivKey);
-        address recipientAddr = cheats.addr(recipientPrivKey);        
+        address recipientAddr = cheats.addr(recipientPrivKey);
         weth.transfer(recipientAddr, wethAmount);
         payable(recipientAddr).transfer(1 ether);
         vm.stopBroadcast();
@@ -69,4 +62,3 @@ contract ProvisionWeth is
         weth.approve(dlsm, type(uint256).max);
     }
 }
-

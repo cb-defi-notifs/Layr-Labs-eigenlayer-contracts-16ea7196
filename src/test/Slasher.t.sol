@@ -39,7 +39,7 @@ contract SlasherTests is TestHelper {
         uint256[] memory strategyIndexes = new uint256[](1);
         strategyIndexes[0] = 0;
 
-        //investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, nonce);
+        // investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, nonce);
         cheats.startPrank(address(slasher.delegation()));
         slasher.freezeOperator(_operator);
         cheats.stopPrank();

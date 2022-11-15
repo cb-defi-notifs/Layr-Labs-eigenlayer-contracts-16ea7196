@@ -8,5 +8,6 @@ pragma solidity ^0.8.9;
  * because their function signatures may vary significantly.
  */
 interface IRegistry {
-    function isRegistered(address operator) external view returns (bool);
+    /// @notice Returns 'true' if `operator` is registered as an active operator, and 'false' otherwise.
+    function isActiveOperator(address operator) external view returns (bool);
 }

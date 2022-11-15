@@ -9,6 +9,8 @@ contract TestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
+    uint256 public SECP256K1N_MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+    uint256 public SECP256K1N_MODULUS_HALF = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     function _testInitiateDelegation(
         uint8 operatorIndex,
@@ -60,278 +62,19 @@ contract TestHelper is EigenLayrDeployer {
         return (amountEthStaked, amountEigenStaked);
     }
 
-    function _testRegisterBLSPubKey(
-        uint8 operatorIndex
-    ) public {
-        address operator = signers[operatorIndex];
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
+    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
+        cheats.startPrank(sender);
+        delegation.registerAsOperator(dt);
+        assertTrue(delegation.isOperator(sender), "testRegisterAsOperator: sender is not a delegate");
 
-        cheats.startPrank(operator);
-        //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(
+            delegation.delegationTerms(sender) == dt, "_testRegisterAsOperator: delegationTerms not set appropriately"
+        );
+
+        assertTrue(delegation.isDelegated(sender), "_testRegisterAsOperator: sender not marked as actively delegated");
         cheats.stopPrank();
-    }
-
-
-    /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
-    function _testRegisterOperatorWithDataLayr(
-        uint8 operatorIndex,
-        uint8 operatorType,
-        bytes32 ephemeralKey,
-        string memory socket
-    ) public {
-
-        address operator = signers[operatorIndex];
-
-        cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, ephemeralKey, registrationData[operatorIndex].slice(0, 128), socket);
-        cheats.stopPrank();
-
-    }
-
-    function _testDeregisterOperatorWithDataLayr(
-        uint8 operatorIndex,
-        uint256[4] memory pubkeyToRemoveAff,
-        uint8 operatorListIndex,
-        bytes32 finalEphemeralKey
-    ) public {
-
-        address operator = signers[operatorIndex];
-
-        cheats.startPrank(operator);
-        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex, finalEphemeralKey);
-        cheats.stopPrank();
-    }
-
-
-    //initiates a data store
-    //checks that the dataStoreId, initTime, storePeriodLength, and committed status are all correct
-   function _testInitDataStore(uint256 initTimestamp, address confirmer, bytes memory header)
-        internal
-        returns (IDataLayrServiceManager.DataStoreSearchData memory searchData)
-    {        
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 1e11);
-        cheats.startPrank(storer);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-
-        uint32 blockNumber = uint32(block.number);
-        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
-
-        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
-        cheats.warp(initTimestamp);
-        uint256 timestamp = block.timestamp;
-
-        uint32 index = dlsm.initDataStore(
-            storer,
-            confirmer,
-            durationToInit,
-            blockNumber,
-            totalOperatorsIndex,
-            header
-        );
-
-        bytes32 headerHash = keccak256(header);
-
-        cheats.stopPrank();
-
-
-        uint32 totalOperators = IQuorumRegistry(address(dlRepository.registry())).getTotalOperators(blockNumber, totalOperatorsIndex);
-        uint32 degree;
-        assembly{
-            degree := shr(224, mload(add(header, 96)))
-        }
-        uint256 totalBytes = totalOperators * (degree + 1) * 31;
-        
-        uint256 fee = dlsm.calculateFee(totalBytes, 1, uint32(durationToInit*DURATION_SCALE));
-
-
-
-        IDataLayrServiceManager.DataStoreMetadata
-            memory metadata = IDataLayrServiceManager.DataStoreMetadata({
-                headerHash: headerHash,
-                durationDataStoreId: dlsm.getNumDataStoresForDuration(durationToInit) - 1,
-                globalDataStoreId: dlsm.taskNumber() - 1,
-                blockNumber: blockNumber,
-                fee: uint96(fee),
-                confirmer: confirmer,
-                signatoryRecordHash: bytes32(0)
-            });
-
-        {
-            bytes32 dataStoreHash = DataStoreUtils.computeDataStoreHash(metadata);
-
-            //check if computed hash matches stored hash in DLSM
-            assertTrue(
-                dataStoreHash ==
-                    dlsm.getDataStoreHashesForDurationAtTimestamp(durationToInit, timestamp, index),
-                "dataStore hashes do not match"
-            );
-        }
-        
-        searchData = IDataLayrServiceManager.DataStoreSearchData({
-                metadata: metadata,
-                duration: durationToInit,
-                timestamp: timestamp,
-                index: index
-            });
-        return searchData;
-    }
-
-    function _testInitDataStoreExpectRevert(
-        uint256 initTimestamp, 
-        address confirmer, 
-        bytes memory header, 
-        bytes memory revertMsg
-    )
-        internal
-    {        
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        // weth is set as the paymentToken of dlsm, so we must approve dlsm to transfer weth
-        weth.transfer(storer, 1e11);
-        cheats.startPrank(storer);
-        weth.approve(address(dataLayrPaymentManager), type(uint256).max);
-
-        dataLayrPaymentManager.depositFutureFees(storer, 1e11);
-
-        uint32 blockNumber = uint32(block.number);
-        uint32 totalOperatorsIndex = uint32(dlReg.getLengthOfTotalOperatorsHistory() - 1);
-
-        require(initTimestamp >= block.timestamp, "_testInitDataStore: warping back in time!");
-        cheats.warp(initTimestamp);
-
-        cheats.expectRevert(revertMsg);
-        dlsm.initDataStore(
-            storer,
-            confirmer,
-            durationToInit,
-            blockNumber,
-            totalOperatorsIndex,
-            header
-        );
-    }
-
-    //commits data store to data layer
-    function _testCommitDataStore(
-        bytes32 msgHash,
-        uint32 numberOfNonSigners,
-        uint256[] memory apk,
-        uint256[] memory sigma,
-        uint32 blockNumber,
-        uint32 dataStoreId,
-        IDataLayrServiceManager.DataStoreSearchData memory searchData
-    )
-        internal
-    {
-        /**
-         * @param data This calldata is of the format:
-         * <
-         * bytes32 headerHash,
-         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-         * uint32 blockNumber
-         * uint32 dataStoreId
-         * uint32 numberOfNonSigners,
-         * uint256[numberOfSigners][4] pubkeys of nonsigners,
-         * uint32 apkIndex,
-         * uint256[4] apk,
-         * uint256[2] sigma
-         * >
-         */
-
-        bytes memory data = abi.encodePacked(
-            msgHash,
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            blockNumber,
-            dataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
-            sigma[0],
-            sigma[1]
-        );
-
-        dlsm.confirmDataStore(data, searchData);
-    }
-
-    /**
-     * @param numberOfSigners is the number of signers in the quorum of DLNs
-     * @param includeOperator is a boolean that indicates whether or not we want to also register
-     * the operator no. 0, for test case where they are not already registered as a delegator.
-     *
-     */
-    function _testRegisterSigners(uint32 numberOfSigners, bool includeOperator) internal {
-        uint256 start = 1;
-        if (includeOperator) {
-            start = 0;
-        }
-
-        //register all the operators
-        //skip i = 0 since we have already registered signers[0] !!
-        for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
-        }
-    }
-
-    //Internal function for assembling calldata - prevents stack too deep errors
-    function _getCallData(
-        bytes32 msgHash,
-        uint32 numberOfNonSigners,
-        RegistrantAPK memory registrantAPK,
-        SignerAggSig memory signerAggSig,
-        NonSignerPK memory nonSignerPK,
-        uint32 blockNumber,
-        uint32 dataStoreId
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
-        /**
-         * @param data This calldata is of the format:
-         * <
-         * bytes32 msgHash,
-         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-         * uint32 blockNumber
-         * uint32 dataStoreId
-         * uint32 numberOfNonSigners,
-         * uint256[numberOfSigners][4] pubkeys of nonsigners,
-         * uint32 stakeIndex
-         * uint32 apkIndex,
-         * uint256[4] apk,
-         * uint256[2] sigma
-         * >s
-         */
-        bytes memory data = abi.encodePacked(
-            msgHash,
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            blockNumber,
-            dataStoreId,
-            numberOfNonSigners,
-            nonSignerPK.xA0,
-            nonSignerPK.xA1,
-            nonSignerPK.yA0,
-            nonSignerPK.yA1
-        );
-
-        data = abi.encodePacked(
-            data,
-            uint32(0),
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            registrantAPK.apk0,
-            registrantAPK.apk1,
-            registrantAPK.apk2,
-            registrantAPK.apk3,
-            signerAggSig.sigma0,
-            signerAggSig.sigma1
-        );
-
-        return data;
     }
 
     /**
@@ -416,6 +159,8 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
     }
 
+// TODO: reimplement with queued withdrawals
+/*
     //checks that it is possible to withdraw from the given `stratToWithdrawFrom`
     function _testWithdrawFromStrategy(
         address sender,
@@ -463,163 +208,7 @@ contract TestHelper is EigenLayrDeployer {
         );
         cheats.stopPrank();
     }
-
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
-        //register as both ETH and EIGEN operator
-        uint8 operatorType = 3;
-        uint256 wethToDeposit = 1e18;
-        uint256 eigenToDeposit = 1e10;
-        _testWethDeposit(sender, wethToDeposit);
-        _testDepositEigen(sender, eigenToDeposit);
-        _testRegisterAsOperator(sender, IDelegationTerms(sender));
-        string memory socket = "255.255.255.255";
-
-        cheats.startPrank(sender);
-
-        //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
-
-        pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, data.slice(0, 128), socket);
-
-        cheats.stopPrank();
-
-        // verify that registration was stored correctly
-        if ((operatorType & 1) == 1 && wethToDeposit > dlReg.minimumStakeFirstQuorum()) {
-            assertTrue(dlReg.firstQuorumStakedByOperator(sender) == wethToDeposit, "ethStaked not increased!");
-        } else {
-            assertTrue(dlReg.firstQuorumStakedByOperator(sender) == 0, "ethStaked incorrectly > 0");
-        }
-        if ((operatorType & 2) == 2 && eigenToDeposit > dlReg.minimumStakeSecondQuorum()) {
-            assertTrue(dlReg.secondQuorumStakedByOperator(sender) == eigenToDeposit, "eigenStaked not increased!");
-        } else {
-            assertTrue(dlReg.secondQuorumStakedByOperator(sender) == 0, "eigenStaked incorrectly > 0");
-        }
-    }
-
-    // second return value is the complete `searchData` that can serve as an input to `stakeWithdrawalVerification`
-    function _testConfirmDataStoreSelfOperators(uint8 numSigners)
-        internal
-        returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
-    {
-        cheats.assume(numSigners > 0 && numSigners <= 15);
-
-        //register all the operators
-        for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
-        }
-
-        // hard-coded values
-        uint256 index = 0;
-        /**
-         * this value *must be the initTime* since the initTime is included in the calcuation of the `msgHash`,
-         *  and the signatures (which we have coded in) are signatures of the `msgHash`, assuming this exact value.
-         */
-        uint256 initTime = 1000000001;
-
-        return _testConfirmDataStoreWithoutRegister(initTime, index, numSigners);
-    }
-
-    function _testConfirmDataStoreWithoutRegister(uint256 initTime, uint256 index, uint8 numSigners)
-        internal
-        returns (bytes memory, IDataLayrServiceManager.DataStoreSearchData memory)
-    {
-        IDataLayrServiceManager.DataStoreSearchData memory searchData = _testInitDataStore(initTime, address(this), header);
-
-
-        uint32 numberOfNonSigners = 0;
-        uint256[4] memory apk;
-        {
-            (apk[0], apk[1], apk[2], apk[3]) = getAggregatePublicKey(uint256(numSigners));
-        }
-        (uint256 sigma_0, uint256 sigma_1) = getSignature(uint256(numSigners), index); //(signatureData[index*2], signatureData[2*index + 1]);
-
-        /**
-         * @param data This calldata is of the format:
-         * <
-         * bytes32 msgHash,
-         * uint48 index of the totalStake corresponding to the dataStoreId in the 'totalStakeHistory' array of the BLSRegistryWithBomb
-         * uint32 blockNumber
-         * uint32 dataStoreId
-         * uint32 numberOfNonSigners,
-         * uint256[numberOfNonSigners][4] pubkeys of nonsigners,
-         * uint32 apkIndex,
-         * uint256[4] apk,
-         * uint256[2] sigma
-         * >
-         */
-
-        bytes memory data = abi.encodePacked(
-            keccak256(
-                abi.encodePacked(
-                    searchData.metadata.globalDataStoreId,
-                    searchData.metadata.headerHash,
-                    searchData.duration,
-                    initTime,
-                    searchData.index
-                )
-            ),
-            uint48(dlReg.getLengthOfTotalStakeHistory() - 1),
-            searchData.metadata.blockNumber,
-            searchData.metadata.globalDataStoreId,
-            numberOfNonSigners,
-            // no pubkeys here since zero nonSigners for now
-            uint32(dlReg.getApkUpdatesLength() - 1),
-            apk[0],
-            apk[1],
-            apk[2],
-            apk[3],
-            sigma_0,
-            sigma_1
-        );
-
-        // get the signatoryRecordHash that will result from the `confirmDataStore` call (this is used in modifying the dataStoreHash post-confirmation)
-        bytes32 signatoryRecordHash;
-        (
-            // uint32 dataStoreIdToConfirm,
-            // uint32 blockNumberFromTaskHash,
-            // bytes32 msgHash,
-            // SignatoryTotals memory signedTotals,
-            // bytes32 signatoryRecordHash
-            ,
-            ,
-            ,
-            ,
-            signatoryRecordHash
-        ) = dlsm.checkSignatures(data);
-
-        uint256 gasbefore = gasleft();
-        dlsm.confirmDataStore(data, searchData);
-        emit log_named_uint("confirm gas overall", gasbefore - gasleft());
-        cheats.stopPrank();
-        // bytes32 sighash = dlsm.getDataStoreIdSignatureHash(
-        //     dlsm.dataStoreId() - 1
-        // );
-        // assertTrue(sighash != bytes32(0), "Data store not committed");
-
-        /**
-         * Copy the signatoryRecordHash to the `searchData` struct, so the `searchData` can now be used in `stakeWithdrawalVerification` calls appropriately
-         * This must be done *after* the call to `dlsm.confirmDataStore`, since the appropriate `searchData` changes as a result of this call
-         */
-        searchData.metadata.signatoryRecordHash = signatoryRecordHash;
-
-        return (data, searchData);
-    }
-
-    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
-    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
-    function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
-        cheats.startPrank(sender);
-        delegation.registerAsOperator(dt);
-        assertTrue(delegation.isOperator(sender), "testRegisterAsOperator: sender is not a delegate");
-
-        assertTrue(
-            delegation.delegationTerms(sender) == dt, "_testRegisterAsOperator: delegationTerms not set appropriately"
-        );
-
-        assertTrue(delegation.isDelegated(sender), "_testRegisterAsOperator: sender not marked as actively delegated");
-        cheats.stopPrank();
-    }
+*/
 
     // tries to delegate from 'sender' to 'operator'
     // verifies that:
@@ -643,11 +232,11 @@ contract TestHelper is EigenLayrDeployer {
         cheats.stopPrank();
 
         assertTrue(
-            delegation.delegation(sender) == operator,
+            delegation.delegatedTo(sender) == operator,
             "_testDelegateToOperator: delegated address not set appropriately"
         );
         assertTrue(
-            delegation.delegated(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
             "_testDelegateToOperator: delegated status not set appropriately"
         );
 
@@ -712,8 +301,83 @@ contract TestHelper is EigenLayrDeployer {
         }
     }
 
+
+    /**
+     * @notice Creates a queued withdrawal from `staker`. Begins by registering the staker as a delegate (if specified), then deposits `amountToDeposit`
+     * into the WETH strategy, and then queues a withdrawal using
+     * `investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce)`
+     * @notice After initiating a queued withdrawal, this test checks that `investmentManager.canCompleteQueuedWithdrawal` immediately returns the correct
+     * response depending on whether `staker` is delegated or not.
+     * @param staker The address to initiate the queued withdrawal
+     * @param registerAsOperator If true, `staker` will also register as a delegate in the course of this function
+     * @param amountToDeposit The amount of WETH to deposit
+     */
+    function _createQueuedWithdrawal(
+        address staker,
+        bool registerAsOperator,
+        uint256 amountToDeposit,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal returns(bytes32 withdrawalRoot, IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal)
+    {
+        require(amountToDeposit >= shareAmounts[0], "_createQueuedWithdrawal: sanity check failed");
+
+        // we do this here to ensure that `staker` is delegated if `registerAsOperator` is true
+        if (registerAsOperator) {
+            assertTrue(!delegation.isDelegated(staker), "_createQueuedWithdrawal: staker is already delegated");
+            _testRegisterAsOperator(staker, IDelegationTerms(staker));
+            assertTrue(
+                delegation.isDelegated(staker), "_createQueuedWithdrawal: staker isn't delegated when they should be"
+            );
+        }
+
+        queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: staker,
+            withdrawerAndNonce: withdrawerAndNonce,
+            delegatedAddress: delegation.delegatedTo(staker)
+        });
+
+        {
+            //make deposit in WETH strategy
+            uint256 amountDeposited = _testWethDeposit(staker, amountToDeposit);
+            // We can't withdraw more than we deposit
+            if (shareAmounts[0] > amountDeposited) {
+                cheats.expectRevert("InvestmentManager._removeShares: shareAmount too high");
+            }
+        }
+
+        //queue the withdrawal
+        cheats.startPrank(staker);
+        // TODO: check with 'undelegateIfPossible' = false, rather than just true
+        withdrawalRoot = investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, true);
+        // If `staker` was actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'false', and
+        if (queuedWithdrawal.delegatedAddress != address(0)) {
+            assertTrue(
+                !investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user can immediately complete queued withdrawal (before waiting for fraudproof period), depsite being delegated"
+            );
+        }
+        // If `staker` was *not* actively delegated at time of queuing the withdrawal, check that `canCompleteQueuedWithdrawal` correct returns 'true'
+        else if (queuedWithdrawal.delegatedAddress == address(0)) {
+            assertTrue(
+                investmentManager.canCompleteQueuedWithdrawal(queuedWithdrawal),
+                "_createQueuedWithdrawal: user *cannot* immediately complete queued withdrawal (before waiting for fraudproof period), despite *not* being delegated"
+            );
+        } else {
+            revert("_createQueuedWithdrawal: staker was somehow neither delegated nor *not* delegated, simultaneously");
+        }
+        cheats.stopPrank();
+        return (withdrawalRoot, queuedWithdrawal);
+    }
+
     function _testStartQueuedWithdrawalWaitingPeriod(
-        address depositor,
         address withdrawer,
         bytes32 withdrawalRoot,
         uint32 stakeInactiveAfter
@@ -726,7 +390,6 @@ contract TestHelper is EigenLayrDeployer {
         cheats.assume(stakeInactiveAfter < type(uint32).max - 30 days);
         cheats.assume(stakeInactiveAfter > block.timestamp);
         investmentManager.startQueuedWithdrawalWaitingPeriod(
-                                        depositor, 
                                         withdrawalRoot, 
                                         stakeInactiveAfter
                                     );
@@ -744,5 +407,29 @@ contract TestHelper is EigenLayrDeployer {
         return pkHash;
 
     }
+
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
+        uint256[4] memory pubkey; 
+        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
+        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
+        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
+        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        return pubkey;
+    }
+
+
+    function getVSfromVandS(uint8 v, bytes32 s) internal view returns(bytes32){
+        if (uint256(s) > SECP256K1N_MODULUS_HALF) {
+            s = bytes32(SECP256K1N_MODULUS - uint256(s));
+        }
+
+        bytes32 vs = s;
+        if(v == 28){
+            vs = bytes32(uint256(s) ^ (1 << 255));
+        }
+
+        return vs;
+    }
+
 }
 

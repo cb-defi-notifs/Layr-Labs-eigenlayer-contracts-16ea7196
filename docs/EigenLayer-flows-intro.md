@@ -1,4 +1,4 @@
-# Contract specs
+# Introduction to Using EigenLayer
 
 ## Depositing assets with EigenLayer
 Any Ethereum account with ETH (or other tokens), who wants to participate in EigenLayr whether as a staker or as an operator, needs to first interact with the [InvestmentManager](.src/contracts/investment/InvestmentManager.sol) contract in order to subject their assets to additional slashing conditions from EigenLayer. Based on how that account wants to stake with EigenLayer, there are multiple paths:
