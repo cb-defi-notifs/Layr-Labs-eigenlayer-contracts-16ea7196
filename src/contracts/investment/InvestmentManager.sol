@@ -34,8 +34,8 @@ contract InvestmentManager is
 {
     using SafeERC20 for IERC20;
 
-    uint8 internal constant PAUSED_DEPOSITS = 1;
-    uint8 internal constant PAUSED_WITHDRAWALS = 2;
+    uint8 internal constant PAUSED_DEPOSITS = 0;
+    uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
     /**
      * @notice Value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized,

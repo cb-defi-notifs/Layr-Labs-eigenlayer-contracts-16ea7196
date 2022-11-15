@@ -23,7 +23,7 @@ import "../investment/Slasher.sol";
  * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
-    uint8 internal constant PAUSED_NEW_DELEGATION = 1;
+    uint8 internal constant PAUSED_NEW_DELEGATION = 0;
 
     /// @notice Simple permission for functions that are only callable by the InvestmentManager contract.
     modifier onlyInvestmentManager() {
@@ -75,7 +75,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      *  @notice This will be called by a staker to delegate its assets to some operator.
      *  @param operator is the operator to whom staker (msg.sender) is delegating its assets
      */
-    function delegateTo(address operator) external onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
+    function delegateTo(address operator) external {
         _delegate(msg.sender, operator);
     }
 
@@ -85,7 +85,6 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      */
     function delegateToBySignature(address staker, address operator, uint256 expiry, bytes32 r, bytes32 vs)
         external
-        onlyWhenNotPaused(PAUSED_NEW_DELEGATION)
     {
         require(expiry == 0 || expiry >= block.timestamp, "delegation signature expired");
         // calculate struct hash, then increment `staker`'s nonce
@@ -295,7 +294,7 @@ contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDele
      * @dev Ensures that the operator has registered as a delegate (`address(dt) != address(0)`), verifies that `staker` is not already
      * delegated, and records the new delegation.
      */ 
-    function _delegate(address staker, address operator) internal {
+    function _delegate(address staker, address operator) internal onlyWhenNotPaused(PAUSED_NEW_DELEGATION) {
         IDelegationTerms dt = delegationTerms[operator];
         require(
             address(dt) != address(0), "EigenLayrDelegation._delegate: operator has not yet registered as a delegate"

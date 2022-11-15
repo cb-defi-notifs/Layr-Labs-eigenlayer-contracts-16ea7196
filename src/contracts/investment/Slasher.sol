@@ -25,9 +25,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
 
     uint256 private constant HEAD = 0;
 
-    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 1;
-    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 2;
-    uint8 internal constant PAUSED_NEW_FREEZING = 3;
+    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 0;
+    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
+    uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public immutable investmentManager;
@@ -110,7 +110,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Gives the `contractAddress` permission to slash the funds of the caller.
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
-    function allowToSlash(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
+    function optIntoSlashing(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
@@ -183,7 +183,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
-    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) 
+        external 
+        onlyWhenNotPaused(PAUSED_FIRST_STAKE_UPDATE)
+        onlyCanSlash(operator) 
+    {
 
         // update latest update
 

@@ -17,8 +17,8 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 contract InvestmentStrategyBase is Initializable, Pausable, IInvestmentStrategy {
     using SafeERC20 for IERC20;
 
-    uint8 internal constant PAUSED_DEPOSITS = 1;
-    uint8 internal constant PAUSED_WITHDRAWALS = 2;
+    uint8 internal constant PAUSED_DEPOSITS = 0;
+    uint8 internal constant PAUSED_WITHDRAWALS = 1;
 
     /// @notice EigenLayer's InvestmentManager contract
     IInvestmentManager public immutable investmentManager;

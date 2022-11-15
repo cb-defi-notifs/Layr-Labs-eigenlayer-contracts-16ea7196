@@ -29,8 +29,8 @@ import "./DataLayrChallengeUtils.sol";
 contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
 
-    uint8 internal constant PAUSED_INIT_DATASTORE = 1;
-    uint8 internal constant PAUSED_CONFIRM_DATASTORE = 2;
+    uint8 internal constant PAUSED_INIT_DATASTORE = 0;
+    uint8 internal constant PAUSED_CONFIRM_DATASTORE = 1;
 
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
