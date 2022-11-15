@@ -19,7 +19,9 @@ At present, this repository contains *both* the contracts for EigenLayer *and* t
 Click the links in the Table of Contents above to access more specific documentation!
 
 <a name="installation"/></a>
-## Installation
+## Installation and Running Tests / Analyzers
+
+### Installation
 
 `foundry up`
 
