@@ -2,8 +2,7 @@
 
 ## Table of Contents  
 * [Introduction](#introduction)
-* [Installation](#installation)
-* [Summary of Using EigenLayer](docs/EigenLayer-flows-intro.md)
+* [Installation and Running Tests / Analyzers](#installation)
 * [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
 * [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
 * [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
@@ -24,7 +23,9 @@ Click the links in the Table of Contents above to access more specific documenta
 
 `foundry up`
 
-See the [Foundry Docs](https://book.getfoundry.sh/) for more info.
+This repository uses Foundry as a smart contract development toolchain.
+
+See the [Foundry Docs](https://book.getfoundry.sh/) for more info on installation and usage.
 
 ### Run Tests
 
@@ -38,7 +39,7 @@ See the [Foundry Docs](https://book.getfoundry.sh/) for more info.
 
 ### Generate Inheritance and Control-Flow Graphs
 
-first install surya
+first [install surya](https://github.com/ConsenSys/surya/)
 
 then run
 
