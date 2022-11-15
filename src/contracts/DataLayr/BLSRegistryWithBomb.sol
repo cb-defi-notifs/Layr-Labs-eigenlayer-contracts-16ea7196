@@ -7,7 +7,7 @@ import "../interfaces/IRegistry.sol";
 import "../interfaces/IEphemeralKeyRegistry.sol";
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../libraries/BytesLib.sol";
-import "./BLSRegistry.sol";
+import "../middleware/BLSRegistry.sol";
 
 // import "forge-std/Test.sol";
 

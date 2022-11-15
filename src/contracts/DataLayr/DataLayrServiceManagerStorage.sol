@@ -2,14 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IServiceManager.sol";
-import "../../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceManager.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrBombVerifier.sol";
-import "../EphemeralKeyRegistry.sol";
+import "./EphemeralKeyRegistry.sol";
 
 /**
  * @title Storage variables for the `DataLayrServiceManager` contract.
