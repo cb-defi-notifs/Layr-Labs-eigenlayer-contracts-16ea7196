@@ -59,8 +59,9 @@ Withdrawals and undelegation are handled through the `InvestmentManager`. both *
 
 <!-- TODO: link to specific "flow" docs-->
 
+## Contract-Specific Overview
 
-## InvestmentManager
+### InvestmentManager
 The InvestmentManager contract keeps track of all stakers’ investments, in the form of “shares” in the InvestmentStrategy contracts. Stakers who wish to deposit ERC20 tokens can do so by calling the InvestmentManager, which will transfer the depositor’s tokens to a user-specified InvestmentStrategy contract, which in turn manages the tokens to generate yields in the deposited token (or just passively holds them, if the depositor is risk-averse or the token lacks good yield-generating opportunities).
 
 As the arbiter of share amounts, the InvestmentManager is also the main interaction point for withdrawals from EigenLayer. In general, withdrawals from EigenLayer must ensure that restaked assets cannot be withdrawn until they are no longer placed at risk of slashing by securing some service on EigenLayer. To accomplish this, EigenLayer enforces "gauanteed stake updates on withdrawals". The full withdrawal process is outlined in [TODO: add link to withdrawal flow doc](link-here).
@@ -68,7 +69,7 @@ As the arbiter of share amounts, the InvestmentManager is also the main interact
 Lastly, the InvestmentManager processes slashing actions, in which some (or all) of a user's shares are transferred to an specified address. Slashing of this kind should only ever occur as the result of an operator taking a provably malicious action.
 
 
-### Storage in InvestmentManager
+#### Storage in InvestmentManager
 The `InvestmentManager` contract stores the shares of individual stakers on a per-strategy basis in the mapping `investorStratShares`; specifically, `investorStratShares[staker][strategy]` stores the number of shares that `staker` has in `strategy`.
 * At any time, the `totalShares` returned by `strategy` should equal the sum of `investorStratShares[staker][strategy]` over all stakers
 * `investorStratShares[staker][strategy]` should only ever increase when either `depositIntoStrategy` or `depositIntoStrategyOnBehalfOf` function of the `InvestmentManager` is invoked (i.e. when the internal `_removeShares` function is invoked)
@@ -83,7 +84,7 @@ Each `InvestmentStrategy` contract is expected to manage a single, underlying ER
 Assets *may* be depositable or withdrawable to a single `InvestmentStrategy` contract in multiple forms, and the strategy *may* either actively or passively manage the funds.
 Since individual users' share amounts are stored in the `InvestmentManager` itself, it is generally expected that each strategy's `deposit` and `withdraw` functions are restricted to only be callable by the `InvestmentManager` itself.
 
-## EigenLayerDelegation
+### EigenLayerDelegation
 The EigenLayerDelegation contract handles delegation of stakers’ deposited funds to “operators”, who actually serve the applications built on EigenLayer. While delegation to someone else is entirely optional, any operator on EigenLayer must also "register as an operator" by calling the `registerAsOperator` function of this contract.
 Any staker in EigenLayer may choose to become *either*:
 1. an **operator**, allowing other stakers to delegate to them, and potentially earning a share of the funds generated from using the restaked assets of stakers who delegate to them
@@ -94,7 +95,7 @@ OR
 
 Stakers can choose which path they’d like to take by interacting with the EigenLayerDelegation contract. Stakers who wish to delegate select an operator whom they trust to use their restaked assets to serve applications, while operators register to allow others to delegate to them, specifying a `DelegationTerms`-type contract (or EOA) which receives the funds they earn and can potentially help to mediate their relationship with any stakers who delegate to them.
 
-### Storage in EigenLayerDelegation
+#### Storage in EigenLayerDelegation
 
 The `EigenLayerDelegation` contract relies heavily upon the `InvestmentManager` contract. It keeps track of all active operators -- specifically by storing the `Delegation Terms` for each operator -- as well as storing what operator each staker is delegated to.
 A **staker** becomes an **operator** by calling `registerAsOperator`. Once registered as an operator, the mapping entry `delegationTerms[operator]` is set **irrevocably** -- in fact we define someone as an operator if `delegationTerms[operator]` returns a nonzero address. Querying `delegationTerms(operator)` returns a `DelegationTerms`-type contract; however, the returned address may be an EOA, in which case the operator is assumed to handle payments through more "trusted" means, such as by doing off-chain computations and separate distributions.
@@ -113,11 +114,11 @@ EigenLayerDelegation defines when an operator is delegated or not, as well as de
 Similar to withdrawals, **undelegation** in EigenLayer necessitates a delay or clawback mechanism. To elaborate: if a staker is delegated to an operator, and that operator places the staker's assets 'at risk' on some task in which the operator *misbehaves* (i.e. acts in a slashable manner), it is critical that the staker's funds can still be slashed
 * stakers can only undelegate by queuing withdrawal(s) for *all of their assets currently deposited in EigenLayer*, ensuring that all existing tasks for which the staker's currently deposited assets are actively at risk are resolved prior to allowing a different operator to place those same assets at risk on other tasks
 
-## Slasher
+### Slasher
 The `Slasher` contract is the central point for slashing in EigenLayer.
 Operators can opt-in to slashing by arbitrary contracts by calling the function `allowToSlash`. A contract with slashing permission can itself revoke its slashing ability *after a specified time* -- named `unbondedAfter` in the function input -- by calling `revokeSlashingAbility`. The time until which `contractAddress` can slash `operator` is stored in `bondedUntil[operator][contractAddress]` as a uint32-encoded UTC timestamp, and is set to the `MAX_BONDED_UNTIL` (i.e. max value of a uint32) when `allowToSlash` is initially called.
 
-### Storage in Slasher
+#### Storage in Slasher
 * `bondedUntil[operator][contractAddress]` should only change when either `allowToSlash` or `revokeSlashingAbility` is called
 * `revokeSlashingAbility` should only be callable when `bondedUntil[operator][contractAddress] = MAX_BONDED_UNTIL`, and only *by the `contractAddress` itself*
 Any `contractAddress` for which `bondedUntil[operator][contractAddress]` is *strictly greater than the current time* can call `freezeOperator(operator)` and trigger **freezing** of the operator. An operator who is frozen -- *and any staker delegated to them* cannot make new deposits or withdrawals, and cannot complete queued withdrawals, as being frozen signals detection of malicious action and they may be subject to slashing. At present, slashing itself is performed by the owner of the `InvestmentManager` contract, who can also 'unfreeze' accounts.
