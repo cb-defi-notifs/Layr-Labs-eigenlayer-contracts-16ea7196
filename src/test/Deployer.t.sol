@@ -14,22 +14,22 @@ import "../contracts/core/EigenLayrDelegation.sol";
 import "../contracts/interfaces/IETHPOSDeposit.sol";
 import "../contracts/interfaces/IBeaconChainOracle.sol";
 
-import "../contracts/core/InvestmentManager.sol";
-import "../contracts/strategies/InvestmentStrategyBase.sol";
-import "../contracts/core/Slasher.sol";
+import "../contracts/investment/InvestmentManager.sol";
+import "../contracts/investment/InvestmentStrategyBase.sol";
+import "../contracts/investment/Slasher.sol";
 
 import "../contracts/pods/EigenPod.sol";
 import "../contracts/pods/EigenPodManager.sol";
 
 import "../contracts/permissions/PauserRegistry.sol";
 
-import "../contracts/DataLayr/DataLayrServiceManager.sol";
-import "../contracts/DataLayr/BLSRegistryWithBomb.sol";
+import "../contracts/middleware/DataLayr/DataLayrServiceManager.sol";
+import "../contracts/middleware/BLSRegistryWithBomb.sol";
 import "../contracts/middleware/BLSPublicKeyCompendium.sol";
-import "../contracts/DataLayr/DataLayrPaymentManager.sol";
-import "../contracts/DataLayr/EphemeralKeyRegistry.sol";
-import "../contracts/DataLayr/DataLayrChallengeUtils.sol";
-import "../contracts/DataLayr/DataLayrLowDegreeChallenge.sol";
+import "../contracts/middleware/DataLayr/DataLayrPaymentManager.sol";
+import "../contracts/middleware/EphemeralKeyRegistry.sol";
+import "../contracts/middleware/DataLayr/DataLayrChallengeUtils.sol";
+import "../contracts/middleware/DataLayr/DataLayrLowDegreeChallenge.sol";
 
 import "../contracts/libraries/BLS.sol";
 import "../contracts/libraries/BytesLib.sol";

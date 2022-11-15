@@ -5,15 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-import "../interfaces/IQuorumRegistry.sol";
-import "../interfaces/IDataLayrServiceManager.sol";
+import "../../interfaces/IQuorumRegistry.sol";
+import "../../interfaces/IDataLayrServiceManager.sol";
 
 import "./DataLayrChallengeUtils.sol";
 
-import "../libraries/Merkle.sol";
-import "../libraries/BLS.sol";
-import "../libraries/BytesLib.sol";
-import "../libraries/DataStoreUtils.sol";
+import "../../libraries/Merkle.sol";
+import "../../libraries/BLS.sol";
+import "../../libraries/BytesLib.sol";
+import "../../libraries/DataStoreUtils.sol";
 
 /**
  * @title Used to create and manage low degree challenges related to DataLayr.

@@ -8,7 +8,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./EigenLayrDelegationStorage.sol";
 import "../permissions/Pausable.sol";
-import "./Slasher.sol";
+import "../investment/Slasher.sol";
 
 // TODO: verify that limitation on undelegating from slashed operators is sufficient
 
