@@ -11,10 +11,11 @@ For each operator, we need to store:
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
 struct MiddlewareTimes {
-    uint32 updateTime; //the time at which this MiddlewareTimes update was appended
-    uint32 earliestLastUpdateTime; //the time of update for the middleware whose latest update was earliest
-    uint32 latestServeUntil; //the latest serve until time from all of the middleware that the operator is serving
-}
+        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update
+        uint32 leastRecentUpdateBlock;
+        // The latest 'serve until' time from all of the middleware that the operator is serving
+        uint32 latestServeUntil;
+    }
 ```
 
 Note:
