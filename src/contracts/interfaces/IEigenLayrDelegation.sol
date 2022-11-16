@@ -4,9 +4,14 @@ pragma solidity ^0.8.9;
 import "./IDelegationTerms.sol";
 
 /**
- * @title Interface for the primary delegation contract for EigenLayr.
+ * @title The interface for the primary delegation contract for EigenLayr.
  * @author Layr Labs, Inc.
- * @notice See the `EigenLayrDelegation` contract itself for implementation details.
+ * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
+ * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
+ * - for enabling anyone to register as an operator
+ * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
+ * - for a staker to undelegate its assets from EigenLayr
+ * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
  */
 interface IEigenLayrDelegation {
     enum DelegationStatus {
@@ -51,15 +56,6 @@ interface IEigenLayrDelegation {
     /// @notice returns the total number of shares in `strategy` that are delegated to `operator`.
     function operatorShares(address operator, IInvestmentStrategy strategy) external view returns (uint256);
 
-    /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
-    function isDelegated(address staker) external view returns (bool);
-
-    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
-    function isNotDelegated(address staker) external returns (bool);
-
-    /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
-    function isOperator(address operator) external view returns (bool);
-
     /**
      * @notice Increases the `staker`'s delegated shares in `strategy` by `shares, typically called when the staker has further deposits into EigenLayr
      * @dev Callable only by the InvestmentManager
@@ -78,4 +74,13 @@ interface IEigenLayrDelegation {
         IInvestmentStrategy[] calldata strategies,
         uint256[] calldata shares
     ) external;
+
+    /// @notice Returns 'true' if `staker` *is* actively delegated, and 'false' otherwise.
+    function isDelegated(address staker) external view returns (bool);
+
+    /// @notice Returns 'true' if `staker` is *not* actively delegated, and 'false' otherwise.
+    function isNotDelegated(address staker) external returns (bool);
+
+    /// @notice Returns if an operator can be delegated to, i.e. it has called `registerAsOperator`.
+    function isOperator(address operator) external view returns (bool);
 }
