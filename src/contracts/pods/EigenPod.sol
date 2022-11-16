@@ -68,7 +68,7 @@ contract EigenPod is IEigenPod, Initializable
      * this contract.  It verifies the provided proof from the validator against the beacon chain state
      * root.
      * @param pubkey is the BLS public key for the validator.
-     * @param proofs is the bytes the prove the validator's metadata against a beacon state root
+     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
@@ -107,7 +107,7 @@ contract EigenPod is IEigenPod, Initializable
     /**
      * @notice This function updates the balance of a certain validator associated with this pod
      * @param pubkey is the BLS public key for the validator.
-     * @param proofs is the bytes the prove the validator's metadata against a beacon state root
+     * @param proofs is the bytes that prove the validator's metadata against a beacon state root
      * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
      * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
