@@ -39,16 +39,27 @@ interface IEigenPod {
     /// @notice The owner of this EigenPod
     function podOwner() external view returns (address);
 
+    /**
+    * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
+    * this contract.  It verifies the provided proof from the validator against the beacon chain state
+    * root.
+    * @param pubkey is the BLS public key for the validator.
+    * @param proofs is the the array of bytes that prove the validator's withdrawal credentials against the beaconchain state root
+    * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
+    * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
+    */
     function verifyCorrectWithdrawalCredentials(
         bytes calldata pubkey, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
+
     function verifyBalanceUpdate(
         bytes calldata pubkey, 
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external;
+
     //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable;
 }
