@@ -9,7 +9,7 @@ import "../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrBombVerifier.sol";
-import "../middleware/EphemeralKeyRegistry.sol";
+import "../DataLayr/EphemeralKeyRegistry.sol";
 
 /**
  * @title Storage variables for the `DataLayrServiceManager` contract.
