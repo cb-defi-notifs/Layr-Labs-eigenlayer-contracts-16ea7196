@@ -57,10 +57,10 @@ abstract contract BLSSignatureChecker {
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
     // specifying a G2 public key requires 4 32-byte slots worth of data
-    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 128;
+    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 64;
     uint256 internal constant BYTE_LENGTH_stakeIndex = 4;
     // uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = BYTE_LENGTH_PUBLIC_KEY + BYTE_LENGTH_stakeIndex;
-    uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = 132;
+    uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = 68;
     uint256 internal constant BYTE_LENGTH_apkIndex = 4;
 
     // uint256 internal constant BIT_SHIFT_totalStakeIndex = 256 - (BYTE_LENGTH_totalStakeIndex * 8);
@@ -161,9 +161,9 @@ abstract contract BLSSignatureChecker {
 
         /**
          * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.
-         * @dev Note that we are storing points in G2 using Jacobian coordinates - [x0, x1, y0, y1, z0, z1]
+         * @dev Note that we are storing points in G1 as an array rather than the struct to save gas and not use the BN254 library here
          */
-        uint256[6] memory aggNonSignerPubkey;
+        uint256[2] memory aggNonSignerPubkey;
 
         // get information on total stakes
         IQuorumRegistry.OperatorStake memory localStakeObject = registry.getTotalStakeFromIndex(placeholder);
@@ -192,6 +192,8 @@ abstract contract BLSSignatureChecker {
 
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
+        // intialize some memory eventually to be the input for call to ecPairing precompile contract
+        uint256[14] memory input;
 
         /**
          * @dev The next step involves computing the aggregated pub key of all the operators
@@ -201,8 +203,9 @@ abstract contract BLSSignatureChecker {
         /**
          * @dev loading pubkey for the first operator that is not part of the quorum as listed in the calldata;
          * Note that this need not be a special case and *could* be subsumed in the for loop below.
-         * However, this implementation saves one 'addJac' operation, which would be performed in the i=0 iteration otherwise.
+         * However, this implementation saves one ecAdd operation, which would be performed in the i=0 iteration otherwise.
          * @dev Recall that `placeholder` here is the number of operators *not* included in the quorum
+         * @dev (input[2], input[3]) is the aggregated non singer public key
          */
         if (placeholder != 0) {
             //load compressed pubkey and the index in the stakes array into memory
@@ -211,25 +214,10 @@ abstract contract BLSSignatureChecker {
                 /**
                  * @notice retrieving the pubkey of the node in Jacobian coordinates
                  */
-                // sigma_x0
-                mstore(aggNonSignerPubkey, calldataload(pointer))
-
-                // sigma_x1
-                mstore(add(aggNonSignerPubkey, 0x20), calldataload(add(pointer, 32)))
-
-                // sigma_y0
-                mstore(add(aggNonSignerPubkey, 0x40), calldataload(add(pointer, 64)))
-
-                // sigma_y1
-                mstore(add(aggNonSignerPubkey, 0x60), calldataload(add(pointer, 96)))
-
-                // converting Affine coordinates to Jacobian coordinates
-                // [(x_0, x_1), (y_0, y_1)] => [(x_0, x_1), (y_0, y_1), (1,0)]
-                // source: https://crypto.stackexchange.com/questions/19598/how-can-convert-affine-to-jacobian-coordinates
-                // sigma_z0
-                mstore(add(aggNonSignerPubkey, 0x80), 1)
-                // sigma_z1
-                mstore(add(aggNonSignerPubkey, 0xA0), 0)
+                // pk.X
+                mstore(add(input, 64), calldataload(pointer))
+                // pk.Y
+                mstore(add(input, 96), calldataload(add(pointer, 32)))
 
                 /**
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
@@ -237,14 +225,14 @@ abstract contract BLSSignatureChecker {
                  */
                 stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
+            // We have read (32 + 32 + 4) = 68 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = BLS.hashPubkey(aggNonSignerPubkey);
+            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[2], input[3]));
 
             pubkeyHashes[0] = pubkeyHash;
 
@@ -260,19 +248,17 @@ abstract contract BLSSignatureChecker {
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
         }
 
-        // temporary variable for storing the pubkey of operators in Jacobian coordinates
-        uint256[6] memory pk;
-        pk[4] = 1;
-
+        /**
+         * @dev store each non signer's public key in (input[0], input[1]) and add them to the aggregate non signer public key
+         * @dev keep track of the aggreagate non signing stake too
+         */
         for (uint256 i = 1; i < placeholder;) {
             //load compressed pubkey and the index in the stakes array into memory
             uint32 stakeIndex;
             assembly {
                 /// @notice retrieving the pubkey of the operator that is not part of the quorum
-                mstore(pk, calldataload(pointer))
-                mstore(add(pk, 0x20), calldataload(add(pointer, 32)))
-                mstore(add(pk, 0x40), calldataload(add(pointer, 64)))
-                mstore(add(pk, 0x60), calldataload(add(pointer, 96)))
+                mstore(input, calldataload(pointer))
+                mstore(add(input, 32), calldataload(add(pointer, 32)))
 
                 /**
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
@@ -282,14 +268,14 @@ abstract contract BLSSignatureChecker {
                 stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
             }
 
-            // We have read (32 + 32 + 32 + 32 + 4) = 132 additional bytes of calldata in the above assembly block.
+            // We have read (32 + 32 + 4) = 68 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_NON_SIGNER_INFO;
             }
 
             // get pubkeyHash and add it to pubkeyHashes of operators that aren't part of the quorum.
-            bytes32 pubkeyHash = BLS.hashPubkey(pk);
+            bytes32 pubkeyHash = keccak256(abi.encodePacked(input[0], input[1]));
 
             //pubkeys should be ordered in ascending order of hash to make proofs of signing or
             // non signing constant time
@@ -311,10 +297,20 @@ abstract contract BLSSignatureChecker {
             //subtract validator stakes from totals
             signedTotals.signedStakeFirstQuorum -= localStakeObject.firstQuorumStake;
             signedTotals.signedStakeSecondQuorum -= localStakeObject.secondQuorumStake;
-
-            // add the pubkey of the operator to the aggregate pubkeys in Jacobian coordinate system.
-            // slither-disable-next-line unused-return
-            BLS.addJac(aggNonSignerPubkey, pk);
+             
+            // aggregateNonSignerPublicKey = aggregateNonSignerPublicKey + nonSignerPublicKey
+            // (input[2], input[3])        = (input[2], input[3])        + (input[0], input[1])
+            bool success;
+            // solium-disable-next-line security/no-inline-assembly
+            assembly {
+                success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
+                // Use "invalid" to make gas estimation work
+                switch success
+                case 0 {
+                    invalid()
+                }
+            }
+            require(success, "BLSSignatureChecker.checkSignatures: non signer addition failed");
 
             unchecked {
                 ++i;
@@ -332,15 +328,14 @@ abstract contract BLSSignatureChecker {
 
                 /**
                  * @notice Get the aggregated publickey at the moment when pre-commit happened
-                 * @devAaggregated pubkey given as part of calldata instead of being retrieved from voteWeigher reduces number of SLOADs
+                 * @dev Aggregated pubkey given as part of calldata instead of being retrieved from voteWeigher reduces number of SLOADs
+                 * @dev (input[0], input[1]) is the apk
                  */
-                mstore(pk, calldataload(pointer))
-                mstore(add(pk, 0x20), calldataload(add(pointer, 32)))
-                mstore(add(pk, 0x40), calldataload(add(pointer, 64)))
-                mstore(add(pk, 0x60), calldataload(add(pointer, 96)))
+                mstore(input, calldataload(pointer))
+                mstore(add(input, 32), calldataload(add(pointer, 32)))
             }
 
-            // We have read (32 + 32 + 32 + 32) = 128 additional bytes of calldata in the above assembly block.
+            // We have read (32 + 32) = 64 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
                 pointer += BYTE_LENGTH_PUBLIC_KEY;
@@ -348,26 +343,10 @@ abstract contract BLSSignatureChecker {
 
             // make sure the caller has provided the correct aggPubKey
             require(
-                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == BLS.hashPubkey(pk),
+                IBLSRegistry(address(registry)).getCorrectApkHash(apkIndex, stakesBlockNumber) == keccak256(abi.encodePacked(input[0], input[1])),
                 "BLSSignatureChecker.checkSignatures: Incorrect apk provided"
             );
         }
-
-        // input for call to ecPairing precompile contract
-        uint256[12] memory input = [
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0)
-        ];
 
         // if at least 1 non-signer
         if (placeholder != 0) {
@@ -376,28 +355,31 @@ abstract contract BLSSignatureChecker {
              * operators that are part of the quorum
              */
             // negate aggNonSignerPubkey
-            aggNonSignerPubkey[2] = (BLS.MODULUS - aggNonSignerPubkey[2]) % BLS.MODULUS;
-            aggNonSignerPubkey[3] = (BLS.MODULUS - aggNonSignerPubkey[3]) % BLS.MODULUS;
+            input[3] = (BLS.MODULUS - input[3]) % BLS.MODULUS;
 
-            // do the addition in Jacobian coordinates
-            // slither-disable-next-line unused-return
-            BLS.addJac(pk, aggNonSignerPubkey);
-
-            // reorder for pairing
-            (input[3], input[2], input[5], input[4]) = BLS.jacToAff(pk);
-            // if zero non-signers
-        } else {
-            //else copy it to input
-            //reorder for pairing
-            (input[3], input[2], input[5], input[4]) = (pk[0], pk[1], pk[2], pk[3]);
+            // singerPublicKey      = apk                  + -aggregateNonSignerPublicKey
+            // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3])
+            bool success;
+            // solium-disable-next-line security/no-inline-assembly
+            assembly {
+                success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
+                // Use "invalid" to make gas estimation work
+                switch success
+                case 0 {
+                    invalid()
+                }
+            }
+            require(success, "BLSSignatureChecker.checkSignatures: aggregate non signer addition failed");
         }
+
+        // Now, (input[0], input[1]) is the signingPubkey
 
         /**
          * @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
          */
 
         // compute the point in G1
-        (input[0], input[1]) = BLS.hashToG1(msgHash);
+        (input[7], input[8]) = BLS.hashToG1(msgHash);
 
         // insert negated coordinates of the generator for G2
         input[8] = BLS.nG2x1;
@@ -428,10 +410,8 @@ abstract contract BLSSignatureChecker {
             taskNumberToConfirm,
             signedTotals.signedStakeFirstQuorum,
             signedTotals.signedStakeSecondQuorum,
-            // signedTotals.totalStakeFirstQuorum,
-            // signedTotals.totalStakeSecondQuorum,
             pubkeyHashes
-            );
+        );
 
         // set compressedSignatoryRecord variable used for fraudproofs
         compressedSignatoryRecord = DataStoreUtils.computeSignatoryRecordHash(
