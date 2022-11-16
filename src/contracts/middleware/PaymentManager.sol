@@ -23,8 +23,8 @@ import "../permissions/Pausable.sol";
 abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     using SafeERC20 for IERC20;
 
-    uint8 constant internal PAUSED_NEW_PAYMENT_COMMIT = 1;
-    uint8 constant internal PAUSED_REDEEM_PAYMENT = 2;
+    uint8 constant internal PAUSED_NEW_PAYMENT_COMMIT = 0;
+    uint8 constant internal PAUSED_REDEEM_PAYMENT = 1;
 
     // DATA STRUCTURES
 
