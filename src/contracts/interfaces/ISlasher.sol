@@ -18,7 +18,7 @@ interface ISlasher {
      * @notice Gives the `contractAddress` permission to slash the funds of the caller.
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
-    function allowToSlash(address contractAddress) external;
+    function optIntoSlashing(address contractAddress) external;
 
     /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external;

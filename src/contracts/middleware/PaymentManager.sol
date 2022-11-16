@@ -22,6 +22,10 @@ import "../permissions/Pausable.sol";
 //
 abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     using SafeERC20 for IERC20;
+
+    uint8 constant internal PAUSED_NEW_PAYMENT_COMMIT = 0;
+    uint8 constant internal PAUSED_REDEEM_PAYMENT = 1;
+
     // DATA STRUCTURES
 
     /**
@@ -127,7 +131,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
     }
 
     function initialize(IPauserRegistry _pauserReg, uint256 _paymentFraudproofCollateral) public initializer {
-        _initializePauser(_pauserReg);
+        _initializePauser(_pauserReg, UNPAUSE_ALL);
         _setPaymentFraudproofCollateral(_paymentFraudproofCollateral);
     }
 
@@ -170,7 +174,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
      * @notice This is used by an operator to make a claim on the amount that they deserve for their service from their last payment until `toTaskNumber`
      * @dev Once this payment is recorded, a fraud proof period commences during which a challenger can dispute the proposed payment.
      */
-    function commitPayment(uint32 toTaskNumber, uint96 amount) external {
+    function commitPayment(uint32 toTaskNumber, uint96 amount) external onlyWhenNotPaused(PAUSED_NEW_PAYMENT_COMMIT) {
         // only active operators can call
         require(
             registry.isActiveOperator(msg.sender),
@@ -227,7 +231,7 @@ abstract contract PaymentManager is Initializable, IPaymentManager, Pausable {
      * @notice Called by an operator to redeem a payment that they previously 'committed' to by calling `commitPayment`.
      * @dev This function can only be called after the challenge window for the payment claim has completed.
      */
-    function redeemPayment() external whenNotPaused {
+    function redeemPayment() external onlyWhenNotPaused(PAUSED_REDEEM_PAYMENT) {
         // verify that the `msg.sender` has a committed payment
         require(
             operatorToPayment[msg.sender].status == PaymentStatus.COMMITTED,

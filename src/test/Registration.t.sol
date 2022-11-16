@@ -206,7 +206,7 @@ contract RegistrationTests is DataLayrTestHelper {
         );
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
+        slasher.optIntoSlashing(address(dlsm));
 
         cheats.expectRevert(bytes("BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"));
         pubkeyCompendium.registerBLSPublicKey(zeroData);

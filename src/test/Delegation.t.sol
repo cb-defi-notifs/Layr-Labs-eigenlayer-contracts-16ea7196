@@ -278,7 +278,7 @@ contract DelegationTests is DataLayrTestHelper {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
@@ -384,8 +384,8 @@ contract DelegationTests is DataLayrTestHelper {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
-        investmentManager.slasher().allowToSlash(address(generalServiceManager2));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager2));
         cheats.stopPrank();
 
         // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
