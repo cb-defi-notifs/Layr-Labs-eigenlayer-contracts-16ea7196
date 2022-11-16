@@ -3,6 +3,8 @@
 // remainder is UNLICENSED
 pragma solidity ^0.8.9;
 
+import "./BN254.sol";
+
 /**
  * @title Library for operations related to BLS Signatures used in EigenLayer middleware.
  * @author Layr Labs, Inc. with credit to Chih Cheng Liang
@@ -32,6 +34,10 @@ library BLS {
     uint256 internal constant G2y0 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
 
     bytes32 internal constant powersOfTauMerkleRoot = 0x22c998e49752bbb1918ba87d6d59dd0e83620a311ba91dd4b2cc84990b31b56f;
+
+    function hashG1Point(BN254.G1Point memory pk) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(pk.X, pk.Y));
+    }
 
     function hashPubkey(uint256[4] memory pk) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));

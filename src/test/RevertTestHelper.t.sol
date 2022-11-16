@@ -54,9 +54,9 @@ contract RevertTestHelper is TestHelper {
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.expectRevert(revertMessage);
-        dlReg.registerOperator(operatorType, testEphemeralKey, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
+        assertTrue(false); //dlReg.registerOperator(operatorType, testEphemeralKey, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
     }
 }

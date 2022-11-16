@@ -63,11 +63,11 @@ contract RegistrationTests is DataLayrTestHelper {
     function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
         cheats.startPrank(signers[operatorIndex]);
         //try to register the same pubkey twice
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.expectRevert(
             "BLSPublicKeyCompendium.registerBLSPublicKey: operator already registered pubkey"
         );
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
     }
 
     /// @notice Tests that re-registering while an msg.sender is actively registered reverts.
@@ -100,13 +100,14 @@ contract RegistrationTests is DataLayrTestHelper {
         cheats.expectRevert(
             "RegistryBase._registrationStakeEvaluation: Operator is already registered"
         );
-        dlReg.registerOperator(
-            3,
-            bytes32(0),
-            keccak256(abi.encodePacked(uint256(bytes32(0)) | 1234567876543)),
-            registrationData[operatorIndex].slice(0, 128),
-            testSocket
-        );
+        assertTrue(false);
+        // dlReg.registerOperator(
+        //     3,
+        //     bytes32(0),
+        //     keccak256(abi.encodePacked(uint256(bytes32(0)) | 1234567876543)),
+        //     registrationData[operatorIndex].slice(0, 128),
+        //     testSocket
+        // );
         cheats.stopPrank();
     }
 
@@ -209,10 +210,10 @@ contract RegistrationTests is DataLayrTestHelper {
         slasher.optIntoSlashing(address(dlsm));
 
         cheats.expectRevert(bytes("BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"));
-        pubkeyCompendium.registerBLSPublicKey(zeroData);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(zeroData);
 
         cheats.expectRevert(bytes("BLSRegistry._registerOperator: Cannot register with 0x0 public key"));
-        dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), zeroData, testSocket);
+        assertTrue(false); //dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), zeroData, testSocket);
         cheats.stopPrank(); 
     }
 
@@ -234,7 +235,7 @@ contract RegistrationTests is DataLayrTestHelper {
         );
 
         cheats.startPrank(signers[operatorIndex]);
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
 
         cheats.expectRevert(bytes("RegistryBase._addRegistrant: operator must be opted into slashing by the serviceManager"));
@@ -253,32 +254,33 @@ contract RegistrationTests is DataLayrTestHelper {
         uint256 ethAmount,
         uint256 eigenAmount
      ) fuzzedOperatorIndex(operatorIndex) public {
-        cheats.assume(ethAmount > 0 && ethAmount < 1e18);
-        cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
-        uint256[4] memory prevAPK;
-        prevAPK[0] = dlReg.apk(0);
-        prevAPK[1] = dlReg.apk(1);
-        prevAPK[2] = dlReg.apk(2);
-        prevAPK[3] = dlReg.apk(3);
-        bytes memory packedAPK = abi.encodePacked(
-                                    bytes32(prevAPK[1]),
-                                    bytes32(prevAPK[0]),
-                                    bytes32(prevAPK[3]),
-                                    bytes32(prevAPK[2])
-                                    );
+        assertTrue(false);
+        // cheats.assume(ethAmount > 0 && ethAmount < 1e18);
+        // cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
+        // uint256[4] memory prevAPK;
+        // prevAPK[0] = dlReg.apk(0);
+        // prevAPK[1] = dlReg.apk(1);
+        // prevAPK[2] = dlReg.apk(2);
+        // prevAPK[3] = dlReg.apk(3);
+        // bytes memory packedAPK = abi.encodePacked(
+        //                             bytes32(prevAPK[1]),
+        //                             bytes32(prevAPK[0]),
+        //                             bytes32(prevAPK[3]),
+        //                             bytes32(prevAPK[2])
+        //                             );
         
-        uint8 operatorType = 3;
+        // uint8 operatorType = 3;
 
-        _testInitiateDelegation(
-            operatorIndex,
-            eigenAmount,
-            ethAmount
-        );
-         cheats.startPrank(signers[operatorIndex]);
-        // pubkeyCompendium.registerBLSPublicKey(packedAPK);
+        // _testInitiateDelegation(
+        //     operatorIndex,
+        //     eigenAmount,
+        //     ethAmount
+        // );
+        //  cheats.startPrank(signers[operatorIndex]);
+        // // pubkeyCompendium.registerBLSPublicKey(packedAPK);
 
-        cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));
-        dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), packedAPK, testSocket);
-        cheats.stopPrank();
+        // cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));
+        // dlReg.registerOperator(operatorType, testEphemeralKeyHash, keccak256(abi.encodePacked(uint256(testEphemeralKeyHash) | 1234567876543)), packedAPK, testSocket);
+        // cheats.stopPrank();
      }
 }

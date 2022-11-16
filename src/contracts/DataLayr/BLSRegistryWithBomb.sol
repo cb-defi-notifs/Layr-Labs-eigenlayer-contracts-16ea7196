@@ -54,10 +54,10 @@ contract BLSRegistryWithBomb is BLSRegistry {
         uint8 operatorType,
         bytes32 ephemeralKeyHash1,
         bytes32 ephemeralKeyHash2,
-        bytes calldata pkBytes,
+        BN254.G1Point memory pk,
         string calldata socket
     ) external {
-        _registerOperator(msg.sender, operatorType, pkBytes, socket);
+        _registerOperator(msg.sender, operatorType, pk, socket);
 
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(msg.sender, ephemeralKeyHash1, ephemeralKeyHash2);
     }
@@ -172,7 +172,7 @@ contract BLSRegistryWithBomb is BLSRegistry {
     }
 
     // the following function overrides the base function of BLSRegistry -- we want operators to provide additional arguments, so these versions (without those args) revert
-    function registerOperator(uint8, bytes calldata, string calldata) external pure override {
+    function registerOperator(uint8, BN254.G1Point memory, string calldata) external virtual override {
         revert("BLSRegistryWithBomb.registerOperator: must register with ephemeral key");
     }
 

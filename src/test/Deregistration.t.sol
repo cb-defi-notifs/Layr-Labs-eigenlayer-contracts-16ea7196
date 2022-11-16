@@ -16,33 +16,33 @@ contract DeregistrationTests is DataLayrTestHelper {
         uint256 ethAmount, 
         uint256 eigenAmount
     ) public fuzzedOperatorIndex(operatorIndex) {
-
+        assertTrue(false);
         //TODO: probably a stronger test would be to register a few operators and then ensure that apk is updated correctly
-        uint256[4] memory prevAPK;
-        prevAPK[0] = dlReg.apk(0);
-        prevAPK[1] = dlReg.apk(1);
-        prevAPK[2] = dlReg.apk(2);
-        prevAPK[3] = dlReg.apk(3);
-        bytes32 prevAPKHash = BLS.hashPubkey(prevAPK);
+        // uint256[4] memory prevAPK;
+        // prevAPK[0] = dlReg.apk(0);
+        // prevAPK[1] = dlReg.apk(1);
+        // prevAPK[2] = dlReg.apk(2);
+        // prevAPK[3] = dlReg.apk(3);
+        // bytes32 prevAPKHash = BLS.hashPubkey(prevAPK);
 
-        _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
-
-
-        uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
-
-        bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);    
+        // _BLSRegistration(operatorIndex, ethAmount, eigenAmount);
 
 
-        _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1));
+        // uint256[4] memory pubkeyToRemoveAff = getG2PKOfRegistrationData(operatorIndex);
+
+        // bytes32 pubkeyHash = BLS.hashPubkey(pubkeyToRemoveAff);    
 
 
-        (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
-        require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
-        require( firstQuorumStake == 0, "Stake history not updated correctly");
-        require( secondQuorumStake == 0, "Stake history not updated correctly");
+        // _testDeregisterOperatorWithDataLayr(operatorIndex, pubkeyToRemoveAff, uint8(dlReg.numOperators()-1));
 
-        bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
-        require(currAPKHash == prevAPKHash, "aggregate public key has not been updated correctly following deregistration");
+
+        // (,uint32 nextUpdateBlockNumber,uint96 firstQuorumStake, uint96 secondQuorumStake) = dlReg.pubkeyHashToStakeHistory(pubkeyHash, dlReg.getStakeHistoryLength(pubkeyHash)-1);
+        // require( nextUpdateBlockNumber == 0, "Stake history not updated correctly");
+        // require( firstQuorumStake == 0, "Stake history not updated correctly");
+        // require( secondQuorumStake == 0, "Stake history not updated correctly");
+
+        // bytes32 currAPKHash = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
+        // require(currAPKHash == prevAPKHash, "aggregate public key has not been updated correctly following deregistration");
 
     }
 

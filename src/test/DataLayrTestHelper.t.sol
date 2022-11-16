@@ -20,7 +20,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
+        assertTrue(false); //dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
         cheats.stopPrank();
 
     }
@@ -34,7 +34,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         address operator = signers[operatorIndex];
 
         cheats.startPrank(operator);
-        dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
+        assertTrue(false); //dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
         cheats.stopPrank();
     }
     //initiates a data store
@@ -170,7 +170,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
-        pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
     }
 
@@ -208,8 +208,9 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
 
-        pubkeyCompendium.registerBLSPublicKey(data);
-        dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
+        assertTrue(false); 
+        // pubkeyCompendium.registerBLSPublicKey(data);
+        // dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
 
         cheats.stopPrank();
 

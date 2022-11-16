@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "./RegistryBase.sol";
 import "../interfaces/IBLSPublicKeyCompendium.sol";
 import "../interfaces/IBLSRegistry.sol";
+import "../libraries/BN254.sol";
+import "../libraries/BLS.sol";
 import "forge-std/Test.sol";
 
 /**
@@ -24,17 +26,15 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     IBLSPublicKeyCompendium public immutable pubkeyCompendium;
 
     /**
-     * @notice list of keccak256(apk_x0, apk_x1, apk_y0, apk_y1) of operators, and the block numbers at which the aggregate
+     * @notice list of keccak256(apk_x, apk_y) of operators, and the block numbers at which the aggregate
      * pubkeys were updated. This occurs whenever a new operator registers or deregisters.
      */
     ApkUpdate[] internal _apkUpdates;
 
     /**
      * @notice used for storing current aggregate public key
-     * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
-     * addition in Jacobian coordinate system.
      */
-    uint256[4] public apk;
+    BN254.G1Point public apk;
 
     // EVENTS
     /**
@@ -48,7 +48,7 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
     event Registration(
         address indexed operator,
         bytes32 pkHash,
-        uint256[4] pk,
+        BN254.G1Point pk,
         uint32 apkHashIndex,
         bytes32 apkHash,
         string socket
@@ -85,48 +85,32 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             _firstQuorumStrategiesConsideredAndMultipliers,
             _secondQuorumStrategiesConsideredAndMultipliers
         );
-        /**
-         * @dev Initialized value of APK is the generator of G2 group. It is necessary in order to do
-         * addition in Jacobian coordinate system.
-         */
-        uint256[4] memory initApk = [BLS.G2x0, BLS.G2x1, BLS.G2y0, BLS.G2y1];
-        _processApkUpdate(initApk);
     }
 
     /**
      * @notice called for registering as an operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
-     * @param pkBytes is the abi encoded bn254 G2 public key of the operator
+     * @param pk is the operator's G1 public key
      * @param socket is the socket address of the operator
      */
-    function registerOperator(uint8 operatorType, bytes calldata pkBytes, string calldata socket) external virtual {
-        _registerOperator(msg.sender, operatorType, pkBytes, socket);
+    function registerOperator(uint8 operatorType, BN254.G1Point memory pk, string calldata socket) external virtual {
+        _registerOperator(msg.sender, operatorType, pk, socket);
     }
 
     /**
      * @param operator is the node who is registering to be a operator
      * @param operatorType specifies whether the operator want to register as staker for one or both quorums
-     * @param pkBytes is the serialized bn254 G2 public key of the operator
+     * @param pk is the operator's G1 public key
      * @param socket is the socket address of the operator
      */
-    function _registerOperator(address operator, uint8 operatorType, bytes calldata pkBytes, string calldata socket)
+    function _registerOperator(address operator, uint8 operatorType, BN254.G1Point memory pk, string calldata socket)
         internal
     {
         // validate the registration of `operator` and find their `OperatorStake`
         OperatorStake memory _operatorStake = _registrationStakeEvaluation(operator, operatorType);
 
-        /// @notice evaluate the new aggregated pubkey
-        uint256[4] memory newApk;
-        uint256[4] memory pk = _parseSerializedPubkey(pkBytes);
-
         // getting pubkey hash
-        bytes32 pubkeyHash = BLS.hashPubkey(pk);
-
-        // our addition algorithm doesn't work in this case, since it won't properly handle `x + x`, per @gpsanant
-        require(
-            pubkeyHash != _apkUpdates[_apkUpdates.length - 1].apkHash,
-            "BLSRegistry._registerOperator: Apk and pubkey cannot be the same"
-        );
+        bytes32 pubkeyHash = BLS.hashG1Point(pk);
 
         require(pubkeyHash != ZERO_PK_HASH, "BLSRegistry._registerOperator: Cannot register with 0x0 public key");
 
@@ -139,14 +123,8 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
             pubkeyHashToStakeHistory[pubkeyHash].length == 0, "BLSRegistry._registerOperator: pubkey already registered"
         );
 
-        {
-            // add pubkey to aggregated pukkey in Jacobian coordinates
-            uint256[6] memory newApkJac =
-                BLS.addJac([pk[0], pk[1], pk[2], pk[3], 1, 0], [apk[0], apk[1], apk[2], apk[3], 1, 0]);
-
-            // convert back to Affine coordinates
-            (newApk[0], newApk[1], newApk[2], newApk[3]) = BLS.jacToAff(newApkJac);
-        }
+        // the new aggregate public key is the current one added to registering operator's public key
+        BN254.G1Point memory newApk = BN254.plus(apk, pk);
 
         // record the APK update and get the hash of the new APK
         bytes32 newApkHash = _processApkUpdate(newApk);
@@ -159,21 +137,21 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
 
     /**
      * @notice Used by an operator to de-register itself from providing service to the middleware.
-     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param pkToRemove is the sender's pubkey in affine coordinates
      * @param index is the sender's location in the dynamic array `operatorList`
      */
-    function deregisterOperator(uint256[4] memory pubkeyToRemoveAff, uint32 index) external virtual returns (bool) {
-        _deregisterOperator(msg.sender, pubkeyToRemoveAff, index);
+    function deregisterOperator(BN254.G1Point memory pkToRemove, uint32 index) external virtual returns (bool) {
+        _deregisterOperator(msg.sender, pkToRemove, index);
         return true;
     }
 
     /**
      * @notice Used to process de-registering an operator from providing service to the middleware.
      * @param operator The operator to be deregistered
-     * @param pubkeyToRemoveAff is the sender's pubkey in affine coordinates
+     * @param pkToRemove is the sender's pubkey
      * @param index is the sender's location in the dynamic array `operatorList`
      */
-    function _deregisterOperator(address operator, uint256[4] memory pubkeyToRemoveAff, uint32 index) internal {
+    function _deregisterOperator(address operator, BN254.G1Point memory pkToRemove, uint32 index) internal {
         // verify that the `operator` is an active operator and that they've provided the correct `index`
         _deregistrationCheck(operator, index);
 
@@ -182,19 +160,17 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         /// @dev Verify that the stored pubkeyHash matches the 'pubkeyToRemoveAff' input
         require(
-            pubkeyHash == BLS.hashPubkey(pubkeyToRemoveAff),
+            pubkeyHash == BLS.hashG1Point(pkToRemove),
             "BLSRegistry._deregisterOperator: pubkey input does not match stored pubkeyHash"
         );
 
         // Perform necessary updates for removing operator, including updating operator list and index histories
         _removeOperator(operator, pubkeyHash, index);
 
-        // get existing aggregate public key
-        uint256[4] memory pk = apk;
-        // remove signer's pubkey from aggregate public key
-        (pk[0], pk[1], pk[2], pk[3]) = BLS.removePubkeyFromAggregate(pubkeyToRemoveAff, pk);
+        // the new apk is the current one minus the sender's pubkey (apk = apk + (-pk))
+        BN254.G1Point memory newApk = BN254.plus(apk, BN254.negate(pkToRemove));
         // update the aggregate public key of all registered operators and record this update in history
-        _processApkUpdate(pk);
+        _processApkUpdate(newApk);
     }
 
     /**
@@ -296,13 +272,13 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
      * @notice Updates the stored APK to `newApk`, calculates its hash, and pushes new entries to the `_apkUpdates` array
      * @param newApk The updated APK. This will be the `apk` after this function runs!
      */
-    function _processApkUpdate(uint256[4] memory newApk) internal returns (bytes32) {
+    function _processApkUpdate(BN254.G1Point memory newApk) internal returns (bytes32) {
         // update stored aggregate public key
         // slither-disable-next-line costly-loop
         apk = newApk;
 
         // find the hash of aggregate pubkey
-        bytes32 newApkHash = keccak256(abi.encodePacked(newApk[0], newApk[1], newApk[2], newApk[3]));
+        bytes32 newApkHash = BLS.hashG1Point(newApk);
 
         // store the apk hash and the current block number in which the aggregated pubkey is being updated
         _apkUpdates.push(ApkUpdate({
@@ -311,18 +287,6 @@ contract BLSRegistry is RegistryBase, IBLSRegistry {
         }));
 
         return newApkHash;
-    }
-
-    // pkBytes = abi.encodePacked(pk.X.A1, pk.X.A0, pk.Y.A1, pk.Y.A0)
-    function _parseSerializedPubkey(bytes calldata pkBytes) internal pure returns (uint256[4] memory) {
-        uint256[4] memory pk;
-        assembly {
-            mstore(add(pk, 32), calldataload(pkBytes.offset))
-            mstore(pk, calldataload(add(pkBytes.offset, 32)))
-            mstore(add(pk, 96), calldataload(add(pkBytes.offset, 64)))
-            mstore(add(pk, 64), calldataload(add(pkBytes.offset, 96)))
-        }
-        return pk;
     }
 
     /**

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "../libraries/BN254.sol";
+
 /**
  * @title Minimal interface for the `BLSPublicKeyCompendium` contract.
  * @author Layr Labs, Inc.
@@ -20,8 +22,11 @@ interface IBLSPublicKeyCompendium {
     function pubkeyHashToOperator(bytes32 pubkeyHash) external view returns (address);
 
     /**
-     * @notice Called by an operator to register themselves as the owner of a BLS public key.
-     * @param data is the calldata that contains the coordinates for pubkey on G2 and signature on G1.
+     * @notice Called by an operator to register themselves as the owner of a BLS public key and reveal their G1 and G2 public key.
+     * @param s is the field element of the operator's Schnorr signature
+     * @param rPoint is the group element of the operator's Schnorr signature
+     * @param pubkeyG1 is the the G1 pubkey of the operator
+     * @param pubkeyG2 is the G2 with the same private key as the pubkeyG1
      */
-    function registerBLSPublicKey(bytes calldata data) external;
+    function registerBLSPublicKey(uint256 s, BN254.G1Point memory rPoint, BN254.G1Point memory pubkeyG1, BN254.G2Point memory pubkeyG2) external;
 }
