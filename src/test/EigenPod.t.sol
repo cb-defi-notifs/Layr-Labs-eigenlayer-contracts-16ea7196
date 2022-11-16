@@ -139,7 +139,31 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(beaconChainETHShares == validatorBalance, "investmentManager shares not updated correctly");
     }
 
+    //test freezing operator after a beacon chain slashing event
     function testUpdateSlashedBeaconBalance(bytes memory signature, bytes32 depositDataRoot) public {
+        //make initial deposit
+        testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+        beaconChainOracle.setBeaconChainStateRoot(0xc50c29e99864df7c8e181ef48bef732accf96a34ff685a9b6404077a893c03f9);
+        //get updated proof, set beaconchain state root
+        (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
+        
+
+        IEigenPod eigenPod;
+        eigenPod = eigenPodManager.getPod(podOwner);
+        
+        bytes32 validatorIndex = bytes32(uint256(0));
+        bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
+        eigenPod.verifyBalanceUpdate(pubkey, proofs, validatorContainerFields);
+        
+        uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]);
+        require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
+        require(investmentManager.slasher().isFrozen(podOwner), "podOwner not frozen successfully");
+
+    }
+
+    //test that topping up pod balance after slashing operator prevents freezing
+    function testUpdateSlashedBeaconBalanceWithTopUp(bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
