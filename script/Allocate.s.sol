@@ -15,6 +15,9 @@ contract Allocate is Script, DSTest, EigenLayerParser {
 
         Allocator allocator = new Allocator();
 
+        weth.approve(address(allocator), type(uint256).max);
+        eigen.approve(address(allocator), type(uint256).max);
+
         address[] memory stakers = new address[](numStaker);
         // deployer allocate weth, eigen to staker
         for (uint i = 0; i < numStaker ; ++i) {
