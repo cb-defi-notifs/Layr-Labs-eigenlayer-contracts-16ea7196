@@ -28,7 +28,7 @@ contract DataLayrLowDegreeChallenge is Initializable {
     DataLayrChallengeUtils public immutable challengeUtils;
 
     //Fixed gas limit to ensure pairing precompile doesn't use entire gas limit upon reversion
-    uint256 public pairingGasLimit;
+    uint256 public constant pairingGasLimit = 500e3;
 
     enum ChallengeStatus {
         UNSUCCESSFUL,
@@ -69,10 +69,6 @@ contract DataLayrLowDegreeChallenge is Initializable {
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
         _disableInitializers();
-    }
-
-    function initialize(uint256 _paringGasLimit) public initializer {
-        pairingGasLimit = _paringGasLimit;
     }
 
     /**
@@ -212,10 +208,5 @@ contract DataLayrLowDegreeChallenge is Initializable {
             BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, pairingGasLimit);
 
         return (precompileWorks && pairingSuccessful);
-    }
-
-    /// @notice Called by DataLayr governance to update the pairing gas limit
-    function setPairingGasLimit(uint256 newGasLimit) external onlyDataLayrServiceManagerOwner {
-        pairingGasLimit = newGasLimit;
     }
 }
