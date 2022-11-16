@@ -169,7 +169,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
+        slasher.optIntoSlashing(address(dlsm));
         pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
     }
@@ -206,7 +206,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.startPrank(sender);
 
         //whitelist the dlsm to slash the operator
-        slasher.allowToSlash(address(dlsm));
+        slasher.optIntoSlashing(address(dlsm));
 
         pubkeyCompendium.registerBLSPublicKey(data);
         dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);

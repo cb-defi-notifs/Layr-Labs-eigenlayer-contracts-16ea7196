@@ -10,13 +10,14 @@ contract PausableTests is TestHelper {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
+        address sender = signers[0];
+        _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
+
         cheats.startPrank(pauser);
-        investmentManager.pause();
+        investmentManager.pause(type(uint256).max);
         cheats.stopPrank();
 
-        address sender = signers[0];
         // uint256 strategyIndex = 0;
-        _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
         cheats.prank(sender);
 
@@ -33,7 +34,7 @@ contract PausableTests is TestHelper {
         cheats.assume(unauthorizedPauser != eigenLayrPauserReg.pauser());
         cheats.startPrank(unauthorizedPauser);
         cheats.expectRevert(bytes("msg.sender is not permissioned as pauser"));
-        investmentManager.pause();
+        investmentManager.pause(type(uint256).max);
         cheats.stopPrank();
     }
 

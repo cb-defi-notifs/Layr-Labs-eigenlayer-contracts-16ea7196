@@ -29,6 +29,9 @@ import "./DataLayrChallengeUtils.sol";
 contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrServiceManagerStorage, BLSSignatureChecker, Pausable {
     using BytesLib for bytes;
 
+    uint8 internal constant PAUSED_INIT_DATASTORE = 0;
+    uint8 internal constant PAUSED_CONFIRM_DATASTORE = 1;
+
     // collateral token used for placing collateral on challenges & payment commits
     IERC20 public immutable collateralToken;
 
@@ -146,7 +149,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         initializer
         checkValidThresholds(_quorumThresholdBasisPoints, _adversaryThresholdBasisPoints)
     {
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
         dataStoresForDuration.dataStoreId = 1;
         dataStoresForDuration.latestTime = 1;
@@ -214,9 +217,11 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
         bytes calldata header
     )
         external
-        whenNotPaused
+        // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
+        // onlyWhenNotPaused(PAUSED_INIT_DATASTORE)
         returns (uint32 index)
     {
+        require(!paused(PAUSED_INIT_DATASTORE), "Pausable: index is paused");
 
         bytes32 headerHash = keccak256(header);
         uint32 storePeriodLength;
@@ -370,7 +375,7 @@ contract DataLayrServiceManager is Initializable, OwnableUpgradeable, DataLayrSe
      * uint256[2] sigma
      * >
      */
-    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external whenNotPaused {
+    function confirmDataStore(bytes calldata data, DataStoreSearchData memory searchData) external onlyWhenNotPaused(PAUSED_CONFIRM_DATASTORE) {
         /**
          * Verify that the signatures provided by the disperser are indeed from DataLayr operators who have agreed to be in the quorum.
          * Additionally, pull relevant information from the provided `data` param, which we subsequently check the integrity of.
