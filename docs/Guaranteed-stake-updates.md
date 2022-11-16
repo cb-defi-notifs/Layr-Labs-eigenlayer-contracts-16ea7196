@@ -52,7 +52,6 @@ This function is called by a whitelisted slashing contract during registration o
 ### `recordStakeUpdate`
 ```solidity
 recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
-
 ```
 
 This function is called by a whitelisted slashing contract, passing in the time until which the operator's stake is bonded -- `serveUntil`, the block for which the stake update to the middleware is being recorded (which may be the current block or a past block) -- `updateBlock`, and an index specifying the element of the `operator`'s linked list that the currently updating middleware should be inserted after -- `insertAfter`. It makes a call to `_updateMiddlewareList` to actually update the linked list.
