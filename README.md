@@ -4,7 +4,7 @@ EigenLayer (formerly 'EigenLayr') is a set of smart contracts deployed on Ethere
 EigenDA (formerly 'DataLayr') is a Data Availability network built on top of EigenLayer.
 At present, this repository contains *both* the contracts for EigenLayer *and* the contracts for EigenDA; additionally, the EigenDA contracts are built on top of general "middleware" contracts, designed to be reuseable across different applications built on top of EigenLayer.
 
-Click the links in the Table of Contents below to access more specific documentation. We recommend starting with the [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md).
+Click the links in the Table of Contents below to access more specific documentation. We recommend starting with the [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md) to get a better overview before diving into any of the other docs.
 
 ## Table of Contents  
 * [Introduction](#introduction)
@@ -12,6 +12,7 @@ Click the links in the Table of Contents below to access more specific documenta
 * [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
 * [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
 * [EigenLayer Deposit Flow](docs/EigenLayer-deposit-flow.md)
+* [EigenLayer Delegation Flow](docs/EigenLayer-delegation-flow.md)
 * [EigenPods Design Doc](docs/EigenPods.md)
 
 * [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
