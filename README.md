@@ -10,11 +10,14 @@ Click the links in the Table of Contents below to access more specific documenta
 * [Introduction](#introduction)
 * [Installation and Running Tests / Analyzers](#installation)
 * [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
+* [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
+* [EigenLayer Deposit Flow](docs/EigenLayer-deposit-flow.md)
+* [EigenPods Design Doc](docs/EigenPods.md)
+
 * [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
 * [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
-* [Low Degree Challenge Deep Dive](docs/LowDegreenessChallenge-overview.md)
-* [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
 * [EigenDA Registration Flow](docs/DataLayr-registration-flow.md)
+* [Low Degree Challenge Deep Dive](docs/LowDegreenessChallenge-overview.md)
 
 <a name="installation"/></a>
 ## Installation and Running Tests / Analyzers
