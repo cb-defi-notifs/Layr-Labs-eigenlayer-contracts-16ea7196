@@ -264,11 +264,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-
-    //delegate shares to operator
-    //recordstakeupdate
-
-    function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public {
+    // Withdraw eigenpods balance to a contract
+    function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
         cheats.assume(operator!=address(0));
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
@@ -348,6 +345,93 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint256 middlewareTimesIndex = 1;
         bool receiveAsTokens = true;
         cheats.startPrank(address(beaconChainETHReceiver));
+
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+
+        cheats.stopPrank();
+    } 
+
+    // Withdraw eigenpods balance to an EOA
+    function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
+        cheats.assume(operator!=address(0));
+        //make initial deposit
+        testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+
+        //*************************DELEGATION STUFF******************************//
+        _testDelegation(operator, podOwner);
+
+
+        cheats.startPrank(operator);
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        cheats.stopPrank();
+
+        generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
+        //*************************************************************************//
+
+
+        uint128 balance = eigenPodManager.getBalance(podOwner);
+
+         IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+        newPod.topUpPodBalance{value : balance*(1**18)}();
+
+        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
+        IERC20[] memory tokensArray = new IERC20[](1);
+        uint256[] memory shareAmounts = new uint256[](1);
+        uint256[] memory strategyIndexes = new uint256[](1);
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
+        bool undelegateIfPossible = false;
+        {
+            strategyArray[0] = investmentManager.beaconChainETHStrategy();
+            shareAmounts[0] = balance;
+            strategyIndexes[0] = 0;
+        }
+
+
+        uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+        
+
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.timestamp) + 1 days);
+
+        cheats.startPrank(podOwner);
+        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
+        cheats.stopPrank();
+        uint32 queuedWithdrawalStartBlock = uint32(block.number);
+
+        //*************************DELEGATION/Stake Update STUFF******************************//
+        //now withdrawal block time is before deregistration
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.timestamp) + 2 days);
+        
+        generalReg1.deregisterOperator(operator);
+
+        //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+        cheats.warp(uint32(block.timestamp) + 4 days);
+        cheats.roll(uint32(block.timestamp) + 4 days);
+        //*************************************************************************//
+
+        uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
+
+        require(podOwnerSharesBefore - podOwnerSharesAfter == balance, "delegation shares not updated correctly");
+
+        address delegatedAddress = delegation.delegatedTo(podOwner);
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: podOwner,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: queuedWithdrawalStartBlock,
+            delegatedAddress: delegatedAddress
+        });
+
+
+        uint256 middlewareTimesIndex = 1;
+        bool receiveAsTokens = true;
+        cheats.startPrank(podOwner);
 
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
