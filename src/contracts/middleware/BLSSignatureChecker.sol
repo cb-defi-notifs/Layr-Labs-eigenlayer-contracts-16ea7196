@@ -57,9 +57,10 @@ abstract contract BLSSignatureChecker {
     uint256 internal constant BYTE_LENGTH_taskNumberToConfirm = 4;
     uint256 internal constant BYTE_LENGTH_numberNonSigners = 4;
     // specifying a G2 public key requires 4 32-byte slots worth of data
-    uint256 internal constant BYTE_LENGTH_PUBLIC_KEY = 64;
+    uint256 internal constant BYTE_LENGTH_G1_POINT = 64;
+    uint256 internal constant BYTE_LENGTH_G2_POINT = 128;
     uint256 internal constant BYTE_LENGTH_stakeIndex = 4;
-    // uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = BYTE_LENGTH_PUBLIC_KEY + BYTE_LENGTH_stakeIndex;
+    // uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = BYTE_LENGTH_G1_POINT + BYTE_LENGTH_stakeIndex;
     uint256 internal constant BYTE_LENGTH_NON_SIGNER_INFO = 68;
     uint256 internal constant BYTE_LENGTH_apkIndex = 4;
 
@@ -193,7 +194,9 @@ abstract contract BLSSignatureChecker {
         // to be used for holding the pub key hashes of the operators that aren't part of the quorum
         bytes32[] memory pubkeyHashes = new bytes32[](placeholder);
         // intialize some memory eventually to be the input for call to ecPairing precompile contract
-        uint256[14] memory input;
+        uint256[12] memory input;
+        // used for verifying that precompile costs work
+        bool success;
 
         /**
          * @dev The next step involves computing the aggregated pub key of all the operators
@@ -223,7 +226,7 @@ abstract contract BLSSignatureChecker {
                  * @notice retrieving the index of the stake of the operator in pubkeyHashToStakeHistory in
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
-                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_G1_POINT)))
             }
             // We have read (32 + 32 + 4) = 68 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
@@ -265,7 +268,7 @@ abstract contract BLSSignatureChecker {
                  * Registry.sol that was recorded at the time of pre-commit.
                  */
                 // slither-disable-next-line variable-scope
-                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_PUBLIC_KEY)))
+                stakeIndex := shr(BIT_SHIFT_stakeIndex, calldataload(add(pointer, BYTE_LENGTH_G1_POINT)))
             }
 
             // We have read (32 + 32 + 4) = 68 additional bytes of calldata in the above assembly block.
@@ -338,7 +341,7 @@ abstract contract BLSSignatureChecker {
             // We have read (32 + 32) = 64 additional bytes of calldata in the above assembly block.
             // Update pointer accordingly.
             unchecked {
-                pointer += BYTE_LENGTH_PUBLIC_KEY;
+                pointer += BYTE_LENGTH_G1_POINT;
             }
 
             // make sure the caller has provided the correct aggPubKey
@@ -358,42 +361,88 @@ abstract contract BLSSignatureChecker {
             input[3] = (BLS.MODULUS - input[3]) % BLS.MODULUS;
 
             // singerPublicKey      = apk                  + -aggregateNonSignerPublicKey
-            // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3])
-            bool success;
+            // (input[2], input[3]) = (input[0], input[1]) + (input[2], input[3])
             // solium-disable-next-line security/no-inline-assembly
             assembly {
-                success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
-                // Use "invalid" to make gas estimation work
-                switch success
-                case 0 {
-                    invalid()
-                }
+                success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
             }
             require(success, "BLSSignatureChecker.checkSignatures: aggregate non signer addition failed");
         }
 
-        // Now, (input[0], input[1]) is the signingPubkey
+        // Now, (input[2], input[3]) is the signingPubkey
 
-        /**
-         * @notice now we verify that e(H(m), pk)e(sigma, -g2) == 1
-         */
+        // Load the G1 signature into (input[0], input[1])
+        assembly {
+            mstore(input, calldataload(pointer))
+            mstore(add(input, 32), calldataload(add(pointer, 32)))
+        }
 
-        // compute the point in G1
-        (input[7], input[8]) = BLS.hashToG1(msgHash);
+        unchecked {
+            pointer += BYTE_LENGTH_G1_POINT;
+        }
+
+        // compute H(M) in G1
+        (input[6], input[7]) = BLS.hashToG1(msgHash);
+
+        // Load the G2 public key into (input[8], input[9], input[10], input[11])
+        assembly {
+            mstore(add(input, 256), calldataload(pointer))
+            mstore(add(input, 288), calldataload(add(pointer, 32)))
+            mstore(add(input, 320), calldataload(add(pointer, 64)))
+            mstore(add(input, 354), calldataload(add(pointer, 96)))
+        }
+
+        unchecked {
+            pointer += BYTE_LENGTH_G2_POINT;
+        }
+
+        // generate random challenge for public key equality 
+        // gamma = keccack(simga.X, sigma.Y, signingPublicKey.X, signingPublicKey.Y, H(m).X, H(m).Y, 
+        //         signingPublicKeyG2.X1, signingPublicKeyG2.X0, signingPublicKeyG2.Y1, signingPublicKeyG2.Y0)
+        input[4] = uint256(keccak256(abi.encodePacked(input[0], input[1], input[2], input[3], input[6], input[7], input[8], input[9], input[10], input[11])));
+
+        // (input[2], input[3]) = (input[2], input[3]) * input[4] = signingPublicKey * gamma
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 7, add(input, 0x40), 0x60, add(input, 0x40), 0x40)
+        }
+        require(success, "BLSSignatureChecker.checkSignatures: aggregate signer public key random shift failed");
+
+        // (input[0], input[1]) = (input[0], input[1]) + (input[2], input[3]) = sigma + gamma * siginingPublicKey
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 6, input, 0x80, input, 0x40)
+        }
+        require(success, "BLSSignatureChecker.checkSignatures: aggregate signer public key and signature addition failed");
+
+        // (input[2], input[3]) = g1
+        input[2] = 1;
+        input[3] = 2;
+
+        // (input[4], input[5]) = (input[2], input[3]) * input[4] = g1 * gamma 
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 7, add(input, 0x40), 0x60, add(input, 0x80), 0x40)
+        }
+        require(success, "BLSSignatureChecker.checkSignatures: generator random shift failed");
+
+        // (input[6], input[7]) = (input[4], input[5]) + (input[6], input[7]) = g1 * gamma + H(m)
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            success := staticcall(sub(gas(), 2000), 6, add(input, 0x80), 0x80, add(input, 0xC0), 0x40)
+        }
+        require(success, "BLSSignatureChecker.checkSignatures: generator random shift and G1 hash addition failed");
 
         // insert negated coordinates of the generator for G2
-        input[8] = BLS.nG2x1;
-        input[9] = BLS.nG2x0;
-        input[10] = BLS.nG2y1;
-        input[11] = BLS.nG2y0;
-
+        input[2] = BLS.nG2x1;
+        input[3] = BLS.nG2x0;
+        input[4] = BLS.nG2y1;
+        input[5] = BLS.nG2y0;
+        
+        /**
+         * @notice now we verify that e(sigma + gamma * pk, -g2)e(H(m) + gamma * g1, pkG2) == 1
+         */
         assembly {
-            // next in calldata are the signatures
-            // sigma_x0
-            mstore(add(input, 0xC0), calldataload(pointer))
-            // sigma_x1
-            mstore(add(input, 0xE0), calldataload(add(pointer, 0x20)))
-
             // check the pairing; if incorrect, revert
             if iszero(
                 // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
