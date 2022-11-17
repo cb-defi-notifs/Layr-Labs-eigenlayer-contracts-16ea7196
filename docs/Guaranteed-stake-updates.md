@@ -1,4 +1,4 @@
-# Guaranteed Stake Updates on Withdrawal
+# Design: Guaranteed Stake Updates on Withdrawal
 Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensure that all middlewares that an operator has opted into (i.e. allowed to slash them) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, the operator must first serve all existing obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of a historic record of each operator's  `latestServeUntil` time at various blocks, which is the timestamp after which their stake will have served its obligations which were created at or before the block in question. To complete a withdrawal, an operator (or a staker delegated to them) can point to a relevant point in the record which proves that the funds they are withdrawing are no longer "at stake" on any middleware tasks.
 
 ## Storage Model
@@ -33,7 +33,7 @@ Based on this, the latest serveUntil time is `serveUntil_B`, and the 'stalest' s
 
 In the meantime, let us say that the operator had also queued a withdrawal between opting-in to serve `Middleware A` and opting-in to serve `Middleware B`:
 
-![Three Middlewares Timeline With Queued Withdrawal](images/three_middlewares_withdrwawl_queued.png?raw=true "Three Middlewares Timeline With Queued Withdrawal")
+![Three Middlewares Timeline With Queued Withdrawal](images/three_middlewares_withdrawal_queued.png?raw=true "Three Middlewares Timeline With Queued Withdrawal")
 
 Now that a withdrawal has been queued, the operator must wait till their obligations have been met before they can withdraw their stake.  At this point, in our example, the `operatorMiddlewareTimes` array looks like this:
 
