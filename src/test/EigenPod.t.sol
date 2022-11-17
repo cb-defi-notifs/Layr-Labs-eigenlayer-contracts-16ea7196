@@ -247,38 +247,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
     }
 
-    function testEigenPodsWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
-        //make initial deposit
-        testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
-        uint128 balance = eigenPodManager.getBalance(podOwner);
-
-         IEigenPod newPod;
-        newPod = eigenPodManager.getPod(podOwner);
-        newPod.topUpPodBalance{value : balance*(1**18)}();
-
-        IInvestmentStrategy[] memory strategyArray = new IInvestmentStrategy[](1);
-        IERC20[] memory tokensArray = new IERC20[](1);
-        uint256[] memory shareAmounts = new uint256[](1);
-        uint256[] memory strategyIndexes = new uint256[](1);
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
-            IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
-        bool undelegateIfPossible = false;
-        {
-            strategyArray[0] = investmentManager.beaconChainETHStrategy();
-            shareAmounts[0] = balance;
-            strategyIndexes[0] = 0;
-        }
-
-        uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
-        
-        cheats.startPrank(podOwner);
-        investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
-        cheats.stopPrank();
-
-        uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
-
-        require(podOwnerSharesBefore - podOwnerSharesAfter == balance, "delegation shares not updated correctly");
-    } 
 }
 
