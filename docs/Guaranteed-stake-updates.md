@@ -57,11 +57,11 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
 
 ![Updated Three Middlewares Timeline With Queued Withdrawal](images/withdrawal.png?raw=true "Updated Three Middlewares Timeline With Queued Withdrawal")
 
+## Deep Dive, aka "The Function-by-Function Explanation"
 
+### Internal Functions
 
-## Helper Functions
-
-### `_recordUpdateAndAddToMiddlewareTimes`
+#### `_recordUpdateAndAddToMiddlewareTimes`
 ```solidity
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
 ```
@@ -69,16 +69,16 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
 This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s 
 leastRecentUpdateBlock' has decreased, *or* their latestServeUntil' has increased.  We only push updates to `operatorToMiddlewareTimes[operator]` if the `serveUntilTime` is greater, if there are no entries or if the middleware being updated is at the head of the whitelisted contract linked list. 
 
-### `_updateMiddlewareList`
+#### `_updateMiddlewareList`
 ```solidity
     function _updateMiddlewareList(address operator, uint32 updateBlock, uint256 insertAfter) internal {
 
 ```
 
 
-## Public Functions
+### Public Functions
 
-### `recordFirstStakeUpdate`
+#### `recordFirstStakeUpdate`
 ```solidity
     function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
 
@@ -87,14 +87,14 @@ leastRecentUpdateBlock' has decreased, *or* their latestServeUntil' has increase
 This function is called by a whitelisted slashing contract during registration of a new operator. The middleware posts an initial update, passing in the time until which the `operator`'s stake is bonded -- `serveUntil`. The middleware is pushed to the end ('TAIL') of the linked list since in `operatorToWhitelistedContractsByUpdate[operator]`, since the new middleware most have been updated the most recently, i.e. at the present moment.
 
 
-### `recordStakeUpdate`
+#### `recordStakeUpdate`
 ```solidity
 recordStakeUpdate(address operator, uint32 updateBlock, uint32 serveUntil, uint256 insertAfter) 
 ```
 
 This function is called by a whitelisted slashing contract, passing in the time until which the operator's stake is bonded -- `serveUntil`, the block for which the stake update to the middleware is being recorded (which may be the current block or a past block) -- `updateBlock`, and an index specifying the element of the `operator`'s linked list that the currently updating middleware should be inserted after -- `insertAfter`. It makes a call to `_updateMiddlewareList` to actually update the linked list.
 
-### `recordLastStakeUpdate`
+#### `recordLastStakeUpdate`
 ```solidity
 function recordLastStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
 ```
@@ -102,7 +102,7 @@ function recordLastStakeUpdate(address operator, uint32 serveUntil) external onl
 This function is called by a whitelisted slashing contract on deregistration of an operator, passing in the time until which the operator's stake is bonded -- `serveUntil`. It assumes that the update is posted for the *current* block, rather than a past block, in contrast to `recordStakeUpdate`.
 
 
-### `canWithdraw`
+#### `canWithdraw`
 ```solidity
 canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns (bool) {
 ```
