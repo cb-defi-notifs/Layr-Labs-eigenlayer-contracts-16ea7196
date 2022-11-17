@@ -20,7 +20,7 @@ Where data is as follows:
 1. The first 128 bytes are the uncompressed bn254 G2 point public key of the operator, serialized as `[P.X.A1, P.X.A0, P.Y.A1, P.Y.A0]`
 2. The next 64 bytes are the uncompressed bn254 G1 point signature `[sigma.X, sigma.Y]`
 
-The signature is of `HashToG1(data[:128] || operator)` where operator is the 20 byte address of the sender of the public key registration transaction, `||` is concatenation, and `HashToG1` is a hash function to bn254's G1. This proves that they own the corresponding private key (thwarting rogue public key attacks), and  mixes in the operators Eth1 address to get rid of frontrunning inconveniences (someone looks at the valida signatature in the mempool and can't frontrun your registration, although this would have no profit motive for the attacker).
+The signature is of `HashToG1(data[:128] || operator)` where operator is the 20 byte address of the sender of the public key registration transaction, `||` is concatenation, and `HashToG1` is a hash function to bn254's G1. This proves that they own the corresponding private key (thwarting rogue public key attacks), and  mixes in the operators Eth1 address to get rid of frontrunning inconveniences (someone looks at the valid signatature in the mempool and can't frontrun your registration, although this would have no profit motive for the attacker).
 
 Then, it is made sure of that the operator has no public key registered to them yet, and updates its storage to reflect that the public key they have submitted is theirs now. It does this by storing the hash of their public key (`keccak256(P.X.A0 || P.X.A1 || P.Y.A0 || P.Y.A1)`) with a reference to the opreator's Eth1 address. 
 
