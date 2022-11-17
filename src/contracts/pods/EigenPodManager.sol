@@ -28,7 +28,7 @@ import "forge-std/Test.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, IEigenPodManager, OwnableUpgradeable, DSTest
+contract EigenPodManager is Initializable, IEigenPodManager, OwnableUpgradeable
 
 {
     //TODO: change this to constant in prod
