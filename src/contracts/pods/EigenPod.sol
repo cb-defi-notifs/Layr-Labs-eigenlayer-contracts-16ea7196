@@ -40,6 +40,9 @@ contract EigenPod is IEigenPod, Initializable
     /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
 
+    uint256 public msgvalue;
+    uint256 public addressbalance;
+
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.InvestmentManager: not eigenPodManager");
         _;
@@ -152,7 +155,10 @@ contract EigenPod is IEigenPod, Initializable
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
     //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
-    function topUpPodBalance() external payable {}
+    function topUpPodBalance() external payable {
+        msgvalue = msg.value;
+        addressbalance = address(this).balance;
+    }
 
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal view returns(bytes memory) {

@@ -28,7 +28,7 @@ import "forge-std/Test.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, IEigenPodManager 
+contract EigenPodManager is Initializable, IEigenPodManager, DSTest
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
@@ -117,6 +117,11 @@ contract EigenPodManager is Initializable, IEigenPodManager
         * restaked than there is, a freezing event is triggered
         */
         //TODO: add EigenPodManager as globally permissioned slashing contract
+        emit log_named_uint("depositedBalance",pods[podOwner].depositedBalance);
+        emit log_named_uint("newBalance", newBalance);
+        emit log_named_uint("msg.sender.balance",msg.sender.balance);
+        emit log_named_address("msg.sender",msg.sender);
+
         if(pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
         }

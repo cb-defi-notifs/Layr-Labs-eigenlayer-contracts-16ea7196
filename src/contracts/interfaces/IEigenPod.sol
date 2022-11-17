@@ -51,4 +51,8 @@ interface IEigenPod {
     ) external;
     //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable;
+
+    function msgvalue() external returns(uint256);
+    function addressbalance() external returns(uint256);
+
 }
