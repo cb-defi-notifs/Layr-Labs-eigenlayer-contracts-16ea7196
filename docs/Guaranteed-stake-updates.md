@@ -1,13 +1,14 @@
 # Guaranteed Stake Updates on Withdrawal
 Withdrawals are one of the critical flows in the EigenLayer system.  Guaranteed stake updates ensure that all middlewares that an operator has opted into (i.e. allowed to slash them) are notified at the appropriate time regarding any withdrawals initiated by an operator.  To put it simply, an operator can "queue" a withdrawal at any point in time.  In order to complete the withdrawal, the operator must first serve all existing obligations related to keeping their stake slashable.  The contract `Slasher.sol` keeps track of a historic record of each operator's  `latestServeUntil` time at various blocks, which is the timestamp after which their stake will have served its obligations which were created at or before the block in question. To complete a withdrawal, an operator (or a staker delegated to them) can point to a relevant point in the record which proves that the funds they are withdrawing are no longer "at stake" on any middleware tasks.
+EigenLayer uses a 'push' model for it's own core contracts -- when a staker queues a withdrawal from EigenLayer (or deposits new funds into EigenLayer), their withdrawn shares are immediately decremented, both in the InvestmentManager itself and in the EigenLayerDelegation contract. Middlewares, however, must 'pull' this data. Their worldview is stale until a call is made that triggers a 'stake update', updating the middleware's view on how much the operator has staked. The middleware then informs EigenLayer (either immediately or eventually) that the stake update has occurred.
 
 ## Storage Model
 
 For each operator, we need to store:
 
 1. A list of the contracts that are whitelisted to slash the operator
-2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contract, ordered by when their stakes were last updated, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
-3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
+2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
+3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated [CRITIC: I can't find this mapping anywhere in the code]
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
     struct MiddlewareTimes {
