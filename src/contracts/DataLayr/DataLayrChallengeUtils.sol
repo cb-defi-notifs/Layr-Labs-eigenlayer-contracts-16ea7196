@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../libraries/Merkle.sol";
-import "../../libraries/BN254.sol";
-import "../../libraries/BLS.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../libraries/Merkle.sol";
+import "../libraries/BN254.sol";
+import "../libraries/BLS.sol";
 
 /**
  * @title Stand-alone utility contract that implements reuseable 'challenge'-related functionality for DataLayr.

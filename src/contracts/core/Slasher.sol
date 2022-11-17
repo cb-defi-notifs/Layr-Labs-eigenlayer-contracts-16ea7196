@@ -20,7 +20,7 @@ import "forge-std/Test.sol";
  * - tracking historic stake updates to ensure that withdrawals can only be completed once no middlewares have slashing rights
  * over the funds being withdrawn
  */
-contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTest {
+contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     using StructuredLinkedList for StructuredLinkedList.List;
 
     uint256 private constant HEAD = 0;
@@ -127,7 +127,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Used for 'slashing' a certain operator.
      * @param toBeFrozen The operator to be frozen.
      * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
-     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
+     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
         require(
@@ -289,7 +289,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param middlewareTimesIndex Indicates an index in `operatorToMiddlewareTimes[operator]` to consult as proof of the `operator`'s ability to withdraw
      * @dev The correct `middlewareTimesIndex` input should be computable off-chain.
      */
-    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns (bool) {
+    function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external view returns (bool) {
         // if the operator has never registered for a middleware, just return 'true'
         if (operatorToMiddlewareTimes[operator].length == 0) {
             return true;
@@ -303,15 +303,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
          * that the stake is no longer slashable.
          */
-
-        emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
-        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
-
-        emit log("uint32(block.timestamp) > update.latestServeUntil");
-        emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
-        emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
-
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&
@@ -420,19 +411,19 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
         MiddlewareTimes memory curr;
-        if(operatorToMiddlewareTimes[operator].length != 0) {
+        if (operatorToMiddlewareTimes[operator].length != 0) {
             curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
         }
         MiddlewareTimes memory next = curr;
         bool pushToMiddlewareTimes;
         // if the serve until is later than the latest recorded one, update it
-        if(serveUntil > curr.latestServeUntil) {
+        if (serveUntil > curr.latestServeUntil) {
             next.latestServeUntil = serveUntil;
             // mark that we need push next to middleware times array because it contains new information
             pushToMiddlewareTimes = true;
         } 
         
-        // If this is the very first middleware added to the operator's list of middlewware, then we add an entry to operatorToMiddlewareTimes
+        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
         if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
             pushToMiddlewareTimes = true;
             next.leastRecentUpdateBlock = updateBlock;
@@ -460,16 +451,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
             pushToMiddlewareTimes = true;
         }
         
-        // if next has new information, push it
-        if(pushToMiddlewareTimes) {
+        // if `next` has new information, then push it
+        if (pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        emit log("____________________________________________");
-        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        emit log_named_uint("updateBlock", updateBlock);
-        emit log("____________________________________________");
-
     }
 
     /// @notice A routine for updating the `operator`'s linked list of middlewares, inside `recordStakeUpdate`.
@@ -483,7 +468,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         bool runFallbackRoutine = false;
         // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
         if (insertAfter != HEAD) {
-             emit log_named_uint("insertAfter", insertAfter);
             // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
             if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
                 runFallbackRoutine = true;

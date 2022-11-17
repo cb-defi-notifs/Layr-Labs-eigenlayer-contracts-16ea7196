@@ -102,7 +102,3 @@ A contract fulfilling the Repository role is expected to provide address for all
 
 Note that despite inheriting from `Initializable`, this contract is **not** designed to be deployed as an upgradeable proxy -- rather, it is designed so that it can be deployed from a factory contract and automatically verified on block explorers like Etherscan, since each new contract created by the Repository will use the same constructor parameters, but may have different `initialize` arguments.
 
-## High-Level Goals (And How They Affect Design Decisions)
-1. Anyone
-    * all
-
