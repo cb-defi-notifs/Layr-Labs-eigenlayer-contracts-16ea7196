@@ -10,7 +10,6 @@ import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -30,7 +29,6 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    ,DSTest
 {
     using SafeERC20 for IERC20;
 
@@ -272,10 +270,8 @@ contract InvestmentManager is
             delegatedAddress: delegatedAddress
         });
 
-
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
-
 
         // mark withdrawal as pending
         withdrawalRootPending[withdrawalRoot] = true;
@@ -319,24 +315,19 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
-
         require(
             slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
-
 
         // TODO: add testing coverage for this
         require(
             msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
-
-
+=
         // reset the storage slot in mapping of queued withdrawals
         withdrawalRootPending[withdrawalRoot] = false;
-
-
 
         // store length for gas savings
         uint256 strategiesLength = queuedWithdrawal.strategies.length;
