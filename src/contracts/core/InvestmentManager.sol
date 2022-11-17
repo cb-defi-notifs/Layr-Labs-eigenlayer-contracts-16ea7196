@@ -30,7 +30,7 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,DSTest
+    ,DSTest
 {
     using SafeERC20 for IERC20;
 
@@ -272,8 +272,19 @@ contract InvestmentManager is
             delegatedAddress: delegatedAddress
         });
 
+        // emit log_named_uint("strategies", (strategies).length);
+        // emit log_named_uint("tokens", (tokens).length);
+        // emit log_named_uint("shares", shares.length);
+        // emit log_named_address("depositor", msg.sender);
+        // emit log_named_uint("withdrawalStartBlock", uint32(block.number));
+        // emit log_named_address("delegatedAddress", delegatedAddress);
+
+
+
+
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
+
 
         // mark withdrawal as pending
         withdrawalRootPending[withdrawalRoot] = true;
@@ -310,6 +321,7 @@ contract InvestmentManager is
     {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
+        emit log_named_bytes32("withdrawalRosot", withdrawalRoot);
 
         // verify that the queued withdrawal is pending
         require(
@@ -330,8 +342,11 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: only specified withdrawer can complete a queued withdrawal"
         );
 
+
         // reset the storage slot in mapping of queued withdrawals
         withdrawalRootPending[withdrawalRoot] = false;
+
+
 
         // store length for gas savings
         uint256 strategiesLength = queuedWithdrawal.strategies.length;

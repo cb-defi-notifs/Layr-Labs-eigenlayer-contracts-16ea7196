@@ -111,6 +111,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             address(eigenPodManagerImplementation),
             abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
+        generalServiceManager1 = new ServiceManagerMock();
+
+        generalReg1 = new MiddlewareRegistryMock(
+             generalServiceManager1,
+             investmentManager
+        );
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
@@ -127,6 +133,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPodManager.stake(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
+
         IEigenPod newPod;
 
         newPod = eigenPodManager.getPod(podOwner);
@@ -139,7 +146,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
+
         uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, beaconChainETHStrategy);
+
 
         require(beaconChainETHShares == validatorBalance, "investmentManager shares not updated correctly");
     }
@@ -257,11 +266,14 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     //recordstakeupdate
 
     function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public {
+        cheats.assume(operator!=address(0));
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
+
         //*************************DELEGATION STUFF******************************//
-        _testDelegateToOperator(podOwner, operator);
+        _testDelegation(operator, podOwner);
+
 
         cheats.startPrank(operator);
         investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
@@ -290,14 +302,17 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             strategyIndexes[0] = 0;
         }
 
+
         uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
         
+
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.timestamp) + 1 days);
 
         cheats.startPrank(podOwner);
         investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
         cheats.stopPrank();
+        uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
         //*************************DELEGATION/Stake Update STUFF******************************//
         //now withdrawal block time is before deregistration
@@ -305,12 +320,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.roll(uint32(block.timestamp) + 2 days);
         
         generalReg1.deregisterOperator(operator);
-        
+
         //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
         cheats.warp(uint32(block.timestamp) + 4 days);
         cheats.roll(uint32(block.timestamp) + 4 days);
         //*************************************************************************//
-
 
         uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -323,16 +337,35 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             shares: shareAmounts,
             depositor: podOwner,
             withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: uint32(block.number),
+            withdrawalStartBlock: queuedWithdrawalStartBlock,
             delegatedAddress: delegatedAddress
         });
+
 
         uint256 middlewareTimesIndex = 1;
         bool receiveAsTokens = true;
         cheats.startPrank(podOwner);
+
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
+
         cheats.stopPrank();
     } 
+
+    // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
+    // verifies that the storage of EigenLayrDelegation contract is updated appropriately
+    function _testRegisterAsOperator(address sender, IDelegationTerms dt) internal {
+        cheats.startPrank(sender);
+
+        delegation.registerAsOperator(dt);
+        assertTrue(delegation.isOperator(sender), "testRegisterAsOperator: sender is not a delegate");
+
+        assertTrue(
+            delegation.delegationTerms(sender) == dt, "_testRegisterAsOperator: delegationTerms not set appropriately"
+        );
+
+        assertTrue(delegation.isDelegated(sender), "_testRegisterAsOperator: sender not marked as actively delegated");
+        cheats.stopPrank();
+    }
 
     function _testDelegateToOperator(address sender, address operator) internal {
         //delegator-specific information
@@ -367,6 +400,21 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
                 "_testDelegateToOperator: delegatedShares not increased correctly"
             );
         }
+    }
+    function _testDelegation(address operator, address staker)
+        internal
+    {   
+        if (!delegation.isOperator(operator)) {
+            _testRegisterAsOperator(operator, IDelegationTerms(operator));
+        }
+
+        //making additional deposits to the investment strategies
+        assertTrue(delegation.isNotDelegated(staker) == true, "testDelegation: staker is not delegate");
+        _testDelegateToOperator(staker, operator);
+        assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
+
+        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            investmentManager.getDeposits(staker);
     }
 }
 

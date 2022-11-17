@@ -115,10 +115,6 @@ contract EigenPodManager is Initializable, IEigenPodManager, OwnableUpgradeable,
         * restaked than there is, a freezing event is triggered
         */
         //TODO: add EigenPodManager as globally permissioned slashing contract
-        emit log_named_uint("depositedBalance",pods[podOwner].depositedBalance);
-        emit log_named_uint("newBalance", newBalance);
-        emit log_named_uint("msg.sender.balance",msg.sender.balance);
-        emit log_named_address("msg.sender",msg.sender);
 
         if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
 
@@ -151,6 +147,7 @@ contract EigenPodManager is Initializable, IEigenPodManager, OwnableUpgradeable,
         //subtract withdrawn amount from stake and balance
         pods[podOwner].depositedBalance = pods[podOwner].depositedBalance - uint128(amount);
         pods[podOwner].balance = pods[podOwner].balance - uint128(amount);
+
         getPod(podOwner).withdrawBeaconChainETH(recipient, amount);
     }
 
