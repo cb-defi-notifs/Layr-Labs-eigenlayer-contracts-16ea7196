@@ -114,7 +114,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager
         * restaked than there is, a freezing event is triggered
         */
         //TODO: add EigenPodManager as globally permissioned slashing contract
-        if(pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
+        if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
         }
     }
