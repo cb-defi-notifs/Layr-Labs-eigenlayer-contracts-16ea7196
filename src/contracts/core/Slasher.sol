@@ -127,7 +127,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Used for 'slashing' a certain operator.
      * @param toBeFrozen The operator to be frozen.
      * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
-     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
+     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
         require(
@@ -303,15 +303,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
          * that the stake is no longer slashable.
          */
-
-        emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
-        emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
-
-        emit log("uint32(block.timestamp) > update.latestServeUntil");
-        emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
-        emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
-
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&

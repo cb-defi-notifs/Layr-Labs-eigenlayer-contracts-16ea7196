@@ -10,17 +10,14 @@ import "./EigenLayrDelegationStorage.sol";
 import "../permissions/Pausable.sol";
 import "./Slasher.sol";
 
-// TODO: verify that limitation on undelegating from slashed operators is sufficient
-
 /**
  * @title The primary delegation contract for EigenLayr.
  * @author Layr Labs, Inc.
  * @notice  This is the contract for delegation in EigenLayr. The main functionalities of this contract are
- * - for enabling any staker to register as a delegate and specify the delegation terms it has agreed to
- * - for enabling anyone to register as an operator
- * - for a registered staker to delegate its stake to the operator of its agreed upon delegation terms contract
- * - for a staker to undelegate its assets from EigenLayr
- * - for anyone to challenge a staker's claim to have fulfilled all its obligation before undelegation
+ * - enabling anyone to register as an operator in EigenLayr
+ * - allowing new operators to provide a DelegationTerms-type contract, which may mediate their interactions with stakers who delegate to them
+ * - enabling any staker to delegate its stake to the operator of its choice
+ * - enabling a staker to undelegate its assets from an operator (performed as part of the withdrawal process, initiated through the InvestmentManager)
  */
 contract EigenLayrDelegation is Initializable, OwnableUpgradeable, EigenLayrDelegationStorage, Pausable, DSTest {
     uint8 internal constant PAUSED_NEW_DELEGATION = 0;
