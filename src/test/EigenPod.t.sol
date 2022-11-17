@@ -3,6 +3,8 @@ pragma solidity ^0.8.9;
 
  import "../contracts/interfaces/IEigenPod.sol";
  import "./utils/BeaconChainUtils.sol";
+ import "./mocks/MiddlewareRegistryMock.sol";
+import "./mocks/ServiceManagerMock.sol";
 import "./Deployer.t.sol";
 
 
@@ -34,6 +36,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     IETHPOSDeposit public ethPOSDeposit;
     IBeacon public eigenPodBeacon;
     IBeaconChainOracle public beaconChainOracle;
+    MiddlewareRegistryMock public generalReg1;
+    ServiceManagerMock public generalServiceManager1;
 
     address[] public slashingContracts;
     address pauser = address(69);
@@ -249,10 +253,23 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
 
+    //delegate shares to operator
+    //recordstakeupdate
 
-    function testEigenPodsQueuedWithdrawal(bytes memory signature, bytes32 depositDataRoot) public {
+    function testEigenPodsQueuedWithdrawal(address operator, bytes memory signature, bytes32 depositDataRoot) public {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
+
+        //*************************DELEGATION STUFF******************************//
+        _testDelegateToOperator(podOwner, operator);
+
+        cheats.startPrank(operator);
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        cheats.stopPrank();
+
+        generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
+        //*************************************************************************//
+
 
         uint128 balance = eigenPodManager.getBalance(podOwner);
 
@@ -275,9 +292,25 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         uint256 podOwnerSharesBefore = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
         
+        cheats.warp(uint32(block.timestamp) + 1 days);
+        cheats.roll(uint32(block.timestamp) + 1 days);
+
         cheats.startPrank(podOwner);
         investmentManager.queueWithdrawal(strategyIndexes, strategyArray, tokensArray, shareAmounts, withdrawerAndNonce, undelegateIfPossible);
         cheats.stopPrank();
+
+        //*************************DELEGATION/Stake Update STUFF******************************//
+        //now withdrawal block time is before deregistration
+        cheats.warp(uint32(block.timestamp) + 2 days);
+        cheats.roll(uint32(block.timestamp) + 2 days);
+        
+        generalReg1.deregisterOperator(operator);
+        
+        //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+        cheats.warp(uint32(block.timestamp) + 4 days);
+        cheats.roll(uint32(block.timestamp) + 4 days);
+        //*************************************************************************//
+
 
         uint256 podOwnerSharesAfter = investmentManager.investorStratShares(podOwner, investmentManager.beaconChainETHStrategy());
 
@@ -294,9 +327,46 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             delegatedAddress: delegatedAddress
         });
 
+        uint256 middlewareTimesIndex = 1;
+        bool receiveAsTokens = true;
         cheats.startPrank(podOwner);
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
         cheats.stopPrank();
     } 
+
+    function _testDelegateToOperator(address sender, address operator) internal {
+        //delegator-specific information
+        (IInvestmentStrategy[] memory delegateStrategies, uint256[] memory delegateShares) =
+            investmentManager.getDeposits(sender);
+
+        uint256 numStrats = delegateShares.length;
+        assertTrue(numStrats > 0, "_testDelegateToOperator: delegating from address with no investments");
+        uint256[] memory inititalSharesInStrats = new uint256[](numStrats);
+        for (uint256 i = 0; i < numStrats; ++i) {
+            inititalSharesInStrats[i] = delegation.operatorShares(operator, delegateStrategies[i]);
+        }
+
+        cheats.startPrank(sender);
+        delegation.delegateTo(operator);
+        cheats.stopPrank();
+
+        assertTrue(
+            delegation.delegatedTo(sender) == operator,
+            "_testDelegateToOperator: delegated address not set appropriately"
+        );
+        assertTrue(
+            delegation.delegationStatus(sender) == IEigenLayrDelegation.DelegationStatus.DELEGATED,
+            "_testDelegateToOperator: delegated status not set appropriately"
+        );
+
+        for (uint256 i = 0; i < numStrats; ++i) {
+            uint256 operatorSharesBefore = inititalSharesInStrats[i];
+            uint256 operatorSharesAfter = delegation.operatorShares(operator, delegateStrategies[i]);
+            assertTrue(
+                operatorSharesAfter == (operatorSharesBefore + delegateShares[i]),
+                "_testDelegateToOperator: delegatedShares not increased correctly"
+            );
+        }
+    }
 }
 
