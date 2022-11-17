@@ -272,15 +272,6 @@ contract InvestmentManager is
             delegatedAddress: delegatedAddress
         });
 
-        // emit log_named_uint("strategies", (strategies).length);
-        // emit log_named_uint("tokens", (tokens).length);
-        // emit log_named_uint("shares", shares.length);
-        // emit log_named_address("depositor", msg.sender);
-        // emit log_named_uint("withdrawalStartBlock", uint32(block.number));
-        // emit log_named_address("delegatedAddress", delegatedAddress);
-
-
-
 
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
@@ -321,7 +312,6 @@ contract InvestmentManager is
     {
         // find the withdrawalRoot
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
-        emit log_named_bytes32("withdrawalRosot", withdrawalRoot);
 
         // verify that the queued withdrawal is pending
         require(
