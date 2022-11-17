@@ -17,10 +17,7 @@ import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
 
-
 import "forge-std/Test.sol";
-
-
 
 /**
  * @title The contract used for creating and managing EigenPods
