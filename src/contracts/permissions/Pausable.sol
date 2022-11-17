@@ -11,24 +11,26 @@ import "../interfaces/IPauserRegistry.sol";
  * @author Layr Labs, Inc.
  * @notice Contracts that inherit from this contract define their own `pause` and `unpause` (and/or related) functions.
  * These functions should be permissioned as "onlyPauser" which defers to a `PauserRegistry` for determining access control.
+ * @dev Pausability is implemented using a uint256, which allows up to 256 different bit-flags; each bit can potentially pause different functionality.
+ * Inspiration is taken from the NearBridge design here https://etherscan.io/address/0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873#code
  */
 contract Pausable {
     /// @notice Address of the `PauserRegistry` contract that this contract defers to for determining access control (for pausing).
     IPauserRegistry public pauserRegistry;
 
     /// @dev whether or not the contract is currently paused
-    bool private _paused;
+    uint256 private _paused;
 
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
+    uint256 constant internal UNPAUSE_ALL = 0;
+    uint256 constant internal PAUSE_ALL = type(uint256).max;
 
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
+    /// @notice Emitted when the pause is triggered by `account`, and changed to `newPausedStatus`.
+    event Paused(address indexed account, uint256 newPausedStatus);
 
+    /// @notice Emitted when the pause is lifted by `account`, and changed to `newPausedStatus`.
+    event Unpaused(address indexed account, uint256 newPausedStatus);
+
+    /// @notice
     modifier onlyPauser() {
         require(msg.sender == pauserRegistry.pauser(), "msg.sender is not permissioned as pauser");
         _;
@@ -39,53 +41,63 @@ contract Pausable {
         _;
     }
 
+    /// @notice Throws if the contract is paused, i.e. if any of the bits in `_paused` is flipped to 1.
     modifier whenNotPaused() {
-        _requireNotPaused();
+        require(_paused == 0, "Pausable: contract is paused");
         _;
     }
 
-    function _initializePauser(IPauserRegistry _pauserRegistry) internal {
+    /// @notice Throws if the `indexed`th bit of `_paused` is 1, i.e. if the `index`th pause switch is flipped.
+    modifier onlyWhenNotPaused(uint8 index) {
+        require(!paused(index), "Pausable: index is paused");
+        _;
+    }
+
+    /// @notice One-time function for setting the `pauserRegistry` and initializing the value of `_paused`.
+    function _initializePauser(IPauserRegistry _pauserRegistry, uint256 initPausedStatus) internal {
         require(
             address(pauserRegistry) == address(0) && address(_pauserRegistry) != address(0),
             "Pausable._initializePauser: _initializePauser() can only be called once"
         );
-
-        _paused = false;
+        _paused = initPausedStatus;
+        emit Paused(msg.sender, initPausedStatus);
         pauserRegistry = _pauserRegistry;
     }
 
     /**
-     * @notice This function is used to pause an EigenLayer/DataLayer
-     * contract functionality.  It is permissioned to the "PAUSER"
-     * address, which is a low threshold multisig.
+     * @notice This function is used to pause an EigenLayer/DataLayer contract's functionality.
+     * It is permissioned to the `pauser` address, which is expected to be a low threshold multisig.
+     * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
+     * @dev This function can only pause functionality, and thus cannot 'unflip' any bit in `_paused` from 1 to 0.
      */
-    function pause() external onlyPauser {
-        _paused = true;
-        emit Paused(msg.sender);
+    function pause(uint256 newPausedStatus) external onlyPauser {
+        // verify that the `newPausedStatus` does not *unflip* any bits (i.e. doesn't unpause anything, all 1 bits remain)
+        require((_paused & newPausedStatus) == _paused, "Pausable.pause: invalid attempt to unpause functionality");
+        _paused = newPausedStatus;
+        emit Paused(msg.sender, newPausedStatus);
     }
 
     /**
-     * @notice This function is used to unpause an EigenLayer/DataLayer
-     * contract functionality.  It is permissioned to the "UNPAUSER"
-     * address, which is a reputed committee controlled, high threshold
-     * multisig.
+     * @notice This function is used to unpause an EigenLayer/DataLayercontract's functionality.
+     * It is permissioned to the `unpauser` address, which is expected to be a high threshold multisig or goverance contract.
+     * @param newPausedStatus represents the new value for `_paused` to take, which means it may flip several bits at once.
+     * @dev This function can only unpause functionality, and thus cannot 'flip' any bit in `_paused` from 0 to 1.
      */
-    function unpause() external onlyUnpauser {
-        _paused = false;
-        emit Unpaused(msg.sender);
+    function unpause(uint256 newPausedStatus) external onlyUnpauser {
+        // verify that the `newPausedStatus` does not *flip* any bits (i.e. doesn't pause anything, all 0 bits remain)
+        require(((~_paused) & (~newPausedStatus)) == (~_paused), "Pausable.unpause: invalid attempt to pause functionality");
+        _paused = newPausedStatus;
+        emit Unpaused(msg.sender, newPausedStatus);
     }
 
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
+    /// @notice Returns the current paused status as a uint256.
+    function paused() public view virtual returns (uint256) {
         return _paused;
     }
 
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
+    /// @notice Returns 'true' if the `indexed`th bit of `_paused` is 1, and 'false' otherwise
+    function paused(uint8 index) public view virtual returns (bool) {
+        uint256 mask = 1 << index;
+        return ((_paused & mask) == mask);
     }
 }

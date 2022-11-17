@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9.0;
+pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IQuorumRegistry.sol";
-import "../../interfaces/IEphemeralKeyRegistry.sol";
-import "../../libraries/DataStoreUtils.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../interfaces/IQuorumRegistry.sol";
+import "../interfaces/IEphemeralKeyRegistry.sol";
+
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+
 import "./DataLayrChallengeUtils.sol";
-import "../../libraries/DataStoreUtils.sol";
-import "../../libraries/BN254.sol";
+
+import "../libraries/DataStoreUtils.sol";
+import "../libraries/DataStoreUtils.sol";
+import "../libraries/BN254.sol";
 
 /**
  * @title Used to check Proofs of Custody in DataLayr.
@@ -23,7 +27,7 @@ import "../../libraries/BN254.sol";
  * If these 4 points are proved, the operator is slashed.
  * The operator should be checking the following above requirements against each new header hash it receives in order to not be slashed.
  */
-contract DataLayrBombVerifier {
+contract DataLayrBombVerifier is Initializable {
     /// @notice This struct is exactly IDataLayrServiceManager.DataStoreSearchData without the duration, used for identifying the correct bomb datastore.
     struct DataStoresForDuration {
         uint256 timestamp;
@@ -95,6 +99,7 @@ contract DataLayrBombVerifier {
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
         dlekRegistry = _dlekRegistry;
+        _disableInitializers();
     }
 
     /**

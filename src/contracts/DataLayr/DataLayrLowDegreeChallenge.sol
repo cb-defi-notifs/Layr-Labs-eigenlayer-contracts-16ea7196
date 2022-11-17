@@ -3,35 +3,32 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-import "../../interfaces/IRepository.sol";
-import "../../interfaces/IRepositoryAccess.sol";
-import "../../interfaces/IQuorumRegistry.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-
-import "../Repository.sol";
+import "../interfaces/IQuorumRegistry.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
 
 import "./DataLayrChallengeUtils.sol";
 
-import "../../libraries/Merkle.sol";
-import "../../libraries/BLS.sol";
-import "../../libraries/BytesLib.sol";
-import "../../libraries/DataStoreUtils.sol";
+import "../libraries/Merkle.sol";
+import "../libraries/BLS.sol";
+import "../libraries/BytesLib.sol";
+import "../libraries/DataStoreUtils.sol";
 
 /**
  * @title Used to create and manage low degree challenges related to DataLayr.
  * @author Layr Labs, Inc.
  */
-contract DataLayrLowDegreeChallenge {
+contract DataLayrLowDegreeChallenge is Initializable {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
 
+    IDataLayrServiceManager public immutable dataLayrServiceManager;
     IQuorumRegistry public immutable dlRegistry;
     DataLayrChallengeUtils public immutable challengeUtils;
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
 
     //Fixed gas limit to ensure pairing precompile doesn't use entire gas limit upon reversion
-    uint256 public pairingGasLimit;
+    uint256 public constant pairingGasLimit = 500e3;
 
     enum ChallengeStatus {
         UNSUCCESSFUL,
@@ -58,21 +55,20 @@ contract DataLayrLowDegreeChallenge {
     uint256 internal constant MAX_POT_DEGREE = (2 ** 28);
     uint256 internal constant POT_TREE_HEIGHT = 28;
 
-    modifier onlyRepositoryGovernance() {
-        require(msg.sender == IRepositoryAccess(address(dataLayrServiceManager)).repository().owner(), "onlyRepositoryGovernance");
+    modifier onlyDataLayrServiceManagerOwner() {
+        require(msg.sender == dataLayrServiceManager.owner(), "onlyDataLayrServiceManagerOwner");
         _;
     }
 
     constructor(
         IDataLayrServiceManager _dataLayrServiceManager,
         IQuorumRegistry _dlRegistry,
-        DataLayrChallengeUtils _challengeUtils,
-        uint256 _pairingGasLimit
+        DataLayrChallengeUtils _challengeUtils
     ) {
         dataLayrServiceManager = _dataLayrServiceManager;
         dlRegistry = _dlRegistry;
         challengeUtils = _challengeUtils;
-        pairingGasLimit = _pairingGasLimit;
+        _disableInitializers();
     }
 
     /**
@@ -184,7 +180,6 @@ contract DataLayrLowDegreeChallenge {
      * @param lowDegreenessProof is the provided G1 point which is the product of the POTElement and the polynomial, i.e., [(x^{n-m})*p(x)]_1
      *        This function computes the pairing e([p(x)]_1, [x^{n-m}]_2) = e([(x^{n-m})*p(x)]_1, [1]_2)
      */
-
     function verifyLowDegreenessProof(
         bytes calldata header,
         BN254.G2Point memory potElement,
@@ -213,10 +208,5 @@ contract DataLayrLowDegreeChallenge {
             BN254.safePairing(dskzgMetadata.c, potElement, lowDegreenessProof, negativeG2, pairingGasLimit);
 
         return (precompileWorks && pairingSuccessful);
-    }
-
-    /// @notice Called by DataLayr governance to update the pairing gas limit
-    function setPairingGasLimit(uint256 newGasLimit) external onlyRepositoryGovernance {
-        pairingGasLimit = newGasLimit;
     }
 }

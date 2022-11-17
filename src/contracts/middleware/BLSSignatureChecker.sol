@@ -6,14 +6,13 @@ import "../interfaces/IBLSRegistry.sol";
 import "../libraries/BytesLib.sol";
 import "../libraries/DataStoreUtils.sol";
 import "../libraries/BLS.sol";
-import "../permissions/RepositoryAccess.sol";
 
 /**
  * @title Used for checking BLS aggregate signatures from the operators of a `BLSRegistry`.
  * @author Layr Labs, Inc.
  * @notice This is the contract for checking the validity of aggregate operator signatures.
  */
-abstract contract BLSSignatureChecker is RepositoryAccess {
+abstract contract BLSSignatureChecker {
     using BytesLib for bytes;
     // DATA STRUCTURES
     /**
@@ -46,8 +45,11 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
         bytes32[] pubkeyHashes
     );
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(IRepository _repository) RepositoryAccess(_repository) {}
+    IQuorumRegistry public immutable registry;
+
+    constructor(IQuorumRegistry _registry) {
+        registry = _registry;
+    }
 
     // CONSTANTS -- commented out lines are due to inline assembly supporting *only* 'direct number constants' (for now, at least)
     uint256 internal constant BYTE_LENGTH_totalStakeIndex = 6;
@@ -156,9 +158,6 @@ abstract contract BLSSignatureChecker is RepositoryAccess {
             stakesBlockNumber :=
                 shr(BIT_SHIFT_stakesBlockNumber, calldataload(add(pointer, CALLDATA_OFFSET_stakesBlockNumber)))
         }
-
-        // obtain registry contract for querying information on stake later
-        IQuorumRegistry registry = IQuorumRegistry(address(_registry()));
 
         /**
          * @dev Instantiate the memory object used for holding the aggregated public key of all operators that are *not* part of the quorum.

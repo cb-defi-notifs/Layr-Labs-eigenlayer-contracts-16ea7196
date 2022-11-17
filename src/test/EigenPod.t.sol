@@ -104,7 +104,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
 
         slashingContracts.push(address(eigenPodManager));
@@ -179,8 +179,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployNewEigenPodWithWrongWithdrawalCreds(address wrongWithdrawalAddress, bytes memory signature, bytes32 depositDataRoot) public {
-        // make sure the fuzzed 'incorrect' input is not actually the correct one!
-        cheats.assume(wrongWithdrawalAddress != podOwner);
+        IEigenPod newPod;
+        newPod = eigenPodManager.getPod(podOwner);
+        // make sure that wrongWithdrawalAddress is not set to actual pod address
+        cheats.assume(wrongWithdrawalAddress != address(newPod));
         
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
@@ -188,8 +190,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPodManager.stake(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
-        IEigenPod newPod;
-        newPod = eigenPodManager.getPod(podOwner);
+        
+
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
         bytes32 validatorIndex = bytes32(uint256(0));

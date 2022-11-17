@@ -5,9 +5,10 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../test/DataLayrTestHelper.t.sol";
 
-
 import "../contracts/libraries/BytesLib.sol";
 
+import "./mocks/MiddlewareRegistryMock.sol";
+import "./mocks/ServiceManagerMock.sol";
 
 contract DelegationTests is DataLayrTestHelper {
     using BytesLib for bytes;
@@ -20,44 +21,26 @@ contract DelegationTests is DataLayrTestHelper {
 
     uint256 public PRIVATE_KEY = 420;
 
+    MiddlewareRegistryMock public generalReg1;
+    ServiceManagerMock public generalServiceManager1;
+
+    MiddlewareRegistryMock public generalReg2;
+    ServiceManagerMock public generalServiceManager2;
+
     function initializeMiddlewares() public {
+        generalServiceManager1 = new ServiceManagerMock();
 
-        uint256 feePerBytePerTime = 1;
-
-        generalRepository1 = new Repository(delegation, investmentManager);
-        generalServiceManager1 = new DataLayrServiceManager(
-            investmentManager,
-            delegation,
-            generalRepository1,
-            weth,
-            pauserReg,
-            feePerBytePerTime
-        );
-
-        generalReg1 = new MiddlewareRegistry(
-             Repository(address(generalRepository1)),
+        generalReg1 = new MiddlewareRegistryMock(
+             generalServiceManager1,
              investmentManager
         );
-        Repository(address(generalRepository1)).initialize(dlReg, generalServiceManager1, generalReg1, address(this));
-
         
-        generalRepository2 = new Repository(delegation, investmentManager);
-        generalServiceManager2 = new DataLayrServiceManager(
-            investmentManager,
-            delegation,
-            generalRepository2,
-            weth,
-            pauserReg,
-            feePerBytePerTime
-        );
+        generalServiceManager2 = new ServiceManagerMock();
 
-        generalReg2 = new MiddlewareRegistry(
-             Repository(address(generalRepository2)),
+        generalReg2 = new MiddlewareRegistryMock(
+             generalServiceManager2,
              investmentManager
         );
-        Repository(address(generalRepository2)).initialize(dlReg, generalServiceManager2, generalReg2, address(this));
-
-
     }
 
     // packed info used to help handle stack-too-deep errors
@@ -295,7 +278,7 @@ contract DelegationTests is DataLayrTestHelper {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
@@ -401,8 +384,8 @@ contract DelegationTests is DataLayrTestHelper {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().allowToSlash(address(generalServiceManager1));
-        investmentManager.slasher().allowToSlash(address(generalServiceManager2));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+        investmentManager.slasher().optIntoSlashing(address(generalServiceManager2));
         cheats.stopPrank();
 
         // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
@@ -563,7 +546,7 @@ contract DelegationTests is DataLayrTestHelper {
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
         //delegation has already been initialized in the Deployer test contract
-        delegation.initialize(pauserReg, address(this));
+        delegation.initialize(eigenLayrPauserReg, address(this));
     }
 
     /// @notice This function tests to ensure that a you can't register as a delegate multiple times

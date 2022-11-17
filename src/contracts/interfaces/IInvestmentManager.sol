@@ -12,12 +12,6 @@ import "./IServiceManager.sol";
  * @notice See the `InvestmentManager` contract itself for implementation details.
  */
 interface IInvestmentManager {
-    // used for storing details of queued withdrawals
-    struct WithdrawalStorage {
-        uint32 withdrawalStartBlock;
-        address withdrawer;
-    }
-
     // packed struct for queued withdrawals
     struct WithdrawerAndNonce {
         address withdrawer;
@@ -43,8 +37,10 @@ interface IInvestmentManager {
     /**
      * @notice Deposits `amount` of `token` into the specified `strategy`, with the resultant shares credited to `depositor`
      * @param strategy is the specified strategy where investment is to be made,
-     * @param token is the ERC20 token in which the investment is to be made,
+     * @param token is the denomination in which the investment is to be made,
      * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
+     * @dev Cannot be called by an address that is 'frozen' (this function will revert if the `msg.sender` is frozen).
      */
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
@@ -52,7 +48,11 @@ interface IInvestmentManager {
 
 
     /**
-     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     * @notice Deposits `amount` of beaconchain ETH into this contract on behalf of `staker`
+     * @param staker is the entity that is restaking in eigenlayer,
+     * @param amount is the amount of beaconchain ETH being restaked,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev Only called by EigenPod for the staker.
      */
     function depositBeaconChainETH(address staker, uint256 amount) external returns (uint256);
 
@@ -68,6 +68,7 @@ interface IInvestmentManager {
      * @dev The `msg.sender` must have previously approved this contract to transfer at least `amount` of `token` on their behalf.
      * @dev A signature is required for this function to eliminate the possibility of griefing attacks, specifically those
      * targetting stakers who may be attempting to undelegate.
+     * @dev Cannot be called on behalf of a staker that is 'frozen' (this function will revert if the `staker` is frozen).
      */
     function depositIntoStrategyOnBehalfOf(
         IInvestmentStrategy strategy,
@@ -122,9 +123,11 @@ interface IInvestmentManager {
     /**
      * @notice Used to complete the specified `queuedWithdrawal`. The function caller must match `queuedWithdrawal.withdrawer`
      * @param queuedWithdrawal The QueuedWithdrawal to complete.
+     * @param middlewareTimesIndex is the index in the operator that the staker who triggered the withdrawal was delegated to's middleware times array
      * @param receiveAsTokens If true, the shares specified in the queued withdrawal will be withdrawn from the specified strategies themselves
      * and sent to the caller, through calls to `queuedWithdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
      * will simply be transferred to the caller directly.
+     * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
      */
     function completeQueuedWithdrawal(
         QueuedWithdrawal calldata queuedWithdrawal,
@@ -134,8 +137,8 @@ interface IInvestmentManager {
         external;
 
     /**
-     * @notice Slashes the shares of 'frozen' operator (or a staker delegated to one)
-     * @param slashedAddress is the frozen address that is having its shares slashes
+     * @notice Slashes the shares of a 'frozen' operator (or a staker delegated to one)
+     * @param slashedAddress is the frozen address that is having its shares slashed
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
      * @param recipient The slashed funds are withdrawn as tokens to this address.
@@ -154,6 +157,10 @@ interface IInvestmentManager {
     )
         external;
 
+    /**
+     * @notice Slashes an existing queued withdrawal that was created by a 'frozen' operator (or a staker delegated to one)
+     * @param recipient The funds in the slashed withdrawal are withdrawn as tokens to this address.
+     */
     function slashQueuedWithdrawal(
         address recipient,
         QueuedWithdrawal calldata queuedWithdrawal

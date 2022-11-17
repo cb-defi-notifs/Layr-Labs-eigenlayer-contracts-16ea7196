@@ -1,35 +1,33 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../../interfaces/IRepository.sol";
-import "../../interfaces/IQuorumRegistry.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IDataLayrPaymentManager.sol";
-import "../Repository.sol";
-import "../../libraries/DataStoreUtils.sol";
-import "../../middleware/PaymentManager.sol";
+import "../interfaces/IQuorumRegistry.sol";
+import "../interfaces/IVoteWeigher.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../interfaces/IDataLayrPaymentManager.sol";
+import "../libraries/DataStoreUtils.sol";
+import "../middleware/PaymentManager.sol";
 
 /**
  * @title This contract is used for doing interactive payment challenges on DataLayr.
  * @author Layr Labs, Inc.
  * @notice Most functionality is inherited from the `PaymentManager` contract, with `respondToPaymentChallengeFinal` implementing DataLayr-specific functionality.
  */
-contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Initializable {
-    IDataLayrServiceManager public immutable dataLayrServiceManager;
+contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager {
+    IVoteWeigher public immutable voteWeigher;
 
     constructor(
+        IEigenLayrDelegation _eigenLayrDelegation,
+        IServiceManager _serviceManager,
+        IQuorumRegistry _registry,
         IERC20 _paymentToken,
-        uint256 _paymentFraudproofCollateral,
-        IRepository _repository,
-        IDataLayrServiceManager _dataLayrServiceManager,
-        IPauserRegistry _pauserReg
+        IERC20 _collateralToken,
+        IVoteWeigher _voteWeigher
     )
-        PaymentManager(_paymentToken, _paymentFraudproofCollateral, _repository, _pauserReg)
-        initializer
+        PaymentManager(_eigenLayrDelegation, _serviceManager, _registry, _paymentToken, _collateralToken)
     {
-        dataLayrServiceManager = _dataLayrServiceManager;
+        voteWeigher = _voteWeigher;
+        _disableInitializers();
     }
 
     /**
@@ -57,7 +55,7 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
 
         //checks that searchData is valid by checking against the hash stored in DLSM's dataStoreHashesForDurationAtTimestamp
         require(
-            dataLayrServiceManager.verifyDataStoreMetadata(
+            IDataLayrServiceManager(address(serviceManager)).verifyDataStoreMetadata(
                     searchData.duration,
                     searchData.timestamp,
                     searchData.index,
@@ -78,9 +76,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
             providedSignatoryRecordHash == searchData.metadata.signatoryRecordHash,
             "DataLayrPaymentManager.respondToPaymentChallengeFinal: provided nonSignerPubKeyHashes or totalStakesSigned is incorrect"
         );
-
-        // get the registry address
-        IQuorumRegistry registry = IQuorumRegistry(address(repository.registry()));
 
         // pull the operator's pubkey hash
         bytes32 operatorPubkeyHash = registry.getOperatorPubkeyHash(operator);
@@ -122,9 +117,6 @@ contract DataLayrPaymentManager is PaymentManager, IDataLayrPaymentManager, Init
                 searchData.metadata.globalDataStoreId == challenge.fromTaskNumber,
                 "DataLayrPaymentManager.respondToPaymentChallengeFinal: Loaded DataStoreId does not match challenged"
             );
-
-            // look up the voteWeigher address
-            IVoteWeigher voteWeigher = repository.voteWeigher();
 
             /*
              *  searchData.metadata.fee is the total fee for a datastore

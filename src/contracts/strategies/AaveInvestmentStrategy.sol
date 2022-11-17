@@ -4,7 +4,6 @@ pragma solidity ^0.8.9;
 import "./aave/ILendingPool.sol";
 import "./InvestmentStrategyBase.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @title InvestmentStrategy that lends tokens out on AAVE.
@@ -12,7 +11,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @notice Passively lends tokens on AAVE. Does not perform any borrowing.
  * @dev This contract is designed to accept deposits and process withdrawals in *either* the underlyingToken or aTokens
  */
-abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBase {
+abstract contract AaveInvestmentStrategy is InvestmentStrategyBase {
     using SafeERC20 for IERC20;
 
     ILendingPool public lendingPool;
@@ -46,7 +45,7 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
     function deposit(IERC20 token, uint256 amount)
         external
         override
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyInvestmentManager
         returns (uint256 newShares)
     {
@@ -95,7 +94,12 @@ abstract contract AaveInvestmentStrategy is Initializable, InvestmentStrategyBas
      * other functions, and individual share balances are recorded in the investmentManager as well
      * @notice This strategy distributes withdrawals either in the form of `underlyingToken` OR `aToken`
      */
-    function withdraw(address depositor, IERC20 token, uint256 shareAmount) external override onlyInvestmentManager {
+    function withdraw(address depositor, IERC20 token, uint256 shareAmount)
+        external
+        override
+        onlyInvestmentManager
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
+    {
         uint256 toWithdraw = sharesToUnderlying(shareAmount);
 
         if (token == underlyingToken) {

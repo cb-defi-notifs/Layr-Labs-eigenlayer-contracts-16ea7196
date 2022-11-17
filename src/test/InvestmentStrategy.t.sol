@@ -2,13 +2,13 @@
 pragma solidity ^0.8.9;
 
 import "./TestHelper.t.sol";
-import "../contracts/investment/InvestmentManagerStorage.sol";
+import "../contracts/core/InvestmentManagerStorage.sol";
 
 contract InvestmentStrategyTests is TestHelper {
     /// @notice This function tests to ensure that a delegation contract
     ///         cannot be intitialized multiple times
     function testCannotInitMultipleTimesDelegation() public cannotReinit {
-        wethStrat.initialize(weth, pauserReg);
+        wethStrat.initialize(weth, eigenLayrPauserReg);
     }
 
     ///@notice This function tests to ensure that only the investmentManager

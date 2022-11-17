@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/IRepository.sol";
 import "../interfaces/ISlasher.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
 import "../interfaces/IInvestmentManager.sol";
@@ -25,6 +24,10 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
     using StructuredLinkedList for StructuredLinkedList.List;
 
     uint256 private constant HEAD = 0;
+
+    uint8 internal constant PAUSED_OPT_INTO_SLASHING = 0;
+    uint8 internal constant PAUSED_FIRST_STAKE_UPDATE = 1;
+    uint8 internal constant PAUSED_NEW_FREEZING = 2;
 
     /// @notice The central InvestmentManager contract of EigenLayr
     IInvestmentManager public immutable investmentManager;
@@ -96,7 +99,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         IPauserRegistry _pauserRegistry,
         address initialOwner
     ) external initializer {
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
         // add InvestmentManager & EigenLayrDelegation to list of permissioned contracts
         _addGloballyPermissionedContract(address(investmentManager));
@@ -107,7 +110,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Gives the `contractAddress` permission to slash the funds of the caller.
      * @dev Typically, this function must be called prior to registering for a middleware.
      */
-    function allowToSlash(address contractAddress) external {
+    function optIntoSlashing(address contractAddress) external onlyWhenNotPaused(PAUSED_OPT_INTO_SLASHING) {
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
@@ -124,9 +127,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @notice Used for 'slashing' a certain operator.
      * @param toBeFrozen The operator to be frozen.
      * @dev Technically the operator is 'frozen' (hence the name of this function), and then subject to slashing pending a decision by a human-in-the-loop.
-     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `allowToSlash`.
+     * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
-    function freezeOperator(address toBeFrozen) external whenNotPaused {
+    function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
         require(
             canSlash(toBeFrozen, msg.sender),
             "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
@@ -180,7 +183,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @param serveUntil the timestamp until which the operator's stake at the current block is slashable
      * @dev adds the middleware's slashing contract to the operator's linked list
      */
-    function recordFirstStakeUpdate(address operator, uint32 serveUntil) external onlyCanSlash(operator) {
+    function recordFirstStakeUpdate(address operator, uint32 serveUntil) 
+        external 
+        onlyWhenNotPaused(PAUSED_FIRST_STAKE_UPDATE)
+        onlyCanSlash(operator) 
+    {
 
         // update latest update
 
@@ -296,15 +303,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
          * is after the `latestServeUntil` of the update. This assures us that this that all middlewares were updated after the withdrawal began, and
          * that the stake is no longer slashable.
          */
-
-        // emit log("withdrawalStartBlock < update.leastRecentUpdateBlock ");
-        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        // emit log_named_uint("update.leastRecentUpdateBlock", update.leastRecentUpdateBlock);
-
-        // emit log("uint32(block.timestamp) > update.latestServeUntil");
-        // emit log_named_uint("uint32(block.timestamp)", uint32(block.timestamp));
-        // emit log_named_uint("update.latestServeUntil", update.latestServeUntil);
-
         return(
             withdrawalStartBlock < update.leastRecentUpdateBlock 
             &&

@@ -34,6 +34,9 @@ contract InvestmentManager is
 {
     using SafeERC20 for IERC20;
 
+    uint8 internal constant PAUSED_DEPOSITS = 0;
+    uint8 internal constant PAUSED_WITHDRAWALS = 1;
+
     /**
      * @notice Value to which `initTimestamp` and `unlockTimestamp` to is set to indicate a withdrawal is queued/initialized,
      * but has not yet had its waiting period triggered
@@ -102,16 +105,21 @@ contract InvestmentManager is
     {
         //TODO: abstract this logic into an inherited contract for Delegation and Investment manager and have a conversation about meta transactions in general
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, bytes("EigenLayr"), block.chainid, address(this)));
-        _initializePauser(_pauserRegistry);
+        _initializePauser(_pauserRegistry, UNPAUSE_ALL);
         _transferOwnership(initialOwner);
     }
 
     /**
-     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     * @notice Deposits `amount` of beaconchain ETH into this contract on behalf of `staker`
+     * @param staker is the entity that is restaking in eigenlayer,
+     * @param amount is the amount of beaconchain ETH being restaked,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev Only called by EigenPod for the staker.
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external
         onlyEigenPodManager
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(staker)
         nonReentrant
         returns (uint256)
@@ -131,6 +139,7 @@ contract InvestmentManager is
      */
     function depositIntoStrategy(IInvestmentStrategy strategy, IERC20 token, uint256 amount)
         external
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns (uint256 shares)
@@ -162,6 +171,7 @@ contract InvestmentManager is
         bytes32 vs
     )
         external
+        onlyWhenNotPaused(PAUSED_DEPOSITS)
         onlyNotFrozen(staker)
         nonReentrant
         returns (uint256 shares)
@@ -212,11 +222,13 @@ contract InvestmentManager is
         bool undelegateIfPossible
     )
         external
-        whenNotPaused
+        // the `onlyWhenNotPaused` modifier is commented out and instead implemented as the first line of the function, since this solves a stack-too-deep error
+        // onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         onlyNotFrozen(msg.sender)
         nonReentrant
         returns (bytes32)
     {
+        require(!paused(PAUSED_WITHDRAWALS), "Pausable: index is paused");
         require(
             withdrawerAndNonce.nonce == numWithdrawalsQueued[msg.sender],
             "InvestmentManager.queueWithdrawal: provided nonce incorrect"
@@ -226,10 +238,10 @@ contract InvestmentManager is
             ++numWithdrawalsQueued[msg.sender];
         }
 
-        uint256 strategyIndexIndex;
-
         // modify delegated shares accordingly, if applicable
         delegation.decreaseDelegatedShares(msg.sender, strategies, shares);
+
+        uint256 strategyIndexIndex;
 
         for (uint256 i = 0; i < strategies.length;) {
             // the internal function will return 'true' in the event the strategy was
@@ -263,7 +275,7 @@ contract InvestmentManager is
         // calculate the withdrawal root
         bytes32 withdrawalRoot = calculateWithdrawalRoot(queuedWithdrawal);
 
-        //mark withdrawal as pending
+        // mark withdrawal as pending
         withdrawalRootPending[withdrawalRoot] = true;
 
         // If the `msg.sender` has withdrawn all of their funds from EigenLayer in this transaction, then they can choose to also undelegate
@@ -291,7 +303,7 @@ contract InvestmentManager is
      */
     function completeQueuedWithdrawal(QueuedWithdrawal calldata queuedWithdrawal, uint256 middlewareTimesIndex, bool receiveAsTokens)
         external
-        whenNotPaused
+        onlyWhenNotPaused(PAUSED_WITHDRAWALS)
         // check that the address that the staker *was delegated to* – at the time that they queued the withdrawal – is not frozen
         onlyNotFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant
@@ -374,7 +386,6 @@ contract InvestmentManager is
         uint256[] calldata shareAmounts
     )
         external
-        whenNotPaused
         onlyOwner
         onlyFrozen(slashedAddress)
         nonReentrant
@@ -415,7 +426,6 @@ contract InvestmentManager is
      */
     function slashQueuedWithdrawal(address recipient, QueuedWithdrawal calldata queuedWithdrawal)
         external
-        whenNotPaused
         onlyOwner
         onlyFrozen(queuedWithdrawal.delegatedAddress)
         nonReentrant

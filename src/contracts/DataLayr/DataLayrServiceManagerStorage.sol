@@ -2,23 +2,24 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IServiceManager.sol";
-import "../../interfaces/IInvestmentManager.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IServiceManager.sol";
+import "../interfaces/IInvestmentManager.sol";
 import "./DataLayrPaymentManager.sol";
 import "./DataLayrLowDegreeChallenge.sol";
 import "./DataLayrBombVerifier.sol";
-import "../EphemeralKeyRegistry.sol";
-import "../../permissions/RepositoryAccess.sol";
+import "../DataLayr/EphemeralKeyRegistry.sol";
 
 /**
  * @title Storage variables for the `DataLayrServiceManager` contract.
  * @author Layr Labs, Inc.
  * @notice This storage contract is separate from the logic to simplify the upgrade process.
  */
-abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, RepositoryAccess {
+abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager {
     // CONSTANTS
+    uint256 public constant BIP_MULTIPLIER = 10000;
+
     //TODO: mechanism to change any of these values?
     /// @notice Unit of measure (in time) for the duration of DataStores
     uint256 public constant DURATION_SCALE = 1 hours;
@@ -40,27 +41,7 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     uint32 public constant BLOCK_STALE_MEASURE = 150;
     
-    uint256 public constant BIP_MULTIPLIER = 10000;
-
-    /// @notice Collateral token used for placing collateral on challenges & payment commits
-    IERC20 public immutable collateralToken;
-
-    /**
-     * @notice The EigenLayr delegation contract for this DataLayr which is primarily used by
-     * delegators to delegate their stake to operators who would serve as DataLayr
-     * nodes and so on.
-     */
-    /**
-     * @dev For more details, see EigenLayrDelegation.sol.
-     */
-    IEigenLayrDelegation public immutable eigenLayrDelegation;
-
-    IInvestmentManager public immutable investmentManager;
-
-    /**
-     * @notice service fee that will be paid out by the disperser to the DataLayr nodes
-     * for storing per byte for per unit time.
-     */
+    /// @notice service fee that will be paid out by the disperser to the DataLayr nodes for storing data, per byte stored per unit time (second).
     uint256 public feePerBytePerTime;
 
     // TODO: set these values correctly
@@ -100,30 +81,10 @@ abstract contract DataLayrServiceManagerStorage is IDataLayrServiceManager, Repo
      */
     mapping(uint32 => bytes32) public dataStoreIdToSignatureHash;
 
-    //mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
-    //the third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be
-    //in that block
+    /** 
+     * @notice Mapping from duration to timestamp to all of the ids of datastores that were initialized during that timestamp.
+     * The third nested mapping just keeps track of a fixed number of datastores of a certain duration that can be in that block
+     */
     mapping(uint8 => mapping(uint256 => bytes32[NUM_DS_PER_BLOCK_PER_DURATION])) public
         dataStoreHashesForDurationAtTimestamp;
-
-    DataLayrLowDegreeChallenge public dataLayrLowDegreeChallenge;
-
-    DataLayrBombVerifier public dataLayrBombVerifier;
-
-    EphemeralKeyRegistry public ephemeralKeyRegistry;
-
-    /**
-     * @notice contract used for handling payment challenges
-     */
-    IDataLayrPaymentManager public dataLayrPaymentManager;
-
-    constructor(
-        IInvestmentManager _investmentManager,
-        IEigenLayrDelegation _eigenLayrDelegation,
-        IERC20 _collateralToken
-    ) {
-        investmentManager = _investmentManager;
-        eigenLayrDelegation = _eigenLayrDelegation;
-        collateralToken = _collateralToken;
-    }
 }
