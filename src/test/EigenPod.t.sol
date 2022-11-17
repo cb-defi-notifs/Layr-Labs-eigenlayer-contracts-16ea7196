@@ -271,7 +271,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
 
-        //*************************DELEGATION STUFF******************************//
+        //*************************DELEGATION+REGISTRATION OF OPERATOR******************************//
         _testDelegation(operator, podOwner);
 
 
@@ -280,7 +280,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
-        //*************************************************************************//
+        //*******************************************************************************************//
 
 
         uint128 balance = eigenPodManager.getBalance(podOwner);
@@ -314,7 +314,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.stopPrank();
         uint32 queuedWithdrawalStartBlock = uint32(block.number);
 
-        //*************************DELEGATION/Stake Update STUFF******************************//
+        //*************************DEREGISTER OPERATOR******************************//
         //now withdrawal block time is before deregistration
         cheats.warp(uint32(block.timestamp) + 2 days);
         cheats.roll(uint32(block.timestamp) + 2 days);
@@ -330,7 +330,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         require(podOwnerSharesBefore - podOwnerSharesAfter == balance, "delegation shares not updated correctly");
 
-        address delegatedAddress = delegation.delegatedTo(podOwner);
         IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
             strategies: strategyArray,
             tokens: tokensArray,
@@ -338,10 +337,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             depositor: podOwner,
             withdrawerAndNonce: withdrawerAndNonce,
             withdrawalStartBlock: queuedWithdrawalStartBlock,
-            delegatedAddress: delegatedAddress
+            delegatedAddress: delegation.delegatedTo(podOwner)
         });
 
-
+        uint256 receiverBalanceBefore = address(beaconChainETHReceiver).balance;
         uint256 middlewareTimesIndex = 1;
         bool receiveAsTokens = true;
         cheats.startPrank(address(beaconChainETHReceiver));
@@ -349,6 +348,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
         cheats.stopPrank();
+
+        require(address(beaconChainETHReceiver).balance - receiverBalanceBefore == shareAmounts[0], "Receiver contract balance not updated correctly");
     } 
 
     // Withdraw eigenpods balance to an EOA
@@ -358,7 +359,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
 
-        //*************************DELEGATION STUFF******************************//
+        //*************************DELEGATION+REGISTRATION OF OPERATOR******************************//
         _testDelegation(operator, podOwner);
 
 
@@ -367,7 +368,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.stopPrank();
 
         generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
-        //*************************************************************************//
+        //*********************************************************************************************//
 
 
         uint128 balance = eigenPodManager.getBalance(podOwner);
@@ -428,7 +429,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             delegatedAddress: delegatedAddress
         });
 
-
+        uint256 podOwnerBalanceBefore = podOwner.balance;
         uint256 middlewareTimesIndex = 1;
         bool receiveAsTokens = true;
         cheats.startPrank(podOwner);
@@ -436,6 +437,10 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
         cheats.stopPrank();
+
+        require(podOwner.balance - podOwnerBalanceBefore == shareAmounts[0], "podOwner balance not updated correcty");
+
+
     } 
 
     // simply tries to register 'sender' as a delegate, setting their 'DelegationTerms' contract in EigenLayrDelegation to 'dt'
