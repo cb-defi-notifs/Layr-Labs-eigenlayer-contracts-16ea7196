@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../../interfaces/IDataLayrServiceManager.sol";
-import "../../interfaces/IQuorumRegistry.sol";
-import "../../interfaces/IEphemeralKeyRegistry.sol";
+import "../interfaces/IDataLayrServiceManager.sol";
+import "../interfaces/IQuorumRegistry.sol";
+import "../interfaces/IEphemeralKeyRegistry.sol";
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
 import "./DataLayrChallengeUtils.sol";
 
-import "../../libraries/DataStoreUtils.sol";
-import "../../libraries/DataStoreUtils.sol";
-import "../../libraries/BN254.sol";
+import "../libraries/DataStoreUtils.sol";
+import "../libraries/DataStoreUtils.sol";
+import "../libraries/BN254.sol";
 
 /**
  * @title Used to check Proofs of Custody in DataLayr.

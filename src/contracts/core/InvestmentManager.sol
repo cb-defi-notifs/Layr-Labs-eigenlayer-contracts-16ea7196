@@ -110,7 +110,11 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     * @notice Deposits `amount` of beaconchain ETH into this contract on behalf of `staker`
+     * @param staker is the entity that is restaking in eigenlayer,
+     * @param amount is the amount of beaconchain ETH being restaked,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev Only called by EigenPod for the staker.
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external

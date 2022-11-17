@@ -5,16 +5,16 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
-import "../../interfaces/IEigenLayrDelegation.sol";
-import "../../interfaces/IDelegationTerms.sol";
+import "../interfaces/IEigenLayrDelegation.sol";
+import "../interfaces/IDelegationTerms.sol";
 
 import "./DataLayrServiceManagerStorage.sol";
-import "../BLSSignatureChecker.sol";
+import "../middleware/BLSSignatureChecker.sol";
 
-import "../../libraries/BytesLib.sol";
-import "../../libraries/Merkle.sol";
-import "../../libraries/DataStoreUtils.sol";
-import "../../permissions/Pausable.sol";
+import "../libraries/BytesLib.sol";
+import "../libraries/Merkle.sol";
+import "../libraries/DataStoreUtils.sol";
+import "../permissions/Pausable.sol";
 
 import "./DataLayrChallengeUtils.sol";
 

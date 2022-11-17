@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/proxy/beacon/IBeacon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IInvestmentManager.sol";
 import "../interfaces/IEigenLayrDelegation.sol";
@@ -28,7 +29,8 @@ import "forge-std/Test.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, IEigenPodManager, DSTest
+contract EigenPodManager is Initializable, IEigenPodManager, OwnableUpgradeable, DSTest
+
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
@@ -44,7 +46,7 @@ contract EigenPodManager is Initializable, IEigenPodManager, DSTest
 
     mapping(address => EigenPodInfo) public pods;
 
-    event BeaconOracleUpdate(address newOracleAddress);
+    event BeaconOracleUpdated(address newOracleAddress);
 
     modifier onlyEigenPod(address podOwner) {
         require(address(getPod(podOwner)) == msg.sender, "EigenPodManager.onlyEigenPod: not a pod");
@@ -56,11 +58,6 @@ contract EigenPodManager is Initializable, IEigenPodManager, DSTest
         _;
     }
 
-    modifier onlyInvestmentManagerOwner {
-        require(msg.sender == Ownable(address(investmentManager)).owner(), "EigenPod.onlyInvestmentManagerOwner: not investment manager owner");
-        _;
-    }
-
     constructor(IETHPOSDeposit _ethPOS, IBeacon _eigenPodBeacon, IInvestmentManager _investmentManager) {
         ethPOS = _ethPOS;
         eigenPodBeacon = _eigenPodBeacon;
@@ -68,9 +65,10 @@ contract EigenPodManager is Initializable, IEigenPodManager, DSTest
         _disableInitializers();
     }
 
-    function initialize(IBeaconChainOracle _beaconChainOracle) public initializer {
+    function initialize(IBeaconChainOracle _beaconChainOracle, address initialOwner) public initializer {
         beaconChainOracle = _beaconChainOracle;
-        emit BeaconOracleUpdate(address(_beaconChainOracle));
+        emit BeaconOracleUpdated(address(_beaconChainOracle));
+        _transferOwnership(initialOwner);
     }
 
     /**
@@ -122,7 +120,8 @@ contract EigenPodManager is Initializable, IEigenPodManager, DSTest
         emit log_named_uint("msg.sender.balance",msg.sender.balance);
         emit log_named_address("msg.sender",msg.sender);
 
-        if(pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
+        if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
+
             investmentManager.slasher().freezeOperator(podOwner);
         }
     }
@@ -160,9 +159,9 @@ contract EigenPodManager is Initializable, IEigenPodManager, DSTest
      * @param newBeaconChainOracle is the new oracle contract being pointed to
      * @dev Callable only by the owner of the InvestmentManager (i.e. governance).
      */
-    function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyInvestmentManagerOwner {
+    function updateBeaconChainOracle(IBeaconChainOracle newBeaconChainOracle) external onlyOwner {
         beaconChainOracle = newBeaconChainOracle;
-        emit BeaconOracleUpdate(address(newBeaconChainOracle));
+        emit BeaconOracleUpdated(address(newBeaconChainOracle));
     }
 
 

@@ -105,7 +105,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
             address(eigenPodManagerImplementation),
-            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle)
+            abi.encodeWithSelector(EigenPodManager.initialize.selector, beaconChainOracle, initialOwner)
         );
 
         slashingContracts.push(address(eigenPodManager));
