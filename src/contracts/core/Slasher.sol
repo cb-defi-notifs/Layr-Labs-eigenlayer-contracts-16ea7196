@@ -411,7 +411,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         operatorToWhitelistedContractsToLatestUpdateBlock[operator][msg.sender] = updateBlock;
         // get the latest recorded MiddlewareTimes, if the operator's list of MiddlwareTimes is non empty
         MiddlewareTimes memory curr;
-        if(operatorToMiddlewareTimes[operator].length != 0) {
+        if (operatorToMiddlewareTimes[operator].length != 0) {
             curr = operatorToMiddlewareTimes[operator][operatorToMiddlewareTimes[operator].length - 1];
         }
         MiddlewareTimes memory next = curr;
@@ -423,7 +423,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
             pushToMiddlewareTimes = true;
         } 
         
-        // If this is the very first middleware added to the operator's list of middlewware, then we add an entry to operatorToMiddlewareTimes
+        // If this is the very first middleware added to the operator's list of middleware, then we add an entry to operatorToMiddlewareTimes
         if (operatorToWhitelistedContractsByUpdate[operator].size == 0) {
             pushToMiddlewareTimes = true;
             next.leastRecentUpdateBlock = updateBlock;
