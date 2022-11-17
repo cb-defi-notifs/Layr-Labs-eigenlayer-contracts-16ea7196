@@ -40,9 +40,6 @@ contract EigenPod is IEigenPod, Initializable
     /// @notice this is a mapping of validator keys to a Validator struct which holds info about the validator and their balances
     mapping(bytes32 => Validator) public validators;
 
-    uint256 public msgvalue;
-    uint256 public addressbalance;
-
     modifier onlyEigenPodManager {
         require(msg.sender == address(eigenPodManager), "EigenPod.InvestmentManager: not eigenPodManager");
         _;
