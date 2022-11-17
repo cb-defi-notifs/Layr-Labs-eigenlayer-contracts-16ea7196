@@ -32,8 +32,8 @@ contract RegistrationTests is DataLayrTestHelper {
         uint256[4] memory pk;
         pk = getG2PKOfRegistrationData(operatorIndex);
         bytes32 hashofPk = BLS.hashPubkey(pk);
-        require(pubkeyCompendium.operatorToPubkeyHash(signers[operatorIndex]) == hashofPk, "hash not stored correctly");
-        require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == signers[operatorIndex], "hash not stored correctly");
+        require(pubkeyCompendium.operatorToPubkeyHash(getOperatorAddress(operatorIndex)) == hashofPk, "hash not stored correctly");
+        require(pubkeyCompendium.pubkeyHashToOperator(hashofPk) == getOperatorAddress(operatorIndex), "hash not stored correctly");
 
         {
 
@@ -47,7 +47,7 @@ contract RegistrationTests is DataLayrTestHelper {
             );
 
             uint256 numOperators = dlReg.numOperators();
-            require(dlReg.operatorList(numOperators-1) == signers[operatorIndex], "operatorList not updated");
+            require(dlReg.operatorList(numOperators-1) == getOperatorAddress(operatorIndex), "operatorList not updated");
 
         
             uint96 ethStakedAfter = dlReg.getTotalStakeFromIndex(dlReg.getLengthOfTotalStakeHistory()-1).firstQuorumStake;
@@ -61,7 +61,7 @@ contract RegistrationTests is DataLayrTestHelper {
 
     /// @notice Tests that registering the same public key twice reverts appropriately.
     function testRegisterPublicKeyTwice(uint8 operatorIndex) fuzzedOperatorIndex(operatorIndex) public {
-        cheats.startPrank(signers[operatorIndex]);
+        cheats.startPrank(getOperatorAddress(operatorIndex));
         //try to register the same pubkey twice
         assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.expectRevert(
@@ -94,7 +94,7 @@ contract RegistrationTests is DataLayrTestHelper {
             testEphemeralKeyHash,
             testSocket
         );
-        cheats.startPrank(signers[operatorIndex]);
+        cheats.startPrank(getOperatorAddress(operatorIndex));
 
         //try to register after already registered
         cheats.expectRevert(
@@ -195,7 +195,7 @@ contract RegistrationTests is DataLayrTestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e18);
 
         bytes memory zeroData = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
         uint8 operatorType = 3;
         bytes32 apkHashBefore = dlReg.apkHashes(dlReg.getApkUpdatesLength()-1);
         emit log_named_bytes32("apkHashBefore", apkHashBefore);
@@ -234,7 +234,7 @@ contract RegistrationTests is DataLayrTestHelper {
             ethAmount
         );
 
-        cheats.startPrank(signers[operatorIndex]);
+        cheats.startPrank(getOperatorAddress(operatorIndex));
         assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
         cheats.stopPrank();
 
@@ -276,7 +276,7 @@ contract RegistrationTests is DataLayrTestHelper {
         //     eigenAmount,
         //     ethAmount
         // );
-        //  cheats.startPrank(signers[operatorIndex]);
+        //  cheats.startPrank(getOperatorAddress(operatorIndex));
         // // pubkeyCompendium.registerBLSPublicKey(packedAPK);
 
         // cheats.expectRevert(bytes("BLSRegistry._registerOperator: Apk and pubkey cannot be the same"));

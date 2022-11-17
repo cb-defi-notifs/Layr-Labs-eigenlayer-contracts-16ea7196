@@ -19,7 +19,7 @@ contract TestHelper is EigenLayrDeployer {
     )
         public returns (uint256 amountEthStaked, uint256 amountEigenStaked)
     {
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);

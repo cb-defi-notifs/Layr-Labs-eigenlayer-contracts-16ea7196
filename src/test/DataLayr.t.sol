@@ -110,7 +110,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
         {
-            // address operator = signers[0];
+            // address operator = getOperatorAddress(0);
             uint8 operatorType = 3;
             _testInitiateDelegation(0, eigenAmount, ethAmount);
             _testRegisterBLSPubKey(0);
@@ -216,7 +216,7 @@ contract DataLayrTests is DSTest, DataLayrTestHelper {
 
     function _registerNumSigners(uint256 numSigners) internal {
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+            _testRegisterAdditionalSelfOperator(i);
         }
     }
 }

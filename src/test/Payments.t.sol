@@ -114,7 +114,7 @@ contract PaymentsTests is DataLayrTestHelper {
         sigmas.push(uint256(12566674592166568848678401197324110475246083043677109258952934644133571450621));
 
         //hardcoding values
-        address operator = signers[0];
+        address operator = getOperatorAddress(0);
         uint32 numberOfSigners = 15;
         uint96 amountRewards = 10;
 

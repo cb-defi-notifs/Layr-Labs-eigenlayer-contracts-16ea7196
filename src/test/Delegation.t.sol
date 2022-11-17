@@ -52,7 +52,7 @@ contract DelegationTests is DataLayrTestHelper {
 
     /// @notice testing if an operator can register to themselves.
     function testSelfOperatorRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
+        _testRegisterAdditionalSelfOperator(0);
     }
 
     /// @notice testing if an operator can delegate to themselves.
@@ -64,8 +64,8 @@ contract DelegationTests is DataLayrTestHelper {
     }
 
     function testTwoSelfOperatorsRegister() public {
-        _testRegisterAdditionalSelfOperator(signers[0], registrationData[0], ephemeralKeyHashes[0]);
-        _testRegisterAdditionalSelfOperator(signers[1], registrationData[1], ephemeralKeyHashes[1]);
+        _testRegisterAdditionalSelfOperator(0);
+        _testRegisterAdditionalSelfOperator(1);
     }
 
     /// @notice registers a fixed address as a delegate, delegates to it from a second address,
@@ -560,12 +560,12 @@ contract DelegationTests is DataLayrTestHelper {
     /// @notice This function tests to ensure that a staker cannot delegate to an unregistered operator
     /// @param delegate is the unregistered operator
     function testDelegationToUnregisteredDelegate(address delegate) public fuzzedAddress(delegate) {
-        //deposit into 1 strategy for signers[1], who is delegating to the unregistered operator
-        _testDepositStrategies(signers[1], 1e18, 1);
-        _testDepositEigen(signers[1], 1e18);
+        //deposit into 1 strategy for getOperatorAddress(1), who is delegating to the unregistered operator
+        _testDepositStrategies(getOperatorAddress(1), 1e18, 1);
+        _testDepositEigen(getOperatorAddress(1), 1e18);
 
         cheats.expectRevert(bytes("EigenLayrDelegation._delegate: operator has not yet registered as a delegate"));
-        cheats.startPrank(signers[1]);
+        cheats.startPrank(getOperatorAddress(1));
         delegation.delegateTo(delegate);
         cheats.stopPrank();
     }
@@ -600,7 +600,7 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.assume(ethAmount > 0 && ethAmount < 1e18);
         cheats.assume(eigenAmount > 0 && eigenAmount < 1e10);
 
-        // address operator = signers[0];
+        // address operator = getOperatorAddress(0);
         uint8 operatorType = 3;
         _testInitiateDelegation(0, eigenAmount, ethAmount);
         _testRegisterBLSPubKey(0);

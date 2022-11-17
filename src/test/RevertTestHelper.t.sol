@@ -15,7 +15,7 @@ contract RevertTestHelper is TestHelper {
         uint256 amountEthToDeposit,
         bytes memory revertMessage
     ) public {
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
         //setting up operator's delegation terms
         weth.transfer(operator, 1e18);
         weth.transfer(_challenger, 1e18);

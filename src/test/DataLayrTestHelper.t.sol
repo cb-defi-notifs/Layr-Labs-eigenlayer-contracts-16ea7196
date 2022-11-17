@@ -17,7 +17,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         string memory socket
     ) public {
 
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
         assertTrue(false); //dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
@@ -31,7 +31,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         uint8 operatorListIndex
     ) public {
 
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
         assertTrue(false); //dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
@@ -165,7 +165,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
     function _testRegisterBLSPubKey(
         uint8 operatorIndex
     ) public {
-        address operator = signers[operatorIndex];
+        address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
@@ -187,13 +187,15 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         }
 
         //register all the operators
-        //skip i = 0 since we have already registered signers[0] !!
+        //skip i = 0 since we have already registered getOperatorAddress(0) !!
         for (uint256 i = start; i < numberOfSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+            _testRegisterAdditionalSelfOperator(i);
         }
     }
 
-    function _testRegisterAdditionalSelfOperator(address sender, bytes memory data, bytes32 ephemeralKeyHash) internal {
+    function _testRegisterAdditionalSelfOperator(uint256 index) internal {
+        address sender = getOperatorAddress(index);
+        bytes32 ephemeralKeyHash = ephemeralKeyHashes[index];
         //register as both ETH and EIGEN operator
         uint8 operatorType = 3;
         uint256 wethToDeposit = 1e18;
@@ -236,7 +238,7 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
 
         //register all the operators
         for (uint256 i = 0; i < numSigners; ++i) {
-            _testRegisterAdditionalSelfOperator(signers[i], registrationData[i], ephemeralKeyHashes[i]);
+            _testRegisterAdditionalSelfOperator(i);
         }
 
         // hard-coded values

@@ -10,7 +10,7 @@ contract PausableTests is TestHelper {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));
         cheats.assume(amountToWithdraw <= amountToDeposit);
 
-        address sender = signers[0];
+        address sender = getOperatorAddress(0);
         _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
 
         cheats.startPrank(pauser);

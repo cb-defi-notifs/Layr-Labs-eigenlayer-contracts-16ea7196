@@ -11,7 +11,7 @@ contract InvestmentTests is TestHelper {
      * @param amountToDeposit Fuzzed input for amount of WETH to deposit
      */
     function testWethDeposit(uint256 amountToDeposit) public returns (uint256 amountDeposited) {
-        return _testWethDeposit(signers[0], amountToDeposit);
+        return _testWethDeposit(getOperatorAddress(0), amountToDeposit);
     }
 
 // TODO: reimplement with queued withdrawals
@@ -27,7 +27,7 @@ contract InvestmentTests is TestHelper {
         // cannot withdraw more than we deposit
         cheats.assume(amountToWithdraw <= amountToDeposit);
         // hard-coded inputs
-        address sender = signers[0];
+        address sender = getOperatorAddress(0);
         uint256 strategyIndex = 0;
         _testDepositToStrategy(sender, amountToDeposit, weth, wethStrat);
         _testWithdrawFromStrategy(sender, strategyIndex, amountToWithdraw, weth, wethStrat);
@@ -44,7 +44,7 @@ contract InvestmentTests is TestHelper {
         // hard-coded inputs
         IInvestmentStrategy _strat = wethStrat;
         IERC20 underlyingToken = weth;
-        address sender = signers[0];
+        address sender = getOperatorAddress(0);
 
         _testDepositToStrategy(sender, amountToDeposit, underlyingToken, _strat);
         uint256 investorStratsLengthBefore = investmentManager.investorStratsLength(sender);
@@ -62,10 +62,10 @@ contract InvestmentTests is TestHelper {
 */
 
 
-    /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'signers[0]'
+    /// @notice deploys 'numStratsToAdd' strategies using '_testAddStrategy' and then deposits '1e18' to each of them from 'getOperatorAddress(0)'
     /// @param numStratsToAdd is the number of strategies being added and deposited into
     function testDepositStrategies(uint16 numStratsToAdd) public {
-        _testDepositStrategies(signers[0], 1e18, numStratsToAdd);
+        _testDepositStrategies(getOperatorAddress(0), 1e18, numStratsToAdd);
     }
 
     /// @notice Verifies that it is possible to deposit eigen.
@@ -73,7 +73,7 @@ contract InvestmentTests is TestHelper {
     function testDepositEigen(uint96 eigenToDeposit) public {
         // sanity check for inputs; keeps fuzzed tests from failing
         cheats.assume(eigenToDeposit < eigenTotalSupply);
-        _testDepositEigen(signers[0], eigenToDeposit);
+        _testDepositEigen(getOperatorAddress(0), eigenToDeposit);
     }
 
     /**

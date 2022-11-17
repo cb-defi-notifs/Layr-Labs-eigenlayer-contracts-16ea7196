@@ -43,7 +43,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
                     rPoint,
                     BN254.scalar_mul(
                         pubkeyG1,
-                        uint256(keccak256(abi.encodePacked(rPoint.X, rPoint.Y, pubkeyG1.X, pubkeyG1.Y)))
+                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.MODULUS
                     )
                 )
             );

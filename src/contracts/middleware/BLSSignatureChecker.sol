@@ -303,7 +303,6 @@ abstract contract BLSSignatureChecker {
              
             // aggregateNonSignerPublicKey = aggregateNonSignerPublicKey + nonSignerPublicKey
             // (input[2], input[3])        = (input[2], input[3])        + (input[0], input[1])
-            bool success;
             // solium-disable-next-line security/no-inline-assembly
             assembly {
                 success := staticcall(sub(gas(), 2000), 6, input, 0x80, add(input, 0x40), 0x40)
@@ -447,7 +446,7 @@ abstract contract BLSSignatureChecker {
             if iszero(
                 // staticcall address 8 (ecPairing precompile), forward all gas, send 384 bytes (0x180 in hex) = 12 (32-byte) inputs.
                 // store the return data in input[11] (352 bytes / '0x160' in hex), and copy only 32 bytes of return data (since precompile returns boolean)
-                staticcall(not(0), 0x08, input, 0x180, add(input, 0x160), 0x20)
+                staticcall(not(0), 8, input, 0x180, add(input, 0x160), 0x20)
             ) { revert(0, 0) }
         }
 
