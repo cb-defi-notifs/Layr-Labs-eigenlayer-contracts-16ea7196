@@ -177,7 +177,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);
-        uint256 topUpAmount = eigenPodManager.getDepositedBalance(podOwner) - eigenPodManager.getBalance(podOwner);
         eigenPod.topUpPodBalance{value: 16}();
 
         eigenPod.verifyBalanceUpdate(pubkey, proofs, validatorContainerFields);
@@ -185,8 +184,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]); 
         require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
 
-        cheats.expectRevert(bytes("podOwner not frozen successfully"));
-        require(investmentManager.slasher().isFrozen(podOwner), "podOwner not frozen successfully");
+        require(investmentManager.slasher().isFrozen(podOwner) == false, "podOwner frozen mistakenly");
 
     }
 
