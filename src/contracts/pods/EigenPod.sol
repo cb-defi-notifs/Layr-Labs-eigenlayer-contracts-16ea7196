@@ -157,8 +157,12 @@ contract EigenPod is IEigenPod, Initializable
         external
         onlyEigenPodManager
     {
-        //transfer ETH directly from pod to msg.sender 
-        IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
+
+        if(Address.isContract(recipient)){
+            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
+        } else{
+            payable(recipient).transfer(amount);
+        }
     }
     //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable {

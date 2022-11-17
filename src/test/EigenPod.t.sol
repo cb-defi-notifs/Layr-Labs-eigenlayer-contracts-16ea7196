@@ -5,6 +5,7 @@ pragma solidity ^0.8.9;
  import "./utils/BeaconChainUtils.sol";
  import "./mocks/MiddlewareRegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
+import "./mocks/BeaconChainETHReceiver.sol";
 import "./Deployer.t.sol";
 
 
@@ -38,7 +39,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     IBeaconChainOracle public beaconChainOracle;
     MiddlewareRegistryMock public generalReg1;
     ServiceManagerMock public generalServiceManager1;
-
+    IBeaconChainETHReceiver public beaconChainETHReceiver;
     address[] public slashingContracts;
     address pauser = address(69);
     address unpauser = address(489);
@@ -117,6 +118,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
              generalServiceManager1,
              investmentManager
         );
+
+        beaconChainETHReceiver = new BeaconChainETHReceiver();
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
@@ -294,7 +297,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         uint256[] memory shareAmounts = new uint256[](1);
         uint256[] memory strategyIndexes = new uint256[](1);
         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
-            IInvestmentManager.WithdrawerAndNonce({withdrawer: podOwner, nonce: 0});
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: address(beaconChainETHReceiver), nonce: 0});
         bool undelegateIfPossible = false;
         {
             strategyArray[0] = investmentManager.beaconChainETHStrategy();
@@ -344,7 +347,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         uint256 middlewareTimesIndex = 1;
         bool receiveAsTokens = true;
-        cheats.startPrank(podOwner);
+        cheats.startPrank(address(beaconChainETHReceiver));
 
         investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, receiveAsTokens);
 
