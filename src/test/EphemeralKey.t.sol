@@ -14,24 +14,43 @@ import "./Delegation.t.sol";
 contract EphemeralKeyTests is DelegationTests {
 
     EigenDARegistryMock public eigenDAReg;
+    EigenDARegistryMock public eigenDARegImplementation;
     ServiceManagerMock public EigenDASM;
-     bytes32 public testEphemeralKey1 = 0x3290567812345678123456781234577812345698123456781234567812344389;
+    bytes32 public testEphemeralKey1 = 0x3290567812345678123456781234577812345698123456781234567812344389;
     bytes32 public testEphemeralKeyHash1 = keccak256(abi.encode(testEphemeralKey1));
-     bytes32 public testEphemeralKey2 = 0x9890567812345678123456780094577812345698123456781234563849087560;
+    bytes32 public testEphemeralKey2 = 0x9890567812345678123456780094577812345698123456781234563849087560;
     bytes32 public testEphemeralKeyHash2 = keccak256(abi.encode(testEphemeralKey2));
+
+    bytes32[] public ephemeralKeys;
+
 
     function initializeMiddlewares() public {
         EigenDASM = new ServiceManagerMock();
 
-        eigenDAReg = new EigenDARegistryMock(
+        eigenDAReg = EigenDARegistryMock(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
+        );
+
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(eigenDAReg, EigenDASM);
+
+
+        eigenDARegImplementation = new EigenDARegistryMock(
              EigenDASM,
              investmentManager,
              ephemeralKeyRegistry
         );
+
+        eigenLayrProxyAdmin.upgrade(
+                TransparentUpgradeableProxy(payable(address(eigenDAReg))),
+                address(eigenDARegImplementation)
+        );
+
+        ephemeralKeys.push(testEphemeralKey1);
+        ephemeralKeys.push(testEphemeralKey2);
     }
 
     //This function helps with stack too deep issues with "testWithdrawal" test
-    function testWithdrawalWrapper(
+    function testEKWithdrawalWrapper(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -51,13 +70,13 @@ contract EphemeralKeyTests is DelegationTests {
 
             initializeMiddlewares();
 
-            _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount);
+            _testWithdrawalAndDeregistrationEphemeralKeys(operator, depositor, withdrawer, ethAmount, eigenAmount);
         }
 
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
-    function _testWithdrawalAndDeregistration(
+    function _testWithdrawalAndDeregistrationEphemeralKeys(
             address operator, 
             address depositor,
             address withdrawer, 
@@ -73,8 +92,10 @@ contract EphemeralKeyTests is DelegationTests {
         investmentManager.slasher().optIntoSlashing(address(EigenDASM));
         cheats.stopPrank();
 
-        eigenDAReg.registerOperator(operator, uint32(block.timestamp) + 3 days, testEphemeralKeyHash1, testEphemeralKeyHash2);
+        emit log_named_address("ASLAMALIKUM", address(eigenDAReg));
 
+        eigenDAReg.registerOperator(operator, uint32(block.timestamp) + 3 days, testEphemeralKeyHash1, testEphemeralKeyHash2);
+        emit log("hehehe");
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues
@@ -124,8 +145,12 @@ contract EphemeralKeyTests is DelegationTests {
         //now withdrawal block time is before deregistration
         cheats.warp(uint32(block.timestamp) + 2 days);
         cheats.roll(uint32(block.timestamp) + 2 days);
-        
-        eigenDAReg.deregisterOperator(operator);
+
+
+        uint256 startIndex = 0;
+        emit log("hehehe");
+        eigenDAReg.deregisterOperator(operator, ephemeralKeys, startIndex);
+        emit log("hehehe");
         {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
             cheats.warp(uint32(block.timestamp) + 4 days);
