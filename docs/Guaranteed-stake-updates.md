@@ -8,7 +8,7 @@ For each operator, we need to store:
 
 1. A list of the contracts that are whitelisted to slash the operator
 2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
-3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
+3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateBlock` from operators to their whitelisted contracts to when they were updated
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
     struct MiddlewareTimes {
@@ -77,7 +77,7 @@ This function is called each time a middleware posts a stake update, through a c
 
 ```
 
-This function is called by a whitelisted slashing contract during registration of a new operator. The middleware posts an initial update, passing in the time until which the `operator`'s stake is bonded -- `serveUntil`. The middleware is pushed to the end ('TAIL') of the linked list since in `operatorToWhitelistedContractsByUpdate[operator]`, since the new middleware most have been updated the most recently, i.e. at the present moment.
+This function is called by a whitelisted slashing contract during registration of a new operator. The middleware posts an initial update, passing in the time until which the `operator`'s stake is bonded -- `serveUntil`. The middleware is pushed to the end ('TAIL') of the linked list since in `operatorToWhitelistedContractsByUpdate[operator]`, since the new middleware must have been updated the most recently, i.e. at the present moment.
 
 
 #### `recordStakeUpdate`
