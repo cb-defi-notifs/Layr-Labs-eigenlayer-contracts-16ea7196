@@ -229,274 +229,299 @@ contract DelegationTests is DataLayrTestHelper {
         );
     }
 
-    //This function helps with stack too deep issues with "testWithdrawal" test
-    function testWithdrawalWrapper(
-            address operator, 
-            address depositor,
-            address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
-            bool withdrawAsTokens,
-            bool RANDAO
-        ) 
-            public 
-            fuzzedAddress(operator) 
-            fuzzedAddress(depositor) 
-            fuzzedAddress(withdrawer) 
-        {
-            cheats.assume(depositor != operator);
-            cheats.assume(ethAmount <= 1e18); 
-            cheats.assume(eigenAmount <= 1e18); 
-            cheats.assume(ethAmount > 0); 
-            cheats.assume(eigenAmount > 0); 
+    // //This function helps with stack too deep issues with "testWithdrawal" test
+    // function testWithdrawalWrapper(
+    //         address operator, 
+    //         address depositor,
+    //         address withdrawer, 
+    //         uint256 ethAmount,
+    //         uint256 eigenAmount,
+    //         bool withdrawAsTokens,
+    //         bool RANDAO
+    //     ) 
+    //         public 
+    //         fuzzedAddress(operator) 
+    //         fuzzedAddress(depositor) 
+    //         fuzzedAddress(withdrawer) 
+    //     {
+    //         cheats.assume(depositor != operator);
+    //         cheats.assume(ethAmount <= 1e18); 
+    //         cheats.assume(eigenAmount <= 1e18); 
+    //         cheats.assume(ethAmount > 0); 
+    //         cheats.assume(eigenAmount > 0); 
 
-            initializeMiddlewares();
+    //         initializeMiddlewares();
 
-            if(RANDAO){
-                _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
-            }
-            else{
-                _testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
-            }
+    //         if(RANDAO){
+    //             _testWithdrawalAndDeregistration(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+    //         }
+    //         else{
+    //             _testWithdrawalWithStakeUpdate(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsTokens);
+    //         }
 
-        }
+    //     }
 
-    /// @notice test staker's ability to undelegate/withdraw from an operator.
-    /// @param operator is the operator being delegated to.
-    /// @param depositor is the staker delegating stake to the operator.
-    function _testWithdrawalAndDeregistration(
-            address operator, 
-            address depositor,
-            address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
-            bool withdrawAsTokens
-        ) 
-            internal 
-        {
+    // /// @notice test staker's ability to undelegate/withdraw from an operator.
+    // /// @param operator is the operator being delegated to.
+    // /// @param depositor is the staker delegating stake to the operator.
+    // function _testWithdrawalAndDeregistration(
+    //         address operator, 
+    //         address depositor,
+    //         address withdrawer, 
+    //         uint256 ethAmount,
+    //         uint256 eigenAmount,
+    //         bool withdrawAsTokens
+    //     ) 
+    //         internal 
+    //     {
 
-        testDelegation(operator, depositor, ethAmount, eigenAmount);
+    //     testDelegation(operator, depositor, ethAmount, eigenAmount);
 
-        cheats.startPrank(operator);
-        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
-        cheats.stopPrank();
+    //     cheats.startPrank(operator);
+    //     investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+    //     cheats.stopPrank();
 
-        generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
+    //     generalReg1.registerOperator(operator, uint32(block.timestamp) + 3 days);
 
-        address delegatedTo = delegation.delegatedTo(depositor);
+    //     address delegatedTo = delegation.delegatedTo(depositor);
 
-        // packed data structure to deal with stack-too-deep issues
-        DataForTestWithdrawal memory dataForTestWithdrawal;
+    //     // packed data structure to deal with stack-too-deep issues
+    //     DataForTestWithdrawal memory dataForTestWithdrawal;
 
-        // scoped block to deal with stack-too-deep issues
-        {
-            //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(depositor);
-            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
-            dataForTestWithdrawal.delegatorShares = delegatorShares;
+    //     // scoped block to deal with stack-too-deep issues
+    //     {
+    //         //delegator-specific information
+    //         (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+    //             investmentManager.getDeposits(depositor);
+    //         dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+    //         dataForTestWithdrawal.delegatorShares = delegatorShares;
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
-                    withdrawer: withdrawer,
-                    // harcoded nonce value
-                    nonce: 0
-                }
-            );
-            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
-        }
+    //         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+    //             IInvestmentManager.WithdrawerAndNonce({
+    //                 withdrawer: withdrawer,
+    //                 // harcoded nonce value
+    //                 nonce: 0
+    //             }
+    //         );
+    //         dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+    //     }
 
-        uint256[] memory strategyIndexes = new uint256[](2);
-        IERC20[] memory tokensArray = new IERC20[](2);
-        {
-            // hardcoded values
-            strategyIndexes[0] = 0;
-            strategyIndexes[1] = 0;
-            tokensArray[0] = weth;
-            tokensArray[1] = eigenToken;
-        }
+    //     uint256[] memory strategyIndexes = new uint256[](2);
+    //     IERC20[] memory tokensArray = new IERC20[](2);
+    //     {
+    //         // hardcoded values
+    //         strategyIndexes[0] = 0;
+    //         strategyIndexes[1] = 0;
+    //         tokensArray[0] = weth;
+    //         tokensArray[1] = eigenToken;
+    //     }
 
-        cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.timestamp) + 1 days);
+    //     cheats.warp(uint32(block.timestamp) + 1 days);
+    //     cheats.roll(uint32(block.timestamp) + 1 days);
 
-        _testQueueWithdrawal(
-            depositor,
-            dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
-            dataForTestWithdrawal.delegatorShares,
-            strategyIndexes,
-            dataForTestWithdrawal.withdrawerAndNonce
-        );
-        uint32 queuedWithdrawalBlock = uint32(block.number);
+    //     _testQueueWithdrawal(
+    //         depositor,
+    //         dataForTestWithdrawal.delegatorStrategies,
+    //         tokensArray,
+    //         dataForTestWithdrawal.delegatorShares,
+    //         strategyIndexes,
+    //         dataForTestWithdrawal.withdrawerAndNonce
+    //     );
+    //     uint32 queuedWithdrawalBlock = uint32(block.number);
         
-        //now withdrawal block time is before deregistration
-        cheats.warp(uint32(block.timestamp) + 2 days);
-        cheats.roll(uint32(block.timestamp) + 2 days);
+    //     //now withdrawal block time is before deregistration
+    //     cheats.warp(uint32(block.timestamp) + 2 days);
+    //     cheats.roll(uint32(block.timestamp) + 2 days);
         
-        generalReg1.deregisterOperator(operator);
-        {
-            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-            cheats.warp(uint32(block.timestamp) + 4 days);
-            cheats.roll(uint32(block.timestamp) + 4 days);
+    //     generalReg1.deregisterOperator(operator);
+    //     {
+    //         //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+    //         cheats.warp(uint32(block.timestamp) + 4 days);
+    //         cheats.roll(uint32(block.timestamp) + 4 days);
 
-            uint256 middlewareTimeIndex =  1;
-            if (withdrawAsTokens) {
-                _testCompleteQueuedWithdrawalTokens(
-                    depositor,
-                    dataForTestWithdrawal.delegatorStrategies,
-                    tokensArray,
-                    dataForTestWithdrawal.delegatorShares,
-                    delegatedTo,
-                    dataForTestWithdrawal.withdrawerAndNonce,
-                    queuedWithdrawalBlock,
-                    middlewareTimeIndex
-                );
-            } else {
-                _testCompleteQueuedWithdrawalShares(
-                    depositor,
-                    dataForTestWithdrawal.delegatorStrategies,
-                    tokensArray,
-                    dataForTestWithdrawal.delegatorShares,
-                    delegatedTo,
-                    dataForTestWithdrawal.withdrawerAndNonce,
-                    queuedWithdrawalBlock,
-                    middlewareTimeIndex
-                );
-            }
-        }
-    }
+    //         uint256 middlewareTimeIndex =  1;
+    //         if (withdrawAsTokens) {
+    //             _testCompleteQueuedWithdrawalTokens(
+    //                 depositor,
+    //                 dataForTestWithdrawal.delegatorStrategies,
+    //                 tokensArray,
+    //                 dataForTestWithdrawal.delegatorShares,
+    //                 delegatedTo,
+    //                 dataForTestWithdrawal.withdrawerAndNonce,
+    //                 queuedWithdrawalBlock,
+    //                 middlewareTimeIndex
+    //             );
+    //         } else {
+    //             _testCompleteQueuedWithdrawalShares(
+    //                 depositor,
+    //                 dataForTestWithdrawal.delegatorStrategies,
+    //                 tokensArray,
+    //                 dataForTestWithdrawal.delegatorShares,
+    //                 delegatedTo,
+    //                 dataForTestWithdrawal.withdrawerAndNonce,
+    //                 queuedWithdrawalBlock,
+    //                 middlewareTimeIndex
+    //             );
+    //         }
+    //     }
+    // }
 
 
-    /// @notice test staker's ability to undelegate/withdraw from an operator.
-    /// @param operator is the operator being delegated to.
-    /// @param depositor is the staker delegating stake to the operator.
-    function _testWithdrawalWithStakeUpdate(
-            address operator, 
-            address depositor,
-            address withdrawer, 
-            uint256 ethAmount,
-            uint256 eigenAmount,
-            bool withdrawAsTokens
-        ) 
-            public 
-        {
+    // /// @notice test staker's ability to undelegate/withdraw from an operator.
+    // /// @param operator is the operator being delegated to.
+    // /// @param depositor is the staker delegating stake to the operator.
+    // function _testWithdrawalWithStakeUpdate(
+    //         address operator, 
+    //         address depositor,
+    //         address withdrawer, 
+    //         uint256 ethAmount,
+    //         uint256 eigenAmount,
+    //         bool withdrawAsTokens
+    //     ) 
+    //         public 
+    //     {
         
-        testDelegation(operator, depositor, ethAmount, eigenAmount);
+    //     testDelegation(operator, depositor, ethAmount, eigenAmount);
 
-        cheats.startPrank(operator);
-        investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
-        investmentManager.slasher().optIntoSlashing(address(generalServiceManager2));
-        cheats.stopPrank();
+    //     cheats.startPrank(operator);
+    //     investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
+    //     investmentManager.slasher().optIntoSlashing(address(generalServiceManager2));
+    //     cheats.stopPrank();
 
-        // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
-        // emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
-        // emit log("________________________________________________________________");
-        generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
-        // emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
+    //     // emit log_named_uint("Linked list element 1", uint256(uint160(address(generalServiceManager1))));
+    //     // emit log_named_uint("Linked list element 2", uint256(uint160(address(generalServiceManager2))));
+    //     // emit log("________________________________________________________________");
+    //     generalReg1.registerOperator(operator, uint32(block.timestamp) + 5 days);
+    //     // emit log_named_uint("Middleware 1 Update Block", uint32(block.number));
 
-        cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.number) + 1);
-
-
-        generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
-        // emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
+    //     cheats.warp(uint32(block.timestamp) + 1 days);
+    //     cheats.roll(uint32(block.number) + 1);
 
 
+    //     generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
+    //     // emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
 
-        address delegatedTo = delegation.delegatedTo(depositor);
 
-        // packed data structure to deal with stack-too-deep issues
-        DataForTestWithdrawal memory dataForTestWithdrawal;
 
-        // scoped block to deal with stack-too-deep issues
-        {
-            //delegator-specific information
-            (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
-                investmentManager.getDeposits(depositor);
-            dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
-            dataForTestWithdrawal.delegatorShares = delegatorShares;
+    //     address delegatedTo = delegation.delegatedTo(depositor);
 
-            IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
-                IInvestmentManager.WithdrawerAndNonce({
-                    withdrawer: withdrawer,
-                    // harcoded nonce value
-                    nonce: 0
-                }
-            );
-            dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
-        }
+    //     // packed data structure to deal with stack-too-deep issues
+    //     DataForTestWithdrawal memory dataForTestWithdrawal;
 
-        uint256[] memory strategyIndexes = new uint256[](2);
-        IERC20[] memory tokensArray = new IERC20[](2);
-        {
-            // hardcoded values
-            strategyIndexes[0] = 0;
-            strategyIndexes[1] = 0;
-            tokensArray[0] = weth;
-            tokensArray[1] = eigenToken;
-        }
+    //     // scoped block to deal with stack-too-deep issues
+    //     {
+    //         //delegator-specific information
+    //         (IInvestmentStrategy[] memory delegatorStrategies, uint256[] memory delegatorShares) =
+    //             investmentManager.getDeposits(depositor);
+    //         dataForTestWithdrawal.delegatorStrategies = delegatorStrategies;
+    //         dataForTestWithdrawal.delegatorShares = delegatorShares;
 
-        cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.number) + 1);
+    //         IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce = 
+    //             IInvestmentManager.WithdrawerAndNonce({
+    //                 withdrawer: withdrawer,
+    //                 // harcoded nonce value
+    //                 nonce: 0
+    //             }
+    //         );
+    //         dataForTestWithdrawal.withdrawerAndNonce = withdrawerAndNonce;
+    //     }
 
-        
+    //     uint256[] memory strategyIndexes = new uint256[](2);
+    //     IERC20[] memory tokensArray = new IERC20[](2);
+    //     {
+    //         // hardcoded values
+    //         strategyIndexes[0] = 0;
+    //         strategyIndexes[1] = 0;
+    //         tokensArray[0] = weth;
+    //         tokensArray[1] = eigenToken;
+    //     }
 
-        _testQueueWithdrawal(
-            depositor,
-            dataForTestWithdrawal.delegatorStrategies,
-            tokensArray,
-            dataForTestWithdrawal.delegatorShares,
-            strategyIndexes,
-            dataForTestWithdrawal.withdrawerAndNonce
-        );
-        uint32 queuedWithdrawalBlock = uint32(block.number);
-        
-        //now withdrawal block time is before deregistration
-        cheats.warp(uint32(block.timestamp) + 2 days);
-        cheats.roll(uint32(block.number) + 2);
+    //     cheats.warp(uint32(block.timestamp) + 1 days);
+    //     cheats.roll(uint32(block.number) + 1);
 
         
-        uint256 prevElement = uint256(uint160(address(generalServiceManager2)));
-        generalReg1.propagateStakeUpdate(operator, uint32(block.number), prevElement);
 
-        cheats.warp(uint32(block.timestamp) + 1 days);
-        cheats.roll(uint32(block.number) + 1);
-
-        prevElement = uint256(uint160(address(generalServiceManager1)));
-        generalReg2.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+    //     _testQueueWithdrawal(
+    //         depositor,
+    //         dataForTestWithdrawal.delegatorStrategies,
+    //         tokensArray,
+    //         dataForTestWithdrawal.delegatorShares,
+    //         strategyIndexes,
+    //         dataForTestWithdrawal.withdrawerAndNonce
+    //     );
+    //     uint32 queuedWithdrawalBlock = uint32(block.number);
+        
+    //     //now withdrawal block time is before deregistration
+    //     cheats.warp(uint32(block.timestamp) + 2 days);
+    //     cheats.roll(uint32(block.number) + 2);
 
         
-        {
-            //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
-            cheats.warp(uint32(block.timestamp) + 4 days);
-            cheats.roll(uint32(block.number) + 4);
+    //     uint256 prevElement = uint256(uint160(address(generalServiceManager2)));
+    //     generalReg1.propagateStakeUpdate(operator, uint32(block.number), prevElement);
 
-            uint256 middlewareTimeIndex =  3;
-            if (withdrawAsTokens) {
-                _testCompleteQueuedWithdrawalTokens(
-                    depositor,
-                    dataForTestWithdrawal.delegatorStrategies,
-                    tokensArray,
-                    dataForTestWithdrawal.delegatorShares,
-                    delegatedTo,
-                    dataForTestWithdrawal.withdrawerAndNonce,
-                    queuedWithdrawalBlock,
-                    middlewareTimeIndex
-                );
-            } else {
-                _testCompleteQueuedWithdrawalShares(
-                    depositor,
-                    dataForTestWithdrawal.delegatorStrategies,
-                    tokensArray,
-                    dataForTestWithdrawal.delegatorShares,
-                    delegatedTo,
-                    dataForTestWithdrawal.withdrawerAndNonce,
-                    queuedWithdrawalBlock,
-                    middlewareTimeIndex
-                );
-            }
-        }
-    }
+    //     cheats.warp(uint32(block.timestamp) + 1 days);
+    //     cheats.roll(uint32(block.number) + 1);
+
+    //     prevElement = uint256(uint160(address(generalServiceManager1)));
+    //     generalReg2.propagateStakeUpdate(operator, uint32(block.number), prevElement);
+
+        
+    //     {
+    //         //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
+    //         cheats.warp(uint32(block.timestamp) + 4 days);
+    //         cheats.roll(uint32(block.number) + 4);
+
+    //         uint256 middlewareTimeIndex =  3;
+    //         if (withdrawAsTokens) {
+    //             _testCompleteQueuedWithdrawalTokens(
+    //                 depositor,
+    //                 dataForTestWithdrawal.delegatorStrategies,
+    //                 tokensArray,
+    //                 dataForTestWithdrawal.delegatorShares,
+    //                 delegatedTo,
+    //                 dataForTestWithdrawal.withdrawerAndNonce,
+    //                 queuedWithdrawalBlock,
+    //                 middlewareTimeIndex
+    //             );
+    //         } else {
+    //             _testCompleteQueuedWithdrawalShares(
+    //                 depositor,
+    //                 dataForTestWithdrawal.delegatorStrategies,
+    //                 tokensArray,
+    //                 dataForTestWithdrawal.delegatorShares,
+    //                 delegatedTo,
+    //                 dataForTestWithdrawal.withdrawerAndNonce,
+    //                 queuedWithdrawalBlock,
+    //                 middlewareTimeIndex
+    //             );
+    //         }
+    //     }
+    // }
+
+    // // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
+    // // @param operator is the operator being delegated to.
+    // // @param staker is the staker delegating stake to the operator.
+    // function testRedelegateAfterWithdrawal(
+    //         address operator, 
+    //         address depositor, 
+    //         address withdrawer, 
+    //         uint256 ethAmount, 
+    //         uint256 eigenAmount,
+    //         bool withdrawAsShares
+    //     ) 
+    //         public
+    //         fuzzedAddress(operator) 
+    //         fuzzedAddress(depositor)
+    //         fuzzedAddress(withdrawer)
+    //     {
+    //     cheats.assume(depositor != operator);
+    //     //this function performs delegation and subsequent withdrawal
+    //     testWithdrawalWrapper(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsShares, true);
+
+    //     //warps past fraudproof time interval
+    //     cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
+    //     testDelegation(operator, depositor, ethAmount, eigenAmount);
+    // }
 
 
     /// @notice test to see if an operator who is slashed/frozen
@@ -568,31 +593,6 @@ contract DelegationTests is DataLayrTestHelper {
         cheats.startPrank(signers[1]);
         delegation.delegateTo(delegate);
         cheats.stopPrank();
-    }
-
-    // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
-    // @param operator is the operator being delegated to.
-    // @param staker is the staker delegating stake to the operator.
-    function testRedelegateAfterWithdrawal(
-            address operator, 
-            address depositor, 
-            address withdrawer, 
-            uint256 ethAmount, 
-            uint256 eigenAmount,
-            bool withdrawAsShares
-        ) 
-            public
-            fuzzedAddress(operator) 
-            fuzzedAddress(depositor)
-            fuzzedAddress(withdrawer)
-        {
-        cheats.assume(depositor != operator);
-        //this function performs delegation and subsequent withdrawal
-        testWithdrawalWrapper(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsShares, true);
-
-        //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
-        testDelegation(operator, depositor, ethAmount, eigenAmount);
     }
 
     //testing inclusion of nonsigners in DLN quorum, ensuring that nonsigner inclusion proof is working correctly.
