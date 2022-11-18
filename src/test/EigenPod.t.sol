@@ -502,7 +502,9 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         _testDelegateToOperator(staker, operator);
         assertTrue(delegation.isDelegated(staker) == true, "testDelegation: staker is not delegate");
 
-        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+        IInvestmentStrategy[] memory updatedStrategies;
+        uint256[] memory updatedShares;
+        (updatedStrategies, updatedShares) =
             investmentManager.getDeposits(staker);
     }
 }
