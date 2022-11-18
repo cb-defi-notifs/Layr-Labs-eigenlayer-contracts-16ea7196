@@ -6,20 +6,27 @@ EigenLayer uses a 'push' model for it's own core contracts -- when a staker queu
 
 For each operator, we need to store:
 
-1. A list of the contracts that are whitelisted to slash the operator
-2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
-3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateBlock` from operators to their whitelisted contracts to when they were updated
-4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
+1. A `mapping(address => mapping(address => MiddlewareDetails))`, from operator address to contract whitelisted by the operator to slash them, to details about that contract formatted as
+```solidity
+    struct MiddlewareDetails {
+        // the UTC timestamp before which the contract is allowed to slash the user
+        uint32 bondedUntil;
+        // the block at which the middleware's view of the operator's stake was most recently updated
+        uint32 latestUpdateBlock;
+    }
+```
+2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from stalest (at the 'HEAD' of the list) to most recent (at the 'TAIL' of the list)
+3. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
     struct MiddlewareTimes {
-        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update
-        uint32 leastRecentUpdateBlock;
+        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update out of all middlewares the operator is serving
+        uint32 stalestUpdateBlock;
         // The latest 'serve until' time from all of the middleware that the operator is serving
         uint32 latestServeUntil;
     }
 ```
 
-The reason we store an array of updates as opposed to one `MiddlewareTimes` struct with the most up-to-date values is that this would require pushing updates carefully to not disrupt existing withdrawals. This way, operators can select the `MiddlewareTimes` entry that is appropriate for their withdrawal.  Thus, the operator provides an entry from their `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that for the queued withdrawal in question, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's 'leastRecentUpdateBlock', i.e. the specified stake update occurred *strictly after* the withdrawal was queued.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's 'latestServeUntil', i.e. that the current time is *strictly after* the end of all obligations that the operator had, at the time of the specified stake update.  If these criteria are met, the withdrawal can be completed.
+The reason we store an array of updates as opposed to one `MiddlewareTimes` struct with the most up-to-date values is that this would require pushing updates carefully to not disrupt existing withdrawals. This way, operators can select the `MiddlewareTimes` entry that is appropriate for their withdrawal.  Thus, the operator provides an entry from their `operatorMiddlewareTimes` based on which a withdrawal can be completed.   The withdrawability is checked by `slasher.canWithdraw()`, which checks that for the queued withdrawal in question, `withdrawalStartBlock` is less than the provided `operatorMiddlewareTimes` entry's 'stalestUpdateBlock', i.e. the specified stake update occurred *strictly after* the withdrawal was queued.  It also checks that the current block.timestamp is greater than the `operatorMiddlewareTimes` entry's 'latestServeUntil', i.e. that the current time is *strictly after* the end of all obligations that the operator had, at the time of the specified stake update.  If these criteria are met, the withdrawal can be completed.
 
 Note:
 `remove`, `nodeExists`,`getHead`, `getNextNode`, and `pushBack` are all constant time operations on linked lists. This is gained at the sacrifice of getting any elements by specifying their *indices* in the list. Searching the linked list for the correct entry is linear-time with respect to the length of the list; this should only ever happen in a "worst-case" scenario, after the provided index input is determined to be incorrect.
@@ -30,7 +37,7 @@ Let us say an operator has opted into serving a middleware, `Middleware A`. As a
 
 ![Three Middlewares Timeline](images/three_middlewares.png?raw=true "Three Middlewares Timeline")
 
-Based on this, the latest serveUntil time is `serveUntil_B`, and the 'stalest' stake update from a middleware occurred at `updateBlock_A`.  So the most recent entry in the `operatorMiddlewareTimes` array for the operator will have `serveUntil = serveUntil_B` and `leastRecentUpdateBlock = updateBlock_A`.
+Based on this, the latest serveUntil time is `serveUntil_B`, and the 'stalest' stake update from a middleware occurred at `updateBlock_A`.  So the most recent entry in the `operatorMiddlewareTimes` array for the operator will have `serveUntil = serveUntil_B` and `stalestUpdateBlock = updateBlock_A`.
 
 In the meantime, let us say that the operator had also queued a withdrawal between opting-in to serve `Middleware A` and opting-in to serve `Middleware B`:
 
@@ -41,15 +48,15 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
 ```solidity
 {
     {
-        leastRecentUpdateBlock: updateBlock_A
+        stalestUpdateBlock: updateBlock_A
         latestServeUntil: serveUntil_A
     },
     {
-        leastRecentUpdateBlock: updateBlock_A
+        stalestUpdateBlock: updateBlock_A
         latestServeUntil: serveUntil_B
     },
     {
-        leastRecentUpdateBlock: updateBlock_A
+        stalestUpdateBlock: updateBlock_A
         latestServeUntil: serveUntil_B
     }
 }
@@ -67,7 +74,7 @@ Now that a withdrawal has been queued, the operator must wait till their obligat
     function _recordUpdateAndAddToMiddlewareTimes(address operator, uint32 updateBlock, uint32 serveUntil) internal {
 ```
 
-This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s leastRecentUpdateBlock' has decreased, *or* their latestServeUntil' has increased. An entry is also pushed in the special case of this being the first update of the first middleware that the operator has opted-in to serving.
+This function is called each time a middleware posts a stake update, through a call to `recordFirstStakeUpdate`, `recordStakeUpdate`, or `recordLastStakeUpdate`. It records that the middleware has had a stake update and pushes a new entry to the operator's list of 'MiddlewareTimes', i.e. `operatorToMiddlewareTimes[operator]`, if *either* the `operator`'s stalestUpdateBlock' has decreased, *or* their latestServeUntil' has increased. An entry is also pushed in the special case of this being the first update of the first middleware that the operator has opted-in to serving.
 
 ### External Functions
 
