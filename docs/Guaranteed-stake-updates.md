@@ -8,7 +8,7 @@ For each operator, we need to store:
 
 1. A list of the contracts that are whitelisted to slash the operator
 2. A `mapping(address => LinkedList<address>) operatorToWhitelistedContractsByUpdate`, from operator address to a [linked list](../src/contracts/libraries/StructuredLinkedList.sol) of addresses of all whitelisted contracts, ordered by when their stakes were last updated by each middleware, from earliest (at the 'HEAD' of the list) to latest (at the 'TAIL' of the list)
-3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated [CRITIC: I can't find this mapping anywhere in the code]
+3. A `mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateTime` from operators to their whitelisted contracts to when they were updated
 4. A `mapping(address => MiddlewareTimes[]) middlewareTimes` from operators to a list of
 ```solidity
     struct MiddlewareTimes {
