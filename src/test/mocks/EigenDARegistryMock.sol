@@ -29,15 +29,21 @@ contract EigenDARegistry is IRegistry, DSTest{
 
     }
 
-    function registerOperator(address operator, uint32 serveUntil) public {        
+    function registerOperator(
+        address operator, 
+        uint32 serveUntil,
+        bytes32 ephemeralKeyHash1,
+        bytes32 ephemeralKeyHash2
+    ) public {        
         require(investmentManager.slasher().canSlash(operator, address(serviceManager)), "Not opted into slashing");
         serviceManager.recordFirstStakeUpdate(operator, serveUntil);
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(msg.sender, ephemeralKeyHash1, ephemeralKeyHash2);
-
-
     }
 
-    function deregisterOperator(address operator) public {
+    function deregisterOperator(
+        address operator,
+        bytes32[] memory ephemeralKeys
+    ) public {
         uint32 latestTime = serviceManager.latestTime();
         serviceManager.recordLastStakeUpdate(operator, latestTime);
         ephemeralKeyRegistry.revealLastEphemeralKeys(msg.sender, startIndex, ephemeralKeys);
