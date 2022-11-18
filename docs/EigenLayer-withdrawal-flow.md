@@ -28,8 +28,14 @@ OR
 
 ## Special Case -- Beacon Chain Withdrawals
 
-If a withdrawal includes withdrawing  'Beacon Chain ETH' from Eigenlayer, then before *completing* the withdrawal, the staker must trigger a withdrawal from the Beacon Chain (as of now this must be originated from the validating keys, but details could change as Ethereum finishes implementing Beacon Chain withdrawals). The staker's EigenPod's balance will eventually increase by the amount withdrawn, and this change will be reflected in a BeaconChainOracle state root update. At that point, the validator will prove their withdrawal against the beacon chain state root via the `verifyBalanceUpdate` function.
-Once the above is done, then when the withdrawal is completed through `InvestmentManager.completeQueuedWithdrawal` (as above), the InvestmentManager will pass a call to `EigenPodManager.withdrawBeaconChainETH`, which will in turn pass a call onto the staker's EigenPod itself, invoking the `EigenPod.withdrawBeaconChainETH` function and triggering the actual transfer of ETH from the EigenPod to the withdrawer.
+If a withdrawal includes withdrawing 'Beacon Chain ETH' from EigenLayer, then before *completing* the withdrawal, the staker must trigger a withdrawal from the Beacon Chain (as of now this must be originated from the validating keys, but details could change as Ethereum finishes implementing Beacon Chain withdrawals).
+The staker's EigenPod's balance will eventually increase by the amount withdrawn, and the beacon chain balance change will be reflected in a BeaconChainOracle state root update.
+At that point, the validator will prove their EigenPod's updated beacon chain balance against the beacon chain state root via the `verifyBalanceUpdate` function, triggering a storage update in the EigenPodManager by calling `EigenPodManager.updateBeaconChainBalance`. 
+
+Once the above is done, then when the withdrawal is completed through calling `InvestmentManager.completeQueuedWithdrawal` (as above), the InvestmentManager will pass a call to `EigenPodManager.withdrawBeaconChainETH`, which will in turn pass a call onto the staker's EigenPod itself, invoking the `EigenPod.withdrawBeaconChainETH` function and triggering the actual transfer of ETH from the EigenPod to the withdrawer.
+
+If the staker fails to trigger a withdrawal from the Beacon Chain, then the ultimate call to `EigenPod.withdrawBeaconChainETH` will fail. If the staker fails to prove their EigenPod's udpated beacon chain balance (i.e. never calls `EigenPod.verifyBalanceUpdate`), then...
+<!-- TODO: @gpsanant to review and fill out any missing details -->
 
 
 
