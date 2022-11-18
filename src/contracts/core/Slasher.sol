@@ -68,8 +68,8 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
     /// @notice Emitted when `operator` begins to allow `contractAddress` to slash them.
     event OptedIntoSlashing(address indexed operator, address indexed contractAddress);
 
-    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedAfter.
-    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedAfter);
+    /// @notice Emitted when `contractAddress` signals that it will no longer be able to slash `operator` after the UTC timestamp `bondedUntil.
+    event SlashingAbilityRevoked(address indexed operator, address indexed contractAddress, uint32 bondedUntil);
 
     /**
      * @notice Emitted when `slashingContract` 'slashes' (technically, 'freezes') the `slashedOperator`.
@@ -112,9 +112,9 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         _optIntoSlashing(msg.sender, contractAddress);
     }
 
-    /// @notice Called by a contract to revoke its ability to slash `operator`, once `bondedAfter` is reached.
-    function revokeSlashingAbility(address operator, uint32 bondedAfter) external {
-        _revokeSlashingAbility(operator, msg.sender, bondedAfter);
+    /// @notice Called by a contract to revoke its ability to slash `operator`, once `_bondedUntil` is reached.
+    function revokeSlashingAbility(address operator, uint32 _bondedUntil) external {
+        _revokeSlashingAbility(operator, msg.sender, _bondedUntil);
     }
 
     /**
@@ -375,11 +375,11 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
         emit OptedIntoSlashing(operator, contractAddress);
     }
 
-    function _revokeSlashingAbility(address operator, address contractAddress, uint32 bondedAfter) internal {
+    function _revokeSlashingAbility(address operator, address contractAddress, uint32 _bondedUntil) internal {
         if (_whitelistedContractDetails[operator][contractAddress].bondedUntil == MAX_BONDED_UNTIL) {
-            //contractAddress can now only slash operator before bondedAfter
-            _whitelistedContractDetails[operator][contractAddress].bondedUntil = bondedAfter;
-            emit SlashingAbilityRevoked(operator, contractAddress, bondedAfter);
+            // contractAddress can now only slash operator before `_bondedUntil`
+            _whitelistedContractDetails[operator][contractAddress].bondedUntil = _bondedUntil;
+            emit SlashingAbilityRevoked(operator, contractAddress, _bondedUntil);
         }
     }
 
