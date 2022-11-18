@@ -1,30 +1,41 @@
-# EigenLayer
-
-## Table of Contents  
-* [Introduction](#introduction)
-* [Installation](#installation)
-* [Summary of Using EigenLayer](docs/EigenLayer-flows-intro.md)
-* [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
-* [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
-* [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
-* [Low Degree Challenge Deep Dive](docs/LowDegreenessChallenge-overview.md)
-* [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
-* [EigenDA Registration Flow](docs/DataLayr-registration-flow.md)
-
 <a name="introduction"/></a>
-## Introduction
+# EigenLayer
 EigenLayer (formerly 'EigenLayr') is a set of smart contracts deployed on Ethereum that enable restaking of assets to secure new services.
 EigenDA (formerly 'DataLayr') is a Data Availability network built on top of EigenLayer.
 At present, this repository contains *both* the contracts for EigenLayer *and* the contracts for EigenDA; additionally, the EigenDA contracts are built on top of general "middleware" contracts, designed to be reuseable across different applications built on top of EigenLayer.
 
-Click the links in the Table of Contents above to access more specific documentation!
+Click the links in the Table of Contents below to access more specific documentation. We recommend starting with the [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md) to get a better overview before diving into any of the other docs.
+
+## Table of Contents  
+* [Introduction](#introduction)
+* [Installation and Running Tests / Analyzers](#installation)
+* [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
+
+Design Docs
+* [Withdrawals Design Doc](docs/Guaranteed-stake-updates.md)
+* [EigenPods Design Doc](docs/EigenPods.md)
+
+Flow Docs
+* [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
+* [EigenLayer Deposit Flow](docs/EigenLayer-deposit-flow.md)
+* [EigenLayer Delegation Flow](docs/EigenLayer-delegation-flow.md)
+
+EigenDA Docs
+* [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
+* [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
+* [EigenDA Registration Flow](docs/DataLayr-registration-flow.md)
+* [Low Degree Challenge Deep Dive](docs/LowDegreenessChallenge-overview.md)
 
 <a name="installation"/></a>
-## Installation
+## Installation and Running Tests / Analyzers
+
+### Installation
 
 `foundry up`
 
-See the [Foundry Docs](https://book.getfoundry.sh/) for more info.
+This repository uses Foundry as a smart contract development toolchain.
+
+See the [Foundry Docs](https://book.getfoundry.sh/) for more info on installation and usage.
 
 ### Run Tests
 
@@ -38,7 +49,7 @@ See the [Foundry Docs](https://book.getfoundry.sh/) for more info.
 
 ### Generate Inheritance and Control-Flow Graphs
 
-first install surya
+first [install surya](https://github.com/ConsenSys/surya/)
 
 then run
 

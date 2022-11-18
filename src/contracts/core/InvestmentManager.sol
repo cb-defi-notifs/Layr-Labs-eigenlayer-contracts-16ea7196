@@ -110,7 +110,11 @@ contract InvestmentManager is
     }
 
     /**
-     * @notice accounts for all the ETH on msg.sender's EigenPod in the InvestmentManager
+     * @notice Deposits `amount` of beaconchain ETH into this contract on behalf of `staker`
+     * @param staker is the entity that is restaking in eigenlayer,
+     * @param amount is the amount of beaconchain ETH being restaked,
+     * @param amount is the amount of token to be invested in the strategy by the depositor
+     * @dev Only called by EigenPod for the staker.
      */
     function depositBeaconChainETH(address staker, uint256 amount)
         external
@@ -204,10 +208,14 @@ contract InvestmentManager is
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
-     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * @dev Strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
      * `investorStrats` to lowest index
+     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
+     * `withdrawerAndNonce.withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
+     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -232,6 +240,27 @@ contract InvestmentManager is
         // increment the numWithdrawalsQueued of the sender
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
+        }
+
+        {
+            /**
+             * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
+             * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
+             * while other share in all other strategies represent purely fungible positions.
+             */
+            for (uint256 i = 0; i < strategies.length;) {
+                if (strategies[i] == beaconChainETHStrategy) {
+                    require(withdrawerAndNonce.withdrawer == msg.sender,
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
+                    require(strategies.length == 1,
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
+                }
+
+                //increment the loop
+                unchecked {
+                    ++i;
+                }
+            }
         }
 
         // modify delegated shares accordingly, if applicable
@@ -313,7 +342,6 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
-
         require(
             slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
@@ -335,7 +363,6 @@ contract InvestmentManager is
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-                
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
