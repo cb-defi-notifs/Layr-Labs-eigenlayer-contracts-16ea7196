@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
  import "../contracts/interfaces/IEigenPod.sol";
  import "./utils/BeaconChainUtils.sol";
-import "./Deployer.t.sol";
+import "./EigenLayrDeployer.t.sol";
 
 
 contract EigenPodTests is BeaconChainProofUtils, DSTest {

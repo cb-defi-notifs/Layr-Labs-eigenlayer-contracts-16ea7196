@@ -2,11 +2,11 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/Deployer.t.sol";
+import "../test/DataLayrDeployer.t.sol";
 import "../test/TestHelper.t.sol";
 
 
-contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
+contract DataLayrTestHelper is DataLayrDeployer, TestHelper {
     using BytesLib for bytes;
 
     /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
