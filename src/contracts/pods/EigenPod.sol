@@ -76,7 +76,7 @@ contract EigenPod is IEigenPod, Initializable
         bytes calldata proofs, 
         bytes32[] calldata validatorFields
     ) external {
-        //TODO: tailor this to production oracle
+        // TODO: tailor this to production oracle
         bytes32 beaconStateRoot = eigenPodManager.getBeaconChainStateRoot();
 
         // get merklizedPubkey: https://github.com/prysmaticlabs/prysm/blob/de8e50d8b6bcca923c38418e80291ca4c329848b/beacon-chain/state/stateutil/sync_committee.root.go#L45
@@ -89,16 +89,16 @@ contract EigenPod is IEigenPod, Initializable
             proofs,
             validatorFields
         );
-        //require that the first field is the merkleized pubkey
+        // require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
-        //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
-        //update validator balance
+        // update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
         validators[merklizedPubkey].status = VALIDATOR_STATUS.ACTIVE;
-        //update manager total balance for this pod
-        //need to subtract zero and add the proven balance
+        // update manager total balance for this pod
+        // need to subtract zero and add the proven balance
         eigenPodManager.updateBeaconChainBalance(podOwner, 0, validatorBalance);
         eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance);
     }
@@ -126,17 +126,17 @@ contract EigenPod is IEigenPod, Initializable
             proofs,
             validatorFields
         );
-        //require that the first field is the merkleized pubkey
+        // require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyBalanceUpdate: Proof is not for provided pubkey");
-        //convert the balance field from 8 bytes of little endian to uint64 big endian 💪
+        // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
         uint64 prevValidatorBalance = validators[merklizedPubkey].balance;
-        //update validator balance
+        // update validator balance
         validators[merklizedPubkey].balance = validatorBalance;
-        //update manager total balance for this pod
-        //need to subtract previous proven balance and add the current proven balance
+        // update manager total balance for this pod
+        // need to subtract previous proven balance and add the current proven balance
         eigenPodManager.updateBeaconChainBalance(podOwner, prevValidatorBalance, validatorBalance);
-        if(prevValidatorBalance < validatorBalance){
+        if (prevValidatorBalance < validatorBalance) {
             eigenPodManager.depositBeaconChainETH(podOwner, validatorBalance - prevValidatorBalance);
         }
         
@@ -154,10 +154,10 @@ contract EigenPod is IEigenPod, Initializable
         external
         onlyEigenPodManager
     {
-        //transfer ETH directly from pod to msg.sender 
+        // transfer ETH directly from pod to msg.sender 
         IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
     }
-    //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
+    // if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable {}
 
     // INTERNAL FUNCTIONS
