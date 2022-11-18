@@ -12,7 +12,7 @@ import "forge-std/Test.sol";
 
 
 
-contract EigenDARegistry is IRegistry, DSTest{
+contract EigenDARegistryMock is IRegistry, DSTest{
     IServiceManager public serviceManager;
     IInvestmentManager public investmentManager;
     IEphemeralKeyRegistry public immutable ephemeralKeyRegistry;
@@ -42,7 +42,8 @@ contract EigenDARegistry is IRegistry, DSTest{
 
     function deregisterOperator(
         address operator,
-        bytes32[] memory ephemeralKeys
+        bytes32[] memory ephemeralKeys,
+        uint256 startIndex
     ) public {
         uint32 latestTime = serviceManager.latestTime();
         serviceManager.recordLastStakeUpdate(operator, latestTime);

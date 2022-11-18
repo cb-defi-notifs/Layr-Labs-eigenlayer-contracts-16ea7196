@@ -172,7 +172,6 @@ contract WithdrawalTests is DelegationTests {
         }
     }
 
-
     /// @notice test staker's ability to undelegate/withdraw from an operator.
     /// @param operator is the operator being delegated to.
     /// @param depositor is the staker delegating stake to the operator.
@@ -186,7 +185,6 @@ contract WithdrawalTests is DelegationTests {
         ) 
             public 
         {
-        
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
@@ -203,11 +201,8 @@ contract WithdrawalTests is DelegationTests {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.number) + 1);
 
-
         generalReg2.registerOperator(operator, uint32(block.timestamp) + 5 days);
         // emit log_named_uint("Middleware 2 Update Block", uint32(block.number));
-
-
 
         address delegatedTo = delegation.delegatedTo(depositor);
 
@@ -245,8 +240,6 @@ contract WithdrawalTests is DelegationTests {
         cheats.warp(uint32(block.timestamp) + 1 days);
         cheats.roll(uint32(block.number) + 1);
 
-        
-
         _testQueueWithdrawal(
             depositor,
             dataForTestWithdrawal.delegatorStrategies,
@@ -270,7 +263,6 @@ contract WithdrawalTests is DelegationTests {
 
         prevElement = uint256(uint160(address(generalServiceManager1)));
         generalReg2.propagateStakeUpdate(operator, uint32(block.number), prevElement);
-
         
         {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
@@ -303,7 +295,6 @@ contract WithdrawalTests is DelegationTests {
             }
         }
     }
-
     // @notice This function tests to ensure that a delegator can re-delegate to an operator after undelegating.
     // @param operator is the operator being delegated to.
     // @param staker is the staker delegating stake to the operator.
@@ -371,7 +362,6 @@ contract WithdrawalTests is DelegationTests {
         );
         _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, withdrawerAndNonce);
     }
-
     //*******INTERNAL FUNCTIONS*********//
     function _testQueueWithdrawal(
         address depositor,
@@ -399,7 +389,6 @@ contract WithdrawalTests is DelegationTests {
         return withdrawalRoot;
     }
 
-
     function _testCompleteQueuedWithdrawalShares(
         address depositor,
         IInvestmentStrategy[] memory strategyArray,
@@ -418,7 +407,6 @@ contract WithdrawalTests is DelegationTests {
             sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
 
         }
-
         // emit log_named_uint("strategies", strategyArray.length);
         // emit log_named_uint("tokens", tokensArray.length);
         // emit log_named_uint("shares", shareAmounts.length);
