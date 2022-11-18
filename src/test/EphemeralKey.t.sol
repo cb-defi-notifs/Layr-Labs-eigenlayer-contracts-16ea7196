@@ -92,10 +92,7 @@ contract EphemeralKeyTests is DelegationTests {
         investmentManager.slasher().optIntoSlashing(address(EigenDASM));
         cheats.stopPrank();
 
-        emit log_named_address("ASLAMALIKUM", address(eigenDAReg));
-
         eigenDAReg.registerOperator(operator, uint32(block.timestamp) + 3 days, testEphemeralKeyHash1, testEphemeralKeyHash2);
-        emit log("hehehe");
         address delegatedTo = delegation.delegatedTo(depositor);
 
         // packed data structure to deal with stack-too-deep issues
