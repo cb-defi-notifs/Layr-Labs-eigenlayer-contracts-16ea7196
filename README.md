@@ -10,11 +10,17 @@ Click the links in the Table of Contents below to access more specific documenta
 * [Introduction](#introduction)
 * [Installation and Running Tests / Analyzers](#installation)
 * [EigenLayer Technical Specification](docs/EigenLayer-tech-spec.md)
+
+Design Docs
+* [Withdrawals Design Doc](docs/Guaranteed-stake-updates.md)
+* [EigenPods Design Doc](docs/EigenPods.md)
+
+Flow Docs
 * [EigenLayer Withdrawal Flow](docs/EigenLayer-withdrawal-flow.md)
 * [EigenLayer Deposit Flow](docs/EigenLayer-deposit-flow.md)
 * [EigenLayer Delegation Flow](docs/EigenLayer-delegation-flow.md)
-* [EigenPods Design Doc](docs/EigenPods.md)
 
+EigenDA Docs
 * [EigenDA Contracts Technical Specification](docs/EigenDA-contracts-tech-spec.md)
 * [An Introduction to Proofs of Custody](docs/Proofs-of-Custody.md)
 * [EigenDA Registration Flow](docs/DataLayr-registration-flow.md)

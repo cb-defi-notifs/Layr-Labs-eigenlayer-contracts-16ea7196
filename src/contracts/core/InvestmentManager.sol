@@ -317,7 +317,6 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: withdrawal is not pending"
         );
 
-
         require(
             slasher.canWithdraw(queuedWithdrawal.delegatedAddress, queuedWithdrawal.withdrawalStartBlock, middlewareTimesIndex),
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
@@ -339,7 +338,6 @@ contract InvestmentManager is
         if (receiveAsTokens) {
             // actually withdraw the funds
             for (uint256 i = 0; i < strategiesLength;) {
-                
                 if (queuedWithdrawal.strategies[i] == beaconChainETHStrategy) {
                     // if the strategy is the beaconchaineth strat, then withdraw through the EigenPod flow
                     eigenPodManager.withdrawBeaconChainETH(queuedWithdrawal.depositor, msg.sender, queuedWithdrawal.shares[i]);
