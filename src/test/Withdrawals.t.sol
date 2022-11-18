@@ -13,27 +13,27 @@ import "./Delegation.t.sol";
 
 contract WithdrawalTests is DelegationTests {
 
-    // MiddlewareRegistryMock public generalReg1;
-    // ServiceManagerMock public generalServiceManager1;
+    MiddlewareRegistryMock public generalReg1;
+    ServiceManagerMock public generalServiceManager1;
 
-    // MiddlewareRegistryMock public generalReg2;
-    // ServiceManagerMock public generalServiceManager2;
+    MiddlewareRegistryMock public generalReg2;
+    ServiceManagerMock public generalServiceManager2;
 
-    // function initializeMiddlewares() public {
-    //     generalServiceManager1 = new ServiceManagerMock();
+    function initializeMiddlewares() public {
+        generalServiceManager1 = new ServiceManagerMock();
 
-    //     generalReg1 = new MiddlewareRegistryMock(
-    //          generalServiceManager1,
-    //          investmentManager
-    //     );
+        generalReg1 = new MiddlewareRegistryMock(
+             generalServiceManager1,
+             investmentManager
+        );
         
-    //     generalServiceManager2 = new ServiceManagerMock();
+        generalServiceManager2 = new ServiceManagerMock();
 
-    //     generalReg2 = new MiddlewareRegistryMock(
-    //          generalServiceManager2,
-    //          investmentManager
-    //     );
-    // }
+        generalReg2 = new MiddlewareRegistryMock(
+             generalServiceManager2,
+             investmentManager
+        );
+    }
 
     //This function helps with stack too deep issues with "testWithdrawal" test
     function testWithdrawalWrapper(
@@ -329,7 +329,170 @@ contract WithdrawalTests is DelegationTests {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
     }
 
+    /// @notice test to see if an operator who is slashed/frozen
+    ///         cannot be undelegated from by their stakers.
+    /// @param operator is the operator being delegated to.
+    /// @param staker is the staker delegating stake to the operator.
+    function testSlashedOperatorWithdrawal(address operator, address staker, uint256 ethAmount, uint256 eigenAmount)
+        public
+        fuzzedAddress(operator)
+        fuzzedAddress(staker)
+    {
+        cheats.assume(staker != operator);
+        testDelegation(operator, staker, ethAmount, eigenAmount);
+
+        address slashingContract = slasher.owner();
+
+        address[] memory slashingContracts = new address[](1);
+        slashingContracts[0] = slashingContract;
+
+        cheats.startPrank(slashingContract);
+        slasher.addGloballyPermissionedContracts(slashingContracts);
+        slasher.freezeOperator(operator);
+        cheats.stopPrank();
+
+        (IInvestmentStrategy[] memory updatedStrategies, uint256[] memory updatedShares) =
+            investmentManager.getDeposits(staker);
+
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce =
+            IInvestmentManager.WithdrawerAndNonce({withdrawer: staker, nonce: 0});
+
+        uint256[] memory strategyIndexes = new uint256[](2);
+        strategyIndexes[0] = 0;
+        strategyIndexes[1] = 1;
+
+        IERC20[] memory tokensArray = new IERC20[](2);
+        tokensArray[0] = weth;
+        tokensArray[0] = eigenToken;
+
+        //initiating queued withdrawal
+        cheats.expectRevert(
+            bytes("InvestmentManager.onlyNotFrozen: staker has been frozen and may be subject to slashing")
+        );
+        _testQueueWithdrawal(staker, updatedStrategies, tokensArray, updatedShares, strategyIndexes, withdrawerAndNonce);
+    }
+
+    //*******INTERNAL FUNCTIONS*********//
+    function _testQueueWithdrawal(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        uint256[] memory strategyIndexes,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce
+    )
+        internal
+        returns (bytes32)
+    {
+        cheats.startPrank(depositor);
+
+        bytes32 withdrawalRoot = investmentManager.queueWithdrawal(
+            strategyIndexes,
+            strategyArray,
+            tokensArray,
+            shareAmounts,
+            withdrawerAndNonce,
+            // TODO: make this an input
+            true
+        );
+        cheats.stopPrank();
+        return withdrawalRoot;
+    }
 
 
+    function _testCompleteQueuedWithdrawalShares(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address delegatedTo,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
+    )
+        internal
+    {
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
 
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
+
+        }
+
+        // emit log_named_uint("strategies", strategyArray.length);
+        // emit log_named_uint("tokens", tokensArray.length);
+        // emit log_named_uint("shares", shareAmounts.length);
+        // emit log_named_address("depositor", depositor);
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_address("delegatedAddress", delegatedTo);
+        // emit log("************************************************************************************************");
+
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
+            delegatedAddress: delegatedTo
+        });
+
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            require(
+                investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i])
+                    == sharesBefore[i] + shareAmounts[i],
+                "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented"
+            );
+        }
+        cheats.stopPrank();
+    }
+
+    function _testCompleteQueuedWithdrawalTokens(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address delegatedTo,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
+    )
+        internal
+    {
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
+            priorTotalShares.push(strategyArray[i].totalShares());
+            strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
+        }
+
+        
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
+            delegatedAddress: delegatedTo
+        });
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, true);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
+            uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i] / priorTotalShares[i];
+
+            require(
+                strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer)
+                    == balanceBefore[i] + tokenBalanceDelta,
+                "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented"
+            );
+        }
+        cheats.stopPrank();
+    }
 }
