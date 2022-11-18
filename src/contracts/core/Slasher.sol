@@ -48,7 +48,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * This means the 'HEAD' (i.e. start) of the linked list will have the stalest 'updateBlock' value.
      */
     mapping(address => StructuredLinkedList.List) operatorToWhitelistedContractsByUpdate;
-    //operator => whitelisted middleware slashing => block it was last updated
+    // operator => whitelisted middleware slashing => block it was last updated
     mapping(address => mapping(address => uint32)) operatorToWhitelistedContractsToLatestUpdateBlock;
     /**
      * operator => 
