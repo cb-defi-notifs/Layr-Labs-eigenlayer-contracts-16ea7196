@@ -243,7 +243,6 @@ contract InvestmentManager is
         }
 
         {
-            bool containsBeaconChainETH = false;
             /**
              * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
              * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
@@ -253,17 +252,14 @@ contract InvestmentManager is
                 if (strategies[i] == beaconChainETHStrategy) {
                     require(withdrawerAndNonce.withdrawer == msg.sender,
                         "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
-                    containsBeaconChainETH = true;
+                    require(strategies.length == 1,
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
                 }
 
                 //increment the loop
                 unchecked {
                     ++i;
                 }
-            }
-            if (containsBeaconChainETH) {
-                require(strategies.length == 1,
-                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
             }
         }
 
