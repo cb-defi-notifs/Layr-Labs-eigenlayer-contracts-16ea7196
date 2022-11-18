@@ -234,8 +234,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         eigenPodManager.stake(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
-        
-
         validatorContainerFields[1] = abi.encodePacked(bytes1(uint8(1)), bytes11(0), wrongWithdrawalAddress).toBytes32(0);
 
         bytes32 validatorIndex = bytes32(uint256(0));
@@ -273,7 +271,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         //*************************DELEGATION+REGISTRATION OF OPERATOR******************************//
         _testDelegation(operator, podOwner);
-
 
         cheats.startPrank(operator);
         investmentManager.slasher().optIntoSlashing(address(generalServiceManager1));
