@@ -7,11 +7,20 @@ pragma solidity ^0.8.9;
  * @notice See the `Slasher` contract itself for implementation details.
  */
 interface ISlasher {
+    // struct used to store information about the current state of an operator's obligations to middlewares they are serving
     struct MiddlewareTimes {
-        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update
-        uint32 leastRecentUpdateBlock;
-        // The latest 'serve until' time from all of the middleware that the operator is serving
+        // The update block for the middleware whose most recent update was earliest, i.e. the 'stalest' update out of all middlewares the operator is serving
+        uint32 stalestUpdateBlock;
+        // The latest 'serveUntil' time from all of the middleware that the operator is serving
         uint32 latestServeUntil;
+    }
+
+    // struct used to store details relevant to a single middleware that an operator has opted-in to serving
+    struct MiddlewareDetails {
+        // the UTC timestamp before which the contract is allowed to slash the user
+        uint32 bondedUntil;
+        // the block at which the middleware's view of the operator's stake was most recently updated
+        uint32 latestUpdateBlock;
     }
 
     /**
@@ -20,8 +29,8 @@ interface ISlasher {
      */
     function optIntoSlashing(address contractAddress) external;
 
-    /// @notice Called by a contract to revoke its ability to slash `operator`, once `unbondedAfter` is reached.
-    function revokeSlashingAbility(address operator, uint32 unbondedAfter) external;
+    /// @notice Called by a contract to revoke its ability to slash `operator`, once `bondedUntil` is reached.
+    function revokeSlashingAbility(address operator, uint32 bondedUntil) external;
 
     /**
      * @notice Used for 'slashing' a certain operator.
@@ -91,8 +100,11 @@ interface ISlasher {
     /// @notice Returns true if `slashingContract` is currently allowed to slash `toBeSlashed`.
     function canSlash(address toBeSlashed, address slashingContract) external view returns (bool);
 
-    /// @notice Returns the UTC timestamp until which `slashingContract` is allowed to slash the `operator`.
-    function bondedUntil(address operator, address slashingContract) external view returns (uint32);
+    /// @notice Returns the UTC timestamp until which `serviceContract` is allowed to slash the `operator`.
+    function bondedUntil(address operator, address serviceContract) external view returns (uint32);
+
+    /// @notice Returns the block at which the `serviceContract` last updated its view of the `operator`'s stake
+    function latestUpdateBlock(address operator, address serviceContract) external view returns (uint32);
 
     /// @notice A search routine for finding the correct input value of `insertAfter` to `recordStakeUpdate` / `_updateMiddlewareList`.
     function getCorrectValueForInsertAfter(address operator, uint32 updateBlock) external view returns (uint256);
@@ -111,7 +123,7 @@ interface ISlasher {
      */
     function canWithdraw(address operator, uint32 withdrawalStartBlock, uint256 middlewareTimesIndex) external returns(bool);
 
-    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].leastRecentUpdateBlock`.
+    /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].stalestUpdateBlock`.
     function getMiddlewareTimesIndexBlock(address operator, uint32 index) external view returns(uint32);
 
     /// @notice Getter function for fetching `operatorToMiddlewareTimes[operator][index].latestServeUntil`.

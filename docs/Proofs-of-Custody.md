@@ -1,4 +1,4 @@
-# Da Bomb
+# Proofs of Custody
 
 ## Introduction
 
