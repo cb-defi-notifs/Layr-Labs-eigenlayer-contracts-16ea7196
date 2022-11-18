@@ -47,11 +47,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
                     )
                 )
             );
-        uint256 x;
-        assembly {
-            x := addmod(6944701496902559533834995415969204672477878134936249470135300454445624460186, 5580442193426738283507935157551417912526727590984130944785738082024036962919, 21888242871839275222246405745257275088696311157297823662689037894645226208583)
-        }
-        emit log_uint(x);
+
         require(shouldBeZero.X == 0 && shouldBeZero.Y == 0, "BLSPublicKeyCompendium.registerBLSPublicKey: incorrect schnorr singature");
 
         // verify that the G2 pubkey has the same discrete log as the G1 pubkey
@@ -65,11 +61,6 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
 
         // getting pubkey hash
         bytes32 pubkeyHash = BLS.hashG1Point(pubkeyG1);
-
-        require(
-            pubkeyHash != ZERO_PK_HASH,
-            "BLSPublicKeyCompendium.registerBLSPublicKey: Cannot register with 0x0 public key"
-        );
 
         require(
             operatorToPubkeyHash[msg.sender] == bytes32(0),
