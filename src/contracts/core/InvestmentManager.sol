@@ -212,8 +212,10 @@ contract InvestmentManager is
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
      * `investorStrats` to lowest index
-     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then `withdrawerAndNonce.withdrawer`
-     * must match the caller's address. This is because shares in this 'strategy' technically represent non-fungible positions.
+     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then it must *only* include shares in this strategy, and
+     * `withdrawerAndNonce.withdrawer` must match the caller's address. The first condition is because slashing of queued withdrawals cannot be guaranteed 
+     * for Beacon Chain ETH (since we cannot trigger a withdrawal from the beacon chain through a smart contract) and the second condition is because shares in
+     * the enshrined 'beaconChainETH' strategy technically represent non-fungible positions (deposits to the Beacon Chain, each pointed at a specific EigenPod).
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -239,20 +241,29 @@ contract InvestmentManager is
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
         }
-        /**
-         * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
-         * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
-         * while other share in all other strategies represent purely fungible positions.
-         */
-        for (uint256 i = 0; i < strategies.length;) {
-            if (strategies[i] == beaconChainETHStrategy) {
-                require(withdrawerAndNonce.withdrawer == msg.sender,
-                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
-            }
 
-            //increment the loop
-            unchecked {
-                ++i;
+        {
+            bool containsBeaconChainETH = false;
+            /**
+             * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
+             * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
+             * while other share in all other strategies represent purely fungible positions.
+             */
+            for (uint256 i = 0; i < strategies.length;) {
+                if (strategies[i] == beaconChainETHStrategy) {
+                    require(withdrawerAndNonce.withdrawer == msg.sender,
+                        "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
+                    containsBeaconChainETH = true;
+                }
+
+                //increment the loop
+                unchecked {
+                    ++i;
+                }
+            }
+            if (containsBeaconChainETH) {
+                require(strategies.length == 1,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH and other tokens");
             }
         }
 
