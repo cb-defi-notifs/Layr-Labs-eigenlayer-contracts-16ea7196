@@ -43,11 +43,15 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
                     rPoint,
                     BN254.scalar_mul(
                         pubkeyG1,
-                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.MODULUS
+                        uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.FR_MODULUS
                     )
                 )
             );
-        emit log_uint(uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.MODULUS);
+        uint256 x;
+        assembly {
+            x := addmod(6944701496902559533834995415969204672477878134936249470135300454445624460186, 5580442193426738283507935157551417912526727590984130944785738082024036962919, 21888242871839275222246405745257275088696311157297823662689037894645226208583)
+        }
+        emit log_uint(x);
         require(shouldBeZero.X == 0 && shouldBeZero.Y == 0, "BLSPublicKeyCompendium.registerBLSPublicKey: incorrect schnorr singature");
 
         // verify that the G2 pubkey has the same discrete log as the G1 pubkey

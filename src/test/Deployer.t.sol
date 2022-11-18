@@ -176,8 +176,7 @@ contract EigenLayrDeployer is Operators, SignatureUtils {
     }
 
     modifier fuzzedOperatorIndex(uint8 operatorIndex) {
-        require(registrationData.length != 0, "fuzzedOperatorIndex: setup incorrect");
-        cheats.assume(operatorIndex < registrationData.length);
+        cheats.assume(operatorIndex < getNumOperators());
         _;
     }
 

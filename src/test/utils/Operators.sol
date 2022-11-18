@@ -19,6 +19,10 @@ contract Operators is Test {
         return string.concat(".operators[", string.concat(vm.toString(index), "]."));
     }
 
+    function getNumOperators() public returns(uint256) {
+        return stdJson.readUint(operatorConfigJson, ".numOperators");
+    }
+
     function getOperatorAddress(uint256 index) public returns(address) {
         return stdJson.readAddress(operatorConfigJson, string.concat(operatorPrefix(index), "Address"));
     }
@@ -33,13 +37,13 @@ contract Operators is Test {
     }
 
     function getOperatorSecretKey(uint256 index) public returns(uint256) {
-        return stdJson.readUint(operatorConfigJson, string.concat(operatorPrefix(index), "SecretKey"));
+        return readUint(operatorConfigJson, index, "SecretKey");
     }
 
     function getOperatorPubkeyG1(uint256 index) public returns(BN254.G1Point memory) {
         BN254.G1Point memory pubkey = BN254.G1Point({
-            X: stdJson.readUint(operatorConfigJson, string.concat(operatorPrefix(index), "PubkeyG1.X")),
-            Y: stdJson.readUint(operatorConfigJson, string.concat(operatorPrefix(index), "PubkeyG1.Y"))
+            X: readUint(operatorConfigJson, index, "PubkeyG1.X"),
+            Y: readUint(operatorConfigJson, index, "PubkeyG1.Y")
         });
         return pubkey;
     }

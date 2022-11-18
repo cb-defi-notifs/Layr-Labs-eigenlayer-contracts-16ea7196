@@ -12,8 +12,11 @@ import "./BN254.sol";
  */
 library BLS {
     // BN 254 CONSTANTS
-    // modulus for the underlying field F_q of the elliptic curve
-    uint256 internal constant MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    // modulus for the underlying field F_p of the elliptic curve
+    uint256 internal constant FP_MODULUS = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+    // modulus for the underlying field F_r of the elliptic curve
+    uint256 internal constant FR_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+
 
     // negation of the generator of group G2
     /**

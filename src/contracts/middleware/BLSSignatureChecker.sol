@@ -357,7 +357,7 @@ abstract contract BLSSignatureChecker {
              * operators that are part of the quorum
              */
             // negate aggNonSignerPubkey
-            input[3] = (BLS.MODULUS - input[3]) % BLS.MODULUS;
+            input[3] = (BLS.FP_MODULUS - input[3]) % BLS.FP_MODULUS;
 
             // singerPublicKey      = apk                  + -aggregateNonSignerPublicKey
             // (input[2], input[3]) = (input[0], input[1]) + (input[2], input[3])
