@@ -31,7 +31,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
      * @param pubkeyG2 is the G2 with the same private key as the pubkeyG1
      */
     function registerBLSPublicKey(uint256 s, BN254.G1Point memory rPoint, BN254.G1Point memory pubkeyG1, BN254.G2Point memory pubkeyG2) external {
-        // calcualte -g1
+        // calculate -g1
         BN254.G1Point memory nG1 = BN254.negate(BN254.G1Point({X: 1, Y: 2}));
         // verify a Schnorr signature (s, r) of pubkeyG1
         // calculate s*-g1 - (R + H(R, P)P) = 0
@@ -47,7 +47,7 @@ contract BLSPublicKeyCompendium is IBLSPublicKeyCompendium, DSTest {
                     )
                 )
             );
-
+        emit log_uint(uint256(keccak256(abi.encodePacked(msg.sender, pubkeyG1.X, pubkeyG1.Y, rPoint.X, rPoint.Y))) % BLS.MODULUS);
         require(shouldBeZero.X == 0 && shouldBeZero.Y == 0, "BLSPublicKeyCompendium.registerBLSPublicKey: incorrect schnorr singature");
 
         // verify that the G2 pubkey has the same discrete log as the G1 pubkey

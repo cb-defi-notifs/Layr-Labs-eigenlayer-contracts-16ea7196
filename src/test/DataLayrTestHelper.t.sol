@@ -20,21 +20,25 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
-        assertTrue(false); //dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), registrationData[operatorIndex].slice(0, 128), socket);
+        dlReg.registerOperator(operatorType, 
+            ephemeralKeyHash, 
+            keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), 
+            getOperatorPubkeyG1(operatorIndex), 
+            socket
+        );
         cheats.stopPrank();
 
     }
 
     function _testDeregisterOperatorWithDataLayr(
         uint8 operatorIndex,
-        uint256[4] memory pubkeyToRemoveAff,
         uint8 operatorListIndex
     ) public {
 
         address operator = getOperatorAddress(operatorIndex);
 
         cheats.startPrank(operator);
-        assertTrue(false); //dlReg.deregisterOperator(pubkeyToRemoveAff, operatorListIndex);
+        dlReg.deregisterOperator(getOperatorPubkeyG1(operatorIndex), operatorListIndex);
         cheats.stopPrank();
     }
     //initiates a data store
@@ -170,7 +174,8 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         cheats.startPrank(operator);
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
-        assertTrue(false); //pubkeyCompendium.registerBLSPublicKey(registrationData[operatorIndex]);
+        (uint256 s, BN254.G1Point memory rPoint) = getOperatorSchnorrSignature(operatorIndex);
+        pubkeyCompendium.registerBLSPublicKey(s, rPoint, getOperatorPubkeyG1(operatorIndex), getOperatorPubkeyG2(operatorIndex));
         cheats.stopPrank();
     }
 
@@ -210,9 +215,15 @@ contract DataLayrTestHelper is EigenLayrDeployer, TestHelper {
         //whitelist the dlsm to slash the operator
         slasher.optIntoSlashing(address(dlsm));
 
-        assertTrue(false); 
-        // pubkeyCompendium.registerBLSPublicKey(data);
-        // dlReg.registerOperator(operatorType, ephemeralKeyHash, keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), data.slice(0, 128), socket);
+        (uint256 s, BN254.G1Point memory rPoint) = getOperatorSchnorrSignature(index);
+        pubkeyCompendium.registerBLSPublicKey(s, rPoint, getOperatorPubkeyG1(index), getOperatorPubkeyG2(index));
+        dlReg.registerOperator(
+            operatorType, 
+            ephemeralKeyHash, 
+            keccak256(abi.encodePacked(uint256(ephemeralKeyHash) | 1234567876543)), 
+            getOperatorPubkeyG1(index), 
+            socket
+        );
 
         cheats.stopPrank();
 
