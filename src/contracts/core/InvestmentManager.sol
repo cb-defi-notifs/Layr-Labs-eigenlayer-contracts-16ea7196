@@ -208,10 +208,12 @@ contract InvestmentManager is
      * to accrue gains during the enforced WITHDRAWAL_WAITING_PERIOD.
      * @param strategyIndexes is a list of the indices in `investorStrats[msg.sender]` that correspond to the strategies
      * for which `msg.sender` is withdrawing 100% of their shares
-     * @dev strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
+     * @dev Strategies are removed from `investorStrats` by swapping the last entry with the entry to be removed, then
      * popping off the last entry in `investorStrats`. The simplest way to calculate the correct `strategyIndexes` to input
      * is to order the strategies *for which `msg.sender` is withdrawing 100% of their shares* from highest index in
      * `investorStrats` to lowest index
+     * @dev Note that if the withdrawal includes shares in the enshrined 'beaconChainETH' strategy, then `withdrawerAndNonce.withdrawer`
+     * must match the caller's address. This is because shares in this 'strategy' technically represent non-fungible positions.
      */
     function queueWithdrawal(
         uint256[] calldata strategyIndexes,
@@ -236,6 +238,22 @@ contract InvestmentManager is
         // increment the numWithdrawalsQueued of the sender
         unchecked {
             ++numWithdrawalsQueued[msg.sender];
+        }
+        /**
+         * Ensure that if the withdrawal includes beacon chain ETH, the specified 'withdrawer' is not different than the caller.
+         * This is because shares in the enshrined `beaconChainETHStrategy` ultimately represent tokens in **non-fungible** EigenPods,
+         * while other share in all other strategies represent purely fungible positions.
+         */
+        for (uint256 i = 0; i < strategies.length;) {
+            if (strategies[i] == beaconChainETHStrategy) {
+                require(withdrawerAndNonce.withdrawer == msg.sender,
+                    "InvestmentManager.queueWithdrawal: cannot queue a withdrawal including Beacon Chain ETH to a different address");
+            }
+
+            //increment the loop
+            unchecked {
+                ++i;
+            }
         }
 
         // modify delegated shares accordingly, if applicable
