@@ -464,12 +464,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         if(pushToMiddlewareTimes) {
             operatorToMiddlewareTimes[operator].push(next);
         }
-        emit log("____________________________________________");
-        emit log_named_uint("next.latestServeUntil", next.latestServeUntil);
-        emit log_named_uint("next.leastRecentUpdateBlock", next.leastRecentUpdateBlock);
-        emit log_named_uint("updateBlock", updateBlock);
-        emit log("____________________________________________");
-
     }
 
     /// @notice A routine for updating the `operator`'s linked list of middlewares, inside `recordStakeUpdate`.
@@ -483,7 +477,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
         bool runFallbackRoutine = false;
         // If this condition is met, then the `updateBlock` input should be after `insertAfter`'s latest updateBlock
         if (insertAfter != HEAD) {
-             emit log_named_uint("insertAfter", insertAfter);
             // Check that `insertAfter` exists. If not, we will use the fallback routine to find the correct value for `insertAfter`.
             if (!operatorToWhitelistedContractsByUpdate[operator].nodeExists(insertAfter)) {
                 runFallbackRoutine = true;
