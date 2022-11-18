@@ -162,10 +162,7 @@ contract EigenPod is IEigenPod, Initializable
         }
     }
     //if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
-    function topUpPodBalance() external payable {
-        msgvalue = msg.value;
-        addressbalance = address(this).balance;
-    }
+    function topUpPodBalance() external payable {}
 
     // INTERNAL FUNCTIONS
     function podWithdrawalCredentials() internal view returns(bytes memory) {
