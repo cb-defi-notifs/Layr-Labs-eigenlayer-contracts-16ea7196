@@ -155,13 +155,14 @@ contract EigenPod is IEigenPod, Initializable
         onlyEigenPodManager
     {
 
-
-        if(Address.isContract(recipient)){
+        // transfer ETH directly from pod to `recipient`
+        if (Address.isContract(recipient)) {
+            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
             IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
-        } else{
+        } else {
+            // if the recipient is an EOA, then do a simple transfer
             payable(recipient).transfer(amount);
         }
-
     }
     // if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable {}
