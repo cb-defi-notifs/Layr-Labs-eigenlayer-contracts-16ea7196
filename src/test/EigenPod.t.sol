@@ -264,7 +264,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     // Withdraw eigenpods balance to a contract
     function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator!=address(0));
+        cheats.assume(operator != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
@@ -351,7 +352,8 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
     // Withdraw eigenpods balance to an EOA
     function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
-        cheats.assume(operator!=address(0));
+        cheats.assume(operator != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
