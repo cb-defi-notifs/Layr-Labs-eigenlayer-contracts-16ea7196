@@ -6,7 +6,7 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IServiceManager.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-import "forge-std/Test.sol";
+//import "forge-std/Test.sol";
 
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
@@ -18,12 +18,12 @@ import "forge-std/Test.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
+contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
 
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD_IN_BLOCKS = 648000; //90 days at 12s/block
  
-    // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
+    // max amount of blocks operator has to submit and confirm the ephemeral key reveal transaction
     uint32 public constant REVEAL_PERIOD_IN_BLOCKS = 50400; //7 days at 12s/block
 
     /// @notice The Registry contract for this middleware, where operators register and deregister.
@@ -42,7 +42,6 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
 
     /// @notice when applied to a function, ensures that the function is only callable by the `registry`
     modifier onlyRegistry() {
-        emit log_named_address("in EK REGISTRY", address(registry));
         require(msg.sender == address(registry), "onlyRegistry");
         _;
     }

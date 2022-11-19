@@ -145,9 +145,7 @@ contract EphemeralKeyTests is DelegationTests {
 
 
         uint256 startIndex = 0;
-        emit log("hehehe");
         eigenDAReg.deregisterOperator(operator, ephemeralKeys, startIndex);
-        emit log("hehehe");
         {
             //warp past the serve until time, which is 3 days from the beginning.  THis puts us at 4 days past that point
             cheats.warp(uint32(block.timestamp) + 4 days);
@@ -193,54 +191,5 @@ contract EphemeralKeyTests is DelegationTests {
         );
         cheats.stopPrank();
         return withdrawalRoot;
-    }
-
-    function _testCompleteQueuedWithdrawalShares(
-        address depositor,
-        IInvestmentStrategy[] memory strategyArray,
-        IERC20[] memory tokensArray,
-        uint256[] memory shareAmounts,
-        address delegatedTo,
-        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
-        uint32 withdrawalStartBlock,
-        uint256 middlewareTimesIndex
-    )
-        internal
-    {
-        cheats.startPrank(withdrawerAndNonce.withdrawer);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
-
-        }
-        // emit log_named_uint("strategies", strategyArray.length);
-        // emit log_named_uint("tokens", tokensArray.length);
-        // emit log_named_uint("shares", shareAmounts.length);
-        // emit log_named_address("depositor", depositor);
-        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
-        // emit log_named_address("delegatedAddress", delegatedTo);
-        // emit log("************************************************************************************************");
-
-        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
-            strategies: strategyArray,
-            tokens: tokensArray,
-            shares: shareAmounts,
-            depositor: depositor,
-            withdrawerAndNonce: withdrawerAndNonce,
-            withdrawalStartBlock: withdrawalStartBlock,
-            delegatedAddress: delegatedTo
-        });
-
-        // complete the queued withdrawal
-        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
-
-        for (uint256 i = 0; i < strategyArray.length; i++) {
-            require(
-                investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i])
-                    == sharesBefore[i] + shareAmounts[i],
-                "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented"
-            );
-        }
-        cheats.stopPrank();
     }
 }

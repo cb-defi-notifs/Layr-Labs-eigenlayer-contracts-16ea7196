@@ -299,4 +299,98 @@ contract DelegationTests is DataLayrTestHelper {
             emit log_named_uint("gas cost", gasbefore - gasleft());
         }
     }
+
+    function _testCompleteQueuedWithdrawalShares(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address delegatedTo,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
+    )
+        internal
+    {
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            sharesBefore.push(investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i]));
+
+        }
+        // emit log_named_uint("strategies", strategyArray.length);
+        // emit log_named_uint("tokens", tokensArray.length);
+        // emit log_named_uint("shares", shareAmounts.length);
+        // emit log_named_address("depositor", depositor);
+        // emit log_named_uint("withdrawalStartBlock", withdrawalStartBlock);
+        // emit log_named_address("delegatedAddress", delegatedTo);
+        // emit log("************************************************************************************************");
+
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
+            delegatedAddress: delegatedTo
+        });
+
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, false);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            require(
+                investmentManager.investorStratShares(withdrawerAndNonce.withdrawer, strategyArray[i])
+                    == sharesBefore[i] + shareAmounts[i],
+                "_testCompleteQueuedWithdrawalShares: withdrawer shares not incremented"
+            );
+        }
+        cheats.stopPrank();
+    }
+    function _testCompleteQueuedWithdrawalTokens(
+        address depositor,
+        IInvestmentStrategy[] memory strategyArray,
+        IERC20[] memory tokensArray,
+        uint256[] memory shareAmounts,
+        address delegatedTo,
+        IInvestmentManager.WithdrawerAndNonce memory withdrawerAndNonce,
+        uint32 withdrawalStartBlock,
+        uint256 middlewareTimesIndex
+    )
+        internal
+    {
+        cheats.startPrank(withdrawerAndNonce.withdrawer);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            balanceBefore.push(strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer));
+            priorTotalShares.push(strategyArray[i].totalShares());
+            strategyTokenBalance.push(strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i])));
+        }
+
+        
+        IInvestmentManager.QueuedWithdrawal memory queuedWithdrawal = IInvestmentManager.QueuedWithdrawal({
+            strategies: strategyArray,
+            tokens: tokensArray,
+            shares: shareAmounts,
+            depositor: depositor,
+            withdrawerAndNonce: withdrawerAndNonce,
+            withdrawalStartBlock: withdrawalStartBlock,
+            delegatedAddress: delegatedTo
+        });
+        // complete the queued withdrawal
+        investmentManager.completeQueuedWithdrawal(queuedWithdrawal, middlewareTimesIndex, true);
+
+        for (uint256 i = 0; i < strategyArray.length; i++) {
+            //uint256 strategyTokenBalance = strategyArray[i].underlyingToken().balanceOf(address(strategyArray[i]));
+            uint256 tokenBalanceDelta = strategyTokenBalance[i] * shareAmounts[i] / priorTotalShares[i];
+
+            require(
+                strategyArray[i].underlyingToken().balanceOf(withdrawerAndNonce.withdrawer)
+                    == balanceBefore[i] + tokenBalanceDelta,
+                "_testCompleteQueuedWithdrawalTokens: withdrawer balance not incremented"
+            );
+        }
+        cheats.stopPrank();
+    }
 }
