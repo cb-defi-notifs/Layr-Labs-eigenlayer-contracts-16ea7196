@@ -22,6 +22,12 @@ contract EphemeralKeyTests is DelegationTests {
     bytes32 public testEphemeralKey2 = 0x9890567812345678123456780094577812345698123456781234563849087560;
     bytes32 public testEphemeralKeyHash2 = keccak256(abi.encode(testEphemeralKey2));
 
+    // max amount of blocks that an operator can use an ephemeral key
+    uint32 public constant USAGE_PERIOD_IN_BLOCKS = 648000; //90 days at 12s/block
+
+    // max amount of blocks operator has to submit and confirm the ephemeral key reveal transaction
+    uint32 public constant REVEAL_PERIOD_IN_BLOCKS = 50400; //7 days at 12s/block
+
     bytes32[] public ephemeralKeys;
 
     modifier initialized(address operator){
@@ -63,9 +69,22 @@ contract EphemeralKeyTests is DelegationTests {
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
         //roll past the ephemeralKey2's start block and then another USAGE_PERIOD beyond that
-        cheats.roll(block.number + 648000*2 + 1);
+        cheats.roll(block.number + USAGE_PERIOD_IN_BLOCKS*2 + 1);
 
         ephemeralKeyRegistry.verifyStaleEphemeralKey(operator, 1);
+        require(investmentManager.slasher().isFrozen(operator), "operator not frozen successfully");
+        cheats.stopPrank();
+    }
+
+    function testSlashLeakedEphemeralKey(address operator) public initialized(operator) {
+        cheats.startPrank(address(eigenDAReg));
+        ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
+       
+        //roll past the ephemeralKey2's start block and then another USAGE_PERIOD beyond that
+        cheats.roll(block.number + USAGE_PERIOD_IN_BLOCKS/2);
+
+        //we leake the first ephemeral key posted halfway through the first usage period
+        ephemeralKeyRegistry.verifyLeakedEphemeralKey(operator, 0, testEphemeralKey1);
         require(investmentManager.slasher().isFrozen(operator), "operator not frozen successfully");
         cheats.stopPrank();
     }

@@ -234,8 +234,6 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
         // emit event for stale ephemeral key
         emit EphemeralKeyProvenStale(index);
 
-        emit log_named_address("EK REG addy", address(this));
-
         // freeze operator with stale ephemeral key
         serviceManager.freezeOperator(operator);
     }
@@ -268,7 +266,7 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
             require(
                 block.number < endBlock ||
                 block.number > endBlock + REVEAL_PERIOD_IN_BLOCKS,
-                "EphemeralKeyRegistry.verifyLeakedEphemeralKey: key cannot be leaked within reveal period"
+                "EphemeralKeyRegistry.verifyLeakedEphemeralKey: operator cannot be slashed for leaking key within reveal period"
             );
         }
 
