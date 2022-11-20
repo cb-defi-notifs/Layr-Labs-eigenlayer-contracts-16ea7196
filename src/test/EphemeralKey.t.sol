@@ -51,6 +51,7 @@ contract EphemeralKeyTests is DelegationTests {
 
     function testSlashStaleEphemeralKey(address operator) public {
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, ephemeralKeyHash1, ephemeralKeyHash2);
+        
     }
 
     //This function helps with stack too deep issues with "testWithdrawal" test
