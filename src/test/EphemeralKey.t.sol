@@ -15,7 +15,8 @@ contract EphemeralKeyTests is DelegationTests {
 
     EigenDARegistryMock public eigenDAReg;
     EigenDARegistryMock public eigenDARegImplementation;
-    ServiceManagerMock public EigenDASM;
+    ServiceManagerMock public eigenDASM;
+
     bytes32 public testEphemeralKey1 = 0x3290567812345678123456781234577812345698123456781234567812344389;
     bytes32 public testEphemeralKeyHash1 = keccak256(abi.encode(testEphemeralKey1));
     bytes32 public testEphemeralKey2 = 0x9890567812345678123456780094577812345698123456781234563849087560;
@@ -23,19 +24,27 @@ contract EphemeralKeyTests is DelegationTests {
 
     bytes32[] public ephemeralKeys;
 
+    modifier initialized(address operator){
+        initializeMiddlewares();
+        cheats.startPrank(operator);
+        investmentManager.slasher().optIntoSlashing(address(eigenDASM));
+        cheats.stopPrank();
+        _;
+    }
+
 
     function initializeMiddlewares() public {
-        EigenDASM = new ServiceManagerMock();
+        eigenDASM = new ServiceManagerMock(investmentManager);
 
         eigenDAReg = EigenDARegistryMock(
             address(new TransparentUpgradeableProxy(address(emptyContract), address(eigenLayrProxyAdmin), ""))
         );
 
-        ephemeralKeyRegistry = new EphemeralKeyRegistry(eigenDAReg, EigenDASM);
+        ephemeralKeyRegistry = new EphemeralKeyRegistry(eigenDAReg, eigenDASM);
 
 
         eigenDARegImplementation = new EigenDARegistryMock(
-             EigenDASM,
+             eigenDASM,
              investmentManager,
              ephemeralKeyRegistry
         );
@@ -49,9 +58,16 @@ contract EphemeralKeyTests is DelegationTests {
         ephemeralKeys.push(testEphemeralKey2);
     }
 
-    function testSlashStaleEphemeralKey(address operator) public {
-        ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, ephemeralKeyHash1, ephemeralKeyHash2);
-        
+    function testSlashStaleEphemeralKey(address operator) public initialized(operator) {
+        cheats.startPrank(address(eigenDAReg));
+        ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
+       
+        //roll past the ephemeralKey2's start block and then another USAGE_PERIOD beyond that
+        cheats.roll(block.number + 648000*2 + 1);
+
+        ephemeralKeyRegistry.verifyStaleEphemeralKey(operator, 1);
+        require(investmentManager.slasher().isFrozen(operator), "operator not frozen successfully");
+        cheats.stopPrank();
     }
 
     //This function helps with stack too deep issues with "testWithdrawal" test
@@ -94,7 +110,7 @@ contract EphemeralKeyTests is DelegationTests {
         testDelegation(operator, depositor, ethAmount, eigenAmount);
 
         cheats.startPrank(operator);
-        investmentManager.slasher().optIntoSlashing(address(EigenDASM));
+        investmentManager.slasher().optIntoSlashing(address(eigenDASM));
         cheats.stopPrank();
 
         eigenDAReg.registerOperator(operator, uint32(block.timestamp) + 3 days, testEphemeralKeyHash1, testEphemeralKeyHash2);

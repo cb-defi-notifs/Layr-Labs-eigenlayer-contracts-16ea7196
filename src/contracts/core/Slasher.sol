@@ -20,7 +20,7 @@ import "forge-std/Test.sol";
  * - tracking historic stake updates to ensure that withdrawals can only be completed once no middlewares have slashing rights
  * over the funds being withdrawn
  */
-contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
+contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTest {
     using StructuredLinkedList for StructuredLinkedList.List;
 
     uint256 private constant HEAD = 0;
@@ -124,6 +124,7 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
      * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
+         emit log_named_address("EK REG addy", msg.sender);
         require(
             canSlash(toBeFrozen, msg.sender),
             "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"

@@ -6,7 +6,7 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IServiceManager.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-//import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
@@ -18,7 +18,7 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
+contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
 
     // max amount of blocks that an operator can use an ephemeral key
     uint32 public constant USAGE_PERIOD_IN_BLOCKS = 648000; //90 days at 12s/block
@@ -233,6 +233,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
 
         // emit event for stale ephemeral key
         emit EphemeralKeyProvenStale(index);
+
+        emit log_named_address("EK REG addy", address(this));
 
         // freeze operator with stale ephemeral key
         serviceManager.freezeOperator(operator);

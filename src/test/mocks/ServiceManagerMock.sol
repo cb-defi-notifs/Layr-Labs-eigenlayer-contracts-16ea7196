@@ -3,8 +3,18 @@ pragma solidity ^0.8.9;
 
 import "forge-std/Test.sol";
 import "../../contracts/interfaces/IServiceManager.sol";
+import "../../contracts/interfaces/IInvestmentManager.sol";
+import "../../contracts/interfaces/ISlasher.sol";
 
-contract ServiceManagerMock is IServiceManager {
+import "forge-std/Test.sol";
+
+contract ServiceManagerMock is IServiceManager, DSTest {
+    IInvestmentManager public immutable investmentManager;
+
+
+    constructor(IInvestmentManager _investmentManager){
+        investmentManager = _investmentManager;
+    }
 
     /// @notice Returns the current 'taskNumber' for the middleware
     function taskNumber() external pure returns (uint32) {
@@ -12,7 +22,10 @@ contract ServiceManagerMock is IServiceManager {
     }
 
     /// @notice Permissioned function that causes the ServiceManager to freeze the operator on EigenLayer, through a call to the Slasher contract
-    function freezeOperator(address operator) external pure {}
+    function freezeOperator(address operator) external {
+         emit log_named_address("EK SERVICE addy", address(this));
+         ISlasher(investmentManager.slasher()).freezeOperator(operator);
+    }
 
     /// @notice Permissioned function that causes the ServiceManager to revoke its ability to slash the operator on EigenLayer, through a call to the Slasher contract
     function revokeSlashingAbility(address operator, uint32 unbondedAfter) external pure {}
