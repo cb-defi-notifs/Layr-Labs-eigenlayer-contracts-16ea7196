@@ -114,6 +114,13 @@ contract EigenLayrDeployer is Signers, SignatureUtils, DSTest {
 
     address initialOwner = address(this);
 
+    modifier fuzzedAddress(address addr) virtual {
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        _;
+    }
+
     modifier cannotReinit() {
         cheats.expectRevert(bytes("Initializable: contract is already initialized"));
         _;

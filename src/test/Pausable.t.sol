@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.9;
 
-import "./TestHelper.t.sol";
+import "./EigenLayrTestHelper.t.sol";
 
-contract PausableTests is TestHelper {
+contract PausableTests is EigenLayrTestHelper {
     ///@dev test that pausing a contract works
     function testPausingWithdrawalsFromInvestmentManager(uint256 amountToDeposit, uint256 amountToWithdraw) public {
         cheats.assume(amountToDeposit <= weth.balanceOf(address(this)));

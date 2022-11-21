@@ -2,9 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/TestHelper.t.sol";
+import "../test/DataLayrTestHelper.t.sol";
 
-contract RevertTestHelper is TestHelper {
+contract RevertTestHelper is DataLayrTestHelper {
     using BytesLib for bytes;
 
     function _testShouldRevertRegisterOperatorWithDataLayr(

@@ -64,11 +64,11 @@ contract DataLayrDeployer is EigenLayrDeployer {
         uint256 sigma1;
     }
 
-    modifier fuzzedAddress(address addr) {
+    modifier fuzzedAddress(address addr) virtual override {
         cheats.assume(addr != address(0));
         cheats.assume(addr != address(eigenLayrProxyAdmin));
-        cheats.assume(addr != address(dataLayrProxyAdmin));
         cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(dataLayrProxyAdmin));
         cheats.assume(addr != dlsm.owner());
         _;
     }
@@ -80,7 +80,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
     }
 
     //performs basic deployment before each test
-    function setUp() public override {
+    function setUp() public virtual override {
         // do the EigenLayer deployment
         _deployEigenLayrContracts();
         _setUpSignersAndSignatures();
