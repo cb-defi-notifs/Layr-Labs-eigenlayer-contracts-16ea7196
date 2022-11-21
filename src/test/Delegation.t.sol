@@ -590,8 +590,8 @@ contract DelegationTests is DataLayrTestHelper {
         //this function performs delegation and subsequent withdrawal
         testWithdrawalWrapper(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsShares, true);
 
-        //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
+        //warps past fraudproof time interval -- TODO: modify this to reflect removal of fraudproof
+        cheats.warp(block.timestamp + 7 days + 1);
         testDelegation(operator, depositor, ethAmount, eigenAmount);
     }
 

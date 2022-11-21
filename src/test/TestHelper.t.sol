@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/Deployer.t.sol";
+import "../test/DataLayrDeployer.t.sol";
 
 
-contract TestHelper is EigenLayrDeployer {
+contract TestHelper is DataLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
