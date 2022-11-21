@@ -66,6 +66,7 @@ contract EphemeralKeyTests is DelegationTests {
 
     function testSlashStaleEphemeralKey(address operator) public initialized(operator) {
         cheats.assume(operator != address(0));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
         cheats.startPrank(address(eigenDAReg));
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
@@ -80,6 +81,8 @@ contract EphemeralKeyTests is DelegationTests {
     function testSlashLeakedEphemeralKey(address operator) public initialized(operator) {
         cheats.assume(operator != address(0));
         cheats.startPrank(address(eigenDAReg));
+        cheats.assume(operator != address(eigenLayrProxyAdmin));
+        
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
         //roll past the ephemeralKey2's start block and then another USAGE_PERIOD beyond that
