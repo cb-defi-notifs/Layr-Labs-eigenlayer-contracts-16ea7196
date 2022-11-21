@@ -20,7 +20,7 @@ import "forge-std/Test.sol";
  * - tracking historic stake updates to ensure that withdrawals can only be completed once no middlewares have slashing rights
  * over the funds being withdrawn
  */
-contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable {
+contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTest {
     using StructuredLinkedList for StructuredLinkedList.List;
 
     uint256 private constant HEAD = 0;

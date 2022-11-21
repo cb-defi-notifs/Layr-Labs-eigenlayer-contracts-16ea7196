@@ -6,7 +6,7 @@ import "../interfaces/IQuorumRegistry.sol";
 import "../interfaces/IServiceManager.sol";
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
 /**
  * @title Registry of Ephemeral Keys for operators, designed for use with Proofs of Custody.
@@ -18,13 +18,13 @@ import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
  * @notice See the Dankrad's excellent article for an intro to Proofs of Custody:
  * https://dankradfeist.de/ethereum/2021/09/30/proofs-of-custody.html.
  */
-contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
+contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
 
     // max amount of blocks that an operator can use an ephemeral key
-    uint32 public constant USAGE_PERIOD_BLOCKS = 648000; //90 days at 12s/block
+    uint32 public constant USAGE_PERIOD_IN_BLOCKS = 648000; //90 days at 12s/block
  
-    // max amout of blocks operator has to submit and confirm the ephemeral key reveal transaction
-    uint32 public constant REVEAL_PERIOD_BLOCKS = 50400; //7 days at 12s/block
+    // max amount of blocks operator has to submit and confirm the ephemeral key reveal transaction
+    uint32 public constant REVEAL_PERIOD_IN_BLOCKS = 50400; //7 days at 12s/block
 
     /// @notice The Registry contract for this middleware, where operators register and deregister.
     IQuorumRegistry public immutable registry;
@@ -70,11 +70,11 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
                 revealBlock: 0
             })
         );
-        // record the next ephemeral key, starting usage after USAGE_PERIOD_BLOCKS
+        // record the next ephemeral key, starting usage after USAGE_PERIOD_IN_BLOCKS
         ephemeralKeyEntries[operator].push(
             EphemeralKeyEntry({
                 ephemeralKeyHash: ephemeralKeyHash2,
-                startBlock: uint32(block.number) + USAGE_PERIOD_BLOCKS,
+                startBlock: uint32(block.number) + USAGE_PERIOD_IN_BLOCKS,
                 // set the revealBLock to 0 because it has not been revealed
                 revealBlock: 0
             })
@@ -130,7 +130,7 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
 
             // iterate through any intermediate entries in the operator's list of ephemeral keys and update their startBlock values appropriately
             for (uint256 i = activeKeyIndex + 2; i < ephemeralKeyEntriesLength;) {
-                ephemeralKeyEntries[msg.sender][i].startBlock = ephemeralKeyEntries[msg.sender][i - 1].startBlock + USAGE_PERIOD_BLOCKS;
+                ephemeralKeyEntries[msg.sender][i].startBlock = ephemeralKeyEntries[msg.sender][i - 1].startBlock + USAGE_PERIOD_IN_BLOCKS;
                 unchecked {
                     ++i;
                 }
@@ -140,8 +140,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHashes[0],
-                    // set the startBlock to be `USAGE_PERIOD_BLOCKS` after the previous key's startBlock
-                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntriesLength - 1].startBlock + USAGE_PERIOD_BLOCKS,
+                    // set the startBlock to be `USAGE_PERIOD_IN_BLOCKS` after the previous key's startBlock
+                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntriesLength - 1].startBlock + USAGE_PERIOD_IN_BLOCKS,
                     // set the revealBLock to 0 because it has not been revealed
                     revealBlock: 0
                 })
@@ -155,8 +155,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
             ephemeralKeyEntries[msg.sender].push(
                 EphemeralKeyEntry({
                     ephemeralKeyHash: ephemeralKeyHashes[i],
-                    // set the startBlock to be `USAGE_PERIOD_BLOCKS` after the previous key's startBlock
-                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntries[msg.sender].length - 1].startBlock + USAGE_PERIOD_BLOCKS,
+                    // set the startBlock to be `USAGE_PERIOD_IN_BLOCKS` after the previous key's startBlock
+                    startBlock: ephemeralKeyEntries[msg.sender][ephemeralKeyEntries[msg.sender].length - 1].startBlock + USAGE_PERIOD_IN_BLOCKS,
                     // set the revealBLock to 0 because it has not been revealed
                     revealBlock: 0
                 })
@@ -194,8 +194,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
             require(ephemeralKeyEntries[operator][startIndex - 1].revealBlock != 0, "EphemeralKeyRegistry.revealLastEphemeralKeys: must reveal keys in order");
         }
         // get the final index plus one
-        uint256 finalIndexPlusOne = startIndex + prevEphemeralKeys.length;
-        for (uint256 i = startIndex; i < finalIndexPlusOne;) {
+        uint256 finalIndex = startIndex + prevEphemeralKeys.length - 1;
+        for (uint256 i = startIndex; i <= finalIndex;) {
             require(
                 ephemeralKeyEntries[operator][i].ephemeralKeyHash == keccak256(abi.encodePacked(prevEphemeralKeys[i-startIndex])),
                 "EphemeralKeyRegistry.revealLastEphemeralKeys: Ephemeral key does not match previous ephemeral key commitment"
@@ -207,7 +207,7 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
                 ++i;
             }
         }
-        require(ephemeralKeyEntries[operator].length == finalIndexPlusOne,
+        require(ephemeralKeyEntries[operator].length == finalIndex + 1,
             "EphemeralKeyRegistry.revealLastEphemeralKeys: all ephemeral keys must be revealed");
     }
 
@@ -219,13 +219,13 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
     function verifyStaleEphemeralKey(address operator, uint256 index) external {
         require(ephemeralKeyEntries[operator][index].revealBlock == 0, "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has been revealed");
         if (index + 1 == ephemeralKeyEntries[operator].length){
-            // for the last ephemeral key to be stale, it must have been used for strictly more than USAGE_PERIOD_BLOCKS
-            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_BLOCKS < uint32(block.number), 
-                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_BLOCKS yet");
+            // for the last ephemeral key to be stale, it must have been used for strictly more than USAGE_PERIOD_IN_BLOCKS
+            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_IN_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_IN_BLOCKS yet");
         } else {
-            // otherwise, for an ephemeral key to be stale, the next ephemeral key must have been active for strictly more than REVEAL_PERIOD_BLOCKS
-            require(ephemeralKeyEntries[operator][index + 1].startBlock + REVEAL_PERIOD_BLOCKS < uint32(block.number), 
-                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_BLOCKS yet");
+            // otherwise, for an ephemeral key to be stale, the next ephemeral key must have been active for strictly more than REVEAL_PERIOD_IN_BLOCKS
+            require(ephemeralKeyEntries[operator][index + 1].startBlock + REVEAL_PERIOD_IN_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_IN_BLOCKS yet");
         }
 
         // emit event for stale ephemeral key
@@ -262,8 +262,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
             uint256 endBlock = ephemeralKeyEntries[operator][index+1].startBlock;
             require(
                 block.number < endBlock ||
-                block.number > endBlock + REVEAL_PERIOD_BLOCKS,
-                "EphemeralKeyRegistry.verifyLeakedEphemeralKey: key cannot be leaked within reveal period"
+                block.number > endBlock + REVEAL_PERIOD_IN_BLOCKS,
+                "EphemeralKeyRegistry.verifyLeakedEphemeralKey: operator cannot be slashed for leaking key within reveal period"
             );
         }
 
@@ -327,7 +327,7 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry {
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too early"
         );
         require(
-            block.number <= endBlock + REVEAL_PERIOD_BLOCKS,
+            block.number <= endBlock + REVEAL_PERIOD_IN_BLOCKS,
             "EphemeralKeyRegistry.revealEphemeralKey: key update cannot be completed too late"
         );
 

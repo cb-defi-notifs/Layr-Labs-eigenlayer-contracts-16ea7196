@@ -185,5 +185,9 @@ contract BLSRegistryWithBomb is BLSRegistry {
         bytes32 pubkeyHash = registry[operator].pubkeyHash;
         uint32 blockNumber = pubkeyHashToIndexHistory[pubkeyHash][pubkeyHashToIndexHistory[pubkeyHash].length - 1].toBlockNumber;
         return blockNumber != 0 && blockNumber + IDelayedService(address(serviceManager)).BLOCK_STALE_MEASURE() < uint32(block.number);
+
     }
 }
+
+
+
