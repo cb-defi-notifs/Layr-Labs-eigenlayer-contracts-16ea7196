@@ -542,7 +542,6 @@ contract InvestmentManager is
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
 
-
         require(shareAmount <= userShares, "InvestmentManager._removeShares: shareAmount too high");
         //unchecked arithmetic since we just checked this above
         unchecked {

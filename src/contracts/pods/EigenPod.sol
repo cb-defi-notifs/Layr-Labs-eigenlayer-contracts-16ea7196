@@ -11,6 +11,8 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
+ import "forge-std/Test.sol";
+
 
 
 /**
@@ -24,7 +26,7 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPod is IEigenPod, Initializable
+contract EigenPod is IEigenPod, Initializable, DSTest
 {
     using BytesLib for bytes;
 

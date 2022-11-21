@@ -16,7 +16,7 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
-// import "forge-std/Test.sol";
+ import "forge-std/Test.sol";
 
 /**
  * @title The contract used for creating and managing EigenPods
@@ -27,7 +27,7 @@ import "../interfaces/IBeaconChainOracle.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager
+contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager, DSTest
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
