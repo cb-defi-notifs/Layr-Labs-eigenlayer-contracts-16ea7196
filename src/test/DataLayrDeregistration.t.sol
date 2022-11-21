@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "./DataLayrTestHelper.t.sol";
 import "../contracts/libraries/BytesLib.sol";
 
-contract DeregistrationTests is DataLayrTestHelper {
+contract DataLayrDeregistrationTests is DataLayrTestHelper {
     using BytesLib for bytes;
 
     /**

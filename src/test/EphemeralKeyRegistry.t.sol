@@ -11,7 +11,7 @@ import "./mocks/EigenDARegistryMock.sol";
 import "./mocks/ServiceManagerMock.sol";
 import "./Delegation.t.sol";
 
-contract EphemeralKeyTests is DelegationTests {
+contract EphemeralKeyRegistryTests is DelegationTests {
 
     EigenDARegistryMock public eigenDAReg;
     EigenDARegistryMock public eigenDARegImplementation;
