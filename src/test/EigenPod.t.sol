@@ -121,11 +121,12 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
+        emit log_named_address("og pod owner", podOwner);
         
     }
 
     function testDeployAndVerifyNewEigenPod(bytes memory signature, bytes32 depositDataRoot) public {
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, false);
     }
 
@@ -504,6 +505,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         IEigenPod newPod;
 
         newPod = eigenPodManager.getPod(podOwner);
+        emit log_named_address("getPod", address(newPod));
 
         bytes32 validatorIndex = bytes32(uint256(0));
         bytes memory proofs = abi.encodePacked(validatorTreeRoot, beaconStateMerkleProof, validatorRoot, validatorIndex, validatorMerkleProof);

@@ -17,7 +17,7 @@ contract BeaconChainProofUtils {
         beaconStateMerkleProof.push(0x1260718cd540a187a9dcff9f4d39116cdc1a0aed8a94fbe7a69fb87eae747be5);
 
         validatorContainerFields.push(0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f);
-        validatorContainerFields.push(0x010000000000000000000000a3e2f3de1b0a71ed49ec592caeb42322f89ebaea);
+        validatorContainerFields.push(0x01000000000000000000000093939caed8a5a52e4dda47b64579ce1a5c8549dc);
         validatorContainerFields.push(0x2000000000000000000000000000000000000000000000000000000000000000);
         validatorContainerFields.push(0x0000000000000000000000000000000000000000000000000000000000000000);
         validatorContainerFields.push(0x0200000000000000000000000000000000000000000000000000000000000000);
@@ -68,10 +68,10 @@ contract BeaconChainProofUtils {
         validatorMerkleProof.push(0x0100000000000000000000000000000000000000000000000000000000000000);
 
         //hash tree root of list of validators
-        bytes32 validatorTreeRoot = 0x8fa2006e3402e8226353692fad2d35457e5b9c3bfe73130d488f1c220363baa9;
+        bytes32 validatorTreeRoot = 0x42e21baa9d19c6e7736d765e5e42b71deff181b539f3e75c335a0d30944b0045;
 
         //hash tree root of individual validator container
-        bytes32 validatorRoot = 0x8a38196fcb74b5c932c486598e4bff65b4ae1dc3eacaa839f0fc6fe8171ee92b;
+        bytes32 validatorRoot = 0x09734df7359e23a49f346aa82eba06e6f4dbaff05b8ba72bf3ffb59254721216;
 
         return (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot);
 
