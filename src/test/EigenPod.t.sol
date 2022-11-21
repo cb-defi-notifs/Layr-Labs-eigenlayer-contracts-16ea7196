@@ -69,7 +69,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         );
 
         beaconChainOracle = new BeaconChainOracleMock();
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
 
         ethPOSDeposit = new ETHPOSDepositMock();
         pod = new EigenPod(ethPOSDeposit);
@@ -135,7 +135,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
-        beaconChainOracle.setBeaconChainStateRoot(0xc50c29e99864df7c8e181ef48bef732accf96a34ff685a9b6404077a893c03f9);
+        beaconChainOracle.setBeaconChainStateRoot(0x454eacf32c34f890ccb137c1bd888fe9f3a03515f14b4941415ebb292258196b);
         //get updated proof, set beaconchain state root
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
         
@@ -158,7 +158,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         //make initial deposit
         testDeployAndVerifyNewEigenPod(signature, depositDataRoot);
 
-        beaconChainOracle.setBeaconChainStateRoot(0xc50c29e99864df7c8e181ef48bef732accf96a34ff685a9b6404077a893c03f9);
+        beaconChainOracle.setBeaconChainStateRoot(0x454eacf32c34f890ccb137c1bd888fe9f3a03515f14b4941415ebb292258196b);
         //get updated proof, set beaconchain state root
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getSlashedDepositProof();
         
@@ -180,7 +180,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployNewEigenPodWithWrongPubkey(bytes memory wrongPubkey, bytes memory signature, bytes32 depositDataRoot) public {
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
         cheats.startPrank(podOwner);
@@ -217,7 +217,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     }
 
     function testDeployNewEigenPodWithActiveValidator(bytes memory signature, bytes32 depositDataRoot) public {
-        beaconChainOracle.setBeaconChainStateRoot(0xb08d5a1454de19ac44d523962096d73b85542f81822c5e25b8634e4e86235413);
+        beaconChainOracle.setBeaconChainStateRoot(0xaf3bf0770df5dd35b984eda6586e6f6eb20af904a5fb840fe65df9a6415293bd);
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
         
 
@@ -242,7 +242,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         cheats.assume(operator != address(eigenLayrProxyAdmin));
         cheats.assume(operator != address(beaconChainETHReceiver));
 
-        beaconChainOracle.setBeaconChainStateRoot(0x189b88619d1faa00b2a0ff0af6a042652d62fa06eac915a893ab7a345ad0909f);
+        beaconChainOracle.setBeaconChainStateRoot(0xace9b7b6b5d7921dd2d61d4a2cf9a61db92119faf66c25dde5e2bc030e71d41b);
         //make initial deposit
         podOwner = address(beaconChainETHReceiver);
         _testDeployAndVerifyNewEigenPod(podOwner, signature, depositDataRoot, true);

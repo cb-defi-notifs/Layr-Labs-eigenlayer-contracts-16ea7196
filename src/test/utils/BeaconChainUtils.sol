@@ -85,15 +85,14 @@ contract BeaconChainProofUtils {
         beaconStateMerkleProof[3] = 0x086ef90e3db0073ad2f8b2e6b38653d726e850fde26859dd881da1ac523598f0;
         beaconStateMerkleProof[4] = 0x1260718cd540a187a9dcff9f4d39116cdc1a0aed8a94fbe7a69fb87eae747be5;
 
-        validatorContainerFields[0] = 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f;
-        validatorContainerFields[1] = 0x010000000000000000000000a3e2f3de1b0a71ed49ec592caeb42322f89ebaea;
+       validatorContainerFields[0] = 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f;
+        validatorContainerFields[1] = 0x01000000000000000000000093939caed8a5a52e4dda47b64579ce1a5c8549dc;
         validatorContainerFields[2] = 0x1000000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[3] = 0x0100000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[4] = 0x0200000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[5] = 0x0300000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[6] = 0x0600000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[7] = 0x0900000000000000000000000000000000000000000000000000000000000000;
-
 
         validatorMerkleProof[0] = 0x0000000000000000000000000000000000000000000000000000000000000000;
         validatorMerkleProof[1] = 0xf5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b;
@@ -137,12 +136,11 @@ contract BeaconChainProofUtils {
         validatorMerkleProof[39] = 0xad21b516cbc645ffe34ab5de1c8aef8cd4e7f8d2b51e8e1456adc7563cda206f;
         validatorMerkleProof[40] = 0x0100000000000000000000000000000000000000000000000000000000000000;
 
-
         //hash tree root of list of validators
-        bytes32 validatorTreeRoot = 0x678b8500eaee69d975a9ba9cecf1d64bf102da3f10f65d6fb9331abd431e62bd;
+        bytes32 validatorTreeRoot = 0xdf1883e8cc733bf772e4d0341b6c4a1832fe61241dfbabc5de9b6d5892eae896;
 
         //hash tree root of individual validator container
-        bytes32 validatorRoot = 0x24c79c612ac9d0ac4663b8b9b698ac8ddd4d1942ccb425d43f216f302d251b9d;
+        bytes32 validatorRoot = 0xc216fcef87bdb195cb57da9324ccdd532cdad31b66ad442f8e2b16334764add8;
 
         return (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot);
     }
@@ -159,7 +157,7 @@ contract BeaconChainProofUtils {
         beaconStateMerkleProof[4] = 0x1260718cd540a187a9dcff9f4d39116cdc1a0aed8a94fbe7a69fb87eae747be5;
 
         validatorContainerFields[0] = 0x5e2c2b702b0af22301f7ae52886da3827ea100b3d2a52222e6a10ea82e718a7f;
-        validatorContainerFields[1] = 0x010000000000000000000000515ce83dd2fd5dce54a0c6fb8c1b5e91497bfcba;
+        validatorContainerFields[1] = 0x01000000000000000000000065481165de5cefa4c432a0835b313af4c0d70988;
         validatorContainerFields[2] = 0x2000000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[3] = 0x0000000000000000000000000000000000000000000000000000000000000000;
         validatorContainerFields[4] = 0x0200000000000000000000000000000000000000000000000000000000000000;
@@ -210,12 +208,11 @@ contract BeaconChainProofUtils {
         validatorMerkleProof[39] = 0xad21b516cbc645ffe34ab5de1c8aef8cd4e7f8d2b51e8e1456adc7563cda206f;
         validatorMerkleProof[40] = 0x0100000000000000000000000000000000000000000000000000000000000000;
 
-
         //hash tree root of list of validators
-        bytes32 validatorTreeRoot = 0x04f80edf6e023d088a84d0c8ceb1706671f7c4832b658052b7cc2541cf3368ab;
+        bytes32 validatorTreeRoot = 0x187acf13eec2a0af0c08fb707022f36f5f8ec199ac31f54e480fb822581d6709;
 
         //hash tree root of individual validator container
-        bytes32 validatorRoot = 0x0040236f197797916f9e0e8682d08f701b5dafea69c34af9a142e5357a815339;
+        bytes32 validatorRoot = 0x5258c2b80f694b93f02a8973798f50f8034b3a814d6088b84496c7e02d3e120e;
 
         return (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot);
     }
