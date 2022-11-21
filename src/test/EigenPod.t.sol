@@ -121,8 +121,6 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         slashingContracts.push(address(eigenPodManager));
         investmentManager.slasher().addGloballyPermissionedContracts(slashingContracts);
-
-        emit log_named_address("podOwner", podOwner);
         
     }
 
@@ -241,6 +239,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
     function testEigenPodsQueuedWithdrawalContract(address operator, bytes memory signature, bytes32 depositDataRoot) public {
         cheats.assume(operator != address(0));
         cheats.assume(operator != address(eigenLayrProxyAdmin));
+        cheats.assume(operator != address(beaconChainETHReceiver));
 
         beaconChainOracle.setBeaconChainStateRoot(0x189b88619d1faa00b2a0ff0af6a042652d62fa06eac915a893ab7a345ad0909f);
         //make initial deposit
@@ -327,7 +326,7 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
 
         require(address(beaconChainETHReceiver).balance - receiverBalanceBefore == shareAmounts[0], "Receiver contract balance not updated correctly");
     } 
-    
+
     // Withdraw eigenpods balance to an EOA
     function testEigenPodsQueuedWithdrawalEOA(address operator, bytes memory signature, bytes32 depositDataRoot) public {
         cheats.assume(operator != address(0));
