@@ -65,6 +65,7 @@ contract EphemeralKeyTests is DelegationTests {
     }
 
     function testSlashStaleEphemeralKey(address operator) public initialized(operator) {
+        cheats.assume(operator != address(0));
         cheats.startPrank(address(eigenDAReg));
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
@@ -77,6 +78,7 @@ contract EphemeralKeyTests is DelegationTests {
     }
 
     function testSlashLeakedEphemeralKey(address operator) public initialized(operator) {
+        cheats.assume(operator != address(0));
         cheats.startPrank(address(eigenDAReg));
         ephemeralKeyRegistry.postFirstEphemeralKeyHashes(operator, testEphemeralKeyHash1, testEphemeralKeyHash2);
        
