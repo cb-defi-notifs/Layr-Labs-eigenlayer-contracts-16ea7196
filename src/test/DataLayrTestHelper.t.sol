@@ -3,11 +3,24 @@ pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
 import "../test/DataLayrDeployer.t.sol";
-import "../test/TestHelper.t.sol";
+import "../test/EigenLayrTestHelper.t.sol";
 
 
-contract DataLayrTestHelper is DataLayrDeployer, TestHelper {
+contract DataLayrTestHelper is DataLayrDeployer, EigenLayrTestHelper {
     using BytesLib for bytes;
+
+    modifier fuzzedAddress(address addr) virtual override(DataLayrDeployer, EigenLayrDeployer) {
+        cheats.assume(addr != address(0));
+        cheats.assume(addr != address(eigenLayrProxyAdmin));
+        cheats.assume(addr != address(investmentManager));
+        cheats.assume(addr != address(dataLayrProxyAdmin));
+        cheats.assume(addr != dlsm.owner());
+        _;
+    }
+
+    function setUp() public virtual override(EigenLayrDeployer, DataLayrDeployer) {
+        DataLayrDeployer.setUp();
+    }
 
     /// @dev ensure that operator has been delegated to by calling _testInitiateDelegation
     function _testRegisterOperatorWithDataLayr(
@@ -424,8 +437,24 @@ contract DataLayrTestHelper is DataLayrDeployer, TestHelper {
         );
     }
 
+    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
+        uint256[4] memory pk;
+        // verify sig of public key and get pubkeyHash back, slice out compressed apk
+        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
 
+        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
 
+        return pkHash;
+    }
+
+    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
+        uint256[4] memory pubkey; 
+        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
+        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
+        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
+        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
+        return pubkey;
+    }
 
 }
 

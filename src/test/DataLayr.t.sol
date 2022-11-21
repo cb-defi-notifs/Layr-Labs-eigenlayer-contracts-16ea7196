@@ -5,6 +5,7 @@ import "./DataLayrTestHelper.t.sol";
 import "forge-std/Test.sol";
 
 contract DataLayrTests is DSTest, DataLayrTestHelper {
+
     //checks that it is possible to init a data store
     function testInitDataStore() public returns (bytes32) {
         uint256 numSigners = 15;

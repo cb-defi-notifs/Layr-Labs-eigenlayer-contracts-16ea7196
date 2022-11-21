@@ -217,6 +217,19 @@ contract DelegationTests is DataLayrTestHelper {
         uint96 operatorEigenWeightBefore = dlReg.weightOfOperator(operator, 1);
         _testRegisterAsOperator(operator, IDelegationTerms(operator));
         _testDepositStrategies(staker, 1e18, numStratsToAdd);
+
+        // add strategies to dlRegistry
+        uint96 multiplier = 1e18;
+        for (uint16 i = 0; i < numStratsToAdd; ++i) {
+            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
+            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
+                    1
+                );
+            ethStratsAndMultipliers[0].strategy = strategies[i];
+            ethStratsAndMultipliers[0].multiplier = multiplier;
+            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
+        }
+
         _testDepositEigen(staker, 1e18);
         _testDelegateToOperator(staker, operator);
         uint96 operatorEthWeightAfter = dlReg.weightOfOperator(operator, 0);

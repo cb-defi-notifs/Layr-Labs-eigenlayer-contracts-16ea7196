@@ -2,10 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "../contracts/libraries/BytesLib.sol";
-import "../test/DataLayrDeployer.t.sol";
+import "../test/EigenLayrDeployer.t.sol";
 
 
-contract TestHelper is DataLayrDeployer {
+contract EigenLayrTestHelper is EigenLayrDeployer {
     using BytesLib for bytes;
 
     uint8 durationToInit = 2;
@@ -266,8 +266,7 @@ contract TestHelper is DataLayrDeployer {
 
     // deploys 'numStratsToAdd' strategies using '_testAddStrategyBase' and then deposits 'amountToDeposit' to each of them from 'sender'
     function _testDepositStrategies(address sender, uint256 amountToDeposit, uint16 numStratsToAdd) internal {
-        // hard-coded inputs
-        uint96 multiplier = 1e18;
+        // hard-coded input
         IERC20 underlyingToken = weth;
 
         cheats.assume(numStratsToAdd > 0 && numStratsToAdd <= 20);
@@ -288,16 +287,6 @@ contract TestHelper is DataLayrDeployer {
             // TODO: perhaps remove this is we can. seems brittle if we don't track the number of strategies somewhere
             //store strategy in mapping of strategies
             strategies[i] = IInvestmentStrategy(address(stratsToDepositTo[i]));
-        }
-        // add strategies to dlRegistry
-        for (uint16 i = 0; i < numStratsToAdd; ++i) {
-            VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[] memory ethStratsAndMultipliers =
-            new VoteWeigherBaseStorage.StrategyAndWeightingMultiplier[](
-                    1
-                );
-            ethStratsAndMultipliers[0].strategy = stratsToDepositTo[i];
-            ethStratsAndMultipliers[0].multiplier = multiplier;
-            dlReg.addStrategiesConsideredAndMultipliers(0, ethStratsAndMultipliers);
         }
     }
 
@@ -361,30 +350,6 @@ contract TestHelper is DataLayrDeployer {
         cheats.stopPrank();
         return (withdrawalRoot, queuedWithdrawal);
     }
-
-
-
-    function getG2PublicKeyHash(bytes calldata data, address signer) public view returns(bytes32 pkHash){
-
-        uint256[4] memory pk;
-        // verify sig of public key and get pubkeyHash back, slice out compressed apk
-        (pk[0], pk[1], pk[2], pk[3]) = BLS.verifyBLSSigOfPubKeyHash(data, signer);
-
-        pkHash = keccak256(abi.encodePacked(pk[0], pk[1], pk[2], pk[3]));
-
-        return pkHash;
-
-    }
-
-    function getG2PKOfRegistrationData(uint8 operatorIndex) internal view returns(uint256[4] memory){
-        uint256[4] memory pubkey; 
-        pubkey[0] = uint256(bytes32(registrationData[operatorIndex].slice(32,32)));
-        pubkey[1] = uint256(bytes32(registrationData[operatorIndex].slice(0,32)));
-        pubkey[2] = uint256(bytes32(registrationData[operatorIndex].slice(96,32)));
-        pubkey[3] = uint256(bytes32(registrationData[operatorIndex].slice(64,32)));
-        return pubkey;
-    }
-
 
     function getVSfromVandS(uint8 v, bytes32 s) internal view returns(bytes32){
         if (uint256(s) > SECP256K1N_MODULUS_HALF) {

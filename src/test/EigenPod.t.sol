@@ -489,22 +489,22 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
             investmentManager.getDeposits(staker);
     }
 
-    function _testDeployAndVerifyNewEigenPod(address podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal {
+    function _testDeployAndVerifyNewEigenPod(address _podOwner, bytes memory signature, bytes32 depositDataRoot, bool isContract) internal {
         (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getInitialDepositProof();
 
-        //if the podOwner is a contract, we get the beacon state proof for the contract-specific withdrawal credential
+        //if the _podOwner is a contract, we get the beacon state proof for the contract-specific withdrawal credential
         if(isContract){
             (beaconStateMerkleProof, validatorContainerFields, validatorMerkleProof, validatorTreeRoot, validatorRoot) = getContractAddressWithdrawalCred();
         }
 
-        cheats.startPrank(podOwner);
+        cheats.startPrank(_podOwner);
         eigenPodManager.stake(pubkey, signature, depositDataRoot);
         cheats.stopPrank();
 
 
         IEigenPod newPod;
 
-        newPod = eigenPodManager.getPod(podOwner);
+        newPod = eigenPodManager.getPod(_podOwner);
         emit log_named_address("getPod", address(newPod));
 
         bytes32 validatorIndex = bytes32(uint256(0));
@@ -512,11 +512,11 @@ contract EigenPodTests is BeaconChainProofUtils, DSTest {
         newPod.verifyCorrectWithdrawalCredentials(pubkey, proofs, validatorContainerFields);
 
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorContainerFields[2]);
-        require(eigenPodManager.getBalance(podOwner) == validatorBalance, "Validator balance not updated correctly");
+        require(eigenPodManager.getBalance(_podOwner) == validatorBalance, "Validator balance not updated correctly");
 
         IInvestmentStrategy beaconChainETHStrategy = investmentManager.beaconChainETHStrategy();
 
-        uint256 beaconChainETHShares = investmentManager.investorStratShares(podOwner, beaconChainETHStrategy);
+        uint256 beaconChainETHShares = investmentManager.investorStratShares(_podOwner, beaconChainETHStrategy);
 
 
         require(beaconChainETHShares == validatorBalance, "investmentManager shares not updated correctly");

@@ -2,9 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "./EigenLayrDeployer.t.sol";
-import "./TestHelper.t.sol";
+import "./EigenLayrTestHelper.t.sol";
 
-contract SlasherTests is TestHelper {
+contract SlasherTests is EigenLayrTestHelper {
     /**
      * @notice this function tests the slashing process by first freezing
      * the operator and then calling the investmentManager.slashShares()
