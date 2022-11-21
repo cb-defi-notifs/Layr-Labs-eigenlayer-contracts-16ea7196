@@ -10,7 +10,6 @@ import "../permissions/Pausable.sol";
 import "./InvestmentManagerStorage.sol";
 import "../interfaces/IServiceManager.sol";
 import "../interfaces/IEigenPodManager.sol";
-import "forge-std/Test.sol";
 
 /**
  * @title The primary entry- and exit-point for funds into and out of EigenLayr.
@@ -30,7 +29,6 @@ contract InvestmentManager is
     ReentrancyGuardUpgradeable,
     InvestmentManagerStorage,
     Pausable
-    // ,DSTest
 {
     using SafeERC20 for IERC20;
 
@@ -347,7 +345,6 @@ contract InvestmentManager is
             "InvestmentManager.completeQueuedWithdrawal: shares pending withdrawal are still slashable"
         );
 
-
         // TODO: add testing coverage for this
         require(
             msg.sender == queuedWithdrawal.withdrawerAndNonce.withdrawer,
@@ -544,7 +541,6 @@ contract InvestmentManager is
 
         //check that the user has sufficient shares
         uint256 userShares = investorStratShares[depositor][strategy];
-
 
         require(shareAmount <= userShares, "InvestmentManager._removeShares: shareAmount too high");
         //unchecked arithmetic since we just checked this above

@@ -11,6 +11,8 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPodManager.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainETHReceiver.sol";
+ import "forge-std/Test.sol";
+
 
 
 /**
@@ -24,7 +26,7 @@ import "../interfaces/IBeaconChainETHReceiver.sol";
  * - updating aggregate balances in the EigenPodManager
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPod is IEigenPod, Initializable
+contract EigenPod is IEigenPod, Initializable, DSTest
 {
     using BytesLib for bytes;
 
@@ -91,6 +93,8 @@ contract EigenPod is IEigenPod, Initializable
         );
         // require that the first field is the merkleized pubkey
         require(validatorFields[0] == merklizedPubkey, "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for provided pubkey");
+
+        emit log_named_bytes32("pod withdrawal cred", podWithdrawalCredentials().toBytes32(0));
         require(validatorFields[1] == podWithdrawalCredentials().toBytes32(0), "EigenPod.verifyCorrectWithdrawalCredentials: Proof is not for this EigenPod");
         // convert the balance field from 8 bytes of little endian to uint64 big endian 💪
         uint64 validatorBalance = Endian.fromLittleEndianUint64(validatorFields[2]);
@@ -154,8 +158,15 @@ contract EigenPod is IEigenPod, Initializable
         external
         onlyEigenPodManager
     {
-        // transfer ETH directly from pod to msg.sender 
-        IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
+
+        // transfer ETH directly from pod to `recipient`
+        if (Address.isContract(recipient)) {
+            // if the recipient is a contract, then call its `receiveBeaconChainETH` function
+            IBeaconChainETHReceiver(recipient).receiveBeaconChainETH{value: amount}();
+        } else {
+            // if the recipient is an EOA, then do a simple transfer
+            payable(recipient).transfer(amount);
+        }
     }
     // if you've been slashed on the Beacon chain, you can add balance to your pod to avoid getting slashed
     function topUpPodBalance() external payable {}

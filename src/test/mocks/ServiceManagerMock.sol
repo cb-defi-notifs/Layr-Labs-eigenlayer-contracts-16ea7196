@@ -23,7 +23,6 @@ contract ServiceManagerMock is IServiceManager, DSTest {
 
     /// @notice Permissioned function that causes the ServiceManager to freeze the operator on EigenLayer, through a call to the Slasher contract
     function freezeOperator(address operator) external {
-         emit log_named_address("EK SERVICE addy", address(this));
          ISlasher(investmentManager.slasher()).freezeOperator(operator);
     }
 

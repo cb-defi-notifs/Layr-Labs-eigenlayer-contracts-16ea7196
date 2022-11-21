@@ -16,9 +16,7 @@ import "../interfaces/IETHPOSDeposit.sol";
 import "../interfaces/IEigenPod.sol";
 import "../interfaces/IBeaconChainOracle.sol";
 
-import "forge-std/Test.sol";
-
-
+ import "forge-std/Test.sol";
 
 /**
  * @title The contract used for creating and managing EigenPods
@@ -29,7 +27,7 @@ import "forge-std/Test.sol";
  * - keeping track of the balances of all validators of EigenPods, and their stake in EigenLayer
  * - withdrawing eth when withdrawals are initiated
  */
-contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager 
+contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager, DSTest
 {
     //TODO: change this to constant in prod
     IETHPOSDeposit immutable ethPOS;
@@ -92,6 +90,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager
         if(!hasPod(msg.sender)) {
             //deploy a pod if the sender doesn't have one already
             pod = _deployPod();
+            emit log_named_address("new pod deplohed", address(pod));
         }
         pod.stake{value: msg.value}(pubkey, signature, depositDataRoot);
     }
@@ -113,7 +112,6 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager
         * address + balance given from beacon chain state root if the investment manager ever thinks there is more 
         * restaked than there is, a freezing event is triggered
         */
-        //TODO: add EigenPodManager as globally permissioned slashing contract
         if (pods[podOwner].depositedBalance > newBalance + msg.sender.balance) {
             investmentManager.slasher().freezeOperator(podOwner);
         }
@@ -160,6 +158,7 @@ contract EigenPodManager is Initializable, OwnableUpgradeable, IEigenPodManager
 
     // INTERNAL FUNCTIONS
     function _deployPod() internal returns (IEigenPod) {
+        emit log_named_address("deployer address", msg.sender);
         IEigenPod pod = 
             IEigenPod(
                 Create2.deploy(

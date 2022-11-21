@@ -316,7 +316,7 @@ contract WithdrawalTests is DelegationTests {
         testWithdrawalWrapper(operator, depositor, withdrawer, ethAmount, eigenAmount, withdrawAsShares, true);
 
         //warps past fraudproof time interval
-        cheats.warp(block.timestamp + undelegationFraudproofInterval + 1);
+        cheats.warp(block.timestamp + 7 days + 1);
         testDelegation(operator, depositor, ethAmount, eigenAmount);
     }
 
