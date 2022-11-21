@@ -224,11 +224,8 @@ contract EphemeralKeyRegistry is Initializable, IEphemeralKeyRegistry, DSTest {
                 "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for USAGE_PERIOD_IN_BLOCKS yet");
         } else {
             // otherwise, for an ephemeral key to be stale, the next ephemeral key must have been active for strictly more than REVEAL_PERIOD_IN_BLOCKS
-            // require(ephemeralKeyEntries[operator][index + 1].startBlock + REVEAL_PERIOD_IN_BLOCKS < uint32(block.number), 
-            //     "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_IN_BLOCKS yet");
-            
-            require(ephemeralKeyEntries[operator][index].startBlock + USAGE_PERIOD_IN_BLOCKS < ephemeralKeyEntries[operator][index + 1].startBlock, 
-                    "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_IN_BLOCKS yet");
+            require(ephemeralKeyEntries[operator][index + 1].startBlock + REVEAL_PERIOD_IN_BLOCKS < uint32(block.number), 
+                "EphemeralKeyRegistry.verifyStaleEphemeralKey: ephemeral key has not been used for REVEAL_PERIOD_IN_BLOCKS yet");
         }
 
         // emit event for stale ephemeral key

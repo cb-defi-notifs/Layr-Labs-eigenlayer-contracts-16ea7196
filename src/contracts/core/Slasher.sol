@@ -124,7 +124,6 @@ contract Slasher is Initializable, OwnableUpgradeable, ISlasher, Pausable, DSTes
      * @dev The operator must have previously given the caller (which should be a contract) the ability to slash them, through a call to `optIntoSlashing`.
      */
     function freezeOperator(address toBeFrozen) external onlyWhenNotPaused(PAUSED_NEW_FREEZING) {
-         emit log_named_address("EK REG addy", msg.sender);
         require(
             canSlash(toBeFrozen, msg.sender),
             "Slasher.freezeOperator: msg.sender does not have permission to slash this operator"
