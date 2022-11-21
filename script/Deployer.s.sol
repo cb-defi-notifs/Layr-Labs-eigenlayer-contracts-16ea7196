@@ -375,7 +375,8 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
                     initialOwner,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
-                    feePerBytePerTime
+                    feePerBytePerTime,
+                    initialOwner
                 )
             );
         }

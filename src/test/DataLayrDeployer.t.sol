@@ -183,7 +183,8 @@ contract DataLayrDeployer is EigenLayrDeployer {
                     initialOwner,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
-                    feePerBytePerTime
+                    feePerBytePerTime,
+                    initialOwner
                 )
             );
         }
