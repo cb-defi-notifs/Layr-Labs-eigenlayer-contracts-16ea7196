@@ -45,6 +45,8 @@ contract DataLayrDeployer is EigenLayrDeployer {
     uint256[] sample_sig;
     address storer = address(420);
 
+    address public dataLayrReputedMultisig = address(this);
+
     struct NonSignerPK {
         uint256 xA0;
         uint256 xA1;
@@ -180,7 +182,7 @@ contract DataLayrDeployer is EigenLayrDeployer {
                 abi.encodeWithSelector(
                     DataLayrServiceManager.initialize.selector,
                     dataLayrPauserReg,
-                    initialOwner,
+                    dataLayrReputedMultisig,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
                     feePerBytePerTime

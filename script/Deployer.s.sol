@@ -153,7 +153,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         emit log_address(address(this));
         address pauser = msg.sender;
         address unpauser = msg.sender;
-        address initialOwner = msg.sender;
+        address eigenLayrReputedMultisig = msg.sender;
 
 
 
@@ -200,17 +200,17 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(delegation))),
             address(delegationImplementation),
-            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, initialOwner)
+            abi.encodeWithSelector(EigenLayrDelegation.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(investmentManager))),
             address(investmentManagerImplementation),
-            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, initialOwner)
+            abi.encodeWithSelector(InvestmentManager.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(slasher))),
             address(slasherImplementation),
-            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, initialOwner)
+            abi.encodeWithSelector(Slasher.initialize.selector, eigenLayrPauserReg, eigenLayrReputedMultisig)
         );
         eigenLayrProxyAdmin.upgradeAndCall(
             TransparentUpgradeableProxy(payable(address(eigenPodManager))),
@@ -278,7 +278,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
     function _deployDataLayrContracts() internal {
         address pauser = msg.sender;
         address unpauser = msg.sender;
-        address initialOwner = msg.sender;
+        address dataLayrReputedMultisig = msg.sender;
 
 
 
@@ -372,7 +372,7 @@ contract EigenLayrDeployer is Script, DSTest, ERC165_Universal, ERC1155TokenRece
                 abi.encodeWithSelector(
                     DataLayrServiceManager.initialize.selector,
                     dataLayrPauserReg,
-                    initialOwner,
+                    dataLayrReputedMultisig,
                     quorumThresholdBasisPoints,
                     adversaryThresholdBasisPoints,
                     feePerBytePerTime
